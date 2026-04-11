@@ -614,17 +614,21 @@ public struct CompiledCCSShape: Equatable, Sendable {
     public let transformedMatrices: [RingMatrix]
     public let transformedSparseMatrices: [SparseRingMatrixCSR]
 
-    public init(shape: CCSShape) throws {
-        let transformedMatrices = try shape.matrices.map {
-            try $0.toSparseFieldMatrix().transformedForSuperNeo()
+    public init(shape: CCSShape, includeDense: Bool = true, includeSparse: Bool = true) throws {
+        guard includeDense || includeSparse else {
+            throw SuperNeoError.invalidParameter("compiled CCS shape must include at least one transformed representation")
         }
-        let transformedSparseMatrices = try shape.matrices.map {
-            try $0.toSparseFieldMatrix().transformedSparseForSuperNeo()
-        }
-        guard transformedMatrices.count == shape.numMatrices else {
+        let fieldMatrices = try shape.matrices.map { try $0.toSparseFieldMatrix() }
+        let transformedMatrices = includeDense
+            ? try fieldMatrices.map { try $0.transformedForSuperNeo() }
+            : []
+        let transformedSparseMatrices = includeSparse
+            ? try fieldMatrices.map { try $0.transformedSparseForSuperNeo() }
+            : []
+        guard !includeDense || transformedMatrices.count == shape.numMatrices else {
             throw SuperNeoError.invalidParameter("compiled CCS shape matrix count mismatch")
         }
-        guard transformedSparseMatrices.count == shape.numMatrices else {
+        guard !includeSparse || transformedSparseMatrices.count == shape.numMatrices else {
             throw SuperNeoError.invalidParameter("compiled CCS sparse matrix count mismatch")
         }
         self.shape = shape
@@ -636,6 +640,14 @@ public struct CompiledCCSShape: Equatable, Sendable {
 extension CCSShape {
     public func compiledForSuperNeo() throws -> CompiledCCSShape {
         try CompiledCCSShape(shape: self)
+    }
+
+    public func compiledSparseForSuperNeo() throws -> CompiledCCSShape {
+        try CompiledCCSShape(shape: self, includeDense: false, includeSparse: true)
+    }
+
+    public func compiledDenseForSuperNeo() throws -> CompiledCCSShape {
+        try CompiledCCSShape(shape: self, includeDense: true, includeSparse: false)
     }
 }
 

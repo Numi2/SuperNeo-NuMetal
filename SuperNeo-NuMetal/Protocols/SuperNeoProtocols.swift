@@ -328,18 +328,19 @@ public enum CEOpeningRelation {
             throw SuperNeoError.invalidParameter("CE opening proof witness count mismatch")
         }
 
-        let transformedMatrices = try shape.compiledForSuperNeo().transformedMatrices
-        _ = try makePrivateTargets(
+        let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
+        let privateWitnesses = try witnesses.map {
+            try privateWitness(from: $0.witness, shape: shape)
+        }
+        try validatePrivateOpenings(
             statement: statement,
             witnesses: witnesses,
+            privateWitnesses: privateWitnesses,
             shape: shape,
             key: key,
             transformedMatrices: transformedMatrices,
             parameters: parameters
         )
-        let privateWitnesses = try witnesses.map {
-            try privateWitness(from: $0.witness, shape: shape)
-        }
         let seed = randomSeed ?? makeSystemRandomSeed()
         var rng = DeterministicRNG(seed: seed + statement.superNeoBytes)
         var transcript = makeCEOpeningTranscript(statement: statement)
@@ -435,7 +436,7 @@ public enum CEOpeningRelation {
             return false
         }
 
-        let transformedMatrices = try shape.compiledForSuperNeo().transformedMatrices
+        let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
         var transcript = makeCEOpeningTranscript(statement: statement)
         transcript.absorb(ceEncodeCount(proof.rounds.count))
 
@@ -471,7 +472,28 @@ public enum CEOpeningRelation {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
         guard key.parameters == parameters else { return false }
-        let transformedMatrices = try shape.compiledForSuperNeo().transformedMatrices
+        let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
+        return try verifyLocal(
+            statement: statement,
+            witness: witness,
+            shape: shape,
+            key: key,
+            transformedMatrices: transformedMatrices,
+            parameters: parameters
+        )
+    }
+
+    private static func verifyLocal(
+        statement: CEOpeningStatement,
+        witness: CEOpeningWitness,
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        transformedMatrices: [SparseRingMatrixCSR],
+        parameters: SuperNeoParameters
+    ) throws -> Bool {
+        guard statement.profileID == parameters.profileID else { return false }
+        guard statement.shapeDigest == shape.shapeDigest else { return false }
+        guard key.parameters == parameters else { return false }
         let openedClaim = CCSEvaluationClaim(
             commitment: statement.instance.commitment,
             publicInput: statement.instance.publicInput,
@@ -539,12 +561,14 @@ public enum CEOpeningRelation {
             guard statement.openings.count == parameters.decompositionLength else { return false }
         }
 
+        let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
         for (opening, witness) in zip(statement.openings, witnesses) {
             guard try verifyLocal(
                 statement: opening,
                 witness: witness,
                 shape: shape,
                 key: key,
+                transformedMatrices: transformedMatrices,
                 parameters: parameters
             ) else {
                 return false
@@ -647,6 +671,7 @@ public struct CCSQOracle: SumcheckOracle {
         priorClaims: [CCSEvaluationClaim],
         alpha: [GoldilocksExt2],
         gamma: GoldilocksExt2,
+        transformedSparseMatrices: [SparseRingMatrixCSR]? = nil,
         parameters: SuperNeoParameters = .goldilocks
     ) throws {
         guard instances.count == witnesses.count else {
@@ -695,16 +720,21 @@ public struct CCSQOracle: SumcheckOracle {
                 }
             }
         }
-        let matrices = try shape.matrices.map { try $0.toSparseFieldMatrix() }
-        let transformedMatrices = try shape.compiledForSuperNeo().transformedMatrices
         let maxDegreePerRound = try piCCSMaxDegreePerRound(shape: shape, parameters: parameters)
+        let matrices = try shape.matrices.map { try $0.toSparseFieldMatrix() }
         let freshMatrixRows = try freshWitnesses.map { witness in
             try matrices.map { matrix in try matrix.multiplied(by: witness) }
         }
         let allWitnessRows = freshWitnesses + priorWitnesses
-        let priorTransformedRows = try priorWitnesses.map { witness in
-            let packedWitness = try packedEvaluationWitness(witness, shape: shape)
-            return try transformedMatrices.map { matrix in try matrix.multiplied(by: packedWitness) }
+        let priorTransformedRows: [[[CyclotomicRing54]]]
+        if priorWitnesses.isEmpty {
+            priorTransformedRows = []
+        } else {
+            let transformedMatrices = try transformedSparseMatrices ?? shape.compiledSparseForSuperNeo().transformedSparseMatrices
+            priorTransformedRows = try priorWitnesses.map { witness in
+                let packedWitness = try packedEvaluationWitness(witness, shape: shape)
+                return try transformedMatrices.map { matrix in try matrix.multiplied(by: packedWitness) }
+            }
         }
         let maxPriorExponent = max(0, priorClaims.count * shape.numMatrices * CyclotomicRing54.degree - 1)
         let maxQExponent = max((2 * freshWitnesses.count) + priorClaims.count, maxPriorExponent)
@@ -1137,12 +1167,12 @@ public final class SuperNeoProver: @unchecked Sendable {
             throw SuperNeoError.invalidParameter("prover key parameters do not match prover parameters")
         }
         try validateFoldInput(input, parameters: parameters)
-        let compiledShape = try input.shape.compiledForSuperNeo()
+        let compiledShape = try input.shape.compiledSparseForSuperNeo()
         let metalWorkspace = try makeMetalWorkspace(compiledShape: compiledShape)
 
         var transcript = makeFoldTranscript(input: input, transcriptSeed: transcriptSeed)
         let sumCheck = try SuperNeoBenchmarkSignpost.measure("sumcheck") {
-            try makeSumCheckProof(input: input, transcript: &transcript)
+            try makeSumCheckProof(input: input, compiledShape: compiledShape, transcript: &transcript)
         }
         let piCCSClaims = try SuperNeoBenchmarkSignpost.measure("piCCSClaims") {
             try makePiCCSOutputClaims(
@@ -1263,15 +1293,21 @@ public final class SuperNeoProver: @unchecked Sendable {
 
     private func makeSumCheckProof(
         input: SuperNeoFoldInput,
+        compiledShape: CompiledCCSShape? = nil,
         transcript: inout SumCheckTranscript
     ) throws -> SumcheckProof {
-        var oracle = try makeQOracle(input: input, transcript: &transcript, parameters: parameters)
+        var oracle = try makeQOracle(
+            input: input,
+            compiledShape: compiledShape,
+            transcript: &transcript,
+            parameters: parameters
+        )
         let claimedSum = try oracle.claimedSumFromPriorClaims()
         return try SumcheckProver.prove(oracle: &oracle, claimedSum: claimedSum, transcript: &transcript)
     }
 
     private func makePiCCSOutputClaims(input: SuperNeoFoldInput, point: [GoldilocksExt2]) throws -> [CCSEvaluationClaim] {
-        let compiledShape = try input.shape.compiledForSuperNeo()
+        let compiledShape = try input.shape.compiledSparseForSuperNeo()
         return try SuperNeoProtocolOracle.makePiCCSOutputClaims(
             input: input,
             key: key,
@@ -1308,7 +1344,7 @@ public final class SuperNeoProver: @unchecked Sendable {
         _ claim: CCSEvaluationClaim,
         shape: CCSShape
     ) throws -> (proof: DecompositionProof, claims: [CCSEvaluationClaim]) {
-        let compiledShape = try shape.compiledForSuperNeo()
+        let compiledShape = try shape.compiledSparseForSuperNeo()
         return try SuperNeoProtocolOracle.decompose(
             claim,
             shape: shape,
@@ -1928,10 +1964,11 @@ private enum SuperNeoProtocolOracle {
             recomputedCommitments = try packedWitnesses.map {
                 try AjtaiCommitter.commitReference(key: key, message: $0)
             }
+            let rHat = try MultilinearEvaluation.checkedBasis(at: point)
             evaluations = try packedWitnesses.map { packed in
-                try compiledShape.transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
+                try compiledShape.transformedSparseMatrices.map { matrix -> CyclotomicExt2Ring54 in
                     let rows = try matrix.multiplied(by: packed)
-                    return try evaluateExtensionRingRows(rows, at: point)
+                    return try evaluateExtensionRingRows(rows, rHat: rHat)
                 }
             }
         }
@@ -2020,7 +2057,7 @@ private enum SuperNeoProtocolOracle {
 
     static func verifyEvaluationClaimOpening(
         shape: CCSShape,
-        transformedMatrices: [RingMatrix],
+        transformedMatrices: [SparseRingMatrixCSR],
         claim: CCSEvaluationClaim,
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters
@@ -2044,16 +2081,17 @@ private enum SuperNeoProtocolOracle {
         guard transformedMatrices.count == shape.numMatrices else { return false }
 
         let packed = try packedEvaluationWitness(witness, shape: shape)
+        let rHat = try MultilinearEvaluation.checkedBasis(at: claim.point)
         let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
             let rows = try matrix.multiplied(by: packed)
-            return try evaluateExtensionRingRows(rows, at: claim.point)
+            return try evaluateExtensionRingRows(rows, rHat: rHat)
         }
         return evaluations == claim.evaluations
     }
 
     static func makeEvaluationInstance(
         shape: CCSShape,
-        transformedMatrices: [RingMatrix],
+        transformedMatrices: [SparseRingMatrixCSR],
         witness: [GoldilocksField],
         publicInput: [GoldilocksField],
         point: [GoldilocksExt2],
@@ -2070,9 +2108,10 @@ private enum SuperNeoProtocolOracle {
         }
         let packed = try packedEvaluationWitness(witness, shape: shape)
         let commitment = try AjtaiCommitter.commitReference(key: key, fieldWitness: witness)
+        let rHat = try MultilinearEvaluation.checkedBasis(at: point)
         let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
             let rows = try matrix.multiplied(by: packed)
-            return try evaluateExtensionRingRows(rows, at: point)
+            return try evaluateExtensionRingRows(rows, rHat: rHat)
         }
         return CEInstance(
             commitment: commitment,
@@ -2082,11 +2121,17 @@ private enum SuperNeoProtocolOracle {
         )
     }
 
-    private static func evaluateExtensionRingRows(_ rows: [CyclotomicRing54], at point: [GoldilocksExt2]) throws -> CyclotomicExt2Ring54 {
+    private static func evaluateExtensionRingRows(_ rows: [CyclotomicRing54], rHat: [GoldilocksExt2]) throws -> CyclotomicExt2Ring54 {
+        guard rows.count == rHat.count else {
+            throw SuperNeoError.invalidParameter("extension-ring row/rHat length mismatch")
+        }
         var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
-        for coefficientIndex in 0..<CyclotomicRing54.degree {
-            let coefficientVector = rows.map { $0.coefficients[coefficientIndex] }
-            coefficients[coefficientIndex] = try MultilinearEvaluation.evaluate(coefficientVector, at: point)
+        for rowIndex in rows.indices {
+            let weight = rHat[rowIndex]
+            let rowCoefficients = rows[rowIndex].coefficients
+            for coefficientIndex in 0..<CyclotomicRing54.degree {
+                coefficients[coefficientIndex] = coefficients[coefficientIndex] + weight * GoldilocksExt2(rowCoefficients[coefficientIndex])
+            }
         }
         return CyclotomicExt2Ring54(coefficients)
     }
@@ -2111,7 +2156,6 @@ private enum SuperNeoProtocolOracle {
         guard claim.evaluations.count == shape.numMatrices else {
             throw SuperNeoError.invalidParameter("decomposition folded evaluation arity mismatch")
         }
-        let transformedMatrices = compiledShape.transformedMatrices
         let limbs = try splitSignedBase(witness, base: parameters.normBound, count: parameters.decompositionLength)
         let publicInputLimbs = try splitSignedBase(
             claim.publicInput,
@@ -2132,10 +2176,11 @@ private enum SuperNeoProtocolOracle {
             limbCommitments = try packedLimbs.map {
                 try AjtaiCommitter.commitReference(key: key, message: $0)
             }
+            let rHat = try MultilinearEvaluation.checkedBasis(at: claim.point)
             limbEvaluations = try packedLimbs.map { packed in
-                try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
+                try compiledShape.transformedSparseMatrices.map { matrix -> CyclotomicExt2Ring54 in
                     let rows = try matrix.multiplied(by: packed)
-                    return try evaluateExtensionRingRows(rows, at: claim.point)
+                    return try evaluateExtensionRingRows(rows, rHat: rHat)
                 }
             }
         }
@@ -2458,6 +2503,7 @@ private func transcriptEncodeCount(_ value: Int) -> [UInt8] {
 
 private func makeQOracle(
     input: SuperNeoFoldInput,
+    compiledShape: CompiledCCSShape? = nil,
     transcript: inout SumCheckTranscript,
     parameters: SuperNeoParameters
 ) throws -> CCSQOracle {
@@ -2471,6 +2517,7 @@ private func makeQOracle(
         priorClaims: input.priorClaims,
         alpha: alpha,
         gamma: gamma,
+        transformedSparseMatrices: compiledShape?.transformedSparseMatrices,
         parameters: parameters
     )
 }
@@ -2580,32 +2627,39 @@ private struct CEPrivateTarget {
     let matrixEvals: [CyclotomicExt2Ring54]
 }
 
-private func makePrivateTargets(
+private func validatePrivateOpenings(
     statement: TerminalCEStatement,
     witnesses: [CEOpeningWitness],
+    privateWitnesses: [[GoldilocksField]],
     shape: CCSShape,
     key: AjtaiCommitmentKey,
-    transformedMatrices: [RingMatrix],
+    transformedMatrices: [SparseRingMatrixCSR],
     parameters: SuperNeoParameters
-) throws -> [CEPrivateTarget] {
-    try zip(statement.openings, witnesses).map { opening, witness in
-        guard try CEOpeningRelation.verifyLocal(
-            statement: opening,
-            witness: witness,
+) throws {
+    guard witnesses.count == privateWitnesses.count else {
+        throw SuperNeoError.invalidParameter("CE opening private witness count mismatch")
+    }
+    try zip(statement.openings.indices, zip(statement.openings, witnesses)).forEach { index, pair in
+        let (opening, witness) = pair
+        guard privateWitnesses[index].count + opening.instance.publicInput.count == witness.witness.count else {
+            throw SuperNeoError.invalidParameter("CE opening private witness length mismatch")
+        }
+        let openedClaim = CCSEvaluationClaim(
+            commitment: opening.instance.commitment,
+            publicInput: opening.instance.publicInput,
+            point: opening.instance.evalPoint,
+            evaluations: opening.instance.matrixEvals,
+            witness: witness.witness
+        )
+        guard try SuperNeoProtocolOracle.verifyEvaluationClaimOpening(
             shape: shape,
+            transformedMatrices: transformedMatrices,
+            claim: openedClaim,
             key: key,
             parameters: parameters
         ) else {
             throw SuperNeoError.invalidParameter("CE opening witness does not satisfy statement")
         }
-        let privateCount = try privateWitness(from: witness.witness, shape: shape).count
-        return try privateTargetForStatementOpening(
-            opening,
-            privateCount: privateCount,
-            shape: shape,
-            key: key,
-            transformedMatrices: transformedMatrices
-        )
     }
 }
 
@@ -2624,7 +2678,7 @@ private func makePrivateLinearInstance(
     opening: CEOpeningStatement,
     shape: CCSShape,
     key: AjtaiCommitmentKey,
-    transformedMatrices: [RingMatrix]
+    transformedMatrices: [SparseRingMatrixCSR]
 ) throws -> CEInstance {
     let publicZeros = Array(repeating: GoldilocksField.zero, count: opening.instance.publicInput.count)
     return try SuperNeoProtocolOracle.makeEvaluationInstance(
@@ -2654,7 +2708,7 @@ private func verifyRoundResponse(
     statement: TerminalCEStatement,
     shape: CCSShape,
     key: AjtaiCommitmentKey,
-    transformedMatrices: [RingMatrix],
+    transformedMatrices: [SparseRingMatrixCSR],
     parameters: SuperNeoParameters
 ) throws -> Bool {
     switch (challenge, response) {
@@ -2789,7 +2843,7 @@ private func privateTargetForStatementOpening(
     privateCount: Int,
     shape: CCSShape,
     key: AjtaiCommitmentKey,
-    transformedMatrices: [RingMatrix]
+    transformedMatrices: [SparseRingMatrixCSR]
 ) throws -> CEPrivateTarget {
     guard opening.instance.commitment.elements.count == key.parameters.kappa else {
         throw SuperNeoError.invalidParameter("CE opening commitment has wrong length")

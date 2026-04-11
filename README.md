@@ -10,7 +10,7 @@ Quick inner loop:
 Scripts/test-slice.sh fast
 ```
 
-Full suite (CPU-heavy; may take on the order of a minute):
+Full suite (CPU-heavy; current local runs can take several minutes):
 
 ```sh
 Scripts/test-slice.sh all
@@ -90,5 +90,22 @@ Latest local scaling snapshot:
 | `m1024-K2-k0-binary` | 578 ms | 74 ms | 5.64 ms | 17 ms | 17 ms |
 | `m4096-K2-k0-binary` | 4.37 s | 247 ms | 12.7 ms | 50 ms | 52 ms |
 | `m16384-K2-k0-binary` | 50 s | 950 ms | 21 ms | 137 ms | 180 ms |
+
+Latest CPU-path audit snapshot (2026-04-12):
+
+| Case | Before | After | Notes |
+| --- | ---: | ---: | --- |
+| `fold/cpu/m64` | 25 ms | 16 ms | sparse transformed protocol path |
+| `stage/piCCSClaims/m64` | 2.61 ms | 0.925 ms | sparse transformed evaluation |
+| `stage/piDEC/m64` | 17 ms | 10.068 ms | single-pass extension-ring row evaluation |
+| `terminalVerify/cpu/m64` | 23 ms | 12 ms | reused sparse CE verification matrices |
+| `ajtaiCommit/cpu/m64` | 173 us | 137 us | fused CPU Ajtai matvec |
+| `fold/cpu/m1024` | 595 ms | 237 ms | sparse-only CPU shape compilation |
+| `stage/piCCSClaims/m1024` | 99 ms | 27 ms | sparse transformed protocol path |
+| `stage/piDEC/m1024` | 449 ms | 174 ms | precomputed `rHat` reused across coefficients |
+| `terminalVerify/cpu/m1024` | 520 ms | 189 ms | batched local CE verification reuse |
+| `proofEnvelope/roundTrip/m1024` | 504 ms | 148 ms | protocol CPU path improvements |
+| `ajtaiCommit/cpu/m1024` | 3.38 ms | 2.876 ms | fused CPU Ajtai matvec |
+| `ajtaiCommit/batch/cpu/m1024` | 43 ms | 37 ms | fused CPU Ajtai matvec |
 
 Detailed benchmark policy, correctness gates, CI notes, and runner implementation details are in [Docs/Benchmarking.md](Docs/Benchmarking.md).

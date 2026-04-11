@@ -280,7 +280,7 @@ public enum AjtaiCommitter {
         key: AjtaiCommitmentKey,
         message: [CyclotomicRing54]
     ) throws -> AjtaiCommitment {
-        AjtaiCommitment(try key.matrix.multiplied(by: message))
+        AjtaiCommitment(try fusedCommitmentRows(matrix: key.matrix, message: message))
     }
 
     public static func commitReference(
@@ -291,5 +291,68 @@ public enum AjtaiCommitter {
             key: key,
             message: AjtaiMatvecScheduler.packFieldWitness(fieldWitness, key: key)
         )
+    }
+
+    private static func fusedCommitmentRows(
+        matrix: RingMatrix,
+        message: [CyclotomicRing54]
+    ) throws -> [CyclotomicRing54] {
+        guard message.count == matrix.columns else {
+            throw SuperNeoError.invalidParameter("ring matrix/vector dimension mismatch")
+        }
+        let messageTerms = message.map(nonzeroTerms)
+        var output: [CyclotomicRing54] = []
+        output.reserveCapacity(matrix.rows)
+        for row in 0..<matrix.rows {
+            var coefficients = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+            let rowStart = row * matrix.columns
+            for column in 0..<matrix.columns {
+                accumulateProduct(
+                    matrix.elements[rowStart + column],
+                    rhsTerms: messageTerms[column],
+                    into: &coefficients
+                )
+            }
+            output.append(CyclotomicRing54(coefficients))
+        }
+        return output
+    }
+
+    private static func nonzeroTerms(_ value: CyclotomicRing54) -> [(index: Int, value: GoldilocksField)] {
+        var terms: [(index: Int, value: GoldilocksField)] = []
+        terms.reserveCapacity(CyclotomicRing54.degree)
+        for index in 0..<CyclotomicRing54.degree {
+            let coefficient = value.coefficients[index]
+            if coefficient != .zero {
+                terms.append((index, coefficient))
+            }
+        }
+        return terms
+    }
+
+    private static func accumulateProduct(
+        _ lhs: CyclotomicRing54,
+        rhsTerms: [(index: Int, value: GoldilocksField)],
+        into coefficients: inout [GoldilocksField]
+    ) {
+        guard !rhsTerms.isEmpty else { return }
+        for leftIndex in 0..<CyclotomicRing54.degree {
+            let left = lhs.coefficients[leftIndex]
+            if left == .zero { continue }
+            for term in rhsTerms {
+                let product = left * term.value
+                let exponent = leftIndex + term.index
+                if exponent < CyclotomicRing54.degree {
+                    coefficients[exponent] = coefficients[exponent] + product
+                } else if exponent < CyclotomicRing54.degree + 27 {
+                    let reduced = exponent - CyclotomicRing54.degree
+                    coefficients[reduced] = coefficients[reduced] - product
+                    coefficients[exponent - 27] = coefficients[exponent - 27] - product
+                } else {
+                    let reduced = exponent - CyclotomicRing54.degree - 27
+                    coefficients[reduced] = coefficients[reduced] + product
+                }
+            }
+        }
     }
 }

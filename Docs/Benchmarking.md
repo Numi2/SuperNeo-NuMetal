@@ -73,6 +73,32 @@ Latest local scaling snapshot:
 | `m4096-K2-k0-binary` | 4.37 s | 247 ms | 12.7 ms | 50 ms | 52 ms |
 | `m16384-K2-k0-binary` | 50 s | 950 ms | 21 ms | 137 ms | 180 ms |
 
+Current CPU-path baseline:
+
+- CPU protocol evaluation uses sparse transformed CCS matrices by default. Dense transformed matrices are retained for dense-specific benchmarks and comparisons.
+- CPU PiDEC evaluates extension-ring rows by computing `rHat` once and accumulating all 54 ring coefficients in one pass.
+- Local CE batch verification compiles the sparse CCS shape once and reuses transformed matrices across openings.
+- CPU Ajtai commitment uses a fused coefficient-buffer matvec for the reference path.
+
+Latest CPU-path audit snapshot, measured locally on 2026-04-12:
+
+| Case | Previous baseline | Current baseline | Change |
+| --- | ---: | ---: | ---: |
+| `fold/cpu/m64` | 25 ms | 16 ms | 1.56x faster |
+| `stage/piCCSClaims/m64` | 2.61 ms | 0.925 ms | 2.82x faster |
+| `stage/piDEC/m64` | 17 ms | 10.068 ms | 1.69x faster |
+| `terminalVerify/cpu/m64` | 23 ms | 12 ms | 1.92x faster |
+| `ajtaiCommit/cpu/m64` | 173 us | 137 us | 1.26x faster |
+| `fold/cpu/m1024` | 595 ms | 237 ms | 2.51x faster |
+| `stage/piCCSClaims/m1024` | 99 ms | 27 ms | 3.67x faster |
+| `stage/piDEC/m1024` | 449 ms | 174 ms | 2.58x faster |
+| `terminalVerify/cpu/m1024` | 520 ms | 189 ms | 2.75x faster |
+| `proofEnvelope/roundTrip/m1024` | 504 ms | 148 ms | 3.41x faster |
+| `ajtaiCommit/cpu/m1024` | 3.38 ms | 2.876 ms | 1.18x faster |
+| `ajtaiCommit/batch/cpu/m1024` | 43 ms | 37 ms | 1.16x faster |
+
+The full XCTest slice still includes a deliberately heavy compressed-envelope path. On the same local run, `testCompressedPublicEnvelopeRoundTripsAndBindsPublicInputs` passed but took 317 s, so future CE verifier work should compare both microbenchmarks and that end-to-end test.
+
 Measured row-block tuning notes:
 
 - `m1024`: row block 128 gave the best complete Metal fold at 74 ms. Row block 256 improved isolated combined/eval timing but regressed complete fold timing to 98 ms.
