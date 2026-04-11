@@ -2305,7 +2305,7 @@ private func piCCSMaxDegreePerRound(shape: CCSShape, parameters: SuperNeoParamet
     guard !parameters.normRoots.isEmpty else {
         throw SuperNeoError.invalidParameter("PiCCS norm roots cannot be empty")
     }
-    return max(shape.relationDegree, max(parameters.normRoots.count, 2))
+    return max(shape.relationDegree, parameters.normRoots.count) + 1
 }
 
 private func centeredFieldElement(_ value: Int) -> GoldilocksField {

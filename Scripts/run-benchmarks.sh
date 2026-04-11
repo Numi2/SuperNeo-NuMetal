@@ -8,7 +8,8 @@ RESULT_PATH="${ROOT_DIR}/${RESULT_DIR}"
 
 mkdir -p "${RESULT_PATH}"
 
-swift test
+# XCTest-only package; skip Swift Testing harness (see Scripts/test-slice.sh).
+swift test --disable-swift-testing
 
 SUPERNEO_BENCHMARK_PROFILE="${PROFILE}" \
 (cd "${ROOT_DIR}/Benchmarks" && \

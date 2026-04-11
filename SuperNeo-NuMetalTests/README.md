@@ -33,5 +33,33 @@ The classes intentionally map to the filters:
 | `ce-opening` | `CEOpeningProtocolTests` | CE opening local relation and heavyweight public proof verification |
 | `metal` | `MetalDifferentialTests` | Metal kernels and GPU/CPU differential behavior |
 
+## Running `swift test` directly
+
+This package defines **XCTest** targets only. From the repository root you can run:
+
+```sh
+swift test --disable-swift-testing
+```
+
+`Scripts/test-slice.sh` passes `--disable-swift-testing` for you so SwiftPM does not also spin up the Swift Testing harness (which this repo does not use). Extra arguments are forwarded, for example:
+
+```sh
+Scripts/test-slice.sh protocol -v
+```
+
+To opt into Swift Testing later, append `--enable-swift-testing` after the slice name.
+
+## If tests look hung or stuck
+
+**SwiftPM lock.** Only one SwiftPM process can use the shared `.build` directory at a time. If another `swift test` or `swift build` is running in the same package, the next command waits with a message like `Another instance of SwiftPM … is already running`. Wait for the other process to finish, or stop it. Running two suites at once is not supported.
+
+**Long CPU stretches with little output.** The full suite (`Scripts/test-slice.sh all` or `swift test` over all cases) spends a large fraction of wall time in fold and protocol checks. Expect on the order of a minute before completion on a typical laptop; that is normal, not a deadlock.
+
+**Isolated build directory.** If you must run tests in parallel with another SwiftPM job against the same sources, use a separate scratch path so the builds do not contend (slower, cold build):
+
+```sh
+swift test --disable-swift-testing --scratch-path /tmp/superneo-spm-build
+```
+
 If a change crosses layers, run the smallest affected set first, then
 `Scripts/test-slice.sh all` before handing off.

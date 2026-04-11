@@ -1848,7 +1848,7 @@ extension SuperNeoTestCase {
     }
 
     func paperReferenceMaxDegreePerRound(shape: CCSShape, parameters: SuperNeoParameters) -> Int {
-        max(shape.relationDegree, max(parameters.normRoots.count, 2))
+        max(shape.relationDegree, parameters.normRoots.count) + 1
     }
 
     func paperPriorExponent(
