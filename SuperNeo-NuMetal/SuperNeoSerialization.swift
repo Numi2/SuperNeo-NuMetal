@@ -226,6 +226,151 @@ public struct TerminalFoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncoda
     }
 }
 
+public struct CompressedTerminalStatement: Equatable, Sendable, SuperNeoByteEncodable {
+    public static let domain = Digest256.hash("SuperNeo-NuMetal.compressed-public.statement.v1")
+
+    public let context: ProofEnvelopeContext
+    public let publicInputDigest: Digest256
+    public let terminalStatementDigest: Digest256
+    public let verifierKeyDigest: Digest256
+
+    public init(
+        context: ProofEnvelopeContext,
+        publicInputDigest: Digest256,
+        terminalStatementDigest: Digest256,
+        verifierKeyDigest: Digest256
+    ) {
+        self.context = context
+        self.publicInputDigest = publicInputDigest
+        self.terminalStatementDigest = terminalStatementDigest
+        self.verifierKeyDigest = verifierKeyDigest
+    }
+
+    public var superNeoBytes: [UInt8] {
+        Self.domain.superNeoBytes
+            + encodeUInt16(context.profileID)
+            + encodeUInt8(context.kind.rawValue)
+            + context.shapeDigest.superNeoBytes
+            + context.statementDigest.superNeoBytes
+            + context.transcriptDomain.superNeoBytes
+            + publicInputDigest.superNeoBytes
+            + terminalStatementDigest.superNeoBytes
+            + verifierKeyDigest.superNeoBytes
+    }
+
+    public var statementDigest: Digest256 {
+        Digest256.hash(superNeoBytes)
+    }
+}
+
+public struct CompressedTerminalProof: Equatable, Sendable, SuperNeoByteEncodable {
+    public static let transcriptDomain = Digest256.hash("SuperNeo-NuMetal.compressed-public.proof.v1")
+
+    public let statement: CompressedTerminalStatement
+    public let terminalProof: TerminalFoldProof
+    public let terminalProofDigest: Digest256
+    public let compressionDigest: Digest256
+
+    public init(statement: CompressedTerminalStatement, terminalProof: TerminalFoldProof) {
+        let proofDigest = Digest256.hash(terminalProof.superNeoBytes)
+        self.statement = statement
+        self.terminalProof = terminalProof
+        self.terminalProofDigest = proofDigest
+        self.compressionDigest = Self.makeCompressionDigest(
+            statement: statement,
+            terminalProofDigest: proofDigest
+        )
+    }
+
+    fileprivate init(
+        statement: CompressedTerminalStatement,
+        terminalProof: TerminalFoldProof,
+        terminalProofDigest: Digest256,
+        compressionDigest: Digest256
+    ) throws {
+        guard terminalProofDigest == Digest256.hash(terminalProof.superNeoBytes) else {
+            throw SuperNeoError.invalidEncoding("compressed terminal proof digest mismatch")
+        }
+        guard compressionDigest == Self.makeCompressionDigest(
+            statement: statement,
+            terminalProofDigest: terminalProofDigest
+        ) else {
+            throw SuperNeoError.invalidEncoding("compressed terminal proof transcript mismatch")
+        }
+        self.statement = statement
+        self.terminalProof = terminalProof
+        self.terminalProofDigest = terminalProofDigest
+        self.compressionDigest = compressionDigest
+    }
+
+    public var superNeoBytes: [UInt8] {
+        statement.superNeoBytes
+            + terminalProofDigest.superNeoBytes
+            + compressionDigest.superNeoBytes
+            + terminalProof.superNeoBytes
+    }
+
+    private static func makeCompressionDigest(
+        statement: CompressedTerminalStatement,
+        terminalProofDigest: Digest256
+    ) -> Digest256 {
+        Digest256.hash(
+            transcriptDomain.superNeoBytes
+                + statement.statementDigest.superNeoBytes
+                + terminalProofDigest.superNeoBytes
+        )
+    }
+}
+
+public struct CompressedTerminalProofEnvelope: Equatable, Sendable, SuperNeoByteEncodable {
+    public typealias Kind = ProofEnvelopeKind
+
+    public let header: ProofEnvelopeHeader
+    public let proof: CompressedTerminalProof
+
+    public init(context: ProofEnvelopeContext, proof: CompressedTerminalProof) throws {
+        guard context.kind == .compressedPublic else {
+            throw SuperNeoError.invalidParameter("CompressedTerminalProofEnvelope only supports compressedPublic kind")
+        }
+        guard proof.statement.context == context else {
+            throw SuperNeoError.invalidParameter("compressed statement context mismatch")
+        }
+        let body = proof.superNeoBytes
+        guard body.count <= Int(UInt32.max) else {
+            throw SuperNeoError.invalidEncoding("compressed proof body too large")
+        }
+        self.header = ProofEnvelopeHeader(
+            profileID: context.profileID,
+            kind: context.kind,
+            shapeDigest: context.shapeDigest,
+            statementDigest: context.statementDigest,
+            transcriptDomain: context.transcriptDomain,
+            bodyLength: UInt32(body.count)
+        )
+        self.proof = proof
+    }
+
+    public init(bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
+        var reader = ByteReader(bytes)
+        let header = try reader.readProofEnvelopeHeader()
+        try header.validate()
+        guard header.kind == .compressedPublic else {
+            throw SuperNeoError.invalidEncoding("compressed terminal proof envelope kind mismatch")
+        }
+        let body = try reader.readData(count: Int(header.bodyLength))
+        try reader.finish()
+
+        var bodyReader = ByteReader(body)
+        self.proof = try bodyReader.readCompressedTerminalProof(parameters: parameters)
+        try bodyReader.finish()
+        self.header = header
+    }
+
+    public var superNeoBytes: [UInt8] {
+        header.superNeoBytes + proof.superNeoBytes
+    }
+}
+
 public protocol SuperNeoByteEncodable {
     var superNeoBytes: [UInt8] { get }
 }
@@ -801,6 +946,44 @@ extension ByteReader {
             foldProof: foldProof,
             terminalStatement: terminalStatement,
             ceOpeningProof: ceOpeningProof
+        )
+    }
+
+    fileprivate mutating func readCompressedTerminalStatement() throws -> CompressedTerminalStatement {
+        let domain = try Digest256(readData(count: Digest256.byteCount))
+        guard domain == CompressedTerminalStatement.domain else {
+            throw SuperNeoError.invalidEncoding("compressed terminal statement domain mismatch")
+        }
+        let profileID = try readUInt16()
+        let kindRaw = try readUInt8()
+        guard let kind = ProofEnvelopeKind(rawValue: kindRaw) else {
+            throw SuperNeoError.invalidEncoding("unsupported compressed statement proof kind")
+        }
+        let context = try ProofEnvelopeContext(
+            profileID: profileID,
+            kind: kind,
+            shapeDigest: Digest256(readData(count: Digest256.byteCount)),
+            statementDigest: Digest256(readData(count: Digest256.byteCount)),
+            transcriptDomain: Digest256(readData(count: Digest256.byteCount))
+        )
+        return try CompressedTerminalStatement(
+            context: context,
+            publicInputDigest: Digest256(readData(count: Digest256.byteCount)),
+            terminalStatementDigest: Digest256(readData(count: Digest256.byteCount)),
+            verifierKeyDigest: Digest256(readData(count: Digest256.byteCount))
+        )
+    }
+
+    fileprivate mutating func readCompressedTerminalProof(parameters: SuperNeoParameters) throws -> CompressedTerminalProof {
+        let statement = try readCompressedTerminalStatement()
+        let terminalProofDigest = try Digest256(readData(count: Digest256.byteCount))
+        let compressionDigest = try Digest256(readData(count: Digest256.byteCount))
+        let terminalProof = try readTerminalFoldProof(parameters: parameters)
+        return try CompressedTerminalProof(
+            statement: statement,
+            terminalProof: terminalProof,
+            terminalProofDigest: terminalProofDigest,
+            compressionDigest: compressionDigest
         )
     }
 }

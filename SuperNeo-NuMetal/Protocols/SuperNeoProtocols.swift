@@ -495,11 +495,49 @@ public enum CEOpeningRelation {
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters = .goldilocks
     ) throws -> Bool {
+        try verifyLocalBatchOpenings(
+            statement: statement,
+            witnesses: witnesses,
+            shape: shape,
+            key: key,
+            parameters: parameters,
+            requireTerminalDecompositionCount: false
+        )
+    }
+
+    public static func verifyTerminalLocalBatch(
+        statement: TerminalCEStatement,
+        witnesses: [CEOpeningWitness],
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters = .goldilocks
+    ) throws -> Bool {
+        try verifyLocalBatchOpenings(
+            statement: statement,
+            witnesses: witnesses,
+            shape: shape,
+            key: key,
+            parameters: parameters,
+            requireTerminalDecompositionCount: true
+        )
+    }
+
+    private static func verifyLocalBatchOpenings(
+        statement: TerminalCEStatement,
+        witnesses: [CEOpeningWitness],
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters,
+        requireTerminalDecompositionCount: Bool
+    ) throws -> Bool {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
         guard key.parameters == parameters else { return false }
         guard statement.openings.count == witnesses.count else { return false }
-        guard statement.openings.count == parameters.decompositionLength else { return false }
+        guard !statement.openings.isEmpty else { return false }
+        if requireTerminalDecompositionCount {
+            guard statement.openings.count == parameters.decompositionLength else { return false }
+        }
 
         for (opening, witness) in zip(statement.openings, witnesses) {
             guard try verifyLocal(
@@ -1178,6 +1216,39 @@ public final class SuperNeoProver: @unchecked Sendable {
         return try TerminalFoldProofEnvelope(context: context, proof: proof)
     }
 
+    public func compressedTerminalFoldEnvelope(
+        _ input: SuperNeoFoldInput,
+        context: ProofEnvelopeContext,
+        ceRandomSeed: [UInt8]? = nil
+    ) throws -> CompressedTerminalProofEnvelope {
+        guard context.kind == .compressedPublic else {
+            throw SuperNeoError.invalidParameter("compressed terminal fold envelope context must be compressedPublic")
+        }
+        let terminalContext = ProofEnvelopeContext(
+            profileID: context.profileID,
+            kind: .terminalLocal,
+            shapeDigest: context.shapeDigest,
+            statementDigest: context.statementDigest,
+            transcriptDomain: context.transcriptDomain
+        )
+        let proof = try terminalFold(
+            input,
+            transcriptSeed: terminalContext.transcriptBindingBytes,
+            ceRandomSeed: ceRandomSeed
+        )
+        let publicInput = SuperNeoPublicFoldInput(input)
+        let statement = CompressedTerminalStatement(
+            context: context,
+            publicInputDigest: compressedPublicInputDigest(publicInput),
+            terminalStatementDigest: proof.terminalStatement.statementDigest,
+            verifierKeyDigest: compressedVerifierKeyDigest(key)
+        )
+        return try CompressedTerminalProofEnvelope(
+            context: context,
+            proof: CompressedTerminalProof(statement: statement, terminalProof: proof)
+        )
+    }
+
     private func makeSumCheckProof(
         input: SuperNeoFoldInput,
         transcript: inout SumCheckTranscript
@@ -1351,7 +1422,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 shape: publicInput.shape,
                 claims: outputClaims
             )
-            guard try CEOpeningRelation.verifyLocalBatch(
+            guard try CEOpeningRelation.verifyTerminalLocalBatch(
                 statement: terminalStatement,
                 witnesses: witnesses,
                 shape: publicInput.shape,
@@ -1593,6 +1664,80 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 publicInput: publicInput,
                 proof: envelope.proof,
                 transcriptSeed: envelope.header.transcriptBindingBytes
+            )
+        } catch {
+            return .invalid("\(error)")
+        }
+    }
+
+    public func verifyCompressedTerminalFoldEnvelope(
+        input: SuperNeoFoldInput,
+        proofBytes: [UInt8],
+        context expectedContext: ProofEnvelopeContext
+    ) -> VerificationResult {
+        verifyCompressedTerminalFoldEnvelope(
+            publicInput: SuperNeoPublicFoldInput(input),
+            proofBytes: proofBytes,
+            context: expectedContext
+        )
+    }
+
+    public func verifyCompressedTerminalFoldEnvelope(
+        publicInput: SuperNeoPublicFoldInput,
+        proofBytes: [UInt8],
+        context expectedContext: ProofEnvelopeContext
+    ) -> VerificationResult {
+        do {
+            let envelope = try CompressedTerminalProofEnvelope(bytes: proofBytes, parameters: parameters)
+            guard envelope.header.profileID == expectedContext.profileID else {
+                return .invalid("profile mismatch")
+            }
+            guard envelope.header.kind == expectedContext.kind, expectedContext.kind == .compressedPublic else {
+                return .invalid("proof kind mismatch")
+            }
+            guard envelope.header.shapeDigest == expectedContext.shapeDigest else {
+                return .invalid("shape digest mismatch")
+            }
+            guard envelope.header.statementDigest == expectedContext.statementDigest else {
+                return .invalid("statement digest mismatch")
+            }
+            guard envelope.header.transcriptDomain == expectedContext.transcriptDomain else {
+                return .invalid("transcript domain mismatch")
+            }
+            guard publicInput.shape.shapeDigest == expectedContext.shapeDigest else {
+                return .invalid("input shape digest mismatch")
+            }
+            let statement = CCSStatement(
+                shapeDigest: publicInput.shape.shapeDigest,
+                ccsInstances: publicInput.instances,
+                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+            )
+            guard statement.statementDigest == expectedContext.statementDigest else {
+                return .invalid("input statement digest mismatch")
+            }
+            guard envelope.proof.statement.context == expectedContext else {
+                return .invalid("compressed statement context mismatch")
+            }
+            guard envelope.proof.statement.publicInputDigest == compressedPublicInputDigest(publicInput) else {
+                return .invalid("compressed public input digest mismatch")
+            }
+            guard envelope.proof.statement.verifierKeyDigest == compressedVerifierKeyDigest(key) else {
+                return .invalid("compressed verifier key digest mismatch")
+            }
+            guard envelope.proof.statement.terminalStatementDigest == envelope.proof.terminalProof.terminalStatement.statementDigest else {
+                return .invalid("compressed terminal statement digest mismatch")
+            }
+            let terminalContext = ProofEnvelopeContext(
+                profileID: expectedContext.profileID,
+                kind: .terminalLocal,
+                shapeDigest: expectedContext.shapeDigest,
+                statementDigest: expectedContext.statementDigest,
+                transcriptDomain: expectedContext.transcriptDomain
+            )
+            return verifyTerminalFold(
+                publicInput: publicInput,
+                proof: envelope.proof.terminalProof,
+                transcriptSeed: terminalContext.transcriptBindingBytes
             )
         } catch {
             return .invalid("\(error)")
@@ -2231,6 +2376,26 @@ private func absorbEvaluationClaimBatch(
 ) {
     transcript.absorb(transcriptEncodeCount(claims.count))
     claims.forEach { transcript.absorb($0.superNeoBytes) }
+}
+
+private func compressedPublicInputDigest(_ input: SuperNeoPublicFoldInput) -> Digest256 {
+    Digest256.hash(
+        Array("SuperNeo-NuMetal.compressed-public.input.v1".utf8)
+            + input.shape.shapeDigest.superNeoBytes
+            + transcriptEncodeCount(input.instances.count)
+            + input.instances.flatMap(\.superNeoBytes)
+            + transcriptEncodeCount(input.priorClaims.count)
+            + input.priorClaims.flatMap(\.superNeoBytes)
+    )
+}
+
+private func compressedVerifierKeyDigest(_ key: AjtaiCommitmentKey) -> Digest256 {
+    Digest256.hash(
+        Array("SuperNeo-NuMetal.compressed-public.verifier-key.v1".utf8)
+            + transcriptEncodeCount(key.matrix.rows)
+            + transcriptEncodeCount(key.matrix.columns)
+            + key.matrix.elements.flatMap(\.superNeoBytes)
+    )
 }
 
 private func transcriptEncodeCount(_ value: Int) -> [UInt8] {

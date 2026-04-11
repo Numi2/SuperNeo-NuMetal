@@ -11,8 +11,8 @@ mkdir -p "${RESULT_PATH}"
 # XCTest-only package; skip Swift Testing harness (see Scripts/test-slice.sh).
 swift test --disable-swift-testing
 
-SUPERNEO_BENCHMARK_PROFILE="${PROFILE}" \
 (cd "${ROOT_DIR}/Benchmarks" && \
+  SUPERNEO_BENCHMARK_PROFILE="${PROFILE}" \
   swift package --disable-sandbox --allow-writing-to-package-directory benchmark \
     --target SuperNeoBenchmarks \
     run \

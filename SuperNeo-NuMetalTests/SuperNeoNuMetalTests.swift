@@ -672,7 +672,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         }
         XCTAssertEqual(terminalStatement.openings.count, fixture.key.parameters.decompositionLength)
         XCTAssertTrue(terminalStatement.openings.allSatisfy { $0.claim.witness == nil })
-        XCTAssertTrue(try CEOpeningRelation.verifyLocalBatch(
+        XCTAssertTrue(try CEOpeningRelation.verifyTerminalLocalBatch(
             statement: terminalStatement,
             witnesses: terminalWitnesses,
             shape: fixture.input.shape,
@@ -684,7 +684,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
             shape: fixture.input.shape,
             claims: Array(fold.outputClaims.dropLast())
         )
-        XCTAssertFalse(try CEOpeningRelation.verifyLocalBatch(
+        XCTAssertFalse(try CEOpeningRelation.verifyTerminalLocalBatch(
             statement: shortTerminalStatement,
             witnesses: Array(terminalWitnesses.dropLast()),
             shape: fixture.input.shape,
@@ -1085,6 +1085,88 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             ),
             reason: "terminal CE opening proof verification failed"
         )
+    }
+
+    func testCompressedPublicEnvelopeRoundTripsAndBindsPublicInputs() throws {
+        let fixture = try makeFoldFixture()
+        let statement = CCSStatement(
+            shapeDigest: fixture.input.shape.shapeDigest,
+            ccsInstances: fixture.input.instances
+        )
+        let context = ProofEnvelopeContext(
+            profileID: 1,
+            kind: .compressedPublic,
+            statement: statement
+        )
+        let envelope = try fixture.backend.makeProver(key: fixture.key).compressedTerminalFoldEnvelope(
+            fixture.input,
+            context: context,
+            ceRandomSeed: Array("compressed-ce".utf8)
+        )
+        let reparsed = try CompressedTerminalProofEnvelope(bytes: envelope.superNeoBytes)
+        let verifier = SuperNeoVerifier(key: fixture.key)
+
+        XCTAssertEqual(reparsed.header.kind, .compressedPublic)
+        XCTAssertEqual(reparsed.header.bodyLength, UInt32(reparsed.proof.superNeoBytes.count))
+        XCTAssertEqual(
+            verifier.verifyCompressedTerminalFoldEnvelope(
+                publicInput: SuperNeoPublicFoldInput(fixture.input),
+                proofBytes: reparsed.superNeoBytes,
+                context: context
+            ),
+            .valid
+        )
+
+        var tamperedInput = fixture.input
+        var tamperedInstancePublic = tamperedInput.instances[0].publicInput
+        tamperedInstancePublic[0] = tamperedInstancePublic[0] + .one
+        tamperedInput = SuperNeoFoldInput(
+            shape: fixture.input.shape,
+            instances: [CCSInstance(commitment: fixture.input.instances[0].commitment, publicInput: tamperedInstancePublic)],
+            witnesses: fixture.input.witnesses,
+            priorClaims: fixture.input.priorClaims
+        )
+        XCTAssertInvalid(
+            verifier.verifyCompressedTerminalFoldEnvelope(
+                publicInput: SuperNeoPublicFoldInput(tamperedInput),
+                proofBytes: reparsed.superNeoBytes,
+                context: context
+            ),
+            reason: "input statement digest mismatch"
+        )
+    }
+
+    func testCCSNormalizerPadsGeneralShapeIntoPaperNormalizedInput() throws {
+        let publicInput = [GoldilocksField.one]
+        let witness = [GoldilocksField.zero, GoldilocksField.one]
+        let matrix = try SparseFieldMatrix(
+            rows: 3,
+            columns: 3,
+            entries: [
+                SparseFieldMatrix.Entry(row: 0, column: 0, value: .one),
+                SparseFieldMatrix.Entry(row: 1, column: 1, value: .one),
+                SparseFieldMatrix.Entry(row: 2, column: 2, value: .one)
+            ]
+        )
+        let relation = try RelationPolynomial(variableCount: 1, monomials: [])
+        let structure = CCSStructure(matrices: [matrix], relationPolynomial: relation)
+        let originalCommitment = AjtaiCommitment(Array(repeating: .zero, count: SuperNeoParameters.goldilocks.kappa))
+        let result = try SuperNeoCCSNormalizer.normalize(
+            structure: structure,
+            instances: [CCSInstance(commitment: originalCommitment, publicInput: publicInput)],
+            witnesses: [CCSWitness(witness)],
+            keySeed: Array("normalized-key".utf8)
+        )
+
+        XCTAssertEqual(result.normalized.shape.m, 64)
+        XCTAssertEqual(result.normalized.shape.nField, 64)
+        XCTAssertEqual(result.normalized.shape.nPublicField, 54)
+        XCTAssertTrue(result.normalized.shape.hasIdentityFirstMatrix)
+        XCTAssertEqual(result.normalized.mapping.originalRowCount, 3)
+        XCTAssertEqual(result.normalized.mapping.addedPublicInputs, 53)
+        XCTAssertEqual(result.normalized.instances[0].publicInput.count, 54)
+        XCTAssertEqual(result.normalized.witnesses[0].values.count, 10)
+        XCTAssertNoThrow(try SuperNeoVerifier(key: result.key).reduceFold(input: result.normalized.foldInput, proof: SuperNeoProver(key: result.key).fold(result.normalized.foldInput)))
     }
 
     func testProofEnvelopeRejectsProfileMismatchBeforeTranscriptVerification() throws {

@@ -16,8 +16,7 @@ let package = Package(
             name: "SuperNeo_NuMetal",
             path: "SuperNeo-NuMetal",
             exclude: [
-                "SuperNeo_NuMetal.docc",
-                "tasks.md"
+                "SuperNeo_NuMetal.docc"
             ],
             resources: [
                 .process("MetalBackend/SuperNeoKernels.metal")

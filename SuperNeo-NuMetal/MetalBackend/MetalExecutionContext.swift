@@ -218,7 +218,7 @@ private final class MetalPipelineStore: @unchecked Sendable {
         self.device = device
         self.defaultLibrary = defaultLibrary
         self.fallbackLibraries = try configuration.fallbackLibraryURLs.map { try device.makeLibrary(URL: $0) }
-#if !targetEnvironment(simulator) && (os(macOS) || os(iOS) || os(tvOS) || os(visionOS))
+#if compiler(>=6.2) && !targetEnvironment(simulator) && (os(macOS) || os(iOS) || os(tvOS) || os(visionOS))
         if #available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *) {
             self.metal4Runtime = try Metal4PipelineRuntime(
                 device: device,
@@ -279,7 +279,7 @@ private protocol MetalPipelineArchiveRuntime: AnyObject {
     func writeCapturedPipelineArchive(to url: URL) throws
 }
 
-#if !targetEnvironment(simulator) && (os(macOS) || os(iOS) || os(tvOS) || os(visionOS))
+#if compiler(>=6.2) && !targetEnvironment(simulator) && (os(macOS) || os(iOS) || os(tvOS) || os(visionOS))
 @available(macOS 26.0, iOS 26.0, tvOS 26.0, visionOS 26.0, *)
 private final class Metal4PipelineRuntime: MetalPipelineArchiveRuntime {
     private let archive: (any MTL4Archive)?
