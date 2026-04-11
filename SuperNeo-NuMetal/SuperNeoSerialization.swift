@@ -397,54 +397,79 @@ extension AjtaiCommitment: SuperNeoByteEncodable {
 
 extension DecompositionProof: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        encodeCount(commitments.count)
-            + commitments.flatMap(\.superNeoBytes)
-            + encodeCount(evaluations.count)
-            + evaluations.flatMap { encodeCount($0.count) + $0.flatMap(\.superNeoBytes) }
+        var bytes = encodeCount(commitments.count)
+        for commitment in commitments {
+            bytes.append(contentsOf: commitment.superNeoBytes)
+        }
+        bytes.append(contentsOf: encodeCount(evaluations.count))
+        for evaluationBatch in evaluations {
+            bytes.append(contentsOf: encodeCount(evaluationBatch.count))
+            for evaluation in evaluationBatch {
+                bytes.append(contentsOf: evaluation.superNeoBytes)
+            }
+        }
+        return bytes
     }
 }
 
 extension PiCCSSection: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        sumCheck.superNeoBytes
-            + encodeCount(finalClaims.count)
-            + finalClaims.flatMap(\.superNeoBytes)
+        var bytes = sumCheck.superNeoBytes
+        bytes.append(contentsOf: encodeCount(finalClaims.count))
+        for claim in finalClaims {
+            bytes.append(contentsOf: claim.superNeoBytes)
+        }
+        return bytes
     }
 }
 
 extension PiRLCSection: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        encodeCount(challenges.count)
-            + challenges.flatMap(\.superNeoBytes)
-            + foldedClaim.superNeoBytes
+        var bytes = encodeCount(challenges.count)
+        for challenge in challenges {
+            bytes.append(contentsOf: challenge.superNeoBytes)
+        }
+        bytes.append(contentsOf: foldedClaim.superNeoBytes)
+        return bytes
     }
 }
 
 extension PiDECSection: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        decomposition.superNeoBytes
-            + encodeCount(outputClaims.count)
-            + outputClaims.flatMap(\.superNeoBytes)
+        var bytes = decomposition.superNeoBytes
+        bytes.append(contentsOf: encodeCount(outputClaims.count))
+        for claim in outputClaims {
+            bytes.append(contentsOf: claim.superNeoBytes)
+        }
+        return bytes
     }
 }
 
 extension CCSEvaluationClaim: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        commitment.superNeoBytes
-            + encodeCount(publicInput.count)
-            + publicInput.flatMap(\.superNeoBytes)
-            + encodeCount(point.count)
-            + point.flatMap(\.superNeoBytes)
-            + encodeCount(evaluations.count)
-            + evaluations.flatMap(\.superNeoBytes)
+        var bytes = commitment.superNeoBytes
+        bytes.append(contentsOf: encodeCount(publicInput.count))
+        for value in publicInput {
+            bytes.append(contentsOf: value.superNeoBytes)
+        }
+        bytes.append(contentsOf: encodeCount(point.count))
+        for coordinate in point {
+            bytes.append(contentsOf: coordinate.superNeoBytes)
+        }
+        bytes.append(contentsOf: encodeCount(evaluations.count))
+        for evaluation in evaluations {
+            bytes.append(contentsOf: evaluation.superNeoBytes)
+        }
+        return bytes
     }
 }
 
 extension CEOpeningStatement: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        encodeUInt16(profileID)
-            + shapeDigest.superNeoBytes
-            + instance.superNeoBytes
+        var bytes = encodeUInt16(profileID)
+        bytes.append(contentsOf: shapeDigest.superNeoBytes)
+        bytes.append(contentsOf: instance.superNeoBytes)
+        return bytes
     }
 
     public var statementDigest: Digest256 {
@@ -454,10 +479,13 @@ extension CEOpeningStatement: SuperNeoByteEncodable {
 
 extension TerminalCEStatement: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        encodeUInt16(profileID)
-            + shapeDigest.superNeoBytes
-            + encodeCount(openings.count)
-            + openings.flatMap(\.superNeoBytes)
+        var bytes = encodeUInt16(profileID)
+        bytes.append(contentsOf: shapeDigest.superNeoBytes)
+        bytes.append(contentsOf: encodeCount(openings.count))
+        for opening in openings {
+            bytes.append(contentsOf: opening.superNeoBytes)
+        }
+        return bytes
     }
 
     public var statementDigest: Digest256 {
@@ -467,27 +495,38 @@ extension TerminalCEStatement: SuperNeoByteEncodable {
 
 extension CEOpeningProofCommitments: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        maskLinearDigest.superNeoBytes
-            + permutedMaskDigest.superNeoBytes
-            + permutedMaskedWitnessDigest.superNeoBytes
+        var bytes = maskLinearDigest.superNeoBytes
+        bytes.append(contentsOf: permutedMaskDigest.superNeoBytes)
+        bytes.append(contentsOf: permutedMaskedWitnessDigest.superNeoBytes)
+        return bytes
     }
 }
 
 extension CEOpeningLinearResponse: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        encodeCount(permutation.count)
-            + permutation.flatMap { encodeSignedInt($0) }
-            + encodeCount(vector.count)
-            + vector.flatMap(\.superNeoBytes)
+        var bytes = encodeCount(permutation.count)
+        for index in permutation {
+            bytes.append(contentsOf: encodeSignedInt(index))
+        }
+        bytes.append(contentsOf: encodeCount(vector.count))
+        for value in vector {
+            bytes.append(contentsOf: value.superNeoBytes)
+        }
+        return bytes
     }
 }
 
 extension CEOpeningNormResponse: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        encodeCount(permutedMask.count)
-            + permutedMask.flatMap(\.superNeoBytes)
-            + encodeCount(permutedWitness.count)
-            + permutedWitness.flatMap(\.superNeoBytes)
+        var bytes = encodeCount(permutedMask.count)
+        for value in permutedMask {
+            bytes.append(contentsOf: value.superNeoBytes)
+        }
+        bytes.append(contentsOf: encodeCount(permutedWitness.count))
+        for value in permutedWitness {
+            bytes.append(contentsOf: value.superNeoBytes)
+        }
+        return bytes
     }
 }
 
@@ -495,20 +534,23 @@ extension CEOpeningProofResponse: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
         switch self {
         case .mask(let openings):
-            return encodeUInt8(0) + encodeCount(openings.count) + openings.flatMap(\.superNeoBytes)
+            return encodeCEOpeningResponse(tag: 0, openings: openings)
         case .maskedWitness(let openings):
-            return encodeUInt8(1) + encodeCount(openings.count) + openings.flatMap(\.superNeoBytes)
+            return encodeCEOpeningResponse(tag: 1, openings: openings)
         case .permutedWitness(let openings):
-            return encodeUInt8(2) + encodeCount(openings.count) + openings.flatMap(\.superNeoBytes)
+            return encodeCEOpeningResponse(tag: 2, openings: openings)
         }
     }
 }
 
 extension CEOpeningProofRound: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        encodeCount(commitments.count)
-            + commitments.flatMap(\.superNeoBytes)
-            + response.superNeoBytes
+        var bytes = encodeCount(commitments.count)
+        for commitment in commitments {
+            bytes.append(contentsOf: commitment.superNeoBytes)
+        }
+        bytes.append(contentsOf: response.superNeoBytes)
+        return bytes
     }
 }
 
@@ -520,24 +562,39 @@ extension CEOpeningProof: SuperNeoByteEncodable {
     }
 
     public var superNeoBytes: [UInt8] {
-        encodeCount(rounds.count) + rounds.flatMap(\.superNeoBytes)
+        var bytes = encodeCount(rounds.count)
+        for round in rounds {
+            bytes.append(contentsOf: round.superNeoBytes)
+        }
+        return bytes
     }
 }
 
 extension TerminalFoldProof: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        foldProof.superNeoBytes
-            + terminalStatement.superNeoBytes
-            + ceOpeningProof.superNeoBytes
+        var bytes = foldProof.superNeoBytes
+        bytes.append(contentsOf: terminalStatement.superNeoBytes)
+        bytes.append(contentsOf: ceOpeningProof.superNeoBytes)
+        return bytes
     }
 }
 
 extension FoldProof: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        piCCS.superNeoBytes
-            + piRLC.superNeoBytes
-            + piDEC.superNeoBytes
+        var bytes = piCCS.superNeoBytes
+        bytes.append(contentsOf: piRLC.superNeoBytes)
+        bytes.append(contentsOf: piDEC.superNeoBytes)
+        return bytes
     }
+}
+
+private func encodeCEOpeningResponse<T: SuperNeoByteEncodable>(tag: UInt8, openings: [T]) -> [UInt8] {
+    var bytes = encodeUInt8(tag)
+    bytes.append(contentsOf: encodeCount(openings.count))
+    for opening in openings {
+        bytes.append(contentsOf: opening.superNeoBytes)
+    }
+    return bytes
 }
 
 private func encodeCount(_ value: Int) -> [UInt8] {

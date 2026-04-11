@@ -2,7 +2,18 @@ import XCTest
 import Metal
 @testable import SuperNeo_NuMetal
 
-class SuperNeoTestCase: XCTestCase {}
+class SuperNeoTestCase: XCTestCase {
+    func requireMetalDevice(file: StaticString = #filePath, line: UInt = #line) throws -> MTLDevice {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip(
+                "Metal device unavailable; CPU-only environments intentionally skip Metal differential coverage",
+                file: file,
+                line: line
+            )
+        }
+        return device
+    }
+}
 
 final class AlgebraCoreTests: SuperNeoTestCase {
     // MARK: - Tier 0: deterministic algebra and backend differential properties
@@ -831,28 +842,6 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             proof: fold.proof,
             transcriptSeed: fixture.seed
         )
-        if !reduction.isValid {
-            let transcriptState = makePublicFoldTranscript(input: publicInput, seed: fixture.seed)
-            var transcript = transcriptState
-            let numVars = try log2ForTest(publicInput.shape.m)
-            let alpha = (0..<numVars).map { _ in transcript.challengeExt2() }
-            let gamma = transcript.challengeExt2()
-            print("DEBUG claimed", fold.proof.sumCheck.claimedSum)
-            print("DEBUG expected", try paperReferenceClaimedSum(input: publicInput, gamma: gamma))
-            print("DEBUG final", fold.proof.sumCheck.finalValue)
-            print("DEBUG qfinal", try paperReferenceFinalQ(
-                input: publicInput,
-                proofClaims: fold.proof.piCCSClaims,
-                point: fold.proof.sumCheck.finalPoint,
-                alpha: alpha,
-                gamma: gamma
-            ))
-            for (idx, round) in fold.proof.sumCheck.rounds.enumerated() {
-                let g0 = SumcheckVerifier.evaluatePolynomial(round.coeffs, at: .zero)
-                let g1 = SumcheckVerifier.evaluatePolynomial(round.coeffs, at: .one)
-                print("DEBUG round", idx, "g0+g1", g0 + g1)
-            }
-        }
         XCTAssertTrue(reduction.isValid, reduction.reason ?? "")
         XCTAssertEqual(publicInput.instances.count, 2)
         XCTAssertEqual(publicInput.priorClaims.count, 2)
@@ -1364,9 +1353,7 @@ final class MetalDifferentialTests: SuperNeoTestCase {
     // MARK: - Tier 0: Metal differential kernels
 
     func testTier0MetalSeededDifferentialCorpusMatchesCPUOracle() throws {
-        guard let device = MTLCreateSystemDefaultDevice() else {
-            throw XCTSkip("Metal device unavailable")
-        }
+        let device = try requireMetalDevice()
         let context = try MetalExecutionContext(device: device)
         let backend = SuperNeoMetalBackend(context: context)
         var generator = SeededTestGenerator(seed: 0x4D45_5441_4C44_4946)
