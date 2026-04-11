@@ -57,6 +57,7 @@ import os
     public let fieldVector: [GoldilocksField]
     public let ringVector: [CyclotomicRing54]
     public let transformedMatrices: [RingMatrix]
+    public let transformedSparseMatrices: [SparseRingMatrixCSR]
     public let evaluationPoint: [GoldilocksExt2]
     public let referenceFold: FoldProverOutput
     public let piCCSClaimsWithWitness: [CCSEvaluationClaim]
@@ -113,7 +114,9 @@ import os
             priorClaims: priorClaims
         )
         let publicInput = SuperNeoPublicFoldInput(input)
-        let transformedMatrices = try shape.compiledForSuperNeo().transformedMatrices
+        let compiledShape = try shape.compiledForSuperNeo()
+        let transformedMatrices = compiledShape.transformedMatrices
+        let transformedSparseMatrices = compiledShape.transformedSparseMatrices
         let numVars = try SuperNeoBenchmarkFixtures.log2Exact(benchmarkCase.rowCount)
         let evaluationPoint = try SuperNeoBenchmarkFixtures.makeEvaluationPoint(count: numVars, seed: transcriptSeed)
         let prover = SuperNeoProver(parameters: parameters, key: key)
@@ -152,6 +155,7 @@ import os
         self.fieldVector = fieldVector
         self.ringVector = try SuperNeoEmbedding.packPadded(fieldVector)
         self.transformedMatrices = transformedMatrices
+        self.transformedSparseMatrices = transformedSparseMatrices
         self.evaluationPoint = evaluationPoint
         self.referenceFold = referenceFold
         self.piCCSClaimsWithWitness = piCCSClaimsWithWitness
@@ -183,8 +187,29 @@ import os
         SuperNeoBenchmarkCase(rowCount: 256, freshCount: 2, priorCount: 4, witnessKind: .small)
     ]
 
+    public static let scalingCases: [SuperNeoBenchmarkCase] = [
+        SuperNeoBenchmarkCase(rowCount: 1_024, freshCount: 2, priorCount: 0, witnessKind: .binary),
+        SuperNeoBenchmarkCase(rowCount: 4_096, freshCount: 2, priorCount: 0, witnessKind: .binary),
+        SuperNeoBenchmarkCase(rowCount: 16_384, freshCount: 2, priorCount: 0, witnessKind: .binary)
+    ]
+
+    public static func cases(profile: String) -> [SuperNeoBenchmarkCase] {
+        switch profile {
+        case "quick":
+            return quickCases
+        case "scaling":
+            return scalingCases
+        case "full":
+            return fullCases
+        default:
+            return fullCases
+        }
+    }
+
     public static func makeMetalContextIfAvailable() -> MetalExecutionContext? {
-        try? MetalExecutionContext()
+        guard let context = try? MetalExecutionContext() else { return nil }
+        try? context.prewarmSuperNeoPipelines()
+        return context
     }
 
     public static func makeShape(rowCount: Int) throws -> CCSShape {

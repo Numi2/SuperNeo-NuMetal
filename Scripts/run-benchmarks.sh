@@ -28,4 +28,12 @@ if [[ -f "${RESULT_PATH}/Current_run.json" ]]; then
   mv "${RESULT_PATH}/Current_run.json" "${RESULT_PATH}/results.json"
 fi
 
+if [[ -f "${ROOT_DIR}/Benchmarks/benchmark-results/metadata.json" ]]; then
+  cp "${ROOT_DIR}/Benchmarks/benchmark-results/metadata.json" "${RESULT_PATH}/metadata.json"
+fi
+
+if [[ -f "${ROOT_DIR}/Benchmarks/benchmark-results/report.md" ]]; then
+  cp "${ROOT_DIR}/Benchmarks/benchmark-results/report.md" "${RESULT_PATH}/report.md"
+fi
+
 swift "${ROOT_DIR}/Scripts/render-benchmark-report.swift" "${RESULT_PATH}/results.json" "${RESULT_PATH}/report.md"

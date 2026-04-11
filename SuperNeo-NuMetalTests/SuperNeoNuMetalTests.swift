@@ -335,8 +335,11 @@ final class ProtocolShapeTests: SuperNeoTestCase {
 
         let fieldProduct = try matrix.multiplied(by: vector)
         let ringConstants = try SuperNeoCPUBackend().matrixVectorConstants(matrix: matrix, vector: vector)
+        let denseRows = try matrix.transformedForSuperNeo().multiplied(by: SuperNeoEmbedding.packPadded(vector))
+        let sparseRows = try matrix.transformedSparseForSuperNeo().multiplied(by: SuperNeoEmbedding.packPadded(vector))
 
         XCTAssertEqual(ringConstants, fieldProduct)
+        XCTAssertEqual(sparseRows, denseRows)
     }
 
     func testSuperNeoMatrixTransformHandlesMultipleRingColumnsAndDuplicateEntries() throws {
@@ -354,6 +357,10 @@ final class ProtocolShapeTests: SuperNeoTestCase {
         XCTAssertEqual(
             try SuperNeoCPUBackend().matrixVectorConstants(matrix: matrix, vector: vector),
             try matrix.multiplied(by: vector)
+        )
+        XCTAssertEqual(
+            try matrix.transformedSparseForSuperNeo().multiplied(by: SuperNeoEmbedding.packPadded(vector)),
+            try matrix.transformedForSuperNeo().multiplied(by: SuperNeoEmbedding.packPadded(vector))
         )
         XCTAssertThrowsSuperNeoError(
             try matrix.multiplied(by: Array(vector.dropLast())),
@@ -1360,7 +1367,8 @@ final class MetalDifferentialTests: SuperNeoTestCase {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device unavailable")
         }
-        let backend = SuperNeoMetalBackend(context: try MetalExecutionContext(device: device))
+        let context = try MetalExecutionContext(device: device)
+        let backend = SuperNeoMetalBackend(context: context)
         var generator = SeededTestGenerator(seed: 0x4D45_5441_4C44_4946)
         var lhs = (0..<128).map { _ in generator.field() }
         var rhs = (0..<128).map { _ in generator.field() }
@@ -1385,6 +1393,27 @@ final class MetalDifferentialTests: SuperNeoTestCase {
         XCTAssertEqual(try backend.subtract(lhs, rhs), zip(lhs, rhs).map(-))
         XCTAssertEqual(try backend.multiply(lhs, rhs), zip(lhs, rhs).map(*))
 
+        let multiplicationBoundaries = [
+            GoldilocksField.zero,
+            .one,
+            GoldilocksField(2),
+            GoldilocksField(1 << 32),
+            GoldilocksField((1 << 32) - 1),
+            GoldilocksField((1 << 32) + 1),
+            GoldilocksField(GoldilocksField.modulus - 3),
+            GoldilocksField(GoldilocksField.modulus - 2),
+            GoldilocksField(GoldilocksField.modulus - 1)
+        ]
+        var boundaryLhs: [GoldilocksField] = []
+        var boundaryRhs: [GoldilocksField] = []
+        for lhs in multiplicationBoundaries {
+            for rhs in multiplicationBoundaries {
+                boundaryLhs.append(lhs)
+                boundaryRhs.append(rhs)
+            }
+        }
+        XCTAssertEqual(try backend.multiply(boundaryLhs, boundaryRhs), zip(boundaryLhs, boundaryRhs).map(*))
+
         let rings = (0..<8).map { _ in generator.ring() }
         let otherRings = (0..<8).map { _ in generator.ring() }
         let scalars = (0..<8).map { _ in generator.field() }
@@ -1404,14 +1433,134 @@ final class MetalDifferentialTests: SuperNeoTestCase {
             columns: 3,
             elements: (0..<12).map { _ in generator.ring() }
         )
+        let sparseMatrix = try SparseRingMatrixCSR(matrix)
         let vector = (0..<3).map { _ in generator.ring() }
         let rows = try matrix.multiplied(by: vector)
+        let sparseRows = try sparseMatrix.multiplied(by: vector)
         let point = [generator.ext2(), generator.ext2()]
         let rHat = try MultilinearEvaluation.checkedBasis(at: point)
 
+        XCTAssertEqual(sparseRows, rows)
         XCTAssertEqual(try backend.transformedMatrixVector(matrix: matrix, vector: vector), rows)
+        XCTAssertEqual(try backend.transformedMatrixVector(matrix: sparseMatrix, vector: vector), rows)
         XCTAssertEqual(try backend.transformedEvaluation(rows: rows, rHat: rHat), directTransformedEvaluation(rows: rows, rHat: rHat))
         XCTAssertEqual(try backend.transformedEvaluation(matrix: matrix, vector: vector, point: point), directTransformedEvaluation(rows: rows, rHat: rHat))
+        XCTAssertEqual(try backend.transformedEvaluation(matrix: sparseMatrix, vector: vector, point: point), directTransformedEvaluation(rows: rows, rHat: rHat))
+
+        let secondVector = (0..<3).map { _ in generator.ring() }
+        let secondRows = try sparseMatrix.multiplied(by: secondVector)
+        let batchedEvaluations = try backend.transformedEvaluations(
+            matrices: [sparseMatrix, sparseMatrix],
+            vectors: [vector, secondVector],
+            point: point
+        )
+        XCTAssertEqual(batchedEvaluations[0][0].coefficients, directTransformedEvaluation(rows: rows, rHat: rHat))
+        XCTAssertEqual(batchedEvaluations[0][1].coefficients, directTransformedEvaluation(rows: rows, rHat: rHat))
+        XCTAssertEqual(batchedEvaluations[1][0].coefficients, directTransformedEvaluation(rows: secondRows, rHat: rHat))
+        XCTAssertEqual(batchedEvaluations[1][1].coefficients, directTransformedEvaluation(rows: secondRows, rHat: rHat))
+
+        let workspace = try SuperNeoMetalWorkspace(
+            context: context,
+            key: key,
+            transformedSparseMatrices: [sparseMatrix]
+        )
+        XCTAssertEqual(
+            try workspace.ajtaiCommitments(messages: [message, message]),
+            [
+                try AjtaiCommitter.commitReference(key: key, message: message),
+                try AjtaiCommitter.commitReference(key: key, message: message)
+            ]
+        )
+        let workspaceEvaluations = try workspace.transformedEvaluations(
+            vectors: [vector, secondVector],
+            point: point
+        )
+        XCTAssertEqual(workspaceEvaluations[0][0].coefficients, directTransformedEvaluation(rows: rows, rHat: rHat))
+        XCTAssertEqual(workspaceEvaluations[1][0].coefficients, directTransformedEvaluation(rows: secondRows, rHat: rHat))
+        let combinedWorkspaceResults = try workspace.commitmentsAndTransformedEvaluations(
+            messages: [vector, secondVector],
+            point: point
+        )
+        XCTAssertEqual(combinedWorkspaceResults.commitments, [
+            try AjtaiCommitter.commitReference(key: key, message: vector),
+            try AjtaiCommitter.commitReference(key: key, message: secondVector)
+        ])
+        XCTAssertEqual(combinedWorkspaceResults.evaluations[0][0].coefficients, directTransformedEvaluation(rows: rows, rHat: rHat))
+        XCTAssertEqual(combinedWorkspaceResults.evaluations[1][0].coefficients, directTransformedEvaluation(rows: secondRows, rHat: rHat))
+
+        let blockedRows = 1024
+        let blockedColumns = 3
+        func blockedRing(row: Int, bias: Int) -> CyclotomicRing54 {
+            var coefficients = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+            coefficients[(row + bias) % CyclotomicRing54.degree] = GoldilocksField(UInt64((row % 251) + 1))
+            coefficients[(row * 7 + bias + 11) % CyclotomicRing54.degree] = GoldilocksField(UInt64((row % 127) + 2))
+            return CyclotomicRing54(coefficients)
+        }
+
+        func blockedSparseMatrix(bias: Int, extraEntryStride: Int) throws -> SparseRingMatrixCSR {
+            var rowOffsets = [0]
+            var columnIndices: [Int] = []
+            var values: [CyclotomicRing54] = []
+            for row in 0..<blockedRows {
+                var entries = [((row + bias) % blockedColumns, blockedRing(row: row, bias: bias))]
+                if row % extraEntryStride == 0 {
+                    entries.append(((row + bias + 1) % blockedColumns, blockedRing(row: row, bias: bias + 19)))
+                }
+                for (column, value) in entries.sorted(by: { $0.0 < $1.0 }) {
+                    columnIndices.append(column)
+                    values.append(value)
+                }
+                rowOffsets.append(columnIndices.count)
+            }
+            return try SparseRingMatrixCSR(
+                rows: blockedRows,
+                columns: blockedColumns,
+                rowOffsets: rowOffsets,
+                columnIndices: columnIndices,
+                values: values
+            )
+        }
+
+        let blockedMatrices = [
+            try blockedSparseMatrix(bias: 1, extraEntryStride: 5),
+            try blockedSparseMatrix(bias: 2, extraEntryStride: 7)
+        ]
+        let blockedPoint = (0..<10).map { index -> GoldilocksExt2 in
+            let c0 = GoldilocksField(UInt64(index + 2))
+            let c1 = GoldilocksField(UInt64(index * 3 + 5))
+            return GoldilocksExt2(c0, c1)
+        }
+        let blockedRHat = try MultilinearEvaluation.checkedBasis(at: blockedPoint)
+        let blockedVectors = [vector, secondVector]
+        let blockedWorkspace = try SuperNeoMetalWorkspace(
+            context: context,
+            key: key,
+            transformedSparseMatrices: blockedMatrices
+        )
+        let blockedEvaluations = try blockedWorkspace.transformedEvaluations(
+            vectors: blockedVectors,
+            point: blockedPoint
+        )
+        let blockedCombined = try blockedWorkspace.commitmentsAndTransformedEvaluations(
+            messages: blockedVectors,
+            point: blockedPoint
+        )
+        XCTAssertEqual(blockedCombined.commitments, try blockedVectors.map {
+            try AjtaiCommitter.commitReference(key: key, message: $0)
+        })
+        for vectorIndex in blockedVectors.indices {
+            for matrixIndex in blockedMatrices.indices {
+                let blockedMatrixRows = try blockedMatrices[matrixIndex].multiplied(by: blockedVectors[vectorIndex])
+                XCTAssertEqual(
+                    blockedEvaluations[vectorIndex][matrixIndex].coefficients,
+                    directTransformedEvaluation(rows: blockedMatrixRows, rHat: blockedRHat)
+                )
+                XCTAssertEqual(
+                    blockedCombined.evaluations[vectorIndex][matrixIndex].coefficients,
+                    directTransformedEvaluation(rows: blockedMatrixRows, rHat: blockedRHat)
+                )
+            }
+        }
     }
 
 }

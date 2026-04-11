@@ -1137,20 +1137,32 @@ public final class SuperNeoProver: @unchecked Sendable {
             throw SuperNeoError.invalidParameter("prover key parameters do not match prover parameters")
         }
         try validateFoldInput(input, parameters: parameters)
+        let compiledShape = try input.shape.compiledForSuperNeo()
+        let metalWorkspace = try makeMetalWorkspace(compiledShape: compiledShape)
 
         var transcript = makeFoldTranscript(input: input, transcriptSeed: transcriptSeed)
         let sumCheck = try SuperNeoBenchmarkSignpost.measure("sumcheck") {
             try makeSumCheckProof(input: input, transcript: &transcript)
         }
         let piCCSClaims = try SuperNeoBenchmarkSignpost.measure("piCCSClaims") {
-            try makePiCCSOutputClaims(input: input, point: sumCheck.finalPoint)
+            try makePiCCSOutputClaims(
+                input: input,
+                point: sumCheck.finalPoint,
+                compiledShape: compiledShape,
+                metalWorkspace: metalWorkspace
+            )
         }
         absorbEvaluationClaimBatch(piCCSClaims, into: &transcript)
         let rlc = try SuperNeoBenchmarkSignpost.measure("piRLC") {
             try randomLinearCombination(claims: piCCSClaims, transcript: &transcript)
         }
         let decomposition = try SuperNeoBenchmarkSignpost.measure("piDEC") {
-            try decompose(rlc.foldedClaim, shape: input.shape)
+            try decompose(
+                rlc.foldedClaim,
+                shape: input.shape,
+                compiledShape: compiledShape,
+                metalWorkspace: metalWorkspace
+            )
         }
         let proof = FoldProof(
             sumCheck: sumCheck,
@@ -1259,10 +1271,27 @@ public final class SuperNeoProver: @unchecked Sendable {
     }
 
     private func makePiCCSOutputClaims(input: SuperNeoFoldInput, point: [GoldilocksExt2]) throws -> [CCSEvaluationClaim] {
+        let compiledShape = try input.shape.compiledForSuperNeo()
+        return try SuperNeoProtocolOracle.makePiCCSOutputClaims(
+            input: input,
+            key: key,
+            compiledShape: compiledShape,
+            metalWorkspace: try makeMetalWorkspace(compiledShape: compiledShape),
+            point: point
+        )
+    }
+
+    private func makePiCCSOutputClaims(
+        input: SuperNeoFoldInput,
+        point: [GoldilocksExt2],
+        compiledShape: CompiledCCSShape,
+        metalWorkspace: SuperNeoMetalWorkspace?
+    ) throws -> [CCSEvaluationClaim] {
         try SuperNeoProtocolOracle.makePiCCSOutputClaims(
             input: input,
             key: key,
-            context: context,
+            compiledShape: compiledShape,
+            metalWorkspace: metalWorkspace,
             point: point
         )
     }
@@ -1279,12 +1308,39 @@ public final class SuperNeoProver: @unchecked Sendable {
         _ claim: CCSEvaluationClaim,
         shape: CCSShape
     ) throws -> (proof: DecompositionProof, claims: [CCSEvaluationClaim]) {
+        let compiledShape = try shape.compiledForSuperNeo()
+        return try SuperNeoProtocolOracle.decompose(
+            claim,
+            shape: shape,
+            key: key,
+            compiledShape: compiledShape,
+            metalWorkspace: try makeMetalWorkspace(compiledShape: compiledShape),
+            parameters: parameters
+        )
+    }
+
+    private func decompose(
+        _ claim: CCSEvaluationClaim,
+        shape: CCSShape,
+        compiledShape: CompiledCCSShape,
+        metalWorkspace: SuperNeoMetalWorkspace?
+    ) throws -> (proof: DecompositionProof, claims: [CCSEvaluationClaim]) {
         try SuperNeoProtocolOracle.decompose(
             claim,
             shape: shape,
             key: key,
-            context: context,
+            compiledShape: compiledShape,
+            metalWorkspace: metalWorkspace,
             parameters: parameters
+        )
+    }
+
+    private func makeMetalWorkspace(compiledShape: CompiledCCSShape) throws -> SuperNeoMetalWorkspace? {
+        guard let context else { return nil }
+        return try SuperNeoMetalWorkspace(
+            context: context,
+            key: key,
+            compiledShape: compiledShape
         )
     }
 }
@@ -1824,39 +1880,74 @@ private enum SuperNeoProtocolOracle {
     static func makePiCCSOutputClaims(
         input: SuperNeoFoldInput,
         key: AjtaiCommitmentKey,
-        context: MetalExecutionContext?,
+        compiledShape: CompiledCCSShape,
+        metalWorkspace: SuperNeoMetalWorkspace?,
         point: [GoldilocksExt2]
     ) throws -> [CCSEvaluationClaim] {
-        let compiledShape = try input.shape.compiledForSuperNeo()
-        let freshClaims = try zip(input.instances, input.witnesses).map { instance, witness in
-            let z = witness.fullZ(for: instance)
-            return try makeEvaluationClaim(
-                shape: input.shape,
-                transformedMatrices: compiledShape.transformedMatrices,
+        var claimInputs: [(commitment: AjtaiCommitment, publicInput: [GoldilocksField], witness: [GoldilocksField])] = []
+        claimInputs.reserveCapacity(input.instances.count + input.priorClaims.count)
+        for (instance, witness) in zip(input.instances, input.witnesses) {
+            claimInputs.append((
                 commitment: instance.commitment,
                 publicInput: instance.publicInput,
-                witness: z,
-                key: key,
-                context: context,
-                point: point
-            )
+                witness: witness.fullZ(for: instance)
+            ))
         }
-        let priorClaims = try input.priorClaims.map { claim in
+        for claim in input.priorClaims {
             guard let witness = claim.witness else {
                 throw SuperNeoError.invalidParameter("prover requires prior CE witnesses")
             }
-            return try makeEvaluationClaim(
-                shape: input.shape,
-                transformedMatrices: compiledShape.transformedMatrices,
+            claimInputs.append((
                 commitment: claim.commitment,
                 publicInput: claim.publicInput,
-                witness: witness,
-                key: key,
-                context: context,
+                witness: witness
+            ))
+        }
+
+        let packedWitnesses = try claimInputs.map { claimInput -> [CyclotomicRing54] in
+            guard isValidEvaluationWitnessLength(claimInput.witness.count, shape: input.shape) else {
+                throw SuperNeoError.invalidParameter("evaluation witness length must match the original or padded ring length")
+            }
+            guard claimInput.publicInput.count <= claimInput.witness.count,
+                  Array(claimInput.witness.prefix(claimInput.publicInput.count)) == claimInput.publicInput else {
+                throw SuperNeoError.invalidParameter("evaluation public input must be a prefix of the witness")
+            }
+            return try packedEvaluationWitness(claimInput.witness, shape: input.shape)
+        }
+
+        let recomputedCommitments: [AjtaiCommitment]
+        let evaluations: [[CyclotomicExt2Ring54]]
+        if let metalWorkspace {
+            let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
+                messages: packedWitnesses,
+                point: point
+            )
+            recomputedCommitments = combined.commitments
+            evaluations = combined.evaluations
+        } else {
+            recomputedCommitments = try packedWitnesses.map {
+                try AjtaiCommitter.commitReference(key: key, message: $0)
+            }
+            evaluations = try packedWitnesses.map { packed in
+                try compiledShape.transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
+                    let rows = try matrix.multiplied(by: packed)
+                    return try evaluateExtensionRingRows(rows, at: point)
+                }
+            }
+        }
+        for index in claimInputs.indices where recomputedCommitments[index] != claimInputs[index].commitment {
+            throw SuperNeoError.verificationFailed("instance commitment does not match witness")
+        }
+
+        return claimInputs.indices.map { index in
+            CCSEvaluationClaim(
+                commitment: claimInputs[index].commitment,
+                publicInput: claimInputs[index].publicInput,
                 point: point,
+                evaluations: evaluations[index],
+                witness: claimInputs[index].witness
             )
         }
-        return freshClaims + priorClaims
     }
 
     static func randomLinearCombination(
@@ -1927,43 +2018,6 @@ private enum SuperNeoProtocolOracle {
         )
     }
 
-    private static func makeEvaluationClaim(
-        shape: CCSShape,
-        transformedMatrices: [RingMatrix],
-        commitment: AjtaiCommitment,
-        publicInput: [GoldilocksField],
-        witness: [GoldilocksField],
-        key: AjtaiCommitmentKey,
-        context: MetalExecutionContext?,
-        point: [GoldilocksExt2]
-    ) throws -> CCSEvaluationClaim {
-        guard isValidEvaluationWitnessLength(witness.count, shape: shape) else {
-            throw SuperNeoError.invalidParameter("evaluation witness length must match the original or padded ring length")
-        }
-        guard publicInput.count <= witness.count, Array(witness.prefix(publicInput.count)) == publicInput else {
-            throw SuperNeoError.invalidParameter("evaluation public input must be a prefix of the witness")
-        }
-        let packed = try packedEvaluationWitness(witness, shape: shape)
-        let recomputed = try AjtaiCommitter.commit(key: key, fieldWitness: witness, context: context)
-        guard recomputed == commitment else {
-            throw SuperNeoError.verificationFailed("instance commitment does not match witness")
-        }
-        guard transformedMatrices.count == shape.numMatrices else {
-            throw SuperNeoError.invalidParameter("compiled transformed matrix count mismatch")
-        }
-        let metalBackend = context.map { SuperNeoMetalBackend(context: $0) }
-        let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-            try evaluateTransformedMatrix(matrix, packed: packed, point: point, metalBackend: metalBackend)
-        }
-        return CCSEvaluationClaim(
-            commitment: commitment,
-            publicInput: publicInput,
-            point: point,
-            evaluations: evaluations,
-            witness: witness
-        )
-    }
-
     static func verifyEvaluationClaimOpening(
         shape: CCSShape,
         transformedMatrices: [RingMatrix],
@@ -2028,23 +2082,6 @@ private enum SuperNeoProtocolOracle {
         )
     }
 
-    private static func evaluateTransformedMatrix(
-        _ matrix: RingMatrix,
-        packed: [CyclotomicRing54],
-        point: [GoldilocksExt2],
-        metalBackend: SuperNeoMetalBackend?
-    ) throws -> CyclotomicExt2Ring54 {
-        if let metalBackend {
-            return CyclotomicExt2Ring54(try metalBackend.transformedEvaluation(
-                matrix: matrix,
-                vector: packed,
-                point: point
-            ))
-        }
-        let rows = try matrix.multiplied(by: packed)
-        return try evaluateExtensionRingRows(rows, at: point)
-    }
-
     private static func evaluateExtensionRingRows(_ rows: [CyclotomicRing54], at point: [GoldilocksExt2]) throws -> CyclotomicExt2Ring54 {
         var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
         for coefficientIndex in 0..<CyclotomicRing54.degree {
@@ -2058,7 +2095,8 @@ private enum SuperNeoProtocolOracle {
         _ claim: CCSEvaluationClaim,
         shape: CCSShape,
         key: AjtaiCommitmentKey,
-        context: MetalExecutionContext?,
+        compiledShape: CompiledCCSShape,
+        metalWorkspace: SuperNeoMetalWorkspace?,
         parameters: SuperNeoParameters
     ) throws -> (proof: DecompositionProof, claims: [CCSEvaluationClaim]) {
         guard let witness = claim.witness else {
@@ -2073,25 +2111,41 @@ private enum SuperNeoProtocolOracle {
         guard claim.evaluations.count == shape.numMatrices else {
             throw SuperNeoError.invalidParameter("decomposition folded evaluation arity mismatch")
         }
-        let transformedMatrices = try shape.compiledForSuperNeo().transformedMatrices
-        let metalBackend = context.map { SuperNeoMetalBackend(context: $0) }
+        let transformedMatrices = compiledShape.transformedMatrices
         let limbs = try splitSignedBase(witness, base: parameters.normBound, count: parameters.decompositionLength)
         let publicInputLimbs = try splitSignedBase(
             claim.publicInput,
             base: parameters.normBound,
             count: parameters.decompositionLength
         )
-        let limbClaims = try limbs.enumerated().map { index, limb -> CCSEvaluationClaim in
-            let commitment = try AjtaiCommitter.commit(key: key, fieldWitness: limb, context: context)
-            let packed = try packedEvaluationWitness(limb, shape: shape)
-            let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-                try evaluateTransformedMatrix(matrix, packed: packed, point: claim.point, metalBackend: metalBackend)
+        let packedLimbs = try limbs.map { try packedEvaluationWitness($0, shape: shape) }
+        let limbCommitments: [AjtaiCommitment]
+        let limbEvaluations: [[CyclotomicExt2Ring54]]
+        if let metalWorkspace {
+            let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
+                messages: packedLimbs,
+                point: claim.point
+            )
+            limbCommitments = combined.commitments
+            limbEvaluations = combined.evaluations
+        } else {
+            limbCommitments = try packedLimbs.map {
+                try AjtaiCommitter.commitReference(key: key, message: $0)
             }
+            limbEvaluations = try packedLimbs.map { packed in
+                try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
+                    let rows = try matrix.multiplied(by: packed)
+                    return try evaluateExtensionRingRows(rows, at: claim.point)
+                }
+            }
+        }
+        let limbClaims = limbs.enumerated().map { index, limb -> CCSEvaluationClaim in
+            let commitment = limbCommitments[index]
             return CCSEvaluationClaim(
                 commitment: commitment,
                 publicInput: publicInputLimbs[index],
                 point: claim.point,
-                evaluations: evaluations,
+                evaluations: limbEvaluations[index],
                 witness: limb
             )
         }

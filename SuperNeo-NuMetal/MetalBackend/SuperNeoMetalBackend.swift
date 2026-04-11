@@ -1,7 +1,145 @@
 import Foundation
 import Metal
 
+fileprivate struct SparseRingMatrixBuffers {
+    let rowOffsets: MTLBuffer
+    let columnIndices: MTLBuffer
+    let values: MTLBuffer
+    let matvecParams: MTLBuffer
+    let dotParams: MTLBuffer
+    let rows: Int
+    let columns: Int
+}
+
+fileprivate struct SparseRingMatrixBatchBuffers {
+    let rowOffsets: MTLBuffer
+    let columnIndices: MTLBuffer
+    let values: MTLBuffer
+    let matrixCount: Int
+    let rows: Int
+    let columns: Int
+}
+
+public final class SuperNeoMetalWorkspace: @unchecked Sendable {
+    public let context: MetalExecutionContext
+    public let key: AjtaiCommitmentKey
+    public let transformedMatrixCount: Int
+
+    fileprivate let keyMatrixBuffer: MTLBuffer
+    fileprivate let transformedMatrixBuffers: [SparseRingMatrixBuffers]
+    fileprivate let transformedMatrixBatchBuffers: SparseRingMatrixBatchBuffers?
+
+    public convenience init(
+        context: MetalExecutionContext,
+        key: AjtaiCommitmentKey,
+        compiledShape: CompiledCCSShape
+    ) throws {
+        try self.init(
+            context: context,
+            key: key,
+            transformedSparseMatrices: compiledShape.transformedSparseMatrices
+        )
+    }
+
+    public init(
+        context: MetalExecutionContext,
+        key: AjtaiCommitmentKey,
+        transformedSparseMatrices: [SparseRingMatrixCSR]
+    ) throws {
+        guard key.matrix.rows == key.parameters.kappa else {
+            throw SuperNeoError.invalidParameter("Ajtai matrix row count must equal kappa")
+        }
+        guard key.matrix.columns > 0 else {
+            throw SuperNeoError.invalidParameter("Ajtai matrix must have at least one column")
+        }
+
+        let backend = SuperNeoMetalBackend(context: context)
+        self.context = context
+        self.key = key
+        self.transformedMatrixCount = transformedSparseMatrices.count
+        self.keyMatrixBuffer = try context.makeBuffer(backend.flatten(key.matrix.elements))
+        self.transformedMatrixBuffers = try transformedSparseMatrices.map {
+            try backend.makeSparseRingMatrixBuffers($0)
+        }
+        self.transformedMatrixBatchBuffers = try backend.makeSparseRingMatrixBatchBuffers(transformedSparseMatrices)
+    }
+
+    public func ajtaiCommitments(
+        messages: [[CyclotomicRing54]],
+        schedule: AjtaiMatvecSchedule = .default
+    ) throws -> [AjtaiCommitment] {
+        try SuperNeoMetalBackend(context: context).ajtaiCommitments(
+            key: key,
+            messages: messages,
+            schedule: schedule,
+            matrixBuffer: keyMatrixBuffer
+        )
+    }
+
+    public func transformedEvaluations(
+        vector: [CyclotomicRing54],
+        point: [GoldilocksExt2]
+    ) throws -> [CyclotomicExt2Ring54] {
+        guard let evaluations = try transformedEvaluations(
+            vectors: [vector],
+            point: point
+        ).first else {
+            return []
+        }
+        return evaluations
+    }
+
+    public func transformedEvaluations(
+        vectors: [[CyclotomicRing54]],
+        point: [GoldilocksExt2]
+    ) throws -> [[CyclotomicExt2Ring54]] {
+        if let transformedMatrixBatchBuffers {
+            return try SuperNeoMetalBackend(context: context).transformedEvaluations(
+                batchBuffers: transformedMatrixBatchBuffers,
+                vectors: vectors,
+                point: point
+            )
+        }
+        return try SuperNeoMetalBackend(context: context).transformedEvaluations(
+            matrixBuffers: transformedMatrixBuffers,
+            vectors: vectors,
+            point: point
+        )
+    }
+
+    public func commitmentsAndTransformedEvaluations(
+        messages: [[CyclotomicRing54]],
+        point: [GoldilocksExt2],
+        schedule: AjtaiMatvecSchedule = .default
+    ) throws -> (commitments: [AjtaiCommitment], evaluations: [[CyclotomicExt2Ring54]]) {
+        guard let transformedMatrixBatchBuffers else {
+            return (
+                try ajtaiCommitments(messages: messages, schedule: schedule),
+                try transformedEvaluations(vectors: messages, point: point)
+            )
+        }
+        return try SuperNeoMetalBackend(context: context).commitmentsAndTransformedEvaluations(
+            key: key,
+            messages: messages,
+            point: point,
+            schedule: schedule,
+            matrixBuffer: keyMatrixBuffer,
+            batchBuffers: transformedMatrixBatchBuffers
+        )
+    }
+}
+
 public final class SuperNeoMetalBackend: @unchecked Sendable {
+    private static let fusedEvaluationRowBlockSize: Int = {
+        guard let rawValue = ProcessInfo.processInfo.environment["SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE"],
+              let value = Int(rawValue),
+              value > 0 else {
+            return 128
+        }
+        return value
+    }()
+    private static let fusedEvaluationBlockedRowThreshold = 512
+
     public let context: MetalExecutionContext
 
     public init(context: MetalExecutionContext) {
@@ -95,6 +233,26 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
 
         let planned = schedule.planned(for: key, messageCount: messages.count)
         let matrixBuffer = try context.makeBuffer(flatten(key.matrix.elements))
+        return try ajtaiCommitments(
+            key: key,
+            messages: messages,
+            schedule: planned,
+            matrixBuffer: matrixBuffer
+        )
+    }
+
+    fileprivate func ajtaiCommitments(
+        key: AjtaiCommitmentKey,
+        messages: [[CyclotomicRing54]],
+        schedule: AjtaiMatvecSchedule,
+        matrixBuffer: MTLBuffer
+    ) throws -> [AjtaiCommitment] {
+        guard !messages.isEmpty else { return [] }
+        guard messages.allSatisfy({ $0.count == key.matrix.columns }) else {
+            throw SuperNeoError.invalidParameter("Ajtai message length must equal key column count")
+        }
+
+        let planned = schedule.planned(for: key, messageCount: messages.count)
         var commitments: [AjtaiCommitment] = []
         commitments.reserveCapacity(messages.count)
 
@@ -102,16 +260,48 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         while batchStart < messages.count {
             let batchEnd = min(batchStart + planned.maxBatchSize, messages.count)
             let batchMessages = Array(messages[batchStart..<batchEnd])
-            commitments.append(contentsOf: try ajtaiCommitmentsBatch(
+            commitments.append(contentsOf: try ajtaiCommitmentsCoefficientBatch(
                 key: key,
                 messages: batchMessages,
-                schedule: planned,
                 matrixBuffer: matrixBuffer
             ))
             batchStart = batchEnd
         }
 
         return commitments
+    }
+
+    private func ajtaiCommitmentsCoefficientBatch(
+        key: AjtaiCommitmentKey,
+        messages: [[CyclotomicRing54]],
+        matrixBuffer: MTLBuffer
+    ) throws -> [AjtaiCommitment] {
+        let rowCount = key.matrix.rows
+        let columnCount = key.matrix.columns
+        let batchCount = messages.count
+        let outputRingCount = batchCount * rowCount
+        let messageBuffer = try context.makeBuffer(flatten(messages))
+        let outputBuffer = try context.makeEmptyBuffer(
+            count: outputRingCount * CyclotomicRing54.degree,
+            as: UInt64.self
+        )
+        let params = try [
+            checkedUInt32(rowCount, name: "Ajtai row count"),
+            checkedUInt32(columnCount, name: "Ajtai column count"),
+            checkedUInt32(batchCount, name: "Ajtai batch count")
+        ]
+        let paramsBuffer = try context.makeBuffer(params)
+        try context.dispatch1D(
+            pipelineName: "ajtai_matvec_ring_batch_coeff_kernel",
+            buffers: [matrixBuffer, messageBuffer, outputBuffer, paramsBuffer],
+            elementCount: outputRingCount * CyclotomicRing54.degree
+        )
+
+        return try ajtaiCommitmentResults(
+            outputBuffer: outputBuffer,
+            outputRingCount: outputRingCount,
+            rowCount: rowCount
+        )
     }
 
     public func transformedMatrixVector(matrix: RingMatrix, vector: [CyclotomicRing54]) throws -> [CyclotomicRing54] {
@@ -131,6 +321,30 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         try context.dispatch1D(
             pipelineName: "transformed_matvec_kernel",
             buffers: [matrixBuffer, vectorBuffer, outputBuffer, paramsBuffer],
+            elementCount: matrix.rows
+        )
+        return try inflateRings(outputBuffer.array(of: UInt64.self, count: outputCount))
+    }
+
+    public func transformedMatrixVector(matrix: SparseRingMatrixCSR, vector: [CyclotomicRing54]) throws -> [CyclotomicRing54] {
+        guard matrix.columns == vector.count else {
+            throw SuperNeoError.invalidParameter("sparse transformed matrix/vector dimension mismatch")
+        }
+        guard matrix.rows > 0 else { return [] }
+        let rowOffsetsBuffer = try context.makeBuffer(try checkedUInt32Array(matrix.rowOffsets, name: "sparse row offset"))
+        let columnIndicesBuffer = try context.makeBuffer(try checkedUInt32Array(matrix.columnIndices, name: "sparse column index"))
+        let valuesBuffer = try context.makeBuffer(flatten(matrix.values))
+        let vectorBuffer = try context.makeBuffer(flatten(vector))
+        let outputCount = matrix.rows * CyclotomicRing54.degree
+        let outputBuffer = try context.makeEmptyBuffer(count: outputCount, as: UInt64.self)
+        let paramsBuffer = try context.makeBuffer([
+            checkedUInt32(matrix.rows, name: "sparse transformed matrix row count"),
+            checkedUInt32(matrix.columns, name: "sparse transformed matrix column count"),
+            checkedUInt32(matrix.values.count, name: "sparse transformed matrix value count")
+        ])
+        try context.dispatch1D(
+            pipelineName: "sparse_transformed_matvec_kernel",
+            buffers: [rowOffsetsBuffer, columnIndicesBuffer, valuesBuffer, vectorBuffer, outputBuffer, paramsBuffer],
             elementCount: matrix.rows
         )
         return try inflateRings(outputBuffer.array(of: UInt64.self, count: outputCount))
@@ -166,6 +380,391 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         }
         let rows = try transformedMatrixVector(matrix: matrix, vector: vector)
         return try transformedEvaluation(rows: rows, rHat: rHat)
+    }
+
+    public func transformedEvaluation(
+        matrix: SparseRingMatrixCSR,
+        vector: [CyclotomicRing54],
+        point: [GoldilocksExt2]
+    ) throws -> [GoldilocksExt2] {
+        guard let evaluation = try transformedEvaluations(
+            matrices: [matrix],
+            vectors: [vector],
+            point: point
+        ).first?.first else {
+            throw SuperNeoError.invalidParameter("sparse transformed evaluation produced no result")
+        }
+        return evaluation.coefficients
+    }
+
+    public func transformedEvaluations(
+        matrices: [SparseRingMatrixCSR],
+        vector: [CyclotomicRing54],
+        point: [GoldilocksExt2]
+    ) throws -> [CyclotomicExt2Ring54] {
+        guard let evaluations = try transformedEvaluations(
+            matrices: matrices,
+            vectors: [vector],
+            point: point
+        ).first else {
+            return []
+        }
+        return evaluations
+    }
+
+    public func transformedEvaluations(
+        matrices: [SparseRingMatrixCSR],
+        vectors: [[CyclotomicRing54]],
+        point: [GoldilocksExt2]
+    ) throws -> [[CyclotomicExt2Ring54]] {
+        guard !vectors.isEmpty else { return [] }
+        guard !matrices.isEmpty else {
+            return Array(repeating: [], count: vectors.count)
+        }
+
+        let rHat = try MultilinearEvaluation.checkedBasis(at: point)
+        for matrix in matrices {
+            guard matrix.rows == rHat.count else {
+                throw SuperNeoError.invalidParameter("evaluation point dimension must match sparse transformed matrix row count")
+            }
+        }
+        let firstMatrix = matrices[0]
+        let canUseBatchBuffers = matrices.allSatisfy {
+            $0.rows == firstMatrix.rows && $0.columns == firstMatrix.columns
+        }
+        if canUseBatchBuffers, let batchBuffers = try makeSparseRingMatrixBatchBuffers(matrices) {
+            return try transformedEvaluations(
+                batchBuffers: batchBuffers,
+                vectors: vectors,
+                point: point
+            )
+        }
+
+        let matrixBuffers = try matrices.map { try makeSparseRingMatrixBuffers($0) }
+
+        return try transformedEvaluations(
+            matrixBuffers: matrixBuffers,
+            vectors: vectors,
+            point: point
+        )
+    }
+
+    fileprivate func transformedEvaluations(
+        matrixBuffers: [SparseRingMatrixBuffers],
+        vectors: [[CyclotomicRing54]],
+        point: [GoldilocksExt2]
+    ) throws -> [[CyclotomicExt2Ring54]] {
+        guard !vectors.isEmpty else { return [] }
+        guard !matrixBuffers.isEmpty else {
+            return Array(repeating: [], count: vectors.count)
+        }
+
+        let rHat = try MultilinearEvaluation.checkedBasis(at: point)
+        let rHatBuffer = try context.makeBuffer(flattenExt2(rHat))
+        for buffers in matrixBuffers where buffers.rows != rHat.count {
+            throw SuperNeoError.invalidParameter("evaluation point dimension must match sparse transformed matrix row count")
+        }
+
+        let vectorBuffers = try vectors.map { vector -> MTLBuffer in
+            for buffers in matrixBuffers where buffers.columns != vector.count {
+                throw SuperNeoError.invalidParameter("sparse transformed matrix/vector dimension mismatch")
+            }
+            return try context.makeBuffer(flatten(vector))
+        }
+
+        var commands: [MetalDispatchCommand] = []
+        commands.reserveCapacity(vectors.count * matrixBuffers.count * 2)
+        var outputBuffers = Array(repeating: [MTLBuffer](), count: vectors.count)
+
+        for vectorIndex in vectors.indices {
+            outputBuffers[vectorIndex].reserveCapacity(matrixBuffers.count)
+            for matrixIndex in matrixBuffers.indices {
+                let buffers = matrixBuffers[matrixIndex]
+                let rowsBuffer = try context.makeEmptyBuffer(
+                    count: buffers.rows * CyclotomicRing54.degree,
+                    as: UInt64.self
+                )
+                let outputBuffer = try context.makeEmptyBuffer(
+                    count: CyclotomicRing54.degree * 2,
+                    as: UInt64.self
+                )
+                outputBuffers[vectorIndex].append(outputBuffer)
+                commands.append(MetalDispatchCommand(
+                    pipelineName: "sparse_transformed_matvec_kernel",
+                    buffers: [
+                        buffers.rowOffsets,
+                        buffers.columnIndices,
+                        buffers.values,
+                        vectorBuffers[vectorIndex],
+                        rowsBuffer,
+                        buffers.matvecParams
+                    ],
+                    elementCount: buffers.rows
+                ))
+                commands.append(MetalDispatchCommand(
+                    pipelineName: "transformed_eval_dot_kernel",
+                    buffers: [
+                        rowsBuffer,
+                        rHatBuffer,
+                        outputBuffer,
+                        buffers.dotParams
+                    ],
+                    elementCount: CyclotomicRing54.degree,
+                    barrierAfter: false
+                ))
+            }
+        }
+
+        try context.dispatch1DSequence(commands)
+        return outputBuffers.map { vectorOutputs in
+            vectorOutputs.map { outputBuffer in
+                CyclotomicExt2Ring54(inflateExt2(outputBuffer.array(
+                    of: UInt64.self,
+                    count: CyclotomicRing54.degree * 2
+                )))
+            }
+        }
+    }
+
+    fileprivate func transformedEvaluations(
+        batchBuffers: SparseRingMatrixBatchBuffers,
+        vectors: [[CyclotomicRing54]],
+        point: [GoldilocksExt2]
+    ) throws -> [[CyclotomicExt2Ring54]] {
+        guard !vectors.isEmpty else { return [] }
+        guard batchBuffers.matrixCount > 0 else {
+            return Array(repeating: [], count: vectors.count)
+        }
+        let rHat = try MultilinearEvaluation.checkedBasis(at: point)
+        guard rHat.count == batchBuffers.rows else {
+            throw SuperNeoError.invalidParameter("evaluation point dimension must match sparse transformed matrix row count")
+        }
+        for vector in vectors where vector.count != batchBuffers.columns {
+            throw SuperNeoError.invalidParameter("sparse transformed matrix/vector dimension mismatch")
+        }
+
+        let vectorBuffer = try context.makeBuffer(flatten(vectors))
+        let rHatBuffer = try context.makeBuffer(flattenExt2(rHat))
+        let outputWordCount = vectors.count * batchBuffers.matrixCount * CyclotomicRing54.degree * 2
+        let outputBuffer = try context.makeEmptyBuffer(count: outputWordCount, as: UInt64.self)
+        let rowBlockSize = Self.fusedEvaluationRowBlockSize
+        let rowBlockCount = (batchBuffers.rows + rowBlockSize - 1) / rowBlockSize
+
+        if batchBuffers.rows >= Self.fusedEvaluationBlockedRowThreshold, rowBlockCount > 1 {
+            let partialWordCount = vectors.count * batchBuffers.matrixCount * rowBlockCount * CyclotomicRing54.degree * 2
+            let partialBuffer = try context.makeEmptyBuffer(count: partialWordCount, as: UInt64.self)
+            let paramsBuffer = try context.makeBuffer([
+                checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
+                checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
+                checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
+                checkedUInt32(vectors.count, name: "sparse transformed vector batch count"),
+                checkedUInt32(rowBlockSize, name: "sparse transformed row block size"),
+                checkedUInt32(rowBlockCount, name: "sparse transformed row block count")
+            ])
+
+            try context.dispatch1DSequence([
+                MetalDispatchCommand(
+                    pipelineName: "sparse_transformed_eval_block_partial_kernel",
+                    buffers: [
+                        batchBuffers.rowOffsets,
+                        batchBuffers.columnIndices,
+                        batchBuffers.values,
+                        vectorBuffer,
+                        rHatBuffer,
+                        partialBuffer,
+                        paramsBuffer
+                    ],
+                    elementCount: vectors.count * batchBuffers.matrixCount * rowBlockCount * CyclotomicRing54.degree
+                ),
+                MetalDispatchCommand(
+                    pipelineName: "sparse_transformed_eval_block_reduce_kernel",
+                    buffers: [
+                        partialBuffer,
+                        outputBuffer,
+                        paramsBuffer
+                    ],
+                    elementCount: vectors.count * batchBuffers.matrixCount * CyclotomicRing54.degree,
+                    barrierAfter: false
+                )
+            ])
+
+            return transformedEvaluationResults(
+                outputBuffer: outputBuffer,
+                outputWordCount: outputWordCount,
+                vectorCount: vectors.count,
+                matrixCount: batchBuffers.matrixCount
+            )
+        }
+
+        let paramsBuffer = try context.makeBuffer([
+            checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
+            checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
+            checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
+            checkedUInt32(vectors.count, name: "sparse transformed vector batch count")
+        ])
+
+        try context.dispatch1D(
+            pipelineName: "sparse_transformed_eval_fused_kernel",
+            buffers: [
+                batchBuffers.rowOffsets,
+                batchBuffers.columnIndices,
+                batchBuffers.values,
+                vectorBuffer,
+                rHatBuffer,
+                outputBuffer,
+                paramsBuffer
+            ],
+            elementCount: vectors.count * batchBuffers.matrixCount * CyclotomicRing54.degree
+        )
+
+        return transformedEvaluationResults(
+            outputBuffer: outputBuffer,
+            outputWordCount: outputWordCount,
+            vectorCount: vectors.count,
+            matrixCount: batchBuffers.matrixCount
+        )
+    }
+
+    fileprivate func commitmentsAndTransformedEvaluations(
+        key: AjtaiCommitmentKey,
+        messages: [[CyclotomicRing54]],
+        point: [GoldilocksExt2],
+        schedule: AjtaiMatvecSchedule,
+        matrixBuffer: MTLBuffer,
+        batchBuffers: SparseRingMatrixBatchBuffers
+    ) throws -> (commitments: [AjtaiCommitment], evaluations: [[CyclotomicExt2Ring54]]) {
+        guard !messages.isEmpty else {
+            return ([], [])
+        }
+        guard key.matrix.rows == key.parameters.kappa else {
+            throw SuperNeoError.invalidParameter("Ajtai matrix row count must equal kappa")
+        }
+        guard messages.allSatisfy({ $0.count == key.matrix.columns }) else {
+            throw SuperNeoError.invalidParameter("Ajtai message length must equal key column count")
+        }
+        guard batchBuffers.matrixCount > 0 else {
+            return (try ajtaiCommitments(
+                key: key,
+                messages: messages,
+                schedule: schedule,
+                matrixBuffer: matrixBuffer
+            ), Array(repeating: [], count: messages.count))
+        }
+        let planned = schedule.planned(for: key, messageCount: messages.count)
+        guard messages.count <= planned.maxBatchSize else {
+            return (
+                try ajtaiCommitments(key: key, messages: messages, schedule: planned, matrixBuffer: matrixBuffer),
+                try transformedEvaluations(batchBuffers: batchBuffers, vectors: messages, point: point)
+            )
+        }
+        let rHat = try MultilinearEvaluation.checkedBasis(at: point)
+        guard rHat.count == batchBuffers.rows else {
+            throw SuperNeoError.invalidParameter("evaluation point dimension must match sparse transformed matrix row count")
+        }
+        guard batchBuffers.columns == key.matrix.columns else {
+            throw SuperNeoError.invalidParameter("Ajtai key and transformed matrices must share ring column count")
+        }
+
+        let rowCount = key.matrix.rows
+        let columnCount = key.matrix.columns
+        let batchCount = messages.count
+        let vectorBuffer = try context.makeBuffer(flatten(messages))
+        let rHatBuffer = try context.makeBuffer(flattenExt2(rHat))
+        let commitmentOutputRingCount = batchCount * rowCount
+        let commitmentOutputBuffer = try context.makeEmptyBuffer(
+            count: commitmentOutputRingCount * CyclotomicRing54.degree,
+            as: UInt64.self
+        )
+        let evaluationOutputWordCount = batchCount * batchBuffers.matrixCount * CyclotomicRing54.degree * 2
+        let evaluationOutputBuffer = try context.makeEmptyBuffer(count: evaluationOutputWordCount, as: UInt64.self)
+
+        let ajtaiParamsBuffer = try context.makeBuffer([
+            checkedUInt32(rowCount, name: "Ajtai row count"),
+            checkedUInt32(columnCount, name: "Ajtai column count"),
+            checkedUInt32(batchCount, name: "Ajtai batch count")
+        ])
+        var commands = [
+            MetalDispatchCommand(
+                pipelineName: "ajtai_matvec_ring_batch_coeff_kernel",
+                buffers: [matrixBuffer, vectorBuffer, commitmentOutputBuffer, ajtaiParamsBuffer],
+                elementCount: commitmentOutputRingCount * CyclotomicRing54.degree,
+                barrierAfter: false
+            )
+        ]
+
+        let rowBlockSize = Self.fusedEvaluationRowBlockSize
+        let rowBlockCount = (batchBuffers.rows + rowBlockSize - 1) / rowBlockSize
+        if batchBuffers.rows >= Self.fusedEvaluationBlockedRowThreshold, rowBlockCount > 1 {
+            let partialWordCount = batchCount * batchBuffers.matrixCount * rowBlockCount * CyclotomicRing54.degree * 2
+            let partialBuffer = try context.makeEmptyBuffer(count: partialWordCount, as: UInt64.self)
+            let paramsBuffer = try context.makeBuffer([
+                checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
+                checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
+                checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
+                checkedUInt32(batchCount, name: "sparse transformed vector batch count"),
+                checkedUInt32(rowBlockSize, name: "sparse transformed row block size"),
+                checkedUInt32(rowBlockCount, name: "sparse transformed row block count")
+            ])
+            commands.append(MetalDispatchCommand(
+                pipelineName: "sparse_transformed_eval_block_partial_kernel",
+                buffers: [
+                    batchBuffers.rowOffsets,
+                    batchBuffers.columnIndices,
+                    batchBuffers.values,
+                    vectorBuffer,
+                    rHatBuffer,
+                    partialBuffer,
+                    paramsBuffer
+                ],
+                elementCount: batchCount * batchBuffers.matrixCount * rowBlockCount * CyclotomicRing54.degree
+            ))
+            commands.append(MetalDispatchCommand(
+                pipelineName: "sparse_transformed_eval_block_reduce_kernel",
+                buffers: [
+                    partialBuffer,
+                    evaluationOutputBuffer,
+                    paramsBuffer
+                ],
+                elementCount: batchCount * batchBuffers.matrixCount * CyclotomicRing54.degree,
+                barrierAfter: false
+            ))
+        } else {
+            let paramsBuffer = try context.makeBuffer([
+                checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
+                checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
+                checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
+                checkedUInt32(batchCount, name: "sparse transformed vector batch count")
+            ])
+            commands.append(MetalDispatchCommand(
+                pipelineName: "sparse_transformed_eval_fused_kernel",
+                buffers: [
+                    batchBuffers.rowOffsets,
+                    batchBuffers.columnIndices,
+                    batchBuffers.values,
+                    vectorBuffer,
+                    rHatBuffer,
+                    evaluationOutputBuffer,
+                    paramsBuffer
+                ],
+                elementCount: batchCount * batchBuffers.matrixCount * CyclotomicRing54.degree,
+                barrierAfter: false
+            ))
+        }
+
+        try context.dispatch1DSequence(commands)
+        return (
+            try ajtaiCommitmentResults(
+                outputBuffer: commitmentOutputBuffer,
+                outputRingCount: commitmentOutputRingCount,
+                rowCount: rowCount
+            ),
+            transformedEvaluationResults(
+                outputBuffer: evaluationOutputBuffer,
+                outputWordCount: evaluationOutputWordCount,
+                vectorCount: batchCount,
+                matrixCount: batchBuffers.matrixCount
+            )
+        )
     }
 
     private func binaryFieldOperation(
@@ -245,7 +844,8 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                 pipelineName: "ajtai_matvec_reduce_kernel",
                 buffers: [partialBuffer, outputBuffer, paramsBuffer],
                 elementCount: outputRingCount,
-                threadsPerThreadgroup: schedule.rowTileSize
+                threadsPerThreadgroup: schedule.rowTileSize,
+                barrierAfter: false
             )
         ])
 
@@ -258,8 +858,65 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         }
     }
 
-    private func flatten(_ rings: [CyclotomicRing54]) -> [UInt64] {
+    fileprivate func makeSparseRingMatrixBuffers(_ matrix: SparseRingMatrixCSR) throws -> SparseRingMatrixBuffers {
+        guard matrix.rows > 0 else {
+            throw SuperNeoError.invalidParameter("sparse transformed matrix must have at least one row")
+        }
+        return SparseRingMatrixBuffers(
+            rowOffsets: try context.makeBuffer(try checkedUInt32Array(matrix.rowOffsets, name: "sparse row offset")),
+            columnIndices: try context.makeBuffer(try checkedUInt32Array(matrix.columnIndices, name: "sparse column index")),
+            values: try context.makeBuffer(flatten(matrix.values)),
+            matvecParams: try context.makeBuffer([
+                checkedUInt32(matrix.rows, name: "sparse transformed matrix row count"),
+                checkedUInt32(matrix.columns, name: "sparse transformed matrix column count"),
+                checkedUInt32(matrix.values.count, name: "sparse transformed matrix value count")
+            ]),
+            dotParams: try context.makeBuffer([
+                checkedUInt32(matrix.rows, name: "transformed evaluation row count")
+            ]),
+            rows: matrix.rows,
+            columns: matrix.columns
+        )
+    }
+
+    fileprivate func makeSparseRingMatrixBatchBuffers(_ matrices: [SparseRingMatrixCSR]) throws -> SparseRingMatrixBatchBuffers? {
+        guard let first = matrices.first else { return nil }
+        guard first.rows > 0 else {
+            throw SuperNeoError.invalidParameter("sparse transformed matrix must have at least one row")
+        }
+
+        var rowOffsets: [Int] = []
+        rowOffsets.reserveCapacity(matrices.count * (first.rows + 1))
+        var columnIndices: [Int] = []
+        var values: [CyclotomicRing54] = []
+        var entryBase = 0
+
+        for matrix in matrices {
+            guard matrix.rows == first.rows, matrix.columns == first.columns else {
+                throw SuperNeoError.invalidParameter("sparse transformed matrices in a batch must share dimensions")
+            }
+            rowOffsets.append(contentsOf: matrix.rowOffsets.map { entryBase + $0 })
+            columnIndices.append(contentsOf: matrix.columnIndices)
+            values.append(contentsOf: matrix.values)
+            entryBase += matrix.values.count
+        }
+
+        return SparseRingMatrixBatchBuffers(
+            rowOffsets: try context.makeBuffer(try checkedUInt32Array(rowOffsets, name: "sparse batch row offset")),
+            columnIndices: try context.makeBuffer(try checkedUInt32Array(columnIndices, name: "sparse batch column index")),
+            values: try context.makeBuffer(flatten(values)),
+            matrixCount: matrices.count,
+            rows: first.rows,
+            columns: first.columns
+        )
+    }
+
+    fileprivate func flatten(_ rings: [CyclotomicRing54]) -> [UInt64] {
         rings.flatMap { $0.coefficients.map(\.rawValue) }
+    }
+
+    private func flatten(_ ringBatches: [[CyclotomicRing54]]) -> [UInt64] {
+        ringBatches.flatMap { flatten($0) }
     }
 
     private func flattenCoefficientMajorMessages(
@@ -301,10 +958,47 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         }
     }
 
+    private func transformedEvaluationResults(
+        outputBuffer: MTLBuffer,
+        outputWordCount: Int,
+        vectorCount: Int,
+        matrixCount: Int
+    ) -> [[CyclotomicExt2Ring54]] {
+        let raw = outputBuffer.array(of: UInt64.self, count: outputWordCount)
+        var evaluations = Array(repeating: [CyclotomicExt2Ring54](), count: vectorCount)
+        for vectorIndex in 0..<vectorCount {
+            evaluations[vectorIndex].reserveCapacity(matrixCount)
+            for matrixIndex in 0..<matrixCount {
+                let offset = ((vectorIndex * matrixCount + matrixIndex) * CyclotomicRing54.degree) * 2
+                let words = Array(raw[offset..<offset + CyclotomicRing54.degree * 2])
+                evaluations[vectorIndex].append(CyclotomicExt2Ring54(inflateExt2(words)))
+            }
+        }
+        return evaluations
+    }
+
+    private func ajtaiCommitmentResults(
+        outputBuffer: MTLBuffer,
+        outputRingCount: Int,
+        rowCount: Int
+    ) throws -> [AjtaiCommitment] {
+        let output = try inflateRings(outputBuffer.array(
+            of: UInt64.self,
+            count: outputRingCount * CyclotomicRing54.degree
+        ))
+        return stride(from: 0, to: output.count, by: rowCount).map {
+            AjtaiCommitment(Array(output[$0..<$0 + rowCount]))
+        }
+    }
+
     private func checkedUInt32(_ value: Int, name: String) throws -> UInt32 {
         guard let converted = UInt32(exactly: value) else {
             throw SuperNeoError.invalidParameter("\(name) does not fit in UInt32")
         }
         return converted
+    }
+
+    private func checkedUInt32Array(_ values: [Int], name: String) throws -> [UInt32] {
+        try values.map { try checkedUInt32($0, name: name) }
     }
 }

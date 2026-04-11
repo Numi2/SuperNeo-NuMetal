@@ -65,7 +65,11 @@ let selectedPrefixes = [
     "terminalVerify/cpu/",
     "proofEnvelope/roundTrip/",
     "stage/",
+    "kernel/fieldMultiply/",
+    "kernel/ringMultiply/",
+    "kernel/ringScalarMultiply/",
     "kernel/ajtaiCommit/",
+    "kernel/combinedCommitEval/",
     "kernel/transformedEvaluation/"
 ]
 

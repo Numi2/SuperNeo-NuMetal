@@ -374,3 +374,108 @@ public struct RingMatrix: Equatable, Sendable {
         return output
     }
 }
+
+public struct SparseRingMatrixCSR: Equatable, Sendable {
+    public let rows: Int
+    public let columns: Int
+    public let rowOffsets: [Int]
+    public let columnIndices: [Int]
+    public let values: [CyclotomicRing54]
+
+    public init(
+        rows: Int,
+        columns: Int,
+        rowOffsets: [Int],
+        columnIndices: [Int],
+        values: [CyclotomicRing54]
+    ) throws {
+        guard rows >= 0, columns >= 0 else {
+            throw SuperNeoError.invalidParameter("sparse ring matrix dimensions must be nonnegative")
+        }
+        guard rowOffsets.count == rows + 1, rowOffsets.first == 0 else {
+            throw SuperNeoError.invalidParameter("sparse ring row offsets must have rows + 1 entries and start at zero")
+        }
+        guard columnIndices.count == values.count, rowOffsets.last == values.count else {
+            throw SuperNeoError.invalidParameter("sparse ring matrix offsets must match value count")
+        }
+        for row in 0..<rows {
+            let start = rowOffsets[row]
+            let end = rowOffsets[row + 1]
+            guard start <= end else {
+                throw SuperNeoError.invalidParameter("sparse ring row offsets must be nondecreasing")
+            }
+            var previousColumn: Int?
+            for index in start..<end {
+                let column = columnIndices[index]
+                guard column >= 0, column < columns else {
+                    throw SuperNeoError.invalidParameter("sparse ring column index out of bounds")
+                }
+                guard values[index] != .zero else {
+                    throw SuperNeoError.invalidParameter("sparse ring matrices must omit zero entries")
+                }
+                if let previousColumn {
+                    guard previousColumn < column else {
+                        throw SuperNeoError.invalidParameter("sparse ring column indices must be strictly increasing within each row")
+                    }
+                }
+                previousColumn = column
+            }
+        }
+        self.rows = rows
+        self.columns = columns
+        self.rowOffsets = rowOffsets
+        self.columnIndices = columnIndices
+        self.values = values
+    }
+
+    public init(_ dense: RingMatrix) throws {
+        var rowOffsets = [0]
+        var columnIndices: [Int] = []
+        var values: [CyclotomicRing54] = []
+        for row in 0..<dense.rows {
+            for column in 0..<dense.columns {
+                let value = dense[row, column]
+                guard value != .zero else { continue }
+                columnIndices.append(column)
+                values.append(value)
+            }
+            rowOffsets.append(columnIndices.count)
+        }
+        try self.init(
+            rows: dense.rows,
+            columns: dense.columns,
+            rowOffsets: rowOffsets,
+            columnIndices: columnIndices,
+            values: values
+        )
+    }
+
+    public func dense() throws -> RingMatrix {
+        let (elementCount, overflow) = rows.multipliedReportingOverflow(by: columns)
+        guard !overflow else {
+            throw SuperNeoError.invalidParameter("sparse ring dense dimensions overflow")
+        }
+        var elements = Array(repeating: CyclotomicRing54.zero, count: elementCount)
+        for row in 0..<rows {
+            for index in rowOffsets[row]..<rowOffsets[row + 1] {
+                elements[row * columns + columnIndices[index]] = values[index]
+            }
+        }
+        return try RingMatrix(rows: rows, columns: columns, elements: elements)
+    }
+
+    public func multiplied(by vector: [CyclotomicRing54]) throws -> [CyclotomicRing54] {
+        guard vector.count == columns else {
+            throw SuperNeoError.invalidParameter("sparse ring matrix/vector dimension mismatch")
+        }
+        var output = Array(repeating: CyclotomicRing54.zero, count: rows)
+        for row in 0..<rows {
+            var acc = CyclotomicRing54.zero
+            for index in rowOffsets[row]..<rowOffsets[row + 1] {
+                acc = acc + values[index] * vector[columnIndices[index]]
+            }
+            output[row] = acc
+        }
+        return output
+    }
+}

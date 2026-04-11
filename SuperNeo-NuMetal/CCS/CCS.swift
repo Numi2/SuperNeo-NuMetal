@@ -530,21 +530,25 @@ public struct CCSShape: Equatable, Hashable, Sendable, SuperNeoByteEncodable {
         relationPolynomial: RelationPolynomial,
         hasIdentityFirstMatrix: Bool
     ) -> [UInt8] {
-        ccsEncodeUInt32(version)
-            + field.superNeoBytes
-            + cyclotomic.superNeoBytes
-            + ajtai.superNeoBytes
-            + challenges.superNeoBytes
-            + ccsEncodeCount(m)
-            + ccsEncodeCount(nField)
-            + ccsEncodeCount(nRing)
-            + ccsEncodeCount(nPublicField)
-            + ccsEncodeCount(numMatrices)
-            + ccsEncodeCount(relationDegree)
-            + ccsEncodeCount(matrices.count)
-            + matrices.flatMap(\.superNeoBytes)
-            + relationPolynomial.superNeoBytes
-            + [hasIdentityFirstMatrix ? 1 : 0]
+        var bytes: [UInt8] = []
+        bytes.append(contentsOf: ccsEncodeUInt32(version))
+        bytes.append(contentsOf: field.superNeoBytes)
+        bytes.append(contentsOf: cyclotomic.superNeoBytes)
+        bytes.append(contentsOf: ajtai.superNeoBytes)
+        bytes.append(contentsOf: challenges.superNeoBytes)
+        bytes.append(contentsOf: ccsEncodeCount(m))
+        bytes.append(contentsOf: ccsEncodeCount(nField))
+        bytes.append(contentsOf: ccsEncodeCount(nRing))
+        bytes.append(contentsOf: ccsEncodeCount(nPublicField))
+        bytes.append(contentsOf: ccsEncodeCount(numMatrices))
+        bytes.append(contentsOf: ccsEncodeCount(relationDegree))
+        bytes.append(contentsOf: ccsEncodeCount(matrices.count))
+        for matrix in matrices {
+            bytes.append(contentsOf: matrix.superNeoBytes)
+        }
+        bytes.append(contentsOf: relationPolynomial.superNeoBytes)
+        bytes.append(hasIdentityFirstMatrix ? 1 : 0)
+        return bytes
     }
 
     private static func validate(
@@ -608,16 +612,24 @@ public struct CCSShape: Equatable, Hashable, Sendable, SuperNeoByteEncodable {
 public struct CompiledCCSShape: Equatable, Sendable {
     public let shape: CCSShape
     public let transformedMatrices: [RingMatrix]
+    public let transformedSparseMatrices: [SparseRingMatrixCSR]
 
     public init(shape: CCSShape) throws {
         let transformedMatrices = try shape.matrices.map {
             try $0.toSparseFieldMatrix().transformedForSuperNeo()
         }
+        let transformedSparseMatrices = try shape.matrices.map {
+            try $0.toSparseFieldMatrix().transformedSparseForSuperNeo()
+        }
         guard transformedMatrices.count == shape.numMatrices else {
             throw SuperNeoError.invalidParameter("compiled CCS shape matrix count mismatch")
         }
+        guard transformedSparseMatrices.count == shape.numMatrices else {
+            throw SuperNeoError.invalidParameter("compiled CCS sparse matrix count mismatch")
+        }
         self.shape = shape
         self.transformedMatrices = transformedMatrices
+        self.transformedSparseMatrices = transformedSparseMatrices
     }
 }
 
@@ -690,6 +702,36 @@ public struct SparseFieldMatrix: Equatable, Sendable {
             elements[entry.row * ringColumns + ringColumn] = current
         }
         return try RingMatrix(rows: rows, columns: ringColumns, elements: elements)
+    }
+
+    public func transformedSparseForSuperNeo() throws -> SparseRingMatrixCSR {
+        let ringColumns = (columns + CyclotomicRing54.degree - 1) / CyclotomicRing54.degree
+        var rowValues = Array(repeating: [Int: CyclotomicRing54](), count: rows)
+        for entry in entries where entry.value != .zero {
+            let ringColumn = entry.column / CyclotomicRing54.degree
+            let coeff = entry.column % CyclotomicRing54.degree
+            let transformed = CyclotomicRing54(try CyclotomicRing54.innerProductTransform(unitVector(index: coeff, value: entry.value)))
+            rowValues[entry.row][ringColumn, default: .zero] = rowValues[entry.row][ringColumn, default: .zero] + transformed
+        }
+
+        var rowOffsets = [0]
+        var columnIndices: [Int] = []
+        var values: [CyclotomicRing54] = []
+        for row in rowValues {
+            for column in row.keys.sorted() {
+                guard let value = row[column], value != .zero else { continue }
+                columnIndices.append(column)
+                values.append(value)
+            }
+            rowOffsets.append(columnIndices.count)
+        }
+        return try SparseRingMatrixCSR(
+            rows: rows,
+            columns: ringColumns,
+            rowOffsets: rowOffsets,
+            columnIndices: columnIndices,
+            values: values
+        )
     }
 
     private func unitVector(index: Int, value: GoldilocksField) -> [GoldilocksField] {

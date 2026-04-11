@@ -6,17 +6,20 @@ public struct MetalDispatchCommand {
     public let buffers: [MTLBuffer]
     public let elementCount: Int
     public let threadsPerThreadgroup: Int?
+    public let barrierAfter: Bool
 
     public init(
         pipelineName: String,
         buffers: [MTLBuffer],
         elementCount: Int,
-        threadsPerThreadgroup: Int? = nil
+        threadsPerThreadgroup: Int? = nil,
+        barrierAfter: Bool = true
     ) {
         self.pipelineName = pipelineName
         self.buffers = buffers
         self.elementCount = elementCount
         self.threadsPerThreadgroup = threadsPerThreadgroup
+        self.barrierAfter = barrierAfter
     }
 }
 
@@ -122,6 +125,34 @@ public final class MetalExecutionContext: @unchecked Sendable {
         return failures
     }
 
+    @_spi(Benchmarking) public func prewarmSuperNeoPipelines() throws {
+        let failures = prewarmPipelines(named: [
+            "goldilocks_add_kernel",
+            "goldilocks_sub_kernel",
+            "goldilocks_mul_kernel",
+            "ring_add_kernel",
+            "ring_scalar_mul_kernel",
+            "ring_mul_kernel",
+            "transformed_matvec_kernel",
+            "sparse_transformed_matvec_kernel",
+            "transformed_eval_dot_kernel",
+            "sparse_transformed_eval_fused_kernel",
+            "sparse_transformed_eval_block_partial_kernel",
+            "sparse_transformed_eval_block_reduce_kernel",
+            "ajtai_matvec_coeff_kernel",
+            "ajtai_matvec_ring_batch_coeff_kernel",
+            "ajtai_matvec_tile_kernel",
+            "ajtai_matvec_reduce_kernel"
+        ])
+        guard failures.isEmpty else {
+            let message = failures
+                .map { "\($0.key): \($0.value.localizedDescription)" }
+                .sorted()
+                .joined(separator: "; ")
+            throw SuperNeoError.metalFailure("failed to prewarm Metal pipelines: \(message)")
+        }
+    }
+
     public func writeCapturedPipelineScript(to url: URL) throws {
         try pipelineStore.writeCapturedPipelineScript(to: url)
     }
@@ -182,10 +213,17 @@ public final class MetalExecutionContext: @unchecked Sendable {
             encoder.setBytes(&count, length: MemoryLayout<UInt32>.stride, index: command.buffers.count)
             let requestedWidth = command.threadsPerThreadgroup ?? 256
             let width = min(pipeline.maxTotalThreadsPerThreadgroup, max(1, requestedWidth))
-            let groups = MTLSize(width: (command.elementCount + width - 1) / width, height: 1, depth: 1)
             let threads = MTLSize(width: width, height: 1, depth: 1)
-            encoder.dispatchThreadgroups(groups, threadsPerThreadgroup: threads)
-            if commandIndex < commands.index(before: commands.endIndex) {
+            if features.supportsNonuniformThreadgroups {
+                encoder.dispatchThreads(
+                    MTLSize(width: command.elementCount, height: 1, depth: 1),
+                    threadsPerThreadgroup: threads
+                )
+            } else {
+                let groups = MTLSize(width: (command.elementCount + width - 1) / width, height: 1, depth: 1)
+                encoder.dispatchThreadgroups(groups, threadsPerThreadgroup: threads)
+            }
+            if command.barrierAfter, commandIndex < commands.index(before: commands.endIndex) {
                 encoder.memoryBarrier(scope: .buffers)
             }
         }
