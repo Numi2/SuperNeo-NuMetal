@@ -1,0 +1,806 @@
+import CryptoKit
+import Foundation
+
+public struct Digest256: Equatable, Hashable, Sendable, SuperNeoByteEncodable {
+    public static let byteCount = 32
+    public let bytes: [UInt8]
+
+    public init(_ bytes: [UInt8]) throws {
+        guard bytes.count == Self.byteCount else {
+            throw SuperNeoError.invalidEncoding("Digest256 must be 32 bytes")
+        }
+        self.bytes = bytes
+    }
+
+    private init(unchecked bytes: [UInt8]) {
+        precondition(bytes.count == Self.byteCount, "SHA-256 digest must be 32 bytes")
+        self.bytes = bytes
+    }
+
+    public static func hash(_ bytes: [UInt8]) -> Self {
+        let digest = SHA256.hash(data: Data(bytes))
+        return Self(unchecked: Array(digest))
+    }
+
+    public static func hash(_ string: String) -> Self {
+        hash(Array(string.utf8))
+    }
+
+    public var superNeoBytes: [UInt8] { bytes }
+}
+
+public enum ProofEnvelopeKind: UInt8, Equatable, Sendable {
+    case foldReduction = 1
+    case terminalLocal = 2
+    case compressedPublic = 3
+}
+
+public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
+    public static let magic: UInt32 = 0x4E_55_4D_51
+    public static let version: UInt16 = 3
+    public static let byteCount = 109
+
+    public let magic: UInt32
+    public let version: UInt16
+    public let profileID: UInt16
+    public let kind: ProofEnvelopeKind
+    public let shapeDigest: Digest256
+    public let statementDigest: Digest256
+    public let transcriptDomain: Digest256
+    public let bodyLength: UInt32
+
+    public init(
+        profileID: UInt16,
+        kind: ProofEnvelopeKind = .foldReduction,
+        shapeDigest: Digest256,
+        statementDigest: Digest256,
+        transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1"),
+        bodyLength: UInt32
+    ) {
+        self.magic = Self.magic
+        self.version = Self.version
+        self.profileID = profileID
+        self.kind = kind
+        self.shapeDigest = shapeDigest
+        self.statementDigest = statementDigest
+        self.transcriptDomain = transcriptDomain
+        self.bodyLength = bodyLength
+    }
+
+    fileprivate init(
+        magic: UInt32,
+        version: UInt16,
+        profileID: UInt16,
+        kind: ProofEnvelopeKind,
+        shapeDigest: Digest256,
+        statementDigest: Digest256,
+        transcriptDomain: Digest256,
+        bodyLength: UInt32
+    ) {
+        self.magic = magic
+        self.version = version
+        self.profileID = profileID
+        self.kind = kind
+        self.shapeDigest = shapeDigest
+        self.statementDigest = statementDigest
+        self.transcriptDomain = transcriptDomain
+        self.bodyLength = bodyLength
+    }
+
+    public var superNeoBytes: [UInt8] {
+        encodeUInt32(magic)
+            + encodeUInt16(version)
+            + encodeUInt16(profileID)
+            + encodeUInt8(kind.rawValue)
+            + shapeDigest.superNeoBytes
+            + statementDigest.superNeoBytes
+            + transcriptDomain.superNeoBytes
+            + encodeUInt32(bodyLength)
+    }
+
+    public var transcriptBindingBytes: [UInt8] {
+        encodeUInt32(magic)
+            + encodeUInt16(version)
+            + encodeUInt16(profileID)
+            + encodeUInt8(kind.rawValue)
+            + shapeDigest.superNeoBytes
+            + statementDigest.superNeoBytes
+            + transcriptDomain.superNeoBytes
+    }
+}
+
+public struct ProofEnvelopeContext: Equatable, Sendable {
+    public let profileID: UInt16
+    public let kind: ProofEnvelopeKind
+    public let shapeDigest: Digest256
+    public let statementDigest: Digest256
+    public let transcriptDomain: Digest256
+
+    public init(
+        profileID: UInt16,
+        kind: ProofEnvelopeKind = .foldReduction,
+        shapeDigest: Digest256,
+        statementDigest: Digest256,
+        transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1")
+    ) {
+        self.profileID = profileID
+        self.kind = kind
+        self.shapeDigest = shapeDigest
+        self.statementDigest = statementDigest
+        self.transcriptDomain = transcriptDomain
+    }
+}
+
+public struct FoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncodable {
+    public typealias Kind = ProofEnvelopeKind
+
+    public let header: ProofEnvelopeHeader
+    public let proof: FoldProof
+
+    public init(context: ProofEnvelopeContext, proof: FoldProof) throws {
+        guard context.kind == .foldReduction else {
+            throw SuperNeoError.invalidParameter("FoldProofEnvelope only supports foldReduction kind")
+        }
+        let body = proof.superNeoBytes
+        guard body.count <= Int(UInt32.max) else {
+            throw SuperNeoError.invalidEncoding("proof body too large")
+        }
+        self.header = ProofEnvelopeHeader(
+            profileID: context.profileID,
+            kind: context.kind,
+            shapeDigest: context.shapeDigest,
+            statementDigest: context.statementDigest,
+            transcriptDomain: context.transcriptDomain,
+            bodyLength: UInt32(body.count)
+        )
+        self.proof = proof
+    }
+
+    public init(bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
+        var reader = ByteReader(bytes)
+        let header = try reader.readProofEnvelopeHeader()
+        try header.validate()
+        guard header.kind == .foldReduction else {
+            throw SuperNeoError.invalidEncoding("fold proof envelope kind mismatch")
+        }
+        let body = try reader.readData(count: Int(header.bodyLength))
+        try reader.finish()
+
+        var bodyReader = ByteReader(body)
+        self.proof = try bodyReader.readFoldProof(parameters: parameters)
+        try bodyReader.finish()
+        self.header = header
+    }
+
+    public var superNeoBytes: [UInt8] {
+        header.superNeoBytes + proof.superNeoBytes
+    }
+}
+
+public struct TerminalFoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncodable {
+    public typealias Kind = ProofEnvelopeKind
+
+    public let header: ProofEnvelopeHeader
+    public let proof: TerminalFoldProof
+
+    public init(context: ProofEnvelopeContext, proof: TerminalFoldProof) throws {
+        guard context.kind == .terminalLocal else {
+            throw SuperNeoError.invalidParameter("TerminalFoldProofEnvelope only supports terminalLocal kind")
+        }
+        guard proof.outputClaims == proof.foldProof.outputClaims else {
+            throw SuperNeoError.invalidParameter("terminal CE statement must match fold proof output claims")
+        }
+        let body = proof.superNeoBytes
+        guard body.count <= Int(UInt32.max) else {
+            throw SuperNeoError.invalidEncoding("terminal proof body too large")
+        }
+        self.header = ProofEnvelopeHeader(
+            profileID: context.profileID,
+            kind: context.kind,
+            shapeDigest: context.shapeDigest,
+            statementDigest: context.statementDigest,
+            transcriptDomain: context.transcriptDomain,
+            bodyLength: UInt32(body.count)
+        )
+        self.proof = proof
+    }
+
+    public init(bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
+        var reader = ByteReader(bytes)
+        let header = try reader.readProofEnvelopeHeader()
+        try header.validate()
+        guard header.kind == .terminalLocal else {
+            throw SuperNeoError.invalidEncoding("terminal fold proof envelope kind mismatch")
+        }
+        let body = try reader.readData(count: Int(header.bodyLength))
+        try reader.finish()
+
+        var bodyReader = ByteReader(body)
+        self.proof = try bodyReader.readTerminalFoldProof(parameters: parameters)
+        try bodyReader.finish()
+        self.header = header
+    }
+
+    public var superNeoBytes: [UInt8] {
+        header.superNeoBytes + proof.superNeoBytes
+    }
+}
+
+public protocol SuperNeoByteEncodable {
+    var superNeoBytes: [UInt8] { get }
+}
+
+extension GoldilocksField: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] { littleEndianBytes }
+}
+
+extension GoldilocksExt2: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] { littleEndianBytes }
+}
+
+extension CyclotomicRing54: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] { littleEndianBytes }
+}
+
+extension CyclotomicExt2Ring54: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] { littleEndianBytes }
+}
+
+extension AjtaiCommitment: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] { littleEndianBytes }
+}
+
+extension DecompositionProof: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        encodeCount(commitments.count)
+            + commitments.flatMap(\.superNeoBytes)
+            + encodeCount(evaluations.count)
+            + evaluations.flatMap { encodeCount($0.count) + $0.flatMap(\.superNeoBytes) }
+    }
+}
+
+extension PiCCSSection: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        sumCheck.superNeoBytes
+            + encodeCount(finalClaims.count)
+            + finalClaims.flatMap(\.superNeoBytes)
+    }
+}
+
+extension PiRLCSection: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        encodeCount(challenges.count)
+            + challenges.flatMap(\.superNeoBytes)
+            + foldedClaim.superNeoBytes
+    }
+}
+
+extension PiDECSection: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        decomposition.superNeoBytes
+            + encodeCount(outputClaims.count)
+            + outputClaims.flatMap(\.superNeoBytes)
+    }
+}
+
+extension CCSEvaluationClaim: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        commitment.superNeoBytes
+            + encodeCount(publicInput.count)
+            + publicInput.flatMap(\.superNeoBytes)
+            + encodeCount(point.count)
+            + point.flatMap(\.superNeoBytes)
+            + encodeCount(evaluations.count)
+            + evaluations.flatMap(\.superNeoBytes)
+    }
+}
+
+extension CEOpeningStatement: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        encodeUInt16(profileID)
+            + shapeDigest.superNeoBytes
+            + instance.superNeoBytes
+    }
+
+    public var statementDigest: Digest256 {
+        Digest256.hash(superNeoBytes)
+    }
+}
+
+extension TerminalCEStatement: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        encodeUInt16(profileID)
+            + shapeDigest.superNeoBytes
+            + encodeCount(openings.count)
+            + openings.flatMap(\.superNeoBytes)
+    }
+
+    public var statementDigest: Digest256 {
+        Digest256.hash(superNeoBytes)
+    }
+}
+
+extension CEOpeningProofCommitments: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        maskLinearDigest.superNeoBytes
+            + permutedMaskDigest.superNeoBytes
+            + permutedMaskedWitnessDigest.superNeoBytes
+    }
+}
+
+extension CEOpeningLinearResponse: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        encodeCount(permutation.count)
+            + permutation.flatMap { encodeSignedInt($0) }
+            + encodeCount(vector.count)
+            + vector.flatMap(\.superNeoBytes)
+    }
+}
+
+extension CEOpeningNormResponse: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        encodeCount(permutedMask.count)
+            + permutedMask.flatMap(\.superNeoBytes)
+            + encodeCount(permutedWitness.count)
+            + permutedWitness.flatMap(\.superNeoBytes)
+    }
+}
+
+extension CEOpeningProofResponse: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        switch self {
+        case .mask(let openings):
+            return encodeUInt8(0) + encodeCount(openings.count) + openings.flatMap(\.superNeoBytes)
+        case .maskedWitness(let openings):
+            return encodeUInt8(1) + encodeCount(openings.count) + openings.flatMap(\.superNeoBytes)
+        case .permutedWitness(let openings):
+            return encodeUInt8(2) + encodeCount(openings.count) + openings.flatMap(\.superNeoBytes)
+        }
+    }
+}
+
+extension CEOpeningProofRound: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        encodeCount(commitments.count)
+            + commitments.flatMap(\.superNeoBytes)
+            + response.superNeoBytes
+    }
+}
+
+extension CEOpeningProof: SuperNeoByteEncodable {
+    public init(bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
+        var reader = ByteReader(bytes)
+        self = try reader.readCEOpeningProof(parameters: parameters)
+        try reader.finish()
+    }
+
+    public var superNeoBytes: [UInt8] {
+        encodeCount(rounds.count) + rounds.flatMap(\.superNeoBytes)
+    }
+}
+
+extension TerminalFoldProof: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        foldProof.superNeoBytes
+            + terminalStatement.superNeoBytes
+            + ceOpeningProof.superNeoBytes
+    }
+}
+
+extension FoldProof: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        piCCS.superNeoBytes
+            + piRLC.superNeoBytes
+            + piDEC.superNeoBytes
+    }
+}
+
+private func encodeCount(_ value: Int) -> [UInt8] {
+    withUnsafeBytes(of: UInt64(value).littleEndian, Array.init)
+}
+
+private func encodeSignedInt(_ value: Int) -> [UInt8] {
+    withUnsafeBytes(of: UInt64(bitPattern: Int64(value)).littleEndian, Array.init)
+}
+
+private func encodeUInt16(_ value: UInt16) -> [UInt8] {
+    withUnsafeBytes(of: value.littleEndian, Array.init)
+}
+
+private func encodeUInt8(_ value: UInt8) -> [UInt8] {
+    [value]
+}
+
+private func encodeUInt32(_ value: UInt32) -> [UInt8] {
+    withUnsafeBytes(of: value.littleEndian, Array.init)
+}
+
+public struct ByteReader {
+    private let data: [UInt8]
+    private var offset: Int
+
+    public init(_ data: [UInt8]) {
+        self.data = data
+        self.offset = 0
+    }
+
+    public init(_ data: Data) {
+        self.init(Array(data))
+    }
+
+    public mutating func readData(count: Int) throws -> [UInt8] {
+        guard count >= 0, count <= data.count - offset else {
+            throw SuperNeoError.invalidEncoding("unexpected end of proof bytes")
+        }
+        defer { offset += count }
+        return Array(data[offset..<offset + count])
+    }
+
+    public mutating func readUInt16() throws -> UInt16 {
+        let bytes = try readData(count: 2)
+        return bytes.enumerated().reduce(UInt16(0)) { acc, pair in
+            acc | (UInt16(pair.element) << UInt16(pair.offset * 8))
+        }
+    }
+
+    public mutating func readUInt8() throws -> UInt8 {
+        try readData(count: 1)[0]
+    }
+
+    public mutating func readUInt32() throws -> UInt32 {
+        let bytes = try readData(count: 4)
+        return bytes.enumerated().reduce(UInt32(0)) { acc, pair in
+            acc | (UInt32(pair.element) << UInt32(pair.offset * 8))
+        }
+    }
+
+    public mutating func readUInt64() throws -> UInt64 {
+        let bytes = try readData(count: 8)
+        return bytes.enumerated().reduce(UInt64(0)) { acc, pair in
+            acc | (UInt64(pair.element) << UInt64(pair.offset * 8))
+        }
+    }
+
+    public mutating func readCount(maximum: Int, name: String) throws -> Int {
+        let raw = try readUInt64()
+        guard raw <= UInt64(Int.max), Int(raw) <= maximum else {
+            throw SuperNeoError.invalidEncoding("\(name) count exceeds canonical bound")
+        }
+        return Int(raw)
+    }
+
+    public mutating func readCount(maximum: Int, name: String, elementByteWidth: Int) throws -> Int {
+        guard elementByteWidth > 0 else {
+            throw SuperNeoError.invalidParameter("element byte width must be positive")
+        }
+        let count = try readCount(maximum: maximum, name: name)
+        guard count <= remainingByteCount / elementByteWidth else {
+            throw SuperNeoError.invalidEncoding("\(name) count exceeds remaining byte capacity")
+        }
+        return count
+    }
+
+    public var remainingByteCount: Int {
+        data.count - offset
+    }
+
+    public mutating func finish() throws {
+        guard offset == data.count else {
+            throw SuperNeoError.invalidEncoding("trailing proof bytes")
+        }
+    }
+}
+
+extension ProofEnvelopeHeader {
+    fileprivate func validate() throws {
+        guard magic == Self.magic else { throw SuperNeoError.invalidEncoding("wrong proof magic") }
+        guard version == Self.version else { throw SuperNeoError.invalidEncoding("unsupported proof version") }
+    }
+}
+
+extension ByteReader {
+    fileprivate mutating func readProofEnvelopeHeader() throws -> ProofEnvelopeHeader {
+        let magic = try readUInt32()
+        let version = try readUInt16()
+        let profileID = try readUInt16()
+        let kindRaw = try readUInt8()
+        guard let kind = ProofEnvelopeKind(rawValue: kindRaw) else {
+            throw SuperNeoError.invalidEncoding("unsupported proof kind")
+        }
+        let shapeDigest = try Digest256(readData(count: Digest256.byteCount))
+        let statementDigest = try Digest256(readData(count: Digest256.byteCount))
+        let transcriptDomain = try Digest256(readData(count: Digest256.byteCount))
+        let bodyLength = try readUInt32()
+        return ProofEnvelopeHeader(
+            magic: magic,
+            version: version,
+            profileID: profileID,
+            kind: kind,
+            shapeDigest: shapeDigest,
+            statementDigest: statementDigest,
+            transcriptDomain: transcriptDomain,
+            bodyLength: bodyLength
+        )
+    }
+
+    fileprivate mutating func readGoldilocksField() throws -> GoldilocksField {
+        try GoldilocksField(littleEndianBytes: readData(count: 8)[...])
+    }
+
+    fileprivate mutating func readGoldilocksExt2() throws -> GoldilocksExt2 {
+        try GoldilocksExt2(littleEndianBytes: readData(count: 16)[...])
+    }
+
+    fileprivate mutating func readRing() throws -> CyclotomicRing54 {
+        try CyclotomicRing54(littleEndianBytes: readData(count: CyclotomicRing54.degree * 8))
+    }
+
+    fileprivate mutating func readExt2Ring() throws -> CyclotomicExt2Ring54 {
+        try CyclotomicExt2Ring54(littleEndianBytes: readData(count: CyclotomicRing54.degree * 16))
+    }
+
+    fileprivate mutating func readCommitment(parameters: SuperNeoParameters) throws -> AjtaiCommitment {
+        var elements: [CyclotomicRing54] = []
+        elements.reserveCapacity(parameters.kappa)
+        for _ in 0..<parameters.kappa {
+            elements.append(try readRing())
+        }
+        return AjtaiCommitment(elements)
+    }
+
+    fileprivate mutating func readSumCheckProof() throws -> SumcheckProof {
+        let claimedSum = try readGoldilocksExt2()
+        let roundCount = try readCount(maximum: 64, name: "sum-check round", elementByteWidth: 8)
+        let rounds = try (0..<roundCount).map { _ -> SumcheckRound in
+            let coeffCount = try readCount(maximum: 4096, name: "sum-check coefficient", elementByteWidth: 16)
+            guard coeffCount > 0 else {
+                throw SuperNeoError.invalidEncoding("sum-check round polynomial cannot be empty")
+            }
+            return SumcheckRound(coeffs: try (0..<coeffCount).map { _ in try readGoldilocksExt2() })
+        }
+        let finalPointCount = try readCount(maximum: 64, name: "sum-check final point", elementByteWidth: 16)
+        guard finalPointCount == roundCount else {
+            throw SuperNeoError.invalidEncoding("sum-check final point count must match round count")
+        }
+        let finalPoint = try (0..<finalPointCount).map { _ in try readGoldilocksExt2() }
+        let finalValue = try readGoldilocksExt2()
+        return SumcheckProof(claimedSum: claimedSum, rounds: rounds, finalPoint: finalPoint, finalValue: finalValue)
+    }
+
+    fileprivate mutating func readDecompositionProof(parameters: SuperNeoParameters) throws -> DecompositionProof {
+        let commitmentCount = try readCount(
+            maximum: parameters.decompositionLength,
+            name: "decomposition commitment",
+            elementByteWidth: parameters.kappa * CyclotomicRing54.degree * 8
+        )
+        guard commitmentCount == parameters.decompositionLength else {
+            throw SuperNeoError.invalidEncoding("wrong decomposition commitment count")
+        }
+        let commitments = try (0..<commitmentCount).map { _ in try readCommitment(parameters: parameters) }
+        let evaluationRows = try readCount(maximum: parameters.decompositionLength, name: "decomposition evaluation", elementByteWidth: 8)
+        guard evaluationRows == parameters.decompositionLength else {
+            throw SuperNeoError.invalidEncoding("wrong decomposition evaluation row count")
+        }
+        let evaluations = try (0..<evaluationRows).map { _ -> [CyclotomicExt2Ring54] in
+            let count = try readCount(
+                maximum: 1024,
+                name: "decomposition evaluation column",
+                elementByteWidth: CyclotomicRing54.degree * 16
+            )
+            guard count > 0 else {
+                throw SuperNeoError.invalidEncoding("decomposition evaluation row cannot be empty")
+            }
+            return try (0..<count).map { _ in try readExt2Ring() }
+        }
+        return DecompositionProof(commitments: commitments, evaluations: evaluations)
+    }
+
+    fileprivate mutating func readEvaluationClaim(parameters: SuperNeoParameters) throws -> CCSEvaluationClaim {
+        let commitment = try readCommitment(parameters: parameters)
+        let publicInputCount = try readCount(maximum: 1 << 20, name: "public input", elementByteWidth: 8)
+        let publicInput = try (0..<publicInputCount).map { _ in try readGoldilocksField() }
+        let pointCount = try readCount(maximum: 64, name: "evaluation point", elementByteWidth: 16)
+        let point = try (0..<pointCount).map { _ in try readGoldilocksExt2() }
+        let evaluationCount = try readCount(
+            maximum: 1024,
+            name: "matrix evaluation",
+            elementByteWidth: CyclotomicRing54.degree * 16
+        )
+        guard evaluationCount > 0 else {
+            throw SuperNeoError.invalidEncoding("evaluation claim must contain matrix evaluations")
+        }
+        let evaluations = try (0..<evaluationCount).map { _ in try readExt2Ring() }
+        return CCSEvaluationClaim(
+            commitment: commitment,
+            publicInput: publicInput,
+            point: point,
+            evaluations: evaluations,
+            witness: nil
+        )
+    }
+
+    fileprivate mutating func readCEOpeningStatement(parameters: SuperNeoParameters) throws -> CEOpeningStatement {
+        let profileID = try readUInt16()
+        let shapeDigest = try Digest256(readData(count: Digest256.byteCount))
+        let instance = try readCEInstance(parameters: parameters)
+        return CEOpeningStatement(profileID: profileID, shapeDigest: shapeDigest, instance: instance)
+    }
+
+    fileprivate mutating func readTerminalCEStatement(parameters: SuperNeoParameters) throws -> TerminalCEStatement {
+        let profileID = try readUInt16()
+        let shapeDigest = try Digest256(readData(count: Digest256.byteCount))
+        let openingCount = try readCount(
+            maximum: parameters.decompositionLength,
+            name: "terminal CE opening",
+            elementByteWidth: 2 + Digest256.byteCount
+        )
+        guard openingCount > 0 else {
+            throw SuperNeoError.invalidEncoding("terminal CE statement cannot be empty")
+        }
+        let openings = try (0..<openingCount).map { _ in
+            try readCEOpeningStatement(parameters: parameters)
+        }
+        return try TerminalCEStatement(
+            profileID: profileID,
+            shapeDigest: shapeDigest,
+            openings: openings
+        )
+    }
+
+    fileprivate mutating func readPiCCSSection(parameters: SuperNeoParameters) throws -> PiCCSSection {
+        let sumCheck = try readSumCheckProof()
+        let piCCSCount = try readCount(
+            maximum: parameters.maxFreshBatchCount + parameters.maxPriorClaimCount,
+            name: "PiCCS final claim",
+            elementByteWidth: parameters.kappa * CyclotomicRing54.degree * 8
+        )
+        let piCCSClaims = try (0..<piCCSCount).map { _ in try readEvaluationClaim(parameters: parameters) }
+        return PiCCSSection(sumCheck: sumCheck, finalClaims: piCCSClaims)
+    }
+
+    fileprivate mutating func readPiRLCSection(
+        expectedChallengeCount: Int,
+        parameters: SuperNeoParameters
+    ) throws -> PiRLCSection {
+        let rlcCount = try readCount(
+            maximum: parameters.maxFreshBatchCount + parameters.maxPriorClaimCount,
+            name: "random-linear-combination challenge",
+            elementByteWidth: CyclotomicRing54.degree * 8
+        )
+        guard expectedChallengeCount == rlcCount else {
+            throw SuperNeoError.invalidEncoding("PiCCS final claim count must match RLC challenge count")
+        }
+        let randomLinearCombinationChallenges = try (0..<rlcCount).map { _ in try readRing() }
+        let foldedClaim = try readEvaluationClaim(parameters: parameters)
+        return PiRLCSection(challenges: randomLinearCombinationChallenges, foldedClaim: foldedClaim)
+    }
+
+    fileprivate mutating func readPiDECSection(parameters: SuperNeoParameters) throws -> PiDECSection {
+        let decomposition = try readDecompositionProof(parameters: parameters)
+        let outputCount = try readCount(
+            maximum: parameters.decompositionLength,
+            name: "output claim",
+            elementByteWidth: parameters.kappa * CyclotomicRing54.degree * 8
+        )
+        guard outputCount == parameters.decompositionLength else {
+            throw SuperNeoError.invalidEncoding("wrong output claim count")
+        }
+        let outputClaims = try (0..<outputCount).map { _ in try readEvaluationClaim(parameters: parameters) }
+        guard decomposition.commitments == outputClaims.map(\.commitment) else {
+            throw SuperNeoError.invalidEncoding("decomposition commitments must match output claims")
+        }
+        guard decomposition.evaluations == outputClaims.map(\.evaluations) else {
+            throw SuperNeoError.invalidEncoding("decomposition evaluations must match output claims")
+        }
+        return PiDECSection(decomposition: decomposition, outputClaims: outputClaims)
+    }
+
+    fileprivate mutating func readCEOpeningProof(parameters: SuperNeoParameters) throws -> CEOpeningProof {
+        let roundCount = try readCount(
+            maximum: 4096,
+            name: "CE opening proof round",
+            elementByteWidth: Digest256.byteCount * 3
+        )
+        let rounds = try (0..<roundCount).map { _ in
+            try readCEOpeningProofRound(parameters: parameters)
+        }
+        return try CEOpeningProof(rounds: rounds)
+    }
+
+    private mutating func readCEOpeningProofRound(parameters: SuperNeoParameters) throws -> CEOpeningProofRound {
+        let commitmentCount = try readCount(
+            maximum: parameters.decompositionLength,
+            name: "CE opening commitment",
+            elementByteWidth: Digest256.byteCount * 3
+        )
+        guard commitmentCount > 0 else {
+            throw SuperNeoError.invalidEncoding("CE opening proof round cannot be empty")
+        }
+        let commitments = try (0..<commitmentCount).map { _ in
+            CEOpeningProofCommitments(
+                maskLinearDigest: try Digest256(readData(count: Digest256.byteCount)),
+                permutedMaskDigest: try Digest256(readData(count: Digest256.byteCount)),
+                permutedMaskedWitnessDigest: try Digest256(readData(count: Digest256.byteCount))
+            )
+        }
+        let response = try readCEOpeningProofResponse(expectedCount: commitmentCount)
+        return CEOpeningProofRound(commitments: commitments, response: response)
+    }
+
+    private mutating func readCEOpeningProofResponse(expectedCount: Int) throws -> CEOpeningProofResponse {
+        let tag = try readUInt8()
+        let count = try readCount(maximum: expectedCount, name: "CE opening response", elementByteWidth: 8)
+        guard count == expectedCount else {
+            throw SuperNeoError.invalidEncoding("CE opening response count mismatch")
+        }
+        switch tag {
+        case 0:
+            return .mask(try (0..<count).map { _ in try readCEOpeningLinearResponse() })
+        case 1:
+            return .maskedWitness(try (0..<count).map { _ in try readCEOpeningLinearResponse() })
+        case 2:
+            return .permutedWitness(try (0..<count).map { _ in try readCEOpeningNormResponse() })
+        default:
+            throw SuperNeoError.invalidEncoding("unsupported CE opening response challenge")
+        }
+    }
+
+    private mutating func readCEOpeningLinearResponse() throws -> CEOpeningLinearResponse {
+        let permutationCount = try readCount(maximum: 1 << 20, name: "CE opening permutation", elementByteWidth: 8)
+        let permutation = try (0..<permutationCount).map { _ -> Int in
+            let raw = try readUInt64()
+            guard raw <= UInt64(Int.max) else {
+                throw SuperNeoError.invalidEncoding("CE opening permutation index exceeds Int")
+            }
+            return Int(raw)
+        }
+        let vectorCount = try readCount(maximum: permutationCount, name: "CE opening linear response", elementByteWidth: 8)
+        guard vectorCount == permutationCount else {
+            throw SuperNeoError.invalidEncoding("CE opening linear response length mismatch")
+        }
+        let vector = try (0..<vectorCount).map { _ in try readGoldilocksField() }
+        return CEOpeningLinearResponse(permutation: permutation, vector: vector)
+    }
+
+    private mutating func readCEOpeningNormResponse() throws -> CEOpeningNormResponse {
+        let maskCount = try readCount(maximum: 1 << 20, name: "CE opening permuted mask", elementByteWidth: 8)
+        let permutedMask = try (0..<maskCount).map { _ in try readGoldilocksField() }
+        let witnessCount = try readCount(maximum: maskCount, name: "CE opening permuted witness", elementByteWidth: 8)
+        guard witnessCount == maskCount else {
+            throw SuperNeoError.invalidEncoding("CE opening norm response length mismatch")
+        }
+        let permutedWitness = try (0..<witnessCount).map { _ in try readGoldilocksField() }
+        return CEOpeningNormResponse(permutedMask: permutedMask, permutedWitness: permutedWitness)
+    }
+
+    fileprivate mutating func readFoldProof(parameters: SuperNeoParameters) throws -> FoldProof {
+        let piCCS = try readPiCCSSection(parameters: parameters)
+        let piRLC = try readPiRLCSection(
+            expectedChallengeCount: piCCS.finalClaims.count,
+            parameters: parameters
+        )
+        let piDEC = try readPiDECSection(parameters: parameters)
+        return FoldProof(
+            piCCS: piCCS,
+            piRLC: piRLC,
+            piDEC: piDEC
+        )
+    }
+
+    fileprivate mutating func readTerminalFoldProof(parameters: SuperNeoParameters) throws -> TerminalFoldProof {
+        let foldProof = try readFoldProof(parameters: parameters)
+        let terminalStatement = try readTerminalCEStatement(parameters: parameters)
+        guard terminalStatement.openings.count == parameters.decompositionLength else {
+            throw SuperNeoError.invalidEncoding("terminal CE statement output count must match decomposition length")
+        }
+        guard terminalStatement.outputClaims == foldProof.outputClaims else {
+            throw SuperNeoError.invalidEncoding("terminal CE statement must match fold proof output claims")
+        }
+        let ceOpeningProof = try readCEOpeningProof(parameters: parameters)
+        return TerminalFoldProof(
+            foldProof: foldProof,
+            terminalStatement: terminalStatement,
+            ceOpeningProof: ceOpeningProof
+        )
+    }
+}
