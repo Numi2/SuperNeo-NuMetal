@@ -74,6 +74,7 @@ Benchmark groups:
 - `reduceFold/*`: public reduction verifier cost.
 - `terminalVerify/*`: local terminal CE verification cost.
 - `proofEnvelope/*`: serialization, parsing, and verification round-trip.
+- `ceOpeningProof/*` and `compressedEnvelope/*`: opt-in CE proof verification targets enabled with `SUPERNEO_BENCHMARK_CE=1`.
 - `stage/*`: sum-check, PiCCS, PiRLC, and PiDEC stage costs.
 - `kernel/*`: field/ring kernels, transformed evaluation, Ajtai commitment, and combined workspace commit-plus-evaluation hot paths.
 
@@ -105,6 +106,8 @@ Latest CPU-path audit snapshot (2026-04-12):
 | `stage/piDEC/m1024` | 449 ms | 174 ms | precomputed `rHat` reused across coefficients |
 | `terminalVerify/cpu/m1024` | 520 ms | 189 ms | batched local CE verification reuse |
 | `proofEnvelope/roundTrip/m1024` | 504 ms | 148 ms | protocol CPU path improvements |
+| `compressed public XCTest` | 317 s | 61.009 s | cached CE targets plus chunked prover and batched verifier private-linear work |
+| `ceOpeningProof/*` | opt-in | opt-in | opt-in CE proof prove/verify targets, including Metal prove/verify when available |
 | `ajtaiCommit/cpu/m1024` | 3.38 ms | 2.876 ms | fused CPU Ajtai matvec |
 | `ajtaiCommit/batch/cpu/m1024` | 43 ms | 37 ms | fused CPU Ajtai matvec |
 

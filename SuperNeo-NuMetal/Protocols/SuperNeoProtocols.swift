@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 
 public struct DecompositionProof: Equatable, Sendable {
@@ -306,6 +307,7 @@ public struct CEOpeningProof: Equatable, Sendable {
 
 public enum CEOpeningRelation {
     private static let proofRoundCount = CEOpeningProof.minimumRoundCount
+    private static let proofRoundBatchSize = 32
 
     public static func proveLocalBatch(
         statement: TerminalCEStatement,
@@ -313,7 +315,8 @@ public enum CEOpeningRelation {
         shape: CCSShape,
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters = .goldilocks,
-        randomSeed: [UInt8]? = nil
+        randomSeed: [UInt8]? = nil,
+        metalWorkspace: SuperNeoMetalWorkspace? = nil
     ) throws -> CEOpeningProof {
         guard statement.profileID == parameters.profileID else {
             throw SuperNeoError.invalidParameter("terminal CE statement profile mismatch")
@@ -341,6 +344,13 @@ public enum CEOpeningRelation {
             transformedMatrices: transformedMatrices,
             parameters: parameters
         )
+        let proverContext = try CEOpeningPrivateLinearBatchContext(
+            statement: statement,
+            shape: shape,
+            key: key,
+            transformedMatrices: transformedMatrices,
+            metalWorkspace: metalWorkspace
+        )
         let seed = randomSeed ?? makeSystemRandomSeed()
         var rng = DeterministicRNG(seed: seed + statement.superNeoBytes)
         var transcript = makeCEOpeningTranscript(statement: statement)
@@ -348,71 +358,42 @@ public enum CEOpeningRelation {
         var rounds: [CEOpeningProofRound] = []
         rounds.reserveCapacity(Self.proofRoundCount)
 
-        for roundIndex in 0..<Self.proofRoundCount {
-            var commitments: [CEOpeningProofCommitments] = []
-            var openings: [(permutation: [Int], mask: [GoldilocksField], masked: [GoldilocksField])] = []
-            commitments.reserveCapacity(statement.openings.count)
-            openings.reserveCapacity(statement.openings.count)
+        var roundStart = 0
+        while roundStart < Self.proofRoundCount {
+            let roundEnd = min(roundStart + Self.proofRoundBatchSize, Self.proofRoundCount)
+            let batchedRounds = try makeProverRoundBatch(
+                roundRange: roundStart..<roundEnd,
+                privateWitnesses: privateWitnesses,
+                statement: statement,
+                proverContext: proverContext,
+                rng: &rng
+            )
 
-            for openingIndex in statement.openings.indices {
-                let witness = privateWitnesses[openingIndex]
-                let permutation = samplePermutation(count: witness.count, rng: &rng)
-                let mask = (0..<witness.count).map { _ in rng.nextField() }
-                let masked = ceVectorAdd(mask, witness)
-                let maskInstance = try makePrivateLinearInstance(
-                    privateVector: mask,
-                    opening: statement.openings[openingIndex],
-                    shape: shape,
-                    key: key,
-                    transformedMatrices: transformedMatrices
-                )
-                let permutedMask = applyPermutation(mask, permutation)
-                let permutedMasked = applyPermutation(masked, permutation)
-                commitments.append(CEOpeningProofCommitments(
-                    maskLinearDigest: ceOpeningDigest(
-                        tag: 1,
-                        roundIndex: roundIndex,
-                        openingIndex: openingIndex,
-                        payload: ceEncodePermutation(permutation) + maskInstance.superNeoBytes
-                    ),
-                    permutedMaskDigest: ceOpeningDigest(
-                        tag: 2,
-                        roundIndex: roundIndex,
-                        openingIndex: openingIndex,
-                        payload: ceEncodeVector(permutedMask)
-                    ),
-                    permutedMaskedWitnessDigest: ceOpeningDigest(
-                        tag: 3,
-                        roundIndex: roundIndex,
-                        openingIndex: openingIndex,
-                        payload: ceEncodeVector(permutedMasked)
-                    )
-                ))
-                openings.append((permutation, mask, masked))
+            for roundMaterial in batchedRounds {
+                transcript.absorb(roundMaterial.commitments.flatMap(\.superNeoBytes))
+                let challenge = ceOpeningChallenge(transcript: &transcript)
+                let response: CEOpeningProofResponse
+                switch challenge {
+                case 0:
+                    response = .mask(roundMaterial.openings.map {
+                        CEOpeningLinearResponse(permutation: $0.permutation, vector: $0.mask)
+                    })
+                case 1:
+                    response = .maskedWitness(roundMaterial.openings.map {
+                        CEOpeningLinearResponse(permutation: $0.permutation, vector: $0.masked)
+                    })
+                default:
+                    response = .permutedWitness(roundMaterial.openings.enumerated().map { index, opening in
+                        CEOpeningNormResponse(
+                            permutedMask: opening.permutedMask,
+                            permutedWitness: applyPermutation(privateWitnesses[index], opening.permutation)
+                        )
+                    })
+                }
+                transcript.absorb(response.superNeoBytes)
+                rounds.append(CEOpeningProofRound(commitments: roundMaterial.commitments, response: response))
             }
-
-            transcript.absorb(commitments.flatMap(\.superNeoBytes))
-            let challenge = ceOpeningChallenge(transcript: &transcript)
-            let response: CEOpeningProofResponse
-            switch challenge {
-            case 0:
-                response = .mask(openings.map {
-                    CEOpeningLinearResponse(permutation: $0.permutation, vector: $0.mask)
-                })
-            case 1:
-                response = .maskedWitness(openings.map {
-                    CEOpeningLinearResponse(permutation: $0.permutation, vector: $0.masked)
-                })
-            default:
-                response = .permutedWitness(openings.enumerated().map { index, opening in
-                    CEOpeningNormResponse(
-                        permutedMask: applyPermutation(opening.mask, opening.permutation),
-                        permutedWitness: applyPermutation(privateWitnesses[index], opening.permutation)
-                    )
-                })
-            }
-            transcript.absorb(response.superNeoBytes)
-            rounds.append(CEOpeningProofRound(commitments: commitments, response: response))
+            roundStart = roundEnd
         }
 
         return try CEOpeningProof(rounds: rounds)
@@ -423,7 +404,8 @@ public enum CEOpeningRelation {
         statement: TerminalCEStatement,
         shape: CCSShape,
         key: AjtaiCommitmentKey,
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        metalWorkspace: SuperNeoMetalWorkspace? = nil
     ) throws -> Bool {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
@@ -437,29 +419,21 @@ public enum CEOpeningRelation {
         }
 
         let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
-        var transcript = makeCEOpeningTranscript(statement: statement)
-        transcript.absorb(ceEncodeCount(proof.rounds.count))
-
-        for (roundIndex, round) in proof.rounds.enumerated() {
-            guard round.commitments.count == statement.openings.count else { return false }
-            transcript.absorb(round.commitments.flatMap(\.superNeoBytes))
-            let challenge = ceOpeningChallenge(transcript: &transcript)
-            guard try verifyRoundResponse(
-                round.response,
-                challenge: challenge,
-                roundIndex: roundIndex,
-                commitments: round.commitments,
+        let verifierContext = try SuperNeoBenchmarkSignpost.measure("ceVerifyPrepare") {
+            try CEOpeningVerifierContext(
                 statement: statement,
                 shape: shape,
                 key: key,
                 transformedMatrices: transformedMatrices,
+                metalWorkspace: metalWorkspace,
                 parameters: parameters
-            ) else {
-                return false
-            }
-            transcript.absorb(round.response.superNeoBytes)
+            )
         }
-        return true
+        return try verifyBatchedProofResponses(
+            proof: proof,
+            statement: statement,
+            verifierContext: verifierContext
+        )
     }
 
     public static func verifyLocal(
@@ -1233,7 +1207,8 @@ public final class SuperNeoProver: @unchecked Sendable {
             shape: input.shape,
             key: key,
             parameters: parameters,
-            randomSeed: ceRandomSeed
+            randomSeed: ceRandomSeed,
+            metalWorkspace: try makeCEOpeningMetalWorkspace(shape: input.shape)
         )
         return TerminalFoldProof(
             foldProof: fold.proof,
@@ -1379,16 +1354,24 @@ public final class SuperNeoProver: @unchecked Sendable {
             compiledShape: compiledShape
         )
     }
+
+    private func makeCEOpeningMetalWorkspace(shape: CCSShape) throws -> SuperNeoMetalWorkspace? {
+        guard context != nil else { return nil }
+        let compiledShape = try shape.compiledSparseForSuperNeo()
+        return try makeMetalWorkspace(compiledShape: compiledShape)
+    }
 }
 
 public final class SuperNeoVerifier: @unchecked Sendable {
     public let parameters: SuperNeoParameters
     public let key: AjtaiCommitmentKey
+    public let context: MetalExecutionContext?
     public static let terminalRelationCheckRequiredReason = "fold reduction output claims require a terminal CE relation check"
 
-    public init(parameters: SuperNeoParameters = .goldilocks, key: AjtaiCommitmentKey) {
+    public init(parameters: SuperNeoParameters = .goldilocks, key: AjtaiCommitmentKey, context: MetalExecutionContext? = nil) {
         self.parameters = parameters
         self.key = key
+        self.context = context
     }
 
     @available(*, deprecated, message: "Use reduceFold(...) for fold reductions, or verifyFold(..., outputClaims:) for terminal local verification.")
@@ -1467,7 +1450,8 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 statement: proof.terminalStatement,
                 shape: publicInput.shape,
                 key: key,
-                parameters: parameters
+                parameters: parameters,
+                metalWorkspace: try makeCEOpeningMetalWorkspace(shape: publicInput.shape)
             ) else {
                 return .invalid("terminal CE opening proof verification failed")
             }
@@ -1910,6 +1894,16 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             parameters: parameters
         )
     }
+
+    private func makeCEOpeningMetalWorkspace(shape: CCSShape) throws -> SuperNeoMetalWorkspace? {
+        guard let context else { return nil }
+        let compiledShape = try shape.compiledSparseForSuperNeo()
+        return try SuperNeoMetalWorkspace(
+            context: context,
+            key: key,
+            compiledShape: compiledShape
+        )
+    }
 }
 
 private enum SuperNeoProtocolOracle {
@@ -2121,7 +2115,7 @@ private enum SuperNeoProtocolOracle {
         )
     }
 
-    private static func evaluateExtensionRingRows(_ rows: [CyclotomicRing54], rHat: [GoldilocksExt2]) throws -> CyclotomicExt2Ring54 {
+    fileprivate static func evaluateExtensionRingRows(_ rows: [CyclotomicRing54], rHat: [GoldilocksExt2]) throws -> CyclotomicExt2Ring54 {
         guard rows.count == rHat.count else {
             throw SuperNeoError.invalidParameter("extension-ring row/rHat length mismatch")
         }
@@ -2627,6 +2621,410 @@ private struct CEPrivateTarget {
     let matrixEvals: [CyclotomicExt2Ring54]
 }
 
+private struct CEPrivateLinearComputation: Sendable {
+    let commitment: AjtaiCommitment
+    let matrixEvals: [CyclotomicExt2Ring54]
+}
+
+private struct CEOpeningProverRoundMaterial {
+    let openings: [CEOpeningProverOpeningMaterial]
+    let commitments: [CEOpeningProofCommitments]
+}
+
+private struct CEOpeningProverOpeningMaterial {
+    let permutation: [Int]
+    let permutationBytes: [UInt8]
+    let mask: [GoldilocksField]
+    let masked: [GoldilocksField]
+    let permutedMask: [GoldilocksField]
+    let permutedMasked: [GoldilocksField]
+}
+
+private struct CEOpeningVerifierLinearJob {
+    let challenge: Int
+    let roundIndex: Int
+    let openingIndex: Int
+    let permutationBytes: [UInt8]
+    let vector: [GoldilocksField]
+    let commitments: CEOpeningProofCommitments
+}
+
+private func ceParallelMap<T: Sendable>(
+    count: Int,
+    _ body: @Sendable (Int) throws -> T
+) throws -> [T] {
+    guard count > 1 else {
+        return try (0..<count).map(body)
+    }
+
+    let lock = NSLock()
+    var results = Array<Result<T, Error>?>(repeating: nil, count: count)
+    DispatchQueue.concurrentPerform(iterations: count) { index in
+        let result = Result { try body(index) }
+        lock.lock()
+        results[index] = result
+        lock.unlock()
+    }
+
+    return try results.enumerated().map { index, result in
+        guard let result else {
+            throw SuperNeoError.invalidParameter("CE parallel map missing result at index \(index)")
+        }
+        return try result.get()
+    }
+}
+
+private func makeProverRoundBatch(
+    roundRange: Range<Int>,
+    privateWitnesses: [[GoldilocksField]],
+    statement: TerminalCEStatement,
+    proverContext: CEOpeningPrivateLinearBatchContext,
+    rng: inout DeterministicRNG
+) throws -> [CEOpeningProverRoundMaterial] {
+    guard statement.openings.count == privateWitnesses.count else {
+        throw SuperNeoError.invalidParameter("CE opening proof witness count mismatch")
+    }
+    let openingCount = statement.openings.count
+    guard openingCount > 0 else {
+        throw SuperNeoError.invalidParameter("CE opening proof requires at least one opening")
+    }
+    let batchCount = roundRange.count * openingCount
+    var batchedOpenings: [[CEOpeningProverOpeningMaterial]] = []
+    var vectors: [[GoldilocksField]] = []
+    var openingIndices: [Int] = []
+    batchedOpenings.reserveCapacity(roundRange.count)
+    vectors.reserveCapacity(batchCount)
+    openingIndices.reserveCapacity(batchCount)
+
+    for _ in roundRange {
+        var roundOpenings: [CEOpeningProverOpeningMaterial] = []
+        roundOpenings.reserveCapacity(openingCount)
+        for openingIndex in statement.openings.indices {
+            let witness = privateWitnesses[openingIndex]
+            let permutation = samplePermutation(count: witness.count, rng: &rng)
+            let mask = (0..<witness.count).map { _ in rng.nextField() }
+            let masked = ceVectorAdd(mask, witness)
+            let material = CEOpeningProverOpeningMaterial(
+                permutation: permutation,
+                permutationBytes: ceEncodePermutation(permutation),
+                mask: mask,
+                masked: masked,
+                permutedMask: applyPermutation(mask, permutation),
+                permutedMasked: applyPermutation(masked, permutation)
+            )
+            roundOpenings.append(material)
+            vectors.append(mask)
+            openingIndices.append(openingIndex)
+        }
+        batchedOpenings.append(roundOpenings)
+    }
+
+    let maskInstances = try SuperNeoBenchmarkSignpost.measure("ceProverPrivateLinearBatch") {
+        try proverContext.makePrivateLinearInstances(
+            vectors: vectors,
+            openingIndices: openingIndices
+        )
+    }
+    guard maskInstances.count == batchCount else {
+        throw SuperNeoError.invalidParameter("CE opening prover batch output count mismatch")
+    }
+
+    var flatIndex = 0
+    return batchedOpenings.enumerated().map { roundOffset, openings in
+        let roundIndex = roundRange.lowerBound + roundOffset
+        var commitments: [CEOpeningProofCommitments] = []
+        commitments.reserveCapacity(openingCount)
+        for (openingIndex, opening) in openings.enumerated() {
+            let maskInstance = maskInstances[flatIndex]
+            commitments.append(CEOpeningProofCommitments(
+                maskLinearDigest: ceOpeningDigest(
+                    tag: 1,
+                    roundIndex: roundIndex,
+                    openingIndex: openingIndex,
+                    payload: opening.permutationBytes + maskInstance.superNeoBytes
+                ),
+                permutedMaskDigest: ceOpeningDigest(
+                    tag: 2,
+                    roundIndex: roundIndex,
+                    openingIndex: openingIndex,
+                    payload: ceEncodeVector(opening.permutedMask)
+                ),
+                permutedMaskedWitnessDigest: ceOpeningDigest(
+                    tag: 3,
+                    roundIndex: roundIndex,
+                    openingIndex: openingIndex,
+                    payload: ceEncodeVector(opening.permutedMasked)
+                )
+            ))
+            flatIndex += 1
+        }
+        return CEOpeningProverRoundMaterial(openings: openings, commitments: commitments)
+    }
+}
+
+private struct CEOpeningPrivateLinearBatchContext {
+    let shape: CCSShape
+    let key: AjtaiCommitmentKey
+    let transformedMatrices: [SparseRingMatrixCSR]
+    let metalWorkspace: SuperNeoMetalWorkspace?
+    let openings: [CEOpeningPrivateLinearOpeningContext]
+
+    init(
+        statement: TerminalCEStatement,
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        transformedMatrices: [SparseRingMatrixCSR],
+        metalWorkspace: SuperNeoMetalWorkspace? = nil
+    ) throws {
+        guard transformedMatrices.count == shape.numMatrices else {
+            throw SuperNeoError.invalidParameter("compiled transformed matrix count mismatch")
+        }
+        if let metalWorkspace {
+            guard metalWorkspace.key == key else {
+                throw SuperNeoError.invalidParameter("CE opening Metal workspace key mismatch")
+            }
+            guard metalWorkspace.transformedMatrixCount == transformedMatrices.count else {
+                throw SuperNeoError.invalidParameter("CE opening Metal workspace transformed matrix count mismatch")
+            }
+        }
+        let expectedPointCount = try log2Exact(shape.m)
+        self.shape = shape
+        self.key = key
+        self.transformedMatrices = transformedMatrices
+        self.metalWorkspace = metalWorkspace
+        self.openings = try statement.openings.map { opening in
+            try CEOpeningPrivateLinearOpeningContext(
+                opening: opening,
+                shape: shape,
+                expectedPointCount: expectedPointCount
+            )
+        }
+    }
+
+    func opening(at index: Int) -> CEOpeningPrivateLinearOpeningContext {
+        openings[index]
+    }
+
+    func makePrivateLinearInstances(
+        vectors: [[GoldilocksField]],
+        openingIndices: [Int]
+    ) throws -> [CEInstance] {
+        guard vectors.count == openingIndices.count else {
+            throw SuperNeoError.invalidParameter("CE opening private-linear batch count mismatch")
+        }
+
+        let packedWitnesses = try zip(vectors, openingIndices).map { vector, openingIndex in
+            try opening(at: openingIndex).packedZeroPublicWitness(privateVector: vector, shape: shape)
+        }
+        if let metalWorkspace, let sharedPoint = sharedEvaluationPoint(for: openingIndices) {
+            let computations = try SuperNeoBenchmarkSignpost.measure("ceMetalCombinedCommitEval") {
+                try makeMetalPrivateLinearComputations(
+                    packedWitnesses: packedWitnesses,
+                    point: sharedPoint,
+                    metalWorkspace: metalWorkspace
+                )
+            }
+            return openingIndices.indices.map { index in
+                let openingContext = opening(at: openingIndices[index])
+                return CEInstance(
+                    commitment: computations[index].commitment,
+                    publicInput: openingContext.publicZeros,
+                    evalPoint: openingContext.statement.instance.evalPoint,
+                    matrixEvals: computations[index].matrixEvals
+                )
+            }
+        }
+
+        let computations = try SuperNeoBenchmarkSignpost.measure("ceCPUCombinedCommitEval") {
+            try ceParallelMap(count: packedWitnesses.count) { index in
+                let packed = packedWitnesses[index]
+                let openingIndex = openingIndices[index]
+                let openingContext = opening(at: openingIndex)
+                let commitment = try AjtaiCommitter.commitReference(key: key, message: packed)
+                let matrixEvals = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
+                    let rows = try matrix.multiplied(by: packed)
+                    return try SuperNeoProtocolOracle.evaluateExtensionRingRows(rows, rHat: openingContext.rHat)
+                }
+                return CEPrivateLinearComputation(commitment: commitment, matrixEvals: matrixEvals)
+            }
+        }
+
+        return openingIndices.indices.map { index in
+            let openingContext = opening(at: openingIndices[index])
+            return CEInstance(
+                commitment: computations[index].commitment,
+                publicInput: openingContext.publicZeros,
+                evalPoint: openingContext.statement.instance.evalPoint,
+                matrixEvals: computations[index].matrixEvals
+            )
+        }
+    }
+
+    private func makeMetalPrivateLinearComputations(
+        packedWitnesses: [[CyclotomicRing54]],
+        point: [GoldilocksExt2],
+        metalWorkspace: SuperNeoMetalWorkspace
+    ) throws -> [CEPrivateLinearComputation] {
+        guard !packedWitnesses.isEmpty else { return [] }
+        let maxBatchSize = AjtaiMatvecSchedule.default.maxBatchSize
+        var computations: [CEPrivateLinearComputation] = []
+        computations.reserveCapacity(packedWitnesses.count)
+
+        var batchStart = 0
+        while batchStart < packedWitnesses.count {
+            let batchEnd = min(batchStart + maxBatchSize, packedWitnesses.count)
+            let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
+                messages: Array(packedWitnesses[batchStart..<batchEnd]),
+                point: point
+            )
+            guard combined.commitments.count == batchEnd - batchStart,
+                  combined.evaluations.count == batchEnd - batchStart else {
+                throw SuperNeoError.invalidParameter("CE opening Metal batch output count mismatch")
+            }
+            computations.append(contentsOf: combined.commitments.indices.map { index in
+                CEPrivateLinearComputation(
+                    commitment: combined.commitments[index],
+                    matrixEvals: combined.evaluations[index]
+                )
+            })
+            batchStart = batchEnd
+        }
+        return computations
+    }
+
+    private func sharedEvaluationPoint(for openingIndices: [Int]) -> [GoldilocksExt2]? {
+        guard let firstIndex = openingIndices.first else { return [] }
+        let firstPoint = opening(at: firstIndex).statement.instance.evalPoint
+        for openingIndex in openingIndices.dropFirst() where opening(at: openingIndex).statement.instance.evalPoint != firstPoint {
+            return nil
+        }
+        return firstPoint
+    }
+}
+
+private struct CEOpeningPrivateLinearOpeningContext {
+    let statement: CEOpeningStatement
+    let publicZeros: [GoldilocksField]
+    let rHat: [GoldilocksExt2]
+
+    init(
+        opening: CEOpeningStatement,
+        shape: CCSShape,
+        expectedPointCount: Int
+    ) throws {
+        guard opening.instance.publicInput.count == shape.nPublicField else {
+            throw SuperNeoError.invalidParameter("CE opening public input length mismatch")
+        }
+        guard opening.instance.evalPoint.count == expectedPointCount else {
+            throw SuperNeoError.invalidParameter("CE opening evaluation point length mismatch")
+        }
+        guard opening.instance.matrixEvals.count == shape.numMatrices else {
+            throw SuperNeoError.invalidParameter("CE opening matrix evaluation arity mismatch")
+        }
+
+        let publicZeros = Array(repeating: GoldilocksField.zero, count: opening.instance.publicInput.count)
+        let rHat = try MultilinearEvaluation.checkedBasis(at: opening.instance.evalPoint)
+
+        self.statement = opening
+        self.publicZeros = publicZeros
+        self.rHat = rHat
+    }
+
+    func acceptsPrivateVector(count: Int, shape: CCSShape) throws -> Bool {
+        try isValidPrivateVectorLength(count, publicInputCount: publicZeros.count, shape: shape)
+    }
+
+    func packedZeroPublicWitness(privateVector: [GoldilocksField], shape: CCSShape) throws -> [CyclotomicRing54] {
+        guard try acceptsPrivateVector(count: privateVector.count, shape: shape) else {
+            throw SuperNeoError.invalidParameter("CE opening private vector length mismatch")
+        }
+        return try packedEvaluationWitness(publicZeros + privateVector, shape: shape)
+    }
+}
+
+private struct CEOpeningVerifierContext {
+    let linearContext: CEOpeningPrivateLinearBatchContext
+    let parameters: SuperNeoParameters
+    let targets: [CEPrivateTarget]
+
+    var shape: CCSShape { linearContext.shape }
+
+    init(
+        statement: TerminalCEStatement,
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        transformedMatrices: [SparseRingMatrixCSR],
+        metalWorkspace: SuperNeoMetalWorkspace? = nil,
+        parameters: SuperNeoParameters
+    ) throws {
+        let linearContext = try CEOpeningPrivateLinearBatchContext(
+            statement: statement,
+            shape: shape,
+            key: key,
+            transformedMatrices: transformedMatrices,
+            metalWorkspace: metalWorkspace
+        )
+        self.linearContext = linearContext
+        self.parameters = parameters
+        self.targets = try ceParallelMap(count: linearContext.openings.count) { index in
+            try makeCEPrivateTarget(
+                openingContext: linearContext.openings[index],
+                shape: shape,
+                key: key,
+                transformedMatrices: transformedMatrices
+            )
+        }
+    }
+
+    func opening(at index: Int) -> CEOpeningPrivateLinearOpeningContext {
+        linearContext.opening(at: index)
+    }
+
+    func target(at index: Int) -> CEPrivateTarget {
+        targets[index]
+    }
+
+    func makePrivateLinearInstances(
+        vectors: [[GoldilocksField]],
+        openingIndices: [Int]
+    ) throws -> [CEInstance] {
+        try linearContext.makePrivateLinearInstances(vectors: vectors, openingIndices: openingIndices)
+    }
+}
+
+private func makeCEPrivateTarget(
+    openingContext: CEOpeningPrivateLinearOpeningContext,
+    shape: CCSShape,
+    key: AjtaiCommitmentKey,
+    transformedMatrices: [SparseRingMatrixCSR]
+) throws -> CEPrivateTarget {
+    let opening = openingContext.statement
+    guard opening.instance.commitment.elements.count == key.parameters.kappa else {
+        throw SuperNeoError.invalidParameter("CE opening commitment has wrong length")
+    }
+    let publicPrivateCount = shape.nField - opening.instance.publicInput.count
+    guard publicPrivateCount >= 0 else {
+        throw SuperNeoError.invalidParameter("CE opening public input exceeds witness length")
+    }
+    let publicWitness = opening.instance.publicInput
+        + Array(repeating: GoldilocksField.zero, count: publicPrivateCount)
+    let packedPublicWitness = try packedEvaluationWitness(publicWitness, shape: shape)
+    let publicCommitment = try SuperNeoBenchmarkSignpost.measure("ceTargetAjtaiCommit") {
+        try AjtaiCommitter.commitReference(key: key, message: packedPublicWitness)
+    }
+    let publicEvaluations = try SuperNeoBenchmarkSignpost.measure("ceTargetTransformedEval") {
+        try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
+            let rows = try matrix.multiplied(by: packedPublicWitness)
+            return try SuperNeoProtocolOracle.evaluateExtensionRingRows(rows, rHat: openingContext.rHat)
+        }
+    }
+
+    return CEPrivateTarget(
+        commitment: opening.instance.commitment - publicCommitment,
+        matrixEvals: ceVectorSubtract(opening.instance.matrixEvals, publicEvaluations)
+    )
+}
+
 private func validatePrivateOpenings(
     statement: TerminalCEStatement,
     witnesses: [CEOpeningWitness],
@@ -2673,24 +3071,6 @@ private func privateWitness(from witness: [GoldilocksField], shape: CCSShape) th
     return Array(witness.dropFirst(shape.nPublicField))
 }
 
-private func makePrivateLinearInstance(
-    privateVector: [GoldilocksField],
-    opening: CEOpeningStatement,
-    shape: CCSShape,
-    key: AjtaiCommitmentKey,
-    transformedMatrices: [SparseRingMatrixCSR]
-) throws -> CEInstance {
-    let publicZeros = Array(repeating: GoldilocksField.zero, count: opening.instance.publicInput.count)
-    return try SuperNeoProtocolOracle.makeEvaluationInstance(
-        shape: shape,
-        transformedMatrices: transformedMatrices,
-        witness: publicZeros + privateVector,
-        publicInput: publicZeros,
-        point: opening.instance.evalPoint,
-        key: key
-    )
-}
-
 private func subtractTarget(_ instance: CEInstance, target: CEPrivateTarget) -> CEInstance {
     CEInstance(
         commitment: instance.commitment - target.commitment,
@@ -2700,176 +3080,226 @@ private func subtractTarget(_ instance: CEInstance, target: CEPrivateTarget) -> 
     )
 }
 
-private func verifyRoundResponse(
-    _ response: CEOpeningProofResponse,
-    challenge: Int,
+private func verifyBatchedProofResponses(
+    proof: CEOpeningProof,
+    statement: TerminalCEStatement,
+    verifierContext: CEOpeningVerifierContext
+) throws -> Bool {
+    var transcript = makeCEOpeningTranscript(statement: statement)
+    transcript.absorb(ceEncodeCount(proof.rounds.count))
+
+    let jobs: [CEOpeningVerifierLinearJob]? = try SuperNeoBenchmarkSignpost.measure("ceVerifyResponseScan") { () -> [CEOpeningVerifierLinearJob]? in
+        var jobs: [CEOpeningVerifierLinearJob] = []
+        jobs.reserveCapacity(proof.rounds.count * statement.openings.count)
+
+        for (roundIndex, round) in proof.rounds.enumerated() {
+            guard round.commitments.count == statement.openings.count else { return nil }
+            transcript.absorb(round.commitments.flatMap(\.superNeoBytes))
+            let challenge = ceOpeningChallenge(transcript: &transcript)
+            let roundJobs: [CEOpeningVerifierLinearJob]?
+            switch (challenge, round.response) {
+            case (0, .mask(let openings)):
+                roundJobs = try collectMaskRoundLinearJobs(
+                    openings: openings,
+                    roundIndex: roundIndex,
+                    commitments: round.commitments,
+                    statement: statement,
+                    verifierContext: verifierContext
+                )
+            case (1, .maskedWitness(let openings)):
+                roundJobs = try collectMaskedWitnessRoundLinearJobs(
+                    openings: openings,
+                    roundIndex: roundIndex,
+                    commitments: round.commitments,
+                    statement: statement,
+                    verifierContext: verifierContext
+                )
+            case (2, .permutedWitness(let openings)):
+                guard try verifyPermutedWitnessRoundResponse(
+                    openings: openings,
+                    roundIndex: roundIndex,
+                    commitments: round.commitments,
+                    statement: statement,
+                    verifierContext: verifierContext
+                ) else {
+                    return nil
+                }
+                roundJobs = []
+            default:
+                return nil
+            }
+            guard let roundJobs else { return nil }
+            jobs.append(contentsOf: roundJobs)
+            transcript.absorb(round.response.superNeoBytes)
+        }
+        return jobs
+    }
+
+    guard let jobs else { return false }
+    return try verifyCollectedLinearJobs(jobs, verifierContext: verifierContext)
+}
+
+private func collectMaskRoundLinearJobs(
+    openings: [CEOpeningLinearResponse],
     roundIndex: Int,
     commitments: [CEOpeningProofCommitments],
     statement: TerminalCEStatement,
-    shape: CCSShape,
-    key: AjtaiCommitmentKey,
-    transformedMatrices: [SparseRingMatrixCSR],
-    parameters: SuperNeoParameters
-) throws -> Bool {
-    switch (challenge, response) {
-    case (0, .mask(let openings)):
-        guard openings.count == statement.openings.count else { return false }
-        for index in openings.indices {
-            let opening = openings[index]
-            guard isValidPermutation(opening.permutation, count: opening.vector.count) else { return false }
-            guard try isValidPrivateVectorLength(
-                opening.vector.count,
-                publicInputCount: statement.openings[index].instance.publicInput.count,
-                shape: shape
-            ) else {
-                return false
-            }
-            let maskInstance = try makePrivateLinearInstance(
-                privateVector: opening.vector,
-                opening: statement.openings[index],
-                shape: shape,
-                key: key,
-                transformedMatrices: transformedMatrices
-            )
-            guard commitments[index].maskLinearDigest == ceOpeningDigest(
-                tag: 1,
-                roundIndex: roundIndex,
-                openingIndex: index,
-                payload: ceEncodePermutation(opening.permutation) + maskInstance.superNeoBytes
-            ) else {
-                return false
-            }
-            let permutedMask = applyPermutation(opening.vector, opening.permutation)
-            guard commitments[index].permutedMaskDigest == ceOpeningDigest(
-                tag: 2,
-                roundIndex: roundIndex,
-                openingIndex: index,
-                payload: ceEncodeVector(permutedMask)
-            ) else {
-                return false
-            }
-        }
-        return true
+    verifierContext: CEOpeningVerifierContext
+) throws -> [CEOpeningVerifierLinearJob]? {
+    guard openings.count == statement.openings.count else { return nil }
+    var jobs: [CEOpeningVerifierLinearJob] = []
+    jobs.reserveCapacity(openings.count)
 
-    case (1, .maskedWitness(let openings)):
-        guard openings.count == statement.openings.count else { return false }
-        for index in openings.indices {
-            let opening = openings[index]
-            guard isValidPermutation(opening.permutation, count: opening.vector.count) else { return false }
-            guard try isValidPrivateVectorLength(
-                opening.vector.count,
-                publicInputCount: statement.openings[index].instance.publicInput.count,
-                shape: shape
-            ) else {
-                return false
-            }
-            let maskedInstance = try makePrivateLinearInstance(
-                privateVector: opening.vector,
-                opening: statement.openings[index],
-                shape: shape,
-                key: key,
-                transformedMatrices: transformedMatrices
-            )
-            let target = try privateTargetForStatementOpening(
-                statement.openings[index],
-                privateCount: opening.vector.count,
-                shape: shape,
-                key: key,
-                transformedMatrices: transformedMatrices
-            )
-            let maskInstance = subtractTarget(maskedInstance, target: target)
-            guard commitments[index].maskLinearDigest == ceOpeningDigest(
-                tag: 1,
-                roundIndex: roundIndex,
-                openingIndex: index,
-                payload: ceEncodePermutation(opening.permutation) + maskInstance.superNeoBytes
-            ) else {
-                return false
-            }
-            let permutedMasked = applyPermutation(opening.vector, opening.permutation)
-            guard commitments[index].permutedMaskedWitnessDigest == ceOpeningDigest(
-                tag: 3,
-                roundIndex: roundIndex,
-                openingIndex: index,
-                payload: ceEncodeVector(permutedMasked)
-            ) else {
-                return false
-            }
+    for index in openings.indices {
+        let opening = openings[index]
+        guard isValidPermutation(opening.permutation, count: opening.vector.count) else { return nil }
+        guard try verifierContext.opening(at: index).acceptsPrivateVector(
+            count: opening.vector.count,
+            shape: verifierContext.shape
+        ) else {
+            return nil
         }
-        return true
-
-    case (2, .permutedWitness(let openings)):
-        guard openings.count == statement.openings.count else { return false }
-        for index in openings.indices {
-            let opening = openings[index]
-            guard opening.permutedMask.count == opening.permutedWitness.count else { return false }
-            guard try isValidPrivateVectorLength(
-                opening.permutedWitness.count,
-                publicInputCount: statement.openings[index].instance.publicInput.count,
-                shape: shape
-            ) else {
-                return false
-            }
-            guard opening.permutedWitness.allSatisfy({ signedMagnitude($0) < UInt64(parameters.normBound) }) else {
-                return false
-            }
-            guard commitments[index].permutedMaskDigest == ceOpeningDigest(
-                tag: 2,
-                roundIndex: roundIndex,
-                openingIndex: index,
-                payload: ceEncodeVector(opening.permutedMask)
-            ) else {
-                return false
-            }
-            let masked = ceVectorAdd(opening.permutedMask, opening.permutedWitness)
-            guard commitments[index].permutedMaskedWitnessDigest == ceOpeningDigest(
-                tag: 3,
-                roundIndex: roundIndex,
-                openingIndex: index,
-                payload: ceEncodeVector(masked)
-            ) else {
-                return false
-            }
+        let permutedMask = applyPermutation(opening.vector, opening.permutation)
+        guard commitments[index].permutedMaskDigest == ceOpeningDigest(
+            tag: 2,
+            roundIndex: roundIndex,
+            openingIndex: index,
+            payload: ceEncodeVector(permutedMask)
+        ) else {
+            return nil
         }
-        return true
-
-    default:
-        return false
+        jobs.append(CEOpeningVerifierLinearJob(
+            challenge: 0,
+            roundIndex: roundIndex,
+            openingIndex: index,
+            permutationBytes: ceEncodePermutation(opening.permutation),
+            vector: opening.vector,
+            commitments: commitments[index]
+        ))
     }
+    return jobs
 }
 
-private func privateTargetForStatementOpening(
-    _ opening: CEOpeningStatement,
-    privateCount: Int,
-    shape: CCSShape,
-    key: AjtaiCommitmentKey,
-    transformedMatrices: [SparseRingMatrixCSR]
-) throws -> CEPrivateTarget {
-    guard opening.instance.commitment.elements.count == key.parameters.kappa else {
-        throw SuperNeoError.invalidParameter("CE opening commitment has wrong length")
+private func collectMaskedWitnessRoundLinearJobs(
+    openings: [CEOpeningLinearResponse],
+    roundIndex: Int,
+    commitments: [CEOpeningProofCommitments],
+    statement: TerminalCEStatement,
+    verifierContext: CEOpeningVerifierContext
+) throws -> [CEOpeningVerifierLinearJob]? {
+    guard openings.count == statement.openings.count else { return nil }
+    var jobs: [CEOpeningVerifierLinearJob] = []
+    jobs.reserveCapacity(openings.count)
+
+    for index in openings.indices {
+        let opening = openings[index]
+        guard isValidPermutation(opening.permutation, count: opening.vector.count) else { return nil }
+        guard try verifierContext.opening(at: index).acceptsPrivateVector(
+            count: opening.vector.count,
+            shape: verifierContext.shape
+        ) else {
+            return nil
+        }
+        let permutedMasked = applyPermutation(opening.vector, opening.permutation)
+        guard commitments[index].permutedMaskedWitnessDigest == ceOpeningDigest(
+            tag: 3,
+            roundIndex: roundIndex,
+            openingIndex: index,
+            payload: ceEncodeVector(permutedMasked)
+        ) else {
+            return nil
+        }
+        jobs.append(CEOpeningVerifierLinearJob(
+            challenge: 1,
+            roundIndex: roundIndex,
+            openingIndex: index,
+            permutationBytes: ceEncodePermutation(opening.permutation),
+            vector: opening.vector,
+            commitments: commitments[index]
+        ))
     }
-    guard opening.instance.publicInput.count == shape.nPublicField else {
-        throw SuperNeoError.invalidParameter("CE opening public input length mismatch")
+    return jobs
+}
+
+private func verifyCollectedLinearJobs(
+    _ jobs: [CEOpeningVerifierLinearJob],
+    verifierContext: CEOpeningVerifierContext
+) throws -> Bool {
+    guard !jobs.isEmpty else { return true }
+    let instances = try SuperNeoBenchmarkSignpost.measure("ceVerifyPrivateLinearBatch") {
+        try verifierContext.makePrivateLinearInstances(
+            vectors: jobs.map(\.vector),
+            openingIndices: jobs.map(\.openingIndex)
+        )
     }
-    guard opening.instance.evalPoint.count == (try log2Exact(shape.m)) else {
-        throw SuperNeoError.invalidParameter("CE opening evaluation point length mismatch")
+    guard instances.count == jobs.count else {
+        throw SuperNeoError.invalidParameter("CE opening verifier batch output count mismatch")
     }
-    guard opening.instance.matrixEvals.count == shape.numMatrices else {
-        throw SuperNeoError.invalidParameter("CE opening matrix evaluation arity mismatch")
+
+    for index in jobs.indices {
+        let job = jobs[index]
+        let instance: CEInstance
+        switch job.challenge {
+        case 0:
+            instance = instances[index]
+        case 1:
+            instance = subtractTarget(instances[index], target: verifierContext.target(at: job.openingIndex))
+        default:
+            throw SuperNeoError.invalidParameter("unexpected CE verifier private-linear challenge")
+        }
+        guard job.commitments.maskLinearDigest == ceOpeningDigest(
+            tag: 1,
+            roundIndex: job.roundIndex,
+            openingIndex: job.openingIndex,
+            payload: job.permutationBytes + instance.superNeoBytes
+        ) else {
+            return false
+        }
     }
-    let publicWitness = opening.instance.publicInput + Array(repeating: GoldilocksField.zero, count: privateCount)
-    let publicInstance = try SuperNeoProtocolOracle.makeEvaluationInstance(
-        shape: shape,
-        transformedMatrices: transformedMatrices,
-        witness: publicWitness,
-        publicInput: opening.instance.publicInput,
-        point: opening.instance.evalPoint,
-        key: key
-    )
-    return CEPrivateTarget(
-        commitment: opening.instance.commitment - publicInstance.commitment,
-        matrixEvals: ceVectorSubtract(opening.instance.matrixEvals, publicInstance.matrixEvals)
-    )
+    return true
+}
+
+private func verifyPermutedWitnessRoundResponse(
+    openings: [CEOpeningNormResponse],
+    roundIndex: Int,
+    commitments: [CEOpeningProofCommitments],
+    statement: TerminalCEStatement,
+    verifierContext: CEOpeningVerifierContext
+) throws -> Bool {
+    guard openings.count == statement.openings.count else { return false }
+    for index in openings.indices {
+        let opening = openings[index]
+        guard opening.permutedMask.count == opening.permutedWitness.count else { return false }
+        guard try verifierContext.opening(at: index).acceptsPrivateVector(
+            count: opening.permutedWitness.count,
+            shape: verifierContext.shape
+        ) else {
+            return false
+        }
+        guard opening.permutedWitness.allSatisfy({
+            signedMagnitude($0) < UInt64(verifierContext.parameters.normBound)
+        }) else {
+            return false
+        }
+        guard commitments[index].permutedMaskDigest == ceOpeningDigest(
+            tag: 2,
+            roundIndex: roundIndex,
+            openingIndex: index,
+            payload: ceEncodeVector(opening.permutedMask)
+        ) else {
+            return false
+        }
+        let masked = ceVectorAdd(opening.permutedMask, opening.permutedWitness)
+        guard commitments[index].permutedMaskedWitnessDigest == ceOpeningDigest(
+            tag: 3,
+            roundIndex: roundIndex,
+            openingIndex: index,
+            payload: ceEncodeVector(masked)
+        ) else {
+            return false
+        }
+    }
+    return true
 }
 
 private func isValidPrivateVectorLength(_ privateCount: Int, publicInputCount: Int, shape: CCSShape) throws -> Bool {

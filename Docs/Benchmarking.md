@@ -44,6 +44,8 @@ Benchmark groups:
 - `reduceFold/*`: public reduction verifier cost.
 - `terminalVerify/*`: local terminal CE verification cost.
 - `proofEnvelope/*`: serialization, parsing, and verification round-trip.
+- `ceOpeningProof/*`: opt-in public CE opening proof verification. Enable with `SUPERNEO_BENCHMARK_CE=1`.
+- `compressedEnvelope/*`: opt-in compressed public terminal envelope verification. Enable with `SUPERNEO_BENCHMARK_CE=1`.
 - `stage/*`: sum-check, PiCCS, PiRLC, and PiDEC stage costs.
 - `kernel/*`: field multiplication, ring multiplication, ring-scalar multiplication, multilinear evaluation, dense/sparse/batched/workspace transformed evaluation, single/batched/workspace Ajtai commitment hot paths, and combined workspace commit-plus-evaluation dispatch.
 
@@ -78,6 +80,7 @@ Current CPU-path baseline:
 - CPU protocol evaluation uses sparse transformed CCS matrices by default. Dense transformed matrices are retained for dense-specific benchmarks and comparisons.
 - CPU PiDEC evaluates extension-ring rows by computing `rHat` once and accumulating all 54 ring coefficients in one pass.
 - Local CE batch verification compiles the sparse CCS shape once and reuses transformed matrices across openings.
+- Public CE proof generation and verification precompute per-opening evaluation bases, check cheap transcript digests before expensive private-linear reconstruction, chunk prover private-linear work across Stern rounds, and batch verifier challenge-0/1 private-linear jobs after the transcript scan. CPU CE batches fuse each opening's commitment and transformed evaluations in one parallel pass; provers and verifiers with a Metal context route same-point CE batches through the combined workspace commit-plus-evaluation path.
 - CPU Ajtai commitment uses a fused coefficient-buffer matvec for the reference path.
 
 Latest CPU-path audit snapshot, measured locally on 2026-04-12:
@@ -96,8 +99,9 @@ Latest CPU-path audit snapshot, measured locally on 2026-04-12:
 | `proofEnvelope/roundTrip/m1024` | 504 ms | 148 ms | 3.41x faster |
 | `ajtaiCommit/cpu/m1024` | 3.38 ms | 2.876 ms | 1.18x faster |
 | `ajtaiCommit/batch/cpu/m1024` | 43 ms | 37 ms | 1.16x faster |
+| `compressed public XCTest` | 317 s | 61.009 s | 5.20x faster |
 
-The full XCTest slice still includes a deliberately heavy compressed-envelope path. On the same local run, `testCompressedPublicEnvelopeRoundTripsAndBindsPublicInputs` passed but took 317 s, so future CE verifier work should compare both microbenchmarks and that end-to-end test.
+The full XCTest slice still includes a deliberately heavy compressed-envelope path. Before CE proof optimization, `testCompressedPublicEnvelopeRoundTripsAndBindsPublicInputs` passed but took 317 s. After per-opening target caching, cheap digest prechecks, chunked prover private-linear batches, and batched verifier private-linear reconstruction, the same test passed locally on 2026-04-12 in 61.009 s. Future CE work should compare the opt-in `ceOpeningProof/verify/*` and `compressedEnvelope/verify/*` benchmarks with that end-to-end test.
 
 Measured row-block tuning notes:
 

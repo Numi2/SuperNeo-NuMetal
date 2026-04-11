@@ -11,8 +11,18 @@ private let defaultConfiguration = Benchmark.Configuration(
     maxDuration: .seconds(3),
     maxIterations: 20
 )
+private let expensiveConfiguration = Benchmark.Configuration(
+    metrics: [
+        .wallClock,
+        .mallocCountTotal,
+        .memoryLeaked
+    ],
+    maxDuration: .seconds(1),
+    maxIterations: 1
+)
 
 private let benchmarkProfile = ProcessInfo.processInfo.environment["SUPERNEO_BENCHMARK_PROFILE"] ?? "quick"
+private let includeCEBenchmarks = ProcessInfo.processInfo.environment["SUPERNEO_BENCHMARK_CE"] == "1"
 private let benchmarkCaseFilters = ProcessInfo.processInfo.environment["SUPERNEO_BENCHMARK_CASE_FILTER"]?
     .split(separator: ",")
     .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -145,6 +155,147 @@ private func registerStageBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
             shape: fixture.shape
         )
         blackHole(decomposition.claims.count)
+    }
+}
+
+private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
+    let label = fixture.benchmarkCase.label
+    let prover = SuperNeoProver(parameters: fixture.parameters, key: fixture.key)
+    let verifier = SuperNeoVerifier(parameters: fixture.parameters, key: fixture.key)
+    let terminalStatement = try! TerminalCEStatement(
+        profileID: fixture.parameters.profileID,
+        shape: fixture.shape,
+        claims: fixture.referenceFold.outputClaims
+    )
+    let terminalWitnesses = fixture.referenceFold.outputClaims.compactMap(CEOpeningWitness.init(claim:))
+    guard terminalWitnesses.count == fixture.referenceFold.outputClaims.count else {
+        fatalError("CE benchmark fixture is missing terminal witnesses for \(label)")
+    }
+    let ceProofSeed = Array("superneo-benchmark-ce-opening-\(label)".utf8)
+    let ceOpeningProof = try! CEOpeningRelation.proveLocalBatch(
+        statement: terminalStatement,
+        witnesses: terminalWitnesses,
+        shape: fixture.shape,
+        key: fixture.key,
+        parameters: fixture.parameters,
+        randomSeed: ceProofSeed
+    )
+
+    let compressedStatement = CCSStatement(
+        shapeDigest: fixture.shape.shapeDigest,
+        ccsInstances: fixture.publicInput.instances,
+        priorCEInstances: fixture.publicInput.priorClaims.map { CEInstance($0) }
+    )
+    let compressedContext = ProofEnvelopeContext(
+        profileID: fixture.parameters.profileID,
+        kind: .compressedPublic,
+        statement: compressedStatement
+    )
+    let compressedCESeed = Array("superneo-benchmark-compressed-ce-\(label)".utf8)
+    let compressedEnvelope = try! prover.compressedTerminalFoldEnvelope(
+        fixture.input,
+        context: compressedContext,
+        ceRandomSeed: compressedCESeed
+    )
+    let compressedEnvelopeBytes = compressedEnvelope.superNeoBytes
+
+    Benchmark("ceOpeningProof/prove/cpu/\(label)", configuration: expensiveConfiguration) { _ in
+        let proof = try CEOpeningRelation.proveLocalBatch(
+            statement: terminalStatement,
+            witnesses: terminalWitnesses,
+            shape: fixture.shape,
+            key: fixture.key,
+            parameters: fixture.parameters,
+            randomSeed: ceProofSeed
+        )
+        guard proof == ceOpeningProof else {
+            fatalError("CPU CE opening proof changed for \(label)")
+        }
+        blackHole(proof.rounds.count)
+    }
+
+    Benchmark("ceOpeningProof/verify/cpu/\(label)", configuration: expensiveConfiguration) { _ in
+        guard try CEOpeningRelation.verify(
+            proof: ceOpeningProof,
+            statement: terminalStatement,
+            shape: fixture.shape,
+            key: fixture.key,
+            parameters: fixture.parameters
+        ) else {
+            fatalError("CE opening proof verification failed for \(label)")
+        }
+    }
+
+    Benchmark("compressedEnvelope/verify/cpu/\(label)", configuration: expensiveConfiguration) { _ in
+        requireValid(verifier.verifyCompressedTerminalFoldEnvelope(
+            publicInput: fixture.publicInput,
+            proofBytes: compressedEnvelopeBytes,
+            context: compressedContext
+        ))
+    }
+
+    if let metalContext {
+        let compiledShape = try! fixture.shape.compiledSparseForSuperNeo()
+        let metalWorkspace = try! SuperNeoMetalWorkspace(
+            context: metalContext,
+            key: fixture.key,
+            compiledShape: compiledShape
+        )
+        let metalProver = SuperNeoProver(parameters: fixture.parameters, key: fixture.key, context: metalContext)
+        let metalVerifier = SuperNeoVerifier(parameters: fixture.parameters, key: fixture.key, context: metalContext)
+
+        Benchmark("ceOpeningProof/prove/metal/\(label)", configuration: expensiveConfiguration) { _ in
+            let proof = try CEOpeningRelation.proveLocalBatch(
+                statement: terminalStatement,
+                witnesses: terminalWitnesses,
+                shape: fixture.shape,
+                key: fixture.key,
+                parameters: fixture.parameters,
+                randomSeed: ceProofSeed,
+                metalWorkspace: metalWorkspace
+            )
+            guard proof == ceOpeningProof else {
+                fatalError("Metal CE opening proof changed for \(label)")
+            }
+            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            blackHole(proof.rounds.count)
+        }
+
+        Benchmark("ceOpeningProof/verify/metal/\(label)", configuration: expensiveConfiguration) { _ in
+            guard try CEOpeningRelation.verify(
+                proof: ceOpeningProof,
+                statement: terminalStatement,
+                shape: fixture.shape,
+                key: fixture.key,
+                parameters: fixture.parameters,
+                metalWorkspace: metalWorkspace
+            ) else {
+                fatalError("Metal CE opening proof verification failed for \(label)")
+            }
+            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+        }
+
+        Benchmark("compressedEnvelope/prove/metal/\(label)", configuration: expensiveConfiguration) { _ in
+            let envelope = try metalProver.compressedTerminalFoldEnvelope(
+                fixture.input,
+                context: compressedContext,
+                ceRandomSeed: compressedCESeed
+            )
+            guard envelope == compressedEnvelope else {
+                fatalError("Metal compressed envelope changed for \(label)")
+            }
+            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            blackHole(envelope.superNeoBytes.count)
+        }
+
+        Benchmark("compressedEnvelope/verify/metal/\(label)", configuration: expensiveConfiguration) { _ in
+            requireValid(metalVerifier.verifyCompressedTerminalFoldEnvelope(
+                publicInput: fixture.publicInput,
+                proofBytes: compressedEnvelopeBytes,
+                context: compressedContext
+            ))
+            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+        }
     }
 }
 
@@ -443,5 +594,9 @@ let benchmarks: @Sendable () -> Void = {
     for fixture in fixtures.prefix(kernelFixtureLimit) {
         registerStageBenchmarks(fixture)
         registerKernelBenchmarks(fixture)
+    }
+
+    if includeCEBenchmarks, let fixture = fixtures.first {
+        registerCEBenchmarks(fixture)
     }
 }

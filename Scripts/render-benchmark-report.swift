@@ -64,6 +64,8 @@ let selectedPrefixes = [
     "reduceFold/cpu/",
     "terminalVerify/cpu/",
     "proofEnvelope/roundTrip/",
+    "ceOpeningProof/",
+    "compressedEnvelope/",
     "stage/",
     "kernel/fieldMultiply/",
     "kernel/ringMultiply/",
