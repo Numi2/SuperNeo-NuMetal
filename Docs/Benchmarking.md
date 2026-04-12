@@ -88,6 +88,7 @@ Hardware-class reports:
 - [Apple M4 quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-2026-04-12.md)
 - [Apple M4 exact-arithmetic quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-exact-arithmetic-2026-04-12.md)
 - [Apple M4 CSR transform and CE batch quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-csr-ce-batch-2026-04-12.md)
+- [Apple M4 scalar, transcript, and sumcheck quick profile, 2026-04-13](BenchmarkReports/apple-m4-quick-scalar-transcript-sumcheck-2026-04-13.md)
 - [Lead audit, 2026-04-12](LeadAudit-2026-04-12.md)
 
 Add one report per Apple Silicon generation before making generation-to-generation
@@ -145,6 +146,11 @@ Current CPU-path baseline:
 - `GoldilocksExt2` multiplication uses the three-multiply Karatsuba identity, and CPU row-evaluation paths scale extension elements by base-field coefficients directly instead of promoting the scalar into a full extension multiply.
 - `CyclotomicRing54` multiplication and base-ring-by-extension-ring multiplication accumulate directly into the 54 reduced output coefficients using `X^54 = -X^27 - 1`, avoiding the temporary 107-coefficient product and second reduction pass. Fixed-degree ring add/sub/scale paths also avoid map/zip allocation churn.
 - CPU PiDEC evaluates extension-ring rows by computing `rHat` once and accumulating all 54 ring coefficients in one pass.
+- CPU sum-check factors equality products into fixed-prefix and Boolean-suffix
+  components instead of rebuilding full points and recomputing complete equality
+  polynomials for every suffix. PiDEC verifier recomposition uses base-field
+  scalar powers directly, and protocol extension-row evaluation skips zero
+  coefficients before extension-field scaling.
 - Local CE batch verification compiles the sparse CCS shape once and reuses transformed matrices across openings.
 - Public CE proof generation and verification precompute per-opening evaluation bases, check cheap transcript digests before expensive private-linear reconstruction, chunk prover private-linear work across Stern rounds, and batch verifier challenge-0/1 private-linear jobs after the transcript scan. CPU CE batches fuse each opening's commitment and transformed evaluations in one parallel pass; provers and verifiers with a Metal context route same-point CE batches through the combined workspace commit-plus-evaluation path.
 - CPU Ajtai commitment uses a fused coefficient-buffer matvec for the reference path.

@@ -124,6 +124,7 @@ Benchmark reports:
 - [Apple M4 quick profile, 2026-04-12](Docs/BenchmarkReports/apple-m4-quick-2026-04-12.md)
 - [Apple M4 exact-arithmetic quick profile, 2026-04-12](Docs/BenchmarkReports/apple-m4-quick-exact-arithmetic-2026-04-12.md)
 - [Apple M4 CSR transform and CE batch quick profile, 2026-04-12](Docs/BenchmarkReports/apple-m4-quick-csr-ce-batch-2026-04-12.md)
+- [Apple M4 scalar, transcript, and sumcheck quick profile, 2026-04-13](Docs/BenchmarkReports/apple-m4-quick-scalar-transcript-sumcheck-2026-04-13.md)
 
 Reference and generated documentation:
 

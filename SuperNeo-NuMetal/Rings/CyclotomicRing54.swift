@@ -29,6 +29,13 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
 
     public var constantTerm: GoldilocksField { coefficients[0] }
 
+    var baseFieldScalar: GoldilocksField? {
+        for index in 1..<Self.degree where coefficients[index] != .zero {
+            return nil
+        }
+        return coefficients[0]
+    }
+
     public static func + (lhs: Self, rhs: Self) -> Self {
         var coefficients = Array(repeating: GoldilocksField.zero, count: degree)
         for index in 0..<degree {
@@ -69,6 +76,7 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
 
     public func scaled(by scalar: GoldilocksField) -> Self {
         guard scalar != .zero else { return .zero }
+        guard scalar != .one else { return self }
         var coefficients = Array(repeating: GoldilocksField.zero, count: Self.degree)
         for index in 0..<Self.degree {
             coefficients[index] = self.coefficients[index] * scalar
@@ -297,6 +305,16 @@ public struct CyclotomicExt2Ring54: Equatable, Hashable, Sendable {
 
     public static func * (lhs: Self, rhs: CyclotomicRing54) -> Self {
         rhs * lhs
+    }
+
+    public func scaled(by scalar: GoldilocksField) -> Self {
+        guard scalar != .zero else { return .zero }
+        guard scalar != .one else { return self }
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: Self.degree)
+        for index in 0..<Self.degree {
+            coefficients[index] = self.coefficients[index].scaled(by: scalar)
+        }
+        return Self(uncheckedCoefficients: coefficients)
     }
 
     public var littleEndianBytes: [UInt8] {

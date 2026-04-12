@@ -15,19 +15,22 @@ public struct DeterministicRNG: Sendable {
     }
 
     public mutating func nextUInt64() -> UInt64 {
-        var bytes: [UInt8] = []
-        bytes.reserveCapacity(8)
-        while bytes.count < 8 {
+        var value = UInt64(0)
+        var shift = UInt64(0)
+        var remaining = 8
+        while remaining > 0 {
             if offset == buffer.count {
                 refill()
             }
-            let take = min(8 - bytes.count, buffer.count - offset)
-            bytes.append(contentsOf: buffer[offset..<offset + take])
+            let take = min(remaining, buffer.count - offset)
+            for byteIndex in 0..<take {
+                value |= UInt64(buffer[offset + byteIndex]) << shift
+                shift += 8
+            }
             offset += take
+            remaining -= take
         }
-        return bytes.enumerated().reduce(UInt64(0)) { acc, pair in
-            acc | (UInt64(pair.element) << UInt64(pair.offset * 8))
-        }
+        return value
     }
 
     public mutating func nextField() -> GoldilocksField {
@@ -44,11 +47,13 @@ public struct DeterministicRNG: Sendable {
 
     public mutating func nextChallengeRing(parameters: SuperNeoParameters = .goldilocks) -> CyclotomicRing54 {
         let choices = parameters.challengeCoefficients
-        let coeffs = (0..<CyclotomicRing54.degree).map { _ -> GoldilocksField in
+        var coeffs = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+        for coefficientIndex in 0..<CyclotomicRing54.degree {
             let index = nextUniformIndex(upperBound: choices.count)
             let value = choices[index]
-            if value >= 0 { return GoldilocksField(UInt64(value)) }
-            return -GoldilocksField(UInt64(-value))
+            coeffs[coefficientIndex] = value >= 0
+                ? GoldilocksField(UInt64(value))
+                : -GoldilocksField(UInt64(-value))
         }
         return CyclotomicRing54(coeffs)
     }
@@ -86,8 +91,9 @@ public struct SumCheckTranscript: Sendable {
     }
 
     public mutating func absorb(_ bytes: [UInt8]) {
-        absorbed += Self.frameLength(bytes.count)
-        absorbed += bytes
+        absorbed.reserveCapacity(absorbed.count + 8 + bytes.count)
+        absorbed.append(contentsOf: Self.frameLength(bytes.count))
+        absorbed.append(contentsOf: bytes)
         rng = DeterministicRNG(seed: absorbed)
     }
 

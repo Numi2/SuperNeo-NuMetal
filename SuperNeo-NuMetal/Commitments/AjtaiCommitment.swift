@@ -66,7 +66,14 @@ public struct AjtaiCommitment: Equatable, Sendable {
     }
 
     public func scaled(by scalar: CyclotomicRing54) -> Self {
-        Self(elements.map { scalar * $0 })
+        if let baseScalar = scalar.baseFieldScalar {
+            return scaled(by: baseScalar)
+        }
+        return Self(elements.map { scalar * $0 })
+    }
+
+    public func scaled(by scalar: GoldilocksField) -> Self {
+        return Self(elements.map { $0.scaled(by: scalar) })
     }
 
     public var littleEndianBytes: [UInt8] {

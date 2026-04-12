@@ -1,4 +1,5 @@
 import XCTest
+import CryptoKit
 import Metal
 @_spi(Benchmarking) @testable import SuperNeo_NuMetal
 
@@ -119,6 +120,32 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         )
     }
 
+    func testTier0DeterministicRNGAndTranscriptMatchSHA256CounterReference() throws {
+        let seed = Array("deterministic-rng-byte-stream".utf8)
+        var rng = DeterministicRNG(seed: seed)
+        var reference = ReferenceDeterministicRNG(seed: seed)
+        for _ in 0..<40 {
+            XCTAssertEqual(rng.nextUInt64(), reference.nextUInt64())
+        }
+
+        var ringRng = DeterministicRNG(seed: Array("deterministic-rng-ring".utf8))
+        var ringReference = ReferenceDeterministicRNG(seed: Array("deterministic-rng-ring".utf8))
+        XCTAssertEqual(ringRng.nextChallengeRing(), ringReference.nextChallengeRing())
+
+        let transcriptDomain = "deterministic-transcript"
+        let transcriptSeed = Array("bound-seed".utf8)
+        let payload = Array("absorbed-payload".utf8)
+        var transcript = SumCheckTranscript(domainSeparator: transcriptDomain, seed: transcriptSeed)
+        transcript.absorb(payload)
+
+        var transcriptReference = ReferenceDeterministicRNG(
+            seed: referenceTranscriptSeed(domain: transcriptDomain, seed: transcriptSeed, payloads: [payload])
+        )
+        XCTAssertEqual(transcript.challengeField(), transcriptReference.nextField())
+        XCTAssertEqual(transcript.challengeExt2(), transcriptReference.nextExt2())
+        XCTAssertEqual(transcript.challengeRing(), transcriptReference.nextChallengeRing())
+    }
+
     func testTier0CyclotomicRingSeededLawsAndEmbedding() throws {
         let x27 = monomialRing(27)
         let x54 = monomialRing(54)
@@ -145,6 +172,12 @@ final class AlgebraCoreTests: SuperNeoTestCase {
             XCTAssertEqual((a * b) * c, a * (b * c))
             XCTAssertEqual(a * (b + c), (a * b) + (a * c))
             XCTAssertEqual(a.scaled(by: scalar), CyclotomicRing54(a.coefficients.map { $0 * scalar }))
+            let scalarRing = CyclotomicRing54([scalar])
+            XCTAssertEqual(scalarRing * a, a.scaled(by: scalar))
+            XCTAssertEqual(a * scalarRing, a.scaled(by: scalar))
+            let extRing = CyclotomicExt2Ring54(a.coefficients.map { GoldilocksExt2($0, scalar) })
+            XCTAssertEqual(scalarRing * extRing, extRing.scaled(by: scalar))
+            XCTAssertEqual(extRing * scalarRing, extRing.scaled(by: scalar))
             XCTAssertEqual(try CyclotomicRing54(littleEndianBytes: a.littleEndianBytes), a)
         }
 
@@ -197,6 +230,8 @@ final class CommitmentCoreTests: SuperNeoTestCase {
                 let combinedMessage = zip(messageA, messageB).map(+)
                 let combinedCommit = try AjtaiCommitter.commitReference(key: keyA, message: combinedMessage)
                 XCTAssertEqual(commitA + commitB, combinedCommit)
+                let scalar = generator.field()
+                XCTAssertEqual(commitA.scaled(by: CyclotomicRing54([scalar])), commitA.scaled(by: scalar))
             }
         }
 
@@ -2814,6 +2849,93 @@ struct SeededTestGenerator {
     mutating func ring() -> CyclotomicRing54 {
         CyclotomicRing54((0..<CyclotomicRing54.degree).map { _ in field() })
     }
+}
+
+private struct ReferenceDeterministicRNG {
+    private let seed: [UInt8]
+    private var counter: UInt64 = 0
+    private var buffer: [UInt8] = []
+    private var offset: Int = 0
+
+    init(seed: [UInt8]) {
+        self.seed = seed
+    }
+
+    mutating func nextUInt64() -> UInt64 {
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(8)
+        while bytes.count < 8 {
+            if offset == buffer.count {
+                refill()
+            }
+            let take = min(8 - bytes.count, buffer.count - offset)
+            bytes.append(contentsOf: buffer[offset..<offset + take])
+            offset += take
+        }
+        return bytes.enumerated().reduce(UInt64(0)) { acc, pair in
+            acc | (UInt64(pair.element) << UInt64(pair.offset * 8))
+        }
+    }
+
+    mutating func nextField() -> GoldilocksField {
+        var value = nextUInt64()
+        while value >= GoldilocksField.modulus {
+            value = nextUInt64()
+        }
+        return GoldilocksField(value)
+    }
+
+    mutating func nextExt2() -> GoldilocksExt2 {
+        GoldilocksExt2(nextField(), nextField())
+    }
+
+    mutating func nextChallengeRing(parameters: SuperNeoParameters = .goldilocks) -> CyclotomicRing54 {
+        let choices = parameters.challengeCoefficients
+        var coeffs = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+        for coefficientIndex in 0..<CyclotomicRing54.degree {
+            let choiceIndex = nextUniformIndex(upperBound: choices.count)
+            let value = choices[choiceIndex]
+            coeffs[coefficientIndex] = value >= 0
+                ? GoldilocksField(UInt64(value))
+                : -GoldilocksField(UInt64(-value))
+        }
+        return CyclotomicRing54(coeffs)
+    }
+
+    private mutating func nextUniformIndex(upperBound: Int) -> Int {
+        guard upperBound > 1 else { return 0 }
+        let bound = UInt64(upperBound)
+        let limit = UInt64.max - (UInt64.max % bound)
+        while true {
+            let value = nextUInt64()
+            if value < limit {
+                return Int(value % bound)
+            }
+        }
+    }
+
+    private mutating func refill() {
+        let counterBytes = withUnsafeBytes(of: counter.littleEndian, Array.init)
+        let digest = SHA256.hash(data: Data(seed + counterBytes))
+        buffer = Array(digest)
+        offset = 0
+        counter &+= 1
+    }
+}
+
+private func referenceTranscriptSeed(domain: String, seed: [UInt8], payloads: [[UInt8]]) -> [UInt8] {
+    var bytes: [UInt8] = []
+    appendReferenceTranscriptFrame(Array(domain.utf8), to: &bytes)
+    appendReferenceTranscriptFrame(seed, to: &bytes)
+    for payload in payloads {
+        appendReferenceTranscriptFrame(payload, to: &bytes)
+    }
+    return bytes
+}
+
+private func appendReferenceTranscriptFrame(_ payload: [UInt8], to bytes: inout [UInt8]) {
+    bytes.append(contentsOf: withUnsafeBytes(of: UInt64(payload.count).littleEndian, Array.init))
+    bytes.append(contentsOf: payload)
 }
 
 extension SuperNeoTestCase {

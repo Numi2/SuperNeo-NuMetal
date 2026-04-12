@@ -779,6 +779,7 @@ public struct CCSQOracle: SumcheckOracle {
     private let priorEvalPoint: [GoldilocksExt2]?
     private let normRoots: [GoldilocksExt2]
     private let gammaPowers: [GoldilocksExt2]
+    private let samplePoints: [GoldilocksExt2]
 
     public init(
         shape: CCSShape,
@@ -864,6 +865,7 @@ public struct CCSQOracle: SumcheckOracle {
         self.priorEvalPoint = priorClaims.first?.point
         self.normRoots = parameters.normRoots.map { GoldilocksExt2($0) }
         self.gammaPowers = try makeGammaPowers(gamma, through: maxQExponent)
+        self.samplePoints = (0...maxDegreePerRound).map { GoldilocksExt2(GoldilocksField(UInt64($0))) }
     }
 
     public func claimedSumFromPriorClaims() throws -> GoldilocksExt2 {
@@ -887,7 +889,6 @@ public struct CCSQOracle: SumcheckOracle {
         guard prefix.count < numVars else {
             throw SuperNeoError.invalidParameter("sum-check prefix is already complete")
         }
-        let samplePoints = (0...maxDegreePerRound).map { GoldilocksExt2(GoldilocksField(UInt64($0))) }
         let values = try samplePoints.map { sample in
             try partialHypercubeSum(fixedPrefix: prefix + [sample])
         }
@@ -911,37 +912,46 @@ public struct CCSQOracle: SumcheckOracle {
         }
         let prefixWeights = multilinearBasisWeights(fixedPrefix)
         let prefixWidth = prefixWeights.count
+        let alphaFixedEq = try fixedPrefixEq(fixedPrefix, target: alpha)
+        let priorFixedEq = try priorEvalPoint.map { try fixedPrefixEq(fixedPrefix, target: $0) }
         let suffixCount = 1 << remaining
         var total = GoldilocksExt2.zero
         for suffixBits in 0..<suffixCount {
-            var point = fixedPrefix
-            point.reserveCapacity(numVars)
-            for bit in 0..<remaining {
-                point.append(((suffixBits >> bit) & 1) == 0 ? .zero : .one)
+            let priorEq: GoldilocksExt2?
+            if let priorFixedEq, let priorEvalPoint {
+                priorEq = suffixEq(
+                    fixedEq: priorFixedEq,
+                    target: priorEvalPoint,
+                    suffixBits: suffixBits,
+                    fixedCount: fixedPrefix.count
+                )
+            } else {
+                priorEq = nil
             }
             total = total + (try evaluateQ(
-                point: point,
                 suffixBits: suffixBits,
                 fixedCount: fixedPrefix.count,
                 prefixWidth: prefixWidth,
-                prefixWeights: prefixWeights
+                prefixWeights: prefixWeights,
+                alphaEq: suffixEq(fixedEq: alphaFixedEq, target: alpha, suffixBits: suffixBits, fixedCount: fixedPrefix.count),
+                priorEq: priorEq
             ))
         }
         return total
     }
 
     private func evaluateQ(
-        point: [GoldilocksExt2],
         suffixBits: Int,
         fixedCount: Int,
         prefixWidth: Int,
-        prefixWeights: [GoldilocksExt2]
+        prefixWeights: [GoldilocksExt2],
+        alphaEq: GoldilocksExt2,
+        priorEq: GoldilocksExt2?
     ) throws -> GoldilocksExt2 {
         let f = try evaluateF(suffixBits: suffixBits, fixedCount: fixedCount, prefixWidth: prefixWidth, prefixWeights: prefixWeights)
         let norm = evaluateNorm(suffixBits: suffixBits, fixedCount: fixedCount, prefixWidth: prefixWidth, prefixWeights: prefixWeights)
-        let eval = try evaluatePriorClaims(point: point, suffixBits: suffixBits, fixedCount: fixedCount, prefixWidth: prefixWidth, prefixWeights: prefixWeights)
-        return try MultilinearEvaluation.eq(point, alpha)
-            * (f + power(freshCount) * norm)
+        let eval = try evaluatePriorClaims(priorEq: priorEq, suffixBits: suffixBits, fixedCount: fixedCount, prefixWidth: prefixWidth, prefixWeights: prefixWeights)
+        return alphaEq * (f + power(freshCount) * norm)
             + power((2 * freshCount) + priorCount) * eval
     }
 
@@ -990,14 +1000,13 @@ public struct CCSQOracle: SumcheckOracle {
     }
 
     private func evaluatePriorClaims(
-        point: [GoldilocksExt2],
+        priorEq: GoldilocksExt2?,
         suffixBits: Int,
         fixedCount: Int,
         prefixWidth: Int,
         prefixWeights: [GoldilocksExt2]
     ) throws -> GoldilocksExt2 {
-        guard let priorEvalPoint else { return .zero }
-        let eq = try MultilinearEvaluation.eq(point, priorEvalPoint)
+        guard let priorEq else { return .zero }
         var total = GoldilocksExt2.zero
         for priorIndex in 0..<priorCount {
             for matrixIndex in 0..<shape.numMatrices {
@@ -1015,7 +1024,37 @@ public struct CCSQOracle: SumcheckOracle {
                 }
             }
         }
-        return eq * total
+        return priorEq * total
+    }
+
+    private func fixedPrefixEq(
+        _ fixedPrefix: [GoldilocksExt2],
+        target: [GoldilocksExt2]
+    ) throws -> GoldilocksExt2 {
+        guard fixedPrefix.count <= target.count else {
+            throw SuperNeoError.invalidParameter("sum-check fixed prefix is longer than equality target")
+        }
+        var result = GoldilocksExt2.one
+        for index in fixedPrefix.indices {
+            let ab = fixedPrefix[index] * target[index]
+            result = result * (.one - fixedPrefix[index] - target[index] + ab + ab)
+        }
+        return result
+    }
+
+    private func suffixEq(
+        fixedEq: GoldilocksExt2,
+        target: [GoldilocksExt2],
+        suffixBits: Int,
+        fixedCount: Int
+    ) -> GoldilocksExt2 {
+        var result = fixedEq
+        let remaining = target.count - fixedCount
+        for bit in 0..<remaining {
+            let targetValue = target[fixedCount + bit]
+            result = result * (((suffixBits >> bit) & 1) == 0 ? (.one - targetValue) : targetValue)
+        }
+        return result
     }
 
     private func weightedRowEvaluation(
@@ -2249,8 +2288,7 @@ private enum SuperNeoProtocolOracle {
             guard isValidEvaluationWitnessLength(claimInput.witness.count, shape: input.shape) else {
                 throw SuperNeoError.invalidParameter("evaluation witness length must match the original or padded ring length")
             }
-            guard claimInput.publicInput.count <= claimInput.witness.count,
-                  Array(claimInput.witness.prefix(claimInput.publicInput.count)) == claimInput.publicInput else {
+            guard publicInputMatchesWitnessPrefix(claimInput.publicInput, witness: claimInput.witness) else {
                 throw SuperNeoError.invalidParameter("evaluation public input must be a prefix of the witness")
             }
             return try packedEvaluationWitness(claimInput.witness, shape: input.shape)
@@ -2311,7 +2349,10 @@ private enum SuperNeoProtocolOracle {
         let paddedPublicInputCount = SuperNeoEmbedding.paddedLength(forFieldElementCount: first.publicInput.count)
         var publicInput = Array(repeating: CyclotomicRing54.zero, count: paddedPublicInputCount / CyclotomicRing54.degree)
         var evaluations = Array(repeating: CyclotomicExt2Ring54.zero, count: first.evaluations.count)
-        var witnessRings: [CyclotomicRing54]? = carriesWitnesses ? [] : nil
+        let witnessRingCount = carriesWitnesses
+            ? SuperNeoEmbedding.paddedLength(forFieldElementCount: first.witness?.count ?? 0) / CyclotomicRing54.degree
+            : 0
+        var witnessRings = Array(repeating: CyclotomicRing54.zero, count: witnessRingCount)
 
         for (challenge, claim) in zip(challenges, claims) {
             guard claim.commitment.elements.count == first.commitment.elements.count else {
@@ -2323,7 +2364,9 @@ private enum SuperNeoProtocolOracle {
             guard claim.publicInput.count == first.publicInput.count else {
                 throw SuperNeoError.invalidParameter("RLC public input lengths must match")
             }
-            commitment = commitment + claim.commitment.scaled(by: challenge)
+            for index in commitment.elements.indices {
+                commitment.elements[index] = commitment.elements[index] + challenge * claim.commitment.elements[index]
+            }
             let packedInput = try SuperNeoEmbedding.packPadded(claim.publicInput)
             guard packedInput.count == publicInput.count else {
                 throw SuperNeoError.invalidParameter("public input ring lengths must match")
@@ -2339,17 +2382,12 @@ private enum SuperNeoProtocolOracle {
             }
             if let witness = claim.witness {
                 let packedWitness = try SuperNeoEmbedding.packPadded(witness)
-                if witnessRings?.isEmpty == true {
-                    witnessRings = Array(repeating: CyclotomicRing54.zero, count: packedWitness.count)
-                }
-                guard packedWitness.count == witnessRings?.count else {
+                guard packedWitness.count == witnessRings.count else {
                     throw SuperNeoError.invalidParameter("witness ring lengths must match")
                 }
-                var accumulated = witnessRings ?? Array(repeating: CyclotomicRing54.zero, count: packedWitness.count)
                 for index in packedWitness.indices {
-                    accumulated[index] = accumulated[index] + challenge * packedWitness[index]
+                    witnessRings[index] = witnessRings[index] + challenge * packedWitness[index]
                 }
-                witnessRings = accumulated
             }
         }
 
@@ -2358,9 +2396,7 @@ private enum SuperNeoProtocolOracle {
             publicInput: Array(SuperNeoEmbedding.unpack(publicInput).prefix(first.publicInput.count)),
             point: first.point,
             evaluations: evaluations,
-            witness: witnessRings.map { rings in
-                SuperNeoEmbedding.unpack(rings)
-            }
+            witness: carriesWitnesses ? SuperNeoEmbedding.unpack(witnessRings) : nil
         )
     }
 
@@ -2469,7 +2505,7 @@ private enum SuperNeoProtocolOracle {
         guard isValidEvaluationWitnessLength(witness.count, shape: shape) else {
             throw SuperNeoError.invalidParameter("evaluation witness length must match the original or padded ring length")
         }
-        guard publicInput.count <= witness.count, Array(witness.prefix(publicInput.count)) == publicInput else {
+        guard publicInputMatchesWitnessPrefix(publicInput, witness: witness) else {
             throw SuperNeoError.invalidParameter("evaluation public input must be a prefix of the witness")
         }
         guard transformedMatrices.count == shape.numMatrices else {
@@ -2499,7 +2535,10 @@ private enum SuperNeoProtocolOracle {
             let weight = rHat[rowIndex]
             let rowCoefficients = rows[rowIndex].coefficients
             for coefficientIndex in 0..<CyclotomicRing54.degree {
-                coefficients[coefficientIndex] = coefficients[coefficientIndex] + weight.scaled(by: rowCoefficients[coefficientIndex])
+                let coefficient = rowCoefficients[coefficientIndex]
+                guard coefficient != .zero else { continue }
+                coefficients[coefficientIndex] = coefficients[coefficientIndex]
+                    + (coefficient == .one ? weight : weight.scaled(by: coefficient))
             }
         }
         return CyclotomicExt2Ring54(coefficients)
@@ -2587,6 +2626,7 @@ private enum SuperNeoProtocolOracle {
         let foldedPackedInput = try SuperNeoEmbedding.packPadded(folded.publicInput)
         var publicInput = Array(repeating: CyclotomicRing54.zero, count: foldedPackedInput.count)
         var evaluations = Array(repeating: CyclotomicExt2Ring54.zero, count: folded.evaluations.count)
+        let scalars = try decompositionScalars(base: parameters.normBound, count: parts.count)
 
         for (index, part) in parts.enumerated() {
             guard part.point == folded.point else { return false }
@@ -2595,16 +2635,19 @@ private enum SuperNeoProtocolOracle {
             guard part.commitment.elements.count == folded.commitment.elements.count else { return false }
             guard part.publicInput.allSatisfy({ signedMagnitude($0) < UInt64(parameters.normBound) }) else { return false }
 
-            let scalar = try decompositionScalar(base: parameters.normBound, exponent: index)
-            commitment = commitment + part.commitment.scaled(by: scalar)
+            let scalar = scalars[index]
+            for commitmentIndex in commitment.elements.indices {
+                commitment.elements[commitmentIndex] = commitment.elements[commitmentIndex]
+                    + part.commitment.elements[commitmentIndex].scaled(by: scalar)
+            }
 
             let packedPartInput = try SuperNeoEmbedding.packPadded(part.publicInput)
             guard packedPartInput.count == publicInput.count else { return false }
             for inputIndex in publicInput.indices {
-                publicInput[inputIndex] = publicInput[inputIndex] + scalar * packedPartInput[inputIndex]
+                publicInput[inputIndex] = publicInput[inputIndex] + packedPartInput[inputIndex].scaled(by: scalar)
             }
             for evalIndex in evaluations.indices {
-                evaluations[evalIndex] = evaluations[evalIndex] + scalar * part.evaluations[evalIndex]
+                evaluations[evalIndex] = evaluations[evalIndex] + part.evaluations[evalIndex].scaled(by: scalar)
             }
         }
 
@@ -3931,11 +3974,13 @@ private func foldedNormBound(parameters: SuperNeoParameters) throws -> UInt64 {
 private func multilinearBasisWeights(_ point: [GoldilocksExt2]) -> [GoldilocksExt2] {
     var weights = [GoldilocksExt2.one]
     for challenge in point {
-        let previous = weights
-        weights = Array(repeating: .zero, count: previous.count * 2)
-        for index in previous.indices {
-            weights[index] = previous[index] * (.one - challenge)
-            weights[index + previous.count] = previous[index] * challenge
+        let oldCount = weights.count
+        weights.append(contentsOf: repeatElement(.zero, count: oldCount))
+        let lowWeight = GoldilocksExt2.one - challenge
+        for index in 0..<oldCount {
+            let previous = weights[index]
+            weights[index] = previous * lowWeight
+            weights[index + oldCount] = previous * challenge
         }
     }
     return weights
@@ -4006,16 +4051,17 @@ private func splitSignedBase(_ values: [GoldilocksField], base: Int, count: Int)
     return limbs
 }
 
-private func decompositionScalar(base: Int, exponent: Int) throws -> CyclotomicRing54 {
-    guard base >= 2, exponent >= 0 else {
-        throw SuperNeoError.invalidParameter("invalid decomposition scalar")
+private func decompositionScalars(base: Int, count: Int) throws -> [GoldilocksField] {
+    guard base >= 2, count > 0 else {
+        throw SuperNeoError.invalidParameter("invalid decomposition scalar table")
     }
     let radix = GoldilocksField(UInt64(base))
-    var value = GoldilocksField.one
-    for _ in 0..<exponent {
-        value = value * radix
+    var scalars = Array(repeating: GoldilocksField.one, count: count)
+    guard count > 1 else { return scalars }
+    for index in 1..<count {
+        scalars[index] = scalars[index - 1] * radix
     }
-    return CyclotomicRing54([value])
+    return scalars
 }
 
 private func signedMagnitude(_ value: GoldilocksField) -> UInt64 {
