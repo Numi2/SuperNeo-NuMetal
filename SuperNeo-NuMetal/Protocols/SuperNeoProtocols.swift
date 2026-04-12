@@ -327,6 +327,7 @@ public enum CEOpeningRelation {
         guard key.parameters == parameters else {
             throw SuperNeoError.invalidParameter("CE opening proof key parameters mismatch")
         }
+        try validateCommitmentKey(key, matches: shape, role: "CE opening")
         guard statement.openings.count == witnesses.count, !witnesses.isEmpty else {
             throw SuperNeoError.invalidParameter("CE opening proof witness count mismatch")
         }
@@ -410,6 +411,7 @@ public enum CEOpeningRelation {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
         guard key.parameters == parameters else { return false }
+        guard key.matrix.columns == shape.nRing else { return false }
         guard !statement.openings.isEmpty else { return false }
         guard proof.rounds.count >= CEOpeningProof.minimumRoundCount else { return false }
         guard statement.openings.allSatisfy({
@@ -446,6 +448,7 @@ public enum CEOpeningRelation {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
         guard key.parameters == parameters else { return false }
+        guard key.matrix.columns == shape.nRing else { return false }
         let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
         return try verifyLocal(
             statement: statement,
@@ -468,6 +471,7 @@ public enum CEOpeningRelation {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
         guard key.parameters == parameters else { return false }
+        guard key.matrix.columns == shape.nRing else { return false }
         let openedClaim = CCSEvaluationClaim(
             commitment: statement.instance.commitment,
             publicInput: statement.instance.publicInput,
@@ -529,6 +533,7 @@ public enum CEOpeningRelation {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
         guard key.parameters == parameters else { return false }
+        guard key.matrix.columns == shape.nRing else { return false }
         guard statement.openings.count == witnesses.count else { return false }
         guard !statement.openings.isEmpty else { return false }
         if requireTerminalDecompositionCount {
@@ -1140,6 +1145,7 @@ public final class SuperNeoProver: @unchecked Sendable {
         guard key.parameters == parameters else {
             throw SuperNeoError.invalidParameter("prover key parameters do not match prover parameters")
         }
+        try validateCommitmentKey(key, matches: input.shape, role: "prover")
         try validateFoldInput(input, parameters: parameters)
         let compiledShape = try input.shape.compiledSparseForSuperNeo()
         let metalWorkspace = try makeMetalWorkspace(compiledShape: compiledShape)
@@ -1534,6 +1540,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
     ) -> FoldReductionResult {
         do {
             guard key.parameters == parameters else { return .invalid("verifier key parameters do not match verifier parameters") }
+            try validateCommitmentKey(key, matches: publicInput.shape, role: "verifier")
             try validatePublicFoldInput(publicInput, parameters: parameters)
             guard proof.outputClaims.count == parameters.decompositionLength else {
                 return .invalid("decomposition output count must equal \(parameters.decompositionLength)")
@@ -2292,6 +2299,12 @@ private func packedEvaluationWitness(_ witness: [GoldilocksField], shape: CCSSha
     return packed
 }
 
+private func validateCommitmentKey(_ key: AjtaiCommitmentKey, matches shape: CCSShape, role: String) throws {
+    guard key.matrix.columns == shape.nRing else {
+        throw SuperNeoError.invalidParameter("\(role) key column count must match shape.nRing")
+    }
+}
+
 private func validateFoldInput(_ input: SuperNeoFoldInput, parameters: SuperNeoParameters) throws {
     guard !input.instances.isEmpty else {
         throw SuperNeoError.invalidParameter("fold input requires at least one CCS instance")
@@ -2329,12 +2342,22 @@ private func validateFoldInput(_ input: SuperNeoFoldInput, parameters: SuperNeoP
         }
     }
     for claim in input.priorClaims {
+        guard claim.commitment.elements.count == parameters.kappa else {
+            throw SuperNeoError.invalidParameter("prior CE commitment has wrong length")
+        }
+        guard claim.publicInput.count == input.shape.nPublicField else {
+            throw SuperNeoError.invalidParameter("prior CE public input length must match shape.nPublicField")
+        }
         guard claim.point.count == (try log2Exact(rows)), claim.evaluations.count == input.shape.numMatrices else {
             throw SuperNeoError.invalidParameter("prior CE claim shape mismatch")
         }
         if let witness = claim.witness {
             guard isValidEvaluationWitnessLength(witness.count, shape: input.shape) else {
                 throw SuperNeoError.invalidParameter("prior CE witness length mismatch")
+            }
+            guard claim.publicInput.count <= witness.count,
+                  Array(witness.prefix(claim.publicInput.count)) == claim.publicInput else {
+                throw SuperNeoError.invalidParameter("prior CE public input must be a prefix of its witness")
             }
         }
     }

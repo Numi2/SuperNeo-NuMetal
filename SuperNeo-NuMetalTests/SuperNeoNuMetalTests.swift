@@ -797,6 +797,53 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         }
     }
 
+    func testCEOpeningRejectsAjtaiKeyColumnCountThatDoesNotMatchShape() throws {
+        let fixture = try makeFoldFixture()
+        let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(fixture.input, transcriptSeed: fixture.seed)
+        let claim = try XCTUnwrap(fold.outputClaims.first)
+        let witness = try XCTUnwrap(CEOpeningWitness(claim: claim))
+        let statement = CEOpeningStatement(
+            profileID: fixture.key.parameters.profileID,
+            shape: fixture.input.shape,
+            claim: claim
+        )
+        let terminalStatement = try TerminalCEStatement(
+            profileID: fixture.key.parameters.profileID,
+            shape: fixture.input.shape,
+            claims: fold.outputClaims
+        )
+        let terminalWitnesses = try fold.outputClaims.map { claim in
+            try XCTUnwrap(CEOpeningWitness(claim: claim))
+        }
+        let mismatchedKey = try AjtaiCommitmentKey(
+            columns: fixture.input.shape.nRing + 1,
+            seed: Array("ce-opening-key-mismatch".utf8)
+        )
+
+        XCTAssertFalse(try CEOpeningRelation.verifyLocal(
+            statement: statement,
+            witness: witness,
+            shape: fixture.input.shape,
+            key: mismatchedKey
+        ))
+        XCTAssertFalse(try CEOpeningRelation.verifyTerminalLocalBatch(
+            statement: terminalStatement,
+            witnesses: terminalWitnesses,
+            shape: fixture.input.shape,
+            key: mismatchedKey
+        ))
+        XCTAssertThrowsSuperNeoError(
+            try CEOpeningRelation.proveLocalBatch(
+                statement: terminalStatement,
+                witnesses: terminalWitnesses,
+                shape: fixture.input.shape,
+                key: mismatchedKey,
+                randomSeed: Array("ce-opening-key-mismatch-proof".utf8)
+            ),
+            .invalidParameter("CE opening key column count must match shape.nRing")
+        )
+    }
+
 }
 
 final class ProtocolE2ETests: SuperNeoTestCase {
@@ -872,6 +919,74 @@ final class ProtocolE2ETests: SuperNeoTestCase {
                 transcriptSeed: fixture.seed
             ),
             .valid
+        )
+    }
+
+    func testFoldRejectsAjtaiKeyColumnCountThatDoesNotMatchShape() throws {
+        let fixture = try makeFoldFixture()
+        let mismatchedKey = try AjtaiCommitmentKey(
+            columns: fixture.input.shape.nRing + 1,
+            seed: Array("shape-key-mismatch".utf8)
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoProver(key: mismatchedKey).fold(fixture.input, transcriptSeed: fixture.seed),
+            .invalidParameter("prover key column count must match shape.nRing")
+        )
+
+        XCTAssertInvalid(
+            SuperNeoVerifier(key: mismatchedKey).reduceFold(
+                publicInput: SuperNeoPublicFoldInput(fixture.input),
+                proof: makeEmptyFoldProofForShape(fixture.input.shape),
+                transcriptSeed: fixture.seed
+            ),
+            reason: "invalidParameter(\"verifier key column count must match shape.nRing\")"
+        )
+    }
+
+    func testPriorCEClaimPublicProjectionMustMatchActiveShape() throws {
+        let fixture = try makePaperAuditFixture()
+        var priorClaims = fixture.input.priorClaims
+        let shortenedPublicInput = Array(priorClaims[0].publicInput.dropLast())
+        priorClaims[0] = replacing(priorClaims[0], publicInput: shortenedPublicInput)
+        let input = SuperNeoFoldInput(
+            shape: fixture.input.shape,
+            instances: fixture.input.instances,
+            witnesses: fixture.input.witnesses,
+            priorClaims: priorClaims
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoProver(key: fixture.key).fold(input, transcriptSeed: fixture.seed),
+            .invalidParameter("prior CE public input length must match shape.nPublicField")
+        )
+
+        XCTAssertInvalid(
+            SuperNeoVerifier(key: fixture.key).reduceFold(
+                publicInput: SuperNeoPublicFoldInput(input),
+                proof: makeEmptyFoldProofForShape(input.shape),
+                transcriptSeed: fixture.seed
+            ),
+            reason: "invalidParameter(\"prior CE public input length must match shape.nPublicField\")"
+        )
+    }
+
+    func testProverRejectsPriorCEWitnessWhenPublicProjectionDoesNotMatchOpening() throws {
+        let fixture = try makePaperAuditFixture()
+        var priorClaims = fixture.input.priorClaims
+        var shiftedPublicInput = priorClaims[0].publicInput
+        shiftedPublicInput[0] = shiftedPublicInput[0] + .one
+        priorClaims[0] = replacing(priorClaims[0], publicInput: shiftedPublicInput)
+        let input = SuperNeoFoldInput(
+            shape: fixture.input.shape,
+            instances: fixture.input.instances,
+            witnesses: fixture.input.witnesses,
+            priorClaims: priorClaims
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoProver(key: fixture.key).fold(input, transcriptSeed: fixture.seed),
+            .invalidParameter("prior CE public input must be a prefix of its witness")
         )
     }
 
