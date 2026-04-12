@@ -56,6 +56,36 @@ it is not an independent cryptographic security certification.
     the sparse transformed-evaluation path aligned with canonical CSR sparsity
     without changing output ordering or verifier semantics.
 
+11. Benchmark result rendering could reuse stale `benchmark-results/results.json`
+    if the benchmark plugin failed to write `Current_run.json`. The runner now
+    deletes stale root and benchmark-package artifacts at the start of a run,
+    requires a fresh non-empty `Current_run.json`, and refuses to render if
+    metadata or the base report was not regenerated.
+
+12. Benchmark report scripts treated malformed result JSON as an empty result
+    set. The root benchmark report renderer now fails on JSON decode errors and
+    on result files with no wall-clock rows. The paper-reproduction renderer
+    also fails on malformed result JSON and requires benchmark results for every
+    non-`plan` mode.
+
+13. Generated benchmark metadata now records repository root, full commit hash,
+    clean/dirty source state, short status, selected benchmark profile, selected
+    cases, and relevant benchmark environment variables. This makes local
+    benchmark evidence easier to audit and prevents environment-dependent rows
+    from being detached from their run configuration.
+
+14. Opt-in CE benchmarks only registered the first selected fixture. With
+    `SUPERNEO_BENCHMARK_CE=1`, CE proving, CE verification, and compressed
+    public envelope benchmarks now register for every fixture that remains after
+    `SUPERNEO_BENCHMARK_CASE_FILTER`, so the quick profile covers both `m64` and
+    `m256` instead of silently reporting only `m64`.
+
+15. Compressed public envelope proving had a Metal timing row but no matching
+    CPU timing row. The CE benchmark group now includes
+    `compressedEnvelope/prove/cpu/*`, compares each deterministic CPU envelope
+    against the setup reference, and preserves the existing CPU/Metal verifier
+    gates.
+
 ## Validation
 
 Commands run locally on 2026-04-12:
@@ -64,6 +94,9 @@ Commands run locally on 2026-04-12:
 swift test --disable-swift-testing
 swift build -c release
 swift Scripts/validate-test-vectors.swift
+! swift Scripts/render-benchmark-report.swift Package.swift /tmp/superneo-render-report-should-not-exist.md
+swift test --disable-swift-testing --filter ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile
+SUPERNEO_BENCHMARK_CE=1 Scripts/run-benchmarks.sh quick
 cd Benchmarks && \
   SUPERNEO_BENCHMARK_PROFILE=quick \
   SUPERNEO_BENCHMARK_CASE_FILTER=m64-K1-k0-binary \
@@ -113,6 +146,21 @@ Results:
 - Release build: passed.
 - Test vectors: `one-hot-vector-fold-v1.json` and
   `binary-addition-u8-fold-v1.json` validated.
+- Malformed benchmark JSON rendering check: failed closed with a decode error
+  when pointed at `Package.swift`, as intended.
+- Full CE-enabled quick runner: passed the 73-test gate, refused stale output
+  by construction, wrote fresh metadata/report files, and exported 50
+  wall-clock rows to
+  `benchmark-results/results.json`, including CE rows for both quick fixtures
+  and the new `compressedEnvelope/prove/cpu/*` benchmark. Local rows included
+  `ceOpeningProof/prove/cpu/m64-K1-k0-binary = 725 ms`,
+  `ceOpeningProof/verify/cpu/m64-K1-k0-binary = 479 ms`,
+  `compressedEnvelope/prove/cpu/m64-K1-k0-binary = 784 ms`,
+  `ceOpeningProof/prove/cpu/m256-K2-k1-binary = 2563 ms`,
+  `ceOpeningProof/verify/cpu/m256-K2-k1-binary = 1849 ms`, and
+  `compressedEnvelope/prove/cpu/m256-K2-k1-binary = 2808 ms`. The same run
+  measured Metal CE rows, but Metal was slower than CPU for quick-profile CE
+  work; treat that as hotspot direction, not an acceleration claim.
 - Filtered direct-CSR benchmark smoke run: passed and wrote 29 wall-clock rows
   to `/tmp/superneo-benchmark-csr-direct/Current_run.json`, including
   `kernel/multilinearEvaluation/m64-K1-k0-binary = 1750 ns`.
@@ -155,8 +203,9 @@ Apple reference:
 
 - Run and pin a full hardware-class benchmark report before updating public
   performance claims.
-- Run the opt-in CE benchmark suite with `SUPERNEO_BENCHMARK_CE=1` after the
-  next full quick run to quantify the Metal verifier target-preparation path.
+- Extend CE benchmark evidence to scaling profiles only with explicit case
+  filters and after reviewing quick-profile CE hotspots; m64/m256 quick CE rows
+  now exist, but they are not enough for larger-profile CE performance claims.
 - Use Instruments or Metal System Trace only after benchmark rows identify a
   stable hotspot; the correctness gate remains CPU/Metal equality plus the
   protocol tests.

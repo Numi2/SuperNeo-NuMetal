@@ -5,8 +5,17 @@ PROFILE="${1:-quick}"
 RESULT_DIR="benchmark-results"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESULT_PATH="${ROOT_DIR}/${RESULT_DIR}"
+BENCHMARK_RESULT_PATH="${ROOT_DIR}/Benchmarks/benchmark-results"
+CURRENT_RUN="${RESULT_PATH}/Current_run.json"
 
-mkdir -p "${RESULT_PATH}"
+mkdir -p "${RESULT_PATH}" "${BENCHMARK_RESULT_PATH}"
+rm -f \
+  "${CURRENT_RUN}" \
+  "${RESULT_PATH}/results.json" \
+  "${RESULT_PATH}/metadata.json" \
+  "${RESULT_PATH}/report.md" \
+  "${BENCHMARK_RESULT_PATH}/metadata.json" \
+  "${BENCHMARK_RESULT_PATH}/report.md"
 
 # XCTest-only package; skip Swift Testing harness (see Scripts/test-slice.sh).
 swift test --disable-swift-testing
@@ -24,16 +33,19 @@ swift test --disable-swift-testing
     --path "${RESULT_PATH}" \
     --no-progress)
 
-if [[ -f "${RESULT_PATH}/Current_run.json" ]]; then
-  mv "${RESULT_PATH}/Current_run.json" "${RESULT_PATH}/results.json"
+if [[ ! -s "${CURRENT_RUN}" ]]; then
+  echo "benchmark run did not produce ${CURRENT_RUN}; refusing to render stale results" >&2
+  exit 1
 fi
 
-if [[ -f "${ROOT_DIR}/Benchmarks/benchmark-results/metadata.json" ]]; then
-  cp "${ROOT_DIR}/Benchmarks/benchmark-results/metadata.json" "${RESULT_PATH}/metadata.json"
-fi
+mv "${CURRENT_RUN}" "${RESULT_PATH}/results.json"
 
-if [[ -f "${ROOT_DIR}/Benchmarks/benchmark-results/report.md" ]]; then
-  cp "${ROOT_DIR}/Benchmarks/benchmark-results/report.md" "${RESULT_PATH}/report.md"
-fi
+for artifact in metadata.json report.md; do
+  if [[ ! -s "${BENCHMARK_RESULT_PATH}/${artifact}" ]]; then
+    echo "benchmark run did not produce Benchmarks/benchmark-results/${artifact}" >&2
+    exit 1
+  fi
+  cp "${BENCHMARK_RESULT_PATH}/${artifact}" "${RESULT_PATH}/${artifact}"
+done
 
 swift "${ROOT_DIR}/Scripts/render-benchmark-report.swift" "${RESULT_PATH}/results.json" "${RESULT_PATH}/report.md"

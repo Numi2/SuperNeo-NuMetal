@@ -277,10 +277,20 @@ try commands.write(to: commandsURL, atomically: true, encoding: .utf8)
 try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: commandsURL.path)
 
 let results: [BenchmarkResult]
-if let data = try? Data(contentsOf: resultsURL) {
-    results = (try? JSONDecoder().decode([BenchmarkResult].self, from: data)) ?? []
+if FileManager.default.fileExists(atPath: resultsURL.path) {
+    let data: Data
+    do {
+        data = try Data(contentsOf: resultsURL)
+        results = try JSONDecoder().decode([BenchmarkResult].self, from: data)
+    } catch {
+        fail("failed to decode benchmark results at \(resultsURL.path): \(error)")
+    }
 } else {
     results = []
+}
+
+if mode != "plan", results.isEmpty {
+    fail("no benchmark results found under \(resultsURL.path)")
 }
 
 let metadata = (try? String(contentsOf: metadataURL, encoding: .utf8)) ?? "{}"
@@ -397,7 +407,3 @@ report.append(contentsOf: [
 ])
 
 try report.joined(separator: "\n").write(to: reportURL, atomically: true, encoding: .utf8)
-
-if mode != "plan", results.isEmpty {
-    fail("warning: no benchmark results found under \(resultsURL.path); report generated without timing rows")
-}

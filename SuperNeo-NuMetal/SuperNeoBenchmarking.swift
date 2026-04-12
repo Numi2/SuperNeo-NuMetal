@@ -348,7 +348,11 @@ import os
 
 @_spi(Benchmarking) public struct SuperNeoBenchmarkMetadata: Sendable {
     public let generatedAt: String
+    public let repositoryRoot: String
     public let gitCommit: String
+    public let gitHead: String
+    public let gitState: String
+    public let gitStatusShort: String
     public let swiftVersion: String
     public let xcodeVersion: String
     public let osVersion: String
@@ -361,7 +365,21 @@ import os
 
     public init() {
         generatedAt = ISO8601DateFormatter().string(from: Date())
-        gitCommit = Self.shell(["git", "rev-parse", "--short", "HEAD"])
+        let root = Self.shell(["git", "rev-parse", "--show-toplevel"])
+        repositoryRoot = root
+        gitCommit = Self.git(["rev-parse", "--short", "HEAD"], repositoryRoot: root)
+        gitHead = Self.git(["rev-parse", "HEAD"], repositoryRoot: root)
+        let status = Self.git(["status", "--short"], repositoryRoot: root)
+        if status.isEmpty {
+            gitStatusShort = "clean"
+            gitState = "clean"
+        } else if status == "unknown" {
+            gitStatusShort = "unknown"
+            gitState = "unknown"
+        } else {
+            gitStatusShort = status
+            gitState = "dirty"
+        }
         swiftVersion = Self.shell(["swift", "--version"])
         xcodeVersion = Self.shell(["xcodebuild", "-version"]).replacingOccurrences(of: "\n", with: " ")
         let processInfo = ProcessInfo.processInfo
@@ -383,7 +401,11 @@ import os
     public var jsonObject: [String: String] {
         [
             "generatedAt": generatedAt,
+            "repositoryRoot": repositoryRoot,
             "gitCommit": gitCommit,
+            "gitHead": gitHead,
+            "gitState": gitState,
+            "gitStatusShort": gitStatusShort,
             "swiftVersion": swiftVersion,
             "xcodeVersion": xcodeVersion,
             "osVersion": osVersion,
@@ -403,23 +425,29 @@ import os
         | Field | Value |
         | --- | --- |
         | Generated | \(generatedAt) |
-        | Git commit | \(gitCommit) |
-        | Swift | \(swiftVersion.replacingOccurrences(of: "\n", with: " ")) |
-        | Xcode | \(xcodeVersion) |
-        | OS | \(osVersion) |
-        | Model | \(modelName) |
-        | Chip | \(chip) |
-        | CPU cores | \(cpuCores) |
-        | Memory | \(memory) |
-        | Metal device | \(metalDevice) |
-        | Metal support | \(metalSupport) |
+        | Repository root | \(Self.markdownValue(repositoryRoot)) |
+        | Git commit | \(Self.markdownValue(gitCommit)) |
+        | Git head | \(Self.markdownValue(gitHead)) |
+        | Git state | \(Self.markdownValue(gitState)) |
+        | Git status | \(Self.markdownValue(gitStatusShort)) |
+        | Swift | \(Self.markdownValue(swiftVersion)) |
+        | Xcode | \(Self.markdownValue(xcodeVersion)) |
+        | OS | \(Self.markdownValue(osVersion)) |
+        | Model | \(Self.markdownValue(modelName)) |
+        | Chip | \(Self.markdownValue(chip)) |
+        | CPU cores | \(Self.markdownValue(cpuCores)) |
+        | Memory | \(Self.markdownValue(memory)) |
+        | Metal device | \(Self.markdownValue(metalDevice)) |
+        | Metal support | \(Self.markdownValue(metalSupport)) |
         """
     }
 
     public func write(to directory: URL, profile: String, fixtures: [SuperNeoBenchmarkFixture] = []) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let environment = Self.benchmarkEnvironment(profile: profile, fixtures: fixtures)
+        let metadata = jsonObject.merging(environment, uniquingKeysWith: { _, new in new })
         let jsonData = try JSONSerialization.data(
-            withJSONObject: jsonObject,
+            withJSONObject: metadata,
             options: [.prettyPrinted, .sortedKeys]
         )
         try jsonData.write(to: directory.appendingPathComponent("metadata.json"))
@@ -427,12 +455,65 @@ import os
             + "\n\n## Benchmark Profile\n\n"
             + "- Profile: `\(profile)`\n"
             + "- Cases: \(fixtures.map { "`\($0.benchmarkCase.label)`" }.joined(separator: ", "))\n"
+            + Self.environmentMarkdown(environment)
             + Self.proofSizeMarkdown(for: fixtures)
         try report.write(
             to: directory.appendingPathComponent("report.md"),
             atomically: true,
             encoding: .utf8
         )
+    }
+
+    private static func benchmarkEnvironment(
+        profile: String,
+        fixtures: [SuperNeoBenchmarkFixture]
+    ) -> [String: String] {
+        let environment = ProcessInfo.processInfo.environment
+        let names = [
+            "SUPERNEO_BENCHMARK_PROFILE",
+            "SUPERNEO_BENCHMARK_CASE_FILTER",
+            "SUPERNEO_BENCHMARK_CE",
+            "SUPERNEO_BENCHMARK_SIGNPOSTS",
+            "SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE"
+        ]
+        var values: [String: String] = [
+            "benchmarkProfile": profile,
+            "benchmarkCases": fixtures.map(\.benchmarkCase.label).joined(separator: ",")
+        ]
+        for name in names {
+            values["env.\(name)"] = environment[name] ?? ""
+        }
+        return values
+    }
+
+    private static func environmentMarkdown(_ environment: [String: String]) -> String {
+        let keys = environment.keys.sorted()
+        guard !keys.isEmpty else { return "" }
+        var lines = [
+            "",
+            "## Benchmark Environment",
+            "",
+            "| Field | Value |",
+            "| --- | --- |"
+        ]
+        for key in keys {
+            lines.append("| \(Self.markdownValue(key)) | \(Self.markdownValue(environment[key] ?? "")) |")
+        }
+        return "\n" + lines.joined(separator: "\n") + "\n"
+    }
+
+    private static func markdownValue(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "|", with: "\\|")
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\n", with: "<br>")
+    }
+
+    private static func git(_ arguments: [String], repositoryRoot: String) -> String {
+        if repositoryRoot.isEmpty || repositoryRoot == "unknown" {
+            return shell(["git"] + arguments)
+        }
+        return shell(["git", "-C", repositoryRoot] + arguments)
     }
 
     private static func proofSizeMarkdown(for fixtures: [SuperNeoBenchmarkFixture]) -> String {

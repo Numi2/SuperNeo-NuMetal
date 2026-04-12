@@ -273,6 +273,16 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
         ))
     }
 
+    Benchmark("compressedEnvelope/prove/cpu/\(label)", configuration: expensiveConfiguration) { _ in
+        let envelope = try prover.compressedTerminalFoldEnvelopeDeterministic(
+            fixture.input,
+            context: compressedContext,
+            ceRandomSeed: compressedCESeed
+        )
+        try requireBenchmarkInvariant(envelope == compressedEnvelope, "CPU compressed envelope changed for \(label)")
+        blackHole(envelope.superNeoBytes.count)
+    }
+
     if let metalContext {
         let compiledShape = benchmarkSetupValue("failed to compile CE benchmark shape for \(label)") {
             try fixture.shape.compiledSparseForSuperNeo()
@@ -680,7 +690,9 @@ let benchmarks: @Sendable () -> Void = {
         registerKernelBenchmarks(fixture)
     }
 
-    if includeCEBenchmarks, let fixture = fixtures.first {
-        registerCEBenchmarks(fixture)
+    if includeCEBenchmarks {
+        for fixture in fixtures {
+            registerCEBenchmarks(fixture)
+        }
     }
 }

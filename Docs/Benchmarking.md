@@ -28,6 +28,13 @@ The runner executes the existing XCTest suite through SwiftPM first, runs the be
 - `benchmark-results/report.md`
 - `benchmark-results/results.json`
 
+The runner deletes stale root and benchmark-package artifacts before each run,
+requires a fresh non-empty `Current_run.json` from the benchmark plugin, and
+refuses to render a report if metadata or the base report was not regenerated.
+The report renderer fails on malformed result JSON and on result files without
+wall-clock rows, so benchmark reports should not silently fall back to stale or
+empty evidence.
+
 Benchmarks are built and run from `Benchmarks/Package.swift` with `package-benchmark`, keeping the benchmark plugin out of the main `swift test` graph. The dependency disables package-benchmark's default Jemalloc trait so the suite runs on stock macOS without `brew install jemalloc`. The script records wall-clock, total malloc count, and leaked-memory metrics, then renders a Markdown summary with proof sizes and derived folds/sec, constraints/sec, and commitments/sec where applicable. The script disables SwiftPM's command-plugin sandbox so the benchmark child process can discover the system Metal device, and passes package-directory write permission so benchmark exports can be written under `benchmark-results/`. The Xcode project remains the source of truth for app/framework development; the root `Package.swift` exists to run tests reproducibly from the command line, while the benchmark package owns benchmark-only dependencies.
 
 Profiles:
@@ -40,6 +47,11 @@ Metal benchmarks are registered only when `MetalExecutionContext` can create a d
 
 Set `SUPERNEO_BENCHMARK_CASE_FILTER` to a comma-separated list of label fragments, for example `m1024,m4096`, to isolate large scaling cases while preserving the same benchmark definitions.
 For Metal row-block tuning runs, set `SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE` in the benchmark process and record the value with the generated report.
+When `SUPERNEO_BENCHMARK_CE=1` is set, CE proof and compressed-envelope
+benchmarks are registered for every selected fixture after case filtering. Use
+`SUPERNEO_BENCHMARK_CASE_FILTER` for targeted CE runs on large profiles; CE
+proof generation and verification are intentionally much heavier than fold-only
+rows.
 
 Examples:
 
@@ -54,8 +66,8 @@ Benchmark groups:
 - `reduceFold/*`: public reduction verifier cost.
 - `terminalVerify/*`: local terminal CE verification cost.
 - `proofEnvelope/*`: serialization, parsing, and verification round-trip.
-- `ceOpeningProof/*`: opt-in public CE opening proof verification. Enable with `SUPERNEO_BENCHMARK_CE=1`.
-- `compressedEnvelope/*`: opt-in compressed public terminal envelope verification. Enable with `SUPERNEO_BENCHMARK_CE=1`.
+- `ceOpeningProof/*`: opt-in public CE opening proof proving and verification. Enable with `SUPERNEO_BENCHMARK_CE=1`.
+- `compressedEnvelope/*`: opt-in compressed public terminal envelope proving and verification. Enable with `SUPERNEO_BENCHMARK_CE=1`.
 - `stage/*`: sum-check, PiCCS, PiRLC, and PiDEC stage costs.
 - `kernel/*`: field multiplication, ring multiplication, ring-scalar multiplication, multilinear evaluation, dense/sparse/batched/workspace transformed evaluation, single/batched/workspace Ajtai commitment hot paths, and combined workspace commit-plus-evaluation dispatch.
 
@@ -82,6 +94,12 @@ Add one report per Apple Silicon generation before making generation-to-generati
 claims. Each report must record chip, model, OS build, Xcode, Swift, Metal
 device, benchmark profile, source commit, environment variables, proof sizes,
 and the timing rows used in README or release claims.
+
+Generated metadata records the repository root, short and full commit hash,
+clean/dirty source state, selected benchmark profile, selected cases, and the
+benchmark environment variables that alter registration or execution, including
+`SUPERNEO_BENCHMARK_CASE_FILTER`, `SUPERNEO_BENCHMARK_CE`, and
+`SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE`.
 
 Current Metal scaling baseline:
 
@@ -207,6 +225,20 @@ quick result when the quick profile includes that case.
 | `ajtaiCommit/batch/cpu/m1024` | 43 ms | 37 ms | - | not part of the exact-arithmetic quick profile |
 
 The full XCTest slice still includes a deliberately heavy compressed-envelope path. Before CE proof optimization, `testCompressedPublicEnvelopeRoundTripsAndBindsPublicInputs` passed but took 317 s. After per-opening target caching, cheap digest prechecks, chunked prover private-linear batches, and batched verifier private-linear reconstruction, the same test passed locally on 2026-04-12 in 61.009 s. Future CE work should compare the opt-in `ceOpeningProof/verify/*` and `compressedEnvelope/verify/*` benchmarks with that end-to-end test.
+
+Latest CE quick evidence, measured locally on 2026-04-12 with
+`SUPERNEO_BENCHMARK_CE=1 Scripts/run-benchmarks.sh quick`:
+
+| Case | CE prove CPU | CE prove Metal | CE verify CPU | CE verify Metal | Compressed prove CPU | Compressed verify CPU |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `m64-K1-k0-binary` | 725 ms | 1067 ms | 479 ms | 649 ms | 784 ms | 542 ms |
+| `m256-K2-k1-binary` | 2563 ms | 4367 ms | 1849 ms | 3077 ms | 2808 ms | 1969 ms |
+
+The same run measured `compressedEnvelope/prove/metal` at 1080 ms for `m64`
+and 4539 ms for `m256`, and `compressedEnvelope/verify/metal` at 732 ms for
+`m64` and 3158 ms for `m256`. On these quick-profile cases, the Metal CE path
+is slower than CPU because launch and batching overhead dominate; treat those
+rows as coverage and hotspot direction, not an acceleration claim.
 
 Measured row-block tuning notes:
 

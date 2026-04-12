@@ -52,8 +52,16 @@ guard let data = try? Data(contentsOf: resultURL) else {
 }
 
 let decoder = JSONDecoder()
-let results = (try? decoder.decode([BenchmarkResult].self, from: data)) ?? []
+let results: [BenchmarkResult]
+do {
+    results = try decoder.decode([BenchmarkResult].self, from: data)
+} catch {
+    fail("failed to decode benchmark result JSON at \(resultPath): \(error)")
+}
 let wallClock = results.filter { $0.name.contains(" - Time (wall clock)") }
+guard !wallClock.isEmpty else {
+    fail("benchmark result JSON at \(resultPath) did not contain wall-clock timing rows")
+}
 let mallocCounts = Dictionary(uniqueKeysWithValues: results
     .filter { $0.name.contains(" - Malloc (total)") }
     .map { (baseBenchmarkName($0.name), String(format: "%.0f %@", $0.value, $0.unit)) })
