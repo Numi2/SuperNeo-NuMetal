@@ -150,30 +150,54 @@ Current Metal tuning baseline:
 
 Latest local scaling snapshot:
 
-| Case | CPU fold | Metal fold | Workspace Ajtai | Workspace transformed eval | Combined commit/eval |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `m1024-K2-k0-binary` | 578 ms | 74 ms | 5.64 ms | 17 ms | 17 ms |
-| `m4096-K2-k0-binary` | 4.37 s | 247 ms | 12.7 ms | 50 ms | 52 ms |
-| `m16384-K2-k0-binary` | 50 s | 950 ms | 21 ms | 137 ms | 180 ms |
+Rows use the earliest matching local scaling artifact as the starting point,
+then the measured row-block tuning passes. The selected/current column is the
+documented baseline, not necessarily the fastest isolated microbenchmark.
+
+| Case / metric | Starting scaling | Row block 128 | Row block 256 | Selected/current | Notes |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `m1024 CPU fold` | 595 ms | 578 ms | 577 ms | 578 ms | CPU variance across tuning runs |
+| `m1024 Metal fold` | 87 ms | 74 ms | 98 ms | 74 ms | row block 128 wins complete fold |
+| `m1024 workspace Ajtai` | 4.74 ms | 5.64 ms | 5.29 ms | 5.64 ms | selected with row block 128 baseline |
+| `m1024 workspace transformed eval` | 13 ms | 17 ms | 14 ms | 17 ms | isolated row differs from complete fold winner |
+| `m1024 combined commit/eval` | 14 ms | 17 ms | 15 ms | 17 ms | isolated row differs from complete fold winner |
+| `m4096 CPU fold` | - | 4.37 s | 4.40 s | 4.37 s | first recorded during row-block tuning |
+| `m4096 Metal fold` | - | 247 ms | 246 ms | 247 ms | effectively tied; 128 remains default from m1024 |
+| `m4096 workspace Ajtai` | - | 12.7 ms | 19.0 ms | 12.7 ms | row block 128 baseline |
+| `m4096 workspace transformed eval` | - | 50 ms | 45 ms | 50 ms | row block 256 wins isolated eval only |
+| `m4096 combined commit/eval` | - | 52 ms | 50 ms | 52 ms | row block 256 wins isolated combined row only |
+| `m16384 CPU fold` | - | 50 s | - | 50 s | first recorded in row-block 128 scaling run |
+| `m16384 Metal fold` | - | 950 ms | - | 950 ms | row block 128 completed full-profile scaling |
+| `m16384 workspace Ajtai` | - | 21 ms | - | 21 ms | row block 128 scaling run |
+| `m16384 workspace transformed eval` | - | 137 ms | - | 137 ms | row block 128 scaling run |
+| `m16384 combined commit/eval` | - | 180 ms | - | 180 ms | row block 128 scaling run |
 
 Latest CPU-path audit snapshot (2026-04-12):
 
-| Case | Before | After | Notes |
-| --- | ---: | ---: | --- |
-| `fold/cpu/m64` | 25 ms | 16 ms | sparse transformed protocol path |
-| `stage/piCCSClaims/m64` | 2.61 ms | 0.925 ms | sparse transformed evaluation |
-| `stage/piDEC/m64` | 17 ms | 10.068 ms | single-pass extension-ring row evaluation |
-| `terminalVerify/cpu/m64` | 23 ms | 12 ms | reused sparse CE verification matrices |
-| `ajtaiCommit/cpu/m64` | 173 us | 137 us | fused CPU Ajtai matvec |
-| `fold/cpu/m1024` | 595 ms | 237 ms | sparse-only CPU shape compilation |
-| `stage/piCCSClaims/m1024` | 99 ms | 27 ms | sparse transformed protocol path |
-| `stage/piDEC/m1024` | 449 ms | 174 ms | precomputed `rHat` reused across coefficients |
-| `terminalVerify/cpu/m1024` | 520 ms | 189 ms | batched local CE verification reuse |
-| `proofEnvelope/roundTrip/m1024` | 504 ms | 148 ms | protocol CPU path improvements |
-| `compressed public XCTest` | 317 s | 61.009 s | cached CE targets plus chunked prover and batched verifier private-linear work |
-| `ceOpeningProof/*` | opt-in | opt-in | opt-in CE proof prove/verify targets, including Metal prove/verify when available |
-| `ajtaiCommit/cpu/m1024` | 3.38 ms | 2.876 ms | fused CPU Ajtai matvec |
-| `ajtaiCommit/batch/cpu/m1024` | 43 ms | 37 ms | fused CPU Ajtai matvec |
+Rows use the earliest local measurement recorded for that case, then the
+CPU-path audit result when that pass measured it, then the exact-arithmetic
+quick result when the quick profile includes that case.
+
+| Case | Starting point | CPU-path audit | Exact arithmetic quick | Notes |
+| --- | ---: | ---: | ---: | --- |
+| `fold/cpu/m64` | 25 ms | 16 ms | 5.27 ms | sparse transformed protocol path, then exact field and ring arithmetic |
+| `stage/piCCSClaims/m64` | 2.61 ms | 0.925 ms | 1.34 ms | sparse transformed evaluation; exact quick result remains faster than the starting point |
+| `stage/piDEC/m64` | 17 ms | 10.068 ms | 3.35 ms | single-pass extension-ring row evaluation plus exact base-scalar extension scaling |
+| `terminalVerify/cpu/m64` | 23 ms | 12 ms | 5.19 ms | reused sparse CE verification matrices plus exact arithmetic |
+| `proofEnvelope/roundTrip/m64` | 64 ms | - | 8.94 ms | exact arithmetic quick profile |
+| `ajtaiCommit/cpu/m64` | 173 us | 137 us | 63 us | fused CPU Ajtai matvec plus lower exact-ring cost |
+| `fold/cpu/m256` | 366 ms | - | 41 ms | exact arithmetic quick profile |
+| `terminalVerify/cpu/m256` | 205 ms | - | 20 ms | exact arithmetic quick profile |
+| `proofEnvelope/roundTrip/m256` | 179 ms | - | 24 ms | exact arithmetic quick profile |
+| `fold/cpu/m1024` | 595 ms | 237 ms | - | not part of the exact-arithmetic quick profile |
+| `stage/piCCSClaims/m1024` | 99 ms | 27 ms | - | not part of the exact-arithmetic quick profile |
+| `stage/piDEC/m1024` | 449 ms | 174 ms | - | not part of the exact-arithmetic quick profile |
+| `terminalVerify/cpu/m1024` | 520 ms | 189 ms | - | not part of the exact-arithmetic quick profile |
+| `proofEnvelope/roundTrip/m1024` | 504 ms | 148 ms | - | not part of the exact-arithmetic quick profile |
+| `compressed public XCTest` | 317 s | 61.009 s | - | cached CE targets plus chunked prover and batched verifier private-linear work |
+| `ceOpeningProof/*` | opt-in | opt-in | - | opt-in CE proof prove/verify targets, including Metal prove/verify when available |
+| `ajtaiCommit/cpu/m1024` | 3.38 ms | 2.876 ms | - | not part of the exact-arithmetic quick profile |
+| `ajtaiCommit/batch/cpu/m1024` | 43 ms | 37 ms | - | not part of the exact-arithmetic quick profile |
 
 Detailed benchmark policy, correctness gates, CI notes, runner implementation
 details, and hardware-class report links are in
