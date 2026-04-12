@@ -1288,7 +1288,7 @@ extension ByteReader {
     }
 }
 
-private extension SparseMatrixCSR {
+extension SparseMatrixCSR {
     var isIdentityPrefix: Bool {
         guard rowCount <= columnCount else { return false }
         for row in 0..<rowCount {

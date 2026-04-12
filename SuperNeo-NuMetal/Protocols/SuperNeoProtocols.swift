@@ -738,6 +738,10 @@ public struct SuperNeoFoldInput: Sendable {
             throw SuperNeoError.invalidParameter("fold input requires a serializable CCS relation polynomial")
         }
         let publicInputCount = instances.first?.publicInput.count ?? 0
+        try SuperNeoFoldingShapeContract.paperNormalized.validate(
+            structure,
+            publicInputCount: publicInputCount
+        )
         let shape = try CCSShape(
             matrices: structure.matrices,
             publicInputCount: publicInputCount,

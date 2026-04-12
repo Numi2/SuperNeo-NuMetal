@@ -1083,7 +1083,9 @@ final class ProtocolE2ETests: SuperNeoTestCase {
                 instances: [CCSInstance(commitment: commitment, publicInput: publicInput)],
                 witnesses: [CCSWitness(privateWitness)]
             ),
-            .invalidParameter("public input length must contain whole ring columns for R-module folding")
+            .invalidParameter(
+                "SuperNeo folding requires a paper-normalized CCS shape: public input length must contain whole ring columns for R-module folding; use SuperNeoCCSNormalizer.normalize(...) for general CCS inputs"
+            )
         )
         let shape = try CCSShape(
             matrices: structure.matrices,
@@ -1101,7 +1103,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         XCTAssertFalse(reduction.requiresTerminalRelationCheck)
         XCTAssertEqual(
             reduction.reason,
-            "invalidParameter(\"public input length must contain whole ring columns for R-module folding\")"
+            "invalidParameter(\"SuperNeo folding requires a paper-normalized CCS shape: public input length must contain whole ring columns for R-module folding; use SuperNeoCCSNormalizer.normalize(...) for general CCS inputs\")"
         )
     }
 
@@ -1693,6 +1695,87 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         XCTAssertNoThrow(try SuperNeoVerifier(key: result.key).reduceFold(input: result.normalized.foldInput, proof: SuperNeoProver(key: result.key).fold(result.normalized.foldInput)))
     }
 
+    func testFoldingShapeContractReportsPaperNormalizationRequirementsForRawCCS() throws {
+        let matrix = try SparseFieldMatrix(
+            rows: 3,
+            columns: 5,
+            entries: [
+                SparseFieldMatrix.Entry(row: 0, column: 4, value: .one)
+            ]
+        )
+        let relation = try RelationPolynomial(variableCount: 1, monomials: [])
+        let structure = CCSStructure(matrices: [matrix], relationPolynomial: relation)
+
+        let requirements = try SuperNeoFoldingShapeContract.paperNormalized.normalizationRequirements(
+            for: structure,
+            publicInputCount: 1
+        )
+
+        XCTAssertEqual(requirements, [
+            .positivePowerOfTwoRows(rowCount: 3),
+            .squareFieldShape(rowCount: 3, fieldColumnCount: 5),
+            .identityFirstMatrix,
+            .wholeRingPublicInput(publicInputCount: 1, ringDegree: CyclotomicRing54.degree)
+        ])
+        XCTAssertEqual(requirements.map { $0.diagnostic }, [
+            "CCS row count must be a positive power of two (rowCount: 3)",
+            "shape.nField must equal shape.m (m: 3, nField: 5)",
+            "M1 must be the identity matrix",
+            "public input length must contain whole ring columns for R-module folding (nPublicField: 1, ringDegree: 54)"
+        ])
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoFoldingShapeContract.paperNormalized.validate(structure, publicInputCount: 1),
+            .invalidParameter(
+                "SuperNeo folding requires a paper-normalized CCS shape: CCS row count must be a positive power of two; shape.nField must equal shape.m; M1 must be the identity matrix; public input length must contain whole ring columns for R-module folding; use SuperNeoCCSNormalizer.normalize(...) for general CCS inputs"
+            )
+        )
+    }
+
+    func testPrepareForFoldingNormalizesGeneralCCSAndReportsOriginalRequirements() throws {
+        let publicInput = [GoldilocksField.one]
+        let witness = [GoldilocksField.zero, GoldilocksField.one]
+        let matrix = try SparseFieldMatrix.identity(size: 3)
+        let relation = try RelationPolynomial(variableCount: 1, monomials: [])
+        let structure = CCSStructure(matrices: [matrix], relationPolynomial: relation)
+        let originalCommitment = AjtaiCommitment(Array(repeating: .zero, count: SuperNeoParameters.goldilocks.kappa))
+
+        let prepared = try SuperNeoCCSNormalizer.prepareForFolding(
+            structure: structure,
+            instances: [CCSInstance(commitment: originalCommitment, publicInput: publicInput)],
+            witnesses: [CCSWitness(witness)],
+            keySeed: Array("prepared-general-key".utf8)
+        )
+
+        XCTAssertTrue(prepared.requiresNormalization)
+        XCTAssertEqual(prepared.originalNormalizationRequirements, [
+            .positivePowerOfTwoRows(rowCount: 3),
+            .wholeRingPublicInput(publicInputCount: 1, ringDegree: CyclotomicRing54.degree)
+        ])
+        XCTAssertFalse(SuperNeoFoldingShapeContract.paperNormalized.requiresNormalization(prepared.foldInput.shape))
+        XCTAssertNoThrow(try SuperNeoFoldingShapeContract.paperNormalized.validate(prepared.foldInput.shape))
+        XCTAssertEqual(prepared.foldInput.instances[0].publicInput.count, CyclotomicRing54.degree)
+        XCTAssertEqual(prepared.foldInput.witnesses[0].values.count, 10)
+        XCTAssertNoThrow(try SuperNeoVerifier(key: prepared.key).reduceFold(input: prepared.foldInput, proof: SuperNeoProver(key: prepared.key).fold(prepared.foldInput)))
+    }
+
+    func testPrepareForFoldingAcceptsAlreadyPaperNormalizedInputWithoutRequirements() throws {
+        let fixture = try makeFoldFixture()
+
+        let prepared = try SuperNeoCCSNormalizer.prepareForFolding(
+            structure: fixture.input.structure,
+            instances: fixture.input.instances,
+            witnesses: fixture.input.witnesses,
+            keySeed: Array("fold-key".utf8)
+        )
+
+        XCTAssertFalse(prepared.requiresNormalization)
+        XCTAssertEqual(prepared.originalNormalizationRequirements, [])
+        XCTAssertEqual(prepared.foldInput.shape, fixture.input.shape)
+        XCTAssertEqual(prepared.foldInput.instances, fixture.input.instances)
+        XCTAssertEqual(prepared.foldInput.witnesses, fixture.input.witnesses)
+        XCTAssertNoThrow(try SuperNeoVerifier(key: prepared.key).reduceFold(input: prepared.foldInput, proof: SuperNeoProver(key: prepared.key).fold(prepared.foldInput)))
+    }
+
     func testDirectFoldInputRequiresPaperNormalizedShapeContract() throws {
         let matrix = try SparseFieldMatrix(
             rows: 4,
@@ -1720,6 +1803,26 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             try SuperNeoFoldInput(structure: structure, instances: [], witnesses: []),
             .invalidParameter(
                 "SuperNeo folding requires a paper-normalized CCS shape: shape.nField must equal shape.m; use SuperNeoCCSNormalizer.normalize(...) for general CCS inputs"
+            )
+        )
+    }
+
+    func testDirectFoldInputRoutesRawGeneralCCSToNormalizerBeforeShapeConstruction() throws {
+        let publicInput = [GoldilocksField.one]
+        let witness = [GoldilocksField.zero, GoldilocksField.one]
+        let matrix = try SparseFieldMatrix.identity(size: 3)
+        let relation = try RelationPolynomial(variableCount: 1, monomials: [])
+        let structure = CCSStructure(matrices: [matrix], relationPolynomial: relation)
+        let originalCommitment = AjtaiCommitment(Array(repeating: .zero, count: SuperNeoParameters.goldilocks.kappa))
+
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoFoldInput(
+                structure: structure,
+                instances: [CCSInstance(commitment: originalCommitment, publicInput: publicInput)],
+                witnesses: [CCSWitness(witness)]
+            ),
+            .invalidParameter(
+                "SuperNeo folding requires a paper-normalized CCS shape: CCS row count must be a positive power of two; public input length must contain whole ring columns for R-module folding; use SuperNeoCCSNormalizer.normalize(...) for general CCS inputs"
             )
         )
     }

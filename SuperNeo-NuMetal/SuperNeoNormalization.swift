@@ -79,6 +79,39 @@ public struct NormalizedCCSMapping: Equatable, Sendable {
     }
 }
 
+public enum SuperNeoFoldingShapeRequirement: Equatable, Hashable, Sendable, CustomStringConvertible {
+    case positivePowerOfTwoRows(rowCount: Int)
+    case squareFieldShape(rowCount: Int, fieldColumnCount: Int)
+    case identityFirstMatrix
+    case wholeRingPublicInput(publicInputCount: Int, ringDegree: Int)
+
+    public var description: String {
+        switch self {
+        case .positivePowerOfTwoRows:
+            return "CCS row count must be a positive power of two"
+        case .squareFieldShape:
+            return "shape.nField must equal shape.m"
+        case .identityFirstMatrix:
+            return "M1 must be the identity matrix"
+        case .wholeRingPublicInput:
+            return "public input length must contain whole ring columns for R-module folding"
+        }
+    }
+
+    public var diagnostic: String {
+        switch self {
+        case .positivePowerOfTwoRows(let rowCount):
+            return "\(description) (rowCount: \(rowCount))"
+        case .squareFieldShape(let rowCount, let fieldColumnCount):
+            return "\(description) (m: \(rowCount), nField: \(fieldColumnCount))"
+        case .identityFirstMatrix:
+            return description
+        case .wholeRingPublicInput(let publicInputCount, let ringDegree):
+            return "\(description) (nPublicField: \(publicInputCount), ringDegree: \(ringDegree))"
+        }
+    }
+}
+
 public struct SuperNeoFoldingShapeContract: Equatable, Sendable {
     public static let paperNormalized = SuperNeoFoldingShapeContract()
 
@@ -100,40 +133,89 @@ public struct SuperNeoFoldingShapeContract: Equatable, Sendable {
     }
 
     public func requiresNormalization(_ shape: CCSShape) -> Bool {
-        if requiresPowerOfTwoRows, shape.m <= 0 || (shape.m & (shape.m - 1)) != 0 { return true }
-        if requiresSquareFieldShape, shape.nField != shape.m { return true }
-        if requiresIdentityFirstMatrix, !shape.hasIdentityFirstMatrix { return true }
-        if requiresWholeRingPublicInput, shape.nPublicField % CyclotomicRing54.degree != 0 { return true }
-        return false
+        !normalizationRequirements(for: shape).isEmpty
+    }
+
+    public func normalizationRequirements(for shape: CCSShape) -> [SuperNeoFoldingShapeRequirement] {
+        normalizationRequirements(
+            rowCount: shape.m,
+            fieldColumnCount: shape.nField,
+            publicInputCount: shape.nPublicField,
+            hasIdentityFirstMatrix: shape.hasIdentityFirstMatrix
+        )
+    }
+
+    public func normalizationRequirements(
+        for structure: CCSStructure,
+        publicInputCount: Int
+    ) throws -> [SuperNeoFoldingShapeRequirement] {
+        guard publicInputCount >= 0 else {
+            throw SuperNeoError.invalidParameter("public input count must be non-negative")
+        }
+        guard let first = structure.matrices.first else {
+            throw SuperNeoError.invalidParameter("CCS structure requires at least one matrix")
+        }
+        for matrix in structure.matrices {
+            guard matrix.rows == first.rows, matrix.columns == first.columns else {
+                throw SuperNeoError.invalidParameter("CCS structure matrices must have matching dimensions")
+            }
+        }
+        return normalizationRequirements(
+            rowCount: first.rows,
+            fieldColumnCount: first.columns,
+            publicInputCount: publicInputCount,
+            hasIdentityFirstMatrix: isIdentityPrefix(first)
+        )
     }
 
     public func validate(_ shape: CCSShape) throws {
-        if requiresPowerOfTwoRows {
-            guard shape.m > 0, (shape.m & (shape.m - 1)) == 0 else {
-                throw Self.unsupported("CCS row count must be a positive power of two")
-            }
-        }
-        if requiresSquareFieldShape {
-            guard shape.nField == shape.m else {
-                throw Self.unsupported("shape.nField must equal shape.m")
-            }
-        }
-        if requiresIdentityFirstMatrix {
-            guard shape.hasIdentityFirstMatrix else {
-                throw Self.unsupported("M1 must be the identity matrix")
-            }
-        }
-        if requiresWholeRingPublicInput {
-            guard shape.nPublicField % CyclotomicRing54.degree == 0 else {
-                throw SuperNeoError.invalidParameter("public input length must contain whole ring columns for R-module folding")
-            }
+        let requirements = normalizationRequirements(for: shape)
+        guard requirements.isEmpty else {
+            throw Self.unsupported(requirements)
         }
     }
 
-    private static func unsupported(_ requirement: String) -> SuperNeoError {
-        .invalidParameter(
+    public func validate(_ structure: CCSStructure, publicInputCount: Int) throws {
+        let requirements = try normalizationRequirements(for: structure, publicInputCount: publicInputCount)
+        guard requirements.isEmpty else {
+            throw Self.unsupported(requirements)
+        }
+    }
+
+    private func normalizationRequirements(
+        rowCount: Int,
+        fieldColumnCount: Int,
+        publicInputCount: Int,
+        hasIdentityFirstMatrix: Bool
+    ) -> [SuperNeoFoldingShapeRequirement] {
+        var requirements: [SuperNeoFoldingShapeRequirement] = []
+        if requiresPowerOfTwoRows, rowCount <= 0 || (rowCount & (rowCount - 1)) != 0 {
+            requirements.append(.positivePowerOfTwoRows(rowCount: rowCount))
+        }
+        if requiresSquareFieldShape, fieldColumnCount != rowCount {
+            requirements.append(.squareFieldShape(rowCount: rowCount, fieldColumnCount: fieldColumnCount))
+        }
+        if requiresIdentityFirstMatrix, !hasIdentityFirstMatrix {
+            requirements.append(.identityFirstMatrix)
+        }
+        if requiresWholeRingPublicInput, publicInputCount % CyclotomicRing54.degree != 0 {
+            requirements.append(.wholeRingPublicInput(
+                publicInputCount: publicInputCount,
+                ringDegree: CyclotomicRing54.degree
+            ))
+        }
+        return requirements
+    }
+
+    private static func unsupported(_ requirements: [SuperNeoFoldingShapeRequirement]) -> SuperNeoError {
+        let requirement = requirements.map(\.description).joined(separator: "; ")
+        return .invalidParameter(
             "SuperNeo folding requires a paper-normalized CCS shape: \(requirement); use SuperNeoCCSNormalizer.normalize(...) for general CCS inputs"
         )
+    }
+
+    private func isIdentityPrefix(_ matrix: SparseFieldMatrix) -> Bool {
+        (try? SparseMatrixCSR(matrix).isIdentityPrefix) == true
     }
 }
 
@@ -158,7 +240,59 @@ public struct NormalizedCCS: Sendable {
     }
 }
 
+public struct SuperNeoPreparedFoldInput: Sendable {
+    public let normalized: NormalizedCCS
+    public let key: AjtaiCommitmentKey
+    public let originalNormalizationRequirements: [SuperNeoFoldingShapeRequirement]
+
+    public var requiresNormalization: Bool {
+        !originalNormalizationRequirements.isEmpty
+    }
+
+    public var foldInput: SuperNeoFoldInput {
+        normalized.foldInput
+    }
+
+    public var publicFoldInput: SuperNeoPublicFoldInput {
+        normalized.publicFoldInput
+    }
+}
+
 public enum SuperNeoCCSNormalizer {
+    /// Prover-side preparation for arbitrary serializable CCS inputs.
+    /// Commitments are recomputed against the returned key after any padding or shape changes.
+    public static func prepareForFolding(
+        structure: CCSStructure,
+        instances: [CCSInstance],
+        witnesses: [CCSWitness],
+        priorClaims: [CCSEvaluationClaim] = [],
+        keySeed: [UInt8],
+        parameters: SuperNeoParameters = .goldilocks
+    ) throws -> SuperNeoPreparedFoldInput {
+        guard !instances.isEmpty else {
+            throw SuperNeoError.invalidParameter("fold preparation requires at least one CCS instance")
+        }
+        let publicInputCount = instances.first?.publicInput.count ?? 0
+        let requirements = try SuperNeoFoldingShapeContract.paperNormalized.normalizationRequirements(
+            for: structure,
+            publicInputCount: publicInputCount
+        )
+        let result = try normalize(
+            structure: structure,
+            instances: instances,
+            witnesses: witnesses,
+            priorClaims: priorClaims,
+            keySeed: keySeed,
+            parameters: parameters
+        )
+        try SuperNeoFoldingShapeContract.paperNormalized.validate(result.normalized.shape)
+        return SuperNeoPreparedFoldInput(
+            normalized: result.normalized,
+            key: result.key,
+            originalNormalizationRequirements: requirements
+        )
+    }
+
     public static func normalize(
         structure: CCSStructure,
         instances: [CCSInstance],
@@ -213,6 +347,7 @@ public enum SuperNeoCCSNormalizer {
             publicInputCount: normalizedPublicInputCount,
             relationPolynomial: normalizedRelation
         )
+        try SuperNeoFoldingShapeContract.paperNormalized.validate(shape)
         let key = try AjtaiCommitmentKey(parameters: parameters, columns: shape.nRing, seed: keySeed)
 
         let normalizedPairs = try zip(instances, witnesses).map { instance, witness -> (CCSInstance, CCSWitness) in
