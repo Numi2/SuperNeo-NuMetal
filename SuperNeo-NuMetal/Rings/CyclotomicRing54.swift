@@ -138,11 +138,29 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
         let basis = try dualBasis.get()
         var output = Array(repeating: GoldilocksField.zero, count: degree)
         for (index, scalar) in vector.enumerated() {
-            for coeff in 0..<degree {
-                output[coeff] = output[coeff] + scalar * basis[index][coeff]
-            }
+            try accumulateInnerProductTransformUnit(index: index, value: scalar, basis: basis, into: &output)
         }
         return output
+    }
+
+    static func innerProductTransformBasis() throws -> [[GoldilocksField]] {
+        try dualBasis.get()
+    }
+
+    static func accumulateInnerProductTransformUnit(
+        index: Int,
+        value: GoldilocksField,
+        basis: [[GoldilocksField]],
+        into output: inout [GoldilocksField]
+    ) throws {
+        guard index >= 0, index < degree, output.count == degree else {
+            throw SuperNeoError.invalidParameter("inner-product transform basis index out of bounds")
+        }
+        guard value != .zero else { return }
+        let basisRow = basis[index]
+        for coeff in 0..<degree {
+            output[coeff] = output[coeff] + value * basisRow[coeff]
+        }
     }
 
     private static let dualBasis: Result<[[GoldilocksField]], SuperNeoError> = {
@@ -386,19 +404,35 @@ public enum SuperNeoEmbedding {
 
     public static func packPadded(_ vector: [GoldilocksField]) throws -> [CyclotomicRing54] {
         let paddedLength = paddedLength(forFieldElementCount: vector.count)
-        let padded = paddedLength == vector.count
-            ? vector
-            : vector + Array(repeating: .zero, count: paddedLength - vector.count)
-        return try pack(padded)
+        var packed: [CyclotomicRing54] = []
+        packed.reserveCapacity(paddedLength / CyclotomicRing54.degree)
+        var offset = 0
+        while offset < vector.count {
+            let remaining = vector.count - offset
+            if remaining >= CyclotomicRing54.degree {
+                packed.append(CyclotomicRing54(Array(vector[offset..<offset + CyclotomicRing54.degree])))
+            } else {
+                var coefficients = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+                for index in 0..<remaining {
+                    coefficients[index] = vector[offset + index]
+                }
+                packed.append(CyclotomicRing54(coefficients))
+            }
+            offset += CyclotomicRing54.degree
+        }
+        return packed
     }
 
     public static func pack(_ vector: [GoldilocksField]) throws -> [CyclotomicRing54] {
         guard vector.count % CyclotomicRing54.degree == 0 else {
             throw SuperNeoError.invalidParameter("field vector length must be a multiple of 54")
         }
-        return stride(from: 0, to: vector.count, by: CyclotomicRing54.degree).map {
-            CyclotomicRing54(Array(vector[$0..<$0 + CyclotomicRing54.degree]))
+        var packed: [CyclotomicRing54] = []
+        packed.reserveCapacity(vector.count / CyclotomicRing54.degree)
+        for offset in stride(from: 0, to: vector.count, by: CyclotomicRing54.degree) {
+            packed.append(CyclotomicRing54(Array(vector[offset..<offset + CyclotomicRing54.degree])))
         }
+        return packed
     }
 
     public static func unpack(_ vector: [CyclotomicRing54]) -> [GoldilocksField] {

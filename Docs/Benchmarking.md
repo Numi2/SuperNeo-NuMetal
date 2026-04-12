@@ -75,6 +75,7 @@ Hardware-class reports:
 
 - [Apple M4 quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-2026-04-12.md)
 - [Apple M4 exact-arithmetic quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-exact-arithmetic-2026-04-12.md)
+- [Apple M4 CSR transform and CE batch quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-csr-ce-batch-2026-04-12.md)
 
 Add one report per Apple Silicon generation before making generation-to-generation
 claims. Each report must record chip, model, OS build, Xcode, Swift, Metal
@@ -145,6 +146,30 @@ with 69 XCTest cases, `swift Scripts/validate-test-vectors.swift`, seeded
 equivalence checks against the previous field reduction/addition formulas,
 seeded extension-field equivalence checks for the Karatsuba formula, and quick
 benchmark correctness gates.
+
+Latest CSR transform and CE batch quick snapshot, measured locally on
+2026-04-12:
+
+| Case | Previous local quick | CSR/CE batch quick | Change |
+| --- | ---: | ---: | ---: |
+| `fold/cpu/m64` | 5.465 ms | 4.349 ms | 1.26x faster |
+| `fold/cpu/m256` | 42 ms | 38 ms | 1.11x faster |
+| `fold/metal/m64` | 19 ms | 14.29 ms | 1.33x faster |
+| `fold/metal/m256` | 69 ms | 63 ms | 1.10x faster |
+| `stage/sumcheck/m64` | 1.848 ms | 0.302 ms | 6.12x faster |
+| `stage/piCCSClaims/m64` | 1.509 ms | 0.337 ms | 4.48x faster |
+| `stage/piRLC/m64` | 2.086 ms | 1.016 ms | 2.05x faster |
+| `stage/piDEC/m64` | 3.686 ms | 2.302 ms | 1.60x faster |
+| `terminalVerify/cpu/m64` | 5.434 ms | 3.299 ms | 1.65x faster |
+| `terminalVerify/cpu/m256` | 20 ms | 13 ms | 1.54x faster |
+| `proofEnvelope/roundTrip/m64` | 9.135 ms | 6.744 ms | 1.35x faster |
+| `proofEnvelope/roundTrip/m256` | 25 ms | 17 ms | 1.47x faster |
+
+This pass did not change proof parameters, transcript binding, serialization,
+verifier acceptance, Ajtai key material, or CPU/Metal equality requirements.
+Validation included `Scripts/run-benchmarks.sh quick` with 71 XCTest cases,
+`swift Scripts/validate-test-vectors.swift`, an independent CSR transform
+oracle test, and seeded checks for the optimized multilinear equality formula.
 
 Latest CPU-path audit snapshot, measured locally on 2026-04-12:
 

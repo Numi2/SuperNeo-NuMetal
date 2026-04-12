@@ -383,6 +383,151 @@ public struct SparseMatrixCSR: Equatable, Hashable, Sendable, SuperNeoByteEncoda
     }
 }
 
+extension SparseMatrixCSR {
+    public func transformedForSuperNeo() throws -> RingMatrix {
+        let ringColumns = transformedRingColumnCount()
+        let (elementCount, overflow) = rowCount.multipliedReportingOverflow(by: ringColumns)
+        guard !overflow else {
+            throw SuperNeoError.invalidParameter("transformed matrix dimensions overflow")
+        }
+        let (coefficientCount, coefficientOverflow) = elementCount.multipliedReportingOverflow(
+            by: CyclotomicRing54.degree
+        )
+        guard !coefficientOverflow else {
+            throw SuperNeoError.invalidParameter("transformed matrix coefficient count overflow")
+        }
+
+        let basis = try checkedInnerProductBasis()
+        var transformedCoefficients = Array(
+            repeating: GoldilocksField.zero,
+            count: coefficientCount
+        )
+
+        for row in 0..<rowCount {
+            for entryIndex in rowOffsets[row]..<rowOffsets[row + 1] {
+                let ringColumn = columnIndices[entryIndex] / CyclotomicRing54.degree
+                let coefficientIndex = columnIndices[entryIndex] % CyclotomicRing54.degree
+                let outputOffset = (row * ringColumns + ringColumn) * CyclotomicRing54.degree
+                accumulateInnerProductTransform(
+                    value: values[entryIndex],
+                    basisRow: basis[coefficientIndex],
+                    outputOffset: outputOffset,
+                    into: &transformedCoefficients
+                )
+            }
+        }
+
+        return try RingMatrix(
+            rows: rowCount,
+            columns: ringColumns,
+            elements: rings(from: transformedCoefficients)
+        )
+    }
+
+    public func transformedSparseForSuperNeo() throws -> SparseRingMatrixCSR {
+        let ringColumns = transformedRingColumnCount()
+        let basis = try checkedInnerProductBasis()
+        let zeroCoefficients = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+        var transformedRowOffsets = [0]
+        var transformedColumnIndices: [Int] = []
+        var transformedValues: [CyclotomicRing54] = []
+        transformedRowOffsets.reserveCapacity(rowCount + 1)
+        transformedColumnIndices.reserveCapacity(values.count)
+        transformedValues.reserveCapacity(values.count)
+
+        for row in 0..<rowCount {
+            var activeColumn: Int?
+            var activeCoefficients = zeroCoefficients
+
+            for entryIndex in self.rowOffsets[row]..<self.rowOffsets[row + 1] {
+                let ringColumn = columnIndices[entryIndex] / CyclotomicRing54.degree
+                if activeColumn != ringColumn {
+                    appendSparseTransformedValue(
+                        column: activeColumn,
+                        coefficients: activeCoefficients,
+                        columnIndices: &transformedColumnIndices,
+                        values: &transformedValues
+                    )
+                    activeColumn = ringColumn
+                    activeCoefficients = zeroCoefficients
+                }
+
+                let coefficientIndex = columnIndices[entryIndex] % CyclotomicRing54.degree
+                accumulateInnerProductTransform(
+                    value: values[entryIndex],
+                    basisRow: basis[coefficientIndex],
+                    outputOffset: 0,
+                    into: &activeCoefficients
+                )
+            }
+
+            appendSparseTransformedValue(
+                column: activeColumn,
+                coefficients: activeCoefficients,
+                columnIndices: &transformedColumnIndices,
+                values: &transformedValues
+            )
+            transformedRowOffsets.append(transformedColumnIndices.count)
+        }
+
+        return try SparseRingMatrixCSR(
+            rows: rowCount,
+            columns: ringColumns,
+            rowOffsets: transformedRowOffsets,
+            columnIndices: transformedColumnIndices,
+            values: transformedValues
+        )
+    }
+
+    private func transformedRingColumnCount() -> Int {
+        (columnCount + CyclotomicRing54.degree - 1) / CyclotomicRing54.degree
+    }
+
+    private func checkedInnerProductBasis() throws -> [[GoldilocksField]] {
+        let basis = try CyclotomicRing54.innerProductTransformBasis()
+        guard basis.count == CyclotomicRing54.degree,
+              basis.allSatisfy({ $0.count == CyclotomicRing54.degree }) else {
+            throw SuperNeoError.invalidParameter("inner-product transform basis has invalid dimensions")
+        }
+        return basis
+    }
+
+    private func accumulateInnerProductTransform(
+        value: GoldilocksField,
+        basisRow: [GoldilocksField],
+        outputOffset: Int,
+        into output: inout [GoldilocksField]
+    ) {
+        guard value != .zero else { return }
+        for coefficientIndex in 0..<CyclotomicRing54.degree {
+            let outputIndex = outputOffset + coefficientIndex
+            output[outputIndex] = output[outputIndex] + value * basisRow[coefficientIndex]
+        }
+    }
+
+    private func rings(from coefficients: [GoldilocksField]) -> [CyclotomicRing54] {
+        var elements: [CyclotomicRing54] = []
+        elements.reserveCapacity(coefficients.count / CyclotomicRing54.degree)
+        for offset in stride(from: 0, to: coefficients.count, by: CyclotomicRing54.degree) {
+            elements.append(CyclotomicRing54(Array(coefficients[offset..<offset + CyclotomicRing54.degree])))
+        }
+        return elements
+    }
+
+    private func appendSparseTransformedValue(
+        column: Int?,
+        coefficients: [GoldilocksField],
+        columnIndices: inout [Int],
+        values: inout [CyclotomicRing54]
+    ) {
+        guard let column else { return }
+        let value = CyclotomicRing54(coefficients)
+        guard value != .zero else { return }
+        columnIndices.append(column)
+        values.append(value)
+    }
+}
+
 public struct CCSShape: Equatable, Hashable, Sendable, SuperNeoByteEncodable {
     public static let currentVersion: UInt32 = 1
 
@@ -624,12 +769,11 @@ public struct CompiledCCSShape: Equatable, Sendable {
         guard includeDense || includeSparse else {
             throw SuperNeoError.invalidParameter("compiled CCS shape must include at least one transformed representation")
         }
-        let fieldMatrices = try shape.matrices.map { try $0.toSparseFieldMatrix() }
         let transformedMatrices = includeDense
-            ? try fieldMatrices.map { try $0.transformedForSuperNeo() }
+            ? try shape.matrices.map { try $0.transformedForSuperNeo() }
             : []
         let transformedSparseMatrices = includeSparse
-            ? try fieldMatrices.map { try $0.transformedSparseForSuperNeo() }
+            ? try shape.matrices.map { try $0.transformedSparseForSuperNeo() }
             : []
         guard !includeDense || transformedMatrices.count == shape.numMatrices else {
             throw SuperNeoError.invalidParameter("compiled CCS shape matrix count mismatch")
@@ -706,56 +850,11 @@ public struct SparseFieldMatrix: Equatable, Sendable {
     }
 
     public func transformedForSuperNeo() throws -> RingMatrix {
-        let ringColumns = (columns + CyclotomicRing54.degree - 1) / CyclotomicRing54.degree
-        let (elementCount, overflow) = rows.multipliedReportingOverflow(by: ringColumns)
-        guard !overflow else {
-            throw SuperNeoError.invalidParameter("transformed matrix dimensions overflow")
-        }
-        var elements = Array(repeating: CyclotomicRing54.zero, count: elementCount)
-        for entry in entries {
-            let ringColumn = entry.column / CyclotomicRing54.degree
-            let coeff = entry.column % CyclotomicRing54.degree
-            var current = elements[entry.row * ringColumns + ringColumn]
-            current = current + CyclotomicRing54(try CyclotomicRing54.innerProductTransform(unitVector(index: coeff, value: entry.value)))
-            elements[entry.row * ringColumns + ringColumn] = current
-        }
-        return try RingMatrix(rows: rows, columns: ringColumns, elements: elements)
+        try SparseMatrixCSR(self).transformedForSuperNeo()
     }
 
     public func transformedSparseForSuperNeo() throws -> SparseRingMatrixCSR {
-        let ringColumns = (columns + CyclotomicRing54.degree - 1) / CyclotomicRing54.degree
-        var rowValues = Array(repeating: [Int: CyclotomicRing54](), count: rows)
-        for entry in entries where entry.value != .zero {
-            let ringColumn = entry.column / CyclotomicRing54.degree
-            let coeff = entry.column % CyclotomicRing54.degree
-            let transformed = CyclotomicRing54(try CyclotomicRing54.innerProductTransform(unitVector(index: coeff, value: entry.value)))
-            rowValues[entry.row][ringColumn, default: .zero] = rowValues[entry.row][ringColumn, default: .zero] + transformed
-        }
-
-        var rowOffsets = [0]
-        var columnIndices: [Int] = []
-        var values: [CyclotomicRing54] = []
-        for row in rowValues {
-            for column in row.keys.sorted() {
-                guard let value = row[column], value != .zero else { continue }
-                columnIndices.append(column)
-                values.append(value)
-            }
-            rowOffsets.append(columnIndices.count)
-        }
-        return try SparseRingMatrixCSR(
-            rows: rows,
-            columns: ringColumns,
-            rowOffsets: rowOffsets,
-            columnIndices: columnIndices,
-            values: values
-        )
-    }
-
-    private func unitVector(index: Int, value: GoldilocksField) -> [GoldilocksField] {
-        var vector = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
-        vector[index] = value
-        return vector
+        try SparseMatrixCSR(self).transformedSparseForSuperNeo()
     }
 }
 
@@ -804,7 +903,8 @@ public enum MultilinearEvaluation {
         guard lhs.count == rhs.count else { throw SuperNeoError.invalidParameter("eq vector length mismatch") }
         var result = GoldilocksExt2.one
         for (a, b) in zip(lhs, rhs) {
-            result = result * (a * b + (.one - a) * (.one - b))
+            let ab = a * b
+            result = result * (.one - a - b + ab + ab)
         }
         return result
     }

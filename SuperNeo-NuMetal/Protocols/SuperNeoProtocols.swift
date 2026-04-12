@@ -603,10 +603,10 @@ public enum CEOpeningRelation {
             evaluations: statement.instance.matrixEvals,
             witness: witness.witness
         )
-        return try SuperNeoProtocolOracle.verifyEvaluationClaimOpening(
+        return try SuperNeoProtocolOracle.verifyEvaluationClaimOpenings(
             shape: shape,
             transformedMatrices: transformedMatrices,
-            claim: openedClaim,
+            claims: [openedClaim],
             key: key,
             parameters: parameters
         )
@@ -666,19 +666,22 @@ public enum CEOpeningRelation {
         }
 
         let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
-        for (opening, witness) in zip(statement.openings, witnesses) {
-            guard try verifyLocal(
-                statement: opening,
-                witness: witness,
-                shape: shape,
-                key: key,
-                transformedMatrices: transformedMatrices,
-                parameters: parameters
-            ) else {
-                return false
-            }
+        let openedClaims = zip(statement.openings, witnesses).map { opening, witness in
+            CCSEvaluationClaim(
+                commitment: opening.instance.commitment,
+                publicInput: opening.instance.publicInput,
+                point: opening.instance.evalPoint,
+                evaluations: opening.instance.matrixEvals,
+                witness: witness.witness
+            )
         }
-        return true
+        return try SuperNeoProtocolOracle.verifyEvaluationClaimOpenings(
+            shape: shape,
+            transformedMatrices: transformedMatrices,
+            claims: openedClaims,
+            key: key,
+            parameters: parameters
+        )
     }
 }
 
@@ -2360,31 +2363,91 @@ private enum SuperNeoProtocolOracle {
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters
     ) throws -> Bool {
+        try verifyEvaluationClaimOpenings(
+            shape: shape,
+            transformedMatrices: transformedMatrices,
+            claims: [claim],
+            key: key,
+            parameters: parameters
+        )
+    }
+
+    static func verifyEvaluationClaimOpenings(
+        shape: CCSShape,
+        transformedMatrices: [SparseRingMatrixCSR],
+        claims: [CCSEvaluationClaim],
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters
+    ) throws -> Bool {
+        guard transformedMatrices.count == shape.numMatrices else { return false }
+        let numVars = try log2Exact(shape.m)
+        var basisCache: [(point: [GoldilocksExt2], basis: [GoldilocksExt2])] = []
+
+        func evaluationBasis(for point: [GoldilocksExt2]) throws -> [GoldilocksExt2] {
+            if let cached = basisCache.first(where: { $0.point == point }) {
+                return cached.basis
+            }
+            let basis = try MultilinearEvaluation.checkedBasis(at: point)
+            basisCache.append((point: point, basis: basis))
+            return basis
+        }
+
+        for claim in claims {
+            guard try verifyEvaluationClaimOpening(
+                shape: shape,
+                transformedMatrices: transformedMatrices,
+                claim: claim,
+                key: key,
+                parameters: parameters,
+                numVars: numVars,
+                rHat: evaluationBasis(for: claim.point)
+            ) else {
+                return false
+            }
+        }
+        return true
+    }
+
+    private static func verifyEvaluationClaimOpening(
+        shape: CCSShape,
+        transformedMatrices: [SparseRingMatrixCSR],
+        claim: CCSEvaluationClaim,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters,
+        numVars: Int,
+        rHat: [GoldilocksExt2]
+    ) throws -> Bool {
         guard let witness = claim.witness else { return false }
         guard isValidEvaluationWitnessLength(witness.count, shape: shape) else { return false }
         guard claim.publicInput.count == shape.nPublicField else { return false }
-        guard claim.publicInput.count <= witness.count,
-              Array(witness.prefix(claim.publicInput.count)) == claim.publicInput else {
-            return false
-        }
-        guard claim.point.count == (try log2Exact(shape.m)) else { return false }
+        guard publicInputMatchesWitnessPrefix(claim.publicInput, witness: witness) else { return false }
+        guard claim.point.count == numVars else { return false }
         guard claim.evaluations.count == shape.numMatrices else { return false }
         guard claim.commitment.elements.count == parameters.kappa else { return false }
         guard witness.allSatisfy({ signedMagnitude($0) < UInt64(parameters.normBound) }) else {
             return false
         }
 
-        let recomputed = try AjtaiCommitter.commitReference(key: key, fieldWitness: witness)
-        guard recomputed == claim.commitment else { return false }
-        guard transformedMatrices.count == shape.numMatrices else { return false }
-
         let packed = try packedEvaluationWitness(witness, shape: shape)
-        let rHat = try MultilinearEvaluation.checkedBasis(at: claim.point)
+        let recomputed = try AjtaiCommitter.commitReference(key: key, message: packed)
+        guard recomputed == claim.commitment else { return false }
+
         let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
             let rows = try matrix.multiplied(by: packed)
             return try evaluateExtensionRingRows(rows, rHat: rHat)
         }
         return evaluations == claim.evaluations
+    }
+
+    private static func publicInputMatchesWitnessPrefix(
+        _ publicInput: [GoldilocksField],
+        witness: [GoldilocksField]
+    ) -> Bool {
+        guard publicInput.count <= witness.count else { return false }
+        for index in publicInput.indices where publicInput[index] != witness[index] {
+            return false
+        }
+        return true
     }
 
     static func makeEvaluationInstance(

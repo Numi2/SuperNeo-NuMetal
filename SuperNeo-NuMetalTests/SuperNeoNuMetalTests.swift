@@ -320,6 +320,22 @@ final class EvaluationCoreTests: SuperNeoTestCase {
         )
     }
 
+    func testTier0MultilinearEqMatchesOriginalProductFormula() throws {
+        var generator = SeededTestGenerator(seed: 0x4551_504F_4C59_4E4F)
+        for dimension in 1...8 {
+            for _ in 0..<16 {
+                let lhs = (0..<dimension).map { _ in generator.ext2() }
+                let rhs = (0..<dimension).map { _ in generator.ext2() }
+                let expected = zip(lhs, rhs).reduce(GoldilocksExt2.one) { partial, pair in
+                    let (a, b) = pair
+                    return partial * (a * b + (.one - a) * (.one - b))
+                }
+
+                XCTAssertEqual(try MultilinearEvaluation.eq(lhs, rhs), expected)
+            }
+        }
+    }
+
 }
 
 final class ProtocolShapeTests: SuperNeoTestCase {
@@ -504,6 +520,34 @@ final class ProtocolShapeTests: SuperNeoTestCase {
         XCTAssertThrowsSuperNeoError(
             try matrix.multiplied(by: Array(vector.dropLast())),
             .invalidParameter("field matrix/vector mismatch")
+        )
+    }
+
+    func testSuperNeoCSRTransformMatchesIndependentUnitVectorOracle() throws {
+        let entries = [
+            SparseFieldMatrix.Entry(row: 0, column: 0, value: GoldilocksField(3)),
+            SparseFieldMatrix.Entry(row: 0, column: 53, value: GoldilocksField(5)),
+            SparseFieldMatrix.Entry(row: 0, column: 54, value: GoldilocksField(7)),
+            SparseFieldMatrix.Entry(row: 1, column: 62, value: GoldilocksField(11)),
+            SparseFieldMatrix.Entry(row: 1, column: 62, value: GoldilocksField(13)),
+            SparseFieldMatrix.Entry(row: 2, column: 107, value: GoldilocksField(17)),
+            SparseFieldMatrix.Entry(row: 2, column: 118, value: GoldilocksField(19)),
+            SparseFieldMatrix.Entry(row: 2, column: 13, value: GoldilocksField(23))
+        ]
+        let matrix = try SparseFieldMatrix(rows: 3, columns: 119, entries: entries)
+        let csr = try SparseMatrixCSR(matrix)
+        let oracle = try independentUnitVectorTransformedMatrix(matrix)
+        let packedVector = try SuperNeoEmbedding.packPadded(
+            (0..<119).map { GoldilocksField(UInt64(($0 * 19 + 3) % 251)) }
+        )
+
+        XCTAssertEqual(try csr.transformedForSuperNeo(), oracle)
+        XCTAssertEqual(try csr.transformedSparseForSuperNeo().dense(), oracle)
+        XCTAssertEqual(try matrix.transformedForSuperNeo(), oracle)
+        XCTAssertEqual(try matrix.transformedSparseForSuperNeo().dense(), oracle)
+        XCTAssertEqual(
+            try csr.transformedSparseForSuperNeo().multiplied(by: packedVector),
+            try oracle.multiplied(by: packedVector)
         )
     }
 
@@ -2720,6 +2764,19 @@ extension SuperNeoTestCase {
             }
         }
         return output
+    }
+
+    func independentUnitVectorTransformedMatrix(_ matrix: SparseFieldMatrix) throws -> RingMatrix {
+        let ringColumns = (matrix.columns + CyclotomicRing54.degree - 1) / CyclotomicRing54.degree
+        var elements = Array(repeating: CyclotomicRing54.zero, count: matrix.rows * ringColumns)
+        for entry in matrix.entries where entry.value != .zero {
+            var unit = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+            unit[entry.column % CyclotomicRing54.degree] = entry.value
+            let transformed = CyclotomicRing54(try CyclotomicRing54.innerProductTransform(unit))
+            let elementIndex = entry.row * ringColumns + entry.column / CyclotomicRing54.degree
+            elements[elementIndex] = elements[elementIndex] + transformed
+        }
+        return try RingMatrix(rows: matrix.rows, columns: ringColumns, elements: elements)
     }
 
     func monomialRing(_ exponent: Int) -> CyclotomicRing54 {
