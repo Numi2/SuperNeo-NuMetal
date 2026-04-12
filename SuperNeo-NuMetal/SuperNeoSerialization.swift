@@ -925,10 +925,13 @@ extension ByteReader {
 
     fileprivate mutating func readCEOpeningProof(parameters: SuperNeoParameters) throws -> CEOpeningProof {
         let roundCount = try readCount(
-            maximum: 4096,
+            maximum: CEOpeningProof.roundCount,
             name: "CE opening proof round",
             elementByteWidth: Digest256.byteCount * 3
         )
+        guard roundCount == CEOpeningProof.roundCount else {
+            throw SuperNeoError.invalidEncoding("wrong CE opening proof round count")
+        }
         let rounds = try (0..<roundCount).map { _ in
             try readCEOpeningProofRound(parameters: parameters)
         }

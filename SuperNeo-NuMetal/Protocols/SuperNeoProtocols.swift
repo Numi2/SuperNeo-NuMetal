@@ -140,20 +140,36 @@ public struct TerminalFoldProof: Equatable, Sendable {
 }
 
 public struct FoldReductionResult: Equatable, Sendable {
-    public let isValid: Bool
+    /// True only when the interactive fold reduction accepted.
+    /// This is not a complete proof of the terminal CCS relation.
+    public let isReductionAccepted: Bool
     public let reason: String?
     public let outputClaims: [CCSEvaluationClaim]
+    /// Successful reductions always require a terminal CE relation check before
+    /// an application can accept the original statement.
+    public let requiresTerminalRelationCheck: Bool
 
-    public static func valid(outputClaims: [CCSEvaluationClaim]) -> FoldReductionResult {
+    @available(*, unavailable, message: "A fold reduction is not a complete proof. Use isReductionAccepted, then verify terminal CE relation with verifyTerminalFold/verifyFold output claims.")
+    public var isValid: Bool {
+        isReductionAccepted && !requiresTerminalRelationCheck
+    }
+
+    public static func reduced(outputClaims: [CCSEvaluationClaim]) -> FoldReductionResult {
         FoldReductionResult(
-            isValid: true,
+            isReductionAccepted: true,
             reason: nil,
-            outputClaims: outputClaims.map(\.publicDataOnly)
+            outputClaims: outputClaims.map(\.publicDataOnly),
+            requiresTerminalRelationCheck: true
         )
     }
 
     public static func invalid(_ reason: String) -> FoldReductionResult {
-        FoldReductionResult(isValid: false, reason: reason, outputClaims: [])
+        FoldReductionResult(
+            isReductionAccepted: false,
+            reason: reason,
+            outputClaims: [],
+            requiresTerminalRelationCheck: false
+        )
     }
 }
 
@@ -336,19 +352,21 @@ public struct CEOpeningProofRound: Equatable, Sendable {
 }
 
 public struct CEOpeningProof: Equatable, Sendable {
-    public static let minimumRoundCount = 219
+    public static let roundCount = 219
+    @available(*, unavailable, renamed: "roundCount", message: "CE opening proofs are canonical and must contain exactly roundCount rounds.")
+    public static let minimumRoundCount = roundCount
     public let rounds: [CEOpeningProofRound]
 
     public init(rounds: [CEOpeningProofRound]) throws {
-        guard rounds.count >= Self.minimumRoundCount else {
-            throw SuperNeoError.invalidParameter("CE opening proof has too few Stern rounds")
+        guard rounds.count == Self.roundCount else {
+            throw SuperNeoError.invalidParameter("CE opening proof must contain exactly \(Self.roundCount) Stern rounds")
         }
         self.rounds = rounds
     }
 }
 
 public enum CEOpeningRelation {
-    private static let proofRoundCount = CEOpeningProof.minimumRoundCount
+    private static let proofRoundCount = CEOpeningProof.roundCount
     private static let proofRoundBatchSize = 32
 
     public static func proveLocalBatch(
@@ -517,7 +535,7 @@ public enum CEOpeningRelation {
         guard key.parameters == parameters else { return false }
         guard key.matrix.columns == shape.nRing else { return false }
         guard !statement.openings.isEmpty else { return false }
-        guard proof.rounds.count >= CEOpeningProof.minimumRoundCount else { return false }
+        guard proof.rounds.count == CEOpeningProof.roundCount else { return false }
         guard statement.openings.allSatisfy({
             $0.instance.publicInput.allSatisfy { signedMagnitude($0) < UInt64(parameters.normBound) }
         }) else {
@@ -1609,7 +1627,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
         transcriptSeed: [UInt8] = []
     ) -> VerificationResult {
         let reduction = reduceFold(publicInput: publicInput, proof: proof, transcriptSeed: transcriptSeed)
-        guard reduction.isValid else {
+        guard reduction.isReductionAccepted else {
             return .invalid(reduction.reason ?? "fold reduction verification failed")
         }
         return .invalid(Self.terminalRelationCheckRequiredReason)
@@ -1656,7 +1674,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 proof: proof.foldProof,
                 transcriptSeed: transcriptSeed
             )
-            guard reduction.isValid else {
+            guard reduction.isReductionAccepted else {
                 return .invalid(reduction.reason ?? "fold reduction verification failed")
             }
             guard proof.terminalStatement.profileID == parameters.profileID else {
@@ -1709,7 +1727,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
     ) -> VerificationResult {
         do {
             let reduction = reduceFold(publicInput: publicInput, proof: proof, transcriptSeed: transcriptSeed)
-            guard reduction.isValid else {
+            guard reduction.isReductionAccepted else {
                 return .invalid(reduction.reason ?? "fold reduction verification failed")
             }
             guard outputClaims.hasSamePublicData(as: reduction.outputClaims) else {
@@ -1824,7 +1842,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             guard try verifyDecomposition(folded: expectedRLC, parts: proof.outputClaims, shape: publicInput.shape) else {
                 return .invalid("decomposition does not match folded witness")
             }
-            return .valid(outputClaims: proof.outputClaims)
+            return .reduced(outputClaims: proof.outputClaims)
         } catch {
             return .invalid("\(error)")
         }
@@ -1854,7 +1872,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             proofBytes: proofBytes,
             context: expectedContext
         )
-        guard reduction.isValid else {
+        guard reduction.isReductionAccepted else {
             return .invalid(reduction.reason ?? "fold reduction verification failed")
         }
         return .invalid(Self.terminalRelationCheckRequiredReason)

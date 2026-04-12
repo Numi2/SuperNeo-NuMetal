@@ -668,7 +668,8 @@ final class ProtocolSmokeTests: SuperNeoTestCase {
             transcriptSeed: fixture.seed
         )
 
-        XCTAssertTrue(reduction.isValid, reduction.reason ?? "")
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertTrue(reduction.requiresTerminalRelationCheck)
         XCTAssertEqual(reduction.outputClaims, fold.proof.outputClaims)
         XCTAssertEqual(result, .valid)
     }
@@ -823,6 +824,11 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
             shape: fixture.input.shape,
             key: fixture.key
         ))
+
+        XCTAssertThrowsSuperNeoError(
+            try CEOpeningProof(rounds: proof.rounds + [proof.rounds[0]]),
+            .invalidParameter("CE opening proof must contain exactly \(CEOpeningProof.roundCount) Stern rounds")
+        )
 
         var tamperedEvaluations = claim.evaluations
         tamperedEvaluations[0] = tamperedEvaluations[0] + CyclotomicExt2Ring54([GoldilocksExt2(.one)])
@@ -1013,7 +1019,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             publicInput: SuperNeoPublicFoldInput(input),
             proof: makeEmptyFoldProofForShape(input.shape)
         )
-        XCTAssertFalse(reduction.isValid)
+        XCTAssertFalse(reduction.isReductionAccepted)
+        XCTAssertFalse(reduction.requiresTerminalRelationCheck)
         XCTAssertEqual(
             reduction.reason,
             "invalidParameter(\"public input length must contain whole ring columns for R-module folding\")"
@@ -1031,7 +1038,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             proof: fold.proof,
             transcriptSeed: fixture.seed
         )
-        XCTAssertTrue(reduction.isValid, reduction.reason ?? "")
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertTrue(reduction.requiresTerminalRelationCheck)
         XCTAssertEqual(publicInput.instances.count, 2)
         XCTAssertEqual(publicInput.priorClaims.count, 2)
         XCTAssertEqual(fold.proof.piCCSClaims.count, 4)
@@ -1167,7 +1175,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             transcriptSeed: forged.seed
         )
 
-        XCTAssertTrue(reduction.isValid, reduction.reason ?? "")
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertTrue(reduction.requiresTerminalRelationCheck)
         XCTAssertInvalid(terminalWithForgedClaims, reason: "terminal CE relation check failed")
     }
 
@@ -1270,7 +1279,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         XCTAssertEqual(reparsed.header.statementDigest, context.statementDigest)
         XCTAssertEqual(reparsed.header.verifierKeyDigest, fixture.key.verifierKeyDigest)
         XCTAssertEqual(reparsed.header.bodyLength, UInt32(reparsed.proof.superNeoBytes.count))
-        XCTAssertTrue(reduction.isValid, reduction.reason ?? "")
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertTrue(reduction.requiresTerminalRelationCheck)
         XCTAssertEqual(result, .valid)
     }
 
@@ -1612,7 +1622,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             context: wrongContext
         )
 
-        XCTAssertFalse(result.isValid)
+        XCTAssertFalse(result.isReductionAccepted)
+        XCTAssertFalse(result.requiresTerminalRelationCheck)
         XCTAssertEqual(result.reason, "profile mismatch")
     }
 
@@ -1682,7 +1693,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             proofBytes: try fixture.backend.makeProver(key: fixture.key).foldEnvelope(fixture.input, context: context).superNeoBytes,
             context: wrongContext
         )
-        XCTAssertFalse(result.isValid)
+        XCTAssertFalse(result.isReductionAccepted)
+        XCTAssertFalse(result.requiresTerminalRelationCheck)
         XCTAssertEqual(result.reason, "proof kind mismatch")
     }
 
@@ -1839,7 +1851,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
         let result = SuperNeoVerifier(key: fixture.key).reduceFold(input: fixture.input, proof: tampered, transcriptSeed: fixture.seed)
 
-        XCTAssertFalse(result.isValid)
+        XCTAssertFalse(result.isReductionAccepted)
+        XCTAssertFalse(result.requiresTerminalRelationCheck)
         XCTAssertEqual(result.reason, "random-linear-combination challenge mismatch")
     }
 
@@ -1867,7 +1880,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
         let result = SuperNeoVerifier(key: fixture.key).reduceFold(input: fixture.input, proof: tampered, transcriptSeed: fixture.seed)
 
-        XCTAssertFalse(result.isValid)
+        XCTAssertFalse(result.isReductionAccepted)
+        XCTAssertFalse(result.requiresTerminalRelationCheck)
         XCTAssertEqual(result.reason, "decomposition commitments must match output claims")
     }
 
@@ -2174,7 +2188,8 @@ extension SuperNeoTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        XCTAssertFalse(result.isValid, file: file, line: line)
+        XCTAssertFalse(result.isReductionAccepted, file: file, line: line)
+        XCTAssertFalse(result.requiresTerminalRelationCheck, file: file, line: line)
         if let reason {
             XCTAssertEqual(result.reason, reason, file: file, line: line)
         }
@@ -2203,7 +2218,7 @@ extension SuperNeoTestCase {
             response: .permutedWitness(responses)
         )
         return try CEOpeningProof(
-            rounds: Array(repeating: round, count: CEOpeningProof.minimumRoundCount)
+            rounds: Array(repeating: round, count: CEOpeningProof.roundCount)
         )
     }
 

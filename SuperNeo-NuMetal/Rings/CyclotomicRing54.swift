@@ -39,9 +39,7 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
     public static func * (lhs: Self, rhs: Self) -> Self {
         var product = Array(repeating: GoldilocksField.zero, count: degree * 2 - 1)
         for i in 0..<degree {
-            if lhs.coefficients[i] == .zero { continue }
             for j in 0..<degree {
-                if rhs.coefficients[j] == .zero { continue }
                 product[i + j] = product[i + j] + lhs.coefficients[i] * rhs.coefficients[j]
             }
         }
@@ -82,7 +80,6 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
         if work.count == degree { return work }
         for exponent in stride(from: work.count - 1, through: degree, by: -1) {
             let value = work[exponent]
-            if value == .zero { continue }
             work[exponent] = .zero
             let shifted = exponent - degree
             // X^54 = -X^27 - 1 for Phi(X) = X^54 + X^27 + 1.
@@ -98,7 +95,7 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
         }
         let basis = try dualBasis.get()
         var output = Array(repeating: GoldilocksField.zero, count: degree)
-        for (index, scalar) in vector.enumerated() where scalar != .zero {
+        for (index, scalar) in vector.enumerated() {
             for coeff in 0..<degree {
                 output[coeff] = output[coeff] + scalar * basis[index][coeff]
             }
@@ -207,10 +204,8 @@ public struct CyclotomicExt2Ring54: Equatable, Hashable, Sendable {
     public static func * (lhs: CyclotomicRing54, rhs: Self) -> Self {
         var product = Array(repeating: GoldilocksExt2.zero, count: degree * 2 - 1)
         for i in 0..<degree {
-            if lhs.coefficients[i] == .zero { continue }
             let left = GoldilocksExt2(lhs.coefficients[i])
             for j in 0..<degree {
-                if rhs.coefficients[j] == .zero { continue }
                 product[i + j] = product[i + j] + left * rhs.coefficients[j]
             }
         }
@@ -243,7 +238,6 @@ public struct CyclotomicExt2Ring54: Equatable, Hashable, Sendable {
         if work.count == degree { return work }
         for exponent in stride(from: work.count - 1, through: degree, by: -1) {
             let value = work[exponent]
-            if value == .zero { continue }
             work[exponent] = .zero
             let shifted = exponent - degree
             work[shifted] = work[shifted] - value

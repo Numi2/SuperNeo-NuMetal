@@ -341,7 +341,6 @@ public enum AjtaiCommitter {
         guard message.count == matrix.columns else {
             throw SuperNeoError.invalidParameter("ring matrix/vector dimension mismatch")
         }
-        let messageTerms = message.map(nonzeroTerms)
         var output: [CyclotomicRing54] = []
         output.reserveCapacity(matrix.rows)
         for row in 0..<matrix.rows {
@@ -350,7 +349,7 @@ public enum AjtaiCommitter {
             for column in 0..<matrix.columns {
                 accumulateProduct(
                     matrix.elements[rowStart + column],
-                    rhsTerms: messageTerms[column],
+                    rhs: message[column],
                     into: &coefficients
                 )
             }
@@ -359,30 +358,16 @@ public enum AjtaiCommitter {
         return output
     }
 
-    private static func nonzeroTerms(_ value: CyclotomicRing54) -> [(index: Int, value: GoldilocksField)] {
-        var terms: [(index: Int, value: GoldilocksField)] = []
-        terms.reserveCapacity(CyclotomicRing54.degree)
-        for index in 0..<CyclotomicRing54.degree {
-            let coefficient = value.coefficients[index]
-            if coefficient != .zero {
-                terms.append((index, coefficient))
-            }
-        }
-        return terms
-    }
-
     private static func accumulateProduct(
         _ lhs: CyclotomicRing54,
-        rhsTerms: [(index: Int, value: GoldilocksField)],
+        rhs: CyclotomicRing54,
         into coefficients: inout [GoldilocksField]
     ) {
-        guard !rhsTerms.isEmpty else { return }
         for leftIndex in 0..<CyclotomicRing54.degree {
             let left = lhs.coefficients[leftIndex]
-            if left == .zero { continue }
-            for term in rhsTerms {
-                let product = left * term.value
-                let exponent = leftIndex + term.index
+            for rightIndex in 0..<CyclotomicRing54.degree {
+                let product = left * rhs.coefficients[rightIndex]
+                let exponent = leftIndex + rightIndex
                 if exponent < CyclotomicRing54.degree {
                     coefficients[exponent] = coefficients[exponent] + product
                 } else if exponent < CyclotomicRing54.degree + 27 {

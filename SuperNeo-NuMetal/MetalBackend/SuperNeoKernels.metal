@@ -75,25 +75,6 @@ inline ulong goldilocks_mul(ulong a, ulong b) {
     return goldilocks_reduce128(high, low);
 }
 
-inline ulong goldilocks_mul_small_or_full(ulong a, ulong b) {
-    if (a == 0 || b == 0) {
-        return 0;
-    }
-    if (b == 1) {
-        return a;
-    }
-    if (b == 2) {
-        return goldilocks_add(a, a);
-    }
-    if (b == GOLDILOCKS_MODULUS - 1) {
-        return goldilocks_sub(0, a);
-    }
-    if (b == GOLDILOCKS_MODULUS - 2) {
-        return goldilocks_sub(0, goldilocks_add(a, a));
-    }
-    return goldilocks_mul(a, b);
-}
-
 kernel void goldilocks_add_kernel(
     device const ulong *lhs [[buffer(0)]],
     device const ulong *rhs [[buffer(1)]],
@@ -147,7 +128,7 @@ kernel void ring_scalar_mul_kernel(
 ) {
     if (id >= count) { return; }
     uint ringIndex = id / 54;
-    out[id] = goldilocks_mul_small_or_full(rings[id], scalars[ringIndex]);
+    out[id] = goldilocks_mul(rings[id], scalars[ringIndex]);
 }
 
 kernel void ring_mul_kernel(
@@ -167,17 +148,14 @@ kernel void ring_mul_kernel(
     uint base = id * 54;
     for (uint i = 0; i < 54; i++) {
         ulong a = lhs[base + i];
-        if (a == 0) { continue; }
         for (uint j = 0; j < 54; j++) {
             ulong b = rhs[base + j];
-            if (b == 0) { continue; }
             product[i + j] = goldilocks_add(product[i + j], goldilocks_mul(a, b));
         }
     }
 
     for (int exponent = 106; exponent >= 54; exponent--) {
         ulong value = product[exponent];
-        if (value == 0) { continue; }
         product[exponent] = 0;
         int shifted = exponent - 54;
         product[shifted] = goldilocks_sub(product[shifted], value);
@@ -201,17 +179,14 @@ inline void ring_mul_local(
 
     for (uint i = 0; i < 54; i++) {
         ulong a = lhs[i];
-        if (a == 0) { continue; }
         for (uint j = 0; j < 54; j++) {
             ulong b = rhs[j];
-            if (b == 0) { continue; }
             product[i + j] = goldilocks_add(product[i + j], goldilocks_mul(a, b));
         }
     }
 
     for (int exponent = 106; exponent >= 54; exponent--) {
         ulong value = product[exponent];
-        if (value == 0) { continue; }
         product[exponent] = 0;
         int shifted = exponent - 54;
         product[shifted] = goldilocks_sub(product[shifted], value);
@@ -233,10 +208,8 @@ inline void ring_mul_accumulate_coeff_major_message(
 ) {
     for (uint shift = 0; shift < 54; shift++) {
         ulong scalar = messages[messageBatchBase + shift * columnCount + column];
-        if (scalar == 0) { continue; }
         for (uint coeff = 0; coeff < 54; coeff++) {
-            ulong term = goldilocks_mul_small_or_full(matrixRing[coeff], scalar);
-            if (term == 0) { continue; }
+            ulong term = goldilocks_mul(matrixRing[coeff], scalar);
             uint exponent = coeff + shift;
             if (exponent < 54) {
                 acc[exponent] = goldilocks_add(acc[exponent], term);
@@ -257,10 +230,8 @@ inline void ring_mul_accumulate_rhs_coefficients(
 ) {
     for (uint shift = 0; shift < 54; shift++) {
         ulong scalar = rhs[shift];
-        if (scalar == 0) { continue; }
         for (uint coeff = 0; coeff < 54; coeff++) {
-            ulong term = goldilocks_mul_small_or_full(lhs[coeff], scalar);
-            if (term == 0) { continue; }
+            ulong term = goldilocks_mul(lhs[coeff], scalar);
             uint exponent = coeff + shift;
             if (exponent < 54) {
                 acc[exponent] = goldilocks_add(acc[exponent], term);
@@ -416,9 +387,8 @@ inline void ajtai_accumulate_target_coefficient(
     thread ulong &acc,
     bool subtractTerm
 ) {
-    if (matrixCoeff < 0 || matrixCoeff >= 54 || scalar == 0) { return; }
-    ulong term = goldilocks_mul_small_or_full(matrixRing[matrixCoeff], scalar);
-    if (term == 0) { return; }
+    if (matrixCoeff < 0 || matrixCoeff >= 54) { return; }
+    ulong term = goldilocks_mul(matrixRing[matrixCoeff], scalar);
     acc = subtractTerm ? goldilocks_sub(acc, term) : goldilocks_add(acc, term);
 }
 
@@ -445,7 +415,6 @@ inline void sparse_transformed_eval_accumulate_rows(
             uint vectorOffset = vectorBase + columnIndices[entry] * 54;
             for (uint shift = 0; shift < 54; shift++) {
                 ulong scalar = vectors[vectorOffset + shift];
-                if (scalar == 0) { continue; }
                 int shifted = int(shift);
                 ajtai_accumulate_target_coefficient(values + valueOffset, scalar, target - shifted, rowCoeff, false);
                 if (target <= 26) {
@@ -459,7 +428,6 @@ inline void sparse_transformed_eval_accumulate_rows(
                 }
             }
         }
-        if (rowCoeff == 0) { continue; }
         ulong r0 = rHat[row * 2];
         ulong r1 = rHat[row * 2 + 1];
         acc0 = goldilocks_add(acc0, goldilocks_mul(rowCoeff, r0));
@@ -624,7 +592,6 @@ kernel void ajtai_matvec_ring_batch_coeff_kernel(
         uint messageOffset = messageBatchBase + column * 54;
         for (uint shift = 0; shift < 54; shift++) {
             ulong scalar = messages[messageOffset + shift];
-            if (scalar == 0) { continue; }
             int shifted = int(shift);
             ajtai_accumulate_target_coefficient(matrix + matrixOffset, scalar, target - shifted, acc, false);
             if (target <= 26) {
