@@ -533,7 +533,7 @@ final class ProtocolShapeTests: SuperNeoTestCase {
     }
 
     func testGoldilocksParameterProfileMatchesPaperProfile() {
-        let profile = SuperNeoParameterProfile.goldilocksPhi54
+        let profile = SuperNeoParameterProfile.goldilocksPhi81
 
         XCTAssertEqual(profile.profileID, SuperNeoParameters.goldilocks.profileID)
         XCTAssertEqual(profile.parameters.kappa, 18)
@@ -545,6 +545,7 @@ final class ProtocolShapeTests: SuperNeoTestCase {
         XCTAssertEqual(profile.parameters.challengeExpansionFactor, 216)
         XCTAssertEqual(profile.maxFreshBatchCount, 61)
         XCTAssertEqual(profile.claimedSecurityBits, 129)
+        XCTAssertEqual(profile.cyclotomicIndex, 81)
         XCTAssertEqual(profile.cyclotomicRelationCoefficients.count, CyclotomicRing54.degree + 1)
     }
 

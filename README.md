@@ -16,7 +16,7 @@ This package implements the SuperNeo protocol shape over the `Goldilocks/Phi54` 
 - Deterministic byte serialization for public inputs, proof envelopes, commitments, evaluation claims, and verifier-key digests.
 - CPU reference paths plus Metal kernels for field/ring arithmetic, Ajtai commitments, sparse transformed evaluation, and fused commit-plus-evaluation workloads.
 
-The implementation is designed as a protocol engineering library rather than an application framework. Public data is domain separated and bound through transcript digests, shape digests, statement digests, verifier-key digests, and versioned proof envelopes so benchmarked proof objects can be parsed, round-tripped, and verified reproducibly.
+Public data is domain separated and bound through transcript digests, shape digests, statement digests, verifier-key digests, and versioned proof envelopes so benchmarked proof objects can be parsed, round-tripped, and verified reproducibly.
 
 ## Cryptographic Model
 
@@ -30,7 +30,6 @@ The protocol stack separates three concerns:
 
 The codebase includes CPU and Metal implementations for performance-critical kernels, but correctness is not delegated to the GPU. Metal outputs are differentially checked against CPU behavior in tests and benchmark gates, and full protocol benchmarks must still pass reduction, terminal verification, and proof-envelope verification.
 
-This repository is not a cryptographic audit or a production security certification. Treat parameter changes, new kernels, serialization changes, and transcript changes as security-sensitive work requiring review against the SuperNeo construction and the existing differential tests.
 
 ## Tests
 

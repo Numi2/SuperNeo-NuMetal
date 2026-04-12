@@ -1,5 +1,6 @@
 import Foundation
 
+/// Degree-54 coefficient representation of Phi_81(X) = X^54 + X^27 + 1.
 public struct CyclotomicRing54: Equatable, Hashable, Sendable {
     public static let degree = 54
     public var coefficients: [GoldilocksField]
@@ -265,12 +266,13 @@ public struct SuperNeoParameters: Equatable, Sendable {
 }
 
 public struct SuperNeoParameterProfile: Equatable, Sendable {
-    public static let goldilocksPhi54 = SuperNeoParameterProfile(
+    public static let goldilocksPhi81 = SuperNeoParameterProfile(
         profileID: SuperNeoParameters.goldilocks.profileID,
-        name: "Goldilocks/Phi54",
+        name: "Goldilocks/Phi81(d=54)",
         parameters: .goldilocks,
         fieldModulus: GoldilocksField.modulus,
         extensionDegree: 2,
+        cyclotomicIndex: 81,
         cyclotomicDegree: CyclotomicRing54.degree,
         cyclotomicRelationCoefficients: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         normRoots: SuperNeoParameters.goldilocks.normRoots,
@@ -279,11 +281,15 @@ public struct SuperNeoParameterProfile: Equatable, Sendable {
         claimedSecurityBits: SuperNeoParameters.goldilocks.claimedSecurityBits
     )
 
+    @available(*, deprecated, renamed: "goldilocksPhi81", message: "The profile uses Phi_81 with degree 54: X^54 + X^27 + 1.")
+    public static let goldilocksPhi54 = goldilocksPhi81
+
     public let profileID: UInt16
     public let name: String
     public let parameters: SuperNeoParameters
     public let fieldModulus: UInt64
     public let extensionDegree: Int
+    public let cyclotomicIndex: Int
     public let cyclotomicDegree: Int
     public let cyclotomicRelationCoefficients: [Int64]
     public let normRoots: [GoldilocksField]

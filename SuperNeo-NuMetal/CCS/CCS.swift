@@ -51,10 +51,13 @@ public struct CyclotomicDescriptor: Equatable, Hashable, Sendable, SuperNeoByteE
     public let degree: UInt32
     public let relationCoefficients: [Int64]
 
-    public static let cyclotomic54 = CyclotomicDescriptor(
+    public static let cyclotomicPhi81 = CyclotomicDescriptor(
         uncheckedDegree: UInt32(CyclotomicRing54.degree),
         relationCoefficients: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
     )
+
+    @available(*, deprecated, renamed: "cyclotomicPhi81", message: "This descriptor is Phi_81 with degree 54, not Phi_54.")
+    public static let cyclotomic54 = cyclotomicPhi81
 
     private init(uncheckedDegree degree: UInt32, relationCoefficients: [Int64]) {
         self.degree = degree
@@ -402,7 +405,7 @@ public struct CCSShape: Equatable, Hashable, Sendable, SuperNeoByteEncodable {
     public init(
         version: UInt32 = Self.currentVersion,
         field: FieldDescriptor = .goldilocksExt2,
-        cyclotomic: CyclotomicDescriptor = .cyclotomic54,
+        cyclotomic: CyclotomicDescriptor = .cyclotomicPhi81,
         ajtai: AjtaiDescriptor = .goldilocks,
         challenges: StrongSamplingSetDescriptor = .goldilocks,
         m: Int,
@@ -575,8 +578,8 @@ public struct CCSShape: Equatable, Hashable, Sendable, SuperNeoByteEncodable {
         guard field == .goldilocksExt2 else {
             throw SuperNeoError.invalidParameter("CCS shape field descriptor must match GoldilocksExt2")
         }
-        guard cyclotomic == .cyclotomic54 else {
-            throw SuperNeoError.invalidParameter("CCS shape cyclotomic descriptor must match Phi_54")
+        guard cyclotomic == .cyclotomicPhi81 else {
+            throw SuperNeoError.invalidParameter("CCS shape cyclotomic descriptor must match Phi_81 with degree 54")
         }
         guard ajtai == .goldilocks else {
             throw SuperNeoError.invalidParameter("CCS shape Ajtai descriptor must match Goldilocks profile")
@@ -1075,7 +1078,7 @@ public struct CCSStatement: Equatable, Sendable, SuperNeoByteEncodable {
 
 extension ProofEnvelopeContext {
     public init(
-        profileID: UInt16 = SuperNeoParameterProfile.goldilocksPhi54.profileID,
+        profileID: UInt16 = SuperNeoParameterProfile.goldilocksPhi81.profileID,
         kind: ProofEnvelopeKind = .foldReduction,
         statement: CCSStatement,
         verifierKeyDigest: Digest256,
