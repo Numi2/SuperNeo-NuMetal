@@ -33,6 +33,25 @@ class SuperNeoTestCase: XCTestCase {
 final class AlgebraCoreTests: SuperNeoTestCase {
     // MARK: - Tier 0: deterministic algebra and backend differential properties
 
+    func testTier0GoldilocksBoundaryReductionFixtures() {
+        let minusOne = GoldilocksField(GoldilocksField.modulus - 1)
+        let minusTwo = GoldilocksField(GoldilocksField.modulus - 2)
+        let two = GoldilocksField(2)
+        let two32 = GoldilocksField(1 << 32)
+        let epsilon = GoldilocksField((1 << 32) - 1)
+
+        XCTAssertEqual(minusOne + .one, .zero)
+        XCTAssertEqual(minusTwo + two, .zero)
+        XCTAssertEqual(minusOne + minusOne, minusTwo)
+        XCTAssertEqual(minusOne + two, .one)
+
+        XCTAssertEqual(minusOne * minusOne, .one)
+        XCTAssertEqual(minusOne * two, minusTwo)
+        XCTAssertEqual(minusTwo * minusTwo, GoldilocksField(4))
+        XCTAssertEqual(two32 * two32, epsilon)
+        XCTAssertEqual(epsilon * epsilon, GoldilocksField(0xFFFF_FFFE_0000_0001))
+    }
+
     func testTier0GoldilocksAndExtensionFieldsSeededLaws() throws {
         let u = GoldilocksExt2(.zero, .one)
         XCTAssertEqual(u * u, GoldilocksExt2(GoldilocksExt2.nonResidue))
@@ -77,6 +96,7 @@ final class AlgebraCoreTests: SuperNeoTestCase {
             XCTAssertEqual((x + y) + z, x + (y + z))
             XCTAssertEqual((x * y) * z, x * (y * z))
             XCTAssertEqual(x * (y + z), (x * y) + (x * z))
+            XCTAssertEqual(x.scaled(by: c), x * GoldilocksExt2(c))
             XCTAssertEqual(try GoldilocksExt2(littleEndianBytes: x.littleEndianBytes[...]), x)
             if x != .zero {
                 XCTAssertEqual(try x.inverse() * x, .one)

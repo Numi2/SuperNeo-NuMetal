@@ -1022,7 +1022,7 @@ public struct CCSQOracle: SumcheckOracle {
         let suffixBase = suffixBits << fixedCount
         for prefixBits in 0..<prefixWidth {
             let row = suffixBase | prefixBits
-            total = total + prefixWeights[prefixBits] * GoldilocksExt2(rows[row])
+            total = total + prefixWeights[prefixBits].scaled(by: rows[row])
         }
         return total
     }
@@ -1039,7 +1039,7 @@ public struct CCSQOracle: SumcheckOracle {
         let suffixBase = suffixBits << fixedCount
         for prefixBits in 0..<prefixWidth {
             let row = suffixBase | prefixBits
-            total = total + prefixWeights[prefixBits] * GoldilocksExt2(rows[row].coefficients[coefficientIndex])
+            total = total + prefixWeights[prefixBits].scaled(by: rows[row].coefficients[coefficientIndex])
         }
         return total
     }
@@ -2428,7 +2428,7 @@ private enum SuperNeoProtocolOracle {
             let weight = rHat[rowIndex]
             let rowCoefficients = rows[rowIndex].coefficients
             for coefficientIndex in 0..<CyclotomicRing54.degree {
-                coefficients[coefficientIndex] = coefficients[coefficientIndex] + weight * GoldilocksExt2(rowCoefficients[coefficientIndex])
+                coefficients[coefficientIndex] = coefficients[coefficientIndex] + weight.scaled(by: rowCoefficients[coefficientIndex])
             }
         }
         return CyclotomicExt2Ring54(coefficients)

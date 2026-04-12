@@ -15,6 +15,10 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
         }
     }
 
+    private init(uncheckedCoefficients coefficients: [GoldilocksField]) {
+        self.coefficients = coefficients
+    }
+
     public static let zero = CyclotomicRing54([])
     public static let one = CyclotomicRing54([.one])
 
@@ -26,29 +30,50 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
     public var constantTerm: GoldilocksField { coefficients[0] }
 
     public static func + (lhs: Self, rhs: Self) -> Self {
-        Self(zip(lhs.coefficients, rhs.coefficients).map(+))
+        var coefficients = Array(repeating: GoldilocksField.zero, count: degree)
+        for index in 0..<degree {
+            coefficients[index] = lhs.coefficients[index] + rhs.coefficients[index]
+        }
+        return Self(uncheckedCoefficients: coefficients)
     }
 
     public static func - (lhs: Self, rhs: Self) -> Self {
-        Self(zip(lhs.coefficients, rhs.coefficients).map(-))
+        var coefficients = Array(repeating: GoldilocksField.zero, count: degree)
+        for index in 0..<degree {
+            coefficients[index] = lhs.coefficients[index] - rhs.coefficients[index]
+        }
+        return Self(uncheckedCoefficients: coefficients)
     }
 
     public static prefix func - (value: Self) -> Self {
-        Self(value.coefficients.map { -$0 })
+        var coefficients = Array(repeating: GoldilocksField.zero, count: degree)
+        for index in 0..<degree {
+            coefficients[index] = -value.coefficients[index]
+        }
+        return Self(uncheckedCoefficients: coefficients)
     }
 
     public static func * (lhs: Self, rhs: Self) -> Self {
-        var product = Array(repeating: GoldilocksField.zero, count: degree * 2 - 1)
+        var coefficients = Array(repeating: GoldilocksField.zero, count: degree)
         for i in 0..<degree {
+            let left = lhs.coefficients[i]
+            if left == .zero { continue }
             for j in 0..<degree {
-                product[i + j] = product[i + j] + lhs.coefficients[i] * rhs.coefficients[j]
+                let right = rhs.coefficients[j]
+                if right == .zero { continue }
+                accumulateReducedProduct(left * right, exponent: i + j, into: &coefficients)
             }
         }
-        return Self(Self.reduce(product))
+        return Self(uncheckedCoefficients: coefficients)
     }
 
     public func scaled(by scalar: GoldilocksField) -> Self {
-        Self(coefficients.map { $0 * scalar })
+        guard scalar != .zero else { return .zero }
+        var coefficients = Array(repeating: GoldilocksField.zero, count: Self.degree)
+        for index in 0..<Self.degree {
+            coefficients[index] = self.coefficients[index] * scalar
+        }
+        return Self(uncheckedCoefficients: coefficients)
     }
 
     public func infinityNorm() -> UInt64 {
@@ -88,6 +113,22 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
             work[shifted + 27] = work[shifted + 27] - value
         }
         return Array(work.prefix(degree))
+    }
+
+    private static func accumulateReducedProduct(
+        _ value: GoldilocksField,
+        exponent: Int,
+        into coefficients: inout [GoldilocksField]
+    ) {
+        guard value != .zero else { return }
+        if exponent < degree {
+            coefficients[exponent] = coefficients[exponent] + value
+        } else if exponent < degree + 27 {
+            coefficients[exponent - degree] = coefficients[exponent - degree] - value
+            coefficients[exponent - 27] = coefficients[exponent - 27] - value
+        } else {
+            coefficients[exponent - degree - 27] = coefficients[exponent - degree - 27] + value
+        }
     }
 
     public static func innerProductTransform(_ vector: [GoldilocksField]) throws -> [GoldilocksField] {
@@ -176,6 +217,10 @@ public struct CyclotomicExt2Ring54: Equatable, Hashable, Sendable {
         }
     }
 
+    private init(uncheckedCoefficients coefficients: [GoldilocksExt2]) {
+        self.coefficients = coefficients
+    }
+
     public init(baseRing: CyclotomicRing54) {
         self.init(baseRing.coefficients.map { GoldilocksExt2($0) })
     }
@@ -191,26 +236,45 @@ public struct CyclotomicExt2Ring54: Equatable, Hashable, Sendable {
     public var constantTerm: GoldilocksExt2 { coefficients[0] }
 
     public static func + (lhs: Self, rhs: Self) -> Self {
-        Self(zip(lhs.coefficients, rhs.coefficients).map(+))
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: degree)
+        for index in 0..<degree {
+            coefficients[index] = lhs.coefficients[index] + rhs.coefficients[index]
+        }
+        return Self(uncheckedCoefficients: coefficients)
     }
 
     public static func - (lhs: Self, rhs: Self) -> Self {
-        Self(zip(lhs.coefficients, rhs.coefficients).map(-))
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: degree)
+        for index in 0..<degree {
+            coefficients[index] = lhs.coefficients[index] - rhs.coefficients[index]
+        }
+        return Self(uncheckedCoefficients: coefficients)
     }
 
     public static prefix func - (value: Self) -> Self {
-        Self(value.coefficients.map { -$0 })
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: degree)
+        for index in 0..<degree {
+            coefficients[index] = -value.coefficients[index]
+        }
+        return Self(uncheckedCoefficients: coefficients)
     }
 
     public static func * (lhs: CyclotomicRing54, rhs: Self) -> Self {
-        var product = Array(repeating: GoldilocksExt2.zero, count: degree * 2 - 1)
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: degree)
         for i in 0..<degree {
-            let left = GoldilocksExt2(lhs.coefficients[i])
+            let left = lhs.coefficients[i]
+            if left == .zero { continue }
             for j in 0..<degree {
-                product[i + j] = product[i + j] + left * rhs.coefficients[j]
+                let right = rhs.coefficients[j]
+                if right == .zero { continue }
+                accumulateReducedProduct(
+                    GoldilocksExt2(left * right.c0, left * right.c1),
+                    exponent: i + j,
+                    into: &coefficients
+                )
             }
         }
-        return Self(Self.reduce(product))
+        return Self(uncheckedCoefficients: coefficients)
     }
 
     public static func * (lhs: Self, rhs: CyclotomicRing54) -> Self {
@@ -245,6 +309,22 @@ public struct CyclotomicExt2Ring54: Equatable, Hashable, Sendable {
             work[shifted + 27] = work[shifted + 27] - value
         }
         return Array(work.prefix(degree))
+    }
+
+    private static func accumulateReducedProduct(
+        _ value: GoldilocksExt2,
+        exponent: Int,
+        into coefficients: inout [GoldilocksExt2]
+    ) {
+        guard value != .zero else { return }
+        if exponent < degree {
+            coefficients[exponent] = coefficients[exponent] + value
+        } else if exponent < degree + 27 {
+            coefficients[exponent - degree] = coefficients[exponent - degree] - value
+            coefficients[exponent - 27] = coefficients[exponent - 27] - value
+        } else {
+            coefficients[exponent - degree - 27] = coefficients[exponent - degree - 27] + value
+        }
     }
 }
 

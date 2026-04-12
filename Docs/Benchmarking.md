@@ -74,6 +74,7 @@ Baseline policy:
 Hardware-class reports:
 
 - [Apple M4 quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-2026-04-12.md)
+- [Apple M4 exact-arithmetic quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-exact-arithmetic-2026-04-12.md)
 
 Add one report per Apple Silicon generation before making generation-to-generation
 claims. Each report must record chip, model, OS build, Xcode, Swift, Metal
@@ -97,10 +98,37 @@ Latest local scaling snapshot:
 Current CPU-path baseline:
 
 - CPU protocol evaluation uses sparse transformed CCS matrices by default. Dense transformed matrices are retained for dense-specific benchmarks and comparisons. Benchmark fixtures use a nonzero identity-consistency relation plus an auxiliary sparse matrix so relation checks are real while sparse transformed-evaluation kernels stay covered.
+- Goldilocks field multiplication uses the modulus identity `2^64 == 2^32 - 1 mod p` directly instead of a generic 128-bit modulus loop. Field operators return canonical raw values without re-entering public normalization when the result is already known to be canonical.
+- `GoldilocksExt2` multiplication uses the three-multiply Karatsuba identity, and CPU row-evaluation paths scale extension elements by base-field coefficients directly instead of promoting the scalar into a full extension multiply.
+- `CyclotomicRing54` multiplication and base-ring-by-extension-ring multiplication accumulate directly into the 54 reduced output coefficients using `X^54 = -X^27 - 1`, avoiding the temporary 107-coefficient product and second reduction pass. Fixed-degree ring add/sub/scale paths also avoid map/zip allocation churn.
 - CPU PiDEC evaluates extension-ring rows by computing `rHat` once and accumulating all 54 ring coefficients in one pass.
 - Local CE batch verification compiles the sparse CCS shape once and reuses transformed matrices across openings.
 - Public CE proof generation and verification precompute per-opening evaluation bases, check cheap transcript digests before expensive private-linear reconstruction, chunk prover private-linear work across Stern rounds, and batch verifier challenge-0/1 private-linear jobs after the transcript scan. CPU CE batches fuse each opening's commitment and transformed evaluations in one parallel pass; provers and verifiers with a Metal context route same-point CE batches through the combined workspace commit-plus-evaluation path.
 - CPU Ajtai commitment uses a fused coefficient-buffer matvec for the reference path.
+
+Latest exact-arithmetic quick snapshot, measured locally on 2026-04-12:
+
+| Case | Previous local quick | Exact-arithmetic quick | Change |
+| --- | ---: | ---: | ---: |
+| `fold/cpu/m64` | 47 ms | 5.27 ms | 8.91x faster |
+| `fold/cpu/m256` | 366 ms | 41 ms | 8.93x faster |
+| `fold/metal/m64` | 26 ms | 12.5 ms | 2.08x faster |
+| `fold/metal/m256` | 245 ms | 60 ms | 4.08x faster |
+| `terminalVerify/cpu/m64` | 47 ms | 5.19 ms | 9.06x faster |
+| `terminalVerify/cpu/m256` | 205 ms | 20 ms | 10.25x faster |
+| `proofEnvelope/roundTrip/m64` | 64 ms | 8.94 ms | 7.16x faster |
+| `proofEnvelope/roundTrip/m256` | 179 ms | 24 ms | 7.46x faster |
+| `stage/piCCSClaims/m64` | 5.08 ms | 1.34 ms | 3.79x faster |
+| `stage/piDEC/m64` | 36 ms | 3.35 ms | 10.75x faster |
+| `kernel/transformedEvaluation/cpuSparse/m64` | 583 us | 40 us | 14.58x faster |
+
+The exact-arithmetic snapshot did not change parameters, transcript binding,
+serialization, verifier acceptance, Ajtai key material, or CPU/Metal equality
+requirements. Validation for this pass included `Scripts/run-benchmarks.sh quick`
+with 69 XCTest cases, `swift Scripts/validate-test-vectors.swift`, seeded
+equivalence checks against the previous field reduction/addition formulas,
+seeded extension-field equivalence checks for the Karatsuba formula, and quick
+benchmark correctness gates.
 
 Latest CPU-path audit snapshot, measured locally on 2026-04-12:
 

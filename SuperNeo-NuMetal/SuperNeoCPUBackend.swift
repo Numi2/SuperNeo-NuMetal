@@ -50,7 +50,7 @@ public struct SuperNeoCPUBackend: Sendable {
         for coefficientIndex in 0..<CyclotomicRing54.degree {
             var total = GoldilocksExt2.zero
             for row in rows.indices {
-                total = total + rHat[row] * GoldilocksExt2(rows[row].coefficients[coefficientIndex])
+                total = total + rHat[row].scaled(by: rows[row].coefficients[coefficientIndex])
             }
             coefficients[coefficientIndex] = total
         }

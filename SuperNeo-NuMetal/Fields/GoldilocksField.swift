@@ -2,10 +2,15 @@ import Foundation
 
 public struct GoldilocksField: Equatable, Hashable, Sendable {
     public static let modulus: UInt64 = 0xFFFF_FFFF_0000_0001
+    private static let epsilon: UInt64 = 0xFFFF_FFFF
     public let rawValue: UInt64
 
     public init(_ value: UInt64) {
         self.rawValue = value >= Self.modulus ? value &- Self.modulus : value
+    }
+
+    private init(uncheckedRawValue: UInt64) {
+        self.rawValue = uncheckedRawValue
     }
 
     public init(integerLiteral value: UInt64) {
@@ -17,28 +22,31 @@ public struct GoldilocksField: Equatable, Hashable, Sendable {
 
     public static func + (lhs: Self, rhs: Self) -> Self {
         let (sum, overflow) = lhs.rawValue.addingReportingOverflow(rhs.rawValue)
+        var value = sum
         if overflow {
             // 2^64 == 2^32 - 1 mod p for p = 2^64 - 2^32 + 1.
-            let folded = Self(sum) + Self(0xFFFF_FFFF)
-            return folded.rawValue >= modulus ? Self(folded.rawValue &- modulus) : folded
+            value = addFoldedCarry(value, epsilon)
         }
-        return sum >= modulus ? Self(sum &- modulus) : Self(sum)
+        if value >= modulus {
+            value = value &- modulus
+        }
+        return Self(uncheckedRawValue: value)
     }
 
     public static func - (lhs: Self, rhs: Self) -> Self {
         if lhs.rawValue >= rhs.rawValue {
-            return Self(lhs.rawValue - rhs.rawValue)
+            return Self(uncheckedRawValue: lhs.rawValue - rhs.rawValue)
         }
-        return Self(modulus - (rhs.rawValue - lhs.rawValue))
+        return Self(uncheckedRawValue: modulus - (rhs.rawValue - lhs.rawValue))
     }
 
     public static prefix func - (value: Self) -> Self {
-        value.rawValue == 0 ? .zero : Self(modulus - value.rawValue)
+        value.rawValue == 0 ? .zero : Self(uncheckedRawValue: modulus - value.rawValue)
     }
 
     public static func * (lhs: Self, rhs: Self) -> Self {
         let product = lhs.rawValue.multipliedFullWidth(by: rhs.rawValue)
-        return Self(Self.reduce(product.high, product.low))
+        return Self(uncheckedRawValue: Self.reduce(product.high, product.low))
     }
 
     public func squared() -> Self { self * self }
@@ -74,13 +82,33 @@ public struct GoldilocksField: Equatable, Hashable, Sendable {
     }
 
     private static func reduce(_ high: UInt64, _ low: UInt64) -> UInt64 {
-        // p = 2^64 - 2^32 + 1, so 2^64 == 2^32 - 1 mod p.
-        let lowPart = UInt128(low)
-        let highPart = UInt128(high)
-        let folded = lowPart + (highPart << 32) - highPart
-        var value = folded.mod(UInt128(modulus))
-        if value >= UInt128(modulus) { value = value - UInt128(modulus) }
-        return value.low
+        // p = 2^64 - 2^32 + 1, so fold the 128-bit high word with
+        // 2^64 == 2^32 - 1 instead of running a generic 128-bit modulus loop.
+        let highLow = high & epsilon
+        let highHigh = high >> 32
+
+        var reduced = low &- highHigh
+        if low < highHigh {
+            reduced = reduced &- epsilon
+        }
+
+        let foldedHighLow = highLow &* epsilon
+        let (sum, overflow) = reduced.addingReportingOverflow(foldedHighLow)
+        var value = sum
+        if overflow {
+            value = addFoldedCarry(value, epsilon)
+        }
+        if value >= modulus {
+            value = value &- modulus
+        }
+        return value
+    }
+
+    private static func addFoldedCarry(_ value: UInt64, _ foldedCarry: UInt64) -> UInt64 {
+        let (first, firstOverflow) = value.addingReportingOverflow(foldedCarry)
+        guard firstOverflow else { return first }
+        let (second, secondOverflow) = first.addingReportingOverflow(epsilon)
+        return secondOverflow ? second &+ epsilon : second
     }
 }
 
@@ -112,8 +140,12 @@ public struct GoldilocksExt2: Equatable, Hashable, Sendable {
     public static func * (lhs: Self, rhs: Self) -> Self {
         let ac = lhs.c0 * rhs.c0
         let bd = lhs.c1 * rhs.c1
-        let adbc = (lhs.c0 * rhs.c1) + (lhs.c1 * rhs.c0)
+        let adbc = (lhs.c0 + lhs.c1) * (rhs.c0 + rhs.c1) - ac - bd
         return Self(ac + bd * nonResidue, adbc)
+    }
+
+    public func scaled(by scalar: GoldilocksField) -> Self {
+        Self(c0 * scalar, c1 * scalar)
     }
 
     public func inverse() throws -> Self {
@@ -130,58 +162,6 @@ public struct GoldilocksExt2: Equatable, Hashable, Sendable {
         guard bytes.count == 16 else { throw SuperNeoError.invalidEncoding("GoldilocksExt2 element must be 16 bytes") }
         self.c0 = try GoldilocksField(littleEndianBytes: bytes.prefix(8))
         self.c1 = try GoldilocksField(littleEndianBytes: bytes.suffix(8))
-    }
-}
-
-struct UInt128: Comparable, Equatable {
-    var high: UInt64
-    var low: UInt64
-
-    init(_ value: UInt64) {
-        high = 0
-        low = value
-    }
-
-    static func < (lhs: Self, rhs: Self) -> Bool {
-        lhs.high == rhs.high ? lhs.low < rhs.low : lhs.high < rhs.high
-    }
-
-    static func + (lhs: Self, rhs: Self) -> Self {
-        let (low, carry) = lhs.low.addingReportingOverflow(rhs.low)
-        return Self(high: lhs.high &+ rhs.high &+ (carry ? 1 : 0), low: low)
-    }
-
-    static func - (lhs: Self, rhs: Self) -> Self {
-        let (low, borrow) = lhs.low.subtractingReportingOverflow(rhs.low)
-        return Self(high: lhs.high &- rhs.high &- (borrow ? 1 : 0), low: low)
-    }
-
-    static func << (lhs: Self, rhs: Int) -> Self {
-        precondition(rhs >= 0 && rhs < 64)
-        if rhs == 0 { return lhs }
-        return Self(high: (lhs.high << rhs) | (lhs.low >> (64 - rhs)), low: lhs.low << rhs)
-    }
-
-    init(high: UInt64, low: UInt64) {
-        self.high = high
-        self.low = low
-    }
-
-    func mod(_ modulus: UInt128) -> UInt128 {
-        var remainder = self
-        while remainder >= modulus {
-            let shift = max(0, remainder.bitWidth - modulus.bitWidth)
-            var shifted = modulus << min(shift, 63)
-            if shifted > remainder { shifted = modulus << max(0, min(shift - 1, 63)) }
-            remainder = remainder - shifted
-        }
-        return remainder
-    }
-
-    var bitWidth: Int {
-        if high != 0 { return 64 + (64 - high.leadingZeroBitCount) }
-        if low != 0 { return 64 - low.leadingZeroBitCount }
-        return 0
     }
 }
 
