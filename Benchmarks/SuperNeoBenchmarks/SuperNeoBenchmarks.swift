@@ -208,7 +208,7 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     )
     let ceProofSeed = Array("superneo-benchmark-ce-opening-\(label)".utf8)
     let ceOpeningProof = benchmarkSetupValue("failed to build CE opening proof for \(label)") {
-        try CEOpeningRelation.proveLocalBatch(
+        try CEOpeningRelation.proveLocalBatchDeterministic(
             statement: terminalStatement,
             witnesses: terminalWitnesses,
             shape: fixture.shape,
@@ -231,7 +231,7 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     )
     let compressedCESeed = Array("superneo-benchmark-compressed-ce-\(label)".utf8)
     let compressedEnvelope = benchmarkSetupValue("failed to build compressed terminal envelope for \(label)") {
-        try prover.compressedTerminalFoldEnvelope(
+        try prover.compressedTerminalFoldEnvelopeDeterministic(
             fixture.input,
             context: compressedContext,
             ceRandomSeed: compressedCESeed
@@ -240,7 +240,7 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     let compressedEnvelopeBytes = compressedEnvelope.superNeoBytes
 
     Benchmark("ceOpeningProof/prove/cpu/\(label)", configuration: expensiveConfiguration) { _ in
-        let proof = try CEOpeningRelation.proveLocalBatch(
+        let proof = try CEOpeningRelation.proveLocalBatchDeterministic(
             statement: terminalStatement,
             witnesses: terminalWitnesses,
             shape: fixture.shape,
@@ -288,7 +288,7 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
         let metalVerifier = SuperNeoVerifier(parameters: fixture.parameters, key: fixture.key, context: metalContext)
 
         Benchmark("ceOpeningProof/prove/metal/\(label)", configuration: expensiveConfiguration) { _ in
-            let proof = try CEOpeningRelation.proveLocalBatch(
+            let proof = try CEOpeningRelation.proveLocalBatchDeterministic(
                 statement: terminalStatement,
                 witnesses: terminalWitnesses,
                 shape: fixture.shape,
@@ -318,7 +318,7 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
         }
 
         Benchmark("compressedEnvelope/prove/metal/\(label)", configuration: expensiveConfiguration) { _ in
-            let envelope = try metalProver.compressedTerminalFoldEnvelope(
+            let envelope = try metalProver.compressedTerminalFoldEnvelopeDeterministic(
                 fixture.input,
                 context: compressedContext,
                 ceRandomSeed: compressedCESeed

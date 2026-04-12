@@ -357,8 +357,67 @@ public enum CEOpeningRelation {
         shape: CCSShape,
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters = .goldilocks,
-        randomSeed: [UInt8]? = nil,
         metalWorkspace: SuperNeoMetalWorkspace? = nil
+    ) throws -> CEOpeningProof {
+        try proveLocalBatchImpl(
+            statement: statement,
+            witnesses: witnesses,
+            shape: shape,
+            key: key,
+            parameters: parameters,
+            randomnessSeed: makeSystemRandomSeed(),
+            metalWorkspace: metalWorkspace
+        )
+    }
+
+    static func proveLocalBatchForTesting(
+        statement: TerminalCEStatement,
+        witnesses: [CEOpeningWitness],
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters = .goldilocks,
+        randomSeed: [UInt8],
+        metalWorkspace: SuperNeoMetalWorkspace? = nil
+    ) throws -> CEOpeningProof {
+        try proveLocalBatchImpl(
+            statement: statement,
+            witnesses: witnesses,
+            shape: shape,
+            key: key,
+            parameters: parameters,
+            randomnessSeed: randomSeed,
+            metalWorkspace: metalWorkspace
+        )
+    }
+
+    @_spi(Benchmarking) public static func proveLocalBatchDeterministic(
+        statement: TerminalCEStatement,
+        witnesses: [CEOpeningWitness],
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters = .goldilocks,
+        randomSeed: [UInt8],
+        metalWorkspace: SuperNeoMetalWorkspace? = nil
+    ) throws -> CEOpeningProof {
+        try proveLocalBatchImpl(
+            statement: statement,
+            witnesses: witnesses,
+            shape: shape,
+            key: key,
+            parameters: parameters,
+            randomnessSeed: randomSeed,
+            metalWorkspace: metalWorkspace
+        )
+    }
+
+    private static func proveLocalBatchImpl(
+        statement: TerminalCEStatement,
+        witnesses: [CEOpeningWitness],
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters,
+        randomnessSeed: [UInt8],
+        metalWorkspace: SuperNeoMetalWorkspace?
     ) throws -> CEOpeningProof {
         guard statement.profileID == parameters.profileID else {
             throw SuperNeoError.invalidParameter("terminal CE statement profile mismatch")
@@ -397,8 +456,7 @@ public enum CEOpeningRelation {
             transformedMatrices: transformedMatrices,
             metalWorkspace: metalWorkspace
         )
-        let seed = randomSeed ?? makeSystemRandomSeed()
-        var rng = DeterministicRNG(seed: seed + statement.superNeoBytes)
+        var rng = DeterministicRNG(seed: randomnessSeed + statement.superNeoBytes)
         var transcript = makeCEOpeningTranscript(statement: statement)
         transcript.absorb(ceEncodeCount(Self.proofRoundCount))
         var rounds: [CEOpeningProofRound] = []
@@ -1235,15 +1293,43 @@ public final class SuperNeoProver: @unchecked Sendable {
     }
 
     public func foldEnvelope(_ input: SuperNeoFoldInput, context: ProofEnvelopeContext) throws -> FoldProofEnvelope {
-        try validateEnvelopeContext(context, key: key)
+        try validateEnvelopeContext(
+            context,
+            publicInput: SuperNeoPublicFoldInput(input),
+            key: key,
+            expectedKind: .foldReduction
+        )
         let proof = try fold(input, transcriptSeed: context.transcriptBindingBytes)
         return try FoldProofEnvelope(context: context, proof: proof)
     }
 
     public func terminalFold(
         _ input: SuperNeoFoldInput,
+        transcriptSeed: [UInt8] = []
+    ) throws -> TerminalFoldProof {
+        try terminalFoldImpl(input, transcriptSeed: transcriptSeed, ceRandomSeed: nil)
+    }
+
+    func terminalFoldForTesting(
+        _ input: SuperNeoFoldInput,
         transcriptSeed: [UInt8] = [],
-        ceRandomSeed: [UInt8]? = nil
+        ceRandomSeed: [UInt8]
+    ) throws -> TerminalFoldProof {
+        try terminalFoldImpl(input, transcriptSeed: transcriptSeed, ceRandomSeed: ceRandomSeed)
+    }
+
+    @_spi(Benchmarking) public func terminalFoldDeterministic(
+        _ input: SuperNeoFoldInput,
+        transcriptSeed: [UInt8] = [],
+        ceRandomSeed: [UInt8]
+    ) throws -> TerminalFoldProof {
+        try terminalFoldImpl(input, transcriptSeed: transcriptSeed, ceRandomSeed: ceRandomSeed)
+    }
+
+    private func terminalFoldImpl(
+        _ input: SuperNeoFoldInput,
+        transcriptSeed: [UInt8],
+        ceRandomSeed: [UInt8]?
     ) throws -> TerminalFoldProof {
         let fold = try foldWithOutput(input, transcriptSeed: transcriptSeed)
         let terminalStatement = try TerminalCEStatement(
@@ -1258,15 +1344,28 @@ public final class SuperNeoProver: @unchecked Sendable {
             }
             return witness
         }
-        let ceOpeningProof = try CEOpeningRelation.proveLocalBatch(
-            statement: terminalStatement,
-            witnesses: witnesses,
-            shape: input.shape,
-            key: key,
-            parameters: parameters,
-            randomSeed: ceRandomSeed,
-            metalWorkspace: try makeCEOpeningMetalWorkspace(shape: input.shape)
-        )
+        let metalWorkspace = try makeCEOpeningMetalWorkspace(shape: input.shape)
+        let ceOpeningProof: CEOpeningProof
+        if let ceRandomSeed {
+            ceOpeningProof = try CEOpeningRelation.proveLocalBatchForTesting(
+                statement: terminalStatement,
+                witnesses: witnesses,
+                shape: input.shape,
+                key: key,
+                parameters: parameters,
+                randomSeed: ceRandomSeed,
+                metalWorkspace: metalWorkspace
+            )
+        } else {
+            ceOpeningProof = try CEOpeningRelation.proveLocalBatch(
+                statement: terminalStatement,
+                witnesses: witnesses,
+                shape: input.shape,
+                key: key,
+                parameters: parameters,
+                metalWorkspace: metalWorkspace
+            )
+        }
         return TerminalFoldProof(
             foldProof: fold.proof,
             terminalStatement: terminalStatement,
@@ -1276,14 +1375,42 @@ public final class SuperNeoProver: @unchecked Sendable {
 
     public func terminalFoldEnvelope(
         _ input: SuperNeoFoldInput,
+        context: ProofEnvelopeContext
+    ) throws -> TerminalFoldProofEnvelope {
+        try terminalFoldEnvelopeImpl(input, context: context, ceRandomSeed: nil)
+    }
+
+    func terminalFoldEnvelopeForTesting(
+        _ input: SuperNeoFoldInput,
         context: ProofEnvelopeContext,
-        ceRandomSeed: [UInt8]? = nil
+        ceRandomSeed: [UInt8]
+    ) throws -> TerminalFoldProofEnvelope {
+        try terminalFoldEnvelopeImpl(input, context: context, ceRandomSeed: ceRandomSeed)
+    }
+
+    @_spi(Benchmarking) public func terminalFoldEnvelopeDeterministic(
+        _ input: SuperNeoFoldInput,
+        context: ProofEnvelopeContext,
+        ceRandomSeed: [UInt8]
+    ) throws -> TerminalFoldProofEnvelope {
+        try terminalFoldEnvelopeImpl(input, context: context, ceRandomSeed: ceRandomSeed)
+    }
+
+    private func terminalFoldEnvelopeImpl(
+        _ input: SuperNeoFoldInput,
+        context: ProofEnvelopeContext,
+        ceRandomSeed: [UInt8]?
     ) throws -> TerminalFoldProofEnvelope {
         guard context.kind == .terminalLocal else {
             throw SuperNeoError.invalidParameter("terminal fold envelope context must be terminalLocal")
         }
-        try validateEnvelopeContext(context, key: key)
-        let proof = try terminalFold(
+        try validateEnvelopeContext(
+            context,
+            publicInput: SuperNeoPublicFoldInput(input),
+            key: key,
+            expectedKind: .terminalLocal
+        )
+        let proof = try terminalFoldImpl(
             input,
             transcriptSeed: context.transcriptBindingBytes,
             ceRandomSeed: ceRandomSeed
@@ -1293,13 +1420,42 @@ public final class SuperNeoProver: @unchecked Sendable {
 
     public func compressedTerminalFoldEnvelope(
         _ input: SuperNeoFoldInput,
+        context: ProofEnvelopeContext
+    ) throws -> CompressedTerminalProofEnvelope {
+        try compressedTerminalFoldEnvelopeImpl(input, context: context, ceRandomSeed: nil)
+    }
+
+    func compressedTerminalFoldEnvelopeForTesting(
+        _ input: SuperNeoFoldInput,
         context: ProofEnvelopeContext,
-        ceRandomSeed: [UInt8]? = nil
+        ceRandomSeed: [UInt8]
+    ) throws -> CompressedTerminalProofEnvelope {
+        try compressedTerminalFoldEnvelopeImpl(input, context: context, ceRandomSeed: ceRandomSeed)
+    }
+
+    @_spi(Benchmarking) public func compressedTerminalFoldEnvelopeDeterministic(
+        _ input: SuperNeoFoldInput,
+        context: ProofEnvelopeContext,
+        ceRandomSeed: [UInt8]
+    ) throws -> CompressedTerminalProofEnvelope {
+        try compressedTerminalFoldEnvelopeImpl(input, context: context, ceRandomSeed: ceRandomSeed)
+    }
+
+    private func compressedTerminalFoldEnvelopeImpl(
+        _ input: SuperNeoFoldInput,
+        context: ProofEnvelopeContext,
+        ceRandomSeed: [UInt8]?
     ) throws -> CompressedTerminalProofEnvelope {
         guard context.kind == .compressedPublic else {
             throw SuperNeoError.invalidParameter("compressed terminal fold envelope context must be compressedPublic")
         }
-        try validateEnvelopeContext(context, key: key)
+        let publicInput = SuperNeoPublicFoldInput(input)
+        try validateEnvelopeContext(
+            context,
+            publicInput: publicInput,
+            key: key,
+            expectedKind: .compressedPublic
+        )
         let terminalContext = ProofEnvelopeContext(
             profileID: context.profileID,
             kind: .terminalLocal,
@@ -1308,12 +1464,11 @@ public final class SuperNeoProver: @unchecked Sendable {
             verifierKeyDigest: context.verifierKeyDigest,
             transcriptDomain: context.transcriptDomain
         )
-        let proof = try terminalFold(
+        let proof = try terminalFoldImpl(
             input,
             transcriptSeed: terminalContext.transcriptBindingBytes,
             ceRandomSeed: ceRandomSeed
         )
-        let publicInput = SuperNeoPublicFoldInput(input)
         let statement = CompressedTerminalStatement(
             context: context,
             publicInputDigest: compressedPublicInputDigest(publicInput),
@@ -2396,7 +2551,29 @@ private func validateCommitmentKey(_ key: AjtaiCommitmentKey, matches shape: CCS
     }
 }
 
-private func validateEnvelopeContext(_ context: ProofEnvelopeContext, key: AjtaiCommitmentKey) throws {
+private func validateEnvelopeContext(
+    _ context: ProofEnvelopeContext,
+    publicInput: SuperNeoPublicFoldInput,
+    key: AjtaiCommitmentKey,
+    expectedKind: ProofEnvelopeKind
+) throws {
+    guard context.profileID == key.parameters.profileID else {
+        throw SuperNeoError.invalidParameter("proof envelope context profile mismatch")
+    }
+    guard context.kind == expectedKind else {
+        throw SuperNeoError.invalidParameter("proof envelope context kind mismatch")
+    }
+    guard context.shapeDigest == publicInput.shape.shapeDigest else {
+        throw SuperNeoError.invalidParameter("proof envelope context shape digest mismatch")
+    }
+    let statement = CCSStatement(
+        shapeDigest: publicInput.shape.shapeDigest,
+        ccsInstances: publicInput.instances,
+        priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+    )
+    guard context.statementDigest == statement.statementDigest else {
+        throw SuperNeoError.invalidParameter("proof envelope context statement digest mismatch")
+    }
     guard context.verifierKeyDigest == key.verifierKeyDigest else {
         throw SuperNeoError.invalidParameter("proof envelope context verifier key digest mismatch")
     }

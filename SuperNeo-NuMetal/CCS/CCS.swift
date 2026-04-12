@@ -276,6 +276,9 @@ public struct SparseMatrixCSR: Equatable, Hashable, Sendable, SuperNeoByteEncoda
         guard columnIndices.count == values.count, rowOffsets.last == values.count else {
             throw SuperNeoError.invalidParameter("CSR matrix offsets must match value count")
         }
+        guard rowOffsets.allSatisfy({ $0 >= 0 && $0 <= values.count }) else {
+            throw SuperNeoError.invalidParameter("CSR row offsets out of bounds")
+        }
         for row in 0..<rowCount {
             let start = rowOffsets[row]
             let end = rowOffsets[row + 1]

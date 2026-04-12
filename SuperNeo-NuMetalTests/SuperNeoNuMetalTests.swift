@@ -141,6 +141,16 @@ final class AlgebraCoreTests: SuperNeoTestCase {
             try RingMatrix(rows: Int.max, columns: 2, elements: []),
             .invalidParameter("ring matrix dimensions do not match element count")
         )
+        XCTAssertThrowsSuperNeoError(
+            try SparseRingMatrixCSR(
+                rows: 2,
+                columns: 3,
+                rowOffsets: [0, 2, 1],
+                columnIndices: [0],
+                values: [.one]
+            ),
+            .invalidParameter("sparse ring row offsets out of bounds")
+        )
     }
 
 }
@@ -427,6 +437,16 @@ final class ProtocolShapeTests: SuperNeoTestCase {
         XCTAssertThrowsSuperNeoError(
             try SparseMatrixCSR(rowCount: 1, columnCount: 4, rowOffsets: [0, 1], columnIndices: [0], values: [.zero]),
             .invalidParameter("CSR matrices must omit zero entries")
+        )
+        XCTAssertThrowsSuperNeoError(
+            try SparseMatrixCSR(
+                rowCount: 2,
+                columnCount: 4,
+                rowOffsets: [0, 2, 1],
+                columnIndices: [0],
+                values: [.one]
+            ),
+            .invalidParameter("CSR row offsets out of bounds")
         )
     }
 
@@ -780,7 +800,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
             claims: [claim]
         )
 
-        let proof = try CEOpeningRelation.proveLocalBatch(
+        let proof = try CEOpeningRelation.proveLocalBatchForTesting(
             statement: statement,
             witnesses: [witness],
             shape: fixture.input.shape,
@@ -862,7 +882,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         )
 
         XCTAssertThrowsSuperNeoError(
-            try CEOpeningRelation.proveLocalBatch(
+            try CEOpeningRelation.proveLocalBatchForTesting(
                 statement: statement,
                 witnesses: [witness],
                 shape: fixture.input.shape,
@@ -912,7 +932,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
             key: mismatchedKey
         ))
         XCTAssertThrowsSuperNeoError(
-            try CEOpeningRelation.proveLocalBatch(
+            try CEOpeningRelation.proveLocalBatchForTesting(
                 statement: terminalStatement,
                 witnesses: terminalWitnesses,
                 shape: fixture.input.shape,
@@ -928,7 +948,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
             claims: fold.outputClaims
         )
         XCTAssertThrowsSuperNeoError(
-            try CEOpeningRelation.proveLocalBatch(
+            try CEOpeningRelation.proveLocalBatchForTesting(
                 statement: mismatchedKeyStatement,
                 witnesses: terminalWitnesses,
                 shape: fixture.input.shape,
@@ -955,7 +975,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
             key: sameWidthWrongKey
         ))
         XCTAssertThrowsSuperNeoError(
-            try CEOpeningRelation.proveLocalBatch(
+            try CEOpeningRelation.proveLocalBatchForTesting(
                 statement: terminalStatement,
                 witnesses: terminalWitnesses,
                 shape: fixture.input.shape,
@@ -1439,7 +1459,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             statement: statement,
             verifierKeyDigest: fixture.key.verifierKeyDigest
         )
-        let envelope = try fixture.backend.makeProver(key: fixture.key).compressedTerminalFoldEnvelope(
+        let envelope = try fixture.backend.makeProver(key: fixture.key).compressedTerminalFoldEnvelopeForTesting(
             fixture.input,
             context: context,
             ceRandomSeed: Array("compressed-ce".utf8)
@@ -1576,11 +1596,15 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsProfileMismatchBeforeTranscriptVerification() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext(profileID: 7, verifierKeyDigest: fixture.key.verifierKeyDigest)
+        let context = makeEnvelopeContext(for: fixture.input, verifierKeyDigest: fixture.key.verifierKeyDigest)
         let proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
-        let wrongContext = makeEnvelopeContext(profileID: 8, verifierKeyDigest: fixture.key.verifierKeyDigest)
+        let wrongContext = makeEnvelopeContext(
+            for: fixture.input,
+            profileID: 8,
+            verifierKeyDigest: fixture.key.verifierKeyDigest
+        )
 
         let result = SuperNeoVerifier(key: fixture.key).reduceFoldEnvelope(
             input: fixture.input,
@@ -1594,7 +1618,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsTrailingBytes() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext(verifierKeyDigest: fixture.key.verifierKeyDigest)
+        let context = makeEnvelopeContext(for: fixture.input, verifierKeyDigest: fixture.key.verifierKeyDigest)
         var proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
@@ -1607,7 +1631,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsHeaderTamperingAndLengthMismatch() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext(verifierKeyDigest: fixture.key.verifierKeyDigest)
+        let context = makeEnvelopeContext(for: fixture.input, verifierKeyDigest: fixture.key.verifierKeyDigest)
         let proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
@@ -1637,7 +1661,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsKindMismatch() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext(verifierKeyDigest: fixture.key.verifierKeyDigest)
+        let context = makeEnvelopeContext(for: fixture.input, verifierKeyDigest: fixture.key.verifierKeyDigest)
         var proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
@@ -1648,7 +1672,11 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             .invalidEncoding("fold proof envelope kind mismatch")
         )
 
-        let wrongContext = makeEnvelopeContext(kind: .terminalLocal, verifierKeyDigest: fixture.key.verifierKeyDigest)
+        let wrongContext = makeEnvelopeContext(
+            for: fixture.input,
+            kind: .terminalLocal,
+            verifierKeyDigest: fixture.key.verifierKeyDigest
+        )
         let result = SuperNeoVerifier(key: fixture.key).reduceFoldEnvelope(
             input: fixture.input,
             proofBytes: try fixture.backend.makeProver(key: fixture.key).foldEnvelope(fixture.input, context: context).superNeoBytes,
@@ -1660,7 +1688,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsShapeStatementAndTranscriptDomainMismatch() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext(verifierKeyDigest: fixture.key.verifierKeyDigest)
+        let context = makeEnvelopeContext(for: fixture.input, verifierKeyDigest: fixture.key.verifierKeyDigest)
         let proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
@@ -1671,6 +1699,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
                 input: fixture.input,
                 proofBytes: proofBytes,
                 context: makeEnvelopeContext(
+                    for: fixture.input,
                     shapeDigest: .hash("wrong-shape"),
                     verifierKeyDigest: fixture.key.verifierKeyDigest
                 )
@@ -1682,6 +1711,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
                 input: fixture.input,
                 proofBytes: proofBytes,
                 context: makeEnvelopeContext(
+                    for: fixture.input,
                     statementDigest: .hash("wrong-statement"),
                     verifierKeyDigest: fixture.key.verifierKeyDigest
                 )
@@ -1693,6 +1723,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
                 input: fixture.input,
                 proofBytes: proofBytes,
                 context: makeEnvelopeContext(
+                    for: fixture.input,
                     verifierKeyDigest: fixture.key.verifierKeyDigest,
                     transcriptDomain: .hash("wrong-domain")
                 )
@@ -1701,9 +1732,84 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         )
     }
 
+    func testProverEnvelopeRejectsMismatchedContextBinding() throws {
+        let fixture = try makeFoldFixture()
+        let prover = fixture.backend.makeProver(key: fixture.key)
+        let context = makeEnvelopeContext(for: fixture.input, verifierKeyDigest: fixture.key.verifierKeyDigest)
+
+        XCTAssertThrowsSuperNeoError(
+            try prover.foldEnvelope(
+                fixture.input,
+                context: makeEnvelopeContext(
+                    for: fixture.input,
+                    profileID: context.profileID + 1,
+                    verifierKeyDigest: fixture.key.verifierKeyDigest
+                )
+            ),
+            .invalidParameter("proof envelope context profile mismatch")
+        )
+        XCTAssertThrowsSuperNeoError(
+            try prover.foldEnvelope(
+                fixture.input,
+                context: makeEnvelopeContext(
+                    for: fixture.input,
+                    kind: .terminalLocal,
+                    verifierKeyDigest: fixture.key.verifierKeyDigest
+                )
+            ),
+            .invalidParameter("proof envelope context kind mismatch")
+        )
+        XCTAssertThrowsSuperNeoError(
+            try prover.foldEnvelope(
+                fixture.input,
+                context: makeEnvelopeContext(
+                    for: fixture.input,
+                    shapeDigest: .hash("prover-wrong-shape"),
+                    verifierKeyDigest: fixture.key.verifierKeyDigest
+                )
+            ),
+            .invalidParameter("proof envelope context shape digest mismatch")
+        )
+        XCTAssertThrowsSuperNeoError(
+            try prover.foldEnvelope(
+                fixture.input,
+                context: makeEnvelopeContext(
+                    for: fixture.input,
+                    statementDigest: .hash("prover-wrong-statement"),
+                    verifierKeyDigest: fixture.key.verifierKeyDigest
+                )
+            ),
+            .invalidParameter("proof envelope context statement digest mismatch")
+        )
+        XCTAssertThrowsSuperNeoError(
+            try prover.terminalFoldEnvelope(
+                fixture.input,
+                context: makeEnvelopeContext(
+                    for: fixture.input,
+                    kind: .terminalLocal,
+                    statementDigest: .hash("terminal-wrong-statement"),
+                    verifierKeyDigest: fixture.key.verifierKeyDigest
+                )
+            ),
+            .invalidParameter("proof envelope context statement digest mismatch")
+        )
+        XCTAssertThrowsSuperNeoError(
+            try prover.compressedTerminalFoldEnvelope(
+                fixture.input,
+                context: makeEnvelopeContext(
+                    for: fixture.input,
+                    kind: .compressedPublic,
+                    shapeDigest: .hash("compressed-wrong-shape"),
+                    verifierKeyDigest: fixture.key.verifierKeyDigest
+                )
+            ),
+            .invalidParameter("proof envelope context shape digest mismatch")
+        )
+    }
+
     func testProofEnvelopeRejectsNonCanonicalFieldEncoding() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext(verifierKeyDigest: fixture.key.verifierKeyDigest)
+        let context = makeEnvelopeContext(for: fixture.input, verifierKeyDigest: fixture.key.verifierKeyDigest)
         var proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
@@ -2740,6 +2846,31 @@ extension SuperNeoTestCase {
             witnesses: [CCSWitness(privateWitness)]
         )
         return (backend, key, input, Array("fold".utf8))
+    }
+
+    func makeEnvelopeContext(
+        for input: SuperNeoFoldInput,
+        profileID: UInt16 = 1,
+        kind: ProofEnvelopeKind = .foldReduction,
+        shapeDigest: Digest256? = nil,
+        statementDigest: Digest256? = nil,
+        verifierKeyDigest: Digest256 = .hash("test-verifier-key"),
+        transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1")
+    ) -> ProofEnvelopeContext {
+        let publicInput = SuperNeoPublicFoldInput(input)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances,
+            priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+        )
+        return ProofEnvelopeContext(
+            profileID: profileID,
+            kind: kind,
+            shapeDigest: shapeDigest ?? publicInput.shape.shapeDigest,
+            statementDigest: statementDigest ?? statement.statementDigest,
+            verifierKeyDigest: verifierKeyDigest,
+            transcriptDomain: transcriptDomain
+        )
     }
 
     func makeEnvelopeContext(

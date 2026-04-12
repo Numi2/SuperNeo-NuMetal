@@ -398,6 +398,9 @@ public struct SparseRingMatrixCSR: Equatable, Sendable {
         guard columnIndices.count == values.count, rowOffsets.last == values.count else {
             throw SuperNeoError.invalidParameter("sparse ring matrix offsets must match value count")
         }
+        guard rowOffsets.allSatisfy({ $0 >= 0 && $0 <= values.count }) else {
+            throw SuperNeoError.invalidParameter("sparse ring row offsets out of bounds")
+        }
         for row in 0..<rows {
             let start = rowOffsets[row]
             let end = rowOffsets[row + 1]
