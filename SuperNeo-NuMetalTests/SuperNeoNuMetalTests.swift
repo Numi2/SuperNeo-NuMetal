@@ -1165,6 +1165,41 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         XCTAssertNoThrow(try SuperNeoVerifier(key: result.key).reduceFold(input: result.normalized.foldInput, proof: SuperNeoProver(key: result.key).fold(result.normalized.foldInput)))
     }
 
+    func testCCSNormalizerRejectsPriorClaimsBeforeChangingShapeAndKey() throws {
+        let publicInput = [GoldilocksField.one]
+        let witness = [GoldilocksField.zero, GoldilocksField.one]
+        let matrix = try SparseFieldMatrix(
+            rows: 3,
+            columns: 3,
+            entries: [
+                SparseFieldMatrix.Entry(row: 0, column: 0, value: .one),
+                SparseFieldMatrix.Entry(row: 1, column: 1, value: .one),
+                SparseFieldMatrix.Entry(row: 2, column: 2, value: .one)
+            ]
+        )
+        let relation = try RelationPolynomial(variableCount: 1, monomials: [])
+        let structure = CCSStructure(matrices: [matrix], relationPolynomial: relation)
+        let originalCommitment = AjtaiCommitment(Array(repeating: .zero, count: SuperNeoParameters.goldilocks.kappa))
+        let priorClaim = CCSEvaluationClaim(
+            commitment: originalCommitment,
+            publicInput: publicInput,
+            point: [GoldilocksExt2.zero, GoldilocksExt2.zero],
+            evaluations: [CyclotomicExt2Ring54.zero],
+            witness: publicInput + witness
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoCCSNormalizer.normalize(
+                structure: structure,
+                instances: [CCSInstance(commitment: originalCommitment, publicInput: publicInput)],
+                witnesses: [CCSWitness(witness)],
+                priorClaims: [priorClaim],
+                keySeed: Array("normalized-key-with-prior".utf8)
+            ),
+            .invalidParameter("normalization requires empty prior CE claims; normalize before producing prior claims")
+        )
+    }
+
     func testProofEnvelopeRejectsProfileMismatchBeforeTranscriptVerification() throws {
         let fixture = try makeFoldFixture()
         let context = makeEnvelopeContext(profileID: 7)

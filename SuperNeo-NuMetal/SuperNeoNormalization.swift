@@ -52,6 +52,9 @@ public enum SuperNeoCCSNormalizer {
         guard instances.count == witnesses.count else {
             throw SuperNeoError.invalidParameter("normalization instance and witness count mismatch")
         }
+        guard priorClaims.isEmpty else {
+            throw SuperNeoError.invalidParameter("normalization requires empty prior CE claims; normalize before producing prior claims")
+        }
 
         let originalRows = structure.matrices[0].rows
         let originalColumns = structure.matrices[0].columns
