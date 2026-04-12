@@ -160,6 +160,7 @@ public struct FoldReductionResult: Equatable, Sendable {
 public struct CEOpeningStatement: Equatable, Sendable {
     public let profileID: UInt16
     public let shapeDigest: Digest256
+    public let verifierKeyDigest: Digest256
     public let instance: CEInstance
 
     public var claim: CCSEvaluationClaim {
@@ -172,59 +173,100 @@ public struct CEOpeningStatement: Equatable, Sendable {
         )
     }
 
-    public init(profileID: UInt16, shapeDigest: Digest256, instance: CEInstance) {
+    public init(profileID: UInt16, shapeDigest: Digest256, verifierKeyDigest: Digest256, instance: CEInstance) {
         self.profileID = profileID
         self.shapeDigest = shapeDigest
+        self.verifierKeyDigest = verifierKeyDigest
         self.instance = instance
     }
 
-    public init(profileID: UInt16, shape: CCSShape, instance: CEInstance) {
-        self.init(profileID: profileID, shapeDigest: shape.shapeDigest, instance: instance)
+    public init(profileID: UInt16, shape: CCSShape, key: AjtaiCommitmentKey, instance: CEInstance) {
+        self.init(
+            profileID: profileID,
+            shapeDigest: shape.shapeDigest,
+            verifierKeyDigest: key.verifierKeyDigest,
+            instance: instance
+        )
     }
 
-    public init(profileID: UInt16, shapeDigest: Digest256, claim: CCSEvaluationClaim) {
-        self.init(profileID: profileID, shapeDigest: shapeDigest, instance: CEInstance(claim))
+    public init(profileID: UInt16, shapeDigest: Digest256, verifierKeyDigest: Digest256, claim: CCSEvaluationClaim) {
+        self.init(
+            profileID: profileID,
+            shapeDigest: shapeDigest,
+            verifierKeyDigest: verifierKeyDigest,
+            instance: CEInstance(claim)
+        )
     }
 
-    public init(profileID: UInt16, shape: CCSShape, claim: CCSEvaluationClaim) {
-        self.init(profileID: profileID, shapeDigest: shape.shapeDigest, claim: claim)
+    public init(profileID: UInt16, shape: CCSShape, key: AjtaiCommitmentKey, claim: CCSEvaluationClaim) {
+        self.init(
+            profileID: profileID,
+            shapeDigest: shape.shapeDigest,
+            verifierKeyDigest: key.verifierKeyDigest,
+            claim: claim
+        )
     }
 }
 
 public struct TerminalCEStatement: Equatable, Sendable {
     public let profileID: UInt16
     public let shapeDigest: Digest256
+    public let verifierKeyDigest: Digest256
     public let openings: [CEOpeningStatement]
 
     public var outputClaims: [CCSEvaluationClaim] {
         openings.map(\.claim)
     }
 
-    public init(profileID: UInt16, shapeDigest: Digest256, openings: [CEOpeningStatement]) throws {
+    public init(profileID: UInt16, shapeDigest: Digest256, verifierKeyDigest: Digest256, openings: [CEOpeningStatement]) throws {
         guard openings.allSatisfy({ $0.profileID == profileID }) else {
             throw SuperNeoError.invalidParameter("terminal CE statement profile mismatch")
         }
         guard openings.allSatisfy({ $0.shapeDigest == shapeDigest }) else {
             throw SuperNeoError.invalidParameter("terminal CE statement shape mismatch")
         }
+        guard openings.allSatisfy({ $0.verifierKeyDigest == verifierKeyDigest }) else {
+            throw SuperNeoError.invalidParameter("terminal CE statement verifier key mismatch")
+        }
         self.profileID = profileID
         self.shapeDigest = shapeDigest
+        self.verifierKeyDigest = verifierKeyDigest
         self.openings = openings
     }
 
-    public init(profileID: UInt16, shape: CCSShape, openings: [CEOpeningStatement]) throws {
-        try self.init(profileID: profileID, shapeDigest: shape.shapeDigest, openings: openings)
+    public init(profileID: UInt16, shape: CCSShape, key: AjtaiCommitmentKey, openings: [CEOpeningStatement]) throws {
+        try self.init(
+            profileID: profileID,
+            shapeDigest: shape.shapeDigest,
+            verifierKeyDigest: key.verifierKeyDigest,
+            openings: openings
+        )
     }
 
-    public init(profileID: UInt16, shapeDigest: Digest256, claims: [CCSEvaluationClaim]) throws {
+    public init(profileID: UInt16, shapeDigest: Digest256, verifierKeyDigest: Digest256, claims: [CCSEvaluationClaim]) throws {
         let openings = claims.map {
-            CEOpeningStatement(profileID: profileID, shapeDigest: shapeDigest, claim: $0)
+            CEOpeningStatement(
+                profileID: profileID,
+                shapeDigest: shapeDigest,
+                verifierKeyDigest: verifierKeyDigest,
+                claim: $0
+            )
         }
-        try self.init(profileID: profileID, shapeDigest: shapeDigest, openings: openings)
+        try self.init(
+            profileID: profileID,
+            shapeDigest: shapeDigest,
+            verifierKeyDigest: verifierKeyDigest,
+            openings: openings
+        )
     }
 
-    public init(profileID: UInt16, shape: CCSShape, claims: [CCSEvaluationClaim]) throws {
-        try self.init(profileID: profileID, shapeDigest: shape.shapeDigest, claims: claims)
+    public init(profileID: UInt16, shape: CCSShape, key: AjtaiCommitmentKey, claims: [CCSEvaluationClaim]) throws {
+        try self.init(
+            profileID: profileID,
+            shapeDigest: shape.shapeDigest,
+            verifierKeyDigest: key.verifierKeyDigest,
+            claims: claims
+        )
     }
 }
 
@@ -324,6 +366,9 @@ public enum CEOpeningRelation {
         guard statement.shapeDigest == shape.shapeDigest else {
             throw SuperNeoError.invalidParameter("terminal CE statement shape mismatch")
         }
+        guard statement.verifierKeyDigest == key.verifierKeyDigest else {
+            throw SuperNeoError.invalidParameter("terminal CE statement verifier key mismatch")
+        }
         guard key.parameters == parameters else {
             throw SuperNeoError.invalidParameter("CE opening proof key parameters mismatch")
         }
@@ -410,6 +455,7 @@ public enum CEOpeningRelation {
     ) throws -> Bool {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
+        guard statement.verifierKeyDigest == key.verifierKeyDigest else { return false }
         guard key.parameters == parameters else { return false }
         guard key.matrix.columns == shape.nRing else { return false }
         guard !statement.openings.isEmpty else { return false }
@@ -447,6 +493,7 @@ public enum CEOpeningRelation {
     ) throws -> Bool {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
+        guard statement.verifierKeyDigest == key.verifierKeyDigest else { return false }
         guard key.parameters == parameters else { return false }
         guard key.matrix.columns == shape.nRing else { return false }
         let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
@@ -470,6 +517,7 @@ public enum CEOpeningRelation {
     ) throws -> Bool {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
+        guard statement.verifierKeyDigest == key.verifierKeyDigest else { return false }
         guard key.parameters == parameters else { return false }
         guard key.matrix.columns == shape.nRing else { return false }
         let openedClaim = CCSEvaluationClaim(
@@ -532,6 +580,7 @@ public enum CEOpeningRelation {
     ) throws -> Bool {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
+        guard statement.verifierKeyDigest == key.verifierKeyDigest else { return false }
         guard key.parameters == parameters else { return false }
         guard key.matrix.columns == shape.nRing else { return false }
         guard statement.openings.count == witnesses.count else { return false }
@@ -1186,6 +1235,7 @@ public final class SuperNeoProver: @unchecked Sendable {
     }
 
     public func foldEnvelope(_ input: SuperNeoFoldInput, context: ProofEnvelopeContext) throws -> FoldProofEnvelope {
+        try validateEnvelopeContext(context, key: key)
         let proof = try fold(input, transcriptSeed: context.transcriptBindingBytes)
         return try FoldProofEnvelope(context: context, proof: proof)
     }
@@ -1199,6 +1249,7 @@ public final class SuperNeoProver: @unchecked Sendable {
         let terminalStatement = try TerminalCEStatement(
             profileID: parameters.profileID,
             shape: input.shape,
+            key: key,
             claims: fold.outputClaims
         )
         let witnesses = try fold.outputClaims.map { claim -> CEOpeningWitness in
@@ -1231,6 +1282,7 @@ public final class SuperNeoProver: @unchecked Sendable {
         guard context.kind == .terminalLocal else {
             throw SuperNeoError.invalidParameter("terminal fold envelope context must be terminalLocal")
         }
+        try validateEnvelopeContext(context, key: key)
         let proof = try terminalFold(
             input,
             transcriptSeed: context.transcriptBindingBytes,
@@ -1247,11 +1299,13 @@ public final class SuperNeoProver: @unchecked Sendable {
         guard context.kind == .compressedPublic else {
             throw SuperNeoError.invalidParameter("compressed terminal fold envelope context must be compressedPublic")
         }
+        try validateEnvelopeContext(context, key: key)
         let terminalContext = ProofEnvelopeContext(
             profileID: context.profileID,
             kind: .terminalLocal,
             shapeDigest: context.shapeDigest,
             statementDigest: context.statementDigest,
+            verifierKeyDigest: context.verifierKeyDigest,
             transcriptDomain: context.transcriptDomain
         )
         let proof = try terminalFold(
@@ -1264,7 +1318,7 @@ public final class SuperNeoProver: @unchecked Sendable {
             context: context,
             publicInputDigest: compressedPublicInputDigest(publicInput),
             terminalStatementDigest: proof.terminalStatement.statementDigest,
-            verifierKeyDigest: compressedVerifierKeyDigest(key)
+            verifierKeyDigest: key.verifierKeyDigest
         )
         return try CompressedTerminalProofEnvelope(
             context: context,
@@ -1448,6 +1502,9 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             guard proof.terminalStatement.shapeDigest == publicInput.shape.shapeDigest else {
                 return .invalid("terminal CE statement shape mismatch")
             }
+            guard proof.terminalStatement.verifierKeyDigest == key.verifierKeyDigest else {
+                return .invalid("terminal CE statement verifier key mismatch")
+            }
             guard proof.outputClaims.hasSamePublicData(as: reduction.outputClaims) else {
                 return .invalid("terminal CE statement does not match fold reduction output")
             }
@@ -1502,6 +1559,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             let terminalStatement = try TerminalCEStatement(
                 profileID: parameters.profileID,
                 shape: publicInput.shape,
+                key: key,
                 claims: outputClaims
             )
             guard try CEOpeningRelation.verifyTerminalLocalBatch(
@@ -1673,6 +1731,12 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             guard envelope.header.statementDigest == expectedContext.statementDigest else {
                 return .invalid("statement digest mismatch")
             }
+            guard envelope.header.verifierKeyDigest == expectedContext.verifierKeyDigest else {
+                return .invalid("verifier key digest mismatch")
+            }
+            guard expectedContext.verifierKeyDigest == key.verifierKeyDigest else {
+                return .invalid("input verifier key digest mismatch")
+            }
             guard envelope.header.transcriptDomain == expectedContext.transcriptDomain else {
                 return .invalid("transcript domain mismatch")
             }
@@ -1729,6 +1793,12 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             guard envelope.header.statementDigest == expectedContext.statementDigest else {
                 return .invalid("statement digest mismatch")
             }
+            guard envelope.header.verifierKeyDigest == expectedContext.verifierKeyDigest else {
+                return .invalid("verifier key digest mismatch")
+            }
+            guard expectedContext.verifierKeyDigest == key.verifierKeyDigest else {
+                return .invalid("input verifier key digest mismatch")
+            }
             guard envelope.header.transcriptDomain == expectedContext.transcriptDomain else {
                 return .invalid("transcript domain mismatch")
             }
@@ -1784,6 +1854,12 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             guard envelope.header.statementDigest == expectedContext.statementDigest else {
                 return .invalid("statement digest mismatch")
             }
+            guard envelope.header.verifierKeyDigest == expectedContext.verifierKeyDigest else {
+                return .invalid("verifier key digest mismatch")
+            }
+            guard expectedContext.verifierKeyDigest == key.verifierKeyDigest else {
+                return .invalid("input verifier key digest mismatch")
+            }
             guard envelope.header.transcriptDomain == expectedContext.transcriptDomain else {
                 return .invalid("transcript domain mismatch")
             }
@@ -1804,7 +1880,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             guard envelope.proof.statement.publicInputDigest == compressedPublicInputDigest(publicInput) else {
                 return .invalid("compressed public input digest mismatch")
             }
-            guard envelope.proof.statement.verifierKeyDigest == compressedVerifierKeyDigest(key) else {
+            guard envelope.proof.statement.verifierKeyDigest == key.verifierKeyDigest else {
                 return .invalid("compressed verifier key digest mismatch")
             }
             guard envelope.proof.statement.terminalStatementDigest == envelope.proof.terminalProof.terminalStatement.statementDigest else {
@@ -1815,6 +1891,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 kind: .terminalLocal,
                 shapeDigest: expectedContext.shapeDigest,
                 statementDigest: expectedContext.statementDigest,
+                verifierKeyDigest: expectedContext.verifierKeyDigest,
                 transcriptDomain: expectedContext.transcriptDomain
             )
             return verifyTerminalFold(
@@ -1857,6 +1934,12 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             }
             guard envelope.header.statementDigest == expectedContext.statementDigest else {
                 return .invalid("statement digest mismatch")
+            }
+            guard envelope.header.verifierKeyDigest == expectedContext.verifierKeyDigest else {
+                return .invalid("verifier key digest mismatch")
+            }
+            guard expectedContext.verifierKeyDigest == key.verifierKeyDigest else {
+                return .invalid("input verifier key digest mismatch")
             }
             guard envelope.header.transcriptDomain == expectedContext.transcriptDomain else {
                 return .invalid("transcript domain mismatch")
@@ -2305,6 +2388,12 @@ private func validateCommitmentKey(_ key: AjtaiCommitmentKey, matches shape: CCS
     }
 }
 
+private func validateEnvelopeContext(_ context: ProofEnvelopeContext, key: AjtaiCommitmentKey) throws {
+    guard context.verifierKeyDigest == key.verifierKeyDigest else {
+        throw SuperNeoError.invalidParameter("proof envelope context verifier key digest mismatch")
+    }
+}
+
 private func validateFoldInput(_ input: SuperNeoFoldInput, parameters: SuperNeoParameters) throws {
     guard !input.instances.isEmpty else {
         throw SuperNeoError.invalidParameter("fold input requires at least one CCS instance")
@@ -2505,15 +2594,6 @@ private func compressedPublicInputDigest(_ input: SuperNeoPublicFoldInput) -> Di
     )
 }
 
-private func compressedVerifierKeyDigest(_ key: AjtaiCommitmentKey) -> Digest256 {
-    Digest256.hash(
-        Array("SuperNeo-NuMetal.compressed-public.verifier-key.v1".utf8)
-            + transcriptEncodeCount(key.matrix.rows)
-            + transcriptEncodeCount(key.matrix.columns)
-            + key.matrix.elements.flatMap(\.superNeoBytes)
-    )
-}
-
 private func transcriptEncodeCount(_ value: Int) -> [UInt8] {
     withUnsafeBytes(of: UInt64(value).littleEndian, Array.init)
 }
@@ -2546,6 +2626,7 @@ extension ProofEnvelopeContext {
             kind: kind,
             shapeDigest: shapeDigest,
             statementDigest: statementDigest,
+            verifierKeyDigest: verifierKeyDigest,
             transcriptDomain: transcriptDomain,
             bodyLength: 0
         ).transcriptBindingBytes

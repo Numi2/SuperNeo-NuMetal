@@ -1075,6 +1075,7 @@ extension ProofEnvelopeContext {
         profileID: UInt16 = SuperNeoParameterProfile.goldilocksPhi54.profileID,
         kind: ProofEnvelopeKind = .foldReduction,
         statement: CCSStatement,
+        verifierKeyDigest: Digest256,
         transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1")
     ) {
         self.init(
@@ -1082,6 +1083,7 @@ extension ProofEnvelopeContext {
             kind: kind,
             shapeDigest: statement.shapeDigest,
             statementDigest: statement.statementDigest,
+            verifierKeyDigest: verifierKeyDigest,
             transcriptDomain: transcriptDomain
         )
     }

@@ -37,8 +37,8 @@ public enum ProofEnvelopeKind: UInt8, Equatable, Sendable {
 
 public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
     public static let magic: UInt32 = 0x4E_55_4D_51
-    public static let version: UInt16 = 3
-    public static let byteCount = 109
+    public static let version: UInt16 = 4
+    public static let byteCount = 141
 
     public let magic: UInt32
     public let version: UInt16
@@ -46,6 +46,7 @@ public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
     public let kind: ProofEnvelopeKind
     public let shapeDigest: Digest256
     public let statementDigest: Digest256
+    public let verifierKeyDigest: Digest256
     public let transcriptDomain: Digest256
     public let bodyLength: UInt32
 
@@ -54,6 +55,7 @@ public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
         kind: ProofEnvelopeKind = .foldReduction,
         shapeDigest: Digest256,
         statementDigest: Digest256,
+        verifierKeyDigest: Digest256,
         transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1"),
         bodyLength: UInt32
     ) {
@@ -63,6 +65,7 @@ public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
         self.kind = kind
         self.shapeDigest = shapeDigest
         self.statementDigest = statementDigest
+        self.verifierKeyDigest = verifierKeyDigest
         self.transcriptDomain = transcriptDomain
         self.bodyLength = bodyLength
     }
@@ -74,6 +77,7 @@ public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
         kind: ProofEnvelopeKind,
         shapeDigest: Digest256,
         statementDigest: Digest256,
+        verifierKeyDigest: Digest256,
         transcriptDomain: Digest256,
         bodyLength: UInt32
     ) {
@@ -83,6 +87,7 @@ public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
         self.kind = kind
         self.shapeDigest = shapeDigest
         self.statementDigest = statementDigest
+        self.verifierKeyDigest = verifierKeyDigest
         self.transcriptDomain = transcriptDomain
         self.bodyLength = bodyLength
     }
@@ -94,6 +99,7 @@ public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
             + encodeUInt8(kind.rawValue)
             + shapeDigest.superNeoBytes
             + statementDigest.superNeoBytes
+            + verifierKeyDigest.superNeoBytes
             + transcriptDomain.superNeoBytes
             + encodeUInt32(bodyLength)
     }
@@ -105,6 +111,7 @@ public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
             + encodeUInt8(kind.rawValue)
             + shapeDigest.superNeoBytes
             + statementDigest.superNeoBytes
+            + verifierKeyDigest.superNeoBytes
             + transcriptDomain.superNeoBytes
     }
 }
@@ -114,6 +121,7 @@ public struct ProofEnvelopeContext: Equatable, Sendable {
     public let kind: ProofEnvelopeKind
     public let shapeDigest: Digest256
     public let statementDigest: Digest256
+    public let verifierKeyDigest: Digest256
     public let transcriptDomain: Digest256
 
     public init(
@@ -121,12 +129,14 @@ public struct ProofEnvelopeContext: Equatable, Sendable {
         kind: ProofEnvelopeKind = .foldReduction,
         shapeDigest: Digest256,
         statementDigest: Digest256,
+        verifierKeyDigest: Digest256,
         transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1")
     ) {
         self.profileID = profileID
         self.kind = kind
         self.shapeDigest = shapeDigest
         self.statementDigest = statementDigest
+        self.verifierKeyDigest = verifierKeyDigest
         self.transcriptDomain = transcriptDomain
     }
 }
@@ -150,6 +160,7 @@ public struct FoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncodable {
             kind: context.kind,
             shapeDigest: context.shapeDigest,
             statementDigest: context.statementDigest,
+            verifierKeyDigest: context.verifierKeyDigest,
             transcriptDomain: context.transcriptDomain,
             bodyLength: UInt32(body.count)
         )
@@ -199,6 +210,7 @@ public struct TerminalFoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncoda
             kind: context.kind,
             shapeDigest: context.shapeDigest,
             statementDigest: context.statementDigest,
+            verifierKeyDigest: context.verifierKeyDigest,
             transcriptDomain: context.transcriptDomain,
             bodyLength: UInt32(body.count)
         )
@@ -252,6 +264,7 @@ public struct CompressedTerminalStatement: Equatable, Sendable, SuperNeoByteEnco
             + encodeUInt8(context.kind.rawValue)
             + context.shapeDigest.superNeoBytes
             + context.statementDigest.superNeoBytes
+            + context.verifierKeyDigest.superNeoBytes
             + context.transcriptDomain.superNeoBytes
             + publicInputDigest.superNeoBytes
             + terminalStatementDigest.superNeoBytes
@@ -344,6 +357,7 @@ public struct CompressedTerminalProofEnvelope: Equatable, Sendable, SuperNeoByte
             kind: context.kind,
             shapeDigest: context.shapeDigest,
             statementDigest: context.statementDigest,
+            verifierKeyDigest: context.verifierKeyDigest,
             transcriptDomain: context.transcriptDomain,
             bodyLength: UInt32(body.count)
         )
@@ -468,6 +482,7 @@ extension CEOpeningStatement: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
         var bytes = encodeUInt16(profileID)
         bytes.append(contentsOf: shapeDigest.superNeoBytes)
+        bytes.append(contentsOf: verifierKeyDigest.superNeoBytes)
         bytes.append(contentsOf: instance.superNeoBytes)
         return bytes
     }
@@ -481,6 +496,7 @@ extension TerminalCEStatement: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
         var bytes = encodeUInt16(profileID)
         bytes.append(contentsOf: shapeDigest.superNeoBytes)
+        bytes.append(contentsOf: verifierKeyDigest.superNeoBytes)
         bytes.append(contentsOf: encodeCount(openings.count))
         for opening in openings {
             bytes.append(contentsOf: opening.superNeoBytes)
@@ -711,6 +727,7 @@ extension ByteReader {
         }
         let shapeDigest = try Digest256(readData(count: Digest256.byteCount))
         let statementDigest = try Digest256(readData(count: Digest256.byteCount))
+        let verifierKeyDigest = try Digest256(readData(count: Digest256.byteCount))
         let transcriptDomain = try Digest256(readData(count: Digest256.byteCount))
         let bodyLength = try readUInt32()
         return ProofEnvelopeHeader(
@@ -720,6 +737,7 @@ extension ByteReader {
             kind: kind,
             shapeDigest: shapeDigest,
             statementDigest: statementDigest,
+            verifierKeyDigest: verifierKeyDigest,
             transcriptDomain: transcriptDomain,
             bodyLength: bodyLength
         )
@@ -824,17 +842,24 @@ extension ByteReader {
     fileprivate mutating func readCEOpeningStatement(parameters: SuperNeoParameters) throws -> CEOpeningStatement {
         let profileID = try readUInt16()
         let shapeDigest = try Digest256(readData(count: Digest256.byteCount))
+        let verifierKeyDigest = try Digest256(readData(count: Digest256.byteCount))
         let instance = try readCEInstance(parameters: parameters)
-        return CEOpeningStatement(profileID: profileID, shapeDigest: shapeDigest, instance: instance)
+        return CEOpeningStatement(
+            profileID: profileID,
+            shapeDigest: shapeDigest,
+            verifierKeyDigest: verifierKeyDigest,
+            instance: instance
+        )
     }
 
     fileprivate mutating func readTerminalCEStatement(parameters: SuperNeoParameters) throws -> TerminalCEStatement {
         let profileID = try readUInt16()
         let shapeDigest = try Digest256(readData(count: Digest256.byteCount))
+        let verifierKeyDigest = try Digest256(readData(count: Digest256.byteCount))
         let openingCount = try readCount(
             maximum: parameters.decompositionLength,
             name: "terminal CE opening",
-            elementByteWidth: 2 + Digest256.byteCount
+            elementByteWidth: 2 + (2 * Digest256.byteCount)
         )
         guard openingCount > 0 else {
             throw SuperNeoError.invalidEncoding("terminal CE statement cannot be empty")
@@ -845,6 +870,7 @@ extension ByteReader {
         return try TerminalCEStatement(
             profileID: profileID,
             shapeDigest: shapeDigest,
+            verifierKeyDigest: verifierKeyDigest,
             openings: openings
         )
     }
@@ -1021,6 +1047,7 @@ extension ByteReader {
             kind: kind,
             shapeDigest: Digest256(readData(count: Digest256.byteCount)),
             statementDigest: Digest256(readData(count: Digest256.byteCount)),
+            verifierKeyDigest: Digest256(readData(count: Digest256.byteCount)),
             transcriptDomain: Digest256(readData(count: Digest256.byteCount))
         )
         return try CompressedTerminalStatement(

@@ -27,6 +27,27 @@ public struct AjtaiCommitmentKey: Equatable, Sendable {
         self.parameters = parameters
         self.matrix = matrix
     }
+
+    public var verifierKeyDigest: Digest256 {
+        var bytes = Array("SuperNeo-NuMetal.ajtai-verifier-key.v1".utf8)
+        bytes.append(contentsOf: ajtaiDigestEncodeUInt16(parameters.profileID))
+        bytes.append(contentsOf: ajtaiDigestEncodeUInt64(UInt64(parameters.kappa)))
+        bytes.append(contentsOf: ajtaiDigestEncodeUInt64(UInt64(parameters.ringDegree)))
+        bytes.append(contentsOf: ajtaiDigestEncodeUInt64(UInt64(parameters.normBound)))
+        bytes.append(contentsOf: ajtaiDigestEncodeUInt64(UInt64(parameters.decompositionLength)))
+        bytes.append(contentsOf: ajtaiDigestEncodeUInt64(UInt64(matrix.rows)))
+        bytes.append(contentsOf: ajtaiDigestEncodeUInt64(UInt64(matrix.columns)))
+        bytes.append(contentsOf: matrix.elements.flatMap(\.littleEndianBytes))
+        return Digest256.hash(bytes)
+    }
+}
+
+private func ajtaiDigestEncodeUInt16(_ value: UInt16) -> [UInt8] {
+    withUnsafeBytes(of: value.littleEndian, Array.init)
+}
+
+private func ajtaiDigestEncodeUInt64(_ value: UInt64) -> [UInt8] {
+    withUnsafeBytes(of: value.littleEndian, Array.init)
 }
 
 public struct AjtaiCommitment: Equatable, Sendable {

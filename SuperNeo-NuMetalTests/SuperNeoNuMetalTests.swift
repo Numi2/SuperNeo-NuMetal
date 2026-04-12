@@ -2,6 +2,15 @@ import XCTest
 import Metal
 @testable import SuperNeo_NuMetal
 
+private let encodedCountByteWidth = 8
+private let proofEnvelopeVerifierKeyDigestOffset = 4 + 2 + 2 + 1 + (2 * Digest256.byteCount)
+private let ceOpeningStatementVerifierKeyDigestOffset = 2 + Digest256.byteCount
+private let terminalCEStatementVerifierKeyDigestOffset = 2 + Digest256.byteCount
+private let compressedStatementContextVerifierKeyDigestOffset =
+    Digest256.byteCount + 2 + 1 + (2 * Digest256.byteCount)
+private let compressedStatementVerifierKeyDigestOffset =
+    compressedStatementContextVerifierKeyDigestOffset + (4 * Digest256.byteCount)
+
 class SuperNeoTestCase: XCTestCase {
     func requireMetalDevice(file: StaticString = #filePath, line: UInt = #line) throws -> MTLDevice {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -597,7 +606,11 @@ final class ProtocolShapeTests: SuperNeoTestCase {
 
         let firstStatement = CCSStatement(shapeDigest: shape.shapeDigest, ccsInstances: [first])
         let secondStatement = CCSStatement(shapeDigest: shape.shapeDigest, ccsInstances: [second])
-        let context = ProofEnvelopeContext(profileID: 1, statement: firstStatement)
+        let context = ProofEnvelopeContext(
+            profileID: 1,
+            statement: firstStatement,
+            verifierKeyDigest: key.verifierKeyDigest
+        )
 
         XCTAssertNotEqual(firstStatement.statementDigest, secondStatement.statementDigest)
         XCTAssertEqual(context.shapeDigest, shape.shapeDigest)
@@ -640,6 +653,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         let statement = CEOpeningStatement(
             profileID: fixture.key.parameters.profileID,
             shape: fixture.input.shape,
+            key: fixture.key,
             claim: claim
         )
 
@@ -655,6 +669,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         let wrongProfile = CEOpeningStatement(
             profileID: fixture.key.parameters.profileID + 1,
             shape: fixture.input.shape,
+            key: fixture.key,
             claim: claim
         )
         XCTAssertNotEqual(statement.statementDigest, wrongProfile.statementDigest)
@@ -670,6 +685,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         let tamperedStatement = CEOpeningStatement(
             profileID: fixture.key.parameters.profileID,
             shape: fixture.input.shape,
+            key: fixture.key,
             claim: replacing(claim, evaluations: tamperedEvaluations)
         )
         XCTAssertNotEqual(statement.statementDigest, tamperedStatement.statementDigest)
@@ -683,6 +699,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         let terminalStatement = try TerminalCEStatement(
             profileID: fixture.key.parameters.profileID,
             shape: fixture.input.shape,
+            key: fixture.key,
             claims: fold.outputClaims
         )
         let terminalWitnesses = try fold.outputClaims.map { claim in
@@ -700,6 +717,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         let shortTerminalStatement = try TerminalCEStatement(
             profileID: fixture.key.parameters.profileID,
             shape: fixture.input.shape,
+            key: fixture.key,
             claims: Array(fold.outputClaims.dropLast())
         )
         XCTAssertFalse(try CEOpeningRelation.verifyTerminalLocalBatch(
@@ -713,6 +731,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
             try TerminalCEStatement(
                 profileID: fixture.key.parameters.profileID,
                 shape: fixture.input.shape,
+                key: fixture.key,
                 openings: [wrongProfile] + terminalStatement.openings.dropFirst()
             ),
             .invalidParameter("terminal CE statement profile mismatch")
@@ -744,6 +763,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         let statement = try TerminalCEStatement(
             profileID: fixture.key.parameters.profileID,
             shape: fixture.input.shape,
+            key: fixture.key,
             claims: [claim]
         )
 
@@ -776,6 +796,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         let tamperedStatement = try TerminalCEStatement(
             profileID: fixture.key.parameters.profileID,
             shape: fixture.input.shape,
+            key: fixture.key,
             claims: [replacing(claim, evaluations: tamperedEvaluations)]
         )
         XCTAssertFalse(try CEOpeningRelation.verify(
@@ -805,11 +826,13 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         let statement = CEOpeningStatement(
             profileID: fixture.key.parameters.profileID,
             shape: fixture.input.shape,
+            key: fixture.key,
             claim: claim
         )
         let terminalStatement = try TerminalCEStatement(
             profileID: fixture.key.parameters.profileID,
             shape: fixture.input.shape,
+            key: fixture.key,
             claims: fold.outputClaims
         )
         let terminalWitnesses = try fold.outputClaims.map { claim in
@@ -840,7 +863,50 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
                 key: mismatchedKey,
                 randomSeed: Array("ce-opening-key-mismatch-proof".utf8)
             ),
+            .invalidParameter("terminal CE statement verifier key mismatch")
+        )
+        let mismatchedKeyStatement = try TerminalCEStatement(
+            profileID: fixture.key.parameters.profileID,
+            shape: fixture.input.shape,
+            key: mismatchedKey,
+            claims: fold.outputClaims
+        )
+        XCTAssertThrowsSuperNeoError(
+            try CEOpeningRelation.proveLocalBatch(
+                statement: mismatchedKeyStatement,
+                witnesses: terminalWitnesses,
+                shape: fixture.input.shape,
+                key: mismatchedKey,
+                randomSeed: Array("ce-opening-key-column-mismatch-proof".utf8)
+            ),
             .invalidParameter("CE opening key column count must match shape.nRing")
+        )
+
+        let sameWidthWrongKey = try AjtaiCommitmentKey(
+            columns: fixture.input.shape.nRing,
+            seed: Array("ce-opening-same-width-wrong-key".utf8)
+        )
+        XCTAssertFalse(try CEOpeningRelation.verifyLocal(
+            statement: statement,
+            witness: witness,
+            shape: fixture.input.shape,
+            key: sameWidthWrongKey
+        ))
+        XCTAssertFalse(try CEOpeningRelation.verifyTerminalLocalBatch(
+            statement: terminalStatement,
+            witnesses: terminalWitnesses,
+            shape: fixture.input.shape,
+            key: sameWidthWrongKey
+        ))
+        XCTAssertThrowsSuperNeoError(
+            try CEOpeningRelation.proveLocalBatch(
+                statement: terminalStatement,
+                witnesses: terminalWitnesses,
+                shape: fixture.input.shape,
+                key: sameWidthWrongKey,
+                randomSeed: Array("ce-opening-same-width-wrong-key-proof".utf8)
+            ),
+            .invalidParameter("terminal CE statement verifier key mismatch")
         )
     }
 
@@ -1080,7 +1146,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             statement: CCSStatement(
                 shapeDigest: fixture.input.shape.shapeDigest,
                 ccsInstances: fixture.input.instances
-            )
+            ),
+            verifierKeyDigest: fixture.key.verifierKeyDigest
         )
 
         let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(
@@ -1106,9 +1173,74 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         XCTAssertEqual(reparsed.header.kind, .foldReduction)
         XCTAssertEqual(reparsed.header.shapeDigest, context.shapeDigest)
         XCTAssertEqual(reparsed.header.statementDigest, context.statementDigest)
+        XCTAssertEqual(reparsed.header.verifierKeyDigest, fixture.key.verifierKeyDigest)
         XCTAssertEqual(reparsed.header.bodyLength, UInt32(reparsed.proof.superNeoBytes.count))
         XCTAssertTrue(reduction.isValid, reduction.reason ?? "")
         XCTAssertEqual(result, .valid)
+    }
+
+    func testProofEnvelopeBindsVerifierKeyDigest() throws {
+        let fixture = try makeFoldFixture()
+        let statement = CCSStatement(
+            shapeDigest: fixture.input.shape.shapeDigest,
+            ccsInstances: fixture.input.instances
+        )
+        let context = ProofEnvelopeContext(
+            profileID: 1,
+            statement: statement,
+            verifierKeyDigest: fixture.key.verifierKeyDigest
+        )
+        let proofBytes = try fixture.backend.makeProver(key: fixture.key)
+            .foldEnvelope(fixture.input, context: context)
+            .superNeoBytes
+        let sameWidthWrongKey = try AjtaiCommitmentKey(
+            columns: fixture.input.shape.nRing,
+            seed: Array("fold-envelope-same-width-wrong-key".utf8)
+        )
+        let wrongDigestContext = ProofEnvelopeContext(
+            profileID: context.profileID,
+            kind: context.kind,
+            shapeDigest: context.shapeDigest,
+            statementDigest: context.statementDigest,
+            verifierKeyDigest: sameWidthWrongKey.verifierKeyDigest,
+            transcriptDomain: context.transcriptDomain
+        )
+        let verifier = SuperNeoVerifier(key: fixture.key)
+
+        XCTAssertThrowsSuperNeoError(
+            try fixture.backend.makeProver(key: fixture.key).foldEnvelope(
+                fixture.input,
+                context: wrongDigestContext
+            ),
+            .invalidParameter("proof envelope context verifier key digest mismatch")
+        )
+        XCTAssertInvalid(
+            verifier.reduceFoldEnvelope(
+                input: fixture.input,
+                proofBytes: proofBytes,
+                context: wrongDigestContext
+            ),
+            reason: "verifier key digest mismatch"
+        )
+        XCTAssertInvalid(
+            SuperNeoVerifier(key: sameWidthWrongKey).reduceFoldEnvelope(
+                input: fixture.input,
+                proofBytes: proofBytes,
+                context: context
+            ),
+            reason: "input verifier key digest mismatch"
+        )
+
+        var mutatedHeader = proofBytes
+        mutatedHeader[proofEnvelopeVerifierKeyDigestOffset] ^= 0x01
+        XCTAssertInvalid(
+            verifier.reduceFoldEnvelope(
+                input: fixture.input,
+                proofBytes: mutatedHeader,
+                context: context
+            ),
+            reason: "verifier key digest mismatch"
+        )
     }
 
     func testProofEnvelopeBodyMutationCorpusNeverVerifies() throws {
@@ -1118,7 +1250,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             statement: CCSStatement(
                 shapeDigest: fixture.input.shape.shapeDigest,
                 ccsInstances: fixture.input.instances
-            )
+            ),
+            verifierKeyDigest: fixture.key.verifierKeyDigest
         )
         let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(
             fixture.input,
@@ -1161,7 +1294,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             statement: CCSStatement(
                 shapeDigest: fixture.input.shape.shapeDigest,
                 ccsInstances: fixture.input.instances
-            )
+            ),
+            verifierKeyDigest: fixture.key.verifierKeyDigest
         )
         let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(
             fixture.input,
@@ -1170,6 +1304,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         let terminalStatement = try TerminalCEStatement(
             profileID: fixture.key.parameters.profileID,
             shape: fixture.input.shape,
+            key: fixture.key,
             claims: fold.outputClaims
         )
         let proof = TerminalFoldProof(
@@ -1196,6 +1331,25 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             ),
             reason: "terminal CE opening proof verification failed"
         )
+
+        let terminalStatementOffset = ProofEnvelopeHeader.byteCount + proof.foldProof.superNeoBytes.count
+        var mutatedTerminalStatementKey = envelope.superNeoBytes
+        mutatedTerminalStatementKey[terminalStatementOffset + terminalCEStatementVerifierKeyDigestOffset] ^= 0x01
+        XCTAssertThrowsSuperNeoError(
+            try TerminalFoldProofEnvelope(bytes: mutatedTerminalStatementKey),
+            .invalidParameter("terminal CE statement verifier key mismatch")
+        )
+
+        var mutatedFirstOpeningKey = envelope.superNeoBytes
+        let firstOpeningOffset = terminalStatementOffset
+            + terminalCEStatementVerifierKeyDigestOffset
+            + Digest256.byteCount
+            + encodedCountByteWidth
+        mutatedFirstOpeningKey[firstOpeningOffset + ceOpeningStatementVerifierKeyDigestOffset] ^= 0x01
+        XCTAssertThrowsSuperNeoError(
+            try TerminalFoldProofEnvelope(bytes: mutatedFirstOpeningKey),
+            .invalidParameter("terminal CE statement verifier key mismatch")
+        )
     }
 
     func testCompressedPublicEnvelopeRoundTripsAndBindsPublicInputs() throws {
@@ -1207,7 +1361,8 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         let context = ProofEnvelopeContext(
             profileID: 1,
             kind: .compressedPublic,
-            statement: statement
+            statement: statement,
+            verifierKeyDigest: fixture.key.verifierKeyDigest
         )
         let envelope = try fixture.backend.makeProver(key: fixture.key).compressedTerminalFoldEnvelope(
             fixture.input,
@@ -1244,6 +1399,35 @@ final class ProtocolE2ETests: SuperNeoTestCase {
                 context: context
             ),
             reason: "input statement digest mismatch"
+        )
+
+        var mutatedHeaderKey = envelope.superNeoBytes
+        mutatedHeaderKey[proofEnvelopeVerifierKeyDigestOffset] ^= 0x01
+        XCTAssertInvalid(
+            verifier.verifyCompressedTerminalFoldEnvelope(
+                publicInput: SuperNeoPublicFoldInput(fixture.input),
+                proofBytes: mutatedHeaderKey,
+                context: context
+            ),
+            reason: "verifier key digest mismatch"
+        )
+
+        var mutatedCompressedContextKey = envelope.superNeoBytes
+        mutatedCompressedContextKey[
+            ProofEnvelopeHeader.byteCount + compressedStatementContextVerifierKeyDigestOffset
+        ] ^= 0x01
+        XCTAssertThrowsSuperNeoError(
+            try CompressedTerminalProofEnvelope(bytes: mutatedCompressedContextKey),
+            .invalidEncoding("compressed terminal proof transcript mismatch")
+        )
+
+        var mutatedCompressedRelationKey = envelope.superNeoBytes
+        mutatedCompressedRelationKey[
+            ProofEnvelopeHeader.byteCount + compressedStatementVerifierKeyDigestOffset
+        ] ^= 0x01
+        XCTAssertThrowsSuperNeoError(
+            try CompressedTerminalProofEnvelope(bytes: mutatedCompressedRelationKey),
+            .invalidEncoding("compressed terminal proof transcript mismatch")
         )
     }
 
@@ -1317,11 +1501,11 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsProfileMismatchBeforeTranscriptVerification() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext(profileID: 7)
+        let context = makeEnvelopeContext(profileID: 7, verifierKeyDigest: fixture.key.verifierKeyDigest)
         let proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
-        let wrongContext = makeEnvelopeContext(profileID: 8)
+        let wrongContext = makeEnvelopeContext(profileID: 8, verifierKeyDigest: fixture.key.verifierKeyDigest)
 
         let result = SuperNeoVerifier(key: fixture.key).reduceFoldEnvelope(
             input: fixture.input,
@@ -1335,7 +1519,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsTrailingBytes() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext()
+        let context = makeEnvelopeContext(verifierKeyDigest: fixture.key.verifierKeyDigest)
         var proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
@@ -1348,7 +1532,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsHeaderTamperingAndLengthMismatch() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext()
+        let context = makeEnvelopeContext(verifierKeyDigest: fixture.key.verifierKeyDigest)
         let proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
@@ -1378,7 +1562,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsKindMismatch() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext()
+        let context = makeEnvelopeContext(verifierKeyDigest: fixture.key.verifierKeyDigest)
         var proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
@@ -1389,7 +1573,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             .invalidEncoding("fold proof envelope kind mismatch")
         )
 
-        let wrongContext = makeEnvelopeContext(kind: .terminalLocal)
+        let wrongContext = makeEnvelopeContext(kind: .terminalLocal, verifierKeyDigest: fixture.key.verifierKeyDigest)
         let result = SuperNeoVerifier(key: fixture.key).reduceFoldEnvelope(
             input: fixture.input,
             proofBytes: try fixture.backend.makeProver(key: fixture.key).foldEnvelope(fixture.input, context: context).superNeoBytes,
@@ -1401,7 +1585,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsShapeStatementAndTranscriptDomainMismatch() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext()
+        let context = makeEnvelopeContext(verifierKeyDigest: fixture.key.verifierKeyDigest)
         let proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
@@ -1411,7 +1595,10 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             verifier.reduceFoldEnvelope(
                 input: fixture.input,
                 proofBytes: proofBytes,
-                context: makeEnvelopeContext(shapeDigest: .hash("wrong-shape"))
+                context: makeEnvelopeContext(
+                    shapeDigest: .hash("wrong-shape"),
+                    verifierKeyDigest: fixture.key.verifierKeyDigest
+                )
             ),
             reason: "shape digest mismatch"
         )
@@ -1419,7 +1606,10 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             verifier.reduceFoldEnvelope(
                 input: fixture.input,
                 proofBytes: proofBytes,
-                context: makeEnvelopeContext(statementDigest: .hash("wrong-statement"))
+                context: makeEnvelopeContext(
+                    statementDigest: .hash("wrong-statement"),
+                    verifierKeyDigest: fixture.key.verifierKeyDigest
+                )
             ),
             reason: "statement digest mismatch"
         )
@@ -1427,7 +1617,10 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             verifier.reduceFoldEnvelope(
                 input: fixture.input,
                 proofBytes: proofBytes,
-                context: makeEnvelopeContext(transcriptDomain: .hash("wrong-domain"))
+                context: makeEnvelopeContext(
+                    verifierKeyDigest: fixture.key.verifierKeyDigest,
+                    transcriptDomain: .hash("wrong-domain")
+                )
             ),
             reason: "transcript domain mismatch"
         )
@@ -1435,7 +1628,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
     func testProofEnvelopeRejectsNonCanonicalFieldEncoding() throws {
         let fixture = try makeFoldFixture()
-        let context = makeEnvelopeContext()
+        let context = makeEnvelopeContext(verifierKeyDigest: fixture.key.verifierKeyDigest)
         var proofBytes = try fixture.backend.makeProver(key: fixture.key)
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
@@ -2471,6 +2664,7 @@ extension SuperNeoTestCase {
         kind: ProofEnvelopeKind = .foldReduction,
         shapeDigest: Digest256 = .hash("test-shape"),
         statementDigest: Digest256 = .hash("test-statement"),
+        verifierKeyDigest: Digest256 = .hash("test-verifier-key"),
         transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1")
     ) -> ProofEnvelopeContext {
         ProofEnvelopeContext(
@@ -2478,6 +2672,7 @@ extension SuperNeoTestCase {
             kind: kind,
             shapeDigest: shapeDigest,
             statementDigest: statementDigest,
+            verifierKeyDigest: verifierKeyDigest,
             transcriptDomain: transcriptDomain
         )
     }

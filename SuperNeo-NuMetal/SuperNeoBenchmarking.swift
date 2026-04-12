@@ -137,7 +137,8 @@ import os
         )
         let proofEnvelopeContext = ProofEnvelopeContext(
             profileID: parameters.profileID,
-            statement: statement
+            statement: statement,
+            verifierKeyDigest: key.verifierKeyDigest
         )
         let proofEnvelopeFold = try prover.foldWithOutput(
             input,

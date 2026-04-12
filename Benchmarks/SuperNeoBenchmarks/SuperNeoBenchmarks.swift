@@ -197,6 +197,7 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
         try TerminalCEStatement(
             profileID: fixture.parameters.profileID,
             shape: fixture.shape,
+            key: fixture.key,
             claims: fixture.referenceFold.outputClaims
         )
     }
@@ -225,7 +226,8 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     let compressedContext = ProofEnvelopeContext(
         profileID: fixture.parameters.profileID,
         kind: .compressedPublic,
-        statement: compressedStatement
+        statement: compressedStatement,
+        verifierKeyDigest: fixture.key.verifierKeyDigest
     )
     let compressedCESeed = Array("superneo-benchmark-compressed-ce-\(label)".utf8)
     let compressedEnvelope = benchmarkSetupValue("failed to build compressed terminal envelope for \(label)") {
