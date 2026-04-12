@@ -743,6 +743,7 @@ public struct SuperNeoFoldInput: Sendable {
             publicInputCount: publicInputCount,
             relationPolynomial: relationPolynomial
         )
+        try SuperNeoFoldingShapeContract.paperNormalized.validate(shape)
         self.shape = shape
         self.structure = shape.structure
         self.instances = instances
@@ -785,15 +786,10 @@ public struct CCSQOracle: SumcheckOracle {
         guard alpha.count == numVars else {
             throw SuperNeoError.invalidParameter("Q oracle alpha length must match log2(m)")
         }
-        guard shape.hasIdentityFirstMatrix else {
-            throw SuperNeoError.invalidParameter("Q oracle requires M1 = I for direct norm checks")
-        }
         guard parameters.normBound >= 2 else {
             throw SuperNeoError.invalidParameter("norm bound must be at least two")
         }
-        guard shape.nField == shape.m else {
-            throw SuperNeoError.invalidParameter("Q oracle requires the paper-normalized shape.nField == shape.m")
-        }
+        try SuperNeoFoldingShapeContract.paperNormalized.validate(shape)
         let freshWitnesses = zip(instances, witnesses).map { instance, witness in
             witness.fullZ(for: instance)
         }
@@ -1078,12 +1074,7 @@ private struct PublicQVerifierState {
         guard alpha.count == numVars else {
             throw SuperNeoError.invalidParameter("public Q verifier alpha length must match log2(m)")
         }
-        guard shape.hasIdentityFirstMatrix else {
-            throw SuperNeoError.invalidParameter("public Q verifier requires M1 = I for direct norm checks")
-        }
-        guard shape.nField == shape.m else {
-            throw SuperNeoError.invalidParameter("public Q verifier requires shape.nField == shape.m")
-        }
+        try SuperNeoFoldingShapeContract.paperNormalized.validate(shape)
         guard parameters.normBound >= 2 else {
             throw SuperNeoError.invalidParameter("norm bound must be at least two")
         }
@@ -1349,6 +1340,29 @@ public final class SuperNeoProver: @unchecked Sendable {
         transcriptSeed: [UInt8],
         ceRandomSeed: [UInt8]?
     ) throws -> TerminalFoldProof {
+        let components = try makeTerminalFoldComponents(
+            input,
+            transcriptSeed: transcriptSeed,
+            ceRandomSeed: ceRandomSeed
+        )
+        return TerminalFoldProof(
+            foldProof: components.foldProof,
+            terminalStatement: components.terminalStatement,
+            ceOpeningProof: components.ceOpeningProof
+        )
+    }
+
+    private struct TerminalFoldComponents {
+        let foldProof: FoldProof
+        let terminalStatement: TerminalCEStatement
+        let ceOpeningProof: CEOpeningProof
+    }
+
+    private func makeTerminalFoldComponents(
+        _ input: SuperNeoFoldInput,
+        transcriptSeed: [UInt8],
+        ceRandomSeed: [UInt8]?
+    ) throws -> TerminalFoldComponents {
         let fold = try foldWithOutput(input, transcriptSeed: transcriptSeed)
         let terminalStatement = try TerminalCEStatement(
             profileID: parameters.profileID,
@@ -1384,7 +1398,7 @@ public final class SuperNeoProver: @unchecked Sendable {
                 metalWorkspace: metalWorkspace
             )
         }
-        return TerminalFoldProof(
+        return TerminalFoldComponents(
             foldProof: fold.proof,
             terminalStatement: terminalStatement,
             ceOpeningProof: ceOpeningProof
@@ -1482,7 +1496,7 @@ public final class SuperNeoProver: @unchecked Sendable {
             verifierKeyDigest: context.verifierKeyDigest,
             transcriptDomain: context.transcriptDomain
         )
-        let proof = try terminalFoldImpl(
+        let terminal = try makeTerminalFoldComponents(
             input,
             transcriptSeed: terminalContext.transcriptBindingBytes,
             ceRandomSeed: ceRandomSeed
@@ -1490,12 +1504,16 @@ public final class SuperNeoProver: @unchecked Sendable {
         let statement = CompressedTerminalStatement(
             context: context,
             publicInputDigest: compressedPublicInputDigest(publicInput),
-            terminalStatementDigest: proof.terminalStatement.statementDigest,
+            terminalStatementDigest: terminal.terminalStatement.statementDigest,
             verifierKeyDigest: key.verifierKeyDigest
         )
         return try CompressedTerminalProofEnvelope(
             context: context,
-            proof: CompressedTerminalProof(statement: statement, terminalProof: proof)
+            proof: CompressedTerminalProof(
+                statement: statement,
+                foldProof: terminal.foldProof,
+                ceOpeningProof: terminal.ceOpeningProof
+            )
         )
     }
 
@@ -2064,7 +2082,13 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             guard envelope.proof.statement.verifierKeyDigest == key.verifierKeyDigest else {
                 return .invalid("compressed verifier key digest mismatch")
             }
-            guard envelope.proof.statement.terminalStatementDigest == envelope.proof.terminalProof.terminalStatement.statementDigest else {
+            let terminalStatement = try TerminalCEStatement(
+                profileID: expectedContext.profileID,
+                shapeDigest: expectedContext.shapeDigest,
+                verifierKeyDigest: expectedContext.verifierKeyDigest,
+                claims: envelope.proof.foldProof.outputClaims
+            )
+            guard envelope.proof.statement.terminalStatementDigest == terminalStatement.statementDigest else {
                 return .invalid("compressed terminal statement digest mismatch")
             }
             let terminalContext = ProofEnvelopeContext(
@@ -2075,9 +2099,14 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 verifierKeyDigest: expectedContext.verifierKeyDigest,
                 transcriptDomain: expectedContext.transcriptDomain
             )
+            let terminalProof = TerminalFoldProof(
+                foldProof: envelope.proof.foldProof,
+                terminalStatement: terminalStatement,
+                ceOpeningProof: envelope.proof.ceOpeningProof
+            )
             return verifyTerminalFold(
                 publicInput: publicInput,
-                proof: envelope.proof.terminalProof,
+                proof: terminalProof,
                 transcriptSeed: terminalContext.transcriptBindingBytes
             )
         } catch {
@@ -2608,13 +2637,7 @@ private func validateFoldInput(_ input: SuperNeoFoldInput, parameters: SuperNeoP
         throw SuperNeoError.invalidParameter("CCS structure requires at least one matrix")
     }
     let rows = input.shape.m
-    guard rows > 0, (rows & (rows - 1)) == 0 else {
-        throw SuperNeoError.invalidParameter("CCS row count must be a power of two")
-    }
-    guard input.shape.nField == rows else {
-        throw SuperNeoError.invalidParameter("fold input requires shape.nField == shape.m")
-    }
-    try validateRingModulePublicInput(shape: input.shape)
+    try SuperNeoFoldingShapeContract.paperNormalized.validate(input.shape)
     try validateStrongSamplingCapacity(
         freshCount: input.instances.count,
         priorCount: input.priorClaims.count,
@@ -2663,16 +2686,7 @@ private func validatePublicFoldInput(_ input: SuperNeoPublicFoldInput, parameter
         throw SuperNeoError.invalidParameter("CCS structure requires at least one matrix")
     }
     let rows = input.shape.m
-    guard rows > 0, (rows & (rows - 1)) == 0 else {
-        throw SuperNeoError.invalidParameter("CCS row count must be a power of two")
-    }
-    guard input.shape.nField == rows else {
-        throw SuperNeoError.invalidParameter("public fold input requires shape.nField == shape.m")
-    }
-    guard input.shape.hasIdentityFirstMatrix else {
-        throw SuperNeoError.invalidParameter("public fold input requires M1 = I")
-    }
-    try validateRingModulePublicInput(shape: input.shape)
+    try SuperNeoFoldingShapeContract.paperNormalized.validate(input.shape)
     try validateStrongSamplingCapacity(
         freshCount: input.instances.count,
         priorCount: input.priorClaims.count,
@@ -2709,12 +2723,6 @@ private func validatePublicFoldInput(_ input: SuperNeoPublicFoldInput, parameter
         } else {
             priorEvalPoint = claim.point
         }
-    }
-}
-
-private func validateRingModulePublicInput(shape: CCSShape) throws {
-    guard shape.nPublicField % CyclotomicRing54.degree == 0 else {
-        throw SuperNeoError.invalidParameter("public input length must contain whole ring columns for R-module folding")
     }
 }
 

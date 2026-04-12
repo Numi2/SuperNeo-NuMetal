@@ -277,60 +277,78 @@ public struct CompressedTerminalStatement: Equatable, Sendable, SuperNeoByteEnco
 }
 
 public struct CompressedTerminalProof: Equatable, Sendable, SuperNeoByteEncodable {
-    public static let transcriptDomain = Digest256.hash("SuperNeo-NuMetal.compressed-public.proof.v1")
+    public static let transcriptDomain = Digest256.hash("SuperNeo-NuMetal.compressed-public.proof.v2")
 
     public let statement: CompressedTerminalStatement
-    public let terminalProof: TerminalFoldProof
-    public let terminalProofDigest: Digest256
+    public let foldProof: FoldProof
+    public let ceOpeningProof: CEOpeningProof
+    public let foldProofDigest: Digest256
+    public let ceOpeningProofDigest: Digest256
     public let compressionDigest: Digest256
 
-    public init(statement: CompressedTerminalStatement, terminalProof: TerminalFoldProof) {
-        let proofDigest = Digest256.hash(terminalProof.superNeoBytes)
+    public init(statement: CompressedTerminalStatement, foldProof: FoldProof, ceOpeningProof: CEOpeningProof) {
+        let foldProofDigest = Digest256.hash(foldProof.superNeoBytes)
+        let ceOpeningProofDigest = Digest256.hash(ceOpeningProof.superNeoBytes)
         self.statement = statement
-        self.terminalProof = terminalProof
-        self.terminalProofDigest = proofDigest
+        self.foldProof = foldProof
+        self.ceOpeningProof = ceOpeningProof
+        self.foldProofDigest = foldProofDigest
+        self.ceOpeningProofDigest = ceOpeningProofDigest
         self.compressionDigest = Self.makeCompressionDigest(
             statement: statement,
-            terminalProofDigest: proofDigest
+            foldProofDigest: foldProofDigest,
+            ceOpeningProofDigest: ceOpeningProofDigest
         )
     }
 
     fileprivate init(
         statement: CompressedTerminalStatement,
-        terminalProof: TerminalFoldProof,
-        terminalProofDigest: Digest256,
+        foldProof: FoldProof,
+        ceOpeningProof: CEOpeningProof,
+        foldProofDigest: Digest256,
+        ceOpeningProofDigest: Digest256,
         compressionDigest: Digest256
     ) throws {
-        guard terminalProofDigest == Digest256.hash(terminalProof.superNeoBytes) else {
-            throw SuperNeoError.invalidEncoding("compressed terminal proof digest mismatch")
+        guard foldProofDigest == Digest256.hash(foldProof.superNeoBytes) else {
+            throw SuperNeoError.invalidEncoding("compressed fold proof digest mismatch")
+        }
+        guard ceOpeningProofDigest == Digest256.hash(ceOpeningProof.superNeoBytes) else {
+            throw SuperNeoError.invalidEncoding("compressed CE opening proof digest mismatch")
         }
         guard compressionDigest == Self.makeCompressionDigest(
             statement: statement,
-            terminalProofDigest: terminalProofDigest
+            foldProofDigest: foldProofDigest,
+            ceOpeningProofDigest: ceOpeningProofDigest
         ) else {
             throw SuperNeoError.invalidEncoding("compressed terminal proof transcript mismatch")
         }
         self.statement = statement
-        self.terminalProof = terminalProof
-        self.terminalProofDigest = terminalProofDigest
+        self.foldProof = foldProof
+        self.ceOpeningProof = ceOpeningProof
+        self.foldProofDigest = foldProofDigest
+        self.ceOpeningProofDigest = ceOpeningProofDigest
         self.compressionDigest = compressionDigest
     }
 
     public var superNeoBytes: [UInt8] {
         statement.superNeoBytes
-            + terminalProofDigest.superNeoBytes
+            + foldProofDigest.superNeoBytes
+            + ceOpeningProofDigest.superNeoBytes
             + compressionDigest.superNeoBytes
-            + terminalProof.superNeoBytes
+            + foldProof.superNeoBytes
+            + ceOpeningProof.superNeoBytes
     }
 
     private static func makeCompressionDigest(
         statement: CompressedTerminalStatement,
-        terminalProofDigest: Digest256
+        foldProofDigest: Digest256,
+        ceOpeningProofDigest: Digest256
     ) -> Digest256 {
         Digest256.hash(
             transcriptDomain.superNeoBytes
                 + statement.statementDigest.superNeoBytes
-                + terminalProofDigest.superNeoBytes
+                + foldProofDigest.superNeoBytes
+                + ceOpeningProofDigest.superNeoBytes
         )
     }
 }
@@ -1063,13 +1081,17 @@ extension ByteReader {
 
     fileprivate mutating func readCompressedTerminalProof(parameters: SuperNeoParameters) throws -> CompressedTerminalProof {
         let statement = try readCompressedTerminalStatement()
-        let terminalProofDigest = try Digest256(readData(count: Digest256.byteCount))
+        let foldProofDigest = try Digest256(readData(count: Digest256.byteCount))
+        let ceOpeningProofDigest = try Digest256(readData(count: Digest256.byteCount))
         let compressionDigest = try Digest256(readData(count: Digest256.byteCount))
-        let terminalProof = try readTerminalFoldProof(parameters: parameters)
+        let foldProof = try readFoldProof(parameters: parameters)
+        let ceOpeningProof = try readCEOpeningProof(parameters: parameters)
         return try CompressedTerminalProof(
             statement: statement,
-            terminalProof: terminalProof,
-            terminalProofDigest: terminalProofDigest,
+            foldProof: foldProof,
+            ceOpeningProof: ceOpeningProof,
+            foldProofDigest: foldProofDigest,
+            ceOpeningProofDigest: ceOpeningProofDigest,
             compressionDigest: compressionDigest
         )
     }

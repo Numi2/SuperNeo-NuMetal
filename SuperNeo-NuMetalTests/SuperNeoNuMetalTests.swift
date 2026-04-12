@@ -1075,19 +1075,26 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         let backend = SuperNeoCPUBackend()
         let key = try AjtaiCommitmentKey(columns: 2, seed: Array("partial-public-input".utf8))
         let commitment = try backend.commit(key: key, message: publicInput + privateWitness)
-        let input = try SuperNeoFoldInput(
-            structure: structure,
-            instances: [CCSInstance(commitment: commitment, publicInput: publicInput)],
-            witnesses: [CCSWitness(privateWitness)]
-        )
 
         XCTAssertThrowsSuperNeoError(
-            try backend.makeProver(key: key).fold(input),
+            try SuperNeoFoldInput(
+                structure: structure,
+                instances: [CCSInstance(commitment: commitment, publicInput: publicInput)],
+                witnesses: [CCSWitness(privateWitness)]
+            ),
             .invalidParameter("public input length must contain whole ring columns for R-module folding")
         )
+        let shape = try CCSShape(
+            matrices: structure.matrices,
+            publicInputCount: publicInput.count,
+            relationPolynomial: try XCTUnwrap(structure.relationPolynomial)
+        )
         let reduction = SuperNeoVerifier(key: key).reduceFold(
-            publicInput: SuperNeoPublicFoldInput(input),
-            proof: makeEmptyFoldProofForShape(input.shape)
+            publicInput: SuperNeoPublicFoldInput(
+                shape: shape,
+                instances: [CCSInstance(commitment: commitment, publicInput: publicInput)]
+            ),
+            proof: makeEmptyFoldProofForShape(shape)
         )
         XCTAssertFalse(reduction.isReductionAccepted)
         XCTAssertFalse(reduction.requiresTerminalRelationCheck)
@@ -1546,9 +1553,24 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         )
         let reparsed = try CompressedTerminalProofEnvelope(bytes: envelope.superNeoBytes)
         let verifier = SuperNeoVerifier(key: fixture.key)
+        let reconstructedTerminalStatement = try TerminalCEStatement(
+            profileID: context.profileID,
+            shape: fixture.input.shape,
+            key: fixture.key,
+            claims: reparsed.proof.foldProof.outputClaims
+        )
+        let reconstructedTerminalProof = TerminalFoldProof(
+            foldProof: reparsed.proof.foldProof,
+            terminalStatement: reconstructedTerminalStatement,
+            ceOpeningProof: reparsed.proof.ceOpeningProof
+        )
 
         XCTAssertEqual(reparsed.header.kind, .compressedPublic)
         XCTAssertEqual(reparsed.header.bodyLength, UInt32(reparsed.proof.superNeoBytes.count))
+        XCTAssertLessThan(reparsed.proof.superNeoBytes.count, reconstructedTerminalProof.superNeoBytes.count)
+        XCTAssertEqual(reparsed.proof.statement.terminalStatementDigest, reconstructedTerminalStatement.statementDigest)
+        XCTAssertEqual(reparsed.proof.foldProofDigest, Digest256.hash(reparsed.proof.foldProof.superNeoBytes))
+        XCTAssertEqual(reparsed.proof.ceOpeningProofDigest, Digest256.hash(reparsed.proof.ceOpeningProof.superNeoBytes))
         XCTAssertEqual(
             verifier.verifyCompressedTerminalFoldEnvelope(
                 publicInput: SuperNeoPublicFoldInput(fixture.input),
@@ -1585,6 +1607,13 @@ final class ProtocolE2ETests: SuperNeoTestCase {
                 context: context
             ),
             reason: "verifier key digest mismatch"
+        )
+
+        var mutatedFoldProofDigest = envelope.superNeoBytes
+        mutatedFoldProofDigest[ProofEnvelopeHeader.byteCount + reparsed.proof.statement.superNeoBytes.count] ^= 0x01
+        XCTAssertThrowsSuperNeoError(
+            try CompressedTerminalProofEnvelope(bytes: mutatedFoldProofDigest),
+            .invalidEncoding("compressed fold proof digest mismatch")
         )
 
         var mutatedCompressedContextKey = envelope.superNeoBytes
@@ -1634,9 +1663,64 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         XCTAssertTrue(result.normalized.shape.hasIdentityFirstMatrix)
         XCTAssertEqual(result.normalized.mapping.originalRowCount, 3)
         XCTAssertEqual(result.normalized.mapping.addedPublicInputs, 53)
+        XCTAssertTrue(result.normalized.mapping.addedIdentityMatrix)
+        XCTAssertEqual(try result.normalized.mapping.normalizedMatrixIndex(forOriginalMatrix: 0), 1)
         XCTAssertEqual(result.normalized.instances[0].publicInput.count, 54)
         XCTAssertEqual(result.normalized.witnesses[0].values.count, 10)
+        XCTAssertFalse(SuperNeoFoldingShapeContract.paperNormalized.requiresNormalization(result.normalized.shape))
+        XCTAssertNoThrow(try SuperNeoFoldingShapeContract.paperNormalized.validate(result.normalized.shape))
+
+        let normalizedPublic = try result.normalized.mapping.embedPublicInput(publicInput)
+        let normalizedPrivate = try result.normalized.mapping.embedPrivateWitness(witness)
+        let normalizedWitness = try result.normalized.mapping.embedFullWitness(
+            publicInput: publicInput,
+            privateWitness: witness
+        )
+        XCTAssertEqual(result.normalized.instances[0].publicInput, normalizedPublic)
+        XCTAssertEqual(result.normalized.witnesses[0].values, normalizedPrivate)
+        XCTAssertEqual(try result.normalized.mapping.projectPublicInput(normalizedPublic), publicInput)
+        XCTAssertEqual(try result.normalized.mapping.projectPrivateWitness(normalizedPrivate), witness)
+        XCTAssertEqual(try result.normalized.mapping.projectFullWitness(normalizedWitness), publicInput + witness)
+
+        let originalRows = try matrix.multiplied(by: publicInput + witness)
+        let normalizedMatrixRows = try result.normalized.shape.structure.matrices[1].multiplied(by: normalizedWitness)
+        let normalizedIdentityRows = try result.normalized.shape.structure.matrices[0].multiplied(by: normalizedWitness)
+        XCTAssertEqual(Array(normalizedMatrixRows.prefix(originalRows.count)), originalRows)
+        XCTAssertTrue(normalizedMatrixRows.dropFirst(originalRows.count).allSatisfy { $0 == .zero })
+        XCTAssertEqual(normalizedIdentityRows, normalizedWitness)
+
         XCTAssertNoThrow(try SuperNeoVerifier(key: result.key).reduceFold(input: result.normalized.foldInput, proof: SuperNeoProver(key: result.key).fold(result.normalized.foldInput)))
+    }
+
+    func testDirectFoldInputRequiresPaperNormalizedShapeContract() throws {
+        let matrix = try SparseFieldMatrix(
+            rows: 4,
+            columns: 5,
+            entries: (0..<4).map {
+                SparseFieldMatrix.Entry(row: $0, column: $0, value: .one)
+            }
+        )
+        let relation = try RelationPolynomial(variableCount: 1, monomials: [])
+        let structure = CCSStructure(matrices: [matrix], relationPolynomial: relation)
+
+        let shape = try CCSShape(
+            matrices: [matrix],
+            publicInputCount: 0,
+            relationPolynomial: relation
+        )
+        XCTAssertTrue(SuperNeoFoldingShapeContract.paperNormalized.requiresNormalization(shape))
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoFoldingShapeContract.paperNormalized.validate(shape),
+            .invalidParameter(
+                "SuperNeo folding requires a paper-normalized CCS shape: shape.nField must equal shape.m; use SuperNeoCCSNormalizer.normalize(...) for general CCS inputs"
+            )
+        )
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoFoldInput(structure: structure, instances: [], witnesses: []),
+            .invalidParameter(
+                "SuperNeo folding requires a paper-normalized CCS shape: shape.nField must equal shape.m; use SuperNeoCCSNormalizer.normalize(...) for general CCS inputs"
+            )
+        )
     }
 
     func testCCSNormalizerRejectsPriorClaimsBeforeChangingShapeAndKey() throws {
