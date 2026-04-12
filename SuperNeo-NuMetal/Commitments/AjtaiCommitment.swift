@@ -89,6 +89,27 @@ public struct AjtaiCommitment: Equatable, Sendable {
     }
 }
 
+public struct AjtaiCommitmentWorkProfile: Equatable, Sendable {
+    public let matrixRows: Int
+    public let matrixColumns: Int
+    public let ringDegree: Int
+    public let messageCoefficientSlots: Int
+    public let nonzeroMessageCoefficients: Int
+    public let smallMessageCoefficients: Int
+    public let fullWidthMessageCoefficients: Int
+    public let activeRotationTerms: Int
+    public let smallCoefficientScalings: Int
+    public let fullWidthCoefficientScalings: Int
+
+    public var skippedZeroMessageCoefficients: Int {
+        messageCoefficientSlots - nonzeroMessageCoefficients
+    }
+
+    public var usesOnlySmallCoefficientScalings: Bool {
+        fullWidthCoefficientScalings == 0
+    }
+}
+
 public struct AjtaiMatvecSchedule: Equatable, Sendable {
     public static let `default` = AjtaiMatvecSchedule(
         uncheckedColumnTileSize: 8,
@@ -279,6 +300,56 @@ public enum AjtaiMatvecScheduler {
 }
 
 public enum AjtaiCommitter {
+    public static func workProfile(
+        key: AjtaiCommitmentKey,
+        message: [CyclotomicRing54]
+    ) throws -> AjtaiCommitmentWorkProfile {
+        guard message.count == key.matrix.columns else {
+            throw SuperNeoError.invalidParameter("ring matrix/vector dimension mismatch")
+        }
+
+        let messageTerms = message.map(nonzeroTerms)
+        let nonzeroMessageCoefficients = messageTerms.reduce(0) { $0 + $1.count }
+        let smallMessageCoefficients = messageTerms.reduce(0) { partial, terms in
+            partial + terms.filter(\.isSmall).count
+        }
+        let fullWidthMessageCoefficients = nonzeroMessageCoefficients - smallMessageCoefficients
+        var activeRotationTerms = 0
+        var smallCoefficientScalings = 0
+        var fullWidthCoefficientScalings = 0
+
+        for row in 0..<key.matrix.rows {
+            let rowStart = row * key.matrix.columns
+            for column in 0..<key.matrix.columns {
+                let nonzeroMatrixCoefficients = key.matrix.elements[rowStart + column].coefficients.reduce(0) {
+                    $0 + ($1 == .zero ? 0 : 1)
+                }
+                guard nonzeroMatrixCoefficients > 0 else { continue }
+                for term in messageTerms[column] {
+                    activeRotationTerms += 1
+                    if term.isSmall {
+                        smallCoefficientScalings += nonzeroMatrixCoefficients
+                    } else {
+                        fullWidthCoefficientScalings += nonzeroMatrixCoefficients
+                    }
+                }
+            }
+        }
+
+        return AjtaiCommitmentWorkProfile(
+            matrixRows: key.matrix.rows,
+            matrixColumns: key.matrix.columns,
+            ringDegree: CyclotomicRing54.degree,
+            messageCoefficientSlots: message.count * CyclotomicRing54.degree,
+            nonzeroMessageCoefficients: nonzeroMessageCoefficients,
+            smallMessageCoefficients: smallMessageCoefficients,
+            fullWidthMessageCoefficients: fullWidthMessageCoefficients,
+            activeRotationTerms: activeRotationTerms,
+            smallCoefficientScalings: smallCoefficientScalings,
+            fullWidthCoefficientScalings: fullWidthCoefficientScalings
+        )
+    }
+
     public static func commit(
         key: AjtaiCommitmentKey,
         message: [CyclotomicRing54],
@@ -341,6 +412,7 @@ public enum AjtaiCommitter {
         guard message.count == matrix.columns else {
             throw SuperNeoError.invalidParameter("ring matrix/vector dimension mismatch")
         }
+        let messageTerms = message.map(nonzeroTerms)
         var output: [CyclotomicRing54] = []
         output.reserveCapacity(matrix.rows)
         for row in 0..<matrix.rows {
@@ -349,7 +421,7 @@ public enum AjtaiCommitter {
             for column in 0..<matrix.columns {
                 accumulateProduct(
                     matrix.elements[rowStart + column],
-                    rhs: message[column],
+                    rhsTerms: messageTerms[column],
                     into: &coefficients
                 )
             }
@@ -358,16 +430,31 @@ public enum AjtaiCommitter {
         return output
     }
 
+    private static func nonzeroTerms(_ value: CyclotomicRing54) -> [(index: Int, value: GoldilocksField, isSmall: Bool)] {
+        var terms: [(index: Int, value: GoldilocksField, isSmall: Bool)] = []
+        terms.reserveCapacity(CyclotomicRing54.degree)
+        for index in 0..<CyclotomicRing54.degree {
+            let coefficient = value.coefficients[index]
+            if coefficient != .zero {
+                terms.append((index, coefficient, isSmallCoefficient(coefficient)))
+            }
+        }
+        return terms
+    }
+
     private static func accumulateProduct(
         _ lhs: CyclotomicRing54,
-        rhs: CyclotomicRing54,
+        rhsTerms: [(index: Int, value: GoldilocksField, isSmall: Bool)],
         into coefficients: inout [GoldilocksField]
     ) {
+        guard !rhsTerms.isEmpty else { return }
         for leftIndex in 0..<CyclotomicRing54.degree {
             let left = lhs.coefficients[leftIndex]
-            for rightIndex in 0..<CyclotomicRing54.degree {
-                let product = left * rhs.coefficients[rightIndex]
-                let exponent = leftIndex + rightIndex
+            if left == .zero { continue }
+            for term in rhsTerms {
+                let product = scaleBySmallOrFull(left, by: term.value)
+                if product == .zero { continue }
+                let exponent = leftIndex + term.index
                 if exponent < CyclotomicRing54.degree {
                     coefficients[exponent] = coefficients[exponent] + product
                 } else if exponent < CyclotomicRing54.degree + 27 {
@@ -380,5 +467,22 @@ public enum AjtaiCommitter {
                 }
             }
         }
+    }
+
+    private static func isSmallCoefficient(_ value: GoldilocksField) -> Bool {
+        value == .one
+            || value == GoldilocksField(2)
+            || value == -GoldilocksField.one
+            || value == -GoldilocksField(2)
+    }
+
+    private static func scaleBySmallOrFull(_ value: GoldilocksField, by scalar: GoldilocksField) -> GoldilocksField {
+        if value == .zero || scalar == .zero { return .zero }
+        if scalar == .one { return value }
+        let doubled = value + value
+        if scalar == GoldilocksField(2) { return doubled }
+        if scalar == -GoldilocksField.one { return -value }
+        if scalar == -GoldilocksField(2) { return -doubled }
+        return value * scalar
     }
 }

@@ -77,7 +77,7 @@ private func requireValid(_ result: VerificationResult) throws {
 }
 
 private func requireValid(_ result: FoldReductionResult) throws {
-    guard result.isValid else {
+    guard result.isReductionAccepted else {
         throw BenchmarkInvariantError(message: "reduction failed: \(result.reason ?? "unknown")")
     }
 }
@@ -370,6 +370,13 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
             fieldWitness: fieldVector
         )
     }
+    let referenceWorkProfile = benchmarkSetupValue("failed to build Ajtai work profile for \(label)") {
+        try AjtaiCommitter.workProfile(key: fixture.key, message: ringVector)
+    }
+    requireBenchmarkSetupInvariant(
+        referenceWorkProfile.usesOnlySmallCoefficientScalings,
+        "Ajtai fixture requires full-width coefficient scaling for \(label)"
+    )
     let referenceEvaluation = benchmarkSetupValue("failed to build reference multilinear evaluation for \(label)") {
         try backend.multilinearEvaluation(
             matrix: fixture.shape.matrices[1].toSparseFieldMatrix(),
@@ -431,6 +438,20 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
         )
         try requireBenchmarkInvariant(commitment == referenceCommitment, "CPU commitment changed for \(label)")
         blackHole(commitment.elements.count)
+    }
+
+    Benchmark("kernel/ajtaiCommit/workProfile/\(label)", configuration: defaultConfiguration) { _ in
+        let workProfile = try AjtaiCommitter.workProfile(key: fixture.key, message: ringVector)
+        try requireBenchmarkInvariant(
+            workProfile.usesOnlySmallCoefficientScalings,
+            "Ajtai work profile regressed to full-width coefficient scaling for \(label)"
+        )
+        try requireBenchmarkInvariant(
+            workProfile.messageCoefficientSlots == ringVector.count * CyclotomicRing54.degree,
+            "Ajtai work profile changed message slot accounting for \(label)"
+        )
+        blackHole(workProfile.activeRotationTerms)
+        blackHole(workProfile.smallCoefficientScalings)
     }
 
     Benchmark("kernel/ajtaiCommit/batch/cpu/\(label)", configuration: defaultConfiguration) { _ in

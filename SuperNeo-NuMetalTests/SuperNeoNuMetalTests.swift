@@ -185,6 +185,76 @@ final class CommitmentCoreTests: SuperNeoTestCase {
         )
     }
 
+    func testTier0AjtaiWorkProfileTracksSparseSmallCoefficientCost() throws {
+        let rows = SuperNeoParameters.goldilocks.kappa
+        let columns = 2
+        let matrixElements = (0..<rows).flatMap { row in
+            (0..<columns).map { column in
+                var coefficients = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+                coefficients[0] = .one
+                coefficients[1 + ((row * columns + column) % (CyclotomicRing54.degree - 1))] =
+                    GoldilocksField(UInt64(7 + row + column))
+                return CyclotomicRing54(coefficients)
+            }
+        }
+        let key = try AjtaiCommitmentKey(
+            matrix: try RingMatrix(rows: rows, columns: columns, elements: matrixElements)
+        )
+
+        func ring(_ entries: [(Int, GoldilocksField)]) -> CyclotomicRing54 {
+            var coefficients = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+            for (index, value) in entries {
+                coefficients[index] = value
+            }
+            return CyclotomicRing54(coefficients)
+        }
+
+        let binaryMessage = [
+            ring([(0, .one), (13, .one), (53, .one)]),
+            ring([(1, .one), (27, .one), (40, .one)])
+        ]
+        let binaryProfile = try AjtaiCommitter.workProfile(key: key, message: binaryMessage)
+        XCTAssertEqual(binaryProfile.matrixRows, rows)
+        XCTAssertEqual(binaryProfile.matrixColumns, columns)
+        XCTAssertEqual(binaryProfile.ringDegree, CyclotomicRing54.degree)
+        XCTAssertEqual(binaryProfile.messageCoefficientSlots, columns * CyclotomicRing54.degree)
+        XCTAssertEqual(binaryProfile.nonzeroMessageCoefficients, 6)
+        XCTAssertEqual(binaryProfile.smallMessageCoefficients, 6)
+        XCTAssertEqual(binaryProfile.fullWidthMessageCoefficients, 0)
+        XCTAssertEqual(binaryProfile.skippedZeroMessageCoefficients, columns * CyclotomicRing54.degree - 6)
+        XCTAssertEqual(binaryProfile.activeRotationTerms, rows * 6)
+        XCTAssertEqual(binaryProfile.smallCoefficientScalings, rows * 6 * 2)
+        XCTAssertEqual(binaryProfile.fullWidthCoefficientScalings, 0)
+        XCTAssertTrue(binaryProfile.usesOnlySmallCoefficientScalings)
+        XCTAssertLessThan(binaryProfile.activeRotationTerms, rows * columns * CyclotomicRing54.degree)
+        XCTAssertEqual(
+            try AjtaiCommitter.commitReference(key: key, message: binaryMessage),
+            AjtaiCommitment(try key.matrix.multiplied(by: binaryMessage))
+        )
+
+        let smallAndFullMessage = [
+            ring([(0, GoldilocksField(3)), (1, -GoldilocksField(3)), (2, GoldilocksField(2))]),
+            ring([(5, GoldilocksField(5)), (6, -GoldilocksField(2))])
+        ]
+        let mixedProfile = try AjtaiCommitter.workProfile(key: key, message: smallAndFullMessage)
+        XCTAssertEqual(mixedProfile.nonzeroMessageCoefficients, 5)
+        XCTAssertEqual(mixedProfile.smallMessageCoefficients, 2)
+        XCTAssertEqual(mixedProfile.fullWidthMessageCoefficients, 3)
+        XCTAssertEqual(mixedProfile.activeRotationTerms, rows * 5)
+        XCTAssertEqual(mixedProfile.smallCoefficientScalings, rows * 2 * 2)
+        XCTAssertEqual(mixedProfile.fullWidthCoefficientScalings, rows * 3 * 2)
+        XCTAssertFalse(mixedProfile.usesOnlySmallCoefficientScalings)
+        XCTAssertEqual(
+            try AjtaiCommitter.commitReference(key: key, message: smallAndFullMessage),
+            AjtaiCommitment(try key.matrix.multiplied(by: smallAndFullMessage))
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try AjtaiCommitter.workProfile(key: key, message: [CyclotomicRing54.one]),
+            .invalidParameter("ring matrix/vector dimension mismatch")
+        )
+    }
+
 }
 
 final class EvaluationCoreTests: SuperNeoTestCase {
@@ -1946,11 +2016,71 @@ final class MetalDifferentialTests: SuperNeoTestCase {
         XCTAssertEqual(try backend.multiply(rings, by: scalars), zip(rings, scalars).map { $0.scaled(by: $1) })
         XCTAssertEqual(try backend.multiply(rings, otherRings), zip(rings, otherRings).map(*))
 
+        func sparseRing(_ entries: [(Int, GoldilocksField)]) -> CyclotomicRing54 {
+            var coefficients = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+            for (index, value) in entries {
+                coefficients[index] = value
+            }
+            return CyclotomicRing54(coefficients)
+        }
+
+        let smallScalars: [GoldilocksField] = [
+            .zero,
+            .one,
+            GoldilocksField(2),
+            -GoldilocksField.one,
+            -GoldilocksField(2),
+            GoldilocksField(3),
+            GoldilocksField(5),
+            -GoldilocksField(7)
+        ]
+        XCTAssertEqual(
+            try backend.multiply(rings, by: smallScalars),
+            zip(rings, smallScalars).map { $0.scaled(by: $1) }
+        )
+
+        let sparseSmallRings = [
+            sparseRing([(0, .one), (53, -GoldilocksField(2))]),
+            sparseRing([(3, GoldilocksField(2)), (41, -GoldilocksField.one)])
+        ]
+        let sparseSmallOtherRings = [
+            sparseRing([(1, .one), (28, GoldilocksField(2))]),
+            sparseRing([(0, -GoldilocksField.one), (52, -GoldilocksField(2))])
+        ]
+        XCTAssertEqual(
+            try backend.multiply(sparseSmallRings, sparseSmallOtherRings),
+            zip(sparseSmallRings, sparseSmallOtherRings).map(*)
+        )
+
         let key = try AjtaiCommitmentKey(columns: 3, seed: Array("metal-ajtai-seeded".utf8))
         let message = (0..<3).map { _ in generator.ring() }
         XCTAssertEqual(
             try backend.ajtaiCommitment(key: key, message: message),
             try AjtaiCommitter.commitReference(key: key, message: message)
+        )
+        let smallMessage = [
+            sparseRing([(0, .one), (13, GoldilocksField(2)), (53, -GoldilocksField.one)]),
+            sparseRing([(1, -GoldilocksField(2)), (27, .one)]),
+            sparseRing([(5, .one), (40, GoldilocksField(2))])
+        ]
+        let smallProfile = try AjtaiCommitter.workProfile(key: key, message: smallMessage)
+        XCTAssertTrue(smallProfile.usesOnlySmallCoefficientScalings)
+        XCTAssertLessThan(smallProfile.activeRotationTerms, key.matrix.rows * key.matrix.columns * CyclotomicRing54.degree)
+        let smallReference = try AjtaiCommitter.commitReference(key: key, message: smallMessage)
+        XCTAssertEqual(try backend.ajtaiCommitment(key: key, message: smallMessage), smallReference)
+        let smallTiledSchedule = try AjtaiMatvecSchedule(
+            columnTileSize: 2,
+            rowTileSize: 2,
+            maxBatchSize: 2,
+            kernel: .tiled
+        )
+        XCTAssertEqual(
+            try backend.ajtaiCommitments(
+                key: key,
+                messages: [smallMessage, smallMessage],
+                schedule: smallTiledSchedule
+            ),
+            [smallReference, smallReference]
         )
 
         let matrix = try RingMatrix(
