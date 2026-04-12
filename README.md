@@ -1,6 +1,36 @@
 # SuperNeo NuMetal
 
-Swift package implementing the SuperNeo lattice folding protocol (CCS, sum-check, commitments, optional Metal kernels). Targets macOS 14+.
+SuperNeo NuMetal is a Swift implementation of the SuperNeo lattice folding protocol for macOS 14+. It provides the core algebra, commitment, transcript, proof-envelope, CPU prover/verifier, and optional Metal acceleration paths needed to fold committed CCS instances over the Goldilocks field.
+
+## Overview
+
+SuperNeo is a post-quantum-oriented folding construction for Customizable Constraint Systems (CCS). A folding protocol reduces many committed instance-witness claims into a smaller claim while preserving verifier-checkable consistency, making it a useful primitive for incrementally verifiable computation, proof-carrying data, and recursive proof systems where prover cost and recursion overhead matter.
+
+This package implements the SuperNeo protocol shape over the `Goldilocks/Phi54` parameter profile:
+
+- Arithmetic over the Goldilocks prime field and a degree-2 extension field.
+- Ring operations in the cyclotomic quotient used by the SuperNeo embedding, with degree `54`.
+- Norm-preserving field-to-ring packing for CCS witnesses.
+- Ajtai-style lattice commitments with `kappa = 18`, decomposition length `14`, and a claimed profile security level of `129` bits.
+- Sum-check, PiCCS, PiRLC, PiDEC, terminal verification, compressed public envelopes, and opt-in CE opening proofs.
+- Deterministic byte serialization for public inputs, proof envelopes, commitments, evaluation claims, and verifier-key digests.
+- CPU reference paths plus Metal kernels for field/ring arithmetic, Ajtai commitments, sparse transformed evaluation, and fused commit-plus-evaluation workloads.
+
+The implementation is designed as a protocol engineering library rather than an application framework. Public data is domain separated and bound through transcript digests, shape digests, statement digests, verifier-key digests, and versioned proof envelopes so benchmarked proof objects can be parsed, round-tripped, and verified reproducibly.
+
+## Cryptographic Model
+
+SuperNeo replaces elliptic-curve commitments with lattice commitments so the folding layer is plausibly post-quantum under structured lattice assumptions, specifically the Module-SIS assumption used by Ajtai commitments. Witness vectors are committed after SuperNeo's norm-preserving embedding maps field elements into ring elements. This lets the implementation keep commitment costs tied to small witness coefficients while running the folding checks over field-native arithmetic instead of expensive ring-native sum-check arithmetic.
+
+The protocol stack separates three concerns:
+
+- **Algebraic relation checking:** CCS matrices are transformed into the SuperNeo ring representation, evaluated sparsely where possible, and checked through sum-check-derived protocol stages.
+- **Commitment binding:** Ajtai commitments bind packed witness data to verifier-key material derived from seeded commitment matrices.
+- **Transcript soundness:** Fiat-Shamir challenges are derived from domain-separated transcripts that absorb public inputs, commitments, claims, shape metadata, and proof messages before sampling challenges.
+
+The codebase includes CPU and Metal implementations for performance-critical kernels, but correctness is not delegated to the GPU. Metal outputs are differentially checked against CPU behavior in tests and benchmark gates, and full protocol benchmarks must still pass reduction, terminal verification, and proof-envelope verification.
+
+This repository is not a cryptographic audit or a production security certification. Treat parameter changes, new kernels, serialization changes, and transcript changes as security-sensitive work requiring review against the SuperNeo construction and the existing differential tests.
 
 ## Tests
 
