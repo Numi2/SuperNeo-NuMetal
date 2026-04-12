@@ -8,7 +8,8 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .library(name: "SuperNeo_NuMetal", targets: ["SuperNeo_NuMetal"])
+        .library(name: "SuperNeo_NuMetal", targets: ["SuperNeo_NuMetal"]),
+        .executable(name: "superneo", targets: ["SuperNeoCLI"])
     ],
     dependencies: [],
     targets: [
@@ -21,6 +22,14 @@ let package = Package(
             resources: [
                 .process("MetalBackend/SuperNeoKernels.metal")
             ],
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
+        ),
+        .executableTarget(
+            name: "SuperNeoCLI",
+            dependencies: ["SuperNeo_NuMetal"],
+            path: "SuperNeoCLI",
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]

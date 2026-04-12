@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://superneo-numetal.local/schemas/test-vector-artifact-v1.json",
+  "title": "SuperNeo NuMetal Test Vector Artifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifactVersion",
+    "bitCount",
+    "commitmentBase64",
+    "keySeedUTF8",
+    "profile",
+    "proofEnvelopeBase64",
+    "proofKind",
+    "publicInputs",
+    "shapeDigestHex",
+    "statementDigestHex",
+    "verifierKeyDigestHex",
+    "workload"
+  ],
+  "properties": {
+    "artifactVersion": {
+      "const": 1
+    },
+    "workload": {
+      "enum": [
+        "one-hot-vector-v1",
+        "binary-addition-v1"
+      ]
+    },
+    "profile": {
+      "const": "Goldilocks/Phi81(d=54)"
+    },
+    "proofKind": {
+      "enum": [
+        "fold",
+        "terminal"
+      ]
+    },
+    "bitCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expectedSelectedCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "keySeedUTF8": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workloadParameters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "publicInputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 18446744069414584320
+      }
+    },
+    "commitmentBase64": {
+      "type": "string",
+      "contentEncoding": "base64"
+    },
+    "proofEnvelopeBase64": {
+      "type": "string",
+      "contentEncoding": "base64"
+    },
+    "shapeDigestHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "statementDigestHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "verifierKeyDigestHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "workload": {
+            "const": "one-hot-vector-v1"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "expectedSelectedCount"
+        ],
+        "properties": {
+          "expectedSelectedCount": {
+            "const": 1
+          },
+          "publicInputs": {
+            "prefixItems": [
+              {
+                "const": 1
+              }
+            ],
+            "minItems": 1,
+            "maxItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "workload": {
+            "const": "binary-addition-v1"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "workloadParameters"
+        ],
+        "properties": {
+          "publicInputs": {
+            "prefixItems": [
+              {
+                "const": 1
+              }
+            ],
+            "minItems": 2
+          }
+        }
+      }
+    }
+  ]
+}

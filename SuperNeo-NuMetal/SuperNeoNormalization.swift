@@ -259,8 +259,84 @@ public struct SuperNeoPreparedFoldInput: Sendable {
 }
 
 public enum SuperNeoCCSNormalizer {
+    public static func normalizeShape(
+        structure: CCSStructure,
+        publicInputCount: Int
+    ) throws -> (shape: CCSShape, mapping: NormalizedCCSMapping) {
+        guard let relationPolynomial = structure.relationPolynomial else {
+            throw SuperNeoError.invalidParameter("shape normalization requires a serializable CCS relation polynomial")
+        }
+        guard !structure.matrices.isEmpty else {
+            throw SuperNeoError.invalidParameter("shape normalization requires at least one CCS matrix")
+        }
+        let originalRows = structure.matrices[0].rows
+        let originalColumns = structure.matrices[0].columns
+        for matrix in structure.matrices {
+            guard matrix.rows == originalRows, matrix.columns == originalColumns else {
+                throw SuperNeoError.invalidParameter("shape normalization requires rectangular matrices with matching dimensions")
+            }
+        }
+        guard publicInputCount >= 0, publicInputCount <= originalColumns else {
+            throw SuperNeoError.invalidParameter("shape normalization public input count is out of range")
+        }
+
+        let normalizedPublicInputCount = roundUpToMultiple(publicInputCount, CyclotomicRing54.degree)
+        let minimumColumns = max(originalColumns + (normalizedPublicInputCount - publicInputCount), normalizedPublicInputCount)
+        let normalizedSize = nextPowerOfTwo(max(originalRows, minimumColumns, 1))
+        let normalizedMatrixResult = try makeNormalizedMatrices(
+            matrices: structure.matrices,
+            originalPublicInputCount: publicInputCount,
+            normalizedPublicInputCount: normalizedPublicInputCount,
+            normalizedSize: normalizedSize
+        )
+        let normalizedRelation = normalizedMatrixResult.addedIdentity
+            ? try prependIgnoredIdentityVariable(to: relationPolynomial)
+            : relationPolynomial
+        let shape = try CCSShape(
+            matrices: normalizedMatrixResult.matrices,
+            publicInputCount: normalizedPublicInputCount,
+            relationPolynomial: normalizedRelation
+        )
+        try SuperNeoFoldingShapeContract.paperNormalized.validate(shape)
+        let mapping = NormalizedCCSMapping(
+            originalRowCount: originalRows,
+            originalFieldColumnCount: originalColumns,
+            originalPublicInputCount: publicInputCount,
+            normalizedRowCount: normalizedSize,
+            normalizedFieldColumnCount: normalizedSize,
+            normalizedPublicInputCount: normalizedPublicInputCount,
+            addedIdentityMatrix: normalizedMatrixResult.addedIdentity
+        )
+        return (shape, mapping)
+    }
+
     /// Prover-side preparation for arbitrary serializable CCS inputs.
     /// Commitments are recomputed against the returned key after any padding or shape changes.
+    public static func prepareForFolding(
+        structure: CCSStructure,
+        publicInputs: [[GoldilocksField]],
+        privateWitnesses: [[GoldilocksField]],
+        priorClaims: [CCSEvaluationClaim] = [],
+        keySeed: [UInt8],
+        parameters: SuperNeoParameters = .goldilocks
+    ) throws -> SuperNeoPreparedFoldInput {
+        guard publicInputs.count == privateWitnesses.count else {
+            throw SuperNeoError.invalidParameter("fold preparation public input and witness count mismatch")
+        }
+        let temporaryCommitment = AjtaiCommitment(Array(repeating: CyclotomicRing54.zero, count: parameters.kappa))
+        let instances = publicInputs.map {
+            CCSInstance(commitment: temporaryCommitment, publicInput: $0)
+        }
+        return try prepareForFolding(
+            structure: structure,
+            instances: instances,
+            witnesses: privateWitnesses.map(CCSWitness.init),
+            priorClaims: priorClaims,
+            keySeed: keySeed,
+            parameters: parameters
+        )
+    }
+
     public static func prepareForFolding(
         structure: CCSStructure,
         instances: [CCSInstance],
@@ -301,7 +377,7 @@ public enum SuperNeoCCSNormalizer {
         keySeed: [UInt8],
         parameters: SuperNeoParameters = .goldilocks
     ) throws -> (normalized: NormalizedCCS, key: AjtaiCommitmentKey) {
-        guard let relationPolynomial = structure.relationPolynomial else {
+        guard structure.relationPolynomial != nil else {
             throw SuperNeoError.invalidParameter("normalization requires a serializable CCS relation polynomial")
         }
         guard !structure.matrices.isEmpty else {
@@ -329,25 +405,14 @@ public enum SuperNeoCCSNormalizer {
             }
         }
 
-        let normalizedPublicInputCount = roundUpToMultiple(originalPublicInputCount, CyclotomicRing54.degree)
-        let minimumColumns = max(originalColumns + (normalizedPublicInputCount - originalPublicInputCount), normalizedPublicInputCount)
-        let normalizedSize = nextPowerOfTwo(max(originalRows, minimumColumns, 1))
-
-        let normalizedMatrixResult = try makeNormalizedMatrices(
-            matrices: structure.matrices,
-            originalPublicInputCount: originalPublicInputCount,
-            normalizedPublicInputCount: normalizedPublicInputCount,
-            normalizedSize: normalizedSize
+        let normalizedShape = try normalizeShape(
+            structure: structure,
+            publicInputCount: originalPublicInputCount
         )
-        let normalizedRelation = normalizedMatrixResult.addedIdentity
-            ? try prependIgnoredIdentityVariable(to: relationPolynomial)
-            : relationPolynomial
-        let shape = try CCSShape(
-            matrices: normalizedMatrixResult.matrices,
-            publicInputCount: normalizedPublicInputCount,
-            relationPolynomial: normalizedRelation
-        )
-        try SuperNeoFoldingShapeContract.paperNormalized.validate(shape)
+        let shape = normalizedShape.shape
+        let mapping = normalizedShape.mapping
+        let normalizedPublicInputCount = mapping.normalizedPublicInputCount
+        let normalizedSize = mapping.normalizedFieldColumnCount
         let key = try AjtaiCommitmentKey(parameters: parameters, columns: shape.nRing, seed: keySeed)
 
         let normalizedPairs = try zip(instances, witnesses).map { instance, witness -> (CCSInstance, CCSWitness) in
@@ -363,16 +428,6 @@ public enum SuperNeoCCSNormalizer {
             let commitment = try AjtaiCommitter.commitReference(key: key, fieldWitness: fullNormalized)
             return (CCSInstance(commitment: commitment, publicInput: normalizedPublic), CCSWitness(normalizedPrivate))
         }
-
-        let mapping = NormalizedCCSMapping(
-            originalRowCount: originalRows,
-            originalFieldColumnCount: originalColumns,
-            originalPublicInputCount: originalPublicInputCount,
-            normalizedRowCount: normalizedSize,
-            normalizedFieldColumnCount: normalizedSize,
-            normalizedPublicInputCount: normalizedPublicInputCount,
-            addedIdentityMatrix: normalizedMatrixResult.addedIdentity
-        )
 
         return (
             NormalizedCCS(

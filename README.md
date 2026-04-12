@@ -6,7 +6,7 @@ SuperNeo NuMetal is a Swift implementation of the SuperNeo lattice folding proto
 
 SuperNeo is a post-quantum-oriented folding construction for Customizable Constraint Systems (CCS). A folding protocol reduces many committed instance-witness claims into a smaller claim while preserving verifier-checkable consistency, making it a useful primitive for incrementally verifiable computation, proof-carrying data, and recursive proof systems where prover cost and recursion overhead matter.
 
-This package implements the SuperNeo protocol shape over the `Goldilocks/Phi54` parameter profile:
+This package implements the SuperNeo protocol shape over the `Goldilocks/Phi81(d=54)` parameter profile:
 
 - Arithmetic over the Goldilocks prime field and a degree-2 extension field.
 - Ring operations in the cyclotomic quotient used by the SuperNeo embedding, with degree `54`.
@@ -17,6 +17,41 @@ This package implements the SuperNeo protocol shape over the `Goldilocks/Phi54` 
 - CPU reference paths plus Metal kernels for field/ring arithmetic, Ajtai commitments, sparse transformed evaluation, and fused commit-plus-evaluation workloads.
 
 Public data is domain separated and bound through transcript digests, shape digests, statement digests, verifier-key digests, and versioned proof envelopes so benchmarked proof objects can be parsed, round-tripped, and verified reproducibly.
+
+## Documentation
+
+Start with these documents before treating a proof as meaningful:
+
+- [Parameters](Docs/Parameters.md): the implemented `Goldilocks/Phi81(d=54)` profile and how it maps to the Neo/SuperNeo paper.
+- [Threat model](Docs/ThreatModel.md): assumptions, trust boundaries, adversary model, and current non-goals.
+- [Proof envelope format](Docs/ProofEnvelope.md): the versioned binary container and transcript/context binding rules.
+- [What this proves](Docs/WhatThisProves.md): the distinction between fold reductions, terminal proofs, compressed public envelopes, and full application claims.
+- [CLI demo and test vector](Docs/CLI.md): one-hot CCS workload, `superneo prove`, `verify`, `inspect`, and the checked-in golden vector.
+- [GPU determinism](Docs/GPUDeterminism.md): what the Metal path promises, how it is checked against the CPU oracle, and what remains out of scope.
+- [Paper reproduction harness](Docs/PaperReproduction.md): maps `superneopaper.md` claims to pinned commands, benchmark selectors, logs, and generated reports.
+- [Roadmap status](Docs/RoadmapStatus.md): concrete artifact map for legibility, usability, credibility, and influence.
+
+## Demo CLI
+
+Build and run the executable target:
+
+```sh
+swift run superneo prove --bits 0,0,1,0,0,0,0,0 --output /tmp/one-hot-proof.json
+swift run superneo verify /tmp/one-hot-proof.json
+swift run superneo inspect /tmp/one-hot-proof.json
+```
+
+The CLI includes a one-hot vector workload and an 8-bit binary-addition workload:
+
+```sh
+swift run superneo prove --workload binary-add --operand-bits 8 --lhs 13 --rhs 29 --output /tmp/binary-add-proof.json
+swift run superneo verify /tmp/binary-add-proof.json
+```
+
+The default proof kind is a fast fold reduction, so verification reports that
+terminal CE verification is still required. Use `--kind terminal` for a complete
+terminal proof; it is currently much larger and slower because it includes the
+public CE opening proof.
 
 ## Cryptographic Model
 
@@ -140,4 +175,6 @@ Latest CPU-path audit snapshot (2026-04-12):
 | `ajtaiCommit/cpu/m1024` | 3.38 ms | 2.876 ms | fused CPU Ajtai matvec |
 | `ajtaiCommit/batch/cpu/m1024` | 43 ms | 37 ms | fused CPU Ajtai matvec |
 
-Detailed benchmark policy, correctness gates, CI notes, and runner implementation details are in [Docs/Benchmarking.md](Docs/Benchmarking.md).
+Detailed benchmark policy, correctness gates, CI notes, runner implementation
+details, and hardware-class report links are in
+[Docs/Benchmarking.md](Docs/Benchmarking.md).

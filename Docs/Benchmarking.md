@@ -6,6 +6,16 @@ Run the quick profile before changing performance-sensitive code:
 Scripts/run-benchmarks.sh quick
 ```
 
+To produce a paper-claim reproduction artifact that includes benchmark outputs,
+test-vector checks, command logs, and a claim map, run:
+
+```sh
+Scripts/reproduce-superneo-paper.sh quick
+```
+
+The artifact format is documented in
+[PaperReproduction.md](PaperReproduction.md).
+
 Run the full local profile on pinned Apple Silicon hardware:
 
 ```sh
@@ -60,6 +70,15 @@ Baseline policy:
 - Store baselines per hardware class, for example `apple-m4-release`.
 - Treat stable kernel regressions over 5% and full protocol regressions over 10% as failures.
 - Use Instruments or `xcrun xctrace record --template 'Metal System Trace'` only after the benchmark suite identifies a hotspot.
+
+Hardware-class reports:
+
+- [Apple M4 quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-2026-04-12.md)
+
+Add one report per Apple Silicon generation before making generation-to-generation
+claims. Each report must record chip, model, OS build, Xcode, Swift, Metal
+device, benchmark profile, source commit, environment variables, proof sizes,
+and the timing rows used in README or release claims.
 
 Current Metal scaling baseline:
 

@@ -95,4 +95,8 @@ public struct SuperNeoCPUBackend: Sendable {
         SuperNeoProver(parameters: parameters, key: key, context: nil)
     }
 
+    public func makeVerifier(key: AjtaiCommitmentKey) -> SuperNeoVerifier {
+        SuperNeoVerifier(parameters: parameters, key: key, context: nil)
+    }
+
 }

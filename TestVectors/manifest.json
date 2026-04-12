@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "profile": "Goldilocks/Phi81(d=54)",
+  "schema": "artifact.schema.json",
+  "vectors": [
+    {
+      "file": "one-hot-vector-fold-v1.json",
+      "sha256": "b2ce2c5e55aa9375599bbe9503c2ab2d1ea426d0b80fc654f5853b008f5d62bd",
+      "byteCount": 475933,
+      "workload": "one-hot-vector-v1",
+      "proofKind": "fold",
+      "bitCount": 8,
+      "publicClaim": "committed private vector is one-hot",
+      "verifyCommand": "swift run superneo verify TestVectors/one-hot-vector-fold-v1.json"
+    },
+    {
+      "file": "binary-addition-u8-fold-v1.json",
+      "sha256": "4eeaf42be1bc7358b88cd4fbade7d8d4dad6205ef3c2e6bec6eb84cc3ae9201d",
+      "byteCount": 477368,
+      "workload": "binary-addition-v1",
+      "proofKind": "fold",
+      "bitCount": 8,
+      "publicClaim": "committed private 8-bit operands add to public sum 42",
+      "verifyCommand": "swift run superneo verify TestVectors/binary-addition-u8-fold-v1.json"
+    }
+  ]
+}

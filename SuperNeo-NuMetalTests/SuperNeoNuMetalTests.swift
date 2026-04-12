@@ -11,6 +11,12 @@ private let compressedStatementContextVerifierKeyDigestOffset =
 private let compressedStatementVerifierKeyDigestOffset =
     compressedStatementContextVerifierKeyDigestOffset + (4 * Digest256.byteCount)
 
+private extension Digest256 {
+    var hexStringForTest: String {
+        bytes.map { String(format: "%02x", $0) }.joined()
+    }
+}
+
 class SuperNeoTestCase: XCTestCase {
     func requireMetalDevice(file: StaticString = #filePath, line: UInt = #line) throws -> MTLDevice {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -2143,6 +2149,231 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         XCTAssertEqual(result.reason, "decomposition commitments must match output claims")
     }
 
+}
+
+final class UsabilitySurfaceTests: SuperNeoTestCase {
+    func testOneHotR1CSBuilderPreparesVerifiableFoldEnvelope() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 8)
+        let prepared = try workload.prepareForFolding(
+            bits: [false, false, true, false, false, false, false, false],
+            keySeed: Array("usability-one-hot-key".utf8)
+        )
+        XCTAssertTrue(prepared.preparedFoldInput.requiresNormalization)
+        XCTAssertEqual(prepared.foldInput.shape.nPublicField, CyclotomicRing54.degree)
+        XCTAssertEqual(prepared.foldInput.shape.nField, 64)
+        XCTAssertTrue(prepared.foldInput.shape.hasIdentityFirstMatrix)
+
+        let publicInput = prepared.publicFoldInput
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        let context = ProofEnvelopeContext(
+            kind: .foldReduction,
+            statement: statement,
+            verifierKeyDigest: prepared.key.verifierKeyDigest
+        )
+        let envelope = try SuperNeoCPUBackend()
+            .makeProver(key: prepared.key)
+            .foldEnvelope(prepared.foldInput, context: context)
+        let reduction = SuperNeoCPUBackend()
+            .makeVerifier(key: prepared.key)
+            .reduceFoldEnvelope(
+                publicInput: publicInput,
+                proofBytes: envelope.superNeoBytes,
+                context: context
+            )
+
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertTrue(reduction.requiresTerminalRelationCheck)
+        XCTAssertEqual(reduction.outputClaims.count, prepared.key.parameters.decompositionLength)
+    }
+
+    func testOneHotR1CSBuilderRejectsNonOneHotWitness() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 4)
+        XCTAssertThrowsSuperNeoError(
+            try workload.privateWitness(bits: [true, false, true, false]),
+            .invalidParameter("one-hot witness must contain exactly one selected bit")
+        )
+    }
+
+    func testR1CSBuilderRejectsOutOfBoundsVariablesWithoutTrapping() throws {
+        var builder = SuperNeoR1CSBuilder()
+        let invalid = SuperNeoR1CSVariable(kind: .publicInput, offset: 99)
+        builder.enforce(
+            .variable(invalid),
+            times: .constant(.one, one: builder.one),
+            equals: .zero()
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try builder.validateWitness(publicInput: [.one], privateWitness: []),
+            .invalidParameter("R1CS public variable out of bounds")
+        )
+    }
+
+    func testBinaryAdditionR1CSBuilderPreparesVerifiableFoldEnvelope() throws {
+        let workload = try SuperNeoBinaryAdditionWorkload(bitCount: 8)
+        let prepared = try workload.prepareForFolding(
+            left: 13,
+            right: 29,
+            keySeed: Array("usability-binary-addition-key".utf8)
+        )
+        XCTAssertTrue(prepared.preparedFoldInput.requiresNormalization)
+        XCTAssertEqual(prepared.foldInput.shape.nPublicField, CyclotomicRing54.degree)
+        XCTAssertEqual(prepared.foldInput.shape.nField, 128)
+        XCTAssertTrue(prepared.foldInput.shape.hasIdentityFirstMatrix)
+
+        let publicInput = prepared.publicFoldInput
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        let context = ProofEnvelopeContext(
+            kind: .foldReduction,
+            statement: statement,
+            verifierKeyDigest: prepared.key.verifierKeyDigest
+        )
+        let envelope = try SuperNeoCPUBackend()
+            .makeProver(key: prepared.key)
+            .foldEnvelope(prepared.foldInput, context: context)
+        let reduction = SuperNeoCPUBackend()
+            .makeVerifier(key: prepared.key)
+            .reduceFoldEnvelope(
+                publicInput: publicInput,
+                proofBytes: envelope.superNeoBytes,
+                context: context
+            )
+
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertTrue(reduction.requiresTerminalRelationCheck)
+        XCTAssertEqual(reduction.outputClaims.count, prepared.key.parameters.decompositionLength)
+    }
+
+    func testGoldenOneHotFoldVectorVerifies() throws {
+        let artifact = try loadGoldenArtifact(named: "one-hot-vector-fold-v1.json")
+        XCTAssertEqual(artifact.artifactVersion, 1)
+        XCTAssertEqual(artifact.workload, "one-hot-vector-v1")
+        XCTAssertEqual(artifact.profile, SuperNeoParameterProfile.goldilocksPhi81.name)
+        XCTAssertEqual(artifact.proofKind, "fold")
+        XCTAssertEqual(artifact.publicInputs, [1])
+        XCTAssertEqual(artifact.expectedSelectedCount, 1)
+
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: artifact.bitCount)
+        let commitment = try parseGoldenCommitment(artifact.commitmentBase64, parameters: .goldilocks)
+        let publicInput = try workload.publicFoldInput(commitment: commitment)
+        XCTAssertEqual(publicInput.shape.shapeDigest.hexStringForTest, artifact.shapeDigestHex)
+
+        let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(artifact.keySeedUTF8.utf8))
+        XCTAssertEqual(key.verifierKeyDigest.hexStringForTest, artifact.verifierKeyDigestHex)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        XCTAssertEqual(statement.statementDigest.hexStringForTest, artifact.statementDigestHex)
+
+        let proofBytes = try XCTUnwrap(Data(base64Encoded: artifact.proofEnvelopeBase64)).map { UInt8($0) }
+        let context = ProofEnvelopeContext(
+            kind: .foldReduction,
+            statement: statement,
+            verifierKeyDigest: key.verifierKeyDigest
+        )
+        let reduction = SuperNeoCPUBackend()
+            .makeVerifier(key: key)
+            .reduceFoldEnvelope(
+                publicInput: publicInput,
+                proofBytes: proofBytes,
+                context: context
+            )
+
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertTrue(reduction.requiresTerminalRelationCheck)
+        XCTAssertEqual(reduction.outputClaims.count, key.parameters.decompositionLength)
+    }
+
+    func testGoldenBinaryAdditionFoldVectorVerifies() throws {
+        let artifact = try loadGoldenArtifact(named: "binary-addition-u8-fold-v1.json")
+        XCTAssertEqual(artifact.artifactVersion, 1)
+        XCTAssertEqual(artifact.workload, "binary-addition-v1")
+        XCTAssertEqual(artifact.profile, SuperNeoParameterProfile.goldilocksPhi81.name)
+        XCTAssertEqual(artifact.proofKind, "fold")
+        XCTAssertEqual(artifact.bitCount, 8)
+        XCTAssertEqual(artifact.workloadParameters?["publicSum"], "42")
+
+        let workload = try SuperNeoBinaryAdditionWorkload(bitCount: artifact.bitCount)
+        let commitment = try parseGoldenCommitment(artifact.commitmentBase64, parameters: .goldilocks)
+        let publicInput = try workload.publicFoldInput(
+            commitment: commitment,
+            publicInput: artifact.publicInputs.map { GoldilocksField($0) }
+        )
+        XCTAssertEqual(publicInput.shape.shapeDigest.hexStringForTest, artifact.shapeDigestHex)
+
+        let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(artifact.keySeedUTF8.utf8))
+        XCTAssertEqual(key.verifierKeyDigest.hexStringForTest, artifact.verifierKeyDigestHex)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        XCTAssertEqual(statement.statementDigest.hexStringForTest, artifact.statementDigestHex)
+
+        let proofBytes = try XCTUnwrap(Data(base64Encoded: artifact.proofEnvelopeBase64)).map { UInt8($0) }
+        let context = ProofEnvelopeContext(
+            kind: .foldReduction,
+            statement: statement,
+            verifierKeyDigest: key.verifierKeyDigest
+        )
+        let reduction = SuperNeoCPUBackend()
+            .makeVerifier(key: key)
+            .reduceFoldEnvelope(
+                publicInput: publicInput,
+                proofBytes: proofBytes,
+                context: context
+            )
+
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertTrue(reduction.requiresTerminalRelationCheck)
+        XCTAssertEqual(reduction.outputClaims.count, key.parameters.decompositionLength)
+    }
+
+    private struct GoldenArtifact: Decodable {
+        let artifactVersion: UInt32
+        let workload: String
+        let profile: String
+        let proofKind: String
+        let bitCount: Int
+        let expectedSelectedCount: UInt64?
+        let keySeedUTF8: String
+        let workloadParameters: [String: String]?
+        let publicInputs: [UInt64]
+        let commitmentBase64: String
+        let proofEnvelopeBase64: String
+        let shapeDigestHex: String
+        let statementDigestHex: String
+        let verifierKeyDigestHex: String
+    }
+
+    private func loadGoldenArtifact(named name: String) throws -> GoldenArtifact {
+        let testFile = URL(fileURLWithPath: #filePath)
+        let repositoryRoot = testFile
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let url = repositoryRoot
+            .appendingPathComponent("TestVectors")
+            .appendingPathComponent(name)
+        let data = try Data(contentsOf: url)
+        return try JSONDecoder().decode(GoldenArtifact.self, from: data)
+    }
+
+    private func parseGoldenCommitment(_ base64: String, parameters: SuperNeoParameters) throws -> AjtaiCommitment {
+        let data = try XCTUnwrap(Data(base64Encoded: base64))
+        let ringByteCount = CyclotomicRing54.degree * 8
+        XCTAssertEqual(data.count, parameters.kappa * ringByteCount)
+        let bytes = [UInt8](data)
+        let elements = try stride(from: 0, to: bytes.count, by: ringByteCount).map { offset in
+            try CyclotomicRing54(littleEndianBytes: Array(bytes[offset..<offset + ringByteCount]))
+        }
+        return AjtaiCommitment(elements)
+    }
 }
 
 final class MetalDifferentialTests: SuperNeoTestCase {

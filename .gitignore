@@ -27,6 +27,7 @@ xcuserdata/
 
 # Generated benchmark and scratch output
 benchmark-results/
+paper-reproduction/
 tmp/
 
 # Generated Metal artifacts
