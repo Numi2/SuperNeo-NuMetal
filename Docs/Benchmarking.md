@@ -77,7 +77,7 @@ Latest local scaling snapshot:
 
 Current CPU-path baseline:
 
-- CPU protocol evaluation uses sparse transformed CCS matrices by default. Dense transformed matrices are retained for dense-specific benchmarks and comparisons.
+- CPU protocol evaluation uses sparse transformed CCS matrices by default. Dense transformed matrices are retained for dense-specific benchmarks and comparisons. Benchmark fixtures use a nonzero identity-consistency relation plus an auxiliary sparse matrix so relation checks are real while sparse transformed-evaluation kernels stay covered.
 - CPU PiDEC evaluates extension-ring rows by computing `rHat` once and accumulating all 54 ring coefficients in one pass.
 - Local CE batch verification compiles the sparse CCS shape once and reuses transformed matrices across openings.
 - Public CE proof generation and verification precompute per-opening evaluation bases, check cheap transcript digests before expensive private-linear reconstruction, chunk prover private-linear work across Stern rounds, and batch verifier challenge-0/1 private-linear jobs after the transcript scan. CPU CE batches fuse each opening's commitment and transformed evaluations in one parallel pass; provers and verifiers with a Metal context route same-point CE batches through the combined workspace commit-plus-evaluation path.

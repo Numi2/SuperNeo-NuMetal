@@ -1331,6 +1331,14 @@ public final class SuperNeoProver: @unchecked Sendable {
         compiledShape: CompiledCCSShape? = nil,
         transcript: inout SumCheckTranscript
     ) throws -> SumcheckProof {
+        let sparseMatrices = try compiledShape?.transformedSparseMatrices
+            ?? input.shape.compiledSparseForSuperNeo().transformedSparseMatrices
+        try validatePriorCEClaimWitnesses(
+            input: input,
+            key: key,
+            transformedMatrices: sparseMatrices,
+            parameters: parameters
+        )
         var oracle = try makeQOracle(
             input: input,
             compiledShape: compiledShape,
@@ -2890,6 +2898,15 @@ private struct CEOpeningPrivateLinearBatchContext {
             guard metalWorkspace.transformedMatrixCount == transformedMatrices.count else {
                 throw SuperNeoError.invalidParameter("CE opening Metal workspace transformed matrix count mismatch")
             }
+            if let shapeDigest = metalWorkspace.shapeDigest {
+                guard shapeDigest == shape.shapeDigest else {
+                    throw SuperNeoError.invalidParameter("CE opening Metal workspace shape digest mismatch")
+                }
+            }
+            let expectedDigest = SuperNeoMetalWorkspace.transformedMatricesDigest(for: transformedMatrices)
+            guard metalWorkspace.transformedMatricesDigest == expectedDigest else {
+                throw SuperNeoError.invalidParameter("CE opening Metal workspace transformed matrix digest mismatch")
+            }
         }
         let expectedPointCount = try log2Exact(shape.m)
         self.shape = shape
@@ -3173,6 +3190,29 @@ private func privateWitness(from witness: [GoldilocksField], shape: CCSShape) th
         throw SuperNeoError.invalidParameter("CE opening witness length is shorter than public input")
     }
     return Array(witness.dropFirst(shape.nPublicField))
+}
+
+private func validatePriorCEClaimWitnesses(
+    input: SuperNeoFoldInput,
+    key: AjtaiCommitmentKey,
+    transformedMatrices: [SparseRingMatrixCSR],
+    parameters: SuperNeoParameters
+) throws {
+    guard !input.priorClaims.isEmpty else { return }
+    guard transformedMatrices.count == input.shape.numMatrices else {
+        throw SuperNeoError.invalidParameter("compiled transformed matrix count mismatch")
+    }
+    for claim in input.priorClaims {
+        guard try SuperNeoProtocolOracle.verifyEvaluationClaimOpening(
+            shape: input.shape,
+            transformedMatrices: transformedMatrices,
+            claim: claim,
+            key: key,
+            parameters: parameters
+        ) else {
+            throw SuperNeoError.invalidParameter("prior CE claim witness does not satisfy its commitment/evaluation opening")
+        }
+    }
 }
 
 private func subtractTarget(_ instance: CEInstance, target: CEPrivateTarget) -> CEInstance {

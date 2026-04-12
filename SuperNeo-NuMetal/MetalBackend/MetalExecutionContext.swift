@@ -139,7 +139,6 @@ public final class MetalExecutionContext: @unchecked Sendable {
             "sparse_transformed_eval_fused_kernel",
             "sparse_transformed_eval_block_partial_kernel",
             "sparse_transformed_eval_block_reduce_kernel",
-            "ajtai_matvec_coeff_kernel",
             "ajtai_matvec_ring_batch_coeff_kernel",
             "ajtai_matvec_tile_kernel",
             "ajtai_matvec_reduce_kernel"

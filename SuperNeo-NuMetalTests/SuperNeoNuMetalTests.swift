@@ -285,6 +285,19 @@ final class ProtocolShapeTests: SuperNeoTestCase {
         )
     }
 
+    func testSumcheckProverRejectsOracleClaimMismatch() throws {
+        let evaluator: ([GoldilocksExt2]) throws -> GoldilocksExt2 = { point in
+            point[0]
+        }
+        var oracle = try EvaluatingSumcheckOracle(numVars: 1, maxDegreePerRound: 1, evaluator: evaluator)
+        var transcript = SumCheckTranscript(domainSeparator: "strict.sumcheck.invalid")
+
+        XCTAssertThrowsSuperNeoError(
+            try SumcheckProver.prove(oracle: &oracle, claimedSum: .zero, transcript: &transcript),
+            .invalidParameter("sum-check oracle round polynomial does not match running claim")
+        )
+    }
+
     func testRealSumcheckVerifierRejectsTamperedRoundPolynomial() throws {
         let proof = makeToySumcheckProof()
         let badRound = SumcheckRound(coeffs: [proof.rounds[0].coeffs[0] + .one, proof.rounds[0].coeffs[1]])
@@ -818,6 +831,49 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         }
     }
 
+    func testCEOpeningRejectsStaleMetalWorkspaceForShape() throws {
+        let device = try requireMetalDevice()
+        let context = try MetalExecutionContext(device: device)
+        let fixture = try makeFoldFixture()
+        let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(fixture.input, transcriptSeed: fixture.seed)
+        let claim = try XCTUnwrap(fold.outputClaims.first)
+        let witness = try XCTUnwrap(CEOpeningWitness(claim: claim))
+        let statement = try TerminalCEStatement(
+            profileID: fixture.key.parameters.profileID,
+            shape: fixture.input.shape,
+            key: fixture.key,
+            claims: [claim]
+        )
+        let tamperedMatrix = try SparseFieldMatrix(
+            rows: fixture.input.shape.m,
+            columns: fixture.input.shape.nField,
+            entries: (0..<fixture.input.shape.m).map { row in
+                SparseFieldMatrix.Entry(
+                    row: row,
+                    column: row,
+                    value: row == 0 ? GoldilocksField(2) : .one
+                )
+            }
+        )
+        let staleWorkspace = try SuperNeoMetalWorkspace(
+            context: context,
+            key: fixture.key,
+            transformedSparseMatrices: [try tamperedMatrix.transformedSparseForSuperNeo()]
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try CEOpeningRelation.proveLocalBatch(
+                statement: statement,
+                witnesses: [witness],
+                shape: fixture.input.shape,
+                key: fixture.key,
+                randomSeed: Array("ce-opening-stale-workspace".utf8),
+                metalWorkspace: staleWorkspace
+            ),
+            .invalidParameter("CE opening Metal workspace transformed matrix digest mismatch")
+        )
+    }
+
     func testCEOpeningRejectsAjtaiKeyColumnCountThatDoesNotMatchShape() throws {
         let fixture = try makeFoldFixture()
         let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(fixture.input, transcriptSeed: fixture.seed)
@@ -1034,6 +1090,25 @@ final class ProtocolE2ETests: SuperNeoTestCase {
                 transcriptSeed: fixture.seed
             ),
             reason: "invalidParameter(\"prior CE public input length must match shape.nPublicField\")"
+        )
+    }
+
+    func testProverRejectsPriorCEClaimWhenEvaluationDoesNotMatchWitness() throws {
+        let fixture = try makePaperAuditFixture()
+        var priorClaims = fixture.input.priorClaims
+        var tamperedEvaluations = priorClaims[0].evaluations
+        tamperedEvaluations[0] = tamperedEvaluations[0] + CyclotomicExt2Ring54([GoldilocksExt2(.one)])
+        priorClaims[0] = replacing(priorClaims[0], evaluations: tamperedEvaluations)
+        let input = SuperNeoFoldInput(
+            shape: fixture.input.shape,
+            instances: fixture.input.instances,
+            witnesses: fixture.input.witnesses,
+            priorClaims: priorClaims
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoProver(key: fixture.key).fold(input, transcriptSeed: fixture.seed),
+            .invalidParameter("prior CE claim witness does not satisfy its commitment/evaluation opening")
         )
     }
 
@@ -1796,6 +1871,14 @@ final class MetalDifferentialTests: SuperNeoTestCase {
         )
         XCTAssertEqual(
             try workspace.ajtaiCommitments(messages: [message, message]),
+            [
+                try AjtaiCommitter.commitReference(key: key, message: message),
+                try AjtaiCommitter.commitReference(key: key, message: message)
+            ]
+        )
+        let tiledSchedule = try AjtaiMatvecSchedule(columnTileSize: 1, rowTileSize: 2, maxBatchSize: 1, kernel: .tiled)
+        XCTAssertEqual(
+            try workspace.ajtaiCommitments(messages: [message, message], schedule: tiledSchedule),
             [
                 try AjtaiCommitter.commitReference(key: key, message: message),
                 try AjtaiCommitter.commitReference(key: key, message: message)

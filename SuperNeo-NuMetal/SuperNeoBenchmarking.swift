@@ -216,9 +216,15 @@ import os
     public static func makeShape(rowCount: Int) throws -> CCSShape {
         let identity = try SparseFieldMatrix.identity(size: rowCount)
         let sparse = try makeSparseMatrix(rowCount: rowCount, nonzerosPerRow: 4)
-        let relation = try RelationPolynomial(variableCount: 2, monomials: [])
+        let relation = try RelationPolynomial(
+            variableCount: 3,
+            monomials: [
+                RelationMonomial(coefficient: .one, exponents: [1, 0, 0]),
+                RelationMonomial(coefficient: -.one, exponents: [0, 1, 0])
+            ]
+        )
         return try CCSShape(
-            matrices: [identity, sparse],
+            matrices: [identity, identity, sparse],
             publicInputCount: CyclotomicRing54.degree,
             relationPolynomial: relation
         )

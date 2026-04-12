@@ -598,49 +598,6 @@ kernel void sparse_transformed_eval_block_reduce_kernel(
     outExtCoeffs[outOffset + 1] = acc1;
 }
 
-kernel void ajtai_matvec_coeff_kernel(
-    device const ulong *matrix [[buffer(0)]],
-    device const ulong *messages [[buffer(1)]],
-    device ulong *outRows [[buffer(2)]],
-    device const uint *params [[buffer(3)]],
-    constant uint &count [[buffer(4)]],
-    uint id [[thread_position_in_grid]]
-) {
-    if (id >= count) { return; }
-    uint rowCount = params[0];
-    uint columnCount = params[1];
-    uint batchCount = params[2];
-
-    uint coeff = id % 54;
-    uint row = (id / 54) % rowCount;
-    uint batch = id / (rowCount * 54);
-    if (batch >= batchCount) { return; }
-
-    int target = int(coeff);
-    ulong acc = 0;
-    uint messageBatchBase = batch * columnCount * 54;
-    for (uint column = 0; column < columnCount; column++) {
-        uint matrixOffset = ((row * columnCount) + column) * 54;
-        for (uint shift = 0; shift < 54; shift++) {
-            ulong scalar = messages[messageBatchBase + shift * columnCount + column];
-            if (scalar == 0) { continue; }
-            int shifted = int(shift);
-            ajtai_accumulate_target_coefficient(matrix + matrixOffset, scalar, target - shifted, acc, false);
-            if (target <= 26) {
-                ajtai_accumulate_target_coefficient(matrix + matrixOffset, scalar, target + 54 - shifted, acc, true);
-            }
-            if (target >= 27) {
-                ajtai_accumulate_target_coefficient(matrix + matrixOffset, scalar, target + 27 - shifted, acc, true);
-            }
-            if (target <= 25) {
-                ajtai_accumulate_target_coefficient(matrix + matrixOffset, scalar, target + 81 - shifted, acc, false);
-            }
-        }
-    }
-
-    outRows[(batch * rowCount + row) * 54 + coeff] = acc;
-}
-
 kernel void ajtai_matvec_ring_batch_coeff_kernel(
     device const ulong *matrix [[buffer(0)]],
     device const ulong *messages [[buffer(1)]],

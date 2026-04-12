@@ -93,14 +93,21 @@ public struct AjtaiMatvecSchedule: Equatable, Sendable {
     public static let `default` = AjtaiMatvecSchedule(
         uncheckedColumnTileSize: 8,
         uncheckedRowTileSize: SuperNeoParameters.goldilocks.kappa,
-        uncheckedMaxBatchSize: 16
+        uncheckedMaxBatchSize: 16,
+        uncheckedKernel: .coefficient
     )
 
     public let columnTileSize: Int
     public let rowTileSize: Int
     public let maxBatchSize: Int
+    public let kernel: AjtaiMatvecKernel
 
-    public init(columnTileSize: Int = 8, rowTileSize: Int = SuperNeoParameters.goldilocks.kappa, maxBatchSize: Int = 16) throws {
+    public init(
+        columnTileSize: Int = 8,
+        rowTileSize: Int = SuperNeoParameters.goldilocks.kappa,
+        maxBatchSize: Int = 16,
+        kernel: AjtaiMatvecKernel = .coefficient
+    ) throws {
         guard columnTileSize > 0 else {
             throw SuperNeoError.invalidParameter("Ajtai column tile size must be positive")
         }
@@ -113,6 +120,7 @@ public struct AjtaiMatvecSchedule: Equatable, Sendable {
         self.columnTileSize = columnTileSize
         self.rowTileSize = rowTileSize
         self.maxBatchSize = maxBatchSize
+        self.kernel = kernel
     }
 
     public func planned(for key: AjtaiCommitmentKey, messageCount: Int) -> Self {
@@ -122,15 +130,27 @@ public struct AjtaiMatvecSchedule: Equatable, Sendable {
         return AjtaiMatvecSchedule(
             uncheckedColumnTileSize: boundedColumns,
             uncheckedRowTileSize: boundedRows,
-            uncheckedMaxBatchSize: boundedBatch
+            uncheckedMaxBatchSize: boundedBatch,
+            uncheckedKernel: kernel
         )
     }
 
-    private init(uncheckedColumnTileSize: Int, uncheckedRowTileSize: Int, uncheckedMaxBatchSize: Int) {
+    private init(
+        uncheckedColumnTileSize: Int,
+        uncheckedRowTileSize: Int,
+        uncheckedMaxBatchSize: Int,
+        uncheckedKernel: AjtaiMatvecKernel
+    ) {
         self.columnTileSize = uncheckedColumnTileSize
         self.rowTileSize = uncheckedRowTileSize
         self.maxBatchSize = uncheckedMaxBatchSize
+        self.kernel = uncheckedKernel
     }
+}
+
+public enum AjtaiMatvecKernel: Equatable, Sendable {
+    case coefficient
+    case tiled
 }
 
 public enum AjtaiMatvecScheduler {

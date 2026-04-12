@@ -23,7 +23,9 @@ fileprivate struct SparseRingMatrixBatchBuffers {
 public final class SuperNeoMetalWorkspace: @unchecked Sendable {
     public let context: MetalExecutionContext
     public let key: AjtaiCommitmentKey
+    public let shapeDigest: Digest256?
     public let transformedMatrixCount: Int
+    public let transformedMatricesDigest: Digest256
 
     fileprivate let keyMatrixBuffer: MTLBuffer
     fileprivate let transformedMatrixBuffers: [SparseRingMatrixBuffers]
@@ -37,14 +39,16 @@ public final class SuperNeoMetalWorkspace: @unchecked Sendable {
         try self.init(
             context: context,
             key: key,
-            transformedSparseMatrices: compiledShape.transformedSparseMatrices
+            transformedSparseMatrices: compiledShape.transformedSparseMatrices,
+            shapeDigest: compiledShape.shape.shapeDigest
         )
     }
 
     public init(
         context: MetalExecutionContext,
         key: AjtaiCommitmentKey,
-        transformedSparseMatrices: [SparseRingMatrixCSR]
+        transformedSparseMatrices: [SparseRingMatrixCSR],
+        shapeDigest: Digest256? = nil
     ) throws {
         guard key.matrix.rows == key.parameters.kappa else {
             throw SuperNeoError.invalidParameter("Ajtai matrix row count must equal kappa")
@@ -56,7 +60,9 @@ public final class SuperNeoMetalWorkspace: @unchecked Sendable {
         let backend = SuperNeoMetalBackend(context: context)
         self.context = context
         self.key = key
+        self.shapeDigest = shapeDigest
         self.transformedMatrixCount = transformedSparseMatrices.count
+        self.transformedMatricesDigest = Self.transformedMatricesDigest(for: transformedSparseMatrices)
         self.keyMatrixBuffer = try context.makeBuffer(backend.flatten(key.matrix.elements))
         self.transformedMatrixBuffers = try transformedSparseMatrices.map {
             try backend.makeSparseRingMatrixBuffers($0)
@@ -126,6 +132,22 @@ public final class SuperNeoMetalWorkspace: @unchecked Sendable {
             matrixBuffer: keyMatrixBuffer,
             batchBuffers: transformedMatrixBatchBuffers
         )
+    }
+
+    public static func transformedMatricesDigest(for matrices: [SparseRingMatrixCSR]) -> Digest256 {
+        var bytes = Array("SuperNeo-NuMetal.metal.transformed-matrices.v1".utf8)
+        bytes.append(contentsOf: metalDigestEncodeCount(matrices.count))
+        for matrix in matrices {
+            bytes.append(contentsOf: metalDigestEncodeCount(matrix.rows))
+            bytes.append(contentsOf: metalDigestEncodeCount(matrix.columns))
+            bytes.append(contentsOf: metalDigestEncodeCount(matrix.rowOffsets.count))
+            matrix.rowOffsets.forEach { bytes.append(contentsOf: metalDigestEncodeCount($0)) }
+            bytes.append(contentsOf: metalDigestEncodeCount(matrix.columnIndices.count))
+            matrix.columnIndices.forEach { bytes.append(contentsOf: metalDigestEncodeCount($0)) }
+            bytes.append(contentsOf: metalDigestEncodeCount(matrix.values.count))
+            matrix.values.forEach { bytes.append(contentsOf: $0.littleEndianBytes) }
+        }
+        return Digest256.hash(bytes)
     }
 }
 
@@ -260,11 +282,21 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         while batchStart < messages.count {
             let batchEnd = min(batchStart + planned.maxBatchSize, messages.count)
             let batchMessages = Array(messages[batchStart..<batchEnd])
-            commitments.append(contentsOf: try ajtaiCommitmentsCoefficientBatch(
-                key: key,
-                messages: batchMessages,
-                matrixBuffer: matrixBuffer
-            ))
+            switch planned.kernel {
+            case .coefficient:
+                commitments.append(contentsOf: try ajtaiCommitmentsCoefficientBatch(
+                    key: key,
+                    messages: batchMessages,
+                    matrixBuffer: matrixBuffer
+                ))
+            case .tiled:
+                commitments.append(contentsOf: try ajtaiCommitmentsBatch(
+                    key: key,
+                    messages: batchMessages,
+                    schedule: planned,
+                    matrixBuffer: matrixBuffer
+                ))
+            }
             batchStart = batchEnd
         }
 
@@ -1001,4 +1033,8 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
     private func checkedUInt32Array(_ values: [Int], name: String) throws -> [UInt32] {
         try values.map { try checkedUInt32($0, name: name) }
     }
+}
+
+private func metalDigestEncodeCount(_ value: Int) -> [UInt8] {
+    withUnsafeBytes(of: UInt64(value).littleEndian, Array.init)
 }

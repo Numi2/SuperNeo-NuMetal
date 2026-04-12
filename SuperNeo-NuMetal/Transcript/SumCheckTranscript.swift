@@ -285,6 +285,7 @@ public enum SumcheckProver {
         transcript.absorb(claimedSum.superNeoBytes)
         var rounds: [SumcheckRound] = []
         var prefix: [GoldilocksExt2] = []
+        var runningClaim = claimedSum
         rounds.reserveCapacity(oracle.numVars)
         prefix.reserveCapacity(oracle.numVars)
 
@@ -293,13 +294,23 @@ public enum SumcheckProver {
             guard !coeffs.isEmpty, coeffs.count <= oracle.maxDegreePerRound + 1 else {
                 throw SuperNeoError.invalidParameter("oracle returned invalid round polynomial degree")
             }
+            let g0 = SumcheckVerifier.evaluatePolynomial(coeffs, at: .zero)
+            let g1 = SumcheckVerifier.evaluatePolynomial(coeffs, at: .one)
+            guard g0 + g1 == runningClaim else {
+                throw SuperNeoError.invalidParameter("sum-check oracle round polynomial does not match running claim")
+            }
             let round = SumcheckRound(coeffs: coeffs)
             rounds.append(round)
             transcript.absorb(round.superNeoBytes)
-            prefix.append(transcript.challengeExt2())
+            let challenge = transcript.challengeExt2()
+            prefix.append(challenge)
+            runningClaim = SumcheckVerifier.evaluatePolynomial(coeffs, at: challenge)
         }
 
         let finalValue = try oracle.finalEvaluation(point: prefix)
+        guard finalValue == runningClaim else {
+            throw SuperNeoError.invalidParameter("sum-check oracle final evaluation does not match running claim")
+        }
         return SumcheckProof(
             claimedSum: claimedSum,
             rounds: rounds,
