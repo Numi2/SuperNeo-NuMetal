@@ -76,6 +76,7 @@ Hardware-class reports:
 - [Apple M4 quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-2026-04-12.md)
 - [Apple M4 exact-arithmetic quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-exact-arithmetic-2026-04-12.md)
 - [Apple M4 CSR transform and CE batch quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-csr-ce-batch-2026-04-12.md)
+- [Lead audit, 2026-04-12](LeadAudit-2026-04-12.md)
 
 Add one report per Apple Silicon generation before making generation-to-generation
 claims. Each report must record chip, model, OS build, Xcode, Swift, Metal
@@ -115,6 +116,13 @@ documented baseline, not necessarily the fastest isolated microbenchmark.
 Current CPU-path baseline:
 
 - CPU protocol evaluation uses sparse transformed CCS matrices by default. Dense transformed matrices are retained for dense-specific benchmarks and comparisons. Benchmark fixtures use a nonzero identity-consistency relation plus an auxiliary sparse matrix so relation checks are real while sparse transformed-evaluation kernels stay covered.
+- CSR field-matrix multiplication runs directly from canonical CSR storage. The
+  multilinear evaluation kernel and multilinear basis generator also fold and
+  expand layers in place, so CPU kernel rows avoid entry-list reconstruction and
+  per-round layer allocation.
+- CPU transformed evaluation skips zero row coefficients before extension-field
+  scaling, preserving the coefficient-first accumulation order while respecting
+  sparse transformed-row structure.
 - Goldilocks field multiplication uses the modulus identity `2^64 == 2^32 - 1 mod p` directly instead of a generic 128-bit modulus loop. Field operators return canonical raw values without re-entering public normalization when the result is already known to be canonical.
 - `GoldilocksExt2` multiplication uses the three-multiply Karatsuba identity, and CPU row-evaluation paths scale extension elements by base-field coefficients directly instead of promoting the scalar into a full extension multiply.
 - `CyclotomicRing54` multiplication and base-ring-by-extension-ring multiplication accumulate directly into the 54 reduced output coefficients using `X^54 = -X^27 - 1`, avoiding the temporary 107-coefficient product and second reduction pass. Fixed-degree ring add/sub/scale paths also avoid map/zip allocation churn.

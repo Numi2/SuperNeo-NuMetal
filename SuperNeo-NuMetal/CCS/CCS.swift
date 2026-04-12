@@ -368,7 +368,18 @@ public struct SparseMatrixCSR: Equatable, Hashable, Sendable, SuperNeoByteEncoda
     }
 
     public func multiplied(by vector: [GoldilocksField]) throws -> [GoldilocksField] {
-        try toSparseFieldMatrix().multiplied(by: vector)
+        guard vector.count == columnCount else {
+            throw SuperNeoError.invalidParameter("field matrix/vector mismatch")
+        }
+        var output = Array(repeating: GoldilocksField.zero, count: rowCount)
+        for row in 0..<rowCount {
+            var total = GoldilocksField.zero
+            for index in rowOffsets[row]..<rowOffsets[row + 1] {
+                total = total + values[index] * vector[columnIndices[index]]
+            }
+            output[row] = total
+        }
+        return output
     }
 
     public var superNeoBytes: [UInt8] {
@@ -869,11 +880,13 @@ public enum MultilinearEvaluation {
             guard weights.count <= Int.max / 2 else {
                 throw SuperNeoError.invalidParameter("multilinear basis dimension is too large")
             }
-            let previous = weights
-            weights = Array(repeating: .zero, count: previous.count * 2)
-            for index in previous.indices {
-                weights[index] = previous[index] * (.one - challenge)
-                weights[index + previous.count] = previous[index] * challenge
+            let oldCount = weights.count
+            weights.append(contentsOf: repeatElement(.zero, count: oldCount))
+            let lowWeight = GoldilocksExt2.one - challenge
+            for index in 0..<oldCount {
+                let previous = weights[index]
+                weights[index] = previous * lowWeight
+                weights[index + oldCount] = previous * challenge
             }
         }
         return weights
@@ -888,13 +901,16 @@ public enum MultilinearEvaluation {
             throw SuperNeoError.invalidParameter("vector length must equal 2^point.count")
         }
         var layer = vector.map { GoldilocksExt2($0) }
+        var width = layer.count
         for challenge in point {
-            var next: [GoldilocksExt2] = []
-            next.reserveCapacity(layer.count / 2)
-            for index in stride(from: 0, to: layer.count, by: 2) {
-                next.append(layer[index] * (.one - challenge) + layer[index + 1] * challenge)
+            let lowWeight = GoldilocksExt2.one - challenge
+            let halfWidth = width / 2
+            for index in 0..<halfWidth {
+                let low = layer[index * 2]
+                let high = layer[index * 2 + 1]
+                layer[index] = low * lowWeight + high * challenge
             }
-            layer = next
+            width = halfWidth
         }
         return layer[0]
     }

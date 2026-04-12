@@ -1,6 +1,6 @@
 import XCTest
 import Metal
-@testable import SuperNeo_NuMetal
+@_spi(Benchmarking) @testable import SuperNeo_NuMetal
 
 private let encodedCountByteWidth = 8
 private let proofEnvelopeVerifierKeyDigestOffset = 4 + 2 + 2 + 1 + (2 * Digest256.byteCount)
@@ -293,6 +293,7 @@ final class EvaluationCoreTests: SuperNeoTestCase {
                 let basis = try MultilinearEvaluation.checkedBasis(at: point)
 
                 XCTAssertEqual(basis.reduce(.zero, +), .one)
+                XCTAssertEqual(basis, directMultilinearBasis(at: point))
                 XCTAssertEqual(
                     try MultilinearEvaluation.evaluate(vector, at: point),
                     directMultilinearEvaluation(vector, at: point)
@@ -569,7 +570,13 @@ final class ProtocolShapeTests: SuperNeoTestCase {
         XCTAssertEqual(csr.rowOffsets, [0, 2, 2])
         XCTAssertEqual(csr.columnIndices, [1, 3])
         XCTAssertEqual(csr.values, [GoldilocksField(9), GoldilocksField(12)])
-        XCTAssertEqual(try csr.toSparseFieldMatrix().multiplied(by: [.one, .one, .one, .one]), [GoldilocksField(21), .zero])
+        let vector = [GoldilocksField.one, .one, .one, .one]
+        XCTAssertEqual(try csr.multiplied(by: vector), [GoldilocksField(21), .zero])
+        XCTAssertEqual(try csr.multiplied(by: vector), try csr.toSparseFieldMatrix().multiplied(by: vector))
+        XCTAssertThrowsSuperNeoError(
+            try csr.multiplied(by: [.one, .one, .one]),
+            .invalidParameter("field matrix/vector mismatch")
+        )
         XCTAssertThrowsSuperNeoError(
             try SparseMatrixCSR(rowCount: 1, columnCount: 4, rowOffsets: [0, 2], columnIndices: [2, 1], values: [.one, .one]),
             .invalidParameter("CSR column indices must be strictly increasing within each row")
@@ -996,6 +1003,42 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
                 key: fixture.key
             ))
         }
+    }
+
+    func testCEOpeningMetalVerifierUsesWorkspaceTargetPreparation() throws {
+        let device = try requireMetalDevice()
+        let context = try MetalExecutionContext(device: device)
+        let fixture = try makeFoldFixture()
+        let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(fixture.input, transcriptSeed: fixture.seed)
+        let statement = try TerminalCEStatement(
+            profileID: fixture.key.parameters.profileID,
+            shape: fixture.input.shape,
+            key: fixture.key,
+            claims: fold.outputClaims
+        )
+        let witnesses = try fold.outputClaims.map { claim in
+            try XCTUnwrap(CEOpeningWitness(claim: claim))
+        }
+        let workspace = try SuperNeoMetalWorkspace(
+            context: context,
+            key: fixture.key,
+            compiledShape: fixture.input.shape.compiledSparseForSuperNeo()
+        )
+        let proof = try CEOpeningRelation.proveLocalBatchForTesting(
+            statement: statement,
+            witnesses: witnesses,
+            shape: fixture.input.shape,
+            key: fixture.key,
+            randomSeed: Array("ce-opening-metal-targets".utf8)
+        )
+
+        XCTAssertTrue(try CEOpeningRelation.verify(
+            proof: proof,
+            statement: statement,
+            shape: fixture.input.shape,
+            key: fixture.key,
+            metalWorkspace: workspace
+        ))
     }
 
     func testCEOpeningRejectsStaleMetalWorkspaceForShape() throws {
@@ -2184,6 +2227,22 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         XCTAssertEqual(result.reason, "random-linear-combination challenge mismatch")
     }
 
+    func testProverRejectsMixedWitnessAvailabilityInRLCClaims() throws {
+        let fixture = try makePaperAuditFixture()
+        let prover = fixture.backend.makeProver(key: fixture.key)
+        let sumCheck = try prover.benchmarkSumCheckProof(input: fixture.input, transcriptSeed: fixture.seed)
+        var claims = try prover.benchmarkPiCCSClaims(input: fixture.input, point: sumCheck.finalPoint)
+        XCTAssertGreaterThan(claims.count, 1)
+        XCTAssertTrue(claims.allSatisfy { $0.witness != nil })
+
+        claims[1] = removingWitness(from: claims[1])
+
+        XCTAssertThrowsSuperNeoError(
+            try prover.benchmarkPiRLC(input: fixture.input, claims: claims, transcriptSeed: fixture.seed),
+            .invalidParameter("RLC claims must either all carry witnesses or all be public")
+        )
+    }
+
     func testVerifierRejectsTamperedDecompositionCommitment() throws {
         let fixture = try makeFoldFixture()
         let proof = try fixture.backend.makeProver(key: fixture.key).fold(fixture.input, transcriptSeed: fixture.seed)
@@ -2602,6 +2661,21 @@ final class MetalDifferentialTests: SuperNeoTestCase {
             key: key,
             transformedSparseMatrices: [sparseMatrix]
         )
+        let mismatchedSparseMatrix = try SparseRingMatrixCSR(
+            rows: sparseMatrix.rows,
+            columns: key.matrix.columns + 1,
+            rowOffsets: Array(repeating: 0, count: sparseMatrix.rows + 1),
+            columnIndices: [],
+            values: []
+        )
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoMetalWorkspace(
+                context: context,
+                key: key,
+                transformedSparseMatrices: [mismatchedSparseMatrix]
+            ),
+            .invalidParameter("transformed matrix column count must match Ajtai key columns")
+        )
         XCTAssertEqual(
             try workspace.ajtaiCommitments(messages: [message, message]),
             [
@@ -2756,6 +2830,14 @@ extension SuperNeoTestCase {
         return accumulator
     }
 
+    func directMultilinearBasis(at point: [GoldilocksExt2]) -> [GoldilocksExt2] {
+        (0..<(1 << point.count)).map { index in
+            point.indices.reduce(GoldilocksExt2.one) { weight, dimension in
+                weight * (((index >> dimension) & 1) == 0 ? (.one - point[dimension]) : point[dimension])
+            }
+        }
+    }
+
     func directTransformedEvaluation(rows: [CyclotomicRing54], rHat: [GoldilocksExt2]) -> [GoldilocksExt2] {
         var output = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
         for (row, weight) in zip(rows, rHat) {
@@ -2880,6 +2962,16 @@ extension SuperNeoTestCase {
             point: point ?? claim.point,
             evaluations: evaluations ?? claim.evaluations,
             witness: claim.witness
+        )
+    }
+
+    func removingWitness(from claim: CCSEvaluationClaim) -> CCSEvaluationClaim {
+        CCSEvaluationClaim(
+            commitment: claim.commitment,
+            publicInput: claim.publicInput,
+            point: claim.point,
+            evaluations: claim.evaluations,
+            witness: nil
         )
     }
 

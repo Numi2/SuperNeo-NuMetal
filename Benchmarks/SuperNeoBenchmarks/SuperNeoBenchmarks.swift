@@ -395,6 +395,9 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
             }
         }
     }
+    let multilinearEvaluationMatrix = benchmarkSetupValue("failed to prepare multilinear evaluation matrix for \(label)") {
+        try fixture.shape.matrices[1].toSparseFieldMatrix()
+    }
 
     Benchmark("kernel/fieldMultiply/\(label)", configuration: defaultConfiguration) { _ in
         let product = zip(fieldVector, fieldVector).map(*)
@@ -413,7 +416,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
 
     Benchmark("kernel/multilinearEvaluation/\(label)", configuration: defaultConfiguration) { _ in
         let value = try backend.multilinearEvaluation(
-            matrix: fixture.shape.matrices[1].toSparseFieldMatrix(),
+            matrix: multilinearEvaluationMatrix,
             vector: fieldVector,
             point: point
         )

@@ -58,6 +58,8 @@ Artifacts:
   baseline policy.
 - `Docs/BenchmarkReports/apple-m4-quick-2026-04-12.md` is a pinned Apple M4
   quick-profile report.
+- `Docs/LeadAudit-2026-04-12.md` records the latest code audit findings,
+  protocol/backend hardening work, and validation commands.
 - `ProtocolE2ETests` include malformed proof-envelope and tampering tests.
 - `Docs/GPUDeterminism.md` documents the CPU oracle policy and Metal
   determinism boundary.

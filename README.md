@@ -6,7 +6,7 @@ Swift and Metal implementation work for the SuperNeo lattice folding protocol on
 
 SuperNeo NuMetal implements a post-quantum-oriented folding stack for Customizable Constraint Systems (CCS) over the `Goldilocks/Phi81(d=54)` profile. The repository includes exact field and ring arithmetic, Ajtai-style lattice commitments, transcript-bound folding stages, proof-envelope serialization, CPU reference execution, and optional Metal acceleration for Apple GPUs.
 
-The project is built around reproducibility and verifier discipline. Public objects are bound through shape digests, statement digests, verifier-key digests, domain-separated transcripts, and versioned proof envelopes. Metal is treated as an acceleration path, not a trust oracle: CPU and Metal outputs are differentially checked where both paths exist.
+The project is built around reproducibility and verifier discipline. Public objects are bound through shape digests, statement digests, verifier-key digests, domain-separated transcripts, and versioned proof envelopes. Production CE opening proofs use Apple Security framework randomness before statement-bound deterministic expansion. Metal is treated as an acceleration path, not a trust oracle: CPU and Metal outputs are differentially checked where both paths exist.
 
 ## What Is Implemented
 
@@ -17,10 +17,11 @@ The project is built around reproducibility and verifier discipline. Public obje
 - Sum-check, PiCCS, PiRLC, PiDEC, reduction verification, terminal CE verification, compressed public envelopes, and opt-in CE opening proofs.
 - Deterministic byte serialization for proof envelopes, commitments, public inputs, evaluation claims, and verifier-key material.
 - CPU reference paths plus Metal kernels for selected field, ring, commitment, transformed-evaluation, and fused commit/evaluation workloads.
+- Cryptographic hardening for production CE entropy, mixed-witness PiRLC rejection, Metal workspace shape/key invariants, checked CE vector subtraction, and CPU/Metal differential coverage.
 
 ## Current Benchmark Signal
 
-Latest local quick profile on Apple M4, measured 2026-04-12. See the linked reports for hardware, toolchain, proof sizes, validation, and caveats.
+Latest pinned local quick profile on Apple M4, measured 2026-04-12. See the linked reports for hardware, toolchain, proof sizes, validation, and caveats.
 
 | Case | Earlier local quick | Latest quick | Speedup |
 | --- | ---: | ---: | ---: |
@@ -46,6 +47,19 @@ Recent scaling reference points on Apple M4:
 | `m16384` | 50 s | 950 ms | row-block 128 completed the scaling run |
 
 Benchmark correctness gates run protocol verification before exporting results. The latest CSR/CE batch pass also validated both checked-in test vectors and added regression tests for the optimized multilinear equality formula and CSR transform equivalence.
+
+The staged lead-audit pass produced additional local quick-profile evidence without rewriting tracked hardware-class reports:
+
+| Row | Local audit quick result | Notes |
+| --- | ---: | --- |
+| `fold/cpu/m64-K1-k0-binary` | 4.109 ms | direct CSR, in-place multilinear layers and basis, zero-skip CPU transformed evaluation |
+| `fold/cpu/m256-K2-k1-binary` | 36 ms | quick profile second case |
+| `kernel/multilinearEvaluation/m64-K1-k0-binary` | 1.750 us | benchmark now excludes CSR rehydration setup |
+| `kernel/transformedEvaluation/cpu/m64-K1-k0-binary` | 38 us | public CPU backend path |
+| `kernel/transformedEvaluation/cpuSparse/m64-K1-k0-binary` | 28 us | sparse transformed-row path |
+| `stage/piDEC/m64-K1-k0-binary` | 2.150 ms | local wall-clock evidence |
+
+Treat these rows as local audit evidence until a full hardware-class report is pinned.
 
 ## Quick Start
 
@@ -101,6 +115,7 @@ Core documentation:
 - [GPU Determinism](Docs/GPUDeterminism.md): CPU/Metal relationship, determinism claims, and remaining GPU risks.
 - [CLI](Docs/CLI.md): command-line proof demo and golden-vector workflow.
 - [Benchmarking](Docs/Benchmarking.md): benchmark profiles, correctness gates, baseline policy, CI notes, and detailed benchmark tables.
+- [Lead Audit, 2026-04-12](Docs/LeadAudit-2026-04-12.md): cryptographic hardening, backend benchmark work, validation commands, and local audit evidence.
 - [Paper Reproduction](Docs/PaperReproduction.md): reproducibility harness and claim map.
 - [Roadmap Status](Docs/RoadmapStatus.md): current artifact map and project status.
 

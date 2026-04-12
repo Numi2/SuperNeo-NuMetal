@@ -56,6 +56,9 @@ public final class SuperNeoMetalWorkspace: @unchecked Sendable {
         guard key.matrix.columns > 0 else {
             throw SuperNeoError.invalidParameter("Ajtai matrix must have at least one column")
         }
+        guard transformedSparseMatrices.allSatisfy({ $0.columns == key.matrix.columns }) else {
+            throw SuperNeoError.invalidParameter("transformed matrix column count must match Ajtai key columns")
+        }
 
         let backend = SuperNeoMetalBackend(context: context)
         self.context = context

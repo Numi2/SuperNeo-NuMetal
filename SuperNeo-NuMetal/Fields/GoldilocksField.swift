@@ -169,6 +169,7 @@ public enum SuperNeoError: Error, Equatable {
     case divisionByZero
     case invalidEncoding(String)
     case invalidParameter(String)
+    case randomnessUnavailable(String)
     case metalUnavailable
     case metalFailure(String)
     case verificationFailed(String)
