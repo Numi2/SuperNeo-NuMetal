@@ -91,6 +91,26 @@ Baseline policy:
 
 - Store baselines per hardware class, for example `apple-m4-release`.
 - Treat stable kernel regressions over 5% and full protocol regressions over 10% as failures.
+- Use the comparator to enforce those thresholds on matching benchmark JSON
+  artifacts:
+
+```sh
+swift Scripts/compare-benchmark-results.swift \
+  path/to/baseline-results.json \
+  benchmark-results/results.json \
+  --output benchmark-results/comparison.md
+```
+
+- `Scripts/run-benchmarks.sh` runs the same comparison automatically when
+  `SUPERNEO_BENCHMARK_BASELINE` points to a baseline `results.json`. Optional
+  controls are `SUPERNEO_BENCHMARK_KERNEL_THRESHOLD`,
+  `SUPERNEO_BENCHMARK_PROTOCOL_THRESHOLD`,
+  `SUPERNEO_BENCHMARK_COMPARE_WARN_ONLY=1`, and
+  `SUPERNEO_BENCHMARK_COMPARE_ALLOW_MISSING=1`.
+- Missing candidate rows are failures by default, because deleted benchmark
+  coverage can otherwise hide regressions. Use allow-missing only for targeted
+  local runs where the selected case set is intentionally narrower than the
+  baseline.
 - Use Instruments or `xcrun xctrace record --template 'Metal System Trace'` only after the benchmark suite identifies a hotspot.
 
 Hardware-class reports:
@@ -112,8 +132,9 @@ and the timing rows used in README or release claims.
 Generated metadata records the repository root, short and full commit hash,
 clean/dirty source state, selected benchmark profile, selected cases, and the
 benchmark environment variables that alter registration or execution, including
-`SUPERNEO_BENCHMARK_CASE_FILTER`, `SUPERNEO_BENCHMARK_CE`, and
-`SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE`.
+`SUPERNEO_BENCHMARK_CASE_FILTER`, `SUPERNEO_BENCHMARK_CE`,
+`SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE`, benchmark-baseline comparison path,
+thresholds, and comparison failure-mode controls.
 
 Current Metal scaling baseline:
 
@@ -317,3 +338,6 @@ CI:
 
 - `.github/workflows/superneo-benchmarks.yml` runs the quick profile on macOS and uploads `benchmark-results`.
 - Add hardware-class baselines before enabling threshold failures in CI; otherwise public macOS runner variance will produce noisy failures.
+- Until a pinned runner class has a stable baseline, CI can set
+  `SUPERNEO_BENCHMARK_COMPARE_WARN_ONLY=1` to upload `comparison.md` without
+  blocking unrelated pull requests.

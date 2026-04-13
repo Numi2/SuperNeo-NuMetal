@@ -49,3 +49,24 @@ for artifact in metadata.json report.md; do
 done
 
 swift "${ROOT_DIR}/Scripts/render-benchmark-report.swift" "${RESULT_PATH}/results.json" "${RESULT_PATH}/report.md"
+
+if [[ -n "${SUPERNEO_BENCHMARK_BASELINE:-}" ]]; then
+  COMPARE_ARGS=()
+  if [[ -n "${SUPERNEO_BENCHMARK_KERNEL_THRESHOLD:-}" ]]; then
+    COMPARE_ARGS+=(--kernel-threshold "${SUPERNEO_BENCHMARK_KERNEL_THRESHOLD}")
+  fi
+  if [[ -n "${SUPERNEO_BENCHMARK_PROTOCOL_THRESHOLD:-}" ]]; then
+    COMPARE_ARGS+=(--protocol-threshold "${SUPERNEO_BENCHMARK_PROTOCOL_THRESHOLD}")
+  fi
+  if [[ "${SUPERNEO_BENCHMARK_COMPARE_WARN_ONLY:-}" == "1" ]]; then
+    COMPARE_ARGS+=(--warn-only)
+  fi
+  if [[ "${SUPERNEO_BENCHMARK_COMPARE_ALLOW_MISSING:-}" == "1" ]]; then
+    COMPARE_ARGS+=(--allow-missing)
+  fi
+  swift "${ROOT_DIR}/Scripts/compare-benchmark-results.swift" \
+    "${SUPERNEO_BENCHMARK_BASELINE}" \
+    "${RESULT_PATH}/results.json" \
+    --output "${RESULT_PATH}/comparison.md" \
+    "${COMPARE_ARGS[@]}"
+fi

@@ -113,6 +113,12 @@ Run the quick benchmark profile:
 Scripts/run-benchmarks.sh quick
 ```
 
+Compare a benchmark run against a hardware-class baseline:
+
+```sh
+SUPERNEO_BENCHMARK_BASELINE=path/to/baseline-results.json Scripts/run-benchmarks.sh quick
+```
+
 Run a CLI proof demo:
 
 ```sh

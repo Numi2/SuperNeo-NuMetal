@@ -58,6 +58,10 @@ Artifacts:
 
 - `Docs/Benchmarking.md` documents benchmark profiles, correctness gates, and
   baseline policy.
+- `Scripts/compare-benchmark-results.swift` turns the benchmark baseline policy
+  into a machine-checkable gate with 5% kernel and 10% protocol thresholds by
+  default; `Scripts/run-benchmarks.sh` can invoke it automatically when
+  `SUPERNEO_BENCHMARK_BASELINE` is set.
 - `Docs/BenchmarkReports/apple-m4-quick-2026-04-12.md` is a pinned Apple M4
   quick-profile report.
 - `Docs/LeadAudit-2026-04-12.md` records the latest code audit findings,

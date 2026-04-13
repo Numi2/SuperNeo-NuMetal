@@ -474,7 +474,12 @@ import os
             "SUPERNEO_BENCHMARK_CASE_FILTER",
             "SUPERNEO_BENCHMARK_CE",
             "SUPERNEO_BENCHMARK_SIGNPOSTS",
-            "SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE"
+            "SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE",
+            "SUPERNEO_BENCHMARK_BASELINE",
+            "SUPERNEO_BENCHMARK_KERNEL_THRESHOLD",
+            "SUPERNEO_BENCHMARK_PROTOCOL_THRESHOLD",
+            "SUPERNEO_BENCHMARK_COMPARE_WARN_ONLY",
+            "SUPERNEO_BENCHMARK_COMPARE_ALLOW_MISSING"
         ]
         var values: [String: String] = [
             "benchmarkProfile": profile,
