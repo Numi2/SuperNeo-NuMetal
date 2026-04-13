@@ -53,6 +53,15 @@ run_step() {
   "$@"
 }
 
+run_expect_failure() {
+  echo
+  echo "==> expect failure: $*"
+  if "$@"; then
+    echo "expected command to fail, but it succeeded" >&2
+    exit 1
+  fi
+}
+
 cd "${ROOT_DIR}"
 
 SUPERNEO_CLI="${ROOT_DIR}/.build/release/superneo"
@@ -86,6 +95,21 @@ run_step "${SUPERNEO_CLI}" verify \
   --expected-shape-digest "${ONE_HOT_SHAPE_DIGEST}" \
   --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
   --expected-public-inputs 1 \
+  "${one_hot_path}"
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${ONE_HOT_KEY_SEED}" \
+  --expected-verifier-key-digest "${ONE_HOT_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${ONE_HOT_SHAPE_DIGEST}" \
+  --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
+  --expected-public-inputs 0 \
+  "${one_hot_path}"
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${ONE_HOT_KEY_SEED}" \
+  --expected-verifier-key-digest "${ONE_HOT_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${ONE_HOT_SHAPE_DIGEST}" \
+  --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
+  --expected-public-inputs 1 \
+  --require-terminal \
   "${one_hot_path}"
 run_step "${SUPERNEO_CLI}" inspect "${one_hot_path}"
 

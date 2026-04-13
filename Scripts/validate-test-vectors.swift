@@ -16,6 +16,11 @@ struct ManifestVector: Decodable {
     let proofKind: String
     let bitCount: Int
     let publicClaim: String
+    let expectedKeySeedUTF8: String
+    let expectedPublicInputs: [UInt64]
+    let expectedShapeDigestHex: String
+    let expectedStatementDigestHex: String
+    let expectedVerifierKeyDigestHex: String
     let verifyCommand: String
 }
 
@@ -25,6 +30,7 @@ struct Artifact: Decodable {
     let profile: String
     let proofKind: String
     let bitCount: Int
+    let keySeedUTF8: String
     let publicInputs: [UInt64]
     let commitmentBase64: String
     let proofEnvelopeBase64: String
@@ -77,14 +83,38 @@ func validatedVectorFileName(_ file: String) throws -> String {
     return file
 }
 
-func expectedVerifyCommand(file: String) -> String {
-    "swift run superneo verify TestVectors/\(file)"
+func publicInputList(_ values: [UInt64]) -> String {
+    values.map(String.init).joined(separator: ",")
 }
 
-func runVerify(file: String, root: URL) throws {
+func strictVerifyArguments(file: String, vector: ManifestVector) -> [String] {
+    [
+        "swift",
+        "run",
+        "superneo",
+        "verify",
+        "--key-seed",
+        vector.expectedKeySeedUTF8,
+        "--expected-verifier-key-digest",
+        vector.expectedVerifierKeyDigestHex,
+        "--expected-shape-digest",
+        vector.expectedShapeDigestHex,
+        "--expected-statement-digest",
+        vector.expectedStatementDigestHex,
+        "--expected-public-inputs",
+        publicInputList(vector.expectedPublicInputs),
+        "TestVectors/\(file)"
+    ]
+}
+
+func expectedVerifyCommand(file: String, vector: ManifestVector) -> String {
+    strictVerifyArguments(file: file, vector: vector).joined(separator: " ")
+}
+
+func runVerify(file: String, vector: ManifestVector, root: URL) throws {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    process.arguments = ["swift", "run", "superneo", "verify", "TestVectors/\(file)"]
+    process.arguments = strictVerifyArguments(file: file, vector: vector)
     process.currentDirectoryURL = root
     let output = Pipe()
     process.standardOutput = output
@@ -114,7 +144,11 @@ do {
 
     for vector in manifest.vectors {
         let vectorFile = try validatedVectorFileName(vector.file)
-        try require(vector.verifyCommand == expectedVerifyCommand(file: vectorFile), "\(vector.file) verify command mismatch")
+        try require(vector.expectedPublicInputs.allSatisfy { $0 < goldilocksModulus }, "\(vector.file) expected public input contains a non-canonical Goldilocks element")
+        try require(vector.expectedShapeDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid expected shape digest")
+        try require(vector.expectedStatementDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid expected statement digest")
+        try require(vector.expectedVerifierKeyDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid expected verifier key digest")
+        try require(vector.verifyCommand == expectedVerifyCommand(file: vectorFile, vector: vector), "\(vector.file) verify command mismatch")
 
         let url = vectorsDirectory.appendingPathComponent(vectorFile)
         let data = try Data(contentsOf: url)
@@ -127,12 +161,17 @@ do {
         try require(artifact.workload == vector.workload, "\(vector.file) workload mismatch")
         try require(artifact.proofKind == vector.proofKind, "\(vector.file) proof kind mismatch")
         try require(artifact.bitCount == vector.bitCount, "\(vector.file) bit count mismatch")
+        try require(artifact.keySeedUTF8 == vector.expectedKeySeedUTF8, "\(vector.file) key seed mismatch")
+        try require(artifact.publicInputs == vector.expectedPublicInputs, "\(vector.file) public inputs mismatch")
         try require(artifact.publicInputs.allSatisfy { $0 < goldilocksModulus }, "\(vector.file) public input contains a non-canonical Goldilocks element")
         try require(Data(base64Encoded: artifact.commitmentBase64) != nil, "\(vector.file) commitment is not base64")
         try require(Data(base64Encoded: artifact.proofEnvelopeBase64) != nil, "\(vector.file) proof envelope is not base64")
         try require(artifact.shapeDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid shape digest")
         try require(artifact.statementDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid statement digest")
         try require(artifact.verifierKeyDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid verifier key digest")
+        try require(artifact.shapeDigestHex == vector.expectedShapeDigestHex, "\(vector.file) shape digest mismatch")
+        try require(artifact.statementDigestHex == vector.expectedStatementDigestHex, "\(vector.file) statement digest mismatch")
+        try require(artifact.verifierKeyDigestHex == vector.expectedVerifierKeyDigestHex, "\(vector.file) verifier key digest mismatch")
 
         if artifact.workload == "binary-addition-v1" {
             try require(artifact.publicInputs.count == artifact.bitCount + 2, "\(vector.file) binary-add public input length mismatch")
@@ -143,7 +182,7 @@ do {
             try require(artifact.publicInputs == [1], "\(vector.file) one-hot public inputs must be [1]")
         }
 
-        try runVerify(file: vectorFile, root: root)
+        try runVerify(file: vectorFile, vector: vector, root: root)
         print("validated \(vector.file)")
     }
 } catch {

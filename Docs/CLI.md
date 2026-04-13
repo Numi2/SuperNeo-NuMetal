@@ -142,8 +142,9 @@ The `UsabilitySurfaceTests` load these files, reconstruct the public input and
 verifier key, and verify the fold envelopes.
 
 For external implementations, `TestVectors/manifest.json` records each vector's
-SHA-256 hash, byte count, workload, proof kind, and verification command.
-`TestVectors/artifact.schema.json` is the machine-readable artifact schema.
+SHA-256 hash, byte count, workload, proof kind, trusted expected verifier
+context, and strict verification command. `TestVectors/artifact.schema.json` is
+the machine-readable artifact schema.
 Validate the checked-in vectors with:
 
 ```sh

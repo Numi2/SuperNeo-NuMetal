@@ -5,7 +5,8 @@ cross-implementation verification.
 
 Machine-readable files:
 
-- `manifest.json`: vector list, byte counts, SHA-256 hashes, and verification commands.
+- `manifest.json`: vector list, byte counts, SHA-256 hashes, expected verifier
+  context, and strict verification commands.
 - `artifact.schema.json`: JSON Schema for artifact version 1.
 
 Validate the checked-in vectors with:
@@ -81,15 +82,22 @@ for artifact version 1.
 | `statementDigestHex` | Digest of the normalized public statement. |
 | `verifierKeyDigestHex` | Digest of the Ajtai verifier key. |
 
+For checked-in vectors, treat `manifest.json` as the trusted expected context.
+The artifact still stores its own seed, public inputs, and digests so it is
+self-describing, but production verification must compare those fields against
+the manifest or another trusted caller-owned source.
+
 External implementations should:
 
 1. Read `workload`.
 2. Rebuild the corresponding R1CS workload.
 3. Normalize it to the SuperNeo paper-normalized CCS shape.
-4. Check `shapeDigestHex`.
+4. Check `shapeDigestHex` against the trusted expected shape digest.
 5. Decode `commitmentBase64` as an Ajtai commitment.
-6. Rebuild the public statement and check `statementDigestHex`.
-7. Regenerate the Ajtai key from `keySeedUTF8` and check `verifierKeyDigestHex`.
+6. Rebuild the public statement and check `statementDigestHex` against the
+   trusted expected statement digest.
+7. Regenerate the Ajtai key from the trusted expected `keySeedUTF8` and check
+   `verifierKeyDigestHex` against the trusted expected verifier-key digest.
 8. Decode and verify `proofEnvelopeBase64` according to `Docs/ProofEnvelope.md`.
 
 For `binary-addition-v1`, `publicInputs` must be the constant one followed by

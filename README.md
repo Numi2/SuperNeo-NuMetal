@@ -134,6 +134,7 @@ Core documentation:
 - [CLI](Docs/CLI.md): command-line proof demo and golden-vector workflow.
 - [Benchmarking](Docs/Benchmarking.md): benchmark profiles, correctness gates, baseline policy, CI notes, and detailed benchmark tables.
 - [Lead Audit, 2026-04-12](Docs/LeadAudit-2026-04-12.md): cryptographic hardening, backend benchmark work, validation commands, and local audit evidence.
+- [Production Readiness, 2026-04-13](Docs/ProductionReadiness-2026-04-13.md): review findings addressed, gate coverage, and residual trust boundaries.
 - [Paper Reproduction](Docs/PaperReproduction.md): reproducibility harness and claim map.
 - [Roadmap Status](Docs/RoadmapStatus.md): current artifact map and project status.
 

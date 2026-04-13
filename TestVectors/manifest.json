@@ -11,7 +11,14 @@
       "proofKind": "fold",
       "bitCount": 8,
       "publicClaim": "committed private vector is one-hot",
-      "verifyCommand": "swift run superneo verify TestVectors/one-hot-vector-fold-v1.json"
+      "expectedKeySeedUTF8": "SuperNeoCLI.one-hot-vector.v1",
+      "expectedPublicInputs": [
+        1
+      ],
+      "expectedShapeDigestHex": "84d903373ff54785a9b7d99bd048e1527deedd1173309c272992a8a87b61a765",
+      "expectedStatementDigestHex": "786532c3daee5d41f54b619bde8b6bcc432f7ae1f40017e14953cc8ce38992e0",
+      "expectedVerifierKeyDigestHex": "7e6c4fc3ec5bee0e1872cde17322830a37fc0a2d17ed79a208f6113fd0186a86",
+      "verifyCommand": "swift run superneo verify --key-seed SuperNeoCLI.one-hot-vector.v1 --expected-verifier-key-digest 7e6c4fc3ec5bee0e1872cde17322830a37fc0a2d17ed79a208f6113fd0186a86 --expected-shape-digest 84d903373ff54785a9b7d99bd048e1527deedd1173309c272992a8a87b61a765 --expected-statement-digest 786532c3daee5d41f54b619bde8b6bcc432f7ae1f40017e14953cc8ce38992e0 --expected-public-inputs 1 TestVectors/one-hot-vector-fold-v1.json"
     },
     {
       "file": "binary-addition-u8-fold-v1.json",
@@ -21,7 +28,23 @@
       "proofKind": "fold",
       "bitCount": 8,
       "publicClaim": "committed private 8-bit operands add to public sum 42",
-      "verifyCommand": "swift run superneo verify TestVectors/binary-addition-u8-fold-v1.json"
+      "expectedKeySeedUTF8": "SuperNeoCLI.binary-addition.u8.v1",
+      "expectedPublicInputs": [
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "expectedShapeDigestHex": "8ff5c76dd2bad49eb2b4de4272f3c7ce3d27e28c21f3a5c4d39083a884fb3089",
+      "expectedStatementDigestHex": "109b394b315f9b846e13ceb1f00ee0b374ff459334425a5b1063a8db554551a9",
+      "expectedVerifierKeyDigestHex": "199bec9fea21d192f741e81896029d07743b9a8b793543751ea1605fe2a8e973",
+      "verifyCommand": "swift run superneo verify --key-seed SuperNeoCLI.binary-addition.u8.v1 --expected-verifier-key-digest 199bec9fea21d192f741e81896029d07743b9a8b793543751ea1605fe2a8e973 --expected-shape-digest 8ff5c76dd2bad49eb2b4de4272f3c7ce3d27e28c21f3a5c4d39083a884fb3089 --expected-statement-digest 109b394b315f9b846e13ceb1f00ee0b374ff459334425a5b1063a8db554551a9 --expected-public-inputs 1,0,1,0,1,0,1,0,0,0 TestVectors/binary-addition-u8-fold-v1.json"
     }
   ]
 }
