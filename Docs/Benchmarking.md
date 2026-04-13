@@ -62,13 +62,23 @@ SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE=128 SUPERNEO_BENCHMARK_CASE_FILTER=m4096 Scri
 
 Benchmark groups:
 
-- `fold/*`: end-to-end prover cost.
+- `fold/cpu/*` and `fold/metal/*`: cold end-to-end prover cost, including
+  per-call sparse CCS compilation and Metal workspace construction when a Metal
+  context is supplied.
+- `fold/prepared/*`: steady-state end-to-end prover cost using an explicit
+  `SuperNeoPreparedFoldContext` prepared during benchmark setup. The prepared
+  context reuses the transformed sparse CCS shape and, on Metal rows, the bound
+  `SuperNeoMetalWorkspace`; each proof call still validates the context against
+  the prover profile, shape digest, verifier key digest, execution policy, and
+  Metal execution context before use.
 - `reduceFold/*`: public reduction verifier cost.
 - `terminalVerify/*`: local terminal CE verification cost.
 - `proofEnvelope/*`: serialization, parsing, and verification round-trip.
 - `ceOpeningProof/*`: opt-in public CE opening proof proving and verification. Enable with `SUPERNEO_BENCHMARK_CE=1`.
 - `compressedEnvelope/*`: opt-in compressed public terminal envelope proving and verification. Enable with `SUPERNEO_BENCHMARK_CE=1`.
-- `stage/*`: sum-check, PiCCS, PiRLC, and PiDEC stage costs.
+- `stage/*`: sum-check, PiCCS, PiRLC, and PiDEC stage costs. Rows under
+  `stage/prepared/*` use the same prepared-context lifetime split as
+  `fold/prepared/*`.
 - `kernel/*`: field multiplication, ring multiplication, ring-scalar multiplication, multilinear evaluation, dense/sparse/batched/workspace transformed evaluation, single/batched/workspace Ajtai commitment hot paths, and combined workspace commit-plus-evaluation dispatch.
 
 Correctness gates:
@@ -91,6 +101,7 @@ Hardware-class reports:
 - [Apple M4 scalar, transcript, and sumcheck quick profile, 2026-04-13](BenchmarkReports/apple-m4-quick-scalar-transcript-sumcheck-2026-04-13.md)
 - [Apple M4 scaling parallel-opening and small-coefficient pass, 2026-04-13](BenchmarkReports/apple-m4-scaling-opening-smallcoeff-2026-04-13.md)
 - [Apple M4 Metal sparse-aware dense matvec pass, 2026-04-13](BenchmarkReports/apple-m4-metal-dense-sparse-aware-2026-04-13.md)
+- [Apple M4 prepared-context quick profile, 2026-04-13](BenchmarkReports/apple-m4-prepared-context-2026-04-13.md)
 - [Lead audit, 2026-04-12](LeadAudit-2026-04-12.md)
 
 Add one report per Apple Silicon generation before making generation-to-generation
@@ -164,6 +175,12 @@ Current CPU-path baseline:
   scalar powers directly, and protocol extension-row evaluation skips zero
   coefficients before extension-field scaling.
 - Local CE batch verification compiles the sparse CCS shape once and reuses transformed matrices across openings.
+- Fold benchmarks now expose both cold and prepared lifetimes. The cold
+  `fold/cpu/*` and `fold/metal/*` rows continue to represent the compatibility
+  API. The `fold/prepared/*` and `stage/prepared/*` rows move transformed sparse
+  matrix compilation and Metal workspace allocation into benchmark setup, so
+  repeated-proof runs measure transcript, sum-check, PiCCS, PiRLC, PiDEC, and
+  backend kernel work without hiding setup churn in each iteration.
 - Public CE proof generation and verification precompute per-opening evaluation bases, check cheap transcript digests before expensive private-linear reconstruction, chunk prover private-linear work across Stern rounds, and batch verifier challenge-0/1 private-linear jobs after the transcript scan. CPU CE batches fuse each opening's commitment and transformed evaluations in one parallel pass; provers and verifiers with a Metal context route same-point CE batches through the combined workspace commit-plus-evaluation path.
 - CPU Ajtai commitment uses a fused coefficient-buffer matvec for the reference path.
 

@@ -12,7 +12,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - release build
   - debug and release XCTest suites
   - checked-in test vector validation
-  - release CLI prove/verify smoke for bundled workloads
+  - release CLI fold and terminal prove/verify smoke for bundled workloads
 
 Pass --with-benchmarks to include Scripts/run-benchmarks.sh quick.
 USAGE
@@ -82,9 +82,14 @@ run_step swift test --disable-swift-testing
 run_step swift test -c release --disable-swift-testing
 run_step swift Scripts/validate-test-vectors.swift
 
+lattice_path="$(make_temp_json)"
 one_hot_path="$(make_temp_json)"
+one_hot_terminal_path="$(make_temp_json)"
 binary_add_path="$(make_temp_json)"
-cleanup_paths+=("${one_hot_path}" "${binary_add_path}")
+cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_terminal_path}" "${binary_add_path}")
+
+run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
+run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run "${lattice_path}"
 
 run_step "${SUPERNEO_CLI}" prove \
   --bits 0,0,1,0,0,0,0,0 \
@@ -112,6 +117,19 @@ run_expect_failure "${SUPERNEO_CLI}" verify \
   --require-terminal \
   "${one_hot_path}"
 run_step "${SUPERNEO_CLI}" inspect "${one_hot_path}"
+
+run_step "${SUPERNEO_CLI}" prove \
+  --kind terminal \
+  --bits 0,0,1,0,0,0,0,0 \
+  --output "${one_hot_terminal_path}"
+run_step "${SUPERNEO_CLI}" verify \
+  --key-seed "${ONE_HOT_KEY_SEED}" \
+  --expected-verifier-key-digest "${ONE_HOT_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${ONE_HOT_SHAPE_DIGEST}" \
+  --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
+  --expected-public-inputs 1 \
+  --require-terminal \
+  "${one_hot_terminal_path}"
 
 run_step "${SUPERNEO_CLI}" prove \
   --workload binary-add \

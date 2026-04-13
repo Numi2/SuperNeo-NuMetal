@@ -86,9 +86,26 @@ private func registerEndToEndBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     let label = fixture.benchmarkCase.label
     let cpuProver = SuperNeoProver(parameters: fixture.parameters, key: fixture.key)
     let verifier = SuperNeoVerifier(parameters: fixture.parameters, key: fixture.key)
+    let cpuPreparedContext = benchmarkSetupValue("failed to prepare CPU fold context for \(label)") {
+        try cpuProver.prepareFoldContext(for: fixture.input)
+    }
 
     Benchmark("fold/cpu/\(label)", configuration: defaultConfiguration) { _ in
         let output = try cpuProver.foldWithOutput(fixture.input, transcriptSeed: fixture.transcriptSeed)
+        try requireValid(verifier.reduceFold(
+            publicInput: fixture.publicInput,
+            proof: output.proof,
+            transcriptSeed: fixture.transcriptSeed
+        ))
+        blackHole(output.proof.outputClaims.count)
+    }
+
+    Benchmark("fold/prepared/cpu/\(label)", configuration: defaultConfiguration) { _ in
+        let output = try cpuProver.foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.transcriptSeed,
+            preparedContext: cpuPreparedContext
+        )
         try requireValid(verifier.reduceFold(
             publicInput: fixture.publicInput,
             proof: output.proof,
@@ -138,12 +155,29 @@ private func registerEndToEndBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
 
     if let metalContext {
         let metalProver = SuperNeoProver(parameters: fixture.parameters, key: fixture.key, context: metalContext)
+        let metalPreparedContext = benchmarkSetupValue("failed to prepare Metal fold context for \(label)") {
+            try metalProver.prepareFoldContext(for: fixture.input)
+        }
         Benchmark("fold/metal/\(label)", configuration: defaultConfiguration) { _ in
             let output = try metalProver.foldWithOutput(fixture.input, transcriptSeed: fixture.transcriptSeed)
             try requireBenchmarkInvariant(
                 output.proof == fixture.referenceFold.proof,
                 "Metal fold output did not match CPU reference for \(label)"
             )
+            blackHole(output.outputClaims.count)
+        }
+
+        Benchmark("fold/prepared/metal/\(label)", configuration: defaultConfiguration) { _ in
+            let output = try metalProver.foldWithOutput(
+                fixture.input,
+                transcriptSeed: fixture.transcriptSeed,
+                preparedContext: metalPreparedContext
+            )
+            try requireBenchmarkInvariant(
+                output.proof == fixture.referenceFold.proof,
+                "prepared Metal fold output did not match CPU reference for \(label)"
+            )
+            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
             blackHole(output.outputClaims.count)
         }
     }
@@ -154,6 +188,9 @@ private func registerStageBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     let prover = SuperNeoProver(parameters: fixture.parameters, key: fixture.key)
     let claims = fixture.piCCSClaimsWithWitness
     let foldedClaim = fixture.foldedClaimWithWitness
+    let preparedContext = benchmarkSetupValue("failed to prepare stage fold context for \(label)") {
+        try prover.prepareFoldContext(for: fixture.input)
+    }
 
     Benchmark("stage/sumcheck/\(label)", configuration: defaultConfiguration) { _ in
         let proof = try prover.benchmarkSumCheckProof(
@@ -163,10 +200,28 @@ private func registerStageBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
         blackHole(proof.finalPoint.count)
     }
 
+    Benchmark("stage/prepared/sumcheck/\(label)", configuration: defaultConfiguration) { _ in
+        let proof = try prover.benchmarkSumCheckProof(
+            input: fixture.input,
+            transcriptSeed: fixture.transcriptSeed,
+            preparedContext: preparedContext
+        )
+        blackHole(proof.finalPoint.count)
+    }
+
     Benchmark("stage/piCCSClaims/\(label)", configuration: defaultConfiguration) { _ in
         let claims = try prover.benchmarkPiCCSClaims(
             input: fixture.input,
             point: fixture.referenceFold.proof.sumCheck.finalPoint
+        )
+        blackHole(claims.count)
+    }
+
+    Benchmark("stage/prepared/piCCSClaims/\(label)", configuration: defaultConfiguration) { _ in
+        let claims = try prover.benchmarkPiCCSClaims(
+            input: fixture.input,
+            point: fixture.referenceFold.proof.sumCheck.finalPoint,
+            preparedContext: preparedContext
         )
         blackHole(claims.count)
     }
@@ -180,10 +235,29 @@ private func registerStageBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
         blackHole(rlc.challenges.count)
     }
 
+    Benchmark("stage/prepared/piRLC/\(label)", configuration: defaultConfiguration) { _ in
+        let rlc = try prover.benchmarkPiRLC(
+            input: fixture.input,
+            claims: claims,
+            transcriptSeed: fixture.transcriptSeed,
+            preparedContext: preparedContext
+        )
+        blackHole(rlc.challenges.count)
+    }
+
     Benchmark("stage/piDEC/\(label)", configuration: defaultConfiguration) { _ in
         let decomposition = try prover.benchmarkPiDEC(
             foldedClaim,
             shape: fixture.shape
+        )
+        blackHole(decomposition.claims.count)
+    }
+
+    Benchmark("stage/prepared/piDEC/\(label)", configuration: defaultConfiguration) { _ in
+        let decomposition = try prover.benchmarkPiDEC(
+            foldedClaim,
+            shape: fixture.shape,
+            preparedContext: preparedContext
         )
         blackHole(decomposition.claims.count)
     }

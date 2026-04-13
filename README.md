@@ -18,6 +18,7 @@ The project is built around reproducibility and verifier discipline. Public obje
 - Deterministic byte serialization for proof envelopes, commitments, public inputs, evaluation claims, and verifier-key material.
 - CPU reference paths plus Metal kernels for selected field, ring, commitment, transformed-evaluation, and fused commit/evaluation workloads.
 - Cryptographic hardening for production CE entropy, mixed-witness PiRLC rejection, Metal workspace shape/key invariants, checked CE vector subtraction, and CPU/Metal differential coverage.
+- Opt-in high-assurance execution policies for constant-work CPU commitment/evaluation paths and CPU-redundant Metal checking.
 
 ## Current Benchmark Signal
 
@@ -61,6 +62,12 @@ The staged lead-audit pass produced additional local quick-profile evidence with
 
 Treat these rows as local audit evidence until a full hardware-class report is pinned.
 
+The benchmark suite also exposes explicit prepared-context rows for repeated
+proof runs. On the Apple M4 quick profile, `fold/prepared/metal` improved the
+small Metal fold rows from 19 ms to 14.4 ms at `m64` and from 87 ms to 74 ms at
+`m256` by reusing the transformed sparse CCS shape and bound Metal workspace;
+the compatibility `fold/metal` rows remain registered separately.
+
 ## Quick Start
 
 Run the test suite:
@@ -73,6 +80,13 @@ Run the production gate:
 
 ```sh
 Scripts/production-gate.sh
+```
+
+Record the implemented Module-SIS estimator parameters:
+
+```sh
+Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/validate-lattice-estimator-artifact.py --expect-status not_run lattice-estimator-results/superneo-goldilocks-phi81.json
 ```
 
 Include the quick benchmark gate in the same local run:
@@ -131,6 +145,8 @@ Core documentation:
 - [What This Proves](Docs/WhatThisProves.md): what fold reductions, terminal proofs, compressed public envelopes, and application claims do and do not establish.
 - [Proof Envelope](Docs/ProofEnvelope.md): versioned binary container and context binding.
 - [GPU Determinism](Docs/GPUDeterminism.md): CPU/Metal relationship, determinism claims, and remaining GPU risks.
+- [High-Assurance Hardening](Docs/HighAssuranceHardening-2026-04-13.md): execution policy, constant-work CPU paths, CPU-redundant Metal checks, and residual boundaries.
+- [Lattice Estimator Reproduction](Docs/LatticeEstimatorReproduction.md): exact Module-SIS estimator tuple and pinned full-run harness.
 - [CLI](Docs/CLI.md): command-line proof demo and golden-vector workflow.
 - [Benchmarking](Docs/Benchmarking.md): benchmark profiles, correctness gates, baseline policy, CI notes, and detailed benchmark tables.
 - [Lead Audit, 2026-04-12](Docs/LeadAudit-2026-04-12.md): cryptographic hardening, backend benchmark work, validation commands, and local audit evidence.

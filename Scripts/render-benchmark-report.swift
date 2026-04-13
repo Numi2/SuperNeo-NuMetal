@@ -69,6 +69,7 @@ let mallocCounts = Dictionary(uniqueKeysWithValues: results
 let selectedPrefixes = [
     "fold/cpu/",
     "fold/metal/",
+    "fold/prepared/",
     "reduceFold/cpu/",
     "terminalVerify/cpu/",
     "proofEnvelope/roundTrip/",

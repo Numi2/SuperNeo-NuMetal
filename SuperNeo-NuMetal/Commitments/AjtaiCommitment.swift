@@ -402,11 +402,28 @@ public enum AjtaiCommitter {
         AjtaiCommitment(try fusedCommitmentRows(matrix: key.matrix, message: message))
     }
 
+    public static func commitConstantWorkReference(
+        key: AjtaiCommitmentKey,
+        message: [CyclotomicRing54]
+    ) throws -> AjtaiCommitment {
+        AjtaiCommitment(try fusedConstantWorkCommitmentRows(matrix: key.matrix, message: message))
+    }
+
     public static func commitReference(
         key: AjtaiCommitmentKey,
         fieldWitness: [GoldilocksField]
     ) throws -> AjtaiCommitment {
         try commitReference(
+            key: key,
+            message: AjtaiMatvecScheduler.packFieldWitness(fieldWitness, key: key)
+        )
+    }
+
+    public static func commitConstantWorkReference(
+        key: AjtaiCommitmentKey,
+        fieldWitness: [GoldilocksField]
+    ) throws -> AjtaiCommitment {
+        try commitConstantWorkReference(
             key: key,
             message: AjtaiMatvecScheduler.packFieldWitness(fieldWitness, key: key)
         )
@@ -429,6 +446,30 @@ public enum AjtaiCommitter {
                 accumulateProduct(
                     matrix.elements[rowStart + column],
                     rhsTerms: messageTerms[column],
+                    into: &coefficients
+                )
+            }
+            output.append(CyclotomicRing54(coefficients))
+        }
+        return output
+    }
+
+    private static func fusedConstantWorkCommitmentRows(
+        matrix: RingMatrix,
+        message: [CyclotomicRing54]
+    ) throws -> [CyclotomicRing54] {
+        guard message.count == matrix.columns else {
+            throw SuperNeoError.invalidParameter("ring matrix/vector dimension mismatch")
+        }
+        var output: [CyclotomicRing54] = []
+        output.reserveCapacity(matrix.rows)
+        for row in 0..<matrix.rows {
+            var coefficients = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+            let rowStart = row * matrix.columns
+            for column in 0..<matrix.columns {
+                accumulateConstantWorkProduct(
+                    matrix.elements[rowStart + column],
+                    rhs: message[column],
                     into: &coefficients
                 )
             }
@@ -473,6 +514,40 @@ public enum AjtaiCommitter {
                     coefficients[reduced] = coefficients[reduced] + product
                 }
             }
+        }
+    }
+
+    private static func accumulateConstantWorkProduct(
+        _ lhs: CyclotomicRing54,
+        rhs: CyclotomicRing54,
+        into coefficients: inout [GoldilocksField]
+    ) {
+        for leftIndex in 0..<CyclotomicRing54.degree {
+            let left = lhs.coefficients[leftIndex]
+            for rightIndex in 0..<CyclotomicRing54.degree {
+                accumulateReducedProduct(
+                    left * rhs.coefficients[rightIndex],
+                    exponent: leftIndex + rightIndex,
+                    into: &coefficients
+                )
+            }
+        }
+    }
+
+    private static func accumulateReducedProduct(
+        _ value: GoldilocksField,
+        exponent: Int,
+        into coefficients: inout [GoldilocksField]
+    ) {
+        if exponent < CyclotomicRing54.degree {
+            coefficients[exponent] = coefficients[exponent] + value
+        } else if exponent < CyclotomicRing54.degree + 27 {
+            let reduced = exponent - CyclotomicRing54.degree
+            coefficients[reduced] = coefficients[reduced] - value
+            coefficients[exponent - 27] = coefficients[exponent - 27] - value
+        } else {
+            let reduced = exponent - CyclotomicRing54.degree - 27
+            coefficients[reduced] = coefficients[reduced] + value
         }
     }
 

@@ -40,8 +40,9 @@ OUTPUT_DIR="${1:-${ROOT_DIR}/paper-reproduction/${TIMESTAMP}-${MODE}}"
 LOG_DIR="${OUTPUT_DIR}/logs"
 BENCHMARK_OUT="${OUTPUT_DIR}/benchmark-results"
 VECTOR_OUT="${OUTPUT_DIR}/test-vectors"
+LATTICE_OUT="${OUTPUT_DIR}/lattice-estimator"
 
-mkdir -p "${LOG_DIR}" "${BENCHMARK_OUT}" "${VECTOR_OUT}"
+mkdir -p "${LOG_DIR}" "${BENCHMARK_OUT}" "${VECTOR_OUT}" "${LATTICE_OUT}"
 
 run_and_log() {
   local name="$1"
@@ -95,6 +96,14 @@ copy_benchmark_results() {
 
 capture_environment
 copy_vectors
+run_and_log lattice-estimator-dry-run \
+  Scripts/reproduce-lattice-estimator.sh \
+  --dry-run \
+  "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
+run_and_log lattice-estimator-validate \
+  Scripts/validate-lattice-estimator-artifact.py \
+  --expect-status not_run \
+  "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
 
 case "${MODE}" in
   plan)

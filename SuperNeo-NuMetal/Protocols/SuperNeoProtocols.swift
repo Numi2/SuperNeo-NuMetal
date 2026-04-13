@@ -120,6 +120,31 @@ public struct FoldProverOutput: Equatable, Sendable {
     }
 }
 
+@_spi(Benchmarking) public struct SuperNeoPreparedFoldContext: Sendable {
+    public let profileID: UInt16
+    public let shapeDigest: Digest256
+    public let verifierKeyDigest: Digest256
+    public let executionPolicy: SuperNeoExecutionPolicy
+    public let compiledShape: CompiledCCSShape
+    public let metalWorkspace: SuperNeoMetalWorkspace?
+
+    init(
+        profileID: UInt16,
+        shapeDigest: Digest256,
+        verifierKeyDigest: Digest256,
+        executionPolicy: SuperNeoExecutionPolicy,
+        compiledShape: CompiledCCSShape,
+        metalWorkspace: SuperNeoMetalWorkspace?
+    ) {
+        self.profileID = profileID
+        self.shapeDigest = shapeDigest
+        self.verifierKeyDigest = verifierKeyDigest
+        self.executionPolicy = executionPolicy
+        self.compiledShape = compiledShape
+        self.metalWorkspace = metalWorkspace
+    }
+}
+
 public struct TerminalFoldProof: Equatable, Sendable {
     public let foldProof: FoldProof
     public let terminalStatement: TerminalCEStatement
@@ -376,7 +401,8 @@ public enum CEOpeningRelation {
         shape: CCSShape,
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters = .goldilocks,
-        metalWorkspace: SuperNeoMetalWorkspace? = nil
+        metalWorkspace: SuperNeoMetalWorkspace? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> CEOpeningProof {
         try proveLocalBatchImpl(
             statement: statement,
@@ -385,7 +411,8 @@ public enum CEOpeningRelation {
             key: key,
             parameters: parameters,
             randomnessSeed: try makeSystemRandomSeed(),
-            metalWorkspace: metalWorkspace
+            metalWorkspace: metalWorkspace,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -396,7 +423,8 @@ public enum CEOpeningRelation {
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters = .goldilocks,
         randomSeed: [UInt8],
-        metalWorkspace: SuperNeoMetalWorkspace? = nil
+        metalWorkspace: SuperNeoMetalWorkspace? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> CEOpeningProof {
         try proveLocalBatchImpl(
             statement: statement,
@@ -405,7 +433,8 @@ public enum CEOpeningRelation {
             key: key,
             parameters: parameters,
             randomnessSeed: randomSeed,
-            metalWorkspace: metalWorkspace
+            metalWorkspace: metalWorkspace,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -416,7 +445,8 @@ public enum CEOpeningRelation {
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters = .goldilocks,
         randomSeed: [UInt8],
-        metalWorkspace: SuperNeoMetalWorkspace? = nil
+        metalWorkspace: SuperNeoMetalWorkspace? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> CEOpeningProof {
         try proveLocalBatchImpl(
             statement: statement,
@@ -425,7 +455,8 @@ public enum CEOpeningRelation {
             key: key,
             parameters: parameters,
             randomnessSeed: randomSeed,
-            metalWorkspace: metalWorkspace
+            metalWorkspace: metalWorkspace,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -436,7 +467,8 @@ public enum CEOpeningRelation {
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters,
         randomnessSeed: [UInt8],
-        metalWorkspace: SuperNeoMetalWorkspace?
+        metalWorkspace: SuperNeoMetalWorkspace?,
+        executionPolicy: SuperNeoExecutionPolicy
     ) throws -> CEOpeningProof {
         guard statement.profileID == parameters.profileID else {
             throw SuperNeoError.invalidParameter("terminal CE statement profile mismatch")
@@ -466,14 +498,16 @@ public enum CEOpeningRelation {
             shape: shape,
             key: key,
             transformedMatrices: transformedMatrices,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
         let proverContext = try CEOpeningPrivateLinearBatchContext(
             statement: statement,
             shape: shape,
             key: key,
             transformedMatrices: transformedMatrices,
-            metalWorkspace: metalWorkspace
+            metalWorkspace: metalWorkspace,
+            executionPolicy: executionPolicy
         )
         var rng = DeterministicRNG(seed: ceOpeningProverRandomSeed(
             randomnessSeed: randomnessSeed,
@@ -531,7 +565,8 @@ public enum CEOpeningRelation {
         shape: CCSShape,
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters = .goldilocks,
-        metalWorkspace: SuperNeoMetalWorkspace? = nil
+        metalWorkspace: SuperNeoMetalWorkspace? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> Bool {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
@@ -554,7 +589,8 @@ public enum CEOpeningRelation {
                 key: key,
                 transformedMatrices: transformedMatrices,
                 metalWorkspace: metalWorkspace,
-                parameters: parameters
+                parameters: parameters,
+                executionPolicy: executionPolicy
             )
         }
         return try verifyBatchedProofResponses(
@@ -569,7 +605,8 @@ public enum CEOpeningRelation {
         witness: CEOpeningWitness,
         shape: CCSShape,
         key: AjtaiCommitmentKey,
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> Bool {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
@@ -583,7 +620,8 @@ public enum CEOpeningRelation {
             shape: shape,
             key: key,
             transformedMatrices: transformedMatrices,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -593,7 +631,8 @@ public enum CEOpeningRelation {
         shape: CCSShape,
         key: AjtaiCommitmentKey,
         transformedMatrices: [SparseRingMatrixCSR],
-        parameters: SuperNeoParameters
+        parameters: SuperNeoParameters,
+        executionPolicy: SuperNeoExecutionPolicy
     ) throws -> Bool {
         guard statement.profileID == parameters.profileID else { return false }
         guard statement.shapeDigest == shape.shapeDigest else { return false }
@@ -612,7 +651,8 @@ public enum CEOpeningRelation {
             transformedMatrices: transformedMatrices,
             claims: [openedClaim],
             key: key,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -621,7 +661,8 @@ public enum CEOpeningRelation {
         witnesses: [CEOpeningWitness],
         shape: CCSShape,
         key: AjtaiCommitmentKey,
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> Bool {
         try verifyLocalBatchOpenings(
             statement: statement,
@@ -629,6 +670,7 @@ public enum CEOpeningRelation {
             shape: shape,
             key: key,
             parameters: parameters,
+            executionPolicy: executionPolicy,
             requireTerminalDecompositionCount: false
         )
     }
@@ -638,7 +680,8 @@ public enum CEOpeningRelation {
         witnesses: [CEOpeningWitness],
         shape: CCSShape,
         key: AjtaiCommitmentKey,
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> Bool {
         try verifyLocalBatchOpenings(
             statement: statement,
@@ -646,6 +689,7 @@ public enum CEOpeningRelation {
             shape: shape,
             key: key,
             parameters: parameters,
+            executionPolicy: executionPolicy,
             requireTerminalDecompositionCount: true
         )
     }
@@ -656,6 +700,7 @@ public enum CEOpeningRelation {
         shape: CCSShape,
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters,
+        executionPolicy: SuperNeoExecutionPolicy,
         requireTerminalDecompositionCount: Bool
     ) throws -> Bool {
         guard statement.profileID == parameters.profileID else { return false }
@@ -684,7 +729,8 @@ public enum CEOpeningRelation {
             transformedMatrices: transformedMatrices,
             claims: openedClaims,
             key: key,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
     }
 }
@@ -789,7 +835,8 @@ public struct CCSQOracle: SumcheckOracle {
         alpha: [GoldilocksExt2],
         gamma: GoldilocksExt2,
         transformedSparseMatrices: [SparseRingMatrixCSR]? = nil,
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws {
         guard instances.count == witnesses.count else {
             throw SuperNeoError.invalidParameter("Q oracle instances and witnesses must have the same count")
@@ -845,7 +892,12 @@ public struct CCSQOracle: SumcheckOracle {
             let transformedMatrices = try transformedSparseMatrices ?? shape.compiledSparseForSuperNeo().transformedSparseMatrices
             priorTransformedRows = try priorWitnesses.map { witness in
                 let packedWitness = try packedEvaluationWitness(witness, shape: shape)
-                return try transformedMatrices.map { matrix in try matrix.multiplied(by: packedWitness) }
+                return try transformedMatrices.map { matrix in
+                    if executionPolicy.usesConstantWorkCPU {
+                        return try matrix.multipliedConstantWork(by: packedWitness)
+                    }
+                    return try matrix.multiplied(by: packedWitness)
+                }
             }
         }
         let maxPriorExponent = max(0, priorClaims.count * shape.numMatrices * CyclotomicRing54.degree - 1)
@@ -1296,18 +1348,27 @@ public final class SuperNeoProver: @unchecked Sendable {
     public let parameters: SuperNeoParameters
     public let key: AjtaiCommitmentKey
     public let context: MetalExecutionContext?
+    public let executionPolicy: SuperNeoExecutionPolicy
 
-    public init(parameters: SuperNeoParameters = .goldilocks, key: AjtaiCommitmentKey, context: MetalExecutionContext? = nil) {
+    public init(
+        parameters: SuperNeoParameters = .goldilocks,
+        key: AjtaiCommitmentKey,
+        context: MetalExecutionContext? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) {
         self.parameters = parameters
         self.key = key
         self.context = context
+        self.executionPolicy = executionPolicy
     }
 
     public func fold(_ input: SuperNeoFoldInput, transcriptSeed: [UInt8] = []) throws -> FoldProof {
         try foldWithOutput(input, transcriptSeed: transcriptSeed).proof
     }
 
-    public func foldWithOutput(_ input: SuperNeoFoldInput, transcriptSeed: [UInt8] = []) throws -> FoldProverOutput {
+    @_spi(Benchmarking) public func prepareFoldContext(
+        for input: SuperNeoFoldInput
+    ) throws -> SuperNeoPreparedFoldContext {
         guard key.parameters == parameters else {
             throw SuperNeoError.invalidParameter("prover key parameters do not match prover parameters")
         }
@@ -1315,6 +1376,39 @@ public final class SuperNeoProver: @unchecked Sendable {
         try validateFoldInput(input, parameters: parameters)
         let compiledShape = try input.shape.compiledSparseForSuperNeo()
         let metalWorkspace = try makeMetalWorkspace(compiledShape: compiledShape)
+        return SuperNeoPreparedFoldContext(
+            profileID: parameters.profileID,
+            shapeDigest: input.shape.shapeDigest,
+            verifierKeyDigest: key.verifierKeyDigest,
+            executionPolicy: executionPolicy,
+            compiledShape: compiledShape,
+            metalWorkspace: metalWorkspace
+        )
+    }
+
+    public func foldWithOutput(_ input: SuperNeoFoldInput, transcriptSeed: [UInt8] = []) throws -> FoldProverOutput {
+        let preparedContext = try prepareFoldContext(for: input)
+        return try foldWithOutput(
+            input,
+            transcriptSeed: transcriptSeed,
+            preparedContext: preparedContext
+        )
+    }
+
+    @_spi(Benchmarking) public func foldWithOutput(
+        _ input: SuperNeoFoldInput,
+        transcriptSeed: [UInt8] = [],
+        preparedContext: SuperNeoPreparedFoldContext
+    ) throws -> FoldProverOutput {
+        guard key.parameters == parameters else {
+            throw SuperNeoError.invalidParameter("prover key parameters do not match prover parameters")
+        }
+        try validateCommitmentKey(key, matches: input.shape, role: "prover")
+        try validateFoldInput(input, parameters: parameters)
+        try validatePreparedFoldContext(preparedContext, shape: input.shape)
+
+        let compiledShape = preparedContext.compiledShape
+        let metalWorkspace = preparedContext.metalWorkspace
 
         var transcript = makeFoldTranscript(input: input, transcriptSeed: transcriptSeed)
         let sumCheck = try SuperNeoBenchmarkSignpost.measure("sumcheck") {
@@ -1349,6 +1443,59 @@ public final class SuperNeoProver: @unchecked Sendable {
             outputClaims: decomposition.claims
         )
         return FoldProverOutput(proof: proof, outputClaims: decomposition.claims)
+    }
+
+    private func validatePreparedFoldContext(
+        _ preparedContext: SuperNeoPreparedFoldContext,
+        shape: CCSShape
+    ) throws {
+        guard preparedContext.profileID == parameters.profileID else {
+            throw SuperNeoError.invalidParameter("prepared fold context profile mismatch")
+        }
+        guard preparedContext.shapeDigest == shape.shapeDigest else {
+            throw SuperNeoError.invalidParameter("prepared fold context shape digest mismatch")
+        }
+        guard preparedContext.compiledShape.shape == shape else {
+            throw SuperNeoError.invalidParameter("prepared fold context compiled shape mismatch")
+        }
+        guard preparedContext.compiledShape.transformedSparseMatrices.count == shape.numMatrices else {
+            throw SuperNeoError.invalidParameter("prepared fold context transformed matrix count mismatch")
+        }
+        guard preparedContext.verifierKeyDigest == key.verifierKeyDigest else {
+            throw SuperNeoError.invalidParameter("prepared fold context verifier key digest mismatch")
+        }
+        guard preparedContext.executionPolicy == executionPolicy else {
+            throw SuperNeoError.invalidParameter("prepared fold context execution policy mismatch")
+        }
+
+        let expectsMetalWorkspace = context != nil && !executionPolicy.usesConstantWorkCPU
+        guard (preparedContext.metalWorkspace != nil) == expectsMetalWorkspace else {
+            throw SuperNeoError.invalidParameter("prepared fold context Metal workspace availability mismatch")
+        }
+        guard let metalWorkspace = preparedContext.metalWorkspace else { return }
+        guard let context else {
+            throw SuperNeoError.invalidParameter("prepared fold context Metal workspace requires a Metal context")
+        }
+        guard metalWorkspace.context === context else {
+            throw SuperNeoError.invalidParameter("prepared fold context Metal execution context mismatch")
+        }
+        guard metalWorkspace.key == key else {
+            throw SuperNeoError.invalidParameter("prepared fold context Metal workspace key mismatch")
+        }
+        guard metalWorkspace.transformedMatrixCount == shape.numMatrices else {
+            throw SuperNeoError.invalidParameter("prepared fold context Metal workspace transformed matrix count mismatch")
+        }
+        if let workspaceShapeDigest = metalWorkspace.shapeDigest {
+            guard workspaceShapeDigest == shape.shapeDigest else {
+                throw SuperNeoError.invalidParameter("prepared fold context Metal workspace shape digest mismatch")
+            }
+        }
+        let expectedDigest = SuperNeoMetalWorkspace.transformedMatricesDigest(
+            for: preparedContext.compiledShape.transformedSparseMatrices
+        )
+        guard metalWorkspace.transformedMatricesDigest == expectedDigest else {
+            throw SuperNeoError.invalidParameter("prepared fold context Metal workspace transformed matrix digest mismatch")
+        }
     }
 
     public func foldEnvelope(_ input: SuperNeoFoldInput, context: ProofEnvelopeContext) throws -> FoldProofEnvelope {
@@ -1436,7 +1583,8 @@ public final class SuperNeoProver: @unchecked Sendable {
                 key: key,
                 parameters: parameters,
                 randomSeed: ceRandomSeed,
-                metalWorkspace: metalWorkspace
+                metalWorkspace: metalWorkspace,
+                executionPolicy: executionPolicy
             )
         } else {
             ceOpeningProof = try CEOpeningRelation.proveLocalBatch(
@@ -1445,7 +1593,8 @@ public final class SuperNeoProver: @unchecked Sendable {
                 shape: input.shape,
                 key: key,
                 parameters: parameters,
-                metalWorkspace: metalWorkspace
+                metalWorkspace: metalWorkspace,
+                executionPolicy: executionPolicy
             )
         }
         return TerminalFoldComponents(
@@ -1578,13 +1727,15 @@ public final class SuperNeoProver: @unchecked Sendable {
             input: input,
             key: key,
             transformedMatrices: sparseMatrices,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
         var oracle = try makeQOracle(
             input: input,
             compiledShape: compiledShape,
             transcript: &transcript,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
         let claimedSum = try oracle.claimedSumFromPriorClaims()
         return try SumcheckProver.prove(oracle: &oracle, claimedSum: claimedSum, transcript: &transcript)
@@ -1597,7 +1748,8 @@ public final class SuperNeoProver: @unchecked Sendable {
             key: key,
             compiledShape: compiledShape,
             metalWorkspace: try makeMetalWorkspace(compiledShape: compiledShape),
-            point: point
+            point: point,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -1612,7 +1764,8 @@ public final class SuperNeoProver: @unchecked Sendable {
             key: key,
             compiledShape: compiledShape,
             metalWorkspace: metalWorkspace,
-            point: point
+            point: point,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -1621,7 +1774,14 @@ public final class SuperNeoProver: @unchecked Sendable {
         transcript: inout SumCheckTranscript
     ) throws -> (foldedClaim: CCSEvaluationClaim, challenges: [CyclotomicRing54]) {
         let challenges = claims.map { _ in transcript.challengeRing() }
-        return (try SuperNeoProtocolOracle.randomLinearCombination(claims: claims, challenges: challenges), challenges)
+        return (
+            try SuperNeoProtocolOracle.randomLinearCombination(
+                claims: claims,
+                challenges: challenges,
+                executionPolicy: executionPolicy
+            ),
+            challenges
+        )
     }
 
     private func decompose(
@@ -1635,7 +1795,8 @@ public final class SuperNeoProver: @unchecked Sendable {
             key: key,
             compiledShape: compiledShape,
             metalWorkspace: try makeMetalWorkspace(compiledShape: compiledShape),
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -1651,12 +1812,13 @@ public final class SuperNeoProver: @unchecked Sendable {
             key: key,
             compiledShape: compiledShape,
             metalWorkspace: metalWorkspace,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
     }
 
     private func makeMetalWorkspace(compiledShape: CompiledCCSShape) throws -> SuperNeoMetalWorkspace? {
-        guard let context else { return nil }
+        guard let context, !executionPolicy.usesConstantWorkCPU else { return nil }
         return try SuperNeoMetalWorkspace(
             context: context,
             key: key,
@@ -1675,12 +1837,19 @@ public final class SuperNeoVerifier: @unchecked Sendable {
     public let parameters: SuperNeoParameters
     public let key: AjtaiCommitmentKey
     public let context: MetalExecutionContext?
+    public let executionPolicy: SuperNeoExecutionPolicy
     public static let terminalRelationCheckRequiredReason = "fold reduction output claims require a terminal CE relation check"
 
-    public init(parameters: SuperNeoParameters = .goldilocks, key: AjtaiCommitmentKey, context: MetalExecutionContext? = nil) {
+    public init(
+        parameters: SuperNeoParameters = .goldilocks,
+        key: AjtaiCommitmentKey,
+        context: MetalExecutionContext? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) {
         self.parameters = parameters
         self.key = key
         self.context = context
+        self.executionPolicy = executionPolicy
     }
 
     @available(*, deprecated, message: "Use reduceFold(...) for fold reductions, or verifyFold(..., outputClaims:) for terminal local verification.")
@@ -1763,7 +1932,8 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 shape: publicInput.shape,
                 key: key,
                 parameters: parameters,
-                metalWorkspace: try makeCEOpeningMetalWorkspace(shape: publicInput.shape)
+                metalWorkspace: try makeCEOpeningMetalWorkspace(shape: publicInput.shape),
+                executionPolicy: executionPolicy
             ) else {
                 return .invalid("terminal CE opening proof verification failed")
             }
@@ -1816,7 +1986,8 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 witnesses: witnesses,
                 shape: publicInput.shape,
                 key: key,
-                parameters: parameters
+                parameters: parameters,
+                executionPolicy: executionPolicy
             ) else {
                 return .invalid("terminal CE relation check failed")
             }
@@ -2262,7 +2433,8 @@ private enum SuperNeoProtocolOracle {
         key: AjtaiCommitmentKey,
         compiledShape: CompiledCCSShape,
         metalWorkspace: SuperNeoMetalWorkspace?,
-        point: [GoldilocksExt2]
+        point: [GoldilocksExt2],
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> [CCSEvaluationClaim] {
         var claimInputs: [(commitment: AjtaiCommitment, publicInput: [GoldilocksField], witness: [GoldilocksField])] = []
         claimInputs.reserveCapacity(input.instances.count + input.priorClaims.count)
@@ -2296,24 +2468,38 @@ private enum SuperNeoProtocolOracle {
 
         let recomputedCommitments: [AjtaiCommitment]
         let evaluations: [[CyclotomicExt2Ring54]]
-        if let metalWorkspace {
+        if let metalWorkspace, !executionPolicy.usesConstantWorkCPU {
             let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
                 messages: packedWitnesses,
                 point: point
             )
             recomputedCommitments = combined.commitments
             evaluations = combined.evaluations
-        } else {
-            recomputedCommitments = try packedWitnesses.map {
-                try AjtaiCommitter.commitReference(key: key, message: $0)
-            }
-            let rHat = try MultilinearEvaluation.checkedBasis(at: point)
-            evaluations = try packedWitnesses.map { packed in
-                try compiledShape.transformedSparseMatrices.map { matrix -> CyclotomicExt2Ring54 in
-                    let rows = try matrix.multiplied(by: packed)
-                    return try evaluateExtensionRingRows(rows, rHat: rHat)
+            if executionPolicy.requiresMetalCPUCheck {
+                let cpuArtifacts = try makeCPUOpeningArtifacts(
+                    key: key,
+                    transformedMatrices: compiledShape.transformedSparseMatrices,
+                    packedWitnesses: packedWitnesses,
+                    point: point,
+                    executionPolicy: executionPolicy,
+                    useParallel: shouldParallelizeOpeningBatch(shape: input.shape, count: packedWitnesses.count)
+                )
+                guard recomputedCommitments == cpuArtifacts.map(\.commitment),
+                      evaluations == cpuArtifacts.map(\.evaluations) else {
+                    throw SuperNeoError.metalFailure("Metal PiCCS output failed CPU cross-check")
                 }
             }
+        } else {
+            let cpuArtifacts = try makeCPUOpeningArtifacts(
+                key: key,
+                transformedMatrices: compiledShape.transformedSparseMatrices,
+                packedWitnesses: packedWitnesses,
+                point: point,
+                executionPolicy: executionPolicy,
+                useParallel: shouldParallelizeOpeningBatch(shape: input.shape, count: packedWitnesses.count)
+            )
+            recomputedCommitments = cpuArtifacts.map(\.commitment)
+            evaluations = cpuArtifacts.map(\.evaluations)
         }
         for index in claimInputs.indices where recomputedCommitments[index] != claimInputs[index].commitment {
             throw SuperNeoError.verificationFailed("instance commitment does not match witness")
@@ -2330,9 +2516,54 @@ private enum SuperNeoProtocolOracle {
         }
     }
 
+    private static func makeCPUOpeningArtifacts(
+        key: AjtaiCommitmentKey,
+        transformedMatrices: [SparseRingMatrixCSR],
+        packedWitnesses: [[CyclotomicRing54]],
+        point: [GoldilocksExt2],
+        executionPolicy: SuperNeoExecutionPolicy,
+        useParallel: Bool
+    ) throws -> [(commitment: AjtaiCommitment, evaluations: [CyclotomicExt2Ring54])] {
+        let rHat = try MultilinearEvaluation.checkedBasis(at: point)
+        return try orderedParallelMap(
+            packedWitnesses,
+            useParallel: useParallel
+        ) { packed -> (commitment: AjtaiCommitment, evaluations: [CyclotomicExt2Ring54]) in
+            let commitment = try commitReference(key: key, message: packed, executionPolicy: executionPolicy)
+            let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
+                let rows = try multiplyTransformedMatrix(matrix, by: packed, executionPolicy: executionPolicy)
+                return try evaluateExtensionRingRows(rows, rHat: rHat, executionPolicy: executionPolicy)
+            }
+            return (commitment, evaluations)
+        }
+    }
+
+    private static func commitReference(
+        key: AjtaiCommitmentKey,
+        message: [CyclotomicRing54],
+        executionPolicy: SuperNeoExecutionPolicy
+    ) throws -> AjtaiCommitment {
+        if executionPolicy.usesConstantWorkCPU {
+            return try AjtaiCommitter.commitConstantWorkReference(key: key, message: message)
+        }
+        return try AjtaiCommitter.commitReference(key: key, message: message)
+    }
+
+    fileprivate static func multiplyTransformedMatrix(
+        _ matrix: SparseRingMatrixCSR,
+        by packed: [CyclotomicRing54],
+        executionPolicy: SuperNeoExecutionPolicy
+    ) throws -> [CyclotomicRing54] {
+        if executionPolicy.usesConstantWorkCPU {
+            return try matrix.multipliedConstantWork(by: packed)
+        }
+        return try matrix.multiplied(by: packed)
+    }
+
     static func randomLinearCombination(
         claims: [CCSEvaluationClaim],
-        challenges: [CyclotomicRing54]
+        challenges: [CyclotomicRing54],
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> CCSEvaluationClaim {
         guard let first = claims.first else { throw SuperNeoError.invalidParameter("cannot fold zero claims") }
         guard challenges.count == claims.count else {
@@ -2386,7 +2617,10 @@ private enum SuperNeoProtocolOracle {
                     throw SuperNeoError.invalidParameter("witness ring lengths must match")
                 }
                 for index in packedWitness.indices {
-                    witnessRings[index] = witnessRings[index] + challenge * packedWitness[index]
+                    let product = executionPolicy.usesConstantWorkCPU
+                        ? challenge.multipliedConstantWork(by: packedWitness[index])
+                        : challenge * packedWitness[index]
+                    witnessRings[index] = witnessRings[index] + product
                 }
             }
         }
@@ -2405,14 +2639,16 @@ private enum SuperNeoProtocolOracle {
         transformedMatrices: [SparseRingMatrixCSR],
         claim: CCSEvaluationClaim,
         key: AjtaiCommitmentKey,
-        parameters: SuperNeoParameters
+        parameters: SuperNeoParameters,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> Bool {
         try verifyEvaluationClaimOpenings(
             shape: shape,
             transformedMatrices: transformedMatrices,
             claims: [claim],
             key: key,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -2421,7 +2657,8 @@ private enum SuperNeoProtocolOracle {
         transformedMatrices: [SparseRingMatrixCSR],
         claims: [CCSEvaluationClaim],
         key: AjtaiCommitmentKey,
-        parameters: SuperNeoParameters
+        parameters: SuperNeoParameters,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> Bool {
         guard transformedMatrices.count == shape.numMatrices else { return false }
         let numVars = try log2Exact(shape.m)
@@ -2453,7 +2690,8 @@ private enum SuperNeoProtocolOracle {
                 key: key,
                 parameters: parameters,
                 numVars: numVars,
-                rHat: prepared.rHat
+                rHat: prepared.rHat,
+                executionPolicy: executionPolicy
             )
         }
         return results.allSatisfy { $0 }
@@ -2466,7 +2704,8 @@ private enum SuperNeoProtocolOracle {
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters,
         numVars: Int,
-        rHat: [GoldilocksExt2]
+        rHat: [GoldilocksExt2],
+        executionPolicy: SuperNeoExecutionPolicy
     ) throws -> Bool {
         guard let witness = claim.witness else { return false }
         guard isValidEvaluationWitnessLength(witness.count, shape: shape) else { return false }
@@ -2480,12 +2719,12 @@ private enum SuperNeoProtocolOracle {
         }
 
         let packed = try packedEvaluationWitness(witness, shape: shape)
-        let recomputed = try AjtaiCommitter.commitReference(key: key, message: packed)
+        let recomputed = try commitReference(key: key, message: packed, executionPolicy: executionPolicy)
         guard recomputed == claim.commitment else { return false }
 
         let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-            let rows = try matrix.multiplied(by: packed)
-            return try evaluateExtensionRingRows(rows, rHat: rHat)
+            let rows = try multiplyTransformedMatrix(matrix, by: packed, executionPolicy: executionPolicy)
+            return try evaluateExtensionRingRows(rows, rHat: rHat, executionPolicy: executionPolicy)
         }
         return evaluations == claim.evaluations
     }
@@ -2507,7 +2746,8 @@ private enum SuperNeoProtocolOracle {
         witness: [GoldilocksField],
         publicInput: [GoldilocksField],
         point: [GoldilocksExt2],
-        key: AjtaiCommitmentKey
+        key: AjtaiCommitmentKey,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> CEInstance {
         guard isValidEvaluationWitnessLength(witness.count, shape: shape) else {
             throw SuperNeoError.invalidParameter("evaluation witness length must match the original or padded ring length")
@@ -2519,11 +2759,11 @@ private enum SuperNeoProtocolOracle {
             throw SuperNeoError.invalidParameter("compiled transformed matrix count mismatch")
         }
         let packed = try packedEvaluationWitness(witness, shape: shape)
-        let commitment = try AjtaiCommitter.commitReference(key: key, fieldWitness: witness)
+        let commitment = try commitReference(key: key, message: packed, executionPolicy: executionPolicy)
         let rHat = try MultilinearEvaluation.checkedBasis(at: point)
         let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-            let rows = try matrix.multiplied(by: packed)
-            return try evaluateExtensionRingRows(rows, rHat: rHat)
+            let rows = try multiplyTransformedMatrix(matrix, by: packed, executionPolicy: executionPolicy)
+            return try evaluateExtensionRingRows(rows, rHat: rHat, executionPolicy: executionPolicy)
         }
         return CEInstance(
             commitment: commitment,
@@ -2534,8 +2774,19 @@ private enum SuperNeoProtocolOracle {
     }
 
     fileprivate static func evaluateExtensionRingRows(_ rows: [CyclotomicRing54], rHat: [GoldilocksExt2]) throws -> CyclotomicExt2Ring54 {
+        try evaluateExtensionRingRows(rows, rHat: rHat, executionPolicy: .default)
+    }
+
+    fileprivate static func evaluateExtensionRingRows(
+        _ rows: [CyclotomicRing54],
+        rHat: [GoldilocksExt2],
+        executionPolicy: SuperNeoExecutionPolicy
+    ) throws -> CyclotomicExt2Ring54 {
         guard rows.count == rHat.count else {
             throw SuperNeoError.invalidParameter("extension-ring row/rHat length mismatch")
+        }
+        if executionPolicy.usesConstantWorkCPU {
+            return try evaluateExtensionRingRowsConstantWork(rows, rHat: rHat)
         }
         var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
         for rowIndex in rows.indices {
@@ -2551,13 +2802,33 @@ private enum SuperNeoProtocolOracle {
         return CyclotomicExt2Ring54(coefficients)
     }
 
+    private static func evaluateExtensionRingRowsConstantWork(
+        _ rows: [CyclotomicRing54],
+        rHat: [GoldilocksExt2]
+    ) throws -> CyclotomicExt2Ring54 {
+        guard rows.count == rHat.count else {
+            throw SuperNeoError.invalidParameter("extension-ring row/rHat length mismatch")
+        }
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
+        for rowIndex in rows.indices {
+            let weight = rHat[rowIndex]
+            let rowCoefficients = rows[rowIndex].coefficients
+            for coefficientIndex in 0..<CyclotomicRing54.degree {
+                coefficients[coefficientIndex] = coefficients[coefficientIndex]
+                    + weight.scaled(by: rowCoefficients[coefficientIndex])
+            }
+        }
+        return CyclotomicExt2Ring54(coefficients)
+    }
+
     static func decompose(
         _ claim: CCSEvaluationClaim,
         shape: CCSShape,
         key: AjtaiCommitmentKey,
         compiledShape: CompiledCCSShape,
         metalWorkspace: SuperNeoMetalWorkspace?,
-        parameters: SuperNeoParameters
+        parameters: SuperNeoParameters,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> (proof: DecompositionProof, claims: [CCSEvaluationClaim]) {
         guard let witness = claim.witness else {
             throw SuperNeoError.invalidParameter("decomposition requires folded witness")
@@ -2583,26 +2854,36 @@ private enum SuperNeoProtocolOracle {
         }
         let limbCommitments: [AjtaiCommitment]
         let limbEvaluations: [[CyclotomicExt2Ring54]]
-        if let metalWorkspace {
+        if let metalWorkspace, !executionPolicy.usesConstantWorkCPU {
             let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
                 messages: packedLimbs,
                 point: claim.point
             )
             limbCommitments = combined.commitments
             limbEvaluations = combined.evaluations
-        } else {
-            let rHat = try MultilinearEvaluation.checkedBasis(at: claim.point)
-            let openingArtifacts = try orderedParallelMap(
-                packedLimbs,
-                useParallel: useParallelCPUOpenings
-            ) { packed -> (commitment: AjtaiCommitment, evaluations: [CyclotomicExt2Ring54]) in
-                let commitment = try AjtaiCommitter.commitReference(key: key, message: packed)
-                let evaluations = try compiledShape.transformedSparseMatrices.map { matrix -> CyclotomicExt2Ring54 in
-                    let rows = try matrix.multiplied(by: packed)
-                    return try evaluateExtensionRingRows(rows, rHat: rHat)
+            if executionPolicy.requiresMetalCPUCheck {
+                let cpuArtifacts = try makeCPUOpeningArtifacts(
+                    key: key,
+                    transformedMatrices: compiledShape.transformedSparseMatrices,
+                    packedWitnesses: packedLimbs,
+                    point: claim.point,
+                    executionPolicy: executionPolicy,
+                    useParallel: useParallelCPUOpenings
+                )
+                guard limbCommitments == cpuArtifacts.map(\.commitment),
+                      limbEvaluations == cpuArtifacts.map(\.evaluations) else {
+                    throw SuperNeoError.metalFailure("Metal decomposition output failed CPU cross-check")
                 }
-                return (commitment, evaluations)
             }
+        } else {
+            let openingArtifacts = try makeCPUOpeningArtifacts(
+                key: key,
+                transformedMatrices: compiledShape.transformedSparseMatrices,
+                packedWitnesses: packedLimbs,
+                point: claim.point,
+                executionPolicy: executionPolicy,
+                useParallel: useParallelCPUOpenings
+            )
             limbCommitments = openingArtifacts.map(\.commitment)
             limbEvaluations = openingArtifacts.map(\.evaluations)
         }
@@ -2681,12 +2962,42 @@ private enum SuperNeoProtocolOracle {
         return try makeSumCheckProof(input: input, transcript: &transcript)
     }
 
+    public func benchmarkSumCheckProof(
+        input: SuperNeoFoldInput,
+        transcriptSeed: [UInt8] = [],
+        preparedContext: SuperNeoPreparedFoldContext
+    ) throws -> SumcheckProof {
+        try validateFoldInput(input, parameters: parameters)
+        try validatePreparedFoldContext(preparedContext, shape: input.shape)
+        var transcript = makeFoldTranscript(input: input, transcriptSeed: transcriptSeed)
+        return try makeSumCheckProof(
+            input: input,
+            compiledShape: preparedContext.compiledShape,
+            transcript: &transcript
+        )
+    }
+
     public func benchmarkPiCCSClaims(
         input: SuperNeoFoldInput,
         point: [GoldilocksExt2]
     ) throws -> [CCSEvaluationClaim] {
         try validateFoldInput(input, parameters: parameters)
         return try makePiCCSOutputClaims(input: input, point: point)
+    }
+
+    public func benchmarkPiCCSClaims(
+        input: SuperNeoFoldInput,
+        point: [GoldilocksExt2],
+        preparedContext: SuperNeoPreparedFoldContext
+    ) throws -> [CCSEvaluationClaim] {
+        try validateFoldInput(input, parameters: parameters)
+        try validatePreparedFoldContext(preparedContext, shape: input.shape)
+        return try makePiCCSOutputClaims(
+            input: input,
+            point: point,
+            compiledShape: preparedContext.compiledShape,
+            metalWorkspace: preparedContext.metalWorkspace
+        )
     }
 
     public func benchmarkPiRLC(
@@ -2701,11 +3012,43 @@ private enum SuperNeoProtocolOracle {
         return try randomLinearCombination(claims: claims, transcript: &transcript)
     }
 
+    public func benchmarkPiRLC(
+        input: SuperNeoFoldInput,
+        claims: [CCSEvaluationClaim],
+        transcriptSeed: [UInt8] = [],
+        preparedContext: SuperNeoPreparedFoldContext
+    ) throws -> (foldedClaim: CCSEvaluationClaim, challenges: [CyclotomicRing54]) {
+        try validateFoldInput(input, parameters: parameters)
+        try validatePreparedFoldContext(preparedContext, shape: input.shape)
+        var transcript = makeFoldTranscript(input: input, transcriptSeed: transcriptSeed)
+        _ = try makeSumCheckProof(
+            input: input,
+            compiledShape: preparedContext.compiledShape,
+            transcript: &transcript
+        )
+        absorbEvaluationClaimBatch(claims, into: &transcript)
+        return try randomLinearCombination(claims: claims, transcript: &transcript)
+    }
+
     public func benchmarkPiDEC(
         _ claim: CCSEvaluationClaim,
         shape: CCSShape
     ) throws -> (proof: DecompositionProof, claims: [CCSEvaluationClaim]) {
         try decompose(claim, shape: shape)
+    }
+
+    public func benchmarkPiDEC(
+        _ claim: CCSEvaluationClaim,
+        shape: CCSShape,
+        preparedContext: SuperNeoPreparedFoldContext
+    ) throws -> (proof: DecompositionProof, claims: [CCSEvaluationClaim]) {
+        try validatePreparedFoldContext(preparedContext, shape: shape)
+        return try decompose(
+            claim,
+            shape: shape,
+            compiledShape: preparedContext.compiledShape,
+            metalWorkspace: preparedContext.metalWorkspace
+        )
     }
 }
 
@@ -2945,7 +3288,8 @@ private func makeQOracle(
     input: SuperNeoFoldInput,
     compiledShape: CompiledCCSShape? = nil,
     transcript: inout SumCheckTranscript,
-    parameters: SuperNeoParameters
+    parameters: SuperNeoParameters,
+    executionPolicy: SuperNeoExecutionPolicy = .default
 ) throws -> CCSQOracle {
     let numVars = try log2Exact(input.shape.m)
     let alpha = (0..<numVars).map { _ in transcript.challengeExt2() }
@@ -2958,7 +3302,8 @@ private func makeQOracle(
         alpha: alpha,
         gamma: gamma,
         transformedSparseMatrices: compiledShape?.transformedSparseMatrices,
-        parameters: parameters
+        parameters: parameters,
+        executionPolicy: executionPolicy
     )
 }
 
@@ -3063,12 +3408,12 @@ private func validateStrongSamplingCapacity(
     }
 }
 
-private struct CEPrivateTarget {
+private struct CEPrivateTarget: Equatable {
     let commitment: AjtaiCommitment
     let matrixEvals: [CyclotomicExt2Ring54]
 }
 
-private struct CEPrivateLinearComputation: Sendable {
+private struct CEPrivateLinearComputation: Equatable, Sendable {
     let commitment: AjtaiCommitment
     let matrixEvals: [CyclotomicExt2Ring54]
 }
@@ -3214,6 +3559,7 @@ private struct CEOpeningPrivateLinearBatchContext {
     let key: AjtaiCommitmentKey
     let transformedMatrices: [SparseRingMatrixCSR]
     let metalWorkspace: SuperNeoMetalWorkspace?
+    let executionPolicy: SuperNeoExecutionPolicy
     let openings: [CEOpeningPrivateLinearOpeningContext]
 
     init(
@@ -3221,7 +3567,8 @@ private struct CEOpeningPrivateLinearBatchContext {
         shape: CCSShape,
         key: AjtaiCommitmentKey,
         transformedMatrices: [SparseRingMatrixCSR],
-        metalWorkspace: SuperNeoMetalWorkspace? = nil
+        metalWorkspace: SuperNeoMetalWorkspace? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws {
         guard transformedMatrices.count == shape.numMatrices else {
             throw SuperNeoError.invalidParameter("compiled transformed matrix count mismatch")
@@ -3248,6 +3595,7 @@ private struct CEOpeningPrivateLinearBatchContext {
         self.key = key
         self.transformedMatrices = transformedMatrices
         self.metalWorkspace = metalWorkspace
+        self.executionPolicy = executionPolicy
         self.openings = try statement.openings.map { opening in
             try CEOpeningPrivateLinearOpeningContext(
                 opening: opening,
@@ -3272,13 +3620,24 @@ private struct CEOpeningPrivateLinearBatchContext {
         let packedWitnesses = try zip(vectors, openingIndices).map { vector, openingIndex in
             try opening(at: openingIndex).packedZeroPublicWitness(privateVector: vector, shape: shape)
         }
-        if let metalWorkspace, let sharedPoint = sharedEvaluationPoint(for: openingIndices) {
+        if let metalWorkspace,
+           !executionPolicy.usesConstantWorkCPU,
+           let sharedPoint = sharedEvaluationPoint(for: openingIndices) {
             let computations = try SuperNeoBenchmarkSignpost.measure("ceMetalCombinedCommitEval") {
                 try makeMetalPrivateLinearComputations(
                     packedWitnesses: packedWitnesses,
                     point: sharedPoint,
                     metalWorkspace: metalWorkspace
                 )
+            }
+            if executionPolicy.requiresMetalCPUCheck {
+                let cpuComputations = try makeCPUPrivateLinearComputations(
+                    packedWitnesses: packedWitnesses,
+                    openingIndices: openingIndices
+                )
+                guard computations == cpuComputations else {
+                    throw SuperNeoError.metalFailure("Metal CE private-linear batch failed CPU cross-check")
+                }
             }
             return openingIndices.indices.map { index in
                 let openingContext = opening(at: openingIndices[index])
@@ -3292,17 +3651,10 @@ private struct CEOpeningPrivateLinearBatchContext {
         }
 
         let computations = try SuperNeoBenchmarkSignpost.measure("ceCPUCombinedCommitEval") {
-            try ceParallelMap(count: packedWitnesses.count) { index in
-                let packed = packedWitnesses[index]
-                let openingIndex = openingIndices[index]
-                let openingContext = opening(at: openingIndex)
-                let commitment = try AjtaiCommitter.commitReference(key: key, message: packed)
-                let matrixEvals = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-                    let rows = try matrix.multiplied(by: packed)
-                    return try SuperNeoProtocolOracle.evaluateExtensionRingRows(rows, rHat: openingContext.rHat)
-                }
-                return CEPrivateLinearComputation(commitment: commitment, matrixEvals: matrixEvals)
-            }
+            try makeCPUPrivateLinearComputations(
+                packedWitnesses: packedWitnesses,
+                openingIndices: openingIndices
+            )
         }
 
         return openingIndices.indices.map { index in
@@ -3313,6 +3665,36 @@ private struct CEOpeningPrivateLinearBatchContext {
                 evalPoint: openingContext.statement.instance.evalPoint,
                 matrixEvals: computations[index].matrixEvals
             )
+        }
+    }
+
+    private func makeCPUPrivateLinearComputations(
+        packedWitnesses: [[CyclotomicRing54]],
+        openingIndices: [Int]
+    ) throws -> [CEPrivateLinearComputation] {
+        try ceParallelMap(count: packedWitnesses.count) { index in
+            let packed = packedWitnesses[index]
+            let openingIndex = openingIndices[index]
+            let openingContext = opening(at: openingIndex)
+            let commitment: AjtaiCommitment
+            if executionPolicy.usesConstantWorkCPU {
+                commitment = try AjtaiCommitter.commitConstantWorkReference(key: key, message: packed)
+            } else {
+                commitment = try AjtaiCommitter.commitReference(key: key, message: packed)
+            }
+            let matrixEvals = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
+                let rows = try SuperNeoProtocolOracle.multiplyTransformedMatrix(
+                    matrix,
+                    by: packed,
+                    executionPolicy: executionPolicy
+                )
+                return try SuperNeoProtocolOracle.evaluateExtensionRingRows(
+                    rows,
+                    rHat: openingContext.rHat,
+                    executionPolicy: executionPolicy
+                )
+            }
+            return CEPrivateLinearComputation(commitment: commitment, matrixEvals: matrixEvals)
         }
     }
 
@@ -3411,14 +3793,16 @@ private struct CEOpeningVerifierContext {
         key: AjtaiCommitmentKey,
         transformedMatrices: [SparseRingMatrixCSR],
         metalWorkspace: SuperNeoMetalWorkspace? = nil,
-        parameters: SuperNeoParameters
+        parameters: SuperNeoParameters,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws {
         let linearContext = try CEOpeningPrivateLinearBatchContext(
             statement: statement,
             shape: shape,
             key: key,
             transformedMatrices: transformedMatrices,
-            metalWorkspace: metalWorkspace
+            metalWorkspace: metalWorkspace,
+            executionPolicy: executionPolicy
         )
         self.linearContext = linearContext
         self.parameters = parameters
@@ -3427,7 +3811,8 @@ private struct CEOpeningVerifierContext {
             shape: shape,
             key: key,
             transformedMatrices: transformedMatrices,
-            metalWorkspace: metalWorkspace
+            metalWorkspace: metalWorkspace,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -3451,7 +3836,8 @@ private func makeCEPrivateTarget(
     openingContext: CEOpeningPrivateLinearOpeningContext,
     shape: CCSShape,
     key: AjtaiCommitmentKey,
-    transformedMatrices: [SparseRingMatrixCSR]
+    transformedMatrices: [SparseRingMatrixCSR],
+    executionPolicy: SuperNeoExecutionPolicy
 ) throws -> CEPrivateTarget {
     let opening = openingContext.statement
     guard opening.instance.commitment.elements.count == key.parameters.kappa else {
@@ -3459,12 +3845,23 @@ private func makeCEPrivateTarget(
     }
     let packedPublicWitness = try makeCEPublicPackedWitness(openingContext: openingContext, shape: shape)
     let publicCommitment = try SuperNeoBenchmarkSignpost.measure("ceTargetAjtaiCommit") {
-        try AjtaiCommitter.commitReference(key: key, message: packedPublicWitness)
+        if executionPolicy.usesConstantWorkCPU {
+            return try AjtaiCommitter.commitConstantWorkReference(key: key, message: packedPublicWitness)
+        }
+        return try AjtaiCommitter.commitReference(key: key, message: packedPublicWitness)
     }
     let publicEvaluations = try SuperNeoBenchmarkSignpost.measure("ceTargetTransformedEval") {
         try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-            let rows = try matrix.multiplied(by: packedPublicWitness)
-            return try SuperNeoProtocolOracle.evaluateExtensionRingRows(rows, rHat: openingContext.rHat)
+            let rows = try SuperNeoProtocolOracle.multiplyTransformedMatrix(
+                matrix,
+                by: packedPublicWitness,
+                executionPolicy: executionPolicy
+            )
+            return try SuperNeoProtocolOracle.evaluateExtensionRingRows(
+                rows,
+                rHat: openingContext.rHat,
+                executionPolicy: executionPolicy
+            )
         }
     }
 
@@ -3479,16 +3876,18 @@ private func makeCEPrivateTargets(
     shape: CCSShape,
     key: AjtaiCommitmentKey,
     transformedMatrices: [SparseRingMatrixCSR],
-    metalWorkspace: SuperNeoMetalWorkspace?
+    metalWorkspace: SuperNeoMetalWorkspace?,
+    executionPolicy: SuperNeoExecutionPolicy
 ) throws -> [CEPrivateTarget] {
     guard !openingContexts.isEmpty else { return [] }
-    guard let metalWorkspace else {
+    guard let metalWorkspace, !executionPolicy.usesConstantWorkCPU else {
         return try ceParallelMap(count: openingContexts.count) { index in
             try makeCEPrivateTarget(
                 openingContext: openingContexts[index],
                 shape: shape,
                 key: key,
-                transformedMatrices: transformedMatrices
+                transformedMatrices: transformedMatrices,
+                executionPolicy: executionPolicy
             )
         }
     }
@@ -3527,6 +3926,18 @@ private func makeCEPrivateTargets(
                 commitment: opening.instance.commitment - combined.commitments[offset],
                 matrixEvals: try ceVectorSubtract(opening.instance.matrixEvals, combined.evaluations[offset])
             )
+            if executionPolicy.requiresMetalCPUCheck {
+                let cpuTarget = try makeCEPrivateTarget(
+                    openingContext: openingContexts[openingIndex],
+                    shape: shape,
+                    key: key,
+                    transformedMatrices: transformedMatrices,
+                    executionPolicy: executionPolicy
+                )
+                guard targets[openingIndex] == cpuTarget else {
+                    throw SuperNeoError.metalFailure("Metal CE target preparation failed CPU cross-check")
+                }
+            }
         }
     }
 
@@ -3560,7 +3971,8 @@ private func validatePrivateOpenings(
     shape: CCSShape,
     key: AjtaiCommitmentKey,
     transformedMatrices: [SparseRingMatrixCSR],
-    parameters: SuperNeoParameters
+    parameters: SuperNeoParameters,
+    executionPolicy: SuperNeoExecutionPolicy
 ) throws {
     guard witnesses.count == privateWitnesses.count else {
         throw SuperNeoError.invalidParameter("CE opening private witness count mismatch")
@@ -3582,7 +3994,8 @@ private func validatePrivateOpenings(
             transformedMatrices: transformedMatrices,
             claim: openedClaim,
             key: key,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         ) else {
             throw SuperNeoError.invalidParameter("CE opening witness does not satisfy statement")
         }
@@ -3603,7 +4016,8 @@ private func validatePriorCEClaimWitnesses(
     input: SuperNeoFoldInput,
     key: AjtaiCommitmentKey,
     transformedMatrices: [SparseRingMatrixCSR],
-    parameters: SuperNeoParameters
+    parameters: SuperNeoParameters,
+    executionPolicy: SuperNeoExecutionPolicy = .default
 ) throws {
     guard !input.priorClaims.isEmpty else { return }
     guard transformedMatrices.count == input.shape.numMatrices else {
@@ -3615,7 +4029,8 @@ private func validatePriorCEClaimWitnesses(
             transformedMatrices: transformedMatrices,
             claim: claim,
             key: key,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         ) else {
             throw SuperNeoError.invalidParameter("prior CE claim witness does not satisfy its commitment/evaluation opening")
         }

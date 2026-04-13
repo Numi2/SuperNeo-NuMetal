@@ -42,6 +42,17 @@ match the public statement being verified.
 CPU code is the reference implementation. Metal changes must preserve CPU/Metal
 differential checks before they are treated as valid optimization work.
 
+Callers can now make this runtime-enforced:
+
+- `SuperNeoExecutionPolicy.cpuRedundantMetal` keeps Metal acceleration enabled
+  and rejects covered Metal commitment or transformed-evaluation outputs that
+  differ from CPU recomputation.
+- `SuperNeoExecutionPolicy.highAssurance` disables secret-bearing Metal work in
+  the prover and uses CPU-redundant checks for any covered Metal work that
+  remains in verification.
+- `SuperNeoMetalWorkspace` exposes policy-aware direct methods for callers that
+  use the workspace API outside the fold/CE protocol wrappers.
+
 Required gates:
 
 - `MetalDifferentialTests` for kernel-level CPU/Metal equality.
@@ -52,7 +63,9 @@ Required gates:
 
 The verifier API does not accept a proof merely because a GPU computation
 completed. Proof acceptance still goes through the same public transcript,
-statement digest, verifier-key digest, proof-envelope, and relation checks.
+statement digest, verifier-key digest, proof-envelope, and relation checks. With
+`cpuRedundantMetal`, covered GPU outputs must also match CPU results before the
+verification path uses them.
 
 ## Environment Variables
 
@@ -65,7 +78,8 @@ record the value in the report notes so performance results are attributable.
 
 The current implementation does not try to protect against:
 
-- malicious GPU drivers,
+- malicious GPU drivers that can also tamper with CPU execution or process
+  control flow,
 - malicious kernel binaries outside this repository,
 - hardware faults or memory corruption,
 - side-channel leakage through GPU timing, cache behavior, or power, or

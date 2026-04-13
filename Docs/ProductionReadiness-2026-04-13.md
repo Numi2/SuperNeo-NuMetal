@@ -48,12 +48,40 @@ case.
 - `swift test --disable-swift-testing`
 - `swift test -c release --disable-swift-testing`
 - `swift Scripts/validate-test-vectors.swift`
-- release binary CLI prove/verify smoke for one-hot and binary-addition
+- release binary CLI fold prove/verify smoke for one-hot and binary-addition
+- release binary CLI terminal prove/verify smoke for one-hot with
+  `--require-terminal`
 - negative strict-verifier checks for public-input mismatch and terminal-proof
   requirement mismatch
+- lattice-estimator dry-run parameter derivation and artifact validation for
+  the implemented `Goldilocks/Phi81(d=54)` Module-SIS tuple
 
 `.github/workflows/production-gate.yml` runs the same gate on pull requests,
 `main`, and manual dispatch.
+
+### High-assurance execution policy
+
+The public API now exposes explicit execution policies:
+
+- `.highAssurance` uses constant-work CPU commitment/evaluation primitives for
+  covered secret-bearing normalization and prover paths, including transformed
+  sparse ring matrix-vector multiplication, and avoids prover-side Metal work.
+- `.cpuRedundantMetal` keeps Metal enabled but requires CPU equality for covered
+  Metal commitment and transformed-evaluation outputs before use.
+
+This does not claim formal constant-time behavior or malicious-host resistance.
+It gives callers a concrete opt-in mode instead of relying on documentation-only
+guidance.
+
+### Lattice-estimator reproduction
+
+`Scripts/reproduce-lattice-estimator.sh` derives the exact Appendix D.8 GL
+Module-SIS inputs and can run the pinned upstream lattice-estimator through
+SageMath. `Scripts/validate-lattice-estimator-artifact.py` checks the pinned
+source, exact profile constants, derived SIS tuple, strong-sampling inequality,
+and estimator status. Dry-run generation and validation are part of the
+production gate; full estimator execution is intentionally separate because it
+requires Sage.
 
 ## Verification
 
@@ -66,19 +94,19 @@ Scripts/production-gate.sh --with-benchmarks
 Result: passed.
 
 The command covered release build, debug XCTest, release XCTest, strict vector
-validation, release CLI smoke tests, negative strict-verifier checks, and the
-quick benchmark profile.
+validation, release CLI fold and terminal smoke tests, negative strict-verifier
+checks, and the quick benchmark profile.
 
 ## Residual Boundaries
 
-- Fold reductions still are not terminal application proofs. Callers that need
-  the complete terminal relation must require `--require-terminal` and verify a
-  terminal proof artifact.
+- Fold reductions still are not terminal application proofs. The production
+  gate now includes a positive terminal proof smoke check; callers that need the
+  complete terminal relation must still require `--require-terminal` and verify
+  a terminal proof artifact.
 - The CLI remains an integration surface, not a wallet, server, or policy
   engine. Production embedding code should own expected context, persistence,
   replay policy, and user-facing error handling outside the proof artifact.
-- Metal remains an acceleration path. Trust continues to come from CPU
-  verification, transcript binding, and differential coverage rather than GPU
-  execution alone.
+- Metal remains an acceleration path. Use `.cpuRedundantMetal` or
+  `.highAssurance` when GPU output must be treated as untrusted.
 - Hardware-class performance claims remain limited to the currently documented
   Apple M4 reports until additional hardware reports are pinned.

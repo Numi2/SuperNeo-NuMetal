@@ -2,11 +2,13 @@
 
 This repository includes a reproduction harness for the bundled
 `superneopaper.md`. The harness maps paper claims to concrete repository
-commands, benchmark selectors, logs, test vectors, and generated reports.
+commands, benchmark selectors, logs, test vectors, lattice-estimator parameter
+artifacts, and generated reports.
 
-It is an implementation artifact. It does not re-prove the paper's theorems, and
-it does not independently rerun the lattice-estimator scripts referenced by
-Appendix D.8.
+It is an implementation artifact. It does not re-prove the paper's theorems.
+Appendix D.8 estimator execution is available through a separate Sage-backed
+command and should only be cited when the generated JSON reports estimator
+status `ran`.
 
 ## Command
 
@@ -51,13 +53,15 @@ benchmark exports.
 | `logs/` | Command output captured by the harness. |
 | `benchmark-results/` | Copied benchmark `results.json`, `metadata.json`, and `report.md`. |
 | `test-vectors/` | Copied public test vectors used by the reproduction checks. |
+| `lattice-estimator/` | Dry-run Module-SIS estimator parameter artifact for the implemented profile, validated by the lattice artifact checker. |
 
 ## Claim Families
 
 The harness currently tracks these paper-to-repository claims:
 
 - `D1-parameters-module-sis-profile`: Appendix B.2 constants and the claimed
-  129-bit Module-SIS profile.
+  129-bit Module-SIS profile, plus exact derived and validated estimator
+  inputs.
 - `D2-pay-per-bit-commitment-cost-model`: norm-preserving embedding and
   small-coefficient Ajtai work profile.
 - `D3-field-native-folding-stages`: PiCCS, PiRLC, PiDEC, fold, and reduction
@@ -80,9 +84,10 @@ envelope and golden vector, and records benchmark rows for the selected profile.
 It does not mean:
 
 - production cryptographic certification,
-- independent Module-SIS hardness estimation,
-- side-channel resistance,
-- malicious-driver resistance,
+- independent Module-SIS hardness estimation unless the non-dry-run
+  lattice-estimator command completed successfully,
+- formal side-channel resistance,
+- malicious-host resistance,
 - correctness of third-party integrations, or
 - that a fold-reduction vector is a complete terminal proof.
 

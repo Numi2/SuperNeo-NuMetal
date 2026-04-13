@@ -28,6 +28,7 @@ public final class SuperNeoMetalWorkspace: @unchecked Sendable {
     public let transformedMatricesDigest: Digest256
 
     fileprivate let keyMatrixBuffer: MTLBuffer
+    fileprivate let transformedSparseMatrices: [SparseRingMatrixCSR]
     fileprivate let transformedMatrixBuffers: [SparseRingMatrixBuffers]
     fileprivate let transformedMatrixBatchBuffers: SparseRingMatrixBatchBuffers?
 
@@ -67,6 +68,7 @@ public final class SuperNeoMetalWorkspace: @unchecked Sendable {
         self.transformedMatrixCount = transformedSparseMatrices.count
         self.transformedMatricesDigest = Self.transformedMatricesDigest(for: transformedSparseMatrices)
         self.keyMatrixBuffer = try context.makeBuffer(backend.flatten(key.matrix.elements))
+        self.transformedSparseMatrices = transformedSparseMatrices
         self.transformedMatrixBuffers = try transformedSparseMatrices.map {
             try backend.makeSparseRingMatrixBuffers($0)
         }
@@ -75,23 +77,35 @@ public final class SuperNeoMetalWorkspace: @unchecked Sendable {
 
     public func ajtaiCommitments(
         messages: [[CyclotomicRing54]],
-        schedule: AjtaiMatvecSchedule = .default
+        schedule: AjtaiMatvecSchedule = .default,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> [AjtaiCommitment] {
-        try SuperNeoMetalBackend(context: context).ajtaiCommitments(
+        if executionPolicy.usesConstantWorkCPU {
+            return try cpuAjtaiCommitments(messages: messages, executionPolicy: executionPolicy)
+        }
+        let commitments = try SuperNeoMetalBackend(context: context).ajtaiCommitments(
             key: key,
             messages: messages,
             schedule: schedule,
             matrixBuffer: keyMatrixBuffer
         )
+        if executionPolicy.requiresMetalCPUCheck {
+            guard commitments == (try cpuAjtaiCommitments(messages: messages, executionPolicy: executionPolicy)) else {
+                throw SuperNeoError.metalFailure("Metal workspace Ajtai commitments failed CPU cross-check")
+            }
+        }
+        return commitments
     }
 
     public func transformedEvaluations(
         vector: [CyclotomicRing54],
-        point: [GoldilocksExt2]
+        point: [GoldilocksExt2],
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> [CyclotomicExt2Ring54] {
         guard let evaluations = try transformedEvaluations(
             vectors: [vector],
-            point: point
+            point: point,
+            executionPolicy: executionPolicy
         ).first else {
             return []
         }
@@ -100,34 +114,53 @@ public final class SuperNeoMetalWorkspace: @unchecked Sendable {
 
     public func transformedEvaluations(
         vectors: [[CyclotomicRing54]],
-        point: [GoldilocksExt2]
+        point: [GoldilocksExt2],
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> [[CyclotomicExt2Ring54]] {
+        if executionPolicy.usesConstantWorkCPU {
+            return try cpuTransformedEvaluations(vectors: vectors, point: point, executionPolicy: executionPolicy)
+        }
+        let evaluations: [[CyclotomicExt2Ring54]]
         if let transformedMatrixBatchBuffers {
-            return try SuperNeoMetalBackend(context: context).transformedEvaluations(
+            evaluations = try SuperNeoMetalBackend(context: context).transformedEvaluations(
                 batchBuffers: transformedMatrixBatchBuffers,
                 vectors: vectors,
                 point: point
             )
+        } else {
+            evaluations = try SuperNeoMetalBackend(context: context).transformedEvaluations(
+                matrixBuffers: transformedMatrixBuffers,
+                vectors: vectors,
+                point: point
+            )
         }
-        return try SuperNeoMetalBackend(context: context).transformedEvaluations(
-            matrixBuffers: transformedMatrixBuffers,
-            vectors: vectors,
-            point: point
-        )
+        if executionPolicy.requiresMetalCPUCheck {
+            guard evaluations == (try cpuTransformedEvaluations(vectors: vectors, point: point, executionPolicy: executionPolicy)) else {
+                throw SuperNeoError.metalFailure("Metal workspace transformed evaluations failed CPU cross-check")
+            }
+        }
+        return evaluations
     }
 
     public func commitmentsAndTransformedEvaluations(
         messages: [[CyclotomicRing54]],
         point: [GoldilocksExt2],
-        schedule: AjtaiMatvecSchedule = .default
+        schedule: AjtaiMatvecSchedule = .default,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> (commitments: [AjtaiCommitment], evaluations: [[CyclotomicExt2Ring54]]) {
-        guard let transformedMatrixBatchBuffers else {
+        if executionPolicy.usesConstantWorkCPU {
             return (
-                try ajtaiCommitments(messages: messages, schedule: schedule),
-                try transformedEvaluations(vectors: messages, point: point)
+                try cpuAjtaiCommitments(messages: messages, executionPolicy: executionPolicy),
+                try cpuTransformedEvaluations(vectors: messages, point: point, executionPolicy: executionPolicy)
             )
         }
-        return try SuperNeoMetalBackend(context: context).commitmentsAndTransformedEvaluations(
+        guard let transformedMatrixBatchBuffers else {
+            return (
+                try ajtaiCommitments(messages: messages, schedule: schedule, executionPolicy: executionPolicy),
+                try transformedEvaluations(vectors: messages, point: point, executionPolicy: executionPolicy)
+            )
+        }
+        let combined = try SuperNeoMetalBackend(context: context).commitmentsAndTransformedEvaluations(
             key: key,
             messages: messages,
             point: point,
@@ -135,6 +168,73 @@ public final class SuperNeoMetalWorkspace: @unchecked Sendable {
             matrixBuffer: keyMatrixBuffer,
             batchBuffers: transformedMatrixBatchBuffers
         )
+        if executionPolicy.requiresMetalCPUCheck {
+            let cpuCommitments = try cpuAjtaiCommitments(messages: messages, executionPolicy: executionPolicy)
+            let cpuEvaluations = try cpuTransformedEvaluations(vectors: messages, point: point, executionPolicy: executionPolicy)
+            guard combined.commitments == cpuCommitments, combined.evaluations == cpuEvaluations else {
+                throw SuperNeoError.metalFailure("Metal workspace combined commit/eval failed CPU cross-check")
+            }
+        }
+        return combined
+    }
+
+    private func cpuAjtaiCommitments(
+        messages: [[CyclotomicRing54]],
+        executionPolicy: SuperNeoExecutionPolicy
+    ) throws -> [AjtaiCommitment] {
+        try messages.map { message in
+            if executionPolicy.usesConstantWorkCPU {
+                return try AjtaiCommitter.commitConstantWorkReference(key: key, message: message)
+            }
+            return try AjtaiCommitter.commitReference(key: key, message: message)
+        }
+    }
+
+    private func cpuTransformedEvaluations(
+        vectors: [[CyclotomicRing54]],
+        point: [GoldilocksExt2],
+        executionPolicy: SuperNeoExecutionPolicy
+    ) throws -> [[CyclotomicExt2Ring54]] {
+        let rHat = try MultilinearEvaluation.checkedBasis(at: point)
+        return try vectors.map { vector in
+            try transformedSparseMatrices.map { matrix in
+                let rows: [CyclotomicRing54]
+                if executionPolicy.usesConstantWorkCPU {
+                    rows = try matrix.multipliedConstantWork(by: vector)
+                } else {
+                    rows = try matrix.multiplied(by: vector)
+                }
+                return try Self.evaluateExtensionRingRows(
+                    rows,
+                    rHat: rHat,
+                    constantWork: executionPolicy.usesConstantWorkCPU
+                )
+            }
+        }
+    }
+
+    private static func evaluateExtensionRingRows(
+        _ rows: [CyclotomicRing54],
+        rHat: [GoldilocksExt2],
+        constantWork: Bool
+    ) throws -> CyclotomicExt2Ring54 {
+        guard rows.count == rHat.count else {
+            throw SuperNeoError.invalidParameter("extension-ring row/rHat length mismatch")
+        }
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
+        for rowIndex in rows.indices {
+            let weight = rHat[rowIndex]
+            let rowCoefficients = rows[rowIndex].coefficients
+            for coefficientIndex in 0..<CyclotomicRing54.degree {
+                let coefficient = rowCoefficients[coefficientIndex]
+                if !constantWork, coefficient == .zero {
+                    continue
+                }
+                coefficients[coefficientIndex] = coefficients[coefficientIndex]
+                    + (constantWork || coefficient != .one ? weight.scaled(by: coefficient) : weight)
+            }
+        }
+        return CyclotomicExt2Ring54(coefficients)
     }
 
     public static func transformedMatricesDigest(for matrices: [SparseRingMatrixCSR]) -> Digest256 {

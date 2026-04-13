@@ -100,8 +100,12 @@ This repository does not yet provide:
 - a production-audited zero-knowledge claim,
 - a production SNARK, IVC, or PCD system,
 - an independent implementation in another language,
-- independent reproduction of the paper's lattice-estimator scripts, or
-- side-channel resistance.
+- a formal proof of the paper's lattice-estimator analysis, or
+- formal side-channel resistance.
+
+The repository does include a pinned lattice-estimator reproduction harness and
+opt-in high-assurance execution policies. Those are hardening artifacts; they do
+not change the meaning of proof acceptance by themselves.
 
 Until those pieces exist, the correct public positioning is:
 

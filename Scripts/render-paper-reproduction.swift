@@ -86,15 +86,22 @@ let claims = [
         paperClaim: "Goldilocks profile uses Phi_81 with d=54, kappa=18, b=2, k=14, C=[-2,-1,0,1,2], T=216, and about 129-bit Module-SIS security under the paper estimator.",
         repositoryEvidence: [
             "Docs/Parameters.md",
+            "Docs/LatticeEstimatorReproduction.md",
             "SuperNeoParameterProfile.goldilocksPhi81",
+            "Scripts/reproduce-lattice-estimator.sh",
+            "Scripts/validate-lattice-estimator-artifact.py",
             "ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile"
         ],
         commands: [
-            "swift test --disable-swift-testing --filter ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile"
+            "swift test --disable-swift-testing --filter ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile",
+            "Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json",
+            "Scripts/validate-lattice-estimator-artifact.py --expect-status not_run lattice-estimator-results/superneo-goldilocks-phi81.json",
+            "Scripts/reproduce-lattice-estimator.sh lattice-estimator-results/superneo-goldilocks-phi81.json"
         ],
         benchmarkSelectors: [],
         generatedArtifacts: [
             "logs/parameter-profile.txt",
+            "lattice-estimator/superneo-goldilocks-phi81.json",
             "report.md"
         ]
     ),
@@ -268,6 +275,7 @@ swift run superneo verify TestVectors/binary-addition-u8-fold-v1.json
 swift run superneo inspect TestVectors/one-hot-vector-fold-v1.json
 swift run superneo inspect TestVectors/binary-addition-u8-fold-v1.json
 swift Scripts/validate-test-vectors.swift
+Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
 Scripts/test-slice.sh fast
 Scripts/test-slice.sh protocol
 Scripts/test-slice.sh metal
@@ -340,7 +348,7 @@ var report: [String] = [
     "",
     "Mode: `\(mode)`",
     "",
-    "This artifact maps the bundled Neo/SuperNeo paper claims to repository commands, tests, benchmark selectors, and generated files. It is an implementation-reproduction harness: it does not re-prove the paper's theorems and it does not independently rerun the lattice-estimator scripts referenced in Appendix D.8.",
+    "This artifact maps the bundled Neo/SuperNeo paper claims to repository commands, tests, benchmark selectors, and generated files. It is an implementation-reproduction harness: it does not re-prove the paper's theorems. It records the exact Module-SIS estimator parameters in dry-run mode; full lattice-estimator execution is a separate Sage-backed command and is only claimed when that artifact reports `status: ran`.",
     "",
     "## Generated Artifacts",
     "",
@@ -349,6 +357,7 @@ var report: [String] = [
     "- `logs/`: command outputs captured by the harness when the selected mode runs commands.",
     "- `benchmark-results/`: copied benchmark JSON, metadata, and benchmark report when available.",
     "- `test-vectors/`: copied public vectors used by the reproduction checks.",
+    "- `lattice-estimator/`: derived Module-SIS estimator parameters for the implemented profile.",
     "",
     "## Environment Metadata",
     "",
@@ -403,7 +412,7 @@ report.append(contentsOf: [
     "",
     "## Required Interpretation",
     "",
-    "A passing artifact supports the implementation claims listed above. It does not certify production security, side-channel resistance, malicious-driver resistance, or independent Module-SIS parameter estimation."
+    "A passing artifact supports the implementation claims listed above. It does not certify production security. Side-channel and malicious-GPU resistance depend on using the explicit high-assurance execution policy and on the remaining boundaries documented in `Docs/HighAssuranceHardening-2026-04-13.md`. Independent Module-SIS estimation is only claimed when `Scripts/reproduce-lattice-estimator.sh` completes a non-dry-run Sage/lattice-estimator execution."
 ])
 
 try report.joined(separator: "\n").write(to: reportURL, atomically: true, encoding: .utf8)

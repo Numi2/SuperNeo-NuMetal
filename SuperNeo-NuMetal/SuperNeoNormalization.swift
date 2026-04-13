@@ -318,7 +318,8 @@ public enum SuperNeoCCSNormalizer {
         privateWitnesses: [[GoldilocksField]],
         priorClaims: [CCSEvaluationClaim] = [],
         keySeed: [UInt8],
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> SuperNeoPreparedFoldInput {
         guard publicInputs.count == privateWitnesses.count else {
             throw SuperNeoError.invalidParameter("fold preparation public input and witness count mismatch")
@@ -333,7 +334,8 @@ public enum SuperNeoCCSNormalizer {
             witnesses: privateWitnesses.map(CCSWitness.init),
             priorClaims: priorClaims,
             keySeed: keySeed,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -343,7 +345,8 @@ public enum SuperNeoCCSNormalizer {
         witnesses: [CCSWitness],
         priorClaims: [CCSEvaluationClaim] = [],
         keySeed: [UInt8],
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> SuperNeoPreparedFoldInput {
         guard !instances.isEmpty else {
             throw SuperNeoError.invalidParameter("fold preparation requires at least one CCS instance")
@@ -359,7 +362,8 @@ public enum SuperNeoCCSNormalizer {
             witnesses: witnesses,
             priorClaims: priorClaims,
             keySeed: keySeed,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
         try SuperNeoFoldingShapeContract.paperNormalized.validate(result.normalized.shape)
         return SuperNeoPreparedFoldInput(
@@ -375,7 +379,8 @@ public enum SuperNeoCCSNormalizer {
         witnesses: [CCSWitness],
         priorClaims: [CCSEvaluationClaim] = [],
         keySeed: [UInt8],
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> (normalized: NormalizedCCS, key: AjtaiCommitmentKey) {
         guard structure.relationPolynomial != nil else {
             throw SuperNeoError.invalidParameter("normalization requires a serializable CCS relation polynomial")
@@ -425,7 +430,9 @@ public enum SuperNeoCCSNormalizer {
             let normalizedPrivate = witness.values
                 + Array(repeating: GoldilocksField.zero, count: normalizedSize - normalizedPublicInputCount - witness.values.count)
             let fullNormalized = normalizedPublic + normalizedPrivate
-            let commitment = try AjtaiCommitter.commitReference(key: key, fieldWitness: fullNormalized)
+            let commitment = executionPolicy.usesConstantWorkCPU
+                ? try AjtaiCommitter.commitConstantWorkReference(key: key, fieldWitness: fullNormalized)
+                : try AjtaiCommitter.commitReference(key: key, fieldWitness: fullNormalized)
             return (CCSInstance(commitment: commitment, publicInput: normalizedPublic), CCSWitness(normalizedPrivate))
         }
 

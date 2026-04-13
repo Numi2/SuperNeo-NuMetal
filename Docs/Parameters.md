@@ -72,9 +72,22 @@ paths in the CPU and Metal commit kernels.
 ## Security Estimate Scope
 
 The `129`-bit value is a profile claim inherited from the paper's concrete
-parameter analysis. This repository does not independently run or reproduce the
-lattice-estimator scripts in Appendix D.8, and it does not convert the research
-analysis into a production cryptographic certification.
+parameter analysis. The repository now includes a pinned reproduction harness
+for Appendix D.8:
+
+```sh
+Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/validate-lattice-estimator-artifact.py --expect-status not_run lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/reproduce-lattice-estimator.sh lattice-estimator-results/superneo-goldilocks-phi81.json
+```
+
+Dry-run mode records the exact `SIS.Parameters` inputs for this profile. Full
+mode requires SageMath and the upstream `malb/lattice-estimator` checkout pinned
+in the script. Treat the estimate as independently reproduced only when the JSON
+artifact reports estimator status `ran`.
+
+This harness does not convert the research analysis into a production
+cryptographic certification.
 
 Treat the implemented profile as:
 

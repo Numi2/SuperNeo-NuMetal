@@ -70,6 +70,10 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
         return multiplyFullWidth(lhs, by: rhs)
     }
 
+    public func multipliedConstantWork(by rhs: Self) -> Self {
+        Self.multiplyConstantWork(self, by: rhs)
+    }
+
     private static func multiplyFullWidth(_ lhs: Self, by rhs: Self) -> Self {
         var coefficients = Array(repeating: GoldilocksField.zero, count: degree)
         for i in 0..<degree {
@@ -79,6 +83,21 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
                 let right = rhs.coefficients[j]
                 if right == .zero { continue }
                 accumulateReducedProduct(left * right, exponent: i + j, into: &coefficients)
+            }
+        }
+        return Self(uncheckedCoefficients: coefficients)
+    }
+
+    private static func multiplyConstantWork(_ lhs: Self, by rhs: Self) -> Self {
+        var coefficients = Array(repeating: GoldilocksField.zero, count: degree)
+        for i in 0..<degree {
+            let left = lhs.coefficients[i]
+            for j in 0..<degree {
+                accumulateReducedProductConstantWork(
+                    left * rhs.coefficients[j],
+                    exponent: i + j,
+                    into: &coefficients
+                )
             }
         }
         return Self(uncheckedCoefficients: coefficients)
@@ -157,6 +176,21 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
         into coefficients: inout [GoldilocksField]
     ) {
         guard value != .zero else { return }
+        if exponent < degree {
+            coefficients[exponent] = coefficients[exponent] + value
+        } else if exponent < degree + 27 {
+            coefficients[exponent - degree] = coefficients[exponent - degree] - value
+            coefficients[exponent - 27] = coefficients[exponent - 27] - value
+        } else {
+            coefficients[exponent - degree - 27] = coefficients[exponent - degree - 27] + value
+        }
+    }
+
+    private static func accumulateReducedProductConstantWork(
+        _ value: GoldilocksField,
+        exponent: Int,
+        into coefficients: inout [GoldilocksField]
+    ) {
         if exponent < degree {
             coefficients[exponent] = coefficients[exponent] + value
         } else if exponent < degree + 27 {
@@ -590,6 +624,21 @@ public struct RingMatrix: Equatable, Sendable {
         }
         return output
     }
+
+    public func multipliedConstantWork(by vector: [CyclotomicRing54]) throws -> [CyclotomicRing54] {
+        guard vector.count == columns else {
+            throw SuperNeoError.invalidParameter("ring matrix/vector dimension mismatch")
+        }
+        var output = Array(repeating: CyclotomicRing54.zero, count: rows)
+        for row in 0..<rows {
+            var acc = CyclotomicRing54.zero
+            for column in 0..<columns {
+                acc = acc + self[row, column].multipliedConstantWork(by: vector[column])
+            }
+            output[row] = acc
+        }
+        return output
+    }
 }
 
 public struct SparseRingMatrixCSR: Equatable, Sendable {
@@ -696,6 +745,21 @@ public struct SparseRingMatrixCSR: Equatable, Sendable {
             var acc = CyclotomicRing54.zero
             for index in rowOffsets[row]..<rowOffsets[row + 1] {
                 acc = acc + values[index] * vector[columnIndices[index]]
+            }
+            output[row] = acc
+        }
+        return output
+    }
+
+    public func multipliedConstantWork(by vector: [CyclotomicRing54]) throws -> [CyclotomicRing54] {
+        guard vector.count == columns else {
+            throw SuperNeoError.invalidParameter("sparse ring matrix/vector dimension mismatch")
+        }
+        var output = Array(repeating: CyclotomicRing54.zero, count: rows)
+        for row in 0..<rows {
+            var acc = CyclotomicRing54.zero
+            for index in rowOffsets[row]..<rowOffsets[row + 1] {
+                acc = acc + values[index].multipliedConstantWork(by: vector[columnIndices[index]])
             }
             output[row] = acc
         }

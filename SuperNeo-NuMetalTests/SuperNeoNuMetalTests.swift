@@ -169,6 +169,7 @@ final class AlgebraCoreTests: SuperNeoTestCase {
             XCTAssertEqual(a + b, b + a)
             XCTAssertEqual(a * .one, a)
             XCTAssertEqual(a * b, b * a)
+            XCTAssertEqual(a.multipliedConstantWork(by: b), a * b)
             XCTAssertEqual((a * b) * c, a * (b * c))
             XCTAssertEqual(a * (b + c), (a * b) + (a * c))
             XCTAssertEqual(a.scaled(by: scalar), CyclotomicRing54(a.coefficients.map { $0 * scalar }))
@@ -180,6 +181,19 @@ final class AlgebraCoreTests: SuperNeoTestCase {
             XCTAssertEqual(extRing * scalarRing, extRing.scaled(by: scalar))
             XCTAssertEqual(try CyclotomicRing54(littleEndianBytes: a.littleEndianBytes), a)
         }
+
+        let ringMatrixElements = (0..<9).map { _ in generator.ring() }
+        let ringMatrix = try RingMatrix(rows: 3, columns: 3, elements: ringMatrixElements)
+        let sparseRingMatrix = try SparseRingMatrixCSR(ringMatrix)
+        let ringVector = (0..<3).map { _ in generator.ring() }
+        XCTAssertEqual(
+            try ringMatrix.multipliedConstantWork(by: ringVector),
+            try ringMatrix.multiplied(by: ringVector)
+        )
+        XCTAssertEqual(
+            try sparseRingMatrix.multipliedConstantWork(by: ringVector),
+            try sparseRingMatrix.multiplied(by: ringVector)
+        )
 
         let vector = (0..<109).map { GoldilocksField(UInt64(($0 * 17 + 5) % 251)) }
         let padded = try SuperNeoEmbedding.packPadded(vector)
@@ -343,6 +357,27 @@ final class CommitmentCoreTests: SuperNeoTestCase {
         XCTAssertThrowsSuperNeoError(
             try AjtaiCommitter.workProfile(key: key, message: [CyclotomicRing54.one]),
             .invalidParameter("ring matrix/vector dimension mismatch")
+        )
+    }
+
+    func testTier0AjtaiConstantWorkReferenceMatchesOptimizedReference() throws {
+        var generator = SeededTestGenerator(seed: 0x4354_414A_5441_4958)
+        let key = try AjtaiCommitmentKey(columns: 3, seed: Array("constant-work-ajtai".utf8))
+
+        for _ in 0..<8 {
+            let message = (0..<key.matrix.columns).map { _ in generator.ring() }
+            XCTAssertEqual(
+                try AjtaiCommitter.commitConstantWorkReference(key: key, message: message),
+                try AjtaiCommitter.commitReference(key: key, message: message)
+            )
+        }
+
+        let smallWitness = (0..<(key.matrix.columns * CyclotomicRing54.degree)).map { index in
+            [GoldilocksField.zero, .one, -GoldilocksField.one, GoldilocksField(2)][index % 4]
+        }
+        XCTAssertEqual(
+            try AjtaiCommitter.commitConstantWorkReference(key: key, fieldWitness: smallWitness),
+            try AjtaiCommitter.commitReference(key: key, fieldWitness: smallWitness)
         )
     }
 
@@ -885,6 +920,64 @@ final class ProtocolSmokeTests: SuperNeoTestCase {
         XCTAssertTrue(reduction.requiresTerminalRelationCheck)
         XCTAssertEqual(reduction.outputClaims, fold.proof.outputClaims)
         XCTAssertEqual(result, .valid)
+    }
+
+    func testHighAssuranceCPUFoldMatchesOptimizedProof() throws {
+        let fixture = try makeFoldFixture()
+
+        let optimized = try SuperNeoProver(key: fixture.key).foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
+        let hardened = try SuperNeoProver(
+            key: fixture.key,
+            executionPolicy: .highAssurance
+        ).foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
+        let verifier = SuperNeoVerifier(
+            key: fixture.key,
+            executionPolicy: .highAssurance
+        )
+
+        XCTAssertEqual(hardened, optimized)
+        XCTAssertEqual(
+            verifier.verifyFold(
+                input: fixture.input,
+                proof: hardened.proof,
+                outputClaims: hardened.outputClaims,
+                transcriptSeed: fixture.seed
+            ),
+            .valid
+        )
+    }
+
+    func testPreparedFoldContextMatchesStandardFoldAndRejectsWrongKey() throws {
+        let fixture = try makeFoldFixture()
+        let prover = SuperNeoProver(key: fixture.key)
+        let preparedContext = try prover.prepareFoldContext(for: fixture.input)
+
+        let standard = try prover.foldWithOutput(fixture.input, transcriptSeed: fixture.seed)
+        let prepared = try prover.foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed,
+            preparedContext: preparedContext
+        )
+        let wrongKey = try AjtaiCommitmentKey(
+            columns: fixture.key.matrix.columns,
+            seed: Array("prepared-fold-wrong-key".utf8)
+        )
+
+        XCTAssertEqual(prepared, standard)
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoProver(key: wrongKey).foldWithOutput(
+                fixture.input,
+                transcriptSeed: fixture.seed,
+                preparedContext: preparedContext
+            ),
+            .invalidParameter("prepared fold context verifier key digest mismatch")
+        )
     }
 
 }
@@ -1837,6 +1930,13 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             witnesses: [CCSWitness(witness)],
             keySeed: Array("normalized-key".utf8)
         )
+        let highAssuranceResult = try SuperNeoCCSNormalizer.normalize(
+            structure: structure,
+            instances: [CCSInstance(commitment: originalCommitment, publicInput: publicInput)],
+            witnesses: [CCSWitness(witness)],
+            keySeed: Array("normalized-key".utf8),
+            executionPolicy: .highAssurance
+        )
 
         XCTAssertEqual(result.normalized.shape.m, 64)
         XCTAssertEqual(result.normalized.shape.nField, 64)
@@ -1859,6 +1959,9 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         )
         XCTAssertEqual(result.normalized.instances[0].publicInput, normalizedPublic)
         XCTAssertEqual(result.normalized.witnesses[0].values, normalizedPrivate)
+        XCTAssertEqual(highAssuranceResult.key, result.key)
+        XCTAssertEqual(highAssuranceResult.normalized.instances, result.normalized.instances)
+        XCTAssertEqual(highAssuranceResult.normalized.witnesses, result.normalized.witnesses)
         XCTAssertEqual(try result.normalized.mapping.projectPublicInput(normalizedPublic), publicInput)
         XCTAssertEqual(try result.normalized.mapping.projectPrivateWitness(normalizedPrivate), witness)
         XCTAssertEqual(try result.normalized.mapping.projectFullWitness(normalizedWitness), publicInput + witness)
@@ -1923,8 +2026,18 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             witnesses: [CCSWitness(witness)],
             keySeed: Array("prepared-general-key".utf8)
         )
+        let hardenedPrepared = try SuperNeoCCSNormalizer.prepareForFolding(
+            structure: structure,
+            instances: [CCSInstance(commitment: originalCommitment, publicInput: publicInput)],
+            witnesses: [CCSWitness(witness)],
+            keySeed: Array("prepared-general-key".utf8),
+            executionPolicy: .highAssurance
+        )
 
         XCTAssertTrue(prepared.requiresNormalization)
+        XCTAssertEqual(hardenedPrepared.key, prepared.key)
+        XCTAssertEqual(hardenedPrepared.foldInput.instances, prepared.foldInput.instances)
+        XCTAssertEqual(hardenedPrepared.foldInput.witnesses, prepared.foldInput.witnesses)
         XCTAssertEqual(prepared.originalNormalizationRequirements, [
             .positivePowerOfTwoRows(rowCount: 3),
             .wholeRingPublicInput(publicInputCount: 1, ringDegree: CyclotomicRing54.degree)
@@ -2567,6 +2680,63 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
 final class MetalDifferentialTests: SuperNeoTestCase {
     // MARK: - Tier 0: Metal differential kernels
 
+    func testTier0CPURedundantMetalPolicyVerifiesFoldOutputs() throws {
+        let device = try requireMetalDevice()
+        let context = try MetalExecutionContext(device: device)
+        let fixture = try makeFoldFixture()
+        let prover = SuperNeoProver(
+            key: fixture.key,
+            context: context,
+            executionPolicy: .cpuRedundantMetal
+        )
+        let verifier = SuperNeoVerifier(
+            key: fixture.key,
+            context: context,
+            executionPolicy: .cpuRedundantMetal
+        )
+
+        let fold = try prover.foldWithOutput(fixture.input, transcriptSeed: fixture.seed)
+        let reduction = verifier.reduceFold(input: fixture.input, proof: fold.proof, transcriptSeed: fixture.seed)
+
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertEqual(
+            verifier.verifyFold(
+                input: fixture.input,
+                proof: fold.proof,
+                outputClaims: fold.outputClaims,
+                transcriptSeed: fixture.seed
+            ),
+            .valid
+        )
+    }
+
+    func testTier0PreparedMetalFoldContextMatchesCPUOracle() throws {
+        let device = try requireMetalDevice()
+        let context = try MetalExecutionContext(device: device)
+        let fixture = try makeFoldFixture()
+        let cpuReference = try SuperNeoProver(key: fixture.key).foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
+        let prover = SuperNeoProver(key: fixture.key, context: context)
+        let preparedContext = try prover.prepareFoldContext(for: fixture.input)
+
+        let prepared = try prover.foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed,
+            preparedContext: preparedContext
+        )
+        let highAssurancePreparedContext = try SuperNeoProver(
+            key: fixture.key,
+            context: context,
+            executionPolicy: .highAssurance
+        ).prepareFoldContext(for: fixture.input)
+
+        XCTAssertNotNil(preparedContext.metalWorkspace)
+        XCTAssertEqual(prepared, cpuReference)
+        XCTAssertNil(highAssurancePreparedContext.metalWorkspace)
+    }
+
     func testTier0MetalSeededDifferentialCorpusMatchesCPUOracle() throws {
         let device = try requireMetalDevice()
         let context = try MetalExecutionContext(device: device)
@@ -2769,12 +2939,26 @@ final class MetalDifferentialTests: SuperNeoTestCase {
                 try AjtaiCommitter.commitReference(key: key, message: message)
             ]
         )
+        XCTAssertEqual(
+            try workspace.ajtaiCommitments(messages: [message], executionPolicy: .cpuRedundantMetal),
+            [try AjtaiCommitter.commitReference(key: key, message: message)]
+        )
+        XCTAssertEqual(
+            try workspace.ajtaiCommitments(messages: [message], executionPolicy: .highAssurance),
+            [try AjtaiCommitter.commitConstantWorkReference(key: key, message: message)]
+        )
         let workspaceEvaluations = try workspace.transformedEvaluations(
             vectors: [vector, secondVector],
             point: point
         )
         XCTAssertEqual(workspaceEvaluations[0][0].coefficients, directTransformedEvaluation(rows: rows, rHat: rHat))
         XCTAssertEqual(workspaceEvaluations[1][0].coefficients, directTransformedEvaluation(rows: secondRows, rHat: rHat))
+        let checkedWorkspaceEvaluations = try workspace.transformedEvaluations(
+            vectors: [vector],
+            point: point,
+            executionPolicy: .cpuRedundantMetal
+        )
+        XCTAssertEqual(checkedWorkspaceEvaluations[0][0].coefficients, directTransformedEvaluation(rows: rows, rHat: rHat))
         let combinedWorkspaceResults = try workspace.commitmentsAndTransformedEvaluations(
             messages: [vector, secondVector],
             point: point
@@ -2785,6 +2969,19 @@ final class MetalDifferentialTests: SuperNeoTestCase {
         ])
         XCTAssertEqual(combinedWorkspaceResults.evaluations[0][0].coefficients, directTransformedEvaluation(rows: rows, rHat: rHat))
         XCTAssertEqual(combinedWorkspaceResults.evaluations[1][0].coefficients, directTransformedEvaluation(rows: secondRows, rHat: rHat))
+        let highAssuranceCombinedWorkspaceResults = try workspace.commitmentsAndTransformedEvaluations(
+            messages: [vector],
+            point: point,
+            executionPolicy: .highAssurance
+        )
+        XCTAssertEqual(
+            highAssuranceCombinedWorkspaceResults.commitments,
+            [try AjtaiCommitter.commitConstantWorkReference(key: key, message: vector)]
+        )
+        XCTAssertEqual(
+            highAssuranceCombinedWorkspaceResults.evaluations[0][0].coefficients,
+            directTransformedEvaluation(rows: rows, rHat: rHat)
+        )
 
         let blockedRows = 1024
         let blockedColumns = 3

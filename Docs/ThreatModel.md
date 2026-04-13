@@ -44,8 +44,10 @@ The trust story depends on the following assumptions:
 - **Trusted verifier key material:** The verifier uses the intended Ajtai matrix.
   The code binds the verifier key through `AjtaiCommitmentKey.verifierKeyDigest`;
   applications must still distribute and pin the correct key.
-- **Correct verifier implementation:** The verifier executes trusted CPU or
-  Metal code from this repository and validates the full result before accepting.
+- **Correct verifier implementation:** The verifier executes trusted CPU code
+  from this repository and validates the full result before accepting. Metal is
+  only an accelerator; callers that treat GPU output as untrusted should use
+  `SuperNeoExecutionPolicy.cpuRedundantMetal` or `.highAssurance`.
 
 ## Adversaries
 
@@ -71,16 +73,22 @@ decomposition output, and CPU/Metal differential checks.
 
 ## Explicit Non-Goals
 
-The current repository does not claim:
+The current default optimized repository mode does not claim:
 
 - a production-ready audited cryptographic library,
-- constant-time or side-channel resistant execution,
-- resistance to fault injection, malicious hardware, malicious kernels, or a
-  compromised operating system,
+- formal constant-time execution,
+- resistance to a compromised host process or operating system,
 - a stable long-term proof format beyond `ProofEnvelopeHeader.version`,
 - zero-knowledge for arbitrary application statements,
 - a complete SNARK, IVC, or PCD product by itself, or
-- independent reproduction of the paper's lattice-estimator security numbers.
+- a production cryptographic certification of the paper's lattice-estimator
+  security numbers.
+
+The `.highAssurance` execution policy removes the largest witness-dependent
+zero-skip branches from covered local normalization, commitment, and evaluation
+paths, and disables secret-bearing Metal prover work. This is constant-work
+hardening, not a formal side-channel proof for Swift, LLVM, CPU
+microarchitecture, allocation, timing, or power leakage.
 
 The CE opening proof machinery may hide selected witness data by protocol
 construction, but this repository should not be presented as a general
@@ -106,10 +114,13 @@ same algebraic objects must verify against the same public transcript. CPU and
 Metal paths are differentially tested, and benchmark gates compare outputs where
 both paths exist.
 
-A verifier running on an untrusted GPU, malicious driver, faulty memory, or
-compromised host is outside this repository's threat model. High-assurance
-deployments should verify public proofs on trusted CPU code or run independent
-redundant verification.
+A verifier running with `SuperNeoExecutionPolicy.cpuRedundantMetal` recomputes
+covered Metal commitment and transformed-evaluation outputs on CPU before using
+them. This catches faulty or malicious GPU results in those paths. A compromised
+host that can alter CPU execution, inputs, policies, or control flow remains
+outside this repository's threat model.
+Direct `SuperNeoMetalWorkspace` users should pass `.cpuRedundantMetal` or
+`.highAssurance` to get the same boundary checks at the workspace API.
 
 ## Responsible Language
 

@@ -31,6 +31,8 @@ claim:
 - `Docs/ProofEnvelope.md`
 - `Docs/WhatThisProves.md`
 - `Docs/GPUDeterminism.md`
+- `Docs/HighAssuranceHardening-2026-04-13.md`
+- `Docs/LatticeEstimatorReproduction.md`
 - `Docs/CLI.md`
 - `Docs/PaperReproduction.md`
 - `Docs/RoadmapStatus.md`
@@ -77,6 +79,9 @@ claim:
 
 - ``SuperNeoProver``
 - ``SuperNeoVerifier``
+- ``SuperNeoExecutionPolicy``
+- ``SuperNeoSecretArithmeticPolicy``
+- ``SuperNeoMetalTrustPolicy``
 - ``FoldProof``
 - ``TerminalFoldProof``
 - ``FoldReductionResult``

@@ -15,6 +15,14 @@ public struct SuperNeoCPUBackend: Sendable {
         try AjtaiCommitter.commitReference(key: key, fieldWitness: message)
     }
 
+    public func commitConstantWork(key: AjtaiCommitmentKey, message: [GoldilocksField]) throws -> AjtaiCommitment {
+        try AjtaiCommitter.commitConstantWorkReference(key: key, fieldWitness: message)
+    }
+
+    public func commitConstantWork(key: AjtaiCommitmentKey, message: [CyclotomicRing54]) throws -> AjtaiCommitment {
+        try AjtaiCommitter.commitConstantWorkReference(key: key, message: message)
+    }
+
     public func transformedMatrix(_ matrix: SparseFieldMatrix) throws -> RingMatrix {
         try matrix.transformedForSuperNeo()
     }
