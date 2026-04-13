@@ -19,4 +19,5 @@ import SuperNeoFormal.PiCCSSoundness
 import SuperNeoFormal.TerminalCE
 import SuperNeoFormal.CEOpeningRelation
 import SuperNeoFormal.Serialization
+import SuperNeoFormal.Transcript
 import SuperNeoFormal.Composition

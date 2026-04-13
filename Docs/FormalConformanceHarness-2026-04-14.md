@@ -18,12 +18,17 @@ formal constants.
     `decompositionLength`.
   - Compares the Lean challenge coefficient set against Swift
     `challengeCoefficients`.
+  - Compares Lean proof-envelope magic, version, proof-kind tags, and
+    transcript-binding byte length against `ProofEnvelopeHeader` and
+    `ProofEnvelopeKind`.
 
 - `Scripts/test-formal-profile-constants-validation.py`
   - Runs the validator against the repository.
   - Mutates a temporary Lean `kappa` constant and requires validation failure.
   - Mutates a temporary Lean challenge coefficient set and requires validation
     failure.
+  - Mutates temporary Lean proof-envelope magic, transcript-binding length, and
+    proof-kind tags and requires validation failure.
 
 ## Gate integration
 

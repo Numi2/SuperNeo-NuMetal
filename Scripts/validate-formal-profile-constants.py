@@ -44,6 +44,39 @@ def parse_lean_challenge_set(text: str) -> List[int]:
     return [int(part.strip()) for part in match.group(1).split(",") if part.strip()]
 
 
+def parse_lean_fin_literal(text: str, name: str) -> int:
+    pattern = re.compile(
+        rf"\bdef\s+{re.escape(name)}\s*:\s*[A-Za-z0-9_]+\s*:=\s*⟨\s*(0x[0-9A-Fa-f_]+|[0-9][0-9_]*)\s*,",
+        re.MULTILINE,
+    )
+    match = pattern.search(text)
+    if not match:
+        fail(f"could not find Lean finite literal {name}")
+    return parse_int_literal(match.group(1))
+
+
+def parse_lean_theorem_rhs_nat(text: str, name: str) -> int:
+    pattern = re.compile(
+        rf"\btheorem\s+{re.escape(name)}(?:.|\n)*?:\s*(?:.|\n)*?=\s*([0-9][0-9_]*)\s*:=\s*by",
+        re.MULTILINE,
+    )
+    match = pattern.search(text)
+    if not match:
+        fail(f"could not find Lean theorem numeric RHS {name}")
+    return parse_int_literal(match.group(1))
+
+
+def parse_lean_kind_tag(text: str, name: str) -> int:
+    pattern = re.compile(
+        rf"\|\s*\.{re.escape(name)}\s*=>\s*byteOfNat\s+([0-9][0-9_]*)",
+        re.MULTILINE,
+    )
+    match = pattern.search(text)
+    if not match:
+        fail(f"could not find Lean proof-envelope kind tag {name}")
+    return parse_int_literal(match.group(1))
+
+
 def parse_swift_int(text: str, name: str) -> int:
     pattern = re.compile(rf"\b(?:public\s+)?let\s+{re.escape(name)}(?:\s*:\s*[^=]+)?\s*=\s*([0-9][0-9_]*)")
     match = pattern.search(text)
@@ -59,6 +92,27 @@ def parse_swift_static_int(text: str, name: str) -> int:
     match = pattern.search(text)
     if not match:
         fail(f"could not find Swift static integer constant {name}")
+    return parse_int_literal(match.group(1))
+
+
+def parse_swift_static_int_after(text: str, anchor: str, name: str) -> int:
+    start = text.find(anchor)
+    if start < 0:
+        fail(f"could not find Swift anchor {anchor}")
+    pattern = re.compile(
+        rf"\bpublic\s+static\s+let\s+{re.escape(name)}(?:\s*:\s*[^=]+)?\s*=\s*(0x[0-9A-Fa-f_]+|[0-9][0-9_]*)"
+    )
+    match = pattern.search(text, start)
+    if not match:
+        fail(f"could not find Swift static integer constant {name} after {anchor}")
+    return parse_int_literal(match.group(1))
+
+
+def parse_swift_enum_case(text: str, name: str) -> int:
+    pattern = re.compile(rf"\bcase\s+{re.escape(name)}\s*=\s*([0-9][0-9_]*)")
+    match = pattern.search(text)
+    if not match:
+        fail(f"could not find Swift enum case {name}")
     return parse_int_literal(match.group(1))
 
 
@@ -98,8 +152,10 @@ def main() -> None:
     root = Path(args.root).resolve()
     lean_profile = read(root / "Formal" / "SuperNeoFormal" / "Profile.lean")
     lean_challenges = read(root / "Formal" / "SuperNeoFormal" / "ChallengeSampling.lean")
+    lean_serialization = read(root / "Formal" / "SuperNeoFormal" / "Serialization.lean")
     swift_field = read(root / "SuperNeo-NuMetal" / "Fields" / "GoldilocksField.swift")
     swift_ring = read(root / "SuperNeo-NuMetal" / "Rings" / "CyclotomicRing54.swift")
+    swift_serialization = read(root / "SuperNeo-NuMetal" / "SuperNeoSerialization.swift")
 
     lean_constants = parse_lean_nat_defs(lean_profile)
     required_lean = [
@@ -153,6 +209,27 @@ def main() -> None:
         parse_lean_challenge_set(lean_challenges),
         parse_swift_int_array(swift_ring, "challengeCoefficients"),
     )
+    require_equal(
+        "proofEnvelopeMagic",
+        parse_lean_fin_literal(lean_serialization, "proofEnvelopeMagic"),
+        parse_swift_static_int_after(swift_serialization, "public struct ProofEnvelopeHeader", "magic"),
+    )
+    require_equal(
+        "proofEnvelopeVersion",
+        parse_lean_fin_literal(lean_serialization, "proofEnvelopeVersion"),
+        parse_swift_static_int_after(swift_serialization, "public struct ProofEnvelopeHeader", "version"),
+    )
+    require_equal(
+        "proofEnvelopeTranscriptBindingLength",
+        parse_lean_theorem_rhs_nat(lean_serialization, "proofEnvelopeTranscriptBindingEncode_length"),
+        parse_swift_static_int_after(swift_serialization, "public struct ProofEnvelopeHeader", "byteCount") - 4,
+    )
+    for kind in ["foldReduction", "terminalLocal", "compressedPublic"]:
+        require_equal(
+            f"proofEnvelopeKind.{kind}",
+            parse_lean_kind_tag(lean_serialization, kind),
+            parse_swift_enum_case(swift_serialization, kind),
+        )
 
     print(f"validated formal profile constants under {root}")
 

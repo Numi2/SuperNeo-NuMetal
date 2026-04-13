@@ -13,8 +13,10 @@ VALIDATOR = ROOT / "Scripts" / "validate-formal-profile-constants.py"
 REQUIRED_FILES = [
     "Formal/SuperNeoFormal/Profile.lean",
     "Formal/SuperNeoFormal/ChallengeSampling.lean",
+    "Formal/SuperNeoFormal/Serialization.lean",
     "SuperNeo-NuMetal/Fields/GoldilocksField.swift",
     "SuperNeo-NuMetal/Rings/CyclotomicRing54.swift",
+    "SuperNeo-NuMetal/SuperNeoSerialization.swift",
 ]
 
 
@@ -79,6 +81,36 @@ def main() -> None:
             "{-2, -1, 0, 1, 3}",
         )
         require_failure_contains(run_validator(temp_root), "challengeCoefficientSet mismatch")
+
+    with tempfile.TemporaryDirectory(prefix="superneo-formal-profile-") as tmp:
+        temp_root = Path(tmp)
+        copy_required_files(temp_root)
+        mutate(
+            temp_root / "Formal/SuperNeoFormal/Serialization.lean",
+            "def proofEnvelopeMagic : UInt32LE :=\n  ⟨0x4E554D51, by native_decide⟩",
+            "def proofEnvelopeMagic : UInt32LE :=\n  ⟨0x4E554D52, by native_decide⟩",
+        )
+        require_failure_contains(run_validator(temp_root), "proofEnvelopeMagic mismatch")
+
+    with tempfile.TemporaryDirectory(prefix="superneo-formal-profile-") as tmp:
+        temp_root = Path(tmp)
+        copy_required_files(temp_root)
+        mutate(
+            temp_root / "Formal/SuperNeoFormal/Serialization.lean",
+            "(proofEnvelopeTranscriptBindingEncode context).length = 137",
+            "(proofEnvelopeTranscriptBindingEncode context).length = 136",
+        )
+        require_failure_contains(run_validator(temp_root), "proofEnvelopeTranscriptBindingLength mismatch")
+
+    with tempfile.TemporaryDirectory(prefix="superneo-formal-profile-") as tmp:
+        temp_root = Path(tmp)
+        copy_required_files(temp_root)
+        mutate(
+            temp_root / "Formal/SuperNeoFormal/Serialization.lean",
+            "| .terminalLocal => byteOfNat 2 (by native_decide)",
+            "| .terminalLocal => byteOfNat 4 (by native_decide)",
+        )
+        require_failure_contains(run_validator(temp_root), "proofEnvelopeKind.terminalLocal mismatch")
 
     print("formal profile constant validation regression tests passed")
 

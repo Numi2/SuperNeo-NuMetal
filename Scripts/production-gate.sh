@@ -72,6 +72,17 @@ run_expect_failure() {
   fi
 }
 
+require_lake() {
+  if ! command -v lake >/dev/null 2>&1; then
+    cat >&2 <<'ERROR'
+missing required command: lake
+Install elan and ensure its bin directory is on PATH before running the production gate.
+The Lean toolchain is pinned by Formal/lean-toolchain.
+ERROR
+    exit 127
+  fi
+}
+
 cd "${ROOT_DIR}"
 
 SUPERNEO_CLI="${ROOT_DIR}/.build/release/superneo"
@@ -110,6 +121,7 @@ cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_pat
 run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
 run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent "${lattice_path}"
 run_step Scripts/test-lattice-estimator-artifact-validation.py
+require_lake
 run_step_in_dir Formal lake build
 run_step Scripts/validate-formal-status.py
 run_step Scripts/test-formal-status-validation.py
