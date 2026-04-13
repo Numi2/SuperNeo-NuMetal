@@ -76,7 +76,10 @@ def main() -> None:
         mutate_group(
             manifest,
             "superneo-composition-theorem",
-            lambda group: group["declarations"].append("SuperNeoFormal.superNeoCompositionPlanned"),
+            lambda group: group.update({
+                "status": "planned",
+                "declarations": ["SuperNeoFormal.superneo_acceptance_composition"],
+            }),
         ),
         "planned theorem group",
     )
@@ -94,9 +97,9 @@ def main() -> None:
     completed_manifest = json.loads(json.dumps(manifest))
     completed_manifest["current_label"] = "completed formal protocol theorem"
     expect_failure(
-        "completed label blocked by planned groups",
+        "completed label blocked by assumption-scoped groups",
         completed_manifest,
-        "depends on planned theorem group",
+        "requires theorem group",
     )
 
     overclaim_manifest = json.loads(json.dumps(manifest))

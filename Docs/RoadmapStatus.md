@@ -4,7 +4,7 @@ This document maps the best-in-class roadmap to concrete repository artifacts.
 It is intentionally conservative: passing items are implementation claims, not
 production security certifications.
 
-Formal status: partial formalization.
+Formal status: conditional protocol formalization.
 
 ## First Priority: Legibility
 
@@ -153,11 +153,13 @@ Artifacts:
 - `Scripts/validate-lattice-estimator-artifact.py` validates the pinned source,
   profile constants, derived SIS tuple, normalized estimator rows, threshold
   semantics, and lane separation.
-- `Formal/` provides a Lean 4/Lake workspace for the partial formalization
+- `Formal/` provides a Lean 4/Lake workspace for the conditional formalization
   track, with closed profile constants, derived parameter equalities, the
   strong-sampling inequality, the abstract Ajtai commitment map, opening
-  linearity, and binding equivalence under an explicit MSIS no-short-kernel
-  assumption.
+  linearity, binding equivalence under an explicit MSIS no-short-kernel
+  assumption, abstract PiDEC commitment recomposition, PiRLC weighted-claim
+  recomposition, PiCCS sum-check/public-Q final checking, terminal CE batch
+  opening, and top-level verifier composition.
 - `Docs/FormalStatus.json` and `Scripts/validate-formal-status.py` gate
   documentation labels against named theorem groups and verify that closed
   groups reference declarations present in the claimed Lean module.
@@ -167,6 +169,10 @@ Artifacts:
   promotion, validation commands, and remaining formal boundaries.
 - `Docs/FormalAjtaiBinding-2026-04-13.md` records the Ajtai binding-equivalence
   formalization pass and remaining quotient-ring/protocol boundaries.
+- `Docs/FormalPiDECRecomposition-2026-04-13.md` records the abstract PiDEC
+  recomposition formalization pass.
+- `Docs/FormalProtocolComposition-2026-04-13.md` records the assumption-scoped
+  PiRLC, PiCCS, terminal CE, and verifier-composition formalization pass.
 - `Docs/PaperReproduction.md` documents the harness and interpretation rules.
 - `Docs/LatticeEstimatorReproduction.md` documents the estimator command,
   pinned upstream source, and exact derived parameters.
@@ -177,5 +183,5 @@ Remaining boundary:
   It does not produce a formal proof of the paper's theorems or a production
   cryptographic certification.
 - Documentation remains below `completed formal protocol theorem` until the
-  formal status manifest closes the PiDEC, PiRLC, PiCCS, terminal CE, and full
-  protocol composition theorem groups.
+  formal status manifest marks every required theorem group unconditionally
+  `closed`; groups marked `closed_under_*` are explicit assumption boundaries.

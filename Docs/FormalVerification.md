@@ -1,6 +1,6 @@
 # Formal Verification Track
 
-Formal status: partial formalization.
+Formal status: conditional protocol formalization.
 
 The formal track lives under `Formal/` as a Lean 4 Lake workspace. It is
 separate from the Sage/lattice-estimator workflow:
@@ -10,12 +10,13 @@ separate from the Sage/lattice-estimator workflow:
 - Lean formalization records protocol-level algebraic statements and reductions
   under explicitly named assumptions.
 
-The current Lean milestone covers the first partial formalization layer:
+The current Lean milestone covers an assumption-scoped protocol formalization:
 profile constants, derived parameter equalities, the strong-sampling inequality,
-the abstract Ajtai commitment map, opening relation, additive linearity, and
-binding equivalence with an explicit MSIS no-short-kernel assumption. It does
-not close the PiDEC, PiRLC, PiCCS, terminal CE, or full SuperNeo composition
-theorem groups.
+the abstract Ajtai commitment map, opening relation, additive linearity, binding
+equivalence with an explicit MSIS no-short-kernel assumption, abstract PiDEC
+commitment recomposition, PiRLC weighted-claim recomposition, the PiCCS
+sum-check/public-Q final-check boundary, terminal CE batch opening, and the
+top-level verifier-acceptance composition.
 
 ## Status Manifest
 
@@ -40,15 +41,19 @@ Allowed labels are:
 
 - `bounded formalization`
 - `partial formalization`
+- `conditional protocol formalization`
 - `completed formal protocol theorem`
 
-Documentation must not use `completed formal protocol theorem` until the PiDEC,
-PiRLC, PiCCS, terminal CE, and final SuperNeo verifier-acceptance composition
-theorem groups are closed.
+Documentation must not use `completed formal protocol theorem` until every
+required theorem group is unconditionally `closed`. Groups marked
+`closed_under_*` are formal assumption boundaries and support the current
+conditional label only.
 
 Recent formal pass:
 
 - [Formal Ajtai Binding, 2026-04-13](FormalAjtaiBinding-2026-04-13.md)
+- [Formal PiDEC Recomposition, 2026-04-13](FormalPiDECRecomposition-2026-04-13.md)
+- [Formal Protocol Composition, 2026-04-13](FormalProtocolComposition-2026-04-13.md)
 
 ## Build
 

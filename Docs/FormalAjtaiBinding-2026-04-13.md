@@ -1,6 +1,6 @@
 # Formal Ajtai Binding Pass, 2026-04-13
 
-Formal status: partial formalization.
+Formal status: conditional protocol formalization.
 
 This pass strengthens the Lean formalization for the abstract Ajtai commitment
 layer without changing the repository's public formal status. The work is
@@ -34,10 +34,11 @@ decomposition radix bound, and `strongSampling_holds`.
 
 ## Trust Boundary
 
-This remains a partial formalization. The abstract commitment model is over an
-arbitrary commutative ring `RF`; it has not yet been refined to the concrete
-quotient ring `F[X] / (X^54 + X^27 + 1)`. This pass does not close PiDEC,
-PiRLC, PiCCS, terminal CE, or the full SuperNeo composition theorem.
+This remains assumption-scoped formalization. The abstract commitment model is
+over an arbitrary commutative ring `RF`; it has not yet been refined to the
+concrete quotient ring `F[X] / (X^54 + X^27 + 1)`. Later passes add abstract
+PiDEC recomposition and conditional PiRLC, PiCCS, terminal CE, and composition
+theorem surfaces, but not an unconditional concrete protocol proof.
 
 Local validation can run the manifest and documentation gates. A Lean/Lake build
 still requires an environment with `lake` available, so the formal CI workflow

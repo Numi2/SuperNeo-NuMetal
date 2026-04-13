@@ -164,6 +164,8 @@ Core documentation:
 - [Formal Verification](Docs/FormalVerification.md): Lean 4 formalization track and status-label policy.
 - [Formal Status Promotion, 2026-04-13](Docs/FormalStatusPromotion-2026-04-13.md): partial-formalization promotion, validation, and residual boundaries.
 - [Formal Ajtai Binding, 2026-04-13](Docs/FormalAjtaiBinding-2026-04-13.md): binding-equivalence formalization under the explicit no-short-kernel assumption.
+- [Formal PiDEC Recomposition, 2026-04-13](Docs/FormalPiDECRecomposition-2026-04-13.md): abstract PiDEC weighted recomposition formalization.
+- [Formal Protocol Composition, 2026-04-13](Docs/FormalProtocolComposition-2026-04-13.md): assumption-scoped PiRLC, PiCCS, terminal CE, and verifier-composition formalization.
 
 Benchmark reports:
 

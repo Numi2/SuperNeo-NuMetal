@@ -4,7 +4,7 @@ This page is the shortest safe description of SuperNeo NuMetal's proof
 semantics. Use it when explaining the project to someone who needs to know what
 verifier acceptance means.
 
-Formal status: partial formalization.
+Formal status: conditional protocol formalization.
 
 ## The Relation
 
@@ -110,13 +110,16 @@ opt-in high-assurance execution policies. Those are hardening artifacts; they do
 not change the meaning of proof acceptance by themselves.
 
 The repository also includes a Lean 4 formalization track. The current formal
-status is partial: profile constants, the abstract Ajtai commitment map,
-derived parameter equalities, the strong-sampling inequality, linearity, and
-binding equivalence under an explicit MSIS no-short-kernel assumption are tracked
-as closed theorem groups. The PiDEC, PiRLC, PiCCS, terminal CE, and full protocol
-composition theorem groups are not yet closed.
+status is conditional protocol formalization: profile constants, the abstract
+Ajtai commitment map, derived parameter equalities, the strong-sampling
+inequality, linearity, binding equivalence under an explicit MSIS
+no-short-kernel assumption, abstract PiDEC commitment recomposition, PiRLC
+weighted-claim recomposition, PiCCS sum-check/public-Q final checking, terminal
+CE batch opening, and top-level verifier composition are tracked by named Lean
+declarations. The assumption-scoped groups are not unconditional concrete
+cryptographic proofs.
 
-Until those pieces exist, the correct public positioning is:
+The correct public positioning remains:
 
 > A research-grade Swift/Metal implementation of the SuperNeo folding protocol
 > over `Goldilocks/Phi81(d=54)`, with versioned proof envelopes and CPU/Metal

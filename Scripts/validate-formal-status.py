@@ -8,9 +8,23 @@ from typing import Any, Dict, Set
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VALID_STATUSES = {"closed", "closed_under_msis_assumption", "planned"}
+VALID_STATUSES = {
+    "closed",
+    "closed_under_msis_assumption",
+    "closed_under_random_linear_combination_assumption",
+    "closed_under_sumcheck_assumption",
+    "closed_under_ce_opening_assumption",
+    "closed_under_stage_assumptions",
+    "planned",
+}
+DEFAULT_ACCEPTED_STATUSES = sorted(VALID_STATUSES - {"planned"})
 FORMAL_STATUS_RE = re.compile(
-    r"Formal status:\s*(bounded formalization|partial formalization|completed formal protocol theorem)",
+    r"Formal status:\s*("
+    r"bounded formalization|"
+    r"partial formalization|"
+    r"conditional protocol formalization|"
+    r"completed formal protocol theorem"
+    r")",
     re.IGNORECASE,
 )
 LEAN_DECL_RE = re.compile(
@@ -110,13 +124,28 @@ def required_groups(manifest: Dict[str, Any], label: str) -> list:
     return groups
 
 
+def accepted_statuses(manifest: Dict[str, Any], label: str) -> Set[str]:
+    labels = manifest["labels"]
+    statuses = labels[label].get("accepted_statuses", DEFAULT_ACCEPTED_STATUSES)
+    if not isinstance(statuses, list) or not all(isinstance(item, str) for item in statuses):
+        fail(f"labels.{label}.accepted_statuses must be an array of strings")
+    unknown = set(statuses) - VALID_STATUSES
+    if unknown:
+        fail(f"labels.{label}.accepted_statuses contains unsupported status {sorted(unknown)!r}")
+    return set(statuses)
+
+
 def validate_label_dependencies(manifest: Dict[str, Any], label: str, statuses: Dict[str, str]) -> None:
+    allowed = accepted_statuses(manifest, label)
     for group in required_groups(manifest, label):
         status = statuses.get(group)
         if status is None:
             fail(f"label {label!r} depends on unknown theorem group {group!r}")
-        if status == "planned":
-            fail(f"label {label!r} depends on planned theorem group {group!r}")
+        if status not in allowed:
+            fail(
+                f"label {label!r} requires theorem group {group!r} to have one of "
+                f"{sorted(allowed)!r}, got {status!r}"
+            )
 
 
 def validate_docs(manifest: Dict[str, Any]) -> None:

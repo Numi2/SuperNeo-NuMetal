@@ -1,6 +1,6 @@
 {
   "schema": "superneo.formal-status.v1",
-  "current_label": "partial formalization",
+  "current_label": "conditional protocol formalization",
   "labels": {
     "bounded formalization": {
       "rank": 0,
@@ -15,7 +15,7 @@
         "ajtai-binding-reduction"
       ]
     },
-    "completed formal protocol theorem": {
+    "conditional protocol formalization": {
       "rank": 2,
       "required_theorem_groups": [
         "profile-constants",
@@ -27,6 +27,31 @@
         "piccs-sumcheck-model",
         "terminal-ce-relation",
         "superneo-composition-theorem"
+      ],
+      "accepted_statuses": [
+        "closed",
+        "closed_under_msis_assumption",
+        "closed_under_random_linear_combination_assumption",
+        "closed_under_sumcheck_assumption",
+        "closed_under_ce_opening_assumption",
+        "closed_under_stage_assumptions"
+      ]
+    },
+    "completed formal protocol theorem": {
+      "rank": 3,
+      "required_theorem_groups": [
+        "profile-constants",
+        "ajtai-commitment-map",
+        "ajtai-opening-linearity",
+        "ajtai-binding-reduction",
+        "pidec-recomposition",
+        "pirlc-soundness-assumptions",
+        "piccs-sumcheck-model",
+        "terminal-ce-relation",
+        "superneo-composition-theorem"
+      ],
+      "accepted_statuses": [
+        "closed"
       ]
     }
   },
@@ -82,51 +107,106 @@
     },
     {
       "id": "pidec-recomposition",
-      "lean_module": "SuperNeoFormal.Roadmap",
-      "status": "planned",
-      "declarations": []
+      "lean_module": "SuperNeoFormal.PiDEC",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.pidecScalarPower",
+        "SuperNeoFormal.pidecWeightedSum",
+        "SuperNeoFormal.pidecWeightedMessage",
+        "SuperNeoFormal.pidecWeightedCommitment",
+        "SuperNeoFormal.pidecWeightedSum_eq_sum",
+        "SuperNeoFormal.commit_pidecWeightedMessage",
+        "SuperNeoFormal.pidec_commitment_recomposition",
+        "SuperNeoFormal.pidec_opening_recomposition"
+      ]
     },
     {
       "id": "pirlc-soundness-assumptions",
-      "lean_module": "SuperNeoFormal.Roadmap",
-      "status": "planned",
-      "declarations": []
+      "lean_module": "SuperNeoFormal.PiRLC",
+      "status": "closed_under_random_linear_combination_assumption",
+      "declarations": [
+        "SuperNeoFormal.ProtocolVector",
+        "SuperNeoFormal.EvaluationClaim",
+        "SuperNeoFormal.rlcWeightedSum",
+        "SuperNeoFormal.rlcWeightedVector",
+        "SuperNeoFormal.rlcWeightedMessage",
+        "SuperNeoFormal.rlcWeightedCommitment",
+        "SuperNeoFormal.rlcWeightedClaim",
+        "SuperNeoFormal.RLCClaimPubliclyConsistent",
+        "SuperNeoFormal.ClaimOpening",
+        "SuperNeoFormal.LinearEvaluationRelation",
+        "SuperNeoFormal.rlcWeightedSum_eq_sum",
+        "SuperNeoFormal.commit_rlcWeightedMessage",
+        "SuperNeoFormal.pirlc_commitment_recomposition",
+        "SuperNeoFormal.pirlc_folded_claim_opening",
+        "SuperNeoFormal.PiRLCRandomChallengeSoundnessAssumption",
+        "SuperNeoFormal.pirlc_soundness_from_assumption"
+      ]
     },
     {
       "id": "piccs-sumcheck-model",
-      "lean_module": "SuperNeoFormal.Roadmap",
-      "status": "planned",
-      "declarations": []
+      "lean_module": "SuperNeoFormal.PiCCS",
+      "status": "closed_under_sumcheck_assumption",
+      "declarations": [
+        "SuperNeoFormal.PiCCSPublicQState",
+        "SuperNeoFormal.PiCCSFinalCheck",
+        "SuperNeoFormal.PiCCSAccepts",
+        "SuperNeoFormal.piccs_accepts_sumcheck",
+        "SuperNeoFormal.piccs_accepts_round_count",
+        "SuperNeoFormal.piccs_accepts_claimed_sum",
+        "SuperNeoFormal.piccs_accepts_final_q_value",
+        "SuperNeoFormal.piccs_accepts_final_claim_consistency",
+        "SuperNeoFormal.PiCCSSumcheckSoundnessAssumption",
+        "SuperNeoFormal.piccs_soundness_from_sumcheck_assumption"
+      ]
     },
     {
       "id": "terminal-ce-relation",
-      "lean_module": "SuperNeoFormal.Roadmap",
-      "status": "planned",
-      "declarations": []
+      "lean_module": "SuperNeoFormal.TerminalCE",
+      "status": "closed_under_ce_opening_assumption",
+      "declarations": [
+        "SuperNeoFormal.TerminalCEStatement",
+        "SuperNeoFormal.TerminalLocalBatchRelation",
+        "SuperNeoFormal.TerminalCEProofSoundnessAssumption",
+        "SuperNeoFormal.TerminalCEAccepts",
+        "SuperNeoFormal.terminal_ce_relation_from_verified_proof",
+        "SuperNeoFormal.terminal_ce_statement_outputs_match"
+      ]
     },
     {
       "id": "superneo-composition-theorem",
-      "lean_module": "SuperNeoFormal.Roadmap",
-      "status": "planned",
-      "declarations": []
+      "lean_module": "SuperNeoFormal.Composition",
+      "status": "closed_under_stage_assumptions",
+      "declarations": [
+        "SuperNeoFormal.FoldReductionGates",
+        "SuperNeoFormal.FoldReductionAccepted",
+        "SuperNeoFormal.TerminalVerifierGates",
+        "SuperNeoFormal.SuperNeoVerifierAccepts",
+        "SuperNeoFormal.fold_reduction_acceptance_from_stages",
+        "SuperNeoFormal.superneo_acceptance_composition",
+        "SuperNeoFormal.superneo_acceptance_requires_fold_reduction",
+        "SuperNeoFormal.superneo_acceptance_requires_terminal_statement_match",
+        "SuperNeoFormal.superneo_acceptance_requires_terminal_ce",
+        "SuperNeoFormal.superneo_terminal_soundness_from_ce_soundness"
+      ]
     }
   ],
   "documentation_claims": [
     {
       "path": "Docs/PaperReproduction.md",
-      "label": "partial formalization"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/RoadmapStatus.md",
-      "label": "partial formalization"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/WhatThisProves.md",
-      "label": "partial formalization"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalVerification.md",
-      "label": "partial formalization"
+      "label": "conditional protocol formalization"
     }
   ]
 }
