@@ -30,6 +30,23 @@ private struct DemoProofArtifact: Codable {
     var verifierKeyDigestHex: String
 }
 
+private let demoProofArtifactTopLevelKeys: Set<String> = [
+    "artifactVersion",
+    "workload",
+    "profile",
+    "proofKind",
+    "bitCount",
+    "expectedSelectedCount",
+    "keySeedUTF8",
+    "workloadParameters",
+    "publicInputs",
+    "commitmentBase64",
+    "proofEnvelopeBase64",
+    "shapeDigestHex",
+    "statementDigestHex",
+    "verifierKeyDigestHex",
+]
+
 private enum DemoProofKind: String {
     case fold
     case terminal
@@ -222,7 +239,7 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
 
 private func prove(_ options: ProveOptions) throws {
     let started = Date()
-    let keySeed = options.keySeed ?? defaultKeySeed(for: options.workload)
+    let keySeed = try options.keySeed ?? defaultKeySeed(for: options)
     let prepared: SuperNeoPreparedR1CS
     let artifactWorkload: String
     let artifactBitCount: Int
@@ -268,7 +285,7 @@ private func prove(_ options: ProveOptions) throws {
         statement: statement,
         verifierKeyDigest: prepared.key.verifierKeyDigest
     )
-    let prover = SuperNeoCPUBackend().makeProver(key: prepared.key)
+    let prover = SuperNeoCPUBackend().makeProver(key: prepared.key, executionPolicy: .highAssurance)
     let envelopeBytes: [UInt8]
     switch options.proofKind {
     case .fold:
@@ -434,19 +451,37 @@ private func makePublicInput(from artifact: DemoProofArtifact) throws -> SuperNe
         guard artifact.expectedSelectedCount == 1 else {
             throw CLIError.invalidArgument("one-hot artifact expected selected count must be 1")
         }
+        let parameters = try requireWorkloadParameters(
+            artifact.workloadParameters,
+            allowedKeys: ["selectedCount"],
+            workload: "one-hot"
+        )
+        guard parseCanonicalUInt64Decimal(parameters["selectedCount"] ?? "") == 1 else {
+            throw CLIError.invalidArgument("one-hot artifact must include canonical selectedCount parameter")
+        }
         let workload = try SuperNeoOneHotVectorWorkload(bitCount: artifact.bitCount)
         publicInput = try workload.publicFoldInput(commitment: commitment)
     case "binary-addition-v1":
+        let parameters = try requireWorkloadParameters(
+            artifact.workloadParameters,
+            allowedKeys: ["leftBitCount", "publicSum"],
+            workload: "binary-addition"
+        )
         let workload = try SuperNeoBinaryAdditionWorkload(bitCount: artifact.bitCount)
         let publicFields = try parsePublicFields(artifact.publicInputs)
         publicInput = try workload.publicFoldInput(
             commitment: commitment,
             publicInput: publicFields
         )
-        if let publicSum = artifact.workloadParameters?["publicSum"].flatMap(UInt64.init) {
-            guard try workload.publicInput(sum: publicSum).map(\.rawValue) == artifact.publicInputs else {
-                throw CLIError.invalidArgument("binary-addition public sum parameter does not match public input bits")
-            }
+        guard let leftBitCount = parseCanonicalUInt64Decimal(parameters["leftBitCount"] ?? ""),
+              leftBitCount == UInt64(artifact.bitCount) else {
+            throw CLIError.invalidArgument("binary-addition artifact must include canonical leftBitCount parameter")
+        }
+        guard let publicSum = parseCanonicalUInt64Decimal(parameters["publicSum"] ?? "") else {
+            throw CLIError.invalidArgument("binary-addition artifact must include canonical publicSum parameter")
+        }
+        guard try workload.publicInput(sum: publicSum).map(\.rawValue) == artifact.publicInputs else {
+            throw CLIError.invalidArgument("binary-addition public sum parameter does not match public input bits")
         }
     default:
         throw CLIError.invalidArgument("unsupported workload: \(artifact.workload)")
@@ -457,9 +492,41 @@ private func makePublicInput(from artifact: DemoProofArtifact) throws -> SuperNe
     return publicInput
 }
 
+private func requireWorkloadParameters(
+    _ parameters: [String: String]?,
+    allowedKeys: Set<String>,
+    workload: String
+) throws -> [String: String] {
+    guard let parameters else {
+        throw CLIError.invalidArgument("\(workload) artifact must include workloadParameters")
+    }
+    let actualKeys = Set(parameters.keys)
+    let missingKeys = allowedKeys.subtracting(actualKeys).sorted()
+    guard missingKeys.isEmpty else {
+        throw CLIError.invalidArgument("\(workload) artifact missing workload parameter(s): \(missingKeys.joined(separator: ","))")
+    }
+    let unknownKeys = actualKeys.subtracting(allowedKeys).sorted()
+    guard unknownKeys.isEmpty else {
+        throw CLIError.invalidArgument("\(workload) artifact contains unknown workload parameter(s): \(unknownKeys.joined(separator: ","))")
+    }
+    return parameters
+}
+
 private func readArtifact(path: String) throws -> DemoProofArtifact {
     let data = try Data(contentsOf: URL(fileURLWithPath: path))
+    try validateKnownArtifactTopLevelKeys(data: data)
     return try JSONDecoder().decode(DemoProofArtifact.self, from: data)
+}
+
+private func validateKnownArtifactTopLevelKeys(data: Data) throws {
+    let json = try JSONSerialization.jsonObject(with: data)
+    guard let object = json as? [String: Any] else {
+        throw CLIError.invalidArgument("proof artifact JSON must be an object")
+    }
+    let unknownKeys = Set(object.keys).subtracting(demoProofArtifactTopLevelKeys).sorted()
+    guard unknownKeys.isEmpty else {
+        throw CLIError.invalidArgument("proof artifact contains unknown top-level fields: \(unknownKeys.joined(separator: ","))")
+    }
 }
 
 private func parseBits(_ raw: String) throws -> [Bool] {
@@ -487,6 +554,13 @@ private func parseUInt64(_ raw: String, name: String) throws -> UInt64 {
     return value
 }
 
+private func parseCanonicalUInt64Decimal(_ raw: String) -> UInt64? {
+    guard raw.range(of: #"^(0|[1-9][0-9]*)$"#, options: .regularExpression) != nil else {
+        return nil
+    }
+    return UInt64(raw)
+}
+
 private func parsePublicInputList(_ raw: String, name: String) throws -> [UInt64] {
     let values = try raw.split(separator: ",", omittingEmptySubsequences: false).map { token in
         try parseUInt64(token.trimmingCharacters(in: .whitespacesAndNewlines), name: name)
@@ -505,12 +579,12 @@ private func parseHexDigest(_ raw: String, name: String) throws -> String {
     return value
 }
 
-private func defaultKeySeed(for workload: DemoWorkload) -> String {
-    switch workload {
+private func defaultKeySeed(for options: ProveOptions) throws -> String {
+    switch options.workload {
     case .oneHot:
-        return "SuperNeoCLI.one-hot-vector.v1"
+        return try SuperNeoWorkloadKeySeed.oneHotVector(bitCount: options.bits.count)
     case .binaryAdd:
-        return "SuperNeoCLI.binary-addition.u8.v1"
+        return try SuperNeoWorkloadKeySeed.binaryAddition(operandBits: options.operandBits)
     }
 }
 

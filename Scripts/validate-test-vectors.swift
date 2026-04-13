@@ -31,6 +31,7 @@ struct Artifact: Decodable {
     let proofKind: String
     let bitCount: Int
     let keySeedUTF8: String
+    let workloadParameters: [String: String]?
     let publicInputs: [UInt64]
     let commitmentBase64: String
     let proofEnvelopeBase64: String
@@ -54,6 +55,22 @@ let proofEnvelopeMagic: UInt32 = 0x4E_55_4D_51
 let proofEnvelopeVersion: UInt16 = 4
 let proofEnvelopeHeaderByteCount = 141
 let goldilocksProfileID: UInt16 = 1
+let artifactTopLevelKeys: Set<String> = [
+    "artifactVersion",
+    "workload",
+    "profile",
+    "proofKind",
+    "bitCount",
+    "expectedSelectedCount",
+    "keySeedUTF8",
+    "workloadParameters",
+    "publicInputs",
+    "commitmentBase64",
+    "proofEnvelopeBase64",
+    "shapeDigestHex",
+    "statementDigestHex",
+    "verifierKeyDigestHex",
+]
 
 func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data(("error: \(message)\n").utf8))
@@ -89,6 +106,18 @@ func validatedVectorFileName(_ file: String) throws -> String {
 
 func publicInputList(_ values: [UInt64]) -> String {
     values.map(String.init).joined(separator: ",")
+}
+
+func validateKnownArtifactTopLevelKeys(_ data: Data, file: String) throws {
+    let json = try JSONSerialization.jsonObject(with: data)
+    guard let object = json as? [String: Any] else {
+        throw ValidationError.invalid("\(file) artifact JSON must be an object")
+    }
+    let unknownKeys = Set(object.keys).subtracting(artifactTopLevelKeys).sorted()
+    try require(
+        unknownKeys.isEmpty,
+        "\(file) artifact contains unknown top-level fields: \(unknownKeys.joined(separator: ","))"
+    )
 }
 
 struct EnvelopeHeader {
@@ -136,6 +165,36 @@ func parseEnvelopeHeader(_ data: Data, file: String) throws -> EnvelopeHeader {
         verifierKeyDigestHex: hexDigest(bytes[73..<105]),
         bodyLength: bodyLength
     )
+}
+
+func requireWorkloadParameters(
+    _ parameters: [String: String]?,
+    allowedKeys: Set<String>,
+    file: String,
+    workload: String
+) throws -> [String: String] {
+    guard let parameters else {
+        throw ValidationError.invalid("\(file) \(workload) artifact must include workloadParameters")
+    }
+    let actualKeys = Set(parameters.keys)
+    let missingKeys = allowedKeys.subtracting(actualKeys).sorted()
+    try require(
+        missingKeys.isEmpty,
+        "\(file) \(workload) artifact missing workload parameter(s): \(missingKeys.joined(separator: ","))"
+    )
+    let unknownKeys = actualKeys.subtracting(allowedKeys).sorted()
+    try require(
+        unknownKeys.isEmpty,
+        "\(file) \(workload) artifact contains unknown workload parameter(s): \(unknownKeys.joined(separator: ","))"
+    )
+    return parameters
+}
+
+func parseCanonicalUInt64Decimal(_ raw: String) -> UInt64? {
+    guard raw.range(of: #"^(0|[1-9][0-9]*)$"#, options: .regularExpression) != nil else {
+        return nil
+    }
+    return UInt64(raw)
 }
 
 func expectedEnvelopeKind(_ proofKind: String) -> UInt8? {
@@ -219,6 +278,7 @@ do {
         try require(data.count == vector.byteCount, "\(vector.file) byte count mismatch")
         try require(sha256Hex(data) == vector.sha256, "\(vector.file) SHA-256 mismatch")
 
+        try validateKnownArtifactTopLevelKeys(data, file: vector.file)
         let artifact = try JSONDecoder().decode(Artifact.self, from: data)
         try require(artifact.artifactVersion == 1, "\(vector.file) artifact version mismatch")
         try require(artifact.profile == manifest.profile, "\(vector.file) profile mismatch")
@@ -246,12 +306,40 @@ do {
         try require(envelopeHeader.verifierKeyDigestHex == artifact.verifierKeyDigestHex, "\(vector.file) proof envelope verifier key digest mismatch")
 
         if artifact.workload == "binary-addition-v1" {
+            let parameters = try requireWorkloadParameters(
+                artifact.workloadParameters,
+                allowedKeys: ["leftBitCount", "publicSum"],
+                file: vector.file,
+                workload: "binary-addition"
+            )
+            try require(artifact.bitCount <= 62, "\(vector.file) binary-add bit count exceeds supported range")
             try require(artifact.publicInputs.count == artifact.bitCount + 2, "\(vector.file) binary-add public input length mismatch")
             try require(artifact.publicInputs.first == 1, "\(vector.file) binary-add public input 0 must be one")
             try require(artifact.publicInputs.dropFirst().allSatisfy { $0 == 0 || $0 == 1 }, "\(vector.file) binary-add public sum bits must be binary")
+            guard let leftBitCount = parseCanonicalUInt64Decimal(parameters["leftBitCount"] ?? ""),
+                  leftBitCount == UInt64(artifact.bitCount) else {
+                throw ValidationError.invalid("\(vector.file) binary-add leftBitCount parameter missing or non-canonical")
+            }
+            guard let publicSum = parseCanonicalUInt64Decimal(parameters["publicSum"] ?? "") else {
+                throw ValidationError.invalid("\(vector.file) binary-add publicSum parameter missing or non-canonical")
+            }
+            let encodedPublicSum = artifact.publicInputs.dropFirst().enumerated().reduce(UInt64(0)) { partial, pair in
+                pair.element == 0 ? partial : partial | (UInt64(1) << UInt64(pair.offset))
+            }
+            try require(publicSum == encodedPublicSum, "\(vector.file) binary-add publicSum parameter mismatch")
         }
         if artifact.workload == "one-hot-vector-v1" {
+            let parameters = try requireWorkloadParameters(
+                artifact.workloadParameters,
+                allowedKeys: ["selectedCount"],
+                file: vector.file,
+                workload: "one-hot"
+            )
             try require(artifact.publicInputs == [1], "\(vector.file) one-hot public inputs must be [1]")
+            try require(
+                parseCanonicalUInt64Decimal(parameters["selectedCount"] ?? "") == 1,
+                "\(vector.file) one-hot selectedCount parameter missing or non-canonical"
+            )
         }
 
         try runVerify(file: vectorFile, vector: vector, root: root)

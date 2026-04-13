@@ -2543,6 +2543,33 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         )
     }
 
+    func testWorkloadDefaultKeySeedsAreParameterSeparatedAndVectorCompatible() throws {
+        XCTAssertEqual(try SuperNeoWorkloadKeySeed.oneHotVector(bitCount: 8), "SuperNeoCLI.one-hot-vector.v1")
+        XCTAssertEqual(try SuperNeoWorkloadKeySeed.oneHotVector(bitCount: 4), "SuperNeoCLI.one-hot-vector.u4.v1")
+        XCTAssertEqual(try SuperNeoWorkloadKeySeed.binaryAddition(operandBits: 8), "SuperNeoCLI.binary-addition.u8.v1")
+        XCTAssertEqual(try SuperNeoWorkloadKeySeed.binaryAddition(operandBits: 16), "SuperNeoCLI.binary-addition.u16.v1")
+        XCTAssertNotEqual(
+            try SuperNeoWorkloadKeySeed.binaryAddition(operandBits: 8),
+            try SuperNeoWorkloadKeySeed.binaryAddition(operandBits: 16)
+        )
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoWorkloadKeySeed.binaryAddition(operandBits: 63),
+            .invalidParameter("binary-addition key seed requires operand bits in 1...62")
+        )
+    }
+
+    func testCPUBackendFactoriesExposeExecutionPolicy() throws {
+        let key = try AjtaiCommitmentKey(columns: 1, seed: Array("cpu-backend-policy".utf8))
+        XCTAssertEqual(
+            SuperNeoCPUBackend().makeProver(key: key, executionPolicy: .highAssurance).executionPolicy,
+            .highAssurance
+        )
+        XCTAssertEqual(
+            SuperNeoCPUBackend().makeVerifier(key: key, executionPolicy: .cpuRedundantMetal).executionPolicy,
+            .cpuRedundantMetal
+        )
+    }
+
     func testBinaryAdditionR1CSBuilderPreparesVerifiableFoldEnvelope() throws {
         let workload = try SuperNeoBinaryAdditionWorkload(bitCount: 8)
         let prepared = try workload.prepareForFolding(

@@ -80,13 +80,20 @@ BINARY_ADD_PUBLIC_INPUTS="1,0,1,0,1,0,1,0,0,0"
 run_step swift build -c release
 run_step swift test --disable-swift-testing
 run_step swift test -c release --disable-swift-testing
+run_step Scripts/validate-artifact-schema.py
+run_step Scripts/test-artifact-schema-validation.py
 run_step swift Scripts/validate-test-vectors.swift
 
 lattice_path="$(make_temp_json)"
 one_hot_path="$(make_temp_json)"
+one_hot_unknown_field_path="$(make_temp_json)"
+one_hot_missing_selected_count_path="$(make_temp_json)"
 one_hot_terminal_path="$(make_temp_json)"
 binary_add_path="$(make_temp_json)"
-cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_terminal_path}" "${binary_add_path}")
+binary_add_missing_sum_path="$(make_temp_json)"
+binary_add_noncanonical_sum_path="$(make_temp_json)"
+binary_add_bad_left_bit_count_path="$(make_temp_json)"
+cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${binary_add_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}")
 
 run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
 run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent "${lattice_path}"
@@ -119,6 +126,40 @@ run_expect_failure "${SUPERNEO_CLI}" verify \
   --expected-public-inputs 1 \
   --require-terminal \
   "${one_hot_path}"
+run_step python3 - "${one_hot_path}" "${one_hot_unknown_field_path}" <<'PY'
+import json
+import sys
+source, destination = sys.argv[1], sys.argv[2]
+with open(source, "r", encoding="utf-8") as handle:
+    artifact = json.load(handle)
+artifact["unexpectedTrustAnchor"] = "ignored-by-default-json-decoders"
+with open(destination, "w", encoding="utf-8") as handle:
+    json.dump(artifact, handle, indent=2, sort_keys=True)
+PY
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${ONE_HOT_KEY_SEED}" \
+  --expected-verifier-key-digest "${ONE_HOT_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${ONE_HOT_SHAPE_DIGEST}" \
+  --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
+  --expected-public-inputs 1 \
+  "${one_hot_unknown_field_path}"
+run_step python3 - "${one_hot_path}" "${one_hot_missing_selected_count_path}" <<'PY'
+import json
+import sys
+source, destination = sys.argv[1], sys.argv[2]
+with open(source, "r", encoding="utf-8") as handle:
+    artifact = json.load(handle)
+artifact["workloadParameters"].pop("selectedCount", None)
+with open(destination, "w", encoding="utf-8") as handle:
+    json.dump(artifact, handle, indent=2, sort_keys=True)
+PY
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${ONE_HOT_KEY_SEED}" \
+  --expected-verifier-key-digest "${ONE_HOT_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${ONE_HOT_SHAPE_DIGEST}" \
+  --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
+  --expected-public-inputs 1 \
+  "${one_hot_missing_selected_count_path}"
 run_step "${SUPERNEO_CLI}" inspect "${one_hot_path}"
 
 run_step "${SUPERNEO_CLI}" prove \
@@ -140,6 +181,57 @@ run_step "${SUPERNEO_CLI}" prove \
   --lhs 13 \
   --rhs 29 \
   --output "${binary_add_path}"
+run_step python3 - "${binary_add_path}" "${binary_add_missing_sum_path}" <<'PY'
+import json
+import sys
+source, destination = sys.argv[1], sys.argv[2]
+with open(source, "r", encoding="utf-8") as handle:
+    artifact = json.load(handle)
+artifact["workloadParameters"].pop("publicSum", None)
+with open(destination, "w", encoding="utf-8") as handle:
+    json.dump(artifact, handle, indent=2, sort_keys=True)
+PY
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${BINARY_ADD_KEY_SEED}" \
+  --expected-verifier-key-digest "${BINARY_ADD_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${BINARY_ADD_SHAPE_DIGEST}" \
+  --expected-statement-digest "${BINARY_ADD_STATEMENT_DIGEST}" \
+  --expected-public-inputs "${BINARY_ADD_PUBLIC_INPUTS}" \
+  "${binary_add_missing_sum_path}"
+run_step python3 - "${binary_add_path}" "${binary_add_noncanonical_sum_path}" <<'PY'
+import json
+import sys
+source, destination = sys.argv[1], sys.argv[2]
+with open(source, "r", encoding="utf-8") as handle:
+    artifact = json.load(handle)
+artifact["workloadParameters"]["publicSum"] = "042"
+with open(destination, "w", encoding="utf-8") as handle:
+    json.dump(artifact, handle, indent=2, sort_keys=True)
+PY
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${BINARY_ADD_KEY_SEED}" \
+  --expected-verifier-key-digest "${BINARY_ADD_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${BINARY_ADD_SHAPE_DIGEST}" \
+  --expected-statement-digest "${BINARY_ADD_STATEMENT_DIGEST}" \
+  --expected-public-inputs "${BINARY_ADD_PUBLIC_INPUTS}" \
+  "${binary_add_noncanonical_sum_path}"
+run_step python3 - "${binary_add_path}" "${binary_add_bad_left_bit_count_path}" <<'PY'
+import json
+import sys
+source, destination = sys.argv[1], sys.argv[2]
+with open(source, "r", encoding="utf-8") as handle:
+    artifact = json.load(handle)
+artifact["workloadParameters"]["leftBitCount"] = "9"
+with open(destination, "w", encoding="utf-8") as handle:
+    json.dump(artifact, handle, indent=2, sort_keys=True)
+PY
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${BINARY_ADD_KEY_SEED}" \
+  --expected-verifier-key-digest "${BINARY_ADD_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${BINARY_ADD_SHAPE_DIGEST}" \
+  --expected-statement-digest "${BINARY_ADD_STATEMENT_DIGEST}" \
+  --expected-public-inputs "${BINARY_ADD_PUBLIC_INPUTS}" \
+  "${binary_add_bad_left_bit_count_path}"
 run_step "${SUPERNEO_CLI}" verify \
   --key-seed "${BINARY_ADD_KEY_SEED}" \
   --expected-verifier-key-digest "${BINARY_ADD_VERIFIER_KEY_DIGEST}" \

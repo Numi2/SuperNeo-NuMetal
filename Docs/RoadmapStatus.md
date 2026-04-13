@@ -91,6 +91,20 @@ Artifacts:
   malicious-GPU, and estimator-reproduction hardening pass.
 - `Docs/AjtaiKeyHardening-2026-04-13.md` records the fail-closed seeded Ajtai
   key dimension-overflow hardening pass.
+- `Docs/KeySeedDomainSeparation-2026-04-13.md` records parameter-aware default
+  key-seed derivation for bundled generated workloads while preserving checked-in
+  8-bit vector compatibility.
+- `Docs/BinaryAdditionArtifactMetadataHardening-2026-04-13.md` records
+  fail-closed binary-addition `publicSum` metadata validation in the CLI,
+  vector schema, vector validator, and production gate.
+- `Docs/CLIHighAssurancePolicy-2026-04-13.md` records the CLI proof-generation
+  switch to explicit `.highAssurance` execution policy.
+- `Docs/ArtifactUnknownFieldHardening-2026-04-13.md` records fail-closed
+  rejection of unsupported top-level proof artifact fields in the CLI, vector
+  validator, and production gate.
+- `Docs/WorkloadParameterCanonicality-2026-04-13.md` records exact
+  workload-parameter validation for one-hot and binary-addition artifacts across
+  the CLI, vector schema, vector validator, and production gate.
 - `.github/workflows/production-gate.yml` runs the release build, debug and
   release XCTest suites, vector validation, and strict release CLI smoke tests
   on pull requests and `main`.
@@ -106,6 +120,11 @@ Artifacts:
 - `Scripts/validate-test-vectors.swift` checks vector hashes, schema invariants,
   workload-specific public input rules, strict envelope header agreement, and
   CLI verification.
+- `Scripts/validate-artifact-schema.py` checks that the published artifact
+  schema preserves exact root and workload-parameter rejection rules.
+- `Scripts/test-artifact-schema-validation.py` regression-tests the artifact
+  schema checker against temporary loosened schemas and requires fail-closed
+  behavior.
 - `Docs/ArtifactHeaderHardening-2026-04-13.md` records the CLI/vector
   envelope-header hardening pass.
 

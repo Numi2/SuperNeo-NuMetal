@@ -96,7 +96,8 @@
       },
       "then": {
         "required": [
-          "expectedSelectedCount"
+          "expectedSelectedCount",
+          "workloadParameters"
         ],
         "properties": {
           "expectedSelectedCount": {
@@ -110,6 +111,18 @@
             ],
             "minItems": 1,
             "maxItems": 1
+          },
+          "workloadParameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "selectedCount"
+            ],
+            "properties": {
+              "selectedCount": {
+                "const": "1"
+              }
+            }
           }
         }
       }
@@ -127,6 +140,24 @@
           "workloadParameters"
         ],
         "properties": {
+          "workloadParameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "leftBitCount",
+              "publicSum"
+            ],
+            "properties": {
+              "leftBitCount": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$"
+              },
+              "publicSum": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              }
+            }
+          },
           "publicInputs": {
             "prefixItems": [
               {

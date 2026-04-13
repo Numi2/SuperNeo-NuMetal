@@ -92,7 +92,7 @@ for artifact version 1.
 | `bitCount` | Number of private bit variables in the workload. |
 | `expectedSelectedCount` | Public selected-count constraint. Current value: `1`. |
 | `keySeedUTF8` | UTF-8 seed used to regenerate the public Ajtai verifier key. |
-| `workloadParameters` | Workload metadata such as public sum. These values are redundant with public inputs and must be checked when present. |
+| `workloadParameters` | Exact workload metadata. These values are redundant with public inputs and must be checked. |
 | `publicInputs` | Original public input field elements before normalization. |
 | `commitmentBase64` | Public Ajtai commitment for the normalized witness. |
 | `proofEnvelopeBase64` | Versioned proof envelope bytes. |
@@ -119,8 +119,13 @@ External implementations should:
 8. Decode and verify `proofEnvelopeBase64` according to `Docs/ProofEnvelope.md`.
 
 For `binary-addition-v1`, `publicInputs` must be the constant one followed by
-`bitCount + 1` binary sum bits. If `workloadParameters.publicSum` is present,
-it must equal those little-endian public bits.
+`bitCount + 1` binary sum bits. `workloadParameters.publicSum` is required,
+must be a canonical unsigned decimal string, and must equal those little-endian
+public bits. `workloadParameters.leftBitCount` is required, must be canonical
+unsigned decimal, and must equal `bitCount`.
+
+For `one-hot-vector-v1`, `workloadParameters.selectedCount` is required and
+must be the canonical string `1`.
 
 The workload-specific reconstruction rules are:
 

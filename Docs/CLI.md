@@ -4,6 +4,10 @@ The `superneo` executable is a narrow integration demo for the library. It is
 not a product frontend. It exists to show the full path from a real CCS workload
 to a versioned proof envelope and verifier result.
 
+Proof generation uses the repository's `.highAssurance` execution policy: CPU
+reference paths are selected for covered secret-bearing prover work, and the CLI
+does not use prover-side Metal acceleration.
+
 ## Workloads
 
 The CLI currently exposes two workloads.
@@ -64,6 +68,13 @@ swift run superneo prove \
   --rhs 29 \
   --output /tmp/binary-add-proof.json
 ```
+
+Default key seeds are deterministic and workload-scoped. The checked-in 8-bit
+vectors keep their original compatibility seeds:
+`SuperNeoCLI.one-hot-vector.v1` and `SuperNeoCLI.binary-addition.u8.v1`.
+Generated non-8-bit workloads use parameter-separated seeds such as
+`SuperNeoCLI.one-hot-vector.u4.v1` or
+`SuperNeoCLI.binary-addition.u16.v1` unless `--key-seed` is provided.
 
 Verify it:
 
@@ -130,6 +141,10 @@ digests are read from the artifact, so verification is a self-consistency check
 rather than a policy decision. Production callers should store the expected
 seed, public inputs, proof kind, shape digest, statement digest, and verifier-key
 digest outside the artifact.
+
+The CLI rejects artifacts with unknown top-level JSON fields before decoding.
+This keeps the verifier aligned with the published artifact schema and prevents
+unsupported wrapper metadata from being silently ignored.
 
 ## Checked-In Vectors
 

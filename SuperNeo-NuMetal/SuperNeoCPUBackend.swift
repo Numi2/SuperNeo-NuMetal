@@ -101,12 +101,18 @@ public struct SuperNeoCPUBackend: Sendable {
         return try MultilinearEvaluation.evaluate(product, at: point)
     }
 
-    public func makeProver(key: AjtaiCommitmentKey) -> SuperNeoProver {
-        SuperNeoProver(parameters: parameters, key: key, context: nil)
+    public func makeProver(
+        key: AjtaiCommitmentKey,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) -> SuperNeoProver {
+        SuperNeoProver(parameters: parameters, key: key, context: nil, executionPolicy: executionPolicy)
     }
 
-    public func makeVerifier(key: AjtaiCommitmentKey) -> SuperNeoVerifier {
-        SuperNeoVerifier(parameters: parameters, key: key, context: nil)
+    public func makeVerifier(
+        key: AjtaiCommitmentKey,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) -> SuperNeoVerifier {
+        SuperNeoVerifier(parameters: parameters, key: key, context: nil, executionPolicy: executionPolicy)
     }
 
 }
