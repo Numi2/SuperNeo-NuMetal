@@ -44,6 +44,15 @@ def NoShortKernel {rows columns : Nat}
     commit A diff = 0 →
     diff = 0
 
+def BindingSecure {rows columns : Nat}
+    (A : AjtaiMatrix RF rows columns)
+    (bounded : Message RF columns → Prop) : Prop :=
+  ∀ lhs rhs : Message RF columns,
+    ∀ c : Commitment RF rows,
+      Opening A c bounded lhs →
+      Opening A c bounded rhs →
+      lhs = rhs
+
 theorem commit_zero {rows columns : Nat} (A : AjtaiMatrix RF rows columns) :
     commit A (0 : Message RF columns) = 0 := by
   funext row
@@ -82,6 +91,27 @@ theorem opening_commitment_unique_under_message_eq {rows columns : Nat}
   subst hmsg
   rfl
 
+theorem distinct_openings_yield_short_kernel {rows columns : Nat}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    {lhs rhs : Message RF columns}
+    {c : Commitment RF rows}
+    (hlhs : Opening A c bounded lhs)
+    (hrhs : Opening A c bounded rhs)
+    (hmsg : lhs ≠ rhs) :
+    ∃ diff : Message RF columns,
+      DifferenceOfBounded bounded diff ∧ commit A diff = 0 ∧ diff ≠ 0 := by
+  refine ⟨lhs - rhs, ?_, ?_, ?_⟩
+  · exact ⟨lhs, rhs, hlhs.1, hrhs.1, rfl⟩
+  · rw [commit_sub, hlhs.2, hrhs.2]
+    simp
+  · intro hDiffZero
+    apply hmsg
+    funext col
+    have hAtCol : lhs col - rhs col = (0 : RF) := by
+      simpa using congrFun hDiffZero col
+    exact sub_eq_zero.mp hAtCol
+
 theorem binding_from_noShortKernel {rows columns : Nat}
     {A : AjtaiMatrix RF rows columns}
     {bounded : Message RF columns → Prop}
@@ -101,5 +131,48 @@ theorem binding_from_noShortKernel {rows columns : Nat}
   have hAtCol : lhs col - rhs col = (0 : RF) := by
     simpa using congrFun hDiffZero col
   exact sub_eq_zero.mp hAtCol
+
+theorem opening_messages_equal_from_noShortKernel {rows columns : Nat}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    {lhs rhs : Message RF columns}
+    {c : Commitment RF rows}
+    (hKernel : NoShortKernel A bounded)
+    (hlhs : Opening A c bounded lhs)
+    (hrhs : Opening A c bounded rhs) :
+    lhs = rhs := by
+  apply binding_from_noShortKernel hKernel hlhs.1 hrhs.1
+  rw [hlhs.2, hrhs.2]
+
+theorem bindingSecure_from_noShortKernel {rows columns : Nat}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    (hKernel : NoShortKernel A bounded) :
+    BindingSecure A bounded := by
+  intro lhs rhs c hlhs hrhs
+  exact opening_messages_equal_from_noShortKernel hKernel hlhs hrhs
+
+theorem noShortKernel_from_bindingSecure {rows columns : Nat}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    (hBinding : BindingSecure A bounded) :
+    NoShortKernel A bounded := by
+  intro diff hDiff hCommit
+  rcases hDiff with ⟨lhs, rhs, hlhs, hrhs, hDiffEq⟩
+  subst diff
+  have hCommitEq : commit A lhs = commit A rhs := by
+    have hSubZero : commit A lhs - commit A rhs = 0 := by
+      simpa [commit_sub] using hCommit
+    exact sub_eq_zero.mp hSubZero
+  have hMsgEq : lhs = rhs := hBinding lhs rhs (commit A rhs) ⟨hlhs, hCommitEq⟩ ⟨hrhs, rfl⟩
+  simp [hMsgEq]
+
+theorem noShortKernel_iff_bindingSecure {rows columns : Nat}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop} :
+    NoShortKernel A bounded ↔ BindingSecure A bounded := by
+  constructor
+  · exact bindingSecure_from_noShortKernel
+  · exact noShortKernel_from_bindingSecure
 
 end SuperNeoFormal

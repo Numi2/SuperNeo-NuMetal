@@ -153,6 +153,7 @@ Core documentation:
 - [GPU Determinism](Docs/GPUDeterminism.md): CPU/Metal relationship, determinism claims, and remaining GPU risks.
 - [High-Assurance Hardening](Docs/HighAssuranceHardening-2026-04-13.md): execution policy, constant-work CPU paths, CPU-redundant Metal checks, and residual boundaries.
 - [Artifact Header Hardening](Docs/ArtifactHeaderHardening-2026-04-13.md): strict envelope-header parsing for CLI verification, inspection, and checked-in vector validation.
+- [Artifact Duplicate-Key Hardening](Docs/ArtifactDuplicateKeyHardening-2026-04-13.md): fail-closed CLI rejection for duplicate JSON object keys before artifact decoding.
 - [Lattice Estimator Reproduction](Docs/LatticeEstimatorReproduction.md): exact Module-SIS estimator tuple and pinned full-run harness.
 - [CLI](Docs/CLI.md): command-line proof demo and golden-vector workflow.
 - [Benchmarking](Docs/Benchmarking.md): benchmark profiles, correctness gates, baseline policy, CI notes, and detailed benchmark tables.
@@ -162,6 +163,7 @@ Core documentation:
 - [Roadmap Status](Docs/RoadmapStatus.md): current artifact map and project status.
 - [Formal Verification](Docs/FormalVerification.md): Lean 4 formalization track and status-label policy.
 - [Formal Status Promotion, 2026-04-13](Docs/FormalStatusPromotion-2026-04-13.md): partial-formalization promotion, validation, and residual boundaries.
+- [Formal Ajtai Binding, 2026-04-13](Docs/FormalAjtaiBinding-2026-04-13.md): binding-equivalence formalization under the explicit no-short-kernel assumption.
 
 Benchmark reports:
 

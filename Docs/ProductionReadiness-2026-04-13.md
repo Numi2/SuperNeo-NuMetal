@@ -53,6 +53,9 @@ case.
   `--require-terminal`
 - negative strict-verifier checks for public-input mismatch and terminal-proof
   requirement mismatch
+- negative artifact-ingestion checks for unknown fields, duplicate JSON keys,
+  missing workload parameters, non-canonical workload parameters, and workload
+  parameter/public-input mismatches
 - lattice-estimator dry-run parameter derivation and artifact validation for
   the implemented `Goldilocks/Phi81(d=54)` Module-SIS tuple
 

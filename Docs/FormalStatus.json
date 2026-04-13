@@ -37,9 +37,15 @@
       "status": "closed",
       "declarations": [
         "SuperNeoFormal.goldilocksModulus_eq",
+        "SuperNeoFormal.phi81Index_eq",
         "SuperNeoFormal.phi81Degree_eq",
         "SuperNeoFormal.kappa_eq",
-        "SuperNeoFormal.decompositionLength_eq"
+        "SuperNeoFormal.decompositionLength_eq",
+        "SuperNeoFormal.moduleSISDimension_eq",
+        "SuperNeoFormal.estimatorMSISLength_eq",
+        "SuperNeoFormal.decompositionRadixBound_eq",
+        "SuperNeoFormal.strongSamplingLeft_eq",
+        "SuperNeoFormal.strongSampling_holds"
       ]
     },
     {
@@ -65,7 +71,13 @@
       "lean_module": "SuperNeoFormal.Ajtai",
       "status": "closed_under_msis_assumption",
       "declarations": [
-        "SuperNeoFormal.binding_from_noShortKernel"
+        "SuperNeoFormal.BindingSecure",
+        "SuperNeoFormal.distinct_openings_yield_short_kernel",
+        "SuperNeoFormal.binding_from_noShortKernel",
+        "SuperNeoFormal.opening_messages_equal_from_noShortKernel",
+        "SuperNeoFormal.bindingSecure_from_noShortKernel",
+        "SuperNeoFormal.noShortKernel_from_bindingSecure",
+        "SuperNeoFormal.noShortKernel_iff_bindingSecure"
       ]
     },
     {

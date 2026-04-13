@@ -87,13 +87,15 @@ run_step swift Scripts/validate-test-vectors.swift
 lattice_path="$(make_temp_json)"
 one_hot_path="$(make_temp_json)"
 one_hot_unknown_field_path="$(make_temp_json)"
+one_hot_duplicate_top_level_key_path="$(make_temp_json)"
 one_hot_missing_selected_count_path="$(make_temp_json)"
 one_hot_terminal_path="$(make_temp_json)"
 binary_add_path="$(make_temp_json)"
 binary_add_missing_sum_path="$(make_temp_json)"
 binary_add_noncanonical_sum_path="$(make_temp_json)"
 binary_add_bad_left_bit_count_path="$(make_temp_json)"
-cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${binary_add_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}")
+binary_add_duplicate_workload_key_path="$(make_temp_json)"
+cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_duplicate_top_level_key_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${binary_add_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}" "${binary_add_duplicate_workload_key_path}")
 
 run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
 run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent "${lattice_path}"
@@ -143,6 +145,25 @@ run_expect_failure "${SUPERNEO_CLI}" verify \
   --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
   --expected-public-inputs 1 \
   "${one_hot_unknown_field_path}"
+run_step python3 - "${one_hot_path}" "${one_hot_duplicate_top_level_key_path}" <<'PY'
+import sys
+source, destination = sys.argv[1], sys.argv[2]
+with open(source, "r", encoding="utf-8") as handle:
+    text = handle.read()
+needle = '  "profile" : "Goldilocks\\/Phi81(d=54)",'
+replacement = needle + '\n  "profile" : "duplicate-profile",'
+if needle not in text:
+    raise SystemExit("profile field not found")
+with open(destination, "w", encoding="utf-8") as handle:
+    handle.write(text.replace(needle, replacement, 1))
+PY
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${ONE_HOT_KEY_SEED}" \
+  --expected-verifier-key-digest "${ONE_HOT_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${ONE_HOT_SHAPE_DIGEST}" \
+  --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
+  --expected-public-inputs 1 \
+  "${one_hot_duplicate_top_level_key_path}"
 run_step python3 - "${one_hot_path}" "${one_hot_missing_selected_count_path}" <<'PY'
 import json
 import sys
@@ -232,6 +253,25 @@ run_expect_failure "${SUPERNEO_CLI}" verify \
   --expected-statement-digest "${BINARY_ADD_STATEMENT_DIGEST}" \
   --expected-public-inputs "${BINARY_ADD_PUBLIC_INPUTS}" \
   "${binary_add_bad_left_bit_count_path}"
+run_step python3 - "${binary_add_path}" "${binary_add_duplicate_workload_key_path}" <<'PY'
+import sys
+source, destination = sys.argv[1], sys.argv[2]
+with open(source, "r", encoding="utf-8") as handle:
+    text = handle.read()
+needle = '    "publicSum" : "42"'
+replacement = needle + ',\n    "publicSum" : "42"'
+if needle not in text:
+    raise SystemExit("publicSum field not found")
+with open(destination, "w", encoding="utf-8") as handle:
+    handle.write(text.replace(needle, replacement, 1))
+PY
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${BINARY_ADD_KEY_SEED}" \
+  --expected-verifier-key-digest "${BINARY_ADD_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${BINARY_ADD_SHAPE_DIGEST}" \
+  --expected-statement-digest "${BINARY_ADD_STATEMENT_DIGEST}" \
+  --expected-public-inputs "${BINARY_ADD_PUBLIC_INPUTS}" \
+  "${binary_add_duplicate_workload_key_path}"
 run_step "${SUPERNEO_CLI}" verify \
   --key-seed "${BINARY_ADD_KEY_SEED}" \
   --expected-verifier-key-digest "${BINARY_ADD_VERIFIER_KEY_DIGEST}" \

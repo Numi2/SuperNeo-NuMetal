@@ -111,9 +111,10 @@ not change the meaning of proof acceptance by themselves.
 
 The repository also includes a Lean 4 formalization track. The current formal
 status is partial: profile constants, the abstract Ajtai commitment map,
-linearity, and binding reduction under an explicit MSIS no-short-kernel
-assumption are tracked as closed theorem groups. The PiDEC, PiRLC, PiCCS,
-terminal CE, and full protocol composition theorem groups are not yet closed.
+derived parameter equalities, the strong-sampling inequality, linearity, and
+binding equivalence under an explicit MSIS no-short-kernel assumption are tracked
+as closed theorem groups. The PiDEC, PiRLC, PiCCS, terminal CE, and full protocol
+composition theorem groups are not yet closed.
 
 Until those pieces exist, the correct public positioning is:
 

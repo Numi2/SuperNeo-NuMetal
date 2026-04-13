@@ -81,7 +81,9 @@ verification.
 
 All byte arrays are base64 strings. All digests are lowercase hexadecimal
 SHA-256 strings. `artifact.schema.json` is the normative machine-readable schema
-for artifact version 1.
+for artifact version 1. Artifact consumers should reject duplicate JSON object
+member names before decoding, because duplicate keys make trust metadata
+parser-dependent.
 
 | Field | Meaning |
 | --- | --- |

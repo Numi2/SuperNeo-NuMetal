@@ -1,7 +1,7 @@
 import SuperNeoFormal.Ajtai
 
 /-!
-Named placeholders for the formal protocol milestones that are not yet claimed.
+Named roadmap markers for formal protocol milestones that are not yet claimed.
 
 The documentation status manifest marks these theorem groups as `planned`, so
 repository documentation must remain below "completed formal protocol theorem"

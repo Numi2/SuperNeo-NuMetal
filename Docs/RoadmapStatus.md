@@ -127,6 +127,8 @@ Artifacts:
   behavior.
 - `Docs/ArtifactHeaderHardening-2026-04-13.md` records the CLI/vector
   envelope-header hardening pass.
+- `Docs/ArtifactDuplicateKeyHardening-2026-04-13.md` records fail-closed CLI
+  rejection of duplicate JSON object keys before artifact decoding.
 
 Remaining boundary:
 
@@ -152,9 +154,10 @@ Artifacts:
   profile constants, derived SIS tuple, normalized estimator rows, threshold
   semantics, and lane separation.
 - `Formal/` provides a Lean 4/Lake workspace for the partial formalization
-  track, with closed profile constants, the concrete Ajtai commitment map,
-  opening linearity, and binding reduction under an explicit MSIS
-  no-short-kernel assumption.
+  track, with closed profile constants, derived parameter equalities, the
+  strong-sampling inequality, the abstract Ajtai commitment map, opening
+  linearity, and binding equivalence under an explicit MSIS no-short-kernel
+  assumption.
 - `Docs/FormalStatus.json` and `Scripts/validate-formal-status.py` gate
   documentation labels against named theorem groups and verify that closed
   groups reference declarations present in the claimed Lean module.
@@ -162,6 +165,8 @@ Artifacts:
   gate by mutating temporary manifests and requiring fail-closed behavior.
 - `Docs/FormalStatusPromotion-2026-04-13.md` records the partial-formalization
   promotion, validation commands, and remaining formal boundaries.
+- `Docs/FormalAjtaiBinding-2026-04-13.md` records the Ajtai binding-equivalence
+  formalization pass and remaining quotient-ring/protocol boundaries.
 - `Docs/PaperReproduction.md` documents the harness and interpretation rules.
 - `Docs/LatticeEstimatorReproduction.md` documents the estimator command,
   pinned upstream source, and exact derived parameters.

@@ -514,8 +514,16 @@ private func requireWorkloadParameters(
 
 private func readArtifact(path: String) throws -> DemoProofArtifact {
     let data = try Data(contentsOf: URL(fileURLWithPath: path))
+    try validateNoDuplicateJSONKeys(data: data)
     try validateKnownArtifactTopLevelKeys(data: data)
     return try JSONDecoder().decode(DemoProofArtifact.self, from: data)
+}
+
+private func validateNoDuplicateJSONKeys(data: Data) throws {
+    var scanner = JSONDuplicateKeyScanner(data: data) { path, key in
+        throw CLIError.invalidArgument("proof artifact contains duplicate JSON object key '\(key)' at \(path)")
+    }
+    try scanner.validate()
 }
 
 private func validateKnownArtifactTopLevelKeys(data: Data) throws {
@@ -526,6 +534,259 @@ private func validateKnownArtifactTopLevelKeys(data: Data) throws {
     let unknownKeys = Set(object.keys).subtracting(demoProofArtifactTopLevelKeys).sorted()
     guard unknownKeys.isEmpty else {
         throw CLIError.invalidArgument("proof artifact contains unknown top-level fields: \(unknownKeys.joined(separator: ","))")
+    }
+}
+
+private struct JSONDuplicateKeyScanner {
+    typealias DuplicateHandler = (String, String) throws -> Void
+
+    private let bytes: [UInt8]
+    private let onDuplicate: DuplicateHandler
+    private var index = 0
+
+    init(data: Data, onDuplicate: @escaping DuplicateHandler) {
+        self.bytes = Array(data)
+        self.onDuplicate = onDuplicate
+    }
+
+    mutating func validate() throws {
+        try parseValue(path: "$")
+        skipWhitespace()
+        guard index == bytes.count else {
+            throw CLIError.invalidArgument("proof artifact JSON contains trailing data")
+        }
+    }
+
+    private mutating func parseValue(path: String) throws {
+        skipWhitespace()
+        guard let byte = peek() else {
+            throw CLIError.invalidArgument("proof artifact JSON ended unexpectedly")
+        }
+        switch byte {
+        case UInt8(ascii: "{"):
+            try parseObject(path: path)
+        case UInt8(ascii: "["):
+            try parseArray(path: path)
+        case UInt8(ascii: "\""):
+            _ = try parseString()
+        case UInt8(ascii: "t"):
+            try consumeLiteral("true")
+        case UInt8(ascii: "f"):
+            try consumeLiteral("false")
+        case UInt8(ascii: "n"):
+            try consumeLiteral("null")
+        case UInt8(ascii: "-"), UInt8(ascii: "0")...UInt8(ascii: "9"):
+            try consumeNumber()
+        default:
+            throw CLIError.invalidArgument("proof artifact JSON contains an invalid value at \(path)")
+        }
+    }
+
+    private mutating func parseObject(path: String) throws {
+        try consume(UInt8(ascii: "{"))
+        skipWhitespace()
+        var seen = Set<String>()
+        if consumeIfPresent(UInt8(ascii: "}")) {
+            return
+        }
+        while true {
+            skipWhitespace()
+            guard peek() == UInt8(ascii: "\"") else {
+                throw CLIError.invalidArgument("proof artifact JSON object key must be a string at \(path)")
+            }
+            let key = try parseString()
+            if !seen.insert(key).inserted {
+                try onDuplicate(path, key)
+            }
+            skipWhitespace()
+            try consume(UInt8(ascii: ":"))
+            try parseValue(path: "\(path).\(key)")
+            skipWhitespace()
+            if consumeIfPresent(UInt8(ascii: "}")) {
+                return
+            }
+            try consume(UInt8(ascii: ","))
+        }
+    }
+
+    private mutating func parseArray(path: String) throws {
+        try consume(UInt8(ascii: "["))
+        skipWhitespace()
+        if consumeIfPresent(UInt8(ascii: "]")) {
+            return
+        }
+        var elementIndex = 0
+        while true {
+            try parseValue(path: "\(path)[\(elementIndex)]")
+            elementIndex += 1
+            skipWhitespace()
+            if consumeIfPresent(UInt8(ascii: "]")) {
+                return
+            }
+            try consume(UInt8(ascii: ","))
+        }
+    }
+
+    private mutating func parseString() throws -> String {
+        try consume(UInt8(ascii: "\""))
+        var scalars = String.UnicodeScalarView()
+        while let byte = peek() {
+            index += 1
+            switch byte {
+            case UInt8(ascii: "\""):
+                return String(scalars)
+            case UInt8(ascii: "\\"):
+                guard let escaped = peek() else {
+                    throw CLIError.invalidArgument("proof artifact JSON string has an unterminated escape")
+                }
+                index += 1
+                switch escaped {
+                case UInt8(ascii: "\""): scalars.append("\"")
+                case UInt8(ascii: "\\"): scalars.append("\\")
+                case UInt8(ascii: "/"): scalars.append("/")
+                case UInt8(ascii: "b"): scalars.append("\u{08}")
+                case UInt8(ascii: "f"): scalars.append("\u{0C}")
+                case UInt8(ascii: "n"): scalars.append("\n")
+                case UInt8(ascii: "r"): scalars.append("\r")
+                case UInt8(ascii: "t"): scalars.append("\t")
+                case UInt8(ascii: "u"):
+                    let scalarValue = try parseUnicodeEscape()
+                    guard let scalar = UnicodeScalar(scalarValue) else {
+                        throw CLIError.invalidArgument("proof artifact JSON string contains an invalid unicode scalar")
+                    }
+                    scalars.append(scalar)
+                default:
+                    throw CLIError.invalidArgument("proof artifact JSON string contains an invalid escape")
+                }
+            case 0x00...0x1F:
+                throw CLIError.invalidArgument("proof artifact JSON string contains an unescaped control character")
+            case 0x00...0x7F:
+                scalars.append(UnicodeScalar(Int(byte))!)
+            default:
+                let start = index - 1
+                while let next = peek(), next >= 0x80 {
+                    index += 1
+                }
+                guard let value = String(data: Data(bytes[start..<index]), encoding: .utf8) else {
+                    throw CLIError.invalidArgument("proof artifact JSON string is not valid UTF-8")
+                }
+                scalars.append(contentsOf: value.unicodeScalars)
+            }
+        }
+        throw CLIError.invalidArgument("proof artifact JSON string is unterminated")
+    }
+
+    private mutating func parseUnicodeEscape() throws -> UInt32 {
+        let high = try parseFourHexDigits()
+        guard (0xD800...0xDBFF).contains(high) else {
+            if (0xDC00...0xDFFF).contains(high) {
+                throw CLIError.invalidArgument("proof artifact JSON string contains an unpaired low surrogate")
+            }
+            return high
+        }
+        guard consumeIfPresent(UInt8(ascii: "\\")), consumeIfPresent(UInt8(ascii: "u")) else {
+            throw CLIError.invalidArgument("proof artifact JSON string contains an unpaired high surrogate")
+        }
+        let low = try parseFourHexDigits()
+        guard (0xDC00...0xDFFF).contains(low) else {
+            throw CLIError.invalidArgument("proof artifact JSON string contains an invalid surrogate pair")
+        }
+        return 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00)
+    }
+
+    private mutating func parseFourHexDigits() throws -> UInt32 {
+        var value: UInt32 = 0
+        for _ in 0..<4 {
+            guard let byte = peek(), let digit = hexValue(byte) else {
+                throw CLIError.invalidArgument("proof artifact JSON string contains an invalid unicode escape")
+            }
+            index += 1
+            value = (value << 4) | digit
+        }
+        return value
+    }
+
+    private mutating func consumeNumber() throws {
+        if consumeIfPresent(UInt8(ascii: "-")) {
+            guard let byte = peek(), (UInt8(ascii: "0")...UInt8(ascii: "9")).contains(byte) else {
+                throw CLIError.invalidArgument("proof artifact JSON number is invalid")
+            }
+        }
+        if consumeIfPresent(UInt8(ascii: "0")) {
+            if let byte = peek(), (UInt8(ascii: "0")...UInt8(ascii: "9")).contains(byte) {
+                throw CLIError.invalidArgument("proof artifact JSON number has a leading zero")
+            }
+        } else {
+            guard let byte = peek(), (UInt8(ascii: "1")...UInt8(ascii: "9")).contains(byte) else {
+                throw CLIError.invalidArgument("proof artifact JSON number is invalid")
+            }
+            while isDigit(peek()) {
+                index += 1
+            }
+        }
+        if consumeIfPresent(UInt8(ascii: ".")) {
+            guard let byte = peek(), (UInt8(ascii: "0")...UInt8(ascii: "9")).contains(byte) else {
+                throw CLIError.invalidArgument("proof artifact JSON fractional number is invalid")
+            }
+            while isDigit(peek()) {
+                index += 1
+            }
+        }
+        if consumeIfPresent(UInt8(ascii: "e")) || consumeIfPresent(UInt8(ascii: "E")) {
+            _ = consumeIfPresent(UInt8(ascii: "+")) || consumeIfPresent(UInt8(ascii: "-"))
+            guard let byte = peek(), (UInt8(ascii: "0")...UInt8(ascii: "9")).contains(byte) else {
+                throw CLIError.invalidArgument("proof artifact JSON exponent is invalid")
+            }
+            while isDigit(peek()) {
+                index += 1
+            }
+        }
+    }
+
+    private mutating func consumeLiteral(_ literal: String) throws {
+        for byte in literal.utf8 {
+            try consume(byte)
+        }
+    }
+
+    private mutating func consume(_ expected: UInt8) throws {
+        guard consumeIfPresent(expected) else {
+            throw CLIError.invalidArgument("proof artifact JSON syntax error")
+        }
+    }
+
+    private mutating func consumeIfPresent(_ expected: UInt8) -> Bool {
+        guard peek() == expected else { return false }
+        index += 1
+        return true
+    }
+
+    private mutating func skipWhitespace() {
+        while let byte = peek(), byte == UInt8(ascii: " ") || byte == UInt8(ascii: "\n") || byte == UInt8(ascii: "\r") || byte == UInt8(ascii: "\t") {
+            index += 1
+        }
+    }
+
+    private func peek() -> UInt8? {
+        index < bytes.count ? bytes[index] : nil
+    }
+
+    private func isDigit(_ byte: UInt8?) -> Bool {
+        guard let byte else { return false }
+        return (UInt8(ascii: "0")...UInt8(ascii: "9")).contains(byte)
+    }
+
+    private func hexValue(_ byte: UInt8) -> UInt32? {
+        switch byte {
+        case UInt8(ascii: "0")...UInt8(ascii: "9"):
+            return UInt32(byte - UInt8(ascii: "0"))
+        case UInt8(ascii: "a")...UInt8(ascii: "f"):
+            return UInt32(byte - UInt8(ascii: "a") + 10)
+        case UInt8(ascii: "A")...UInt8(ascii: "F"):
+            return UInt32(byte - UInt8(ascii: "A") + 10)
+        default:
+            return nil
+        }
     }
 }
 
