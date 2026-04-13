@@ -18,10 +18,19 @@ linearity, and binding from an explicit MSIS no-short-kernel assumption.
 
 `Docs/FormalStatus.json` is the source of truth for documentation labels. The
 validator checks that docs do not claim a stronger status than the manifest
-supports:
+supports, resolves each declared Lean module to its source file, and requires
+closed theorem groups to reference declarations that are present in that module:
 
 ```sh
 Scripts/validate-formal-status.py
+```
+
+The regression harness mutates temporary manifest copies and confirms the
+validator fails closed for missing declarations, declarations attached to planned
+groups, and closed groups without any declaration:
+
+```sh
+Scripts/test-formal-status-validation.py
 ```
 
 Allowed labels are:

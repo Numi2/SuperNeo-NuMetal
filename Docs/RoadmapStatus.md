@@ -134,7 +134,10 @@ Artifacts:
   track, starting with the concrete Ajtai commitment map and binding reduction
   under an explicit MSIS no-short-kernel assumption.
 - `Docs/FormalStatus.json` and `Scripts/validate-formal-status.py` gate
-  documentation labels against named theorem groups.
+  documentation labels against named theorem groups and verify that closed
+  groups reference declarations present in the claimed Lean module.
+- `Scripts/test-formal-status-validation.py` regression-tests the formal-status
+  gate by mutating temporary manifests and requiring fail-closed behavior.
 - `Docs/PaperReproduction.md` documents the harness and interpretation rules.
 - `Docs/LatticeEstimatorReproduction.md` documents the estimator command,
   pinned upstream source, and exact derived parameters.

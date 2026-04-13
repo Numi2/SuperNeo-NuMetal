@@ -4,7 +4,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Set
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +13,11 @@ FORMAL_STATUS_RE = re.compile(
     r"Formal status:\s*(bounded formalization|partial formalization|completed formal protocol theorem)",
     re.IGNORECASE,
 )
+LEAN_DECL_RE = re.compile(
+    r"^\s*(?:noncomputable\s+)?(?:protected\s+|private\s+)?"
+    r"(?:theorem|lemma|def|abbrev|structure|inductive|class)\s+([A-Za-z_][A-Za-z0-9_']*)\b",
+    re.MULTILINE,
+)
 
 
 def fail(message: str) -> None:
@@ -20,21 +25,67 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
-def group_statuses(manifest: Dict[str, Any]) -> Dict[str, str]:
+def module_to_path(module: str) -> Path:
+    if module != "SuperNeoFormal" and not module.startswith("SuperNeoFormal."):
+        fail(f"Lean module {module!r} must be under SuperNeoFormal")
+    parts = module.split(".")
+    if parts == ["SuperNeoFormal"]:
+        return ROOT / "Formal" / "SuperNeoFormal.lean"
+    return ROOT / "Formal" / "SuperNeoFormal" / Path(*parts[1:]).with_suffix(".lean")
+
+
+def declared_names(module: str) -> Set[str]:
+    path = module_to_path(module)
+    if not path.exists():
+        fail(f"Lean module {module!r} resolves to missing file {path.relative_to(ROOT)}")
+    text = path.read_text(encoding="utf-8")
+    namespace_match = re.search(r"^\s*namespace\s+SuperNeoFormal\b", text, re.MULTILINE)
+    names = {match.group(1) for match in LEAN_DECL_RE.finditer(text)}
+    if namespace_match:
+        names.update(f"SuperNeoFormal.{name}" for name in list(names))
+    return names
+
+
+def validate_theorem_groups(manifest: Dict[str, Any]) -> Dict[str, str]:
     groups = manifest.get("theorem_groups")
     if not isinstance(groups, list):
         fail("theorem_groups must be an array")
     statuses: Dict[str, str] = {}
+    modules: Dict[str, Set[str]] = {}
+
     for index, group in enumerate(groups):
         if not isinstance(group, dict):
             fail(f"theorem_groups[{index}] must be an object")
         group_id = group.get("id")
         status = group.get("status")
+        module = group.get("lean_module")
+        declarations = group.get("declarations")
         if not isinstance(group_id, str) or not group_id:
             fail(f"theorem_groups[{index}].id must be a non-empty string")
         if status not in VALID_STATUSES:
             fail(f"theorem_groups[{index}].status has unsupported value {status!r}")
+        if group_id in statuses:
+            fail(f"duplicate theorem group id {group_id!r}")
+        if not isinstance(module, str) or not module:
+            fail(f"theorem_groups[{index}].lean_module must be a non-empty string")
+        if not isinstance(declarations, list) or not all(isinstance(item, str) for item in declarations):
+            fail(f"theorem_groups[{index}].declarations must be an array of strings")
+        if len(set(declarations)) != len(declarations):
+            fail(f"theorem_groups[{index}].declarations contains duplicates")
+        if status == "planned" and declarations:
+            fail(f"planned theorem group {group_id!r} must not list closed declarations")
+        if status != "planned" and not declarations:
+            fail(f"closed theorem group {group_id!r} must list at least one declaration")
+
+        names = modules.setdefault(module, declared_names(module))
+        for declaration in declarations:
+            if declaration not in names:
+                fail(
+                    f"theorem group {group_id!r} references missing declaration "
+                    f"{declaration!r} in module {module!r}"
+                )
         statuses[group_id] = status
+
     return statuses
 
 
@@ -107,7 +158,7 @@ def main() -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema") != "superneo.formal-status.v1":
         fail("unexpected formal status schema")
-    statuses = group_statuses(manifest)
+    statuses = validate_theorem_groups(manifest)
     current_label = manifest.get("current_label")
     if not isinstance(current_label, str):
         fail("current_label must be a string")
