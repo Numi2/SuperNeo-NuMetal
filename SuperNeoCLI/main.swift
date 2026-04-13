@@ -308,6 +308,10 @@ private func prove(_ options: ProveOptions) throws {
 
 private func verify(options: VerifyOptions) throws {
     let artifact = try readArtifact(path: options.path)
+    let proofBytes = try artifact.proofEnvelopeBytes()
+    let header = try parseEnvelopeHeader(proofBytes)
+    let kind = try artifact.demoProofKind()
+    try validateArtifactEnvelopeHeader(header, artifact: artifact, kind: kind)
     if let expectedPublicInputs = options.expectedPublicInputs {
         guard artifact.publicInputs == expectedPublicInputs else {
             throw CLIError.invalidArgument("artifact public inputs do not match expected public inputs")
@@ -342,9 +346,7 @@ private func verify(options: VerifyOptions) throws {
             throw CLIError.invalidArgument("artifact statement digest does not match expected statement digest")
         }
     }
-    let proofBytes = try artifact.proofEnvelopeBytes()
     let verifier = SuperNeoCPUBackend().makeVerifier(key: key)
-    let kind = try artifact.demoProofKind()
     if options.requireTerminalProof, kind != .terminal {
         throw CLIError.invalidArgument("terminal proof required, but artifact contains a fold reduction")
     }
@@ -552,6 +554,9 @@ private struct EnvelopeHeader {
     let version: UInt16
     let profileID: UInt16
     let kind: UInt8
+    let shapeDigestHex: String
+    let statementDigestHex: String
+    let verifierKeyDigestHex: String
     let bodyLength: UInt32
 
     var magicHex: String {
@@ -559,36 +564,41 @@ private struct EnvelopeHeader {
     }
 }
 
+private func validateArtifactEnvelopeHeader(
+    _ header: EnvelopeHeader,
+    artifact: DemoProofArtifact,
+    kind: DemoProofKind
+) throws {
+    guard header.profileID == SuperNeoParameterProfile.goldilocksPhi81.profileID else {
+        throw CLIError.invalidArgument("proof envelope profile id does not match supported profile")
+    }
+    guard header.kind == kind.envelopeKind.rawValue else {
+        throw CLIError.invalidArgument("artifact proof kind does not match proof envelope kind")
+    }
+    guard header.shapeDigestHex == artifact.shapeDigestHex else {
+        throw CLIError.invalidArgument("artifact shape digest does not match proof envelope header")
+    }
+    guard header.statementDigestHex == artifact.statementDigestHex else {
+        throw CLIError.invalidArgument("artifact statement digest does not match proof envelope header")
+    }
+    guard header.verifierKeyDigestHex == artifact.verifierKeyDigestHex else {
+        throw CLIError.invalidArgument("artifact verifier key digest does not match proof envelope header")
+    }
+}
+
 private func parseEnvelopeHeader(_ bytes: [UInt8]) throws -> EnvelopeHeader {
-    guard bytes.count >= ProofEnvelopeHeader.byteCount else {
-        throw CLIError.invalidArgument("proof envelope is shorter than its header")
-    }
-    let magic = readUInt32(bytes, at: 0)
-    let version = readUInt16(bytes, at: 4)
-    let profileID = readUInt16(bytes, at: 6)
-    let kind = bytes[8]
-    let bodyLength = readUInt32(bytes, at: 137)
-    guard bytes.count == ProofEnvelopeHeader.byteCount + Int(bodyLength) else {
-        throw CLIError.invalidArgument("proof envelope body length mismatch")
-    }
+    let header = try ProofEnvelopeHeader.parsePrefix(from: bytes)
+    try header.validateEnvelopeLength(totalByteCount: bytes.count)
     return EnvelopeHeader(
-        magic: magic,
-        version: version,
-        profileID: profileID,
-        kind: kind,
-        bodyLength: bodyLength
+        magic: header.magic,
+        version: header.version,
+        profileID: header.profileID,
+        kind: header.kind.rawValue,
+        shapeDigestHex: header.shapeDigest.hexString,
+        statementDigestHex: header.statementDigest.hexString,
+        verifierKeyDigestHex: header.verifierKeyDigest.hexString,
+        bodyLength: header.bodyLength
     )
-}
-
-private func readUInt16(_ bytes: [UInt8], at offset: Int) -> UInt16 {
-    UInt16(bytes[offset]) | (UInt16(bytes[offset + 1]) << 8)
-}
-
-private func readUInt32(_ bytes: [UInt8], at offset: Int) -> UInt32 {
-    UInt32(bytes[offset])
-        | (UInt32(bytes[offset + 1]) << 8)
-        | (UInt32(bytes[offset + 2]) << 16)
-        | (UInt32(bytes[offset + 3]) << 24)
 }
 
 private extension DemoProofArtifact {

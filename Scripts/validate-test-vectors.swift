@@ -50,6 +50,10 @@ enum ValidationError: Error, CustomStringConvertible {
 }
 
 let goldilocksModulus: UInt64 = 0xFFFF_FFFF_0000_0001
+let proofEnvelopeMagic: UInt32 = 0x4E_55_4D_51
+let proofEnvelopeVersion: UInt16 = 4
+let proofEnvelopeHeaderByteCount = 141
+let goldilocksProfileID: UInt16 = 1
 
 func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data(("error: \(message)\n").utf8))
@@ -85,6 +89,61 @@ func validatedVectorFileName(_ file: String) throws -> String {
 
 func publicInputList(_ values: [UInt64]) -> String {
     values.map(String.init).joined(separator: ",")
+}
+
+struct EnvelopeHeader {
+    let profileID: UInt16
+    let kind: UInt8
+    let shapeDigestHex: String
+    let statementDigestHex: String
+    let verifierKeyDigestHex: String
+    let bodyLength: UInt32
+}
+
+func readUInt16(_ bytes: [UInt8], at offset: Int) -> UInt16 {
+    UInt16(bytes[offset]) | (UInt16(bytes[offset + 1]) << 8)
+}
+
+func readUInt32(_ bytes: [UInt8], at offset: Int) -> UInt32 {
+    UInt32(bytes[offset])
+        | (UInt32(bytes[offset + 1]) << 8)
+        | (UInt32(bytes[offset + 2]) << 16)
+        | (UInt32(bytes[offset + 3]) << 24)
+}
+
+func hexDigest(_ bytes: ArraySlice<UInt8>) -> String {
+    bytes.map { String(format: "%02x", $0) }.joined()
+}
+
+func parseEnvelopeHeader(_ data: Data, file: String) throws -> EnvelopeHeader {
+    let bytes = [UInt8](data)
+    try require(bytes.count >= proofEnvelopeHeaderByteCount, "\(file) proof envelope is shorter than its header")
+    try require(readUInt32(bytes, at: 0) == proofEnvelopeMagic, "\(file) wrong proof envelope magic")
+    try require(readUInt16(bytes, at: 4) == proofEnvelopeVersion, "\(file) unsupported proof envelope version")
+    let profileID = readUInt16(bytes, at: 6)
+    let kind = bytes[8]
+    try require(kind == 1 || kind == 2 || kind == 3, "\(file) unsupported proof envelope kind")
+    let bodyLength = readUInt32(bytes, at: 137)
+    try require(
+        bytes.count == proofEnvelopeHeaderByteCount + Int(bodyLength),
+        "\(file) proof envelope body length mismatch"
+    )
+    return EnvelopeHeader(
+        profileID: profileID,
+        kind: kind,
+        shapeDigestHex: hexDigest(bytes[9..<41]),
+        statementDigestHex: hexDigest(bytes[41..<73]),
+        verifierKeyDigestHex: hexDigest(bytes[73..<105]),
+        bodyLength: bodyLength
+    )
+}
+
+func expectedEnvelopeKind(_ proofKind: String) -> UInt8? {
+    switch proofKind {
+    case "fold": return 1
+    case "terminal": return 2
+    default: return nil
+    }
 }
 
 func strictVerifyArguments(file: String, vector: ManifestVector) -> [String] {
@@ -170,13 +229,21 @@ do {
         try require(artifact.publicInputs == vector.expectedPublicInputs, "\(vector.file) public inputs mismatch")
         try require(artifact.publicInputs.allSatisfy { $0 < goldilocksModulus }, "\(vector.file) public input contains a non-canonical Goldilocks element")
         try require(Data(base64Encoded: artifact.commitmentBase64) != nil, "\(vector.file) commitment is not base64")
-        try require(Data(base64Encoded: artifact.proofEnvelopeBase64) != nil, "\(vector.file) proof envelope is not base64")
+        guard let proofEnvelopeData = Data(base64Encoded: artifact.proofEnvelopeBase64) else {
+            throw ValidationError.invalid("\(vector.file) proof envelope is not base64")
+        }
+        let envelopeHeader = try parseEnvelopeHeader(proofEnvelopeData, file: vector.file)
         try require(artifact.shapeDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid shape digest")
         try require(artifact.statementDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid statement digest")
         try require(artifact.verifierKeyDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid verifier key digest")
         try require(artifact.shapeDigestHex == vector.expectedShapeDigestHex, "\(vector.file) shape digest mismatch")
         try require(artifact.statementDigestHex == vector.expectedStatementDigestHex, "\(vector.file) statement digest mismatch")
         try require(artifact.verifierKeyDigestHex == vector.expectedVerifierKeyDigestHex, "\(vector.file) verifier key digest mismatch")
+        try require(envelopeHeader.profileID == goldilocksProfileID, "\(vector.file) proof envelope profile id mismatch")
+        try require(envelopeHeader.kind == expectedEnvelopeKind(vector.proofKind) ?? 0, "\(vector.file) proof envelope kind mismatch")
+        try require(envelopeHeader.shapeDigestHex == artifact.shapeDigestHex, "\(vector.file) proof envelope shape digest mismatch")
+        try require(envelopeHeader.statementDigestHex == artifact.statementDigestHex, "\(vector.file) proof envelope statement digest mismatch")
+        try require(envelopeHeader.verifierKeyDigestHex == artifact.verifierKeyDigestHex, "\(vector.file) proof envelope verifier key digest mismatch")
 
         if artifact.workload == "binary-addition-v1" {
             try require(artifact.publicInputs.count == artifact.bitCount + 2, "\(vector.file) binary-add public input length mismatch")

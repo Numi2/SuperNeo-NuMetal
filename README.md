@@ -152,6 +152,7 @@ Core documentation:
 - [Proof Envelope](Docs/ProofEnvelope.md): versioned binary container and context binding.
 - [GPU Determinism](Docs/GPUDeterminism.md): CPU/Metal relationship, determinism claims, and remaining GPU risks.
 - [High-Assurance Hardening](Docs/HighAssuranceHardening-2026-04-13.md): execution policy, constant-work CPU paths, CPU-redundant Metal checks, and residual boundaries.
+- [Artifact Header Hardening](Docs/ArtifactHeaderHardening-2026-04-13.md): strict envelope-header parsing for CLI verification, inspection, and checked-in vector validation.
 - [Lattice Estimator Reproduction](Docs/LatticeEstimatorReproduction.md): exact Module-SIS estimator tuple and pinned full-run harness.
 - [CLI](Docs/CLI.md): command-line proof demo and golden-vector workflow.
 - [Benchmarking](Docs/Benchmarking.md): benchmark profiles, correctness gates, baseline policy, CI notes, and detailed benchmark tables.

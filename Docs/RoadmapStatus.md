@@ -99,8 +99,13 @@ Artifacts:
   trusted expected verifier context, proof-kind requirements, and strict
   verification commands.
 - `TestVectors/artifact.schema.json` defines the public artifact schema.
-- `Scripts/validate-test-vectors.swift` checks vector hashes, basic schema
-  invariants, workload-specific public input rules, and CLI verification.
+- `ProofEnvelopeHeader.parsePrefix(from:)` gives CLI and artifact tooling the
+  same strict envelope-header parser used by proof-envelope decoding.
+- `Scripts/validate-test-vectors.swift` checks vector hashes, schema invariants,
+  workload-specific public input rules, strict envelope header agreement, and
+  CLI verification.
+- `Docs/ArtifactHeaderHardening-2026-04-13.md` records the CLI/vector
+  envelope-header hardening pass.
 
 Remaining boundary:
 

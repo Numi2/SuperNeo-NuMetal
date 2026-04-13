@@ -728,6 +728,27 @@ public struct ByteReader {
 }
 
 extension ProofEnvelopeHeader {
+    public static func parsePrefix(from bytes: [UInt8]) throws -> Self {
+        guard bytes.count >= byteCount else {
+            throw SuperNeoError.invalidEncoding("proof envelope is shorter than its header")
+        }
+        var reader = ByteReader(Array(bytes.prefix(byteCount)))
+        let header = try reader.readProofEnvelopeHeader()
+        try reader.finish()
+        try header.validate()
+        return header
+    }
+
+    public func validateEnvelopeLength(totalByteCount: Int) throws {
+        guard totalByteCount >= Self.byteCount else {
+            throw SuperNeoError.invalidEncoding("proof envelope is shorter than its header")
+        }
+        let expectedLength = Self.byteCount + Int(bodyLength)
+        guard totalByteCount == expectedLength else {
+            throw SuperNeoError.invalidEncoding("proof envelope body length mismatch")
+        }
+    }
+
     fileprivate func validate() throws {
         guard magic == Self.magic else { throw SuperNeoError.invalidEncoding("wrong proof magic") }
         guard version == Self.version else { throw SuperNeoError.invalidEncoding("unsupported proof version") }

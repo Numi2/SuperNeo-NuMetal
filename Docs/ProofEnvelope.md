@@ -37,6 +37,11 @@ The body immediately follows the header and must contain exactly `bodyLength`
 bytes. Parsers reject unsupported magic, unsupported version, unsupported kind,
 body length mismatch, malformed body encodings, and trailing bytes.
 
+Code that needs to inspect or preflight public bytes should use
+`ProofEnvelopeHeader.parsePrefix(from:)` followed by
+`validateEnvelopeLength(totalByteCount:)`. The CLI and checked-in vector
+validator use this path before trusting JSON wrapper metadata.
+
 ## Header Binding
 
 The prover and verifier use the header, except `bodyLength`, as the transcript

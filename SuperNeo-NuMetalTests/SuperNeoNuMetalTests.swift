@@ -2196,10 +2196,27 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
 
+        let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
+        XCTAssertEqual(header.profileID, context.profileID)
+        XCTAssertEqual(header.kind, .foldReduction)
+        XCTAssertEqual(header.shapeDigest, context.shapeDigest)
+        XCTAssertEqual(header.statementDigest, context.statementDigest)
+        XCTAssertEqual(header.verifierKeyDigest, context.verifierKeyDigest)
+        XCTAssertNoThrow(try header.validateEnvelopeLength(totalByteCount: proofBytes.count))
+
+        XCTAssertThrowsSuperNeoError(
+            try ProofEnvelopeHeader.parsePrefix(from: Array(proofBytes.prefix(ProofEnvelopeHeader.byteCount - 1))),
+            .invalidEncoding("proof envelope is shorter than its header")
+        )
+
         var wrongMagic = proofBytes
         wrongMagic[0] ^= 1
         XCTAssertThrowsSuperNeoError(
             try FoldProofEnvelope(bytes: wrongMagic),
+            .invalidEncoding("wrong proof magic")
+        )
+        XCTAssertThrowsSuperNeoError(
+            try ProofEnvelopeHeader.parsePrefix(from: wrongMagic),
             .invalidEncoding("wrong proof magic")
         )
 
@@ -2213,6 +2230,11 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
         var tooLongBody = proofBytes
         writeUInt32(UInt32(proofBytes.count - ProofEnvelopeHeader.byteCount + 1), into: &tooLongBody, at: ProofEnvelopeHeader.byteCount - 4)
+        let tooLongHeader = try ProofEnvelopeHeader.parsePrefix(from: tooLongBody)
+        XCTAssertThrowsSuperNeoError(
+            try tooLongHeader.validateEnvelopeLength(totalByteCount: tooLongBody.count),
+            .invalidEncoding("proof envelope body length mismatch")
+        )
         XCTAssertThrowsSuperNeoError(
             try FoldProofEnvelope(bytes: tooLongBody),
             .invalidEncoding("unexpected end of proof bytes")
