@@ -21,6 +21,23 @@
       "verifyCommand": "swift run superneo verify --key-seed SuperNeoCLI.one-hot-vector.v1 --expected-verifier-key-digest 7e6c4fc3ec5bee0e1872cde17322830a37fc0a2d17ed79a208f6113fd0186a86 --expected-shape-digest 84d903373ff54785a9b7d99bd048e1527deedd1173309c272992a8a87b61a765 --expected-statement-digest 786532c3daee5d41f54b619bde8b6bcc432f7ae1f40017e14953cc8ce38992e0 --expected-public-inputs 1 TestVectors/one-hot-vector-fold-v1.json"
     },
     {
+      "file": "one-hot-vector-terminal-v1.json",
+      "sha256": "69b277b9e346344931b95167f9b11bb95a365dd20e40e31780340bbd194b3798",
+      "byteCount": 4741423,
+      "workload": "one-hot-vector-v1",
+      "proofKind": "terminal",
+      "bitCount": 8,
+      "publicClaim": "committed private vector is one-hot",
+      "expectedKeySeedUTF8": "SuperNeoCLI.one-hot-vector.v1",
+      "expectedPublicInputs": [
+        1
+      ],
+      "expectedShapeDigestHex": "84d903373ff54785a9b7d99bd048e1527deedd1173309c272992a8a87b61a765",
+      "expectedStatementDigestHex": "786532c3daee5d41f54b619bde8b6bcc432f7ae1f40017e14953cc8ce38992e0",
+      "expectedVerifierKeyDigestHex": "7e6c4fc3ec5bee0e1872cde17322830a37fc0a2d17ed79a208f6113fd0186a86",
+      "verifyCommand": "swift run superneo verify --key-seed SuperNeoCLI.one-hot-vector.v1 --expected-verifier-key-digest 7e6c4fc3ec5bee0e1872cde17322830a37fc0a2d17ed79a208f6113fd0186a86 --expected-shape-digest 84d903373ff54785a9b7d99bd048e1527deedd1173309c272992a8a87b61a765 --expected-statement-digest 786532c3daee5d41f54b619bde8b6bcc432f7ae1f40017e14953cc8ce38992e0 --expected-public-inputs 1 --require-terminal TestVectors/one-hot-vector-terminal-v1.json"
+    },
+    {
       "file": "binary-addition-u8-fold-v1.json",
       "sha256": "4eeaf42be1bc7358b88cd4fbade7d8d4dad6205ef3c2e6bec6eb84cc3ae9201d",
       "byteCount": 477368,

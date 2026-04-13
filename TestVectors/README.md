@@ -35,6 +35,24 @@ The artifact is a fold-reduction vector, not a terminal proof. A verifier should
 accept the fold reduction and return 14 output CE claims requiring terminal CE
 verification.
 
+### `one-hot-vector-terminal-v1.json`
+
+Workload: `one-hot-vector-v1`
+
+Statement:
+
+- the prover knows a committed private vector of 8 field elements,
+- each private element is binary, and
+- exactly one private element is selected.
+
+Profile: `Goldilocks/Phi81(d=54)`
+
+Proof kind: `terminal`
+
+The artifact is a complete terminal proof for the same public one-hot statement
+as `one-hot-vector-fold-v1.json`. A strict verifier must pass
+`--require-terminal` and reject any fold-only artifact in its place.
+
 ### `binary-addition-u8-fold-v1.json`
 
 Workload: `binary-addition-v1`

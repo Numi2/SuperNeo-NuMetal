@@ -47,6 +47,8 @@ Artifacts:
   release CLI artifacts under trusted context.
 - `TestVectors/one-hot-vector-fold-v1.json` and
   `TestVectors/binary-addition-u8-fold-v1.json` are checked-in fold vectors.
+- `TestVectors/one-hot-vector-terminal-v1.json` is a checked-in complete
+  terminal proof vector validated under `--require-terminal`.
 
 Remaining boundary:
 
@@ -94,7 +96,8 @@ Artifacts:
   including a positive terminal proof smoke check and an opt-in quick benchmark
   pass.
 - `TestVectors/manifest.json` gives file hashes, byte counts, workloads,
-  trusted expected verifier context, and strict verification commands.
+  trusted expected verifier context, proof-kind requirements, and strict
+  verification commands.
 - `TestVectors/artifact.schema.json` defines the public artifact schema.
 - `Scripts/validate-test-vectors.swift` checks vector hashes, basic schema
   invariants, workload-specific public input rules, and CLI verification.

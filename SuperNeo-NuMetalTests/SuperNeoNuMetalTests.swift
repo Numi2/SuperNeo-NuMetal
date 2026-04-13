@@ -2592,6 +2592,45 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(reduction.outputClaims.count, key.parameters.decompositionLength)
     }
 
+    func testGoldenOneHotTerminalVectorVerifies() throws {
+        let artifact = try loadGoldenArtifact(named: "one-hot-vector-terminal-v1.json")
+        XCTAssertEqual(artifact.artifactVersion, 1)
+        XCTAssertEqual(artifact.workload, "one-hot-vector-v1")
+        XCTAssertEqual(artifact.profile, SuperNeoParameterProfile.goldilocksPhi81.name)
+        XCTAssertEqual(artifact.proofKind, "terminal")
+        XCTAssertEqual(artifact.publicInputs, [1])
+        XCTAssertEqual(artifact.expectedSelectedCount, 1)
+
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: artifact.bitCount)
+        let commitment = try parseGoldenCommitment(artifact.commitmentBase64, parameters: .goldilocks)
+        let publicInput = try workload.publicFoldInput(commitment: commitment)
+        XCTAssertEqual(publicInput.shape.shapeDigest.hexStringForTest, artifact.shapeDigestHex)
+
+        let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(artifact.keySeedUTF8.utf8))
+        XCTAssertEqual(key.verifierKeyDigest.hexStringForTest, artifact.verifierKeyDigestHex)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        XCTAssertEqual(statement.statementDigest.hexStringForTest, artifact.statementDigestHex)
+
+        let proofBytes = try XCTUnwrap(Data(base64Encoded: artifact.proofEnvelopeBase64)).map { UInt8($0) }
+        let context = ProofEnvelopeContext(
+            kind: .terminalLocal,
+            statement: statement,
+            verifierKeyDigest: key.verifierKeyDigest
+        )
+        let result = SuperNeoCPUBackend()
+            .makeVerifier(key: key)
+            .verifyTerminalFoldEnvelope(
+                publicInput: publicInput,
+                proofBytes: proofBytes,
+                context: context
+            )
+
+        XCTAssertTrue(result.isValid, result.reason ?? "")
+    }
+
     func testGoldenBinaryAdditionFoldVectorVerifies() throws {
         let artifact = try loadGoldenArtifact(named: "binary-addition-u8-fold-v1.json")
         XCTAssertEqual(artifact.artifactVersion, 1)

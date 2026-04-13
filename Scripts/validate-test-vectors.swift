@@ -88,7 +88,7 @@ func publicInputList(_ values: [UInt64]) -> String {
 }
 
 func strictVerifyArguments(file: String, vector: ManifestVector) -> [String] {
-    [
+    var arguments = [
         "swift",
         "run",
         "superneo",
@@ -103,8 +103,12 @@ func strictVerifyArguments(file: String, vector: ManifestVector) -> [String] {
         vector.expectedStatementDigestHex,
         "--expected-public-inputs",
         publicInputList(vector.expectedPublicInputs),
-        "TestVectors/\(file)"
     ]
+    if vector.proofKind == "terminal" {
+        arguments.append("--require-terminal")
+    }
+    arguments.append("TestVectors/\(file)")
+    return arguments
 }
 
 func expectedVerifyCommand(file: String, vector: ManifestVector) -> String {
@@ -148,6 +152,7 @@ do {
         try require(vector.expectedShapeDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid expected shape digest")
         try require(vector.expectedStatementDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid expected statement digest")
         try require(vector.expectedVerifierKeyDigestHex.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil, "\(vector.file) invalid expected verifier key digest")
+        try require(vector.proofKind == "fold" || vector.proofKind == "terminal", "\(vector.file) unsupported proof kind")
         try require(vector.verifyCommand == expectedVerifyCommand(file: vectorFile, vector: vector), "\(vector.file) verify command mismatch")
 
         let url = vectorsDirectory.appendingPathComponent(vectorFile)
