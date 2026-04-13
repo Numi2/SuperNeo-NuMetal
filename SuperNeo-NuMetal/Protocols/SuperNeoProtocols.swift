@@ -2436,20 +2436,27 @@ private enum SuperNeoProtocolOracle {
             return basis
         }
 
-        for claim in claims {
-            guard try verifyEvaluationClaimOpening(
+        let preparedClaims = try claims.map { claim in
+            (
+                claim: claim,
+                rHat: try evaluationBasis(for: claim.point)
+            )
+        }
+        let results = try orderedParallelMap(
+            preparedClaims,
+            useParallel: shouldParallelizeOpeningBatch(shape: shape, count: preparedClaims.count)
+        ) { prepared in
+            try verifyEvaluationClaimOpening(
                 shape: shape,
                 transformedMatrices: transformedMatrices,
-                claim: claim,
+                claim: prepared.claim,
                 key: key,
                 parameters: parameters,
                 numVars: numVars,
-                rHat: evaluationBasis(for: claim.point)
-            ) else {
-                return false
-            }
+                rHat: prepared.rHat
+            )
         }
-        return true
+        return results.allSatisfy { $0 }
     }
 
     private static func verifyEvaluationClaimOpening(
@@ -2570,7 +2577,10 @@ private enum SuperNeoProtocolOracle {
             base: parameters.normBound,
             count: parameters.decompositionLength
         )
-        let packedLimbs = try limbs.map { try packedEvaluationWitness($0, shape: shape) }
+        let useParallelCPUOpenings = shouldParallelizeOpeningBatch(shape: shape, count: limbs.count)
+        let packedLimbs = try orderedParallelMap(limbs, useParallel: useParallelCPUOpenings) {
+            try packedEvaluationWitness($0, shape: shape)
+        }
         let limbCommitments: [AjtaiCommitment]
         let limbEvaluations: [[CyclotomicExt2Ring54]]
         if let metalWorkspace {
@@ -2581,16 +2591,20 @@ private enum SuperNeoProtocolOracle {
             limbCommitments = combined.commitments
             limbEvaluations = combined.evaluations
         } else {
-            limbCommitments = try packedLimbs.map {
-                try AjtaiCommitter.commitReference(key: key, message: $0)
-            }
             let rHat = try MultilinearEvaluation.checkedBasis(at: claim.point)
-            limbEvaluations = try packedLimbs.map { packed in
-                try compiledShape.transformedSparseMatrices.map { matrix -> CyclotomicExt2Ring54 in
+            let openingArtifacts = try orderedParallelMap(
+                packedLimbs,
+                useParallel: useParallelCPUOpenings
+            ) { packed -> (commitment: AjtaiCommitment, evaluations: [CyclotomicExt2Ring54]) in
+                let commitment = try AjtaiCommitter.commitReference(key: key, message: packed)
+                let evaluations = try compiledShape.transformedSparseMatrices.map { matrix -> CyclotomicExt2Ring54 in
                     let rows = try matrix.multiplied(by: packed)
                     return try evaluateExtensionRingRows(rows, rHat: rHat)
                 }
+                return (commitment, evaluations)
             }
+            limbCommitments = openingArtifacts.map(\.commitment)
+            limbEvaluations = openingArtifacts.map(\.evaluations)
         }
         let limbClaims = limbs.enumerated().map { index, limb -> CCSEvaluationClaim in
             let commitment = limbCommitments[index]
@@ -4068,4 +4082,40 @@ private func signedMagnitude(_ value: GoldilocksField) -> UInt64 {
     value.rawValue <= GoldilocksField.modulus / 2
         ? value.rawValue
         : GoldilocksField.modulus - value.rawValue
+}
+
+private func shouldParallelizeOpeningBatch(shape: CCSShape, count: Int) -> Bool {
+    count >= 4 && shape.m >= 1_024
+}
+
+private func orderedParallelMap<Input, Output>(
+    _ inputs: [Input],
+    useParallel: Bool,
+    _ transform: @escaping (Input) throws -> Output
+) throws -> [Output] {
+    guard useParallel, inputs.count > 1 else {
+        return try inputs.map(transform)
+    }
+
+    let lock = NSLock()
+    var results = Array<Result<Output, Error>?>(repeating: nil, count: inputs.count)
+
+    DispatchQueue.concurrentPerform(iterations: inputs.count) { index in
+        let result = Result {
+            try transform(inputs[index])
+        }
+        lock.lock()
+        results[index] = result
+        lock.unlock()
+    }
+
+    var ordered: [Output] = []
+    ordered.reserveCapacity(inputs.count)
+    for result in results {
+        guard let result else {
+            throw SuperNeoError.invalidParameter("parallel opening batch did not produce an output")
+        }
+        ordered.append(try result.get())
+    }
+    return ordered
 }

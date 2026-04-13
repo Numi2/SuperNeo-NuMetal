@@ -213,6 +213,13 @@ inline void ring_mul_local(
     }
 }
 
+inline bool ring_is_zero(device const ulong *ring) {
+    for (uint coeff = 0; coeff < 54; coeff++) {
+        if (ring[coeff] != 0) { return false; }
+    }
+    return true;
+}
+
 inline void ring_mul_accumulate_coeff_major_message(
     device const ulong *matrixRing,
     device const ulong *messages,
@@ -288,6 +295,37 @@ kernel void transformed_matvec_kernel(
 
     for (uint column = 0; column < columnCount; column++) {
         uint matrixOffset = ((row * columnCount) + column) * 54;
+        uint vectorOffset = column * 54;
+        ring_mul_accumulate_rhs_coefficients(matrix + matrixOffset, vector + vectorOffset, acc);
+    }
+
+    uint outOffset = row * 54;
+    for (uint coeff = 0; coeff < 54; coeff++) {
+        outRows[outOffset + coeff] = acc[coeff];
+    }
+}
+
+kernel void transformed_matvec_sparse_aware_kernel(
+    device const ulong *matrix [[buffer(0)]],
+    device const ulong *vector [[buffer(1)]],
+    device ulong *outRows [[buffer(2)]],
+    device const uint *params [[buffer(3)]],
+    constant uint &count [[buffer(4)]],
+    uint row [[thread_position_in_grid]]
+) {
+    if (row >= count) { return; }
+    uint rowCount = params[0];
+    uint columnCount = params[1];
+    if (row >= rowCount) { return; }
+
+    ulong acc[54];
+    for (uint coeff = 0; coeff < 54; coeff++) {
+        acc[coeff] = 0;
+    }
+
+    for (uint column = 0; column < columnCount; column++) {
+        uint matrixOffset = ((row * columnCount) + column) * 54;
+        if (ring_is_zero(matrix + matrixOffset)) { continue; }
         uint vectorOffset = column * 54;
         ring_mul_accumulate_rhs_coefficients(matrix + matrixOffset, vector + vectorOffset, acc);
     }

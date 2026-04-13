@@ -164,6 +164,7 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         return value
     }()
     private static let fusedEvaluationBlockedRowThreshold = 512
+    private static let sparseAwareDenseMatvecColumnThreshold = 128
 
     public let context: MetalExecutionContext
 
@@ -352,9 +353,12 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             checkedUInt32(matrix.rows, name: "transformed matrix row count"),
             checkedUInt32(matrix.columns, name: "transformed matrix column count")
         ]
+        let pipelineName = matrix.columns >= Self.sparseAwareDenseMatvecColumnThreshold
+            ? "transformed_matvec_sparse_aware_kernel"
+            : "transformed_matvec_kernel"
         let paramsBuffer = try context.makeBuffer(params)
         try context.dispatch1D(
-            pipelineName: "transformed_matvec_kernel",
+            pipelineName: pipelineName,
             buffers: [matrixBuffer, vectorBuffer, outputBuffer, paramsBuffer],
             elementCount: matrix.rows
         )

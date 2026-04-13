@@ -134,6 +134,7 @@ public final class MetalExecutionContext: @unchecked Sendable {
             "ring_scalar_mul_kernel",
             "ring_mul_kernel",
             "transformed_matvec_kernel",
+            "transformed_matvec_sparse_aware_kernel",
             "sparse_transformed_matvec_kernel",
             "transformed_eval_dot_kernel",
             "sparse_transformed_eval_fused_kernel",

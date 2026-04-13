@@ -212,6 +212,26 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         )
     }
 
+    func testTier0SmallCoefficientRingProductsMatchReferenceReduction() {
+        var challengeRNG = DeterministicRNG(seed: Array("small-ring-product-reference".utf8))
+        var generator = SeededTestGenerator(seed: 0x534D_414C_4C52_494E)
+
+        for _ in 0..<16 {
+            let challenge = challengeRNG.nextChallengeRing()
+            let ring = generator.ring()
+            XCTAssertEqual(challenge * ring, referenceRingProduct(challenge, ring))
+            XCTAssertEqual(ring * challenge, referenceRingProduct(ring, challenge))
+
+            let extRing = CyclotomicExt2Ring54(
+                (0..<CyclotomicRing54.degree).map { _ in
+                    GoldilocksExt2(generator.field(), generator.field())
+                }
+            )
+            XCTAssertEqual(challenge * extRing, referenceExtensionRingProduct(challenge, extRing))
+            XCTAssertEqual(extRing * challenge, referenceExtensionRingProduct(challenge, extRing))
+        }
+    }
+
 }
 
 final class CommitmentCoreTests: SuperNeoTestCase {
@@ -2679,6 +2699,19 @@ final class MetalDifferentialTests: SuperNeoTestCase {
         XCTAssertEqual(try backend.transformedEvaluation(matrix: matrix, vector: vector, point: point), directTransformedEvaluation(rows: rows, rHat: rHat))
         XCTAssertEqual(try backend.transformedEvaluation(matrix: sparseMatrix, vector: vector, point: point), directTransformedEvaluation(rows: rows, rHat: rHat))
 
+        var wideDenseElements = Array(repeating: CyclotomicRing54.zero, count: 2 * 128)
+        for row in 0..<2 {
+            for column in [row, row + 17, row + 93] {
+                wideDenseElements[row * 128 + column] = generator.ring()
+            }
+        }
+        let wideDenseMatrix = try RingMatrix(rows: 2, columns: 128, elements: wideDenseElements)
+        let wideDenseVector = (0..<128).map { _ in generator.ring() }
+        XCTAssertEqual(
+            try backend.transformedMatrixVector(matrix: wideDenseMatrix, vector: wideDenseVector),
+            try wideDenseMatrix.multiplied(by: wideDenseVector)
+        )
+
         let secondVector = (0..<3).map { _ in generator.ring() }
         let secondRows = try sparseMatrix.multiplied(by: secondVector)
         let batchedEvaluations = try backend.transformedEvaluations(
@@ -2968,6 +3001,43 @@ extension SuperNeoTestCase {
             }
         }
         return output
+    }
+
+    func referenceRingProduct(_ lhs: CyclotomicRing54, _ rhs: CyclotomicRing54) -> CyclotomicRing54 {
+        var product = Array(repeating: GoldilocksField.zero, count: (CyclotomicRing54.degree * 2) - 1)
+        for i in 0..<CyclotomicRing54.degree where lhs[i] != .zero {
+            for j in 0..<CyclotomicRing54.degree where rhs[j] != .zero {
+                product[i + j] = product[i + j] + lhs[i] * rhs[j]
+            }
+        }
+        for exponent in stride(from: product.count - 1, through: CyclotomicRing54.degree, by: -1) {
+            let value = product[exponent]
+            product[exponent] = .zero
+            let shifted = exponent - CyclotomicRing54.degree
+            product[shifted] = product[shifted] - value
+            product[shifted + 27] = product[shifted + 27] - value
+        }
+        return CyclotomicRing54(Array(product.prefix(CyclotomicRing54.degree)))
+    }
+
+    func referenceExtensionRingProduct(
+        _ lhs: CyclotomicRing54,
+        _ rhs: CyclotomicExt2Ring54
+    ) -> CyclotomicExt2Ring54 {
+        var product = Array(repeating: GoldilocksExt2.zero, count: (CyclotomicRing54.degree * 2) - 1)
+        for i in 0..<CyclotomicRing54.degree where lhs[i] != .zero {
+            for j in 0..<CyclotomicRing54.degree where rhs[j] != .zero {
+                product[i + j] = product[i + j] + GoldilocksExt2(lhs[i]) * rhs[j]
+            }
+        }
+        for exponent in stride(from: product.count - 1, through: CyclotomicRing54.degree, by: -1) {
+            let value = product[exponent]
+            product[exponent] = .zero
+            let shifted = exponent - CyclotomicRing54.degree
+            product[shifted] = product[shifted] - value
+            product[shifted + 27] = product[shifted + 27] - value
+        }
+        return CyclotomicExt2Ring54(Array(product.prefix(CyclotomicRing54.degree)))
     }
 
     func independentUnitVectorTransformedMatrix(_ matrix: SparseFieldMatrix) throws -> RingMatrix {

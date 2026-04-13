@@ -89,6 +89,8 @@ Hardware-class reports:
 - [Apple M4 exact-arithmetic quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-exact-arithmetic-2026-04-12.md)
 - [Apple M4 CSR transform and CE batch quick profile, 2026-04-12](BenchmarkReports/apple-m4-quick-csr-ce-batch-2026-04-12.md)
 - [Apple M4 scalar, transcript, and sumcheck quick profile, 2026-04-13](BenchmarkReports/apple-m4-quick-scalar-transcript-sumcheck-2026-04-13.md)
+- [Apple M4 scaling parallel-opening and small-coefficient pass, 2026-04-13](BenchmarkReports/apple-m4-scaling-opening-smallcoeff-2026-04-13.md)
+- [Apple M4 Metal sparse-aware dense matvec pass, 2026-04-13](BenchmarkReports/apple-m4-metal-dense-sparse-aware-2026-04-13.md)
 - [Lead audit, 2026-04-12](LeadAudit-2026-04-12.md)
 
 Add one report per Apple Silicon generation before making generation-to-generation
@@ -145,7 +147,17 @@ Current CPU-path baseline:
 - Goldilocks field multiplication uses the modulus identity `2^64 == 2^32 - 1 mod p` directly instead of a generic 128-bit modulus loop. Field operators return canonical raw values without re-entering public normalization when the result is already known to be canonical.
 - `GoldilocksExt2` multiplication uses the three-multiply Karatsuba identity, and CPU row-evaluation paths scale extension elements by base-field coefficients directly instead of promoting the scalar into a full extension multiply.
 - `CyclotomicRing54` multiplication and base-ring-by-extension-ring multiplication accumulate directly into the 54 reduced output coefficients using `X^54 = -X^27 - 1`, avoiding the temporary 107-coefficient product and second reduction pass. Fixed-degree ring add/sub/scale paths also avoid map/zip allocation churn.
+- Ring products whose coefficients are all in `{0, +/-1, +/-2}` use exact
+  add/sub/double coefficient scaling after a per-ring small-coefficient scan.
+  Generic ring products stay on the full-width Goldilocks multiplication loop.
 - CPU PiDEC evaluates extension-ring rows by computing `rHat` once and accumulating all 54 ring coefficients in one pass.
+- CPU PiDEC and terminal CE opening verification parallelize independent large
+  opening batches with ordered result collection. The current gate is
+  `count >= 4` and `m >= 1024`, so small smoke-profile cases stay sequential.
+- Metal dense transformed matvec uses a sparse-aware kernel for wide dense
+  matrices (`columns >= 128`) so registered dense benchmark rows avoid full
+  ring-product work on zero dense entries. Sparse workspace paths remain the
+  production path for prover-scale transformed evaluations.
 - CPU sum-check factors equality products into fixed-prefix and Boolean-suffix
   components instead of rebuilding full points and recomputing complete equality
   polynomials for every suffix. PiDEC verifier recomposition uses base-field
@@ -251,6 +263,38 @@ Measured row-block tuning notes:
 - `m1024`: row block 128 gave the best complete Metal fold at 74 ms. Row block 256 improved isolated combined/eval timing but regressed complete fold timing to 98 ms.
 - `m4096`: row blocks 128 and 256 were effectively tied for complete Metal fold timing at 247 ms and 246 ms respectively; 128 remains the default because it is stronger at `m1024` and does not materially regress `m4096`.
 - `m16384`: row block 128 completed the full-profile scaling run with Metal fold at 950 ms versus CPU fold at 50 s.
+
+Latest scaling CPU pass, measured locally on 2026-04-13:
+
+| Case | Starting row | Final row | Change |
+| --- | ---: | ---: | ---: |
+| `fold/cpu/m4096-K2-k0-binary` | 202 ms | 174 ms | 1.16x faster |
+| `terminalVerify/cpu/m4096-K2-k0-binary` | 144 ms | 113 ms | 1.27x faster |
+| `proofEnvelope/roundTrip/m4096-K2-k0-binary` | 157 ms | 119 ms | 1.32x faster |
+| `stage/piDEC/m4096-K2-k0-binary` | 137 ms | 106 ms | 1.29x faster |
+| `fold/cpu/m16384-K2-k0-binary` | 796 ms | 686 ms | 1.16x faster |
+| `terminalVerify/cpu/m16384-K2-k0-binary` | 572 ms | 428 ms | 1.34x faster |
+| `proofEnvelope/roundTrip/m16384-K2-k0-binary` | 765 ms | 431 ms | 1.78x faster |
+| `stage/piDEC/m16384-K2-k0-binary` | 589 ms | 411 ms | 1.43x faster |
+
+This pass parallelized independent large CPU opening batches and added exact
+small-coefficient ring arithmetic. It did not change the cryptographic profile,
+transcript binding, serialization, verifier acceptance rules, or Metal
+determinism requirements. A PiRLC ring-column parallelization experiment was
+rejected after it regressed `m16384 stage/piRLC`.
+
+Latest Metal dense-matvec pass, measured locally on 2026-04-13:
+
+| Case | Controlled baseline | Final row | Change |
+| --- | ---: | ---: | ---: |
+| `kernel/transformedEvaluation/metalDense/m4096-K2-k0-binary` | 75 ms | 77 ms | flat |
+| `kernel/transformedEvaluation/metalDense/m16384-K2-k0-binary` | 3274 ms | 1911 ms | 1.71x faster |
+
+This pass added a thresholded sparse-aware dense Metal kernel. The route is
+intentionally limited to wide dense matrices because the zero scan does not pay
+for itself on smaller dense rows. Direct Metal ring-multiply rewriting, tiled
+Ajtai as the default schedule, and `setBytes` parameter binding were measured
+and rejected after regressions in targeted rows.
 
 CI:
 

@@ -61,6 +61,16 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
     }
 
     public static func * (lhs: Self, rhs: Self) -> Self {
+        if lhs.hasOnlySmallCoefficients {
+            return multiplySmallCoefficientRing(lhs, by: rhs)
+        }
+        if rhs.hasOnlySmallCoefficients {
+            return multiplySmallCoefficientRing(rhs, by: lhs)
+        }
+        return multiplyFullWidth(lhs, by: rhs)
+    }
+
+    private static func multiplyFullWidth(_ lhs: Self, by rhs: Self) -> Self {
         var coefficients = Array(repeating: GoldilocksField.zero, count: degree)
         for i in 0..<degree {
             let left = lhs.coefficients[i]
@@ -74,12 +84,30 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
         return Self(uncheckedCoefficients: coefficients)
     }
 
+    private static func multiplySmallCoefficientRing(_ small: Self, by rhs: Self) -> Self {
+        var coefficients = Array(repeating: GoldilocksField.zero, count: degree)
+        for i in 0..<degree {
+            let scalar = small.coefficients[i]
+            if scalar == .zero { continue }
+            for j in 0..<degree {
+                let right = rhs.coefficients[j]
+                if right == .zero { continue }
+                accumulateReducedProduct(
+                    scaleCoefficient(right, by: scalar),
+                    exponent: i + j,
+                    into: &coefficients
+                )
+            }
+        }
+        return Self(uncheckedCoefficients: coefficients)
+    }
+
     public func scaled(by scalar: GoldilocksField) -> Self {
         guard scalar != .zero else { return .zero }
         guard scalar != .one else { return self }
         var coefficients = Array(repeating: GoldilocksField.zero, count: Self.degree)
         for index in 0..<Self.degree {
-            coefficients[index] = self.coefficients[index] * scalar
+            coefficients[index] = Self.scaleCoefficient(self.coefficients[index], by: scalar)
         }
         return Self(uncheckedCoefficients: coefficients)
     }
@@ -137,6 +165,26 @@ public struct CyclotomicRing54: Equatable, Hashable, Sendable {
         } else {
             coefficients[exponent - degree - 27] = coefficients[exponent - degree - 27] + value
         }
+    }
+
+    private static func scaleCoefficient(_ value: GoldilocksField, by scalar: GoldilocksField) -> GoldilocksField {
+        if value == .zero || scalar == .zero { return .zero }
+        if scalar == .one { return value }
+        if scalar == GoldilocksField(2) { return value + value }
+        if scalar == -GoldilocksField.one { return -value }
+        if scalar == -GoldilocksField(2) { return -(value + value) }
+        return value * scalar
+    }
+
+    private static func isSmallCoefficient(_ value: GoldilocksField) -> Bool {
+        value == .one
+            || value == GoldilocksField(2)
+            || value == -GoldilocksField.one
+            || value == -GoldilocksField(2)
+    }
+
+    fileprivate var hasOnlySmallCoefficients: Bool {
+        coefficients.allSatisfy { $0 == .zero || Self.isSmallCoefficient($0) }
     }
 
     public static func innerProductTransform(_ vector: [GoldilocksField]) throws -> [GoldilocksField] {
@@ -286,6 +334,13 @@ public struct CyclotomicExt2Ring54: Equatable, Hashable, Sendable {
     }
 
     public static func * (lhs: CyclotomicRing54, rhs: Self) -> Self {
+        if lhs.hasOnlySmallCoefficients {
+            return multiplySmallCoefficientRing(lhs, by: rhs)
+        }
+        return multiplyFullWidth(lhs, by: rhs)
+    }
+
+    private static func multiplyFullWidth(_ lhs: CyclotomicRing54, by rhs: Self) -> Self {
         var coefficients = Array(repeating: GoldilocksExt2.zero, count: degree)
         for i in 0..<degree {
             let left = lhs.coefficients[i]
@@ -295,6 +350,24 @@ public struct CyclotomicExt2Ring54: Equatable, Hashable, Sendable {
                 if right == .zero { continue }
                 accumulateReducedProduct(
                     GoldilocksExt2(left * right.c0, left * right.c1),
+                    exponent: i + j,
+                    into: &coefficients
+                )
+            }
+        }
+        return Self(uncheckedCoefficients: coefficients)
+    }
+
+    private static func multiplySmallCoefficientRing(_ lhs: CyclotomicRing54, by rhs: Self) -> Self {
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: degree)
+        for i in 0..<degree {
+            let scalar = lhs.coefficients[i]
+            if scalar == .zero { continue }
+            for j in 0..<degree {
+                let right = rhs.coefficients[j]
+                if right == .zero { continue }
+                accumulateReducedProduct(
+                    scaleExtensionCoefficient(right, by: scalar),
                     exponent: i + j,
                     into: &coefficients
                 )
@@ -361,6 +434,18 @@ public struct CyclotomicExt2Ring54: Equatable, Hashable, Sendable {
         } else {
             coefficients[exponent - degree - 27] = coefficients[exponent - degree - 27] + value
         }
+    }
+
+    private static func scaleExtensionCoefficient(
+        _ value: GoldilocksExt2,
+        by scalar: GoldilocksField
+    ) -> GoldilocksExt2 {
+        if value == .zero || scalar == .zero { return .zero }
+        if scalar == .one { return value }
+        if scalar == GoldilocksField(2) { return value + value }
+        if scalar == -GoldilocksField.one { return -value }
+        if scalar == -GoldilocksField(2) { return -(value + value) }
+        return value.scaled(by: scalar)
     }
 }
 
