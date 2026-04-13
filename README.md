@@ -161,6 +161,7 @@ Core documentation:
 - [Paper Reproduction](Docs/PaperReproduction.md): reproducibility harness and claim map.
 - [Roadmap Status](Docs/RoadmapStatus.md): current artifact map and project status.
 - [Formal Verification](Docs/FormalVerification.md): Lean 4 formalization track and status-label policy.
+- [Formal Status Promotion, 2026-04-13](Docs/FormalStatusPromotion-2026-04-13.md): partial-formalization promotion, validation, and residual boundaries.
 
 Benchmark reports:
 

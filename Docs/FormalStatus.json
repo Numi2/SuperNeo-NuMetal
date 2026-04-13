@@ -1,6 +1,6 @@
 {
   "schema": "superneo.formal-status.v1",
-  "current_label": "bounded formalization",
+  "current_label": "partial formalization",
   "labels": {
     "bounded formalization": {
       "rank": 0,
@@ -102,19 +102,19 @@
   "documentation_claims": [
     {
       "path": "Docs/PaperReproduction.md",
-      "label": "bounded formalization"
+      "label": "partial formalization"
     },
     {
       "path": "Docs/RoadmapStatus.md",
-      "label": "bounded formalization"
+      "label": "partial formalization"
     },
     {
       "path": "Docs/WhatThisProves.md",
-      "label": "bounded formalization"
+      "label": "partial formalization"
     },
     {
       "path": "Docs/FormalVerification.md",
-      "label": "bounded formalization"
+      "label": "partial formalization"
     }
   ]
 }

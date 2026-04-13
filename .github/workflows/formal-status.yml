@@ -9,7 +9,9 @@ on:
       - "Docs/RoadmapStatus.md"
       - "Docs/WhatThisProves.md"
       - "Docs/FormalVerification.md"
+      - "Docs/FormalStatusPromotion-2026-04-13.md"
       - "Scripts/validate-formal-status.py"
+      - "Scripts/test-formal-status-validation.py"
       - ".github/workflows/formal-status.yml"
   push:
     branches:
@@ -21,7 +23,9 @@ on:
       - "Docs/RoadmapStatus.md"
       - "Docs/WhatThisProves.md"
       - "Docs/FormalVerification.md"
+      - "Docs/FormalStatusPromotion-2026-04-13.md"
       - "Scripts/validate-formal-status.py"
+      - "Scripts/test-formal-status-validation.py"
       - ".github/workflows/formal-status.yml"
   workflow_dispatch:
 
@@ -49,3 +53,6 @@ jobs:
 
       - name: Validate formal status manifest
         run: Scripts/validate-formal-status.py
+
+      - name: Regression-test formal status validator
+        run: Scripts/test-formal-status-validation.py

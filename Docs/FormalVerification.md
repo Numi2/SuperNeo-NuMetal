@@ -1,6 +1,6 @@
 # Formal Verification Track
 
-Formal status: bounded formalization.
+Formal status: partial formalization.
 
 The formal track lives under `Formal/` as a Lean 4 Lake workspace. It is
 separate from the Sage/lattice-estimator workflow:
@@ -10,9 +10,11 @@ separate from the Sage/lattice-estimator workflow:
 - Lean formalization records protocol-level algebraic statements and reductions
   under explicitly named assumptions.
 
-The current Lean milestone covers the Ajtai commitment layer at a bounded level:
-profile constants, the abstract commitment map, opening relation, additive
-linearity, and binding from an explicit MSIS no-short-kernel assumption.
+The current Lean milestone covers the first partial formalization layer:
+profile constants, the abstract Ajtai commitment map, opening relation,
+additive linearity, and binding from an explicit MSIS no-short-kernel
+assumption. It does not close the PiDEC, PiRLC, PiCCS, terminal CE, or full
+SuperNeo composition theorem groups.
 
 ## Status Manifest
 
@@ -39,8 +41,9 @@ Allowed labels are:
 - `partial formalization`
 - `completed formal protocol theorem`
 
-Documentation must not use `completed formal protocol theorem` until the final
-SuperNeo verifier-acceptance composition theorem group is closed.
+Documentation must not use `completed formal protocol theorem` until the PiDEC,
+PiRLC, PiCCS, terminal CE, and final SuperNeo verifier-acceptance composition
+theorem groups are closed.
 
 ## Build
 
@@ -51,5 +54,6 @@ cd Formal
 lake build
 ```
 
-The CI workflow `Formal Status` runs `lake build` and then validates the status
-manifest for changes touching `Formal/`, the manifest, or status-bearing docs.
+The CI workflow `Formal Status` runs `lake build`, validates the status
+manifest, and runs the mutation-regression harness for changes touching
+`Formal/`, the manifest, validator scripts, or status-bearing docs.

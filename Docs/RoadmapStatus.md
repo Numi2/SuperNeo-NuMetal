@@ -4,7 +4,7 @@ This document maps the best-in-class roadmap to concrete repository artifacts.
 It is intentionally conservative: passing items are implementation claims, not
 production security certifications.
 
-Formal status: bounded formalization.
+Formal status: partial formalization.
 
 ## First Priority: Legibility
 
@@ -130,14 +130,17 @@ Artifacts:
 - `Scripts/validate-lattice-estimator-artifact.py` validates the pinned source,
   profile constants, derived SIS tuple, normalized estimator rows, threshold
   semantics, and lane separation.
-- `Formal/` provides a Lean 4/Lake workspace for the bounded formalization
-  track, starting with the concrete Ajtai commitment map and binding reduction
-  under an explicit MSIS no-short-kernel assumption.
+- `Formal/` provides a Lean 4/Lake workspace for the partial formalization
+  track, with closed profile constants, the concrete Ajtai commitment map,
+  opening linearity, and binding reduction under an explicit MSIS
+  no-short-kernel assumption.
 - `Docs/FormalStatus.json` and `Scripts/validate-formal-status.py` gate
   documentation labels against named theorem groups and verify that closed
   groups reference declarations present in the claimed Lean module.
 - `Scripts/test-formal-status-validation.py` regression-tests the formal-status
   gate by mutating temporary manifests and requiring fail-closed behavior.
+- `Docs/FormalStatusPromotion-2026-04-13.md` records the partial-formalization
+  promotion, validation commands, and remaining formal boundaries.
 - `Docs/PaperReproduction.md` documents the harness and interpretation rules.
 - `Docs/LatticeEstimatorReproduction.md` documents the estimator command,
   pinned upstream source, and exact derived parameters.
@@ -147,5 +150,6 @@ Remaining boundary:
 - The harness reproduces implementation claims against the bundled paper text.
   It does not produce a formal proof of the paper's theorems or a production
   cryptographic certification.
-- Documentation remains at `bounded formalization` until the formal status
-  manifest closes the full protocol composition theorem group.
+- Documentation remains below `completed formal protocol theorem` until the
+  formal status manifest closes the PiDEC, PiRLC, PiCCS, terminal CE, and full
+  protocol composition theorem groups.

@@ -4,8 +4,8 @@ import SuperNeoFormal.Ajtai
 Named placeholders for the formal protocol milestones that are not yet claimed.
 
 The documentation status manifest marks these theorem groups as `planned`, so
-repository documentation must remain at "bounded formalization" until the named
-groups are replaced by closed theorem statements and proofs.
+repository documentation must remain below "completed formal protocol theorem"
+until the named groups are replaced by closed theorem statements and proofs.
 -/
 
 namespace SuperNeoFormal

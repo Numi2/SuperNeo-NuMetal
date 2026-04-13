@@ -91,6 +91,22 @@ def main() -> None:
         "must list at least one declaration",
     )
 
+    completed_manifest = json.loads(json.dumps(manifest))
+    completed_manifest["current_label"] = "completed formal protocol theorem"
+    expect_failure(
+        "completed label blocked by planned groups",
+        completed_manifest,
+        "depends on planned theorem group",
+    )
+
+    overclaim_manifest = json.loads(json.dumps(manifest))
+    overclaim_manifest["documentation_claims"][0]["label"] = "completed formal protocol theorem"
+    expect_failure(
+        "documentation overclaim blocked",
+        overclaim_manifest,
+        "stronger than current label",
+    )
+
     print("formal status validation regression tests passed")
 
 

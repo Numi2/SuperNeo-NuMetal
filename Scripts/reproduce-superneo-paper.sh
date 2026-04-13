@@ -152,6 +152,8 @@ else
 fi
 run_and_log formal-status \
   Scripts/validate-formal-status.py
+run_and_log formal-status-regression \
+  Scripts/test-formal-status-validation.py
 
 case "${MODE}" in
   plan)

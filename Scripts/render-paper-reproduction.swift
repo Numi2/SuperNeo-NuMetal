@@ -283,6 +283,7 @@ swift Scripts/validate-test-vectors.swift
 Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
 Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json
 Scripts/validate-formal-status.py
+Scripts/test-formal-status-validation.py
 Scripts/test-slice.sh fast
 Scripts/test-slice.sh protocol
 Scripts/test-slice.sh metal
