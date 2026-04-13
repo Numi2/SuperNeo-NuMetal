@@ -58,12 +58,22 @@ private struct ProveOptions {
     var proofKind: DemoProofKind = .fold
 }
 
+private struct VerifyOptions {
+    var path: String
+    var trustedKeySeed: String?
+    var expectedVerifierKeyDigestHex: String?
+    var expectedShapeDigestHex: String?
+    var expectedStatementDigestHex: String?
+    var expectedPublicInputs: [UInt64]?
+    var requireTerminalProof = false
+}
+
 private func usage() -> String {
     """
     Usage:
       superneo prove [--workload one-hot] [--bits 0,0,1,0] [--kind fold|terminal] [--key-seed text] [--output proof.json]
       superneo prove --workload binary-add [--operand-bits 8] [--lhs 13] [--rhs 29] [--kind fold|terminal] [--output proof.json]
-      superneo verify proof.json
+      superneo verify [--key-seed text] [--expected-verifier-key-digest hex] [--expected-shape-digest hex] [--expected-statement-digest hex] [--expected-public-inputs values] [--require-terminal] proof.json
       superneo inspect proof.json
 
     Workloads:
@@ -90,10 +100,7 @@ private func run(_ arguments: [String]) throws {
     case "prove":
         try prove(parseProveOptions(Array(arguments.dropFirst())))
     case "verify":
-        guard arguments.count == 2 else {
-            throw CLIError.usage("verify expects exactly one proof artifact path")
-        }
-        try verify(path: arguments[1])
+        try verify(options: parseVerifyOptions(Array(arguments.dropFirst())))
     case "inspect":
         guard arguments.count == 2 else {
             throw CLIError.usage("inspect expects exactly one proof artifact path")
@@ -155,6 +162,62 @@ private func parseProveOptions(_ arguments: [String]) throws -> ProveOptions {
         throw CLIError.invalidArgument("--operand-bits must be in 1...62")
     }
     return options
+}
+
+private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
+    var path: String?
+    var trustedKeySeed: String?
+    var expectedVerifierKeyDigestHex: String?
+    var expectedShapeDigestHex: String?
+    var expectedStatementDigestHex: String?
+    var expectedPublicInputs: [UInt64]?
+    var requireTerminalProof = false
+    var index = 0
+    while index < arguments.count {
+        let argument = arguments[index]
+        func requireValue() throws -> String {
+            guard index + 1 < arguments.count else {
+                throw CLIError.invalidArgument("\(argument) requires a value")
+            }
+            index += 1
+            return arguments[index]
+        }
+        switch argument {
+        case "--key-seed":
+            trustedKeySeed = try requireValue()
+        case "--expected-verifier-key-digest":
+            expectedVerifierKeyDigestHex = try parseHexDigest(try requireValue(), name: argument)
+        case "--expected-shape-digest":
+            expectedShapeDigestHex = try parseHexDigest(try requireValue(), name: argument)
+        case "--expected-statement-digest":
+            expectedStatementDigestHex = try parseHexDigest(try requireValue(), name: argument)
+        case "--expected-public-inputs":
+            expectedPublicInputs = try parsePublicInputList(try requireValue(), name: argument)
+        case "--require-terminal":
+            requireTerminalProof = true
+        default:
+            guard !argument.hasPrefix("-") else {
+                throw CLIError.invalidArgument("unknown verify option: \(argument)")
+            }
+            guard path == nil else {
+                throw CLIError.usage("verify expects exactly one proof artifact path")
+            }
+            path = argument
+        }
+        index += 1
+    }
+    guard let path else {
+        throw CLIError.usage("verify expects exactly one proof artifact path")
+    }
+    return VerifyOptions(
+        path: path,
+        trustedKeySeed: trustedKeySeed,
+        expectedVerifierKeyDigestHex: expectedVerifierKeyDigestHex,
+        expectedShapeDigestHex: expectedShapeDigestHex,
+        expectedStatementDigestHex: expectedStatementDigestHex,
+        expectedPublicInputs: expectedPublicInputs,
+        requireTerminalProof: requireTerminalProof
+    )
 }
 
 private func prove(_ options: ProveOptions) throws {
@@ -243,10 +306,26 @@ private func prove(_ options: ProveOptions) throws {
     print(String(format: "prove time: %.3f s", elapsed))
 }
 
-private func verify(path: String) throws {
-    let artifact = try readArtifact(path: path)
+private func verify(options: VerifyOptions) throws {
+    let artifact = try readArtifact(path: options.path)
+    if let expectedPublicInputs = options.expectedPublicInputs {
+        guard artifact.publicInputs == expectedPublicInputs else {
+            throw CLIError.invalidArgument("artifact public inputs do not match expected public inputs")
+        }
+    }
     let publicInput = try makePublicInput(from: artifact)
-    let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(artifact.keySeedUTF8.utf8))
+    if let expectedShapeDigestHex = options.expectedShapeDigestHex {
+        guard publicInput.shape.shapeDigest.hexString == expectedShapeDigestHex else {
+            throw CLIError.invalidArgument("artifact shape digest does not match expected shape digest")
+        }
+    }
+    let keySeed = options.trustedKeySeed ?? artifact.keySeedUTF8
+    let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(keySeed.utf8))
+    if let expectedVerifierKeyDigestHex = options.expectedVerifierKeyDigestHex {
+        guard key.verifierKeyDigest.hexString == expectedVerifierKeyDigestHex else {
+            throw CLIError.invalidArgument("regenerated verifier key digest does not match expected verifier key digest")
+        }
+    }
     guard key.verifierKeyDigest.hexString == artifact.verifierKeyDigestHex else {
         throw CLIError.invalidArgument("artifact verifier key digest does not match regenerated key")
     }
@@ -258,9 +337,17 @@ private func verify(path: String) throws {
     guard statement.statementDigest.hexString == artifact.statementDigestHex else {
         throw CLIError.invalidArgument("artifact statement digest does not match reconstructed public input")
     }
+    if let expectedStatementDigestHex = options.expectedStatementDigestHex {
+        guard statement.statementDigest.hexString == expectedStatementDigestHex else {
+            throw CLIError.invalidArgument("artifact statement digest does not match expected statement digest")
+        }
+    }
     let proofBytes = try artifact.proofEnvelopeBytes()
     let verifier = SuperNeoCPUBackend().makeVerifier(key: key)
     let kind = try artifact.demoProofKind()
+    if options.requireTerminalProof, kind != .terminal {
+        throw CLIError.invalidArgument("terminal proof required, but artifact contains a fold reduction")
+    }
     let context = ProofEnvelopeContext(
         kind: kind.envelopeKind,
         statement: statement,
@@ -394,6 +481,24 @@ private func parsePositiveInt(_ raw: String, name: String) throws -> Int {
 private func parseUInt64(_ raw: String, name: String) throws -> UInt64 {
     guard let value = UInt64(raw) else {
         throw CLIError.invalidArgument("\(name) must be a non-negative integer")
+    }
+    return value
+}
+
+private func parsePublicInputList(_ raw: String, name: String) throws -> [UInt64] {
+    let values = try raw.split(separator: ",", omittingEmptySubsequences: false).map { token in
+        try parseUInt64(token.trimmingCharacters(in: .whitespacesAndNewlines), name: name)
+    }
+    guard !values.isEmpty else {
+        throw CLIError.invalidArgument("\(name) must contain at least one value")
+    }
+    return values
+}
+
+private func parseHexDigest(_ raw: String, name: String) throws -> String {
+    let value = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    guard value.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil else {
+        throw CLIError.invalidArgument("\(name) must be a 64-character lowercase or uppercase hex digest")
     }
     return value
 }

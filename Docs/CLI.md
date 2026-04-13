@@ -71,6 +71,20 @@ Verify it:
 swift run superneo verify /tmp/one-hot-proof.json
 ```
 
+The short form is a local smoke check: it proves the artifact is internally
+consistent. For any artifact supplied by another process or party, pin the
+expected verifier context at the call site:
+
+```sh
+swift run superneo verify \
+  --key-seed SuperNeoCLI.one-hot-vector.v1 \
+  --expected-verifier-key-digest 7e6c4fc3ec5bee0e1872cde17322830a37fc0a2d17ed79a208f6113fd0186a86 \
+  --expected-shape-digest 84d903373ff54785a9b7d99bd048e1527deedd1173309c272992a8a87b61a765 \
+  --expected-statement-digest 786532c3daee5d41f54b619bde8b6bcc432f7ae1f40017e14953cc8ce38992e0 \
+  --expected-public-inputs 1 \
+  /tmp/one-hot-proof.json
+```
+
 Inspect the artifact metadata and envelope header:
 
 ```sh
@@ -111,7 +125,11 @@ The JSON artifact stores:
 
 The verifier reconstructs the workload shape and public input, regenerates the
 Ajtai verifier key from the seed, checks all three digests, and then verifies the
-proof envelope.
+proof envelope. Without `--key-seed` and `--expected-*` arguments, the seed and
+digests are read from the artifact, so verification is a self-consistency check
+rather than a policy decision. Production callers should store the expected
+seed, public inputs, proof kind, shape digest, statement digest, and verifier-key
+digest outside the artifact.
 
 ## Checked-In Vectors
 

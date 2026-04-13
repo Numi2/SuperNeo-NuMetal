@@ -199,7 +199,10 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         guard !rings.isEmpty else { return [] }
         let ringBuffer = try context.makeBuffer(flatten(rings))
         let scalarBuffer = try context.makeBuffer(scalars.map(\.rawValue))
-        let coefficientCount = rings.count * CyclotomicRing54.degree
+        let coefficientCount = try checkedProduct(
+            [rings.count, CyclotomicRing54.degree],
+            name: "ring scalar output coefficient count"
+        )
         let outputBuffer = try context.makeEmptyBuffer(count: coefficientCount, as: UInt64.self)
         try context.dispatch1D(
             pipelineName: "ring_scalar_mul_kernel",
@@ -216,7 +219,10 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         guard !lhs.isEmpty else { return [] }
         let lhsBuffer = try context.makeBuffer(flatten(lhs))
         let rhsBuffer = try context.makeBuffer(flatten(rhs))
-        let coefficientCount = lhs.count * CyclotomicRing54.degree
+        let coefficientCount = try checkedProduct(
+            [lhs.count, CyclotomicRing54.degree],
+            name: "ring multiplication output coefficient count"
+        )
         let outputBuffer = try context.makeEmptyBuffer(count: coefficientCount, as: UInt64.self)
         try context.dispatch1D(
             pipelineName: "ring_mul_kernel",
@@ -315,10 +321,14 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         let rowCount = key.matrix.rows
         let columnCount = key.matrix.columns
         let batchCount = messages.count
-        let outputRingCount = batchCount * rowCount
+        let outputRingCount = try checkedProduct([batchCount, rowCount], name: "Ajtai output ring count")
+        let outputCoefficientCount = try checkedProduct(
+            [outputRingCount, CyclotomicRing54.degree],
+            name: "Ajtai output coefficient count"
+        )
         let messageBuffer = try context.makeBuffer(flatten(messages))
         let outputBuffer = try context.makeEmptyBuffer(
-            count: outputRingCount * CyclotomicRing54.degree,
+            count: outputCoefficientCount,
             as: UInt64.self
         )
         let params = try [
@@ -330,7 +340,7 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         try context.dispatch1D(
             pipelineName: "ajtai_matvec_ring_batch_coeff_kernel",
             buffers: [matrixBuffer, messageBuffer, outputBuffer, paramsBuffer],
-            elementCount: outputRingCount * CyclotomicRing54.degree
+            elementCount: outputCoefficientCount
         )
 
         return try ajtaiCommitmentResults(
@@ -347,7 +357,10 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         guard matrix.rows > 0 else { return [] }
         let matrixBuffer = try context.makeBuffer(flatten(matrix.elements))
         let vectorBuffer = try context.makeBuffer(flatten(vector))
-        let outputCount = matrix.rows * CyclotomicRing54.degree
+        let outputCount = try checkedProduct(
+            [matrix.rows, CyclotomicRing54.degree],
+            name: "transformed matrix output coefficient count"
+        )
         let outputBuffer = try context.makeEmptyBuffer(count: outputCount, as: UInt64.self)
         let params = try [
             checkedUInt32(matrix.rows, name: "transformed matrix row count"),
@@ -374,7 +387,10 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         let columnIndicesBuffer = try context.makeBuffer(try checkedUInt32Array(matrix.columnIndices, name: "sparse column index"))
         let valuesBuffer = try context.makeBuffer(flatten(matrix.values))
         let vectorBuffer = try context.makeBuffer(flatten(vector))
-        let outputCount = matrix.rows * CyclotomicRing54.degree
+        let outputCount = try checkedProduct(
+            [matrix.rows, CyclotomicRing54.degree],
+            name: "sparse transformed matrix output coefficient count"
+        )
         let outputBuffer = try context.makeEmptyBuffer(count: outputCount, as: UInt64.self)
         let paramsBuffer = try context.makeBuffer([
             checkedUInt32(matrix.rows, name: "sparse transformed matrix row count"),
@@ -512,17 +528,21 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         }
 
         var commands: [MetalDispatchCommand] = []
-        commands.reserveCapacity(vectors.count * matrixBuffers.count * 2)
+        commands.reserveCapacity(try checkedProduct(
+            [vectors.count, matrixBuffers.count, 2],
+            name: "sparse transformed evaluation command count"
+        ))
         var outputBuffers = Array(repeating: [MTLBuffer](), count: vectors.count)
 
         for vectorIndex in vectors.indices {
             outputBuffers[vectorIndex].reserveCapacity(matrixBuffers.count)
             for matrixIndex in matrixBuffers.indices {
                 let buffers = matrixBuffers[matrixIndex]
-                let rowsBuffer = try context.makeEmptyBuffer(
-                    count: buffers.rows * CyclotomicRing54.degree,
-                    as: UInt64.self
+                let rowCoefficientCount = try checkedProduct(
+                    [buffers.rows, CyclotomicRing54.degree],
+                    name: "sparse transformed evaluation row coefficient count"
                 )
+                let rowsBuffer = try context.makeEmptyBuffer(count: rowCoefficientCount, as: UInt64.self)
                 let outputBuffer = try context.makeEmptyBuffer(
                     count: CyclotomicRing54.degree * 2,
                     as: UInt64.self
@@ -584,13 +604,23 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
 
         let vectorBuffer = try context.makeBuffer(flatten(vectors))
         let rHatBuffer = try context.makeBuffer(flattenExt2(rHat))
-        let outputWordCount = vectors.count * batchBuffers.matrixCount * CyclotomicRing54.degree * 2
+        let outputWordCount = try checkedProduct(
+            [vectors.count, batchBuffers.matrixCount, CyclotomicRing54.degree, 2],
+            name: "sparse transformed evaluation output word count"
+        )
         let outputBuffer = try context.makeEmptyBuffer(count: outputWordCount, as: UInt64.self)
         let rowBlockSize = Self.fusedEvaluationRowBlockSize
-        let rowBlockCount = (batchBuffers.rows + rowBlockSize - 1) / rowBlockSize
+        let rowBlockCount = try checkedCeilDiv(
+            batchBuffers.rows,
+            by: rowBlockSize,
+            name: "sparse transformed evaluation row block count"
+        )
 
         if batchBuffers.rows >= Self.fusedEvaluationBlockedRowThreshold, rowBlockCount > 1 {
-            let partialWordCount = vectors.count * batchBuffers.matrixCount * rowBlockCount * CyclotomicRing54.degree * 2
+            let partialWordCount = try checkedProduct(
+                [vectors.count, batchBuffers.matrixCount, rowBlockCount, CyclotomicRing54.degree, 2],
+                name: "sparse transformed evaluation partial word count"
+            )
             let partialBuffer = try context.makeEmptyBuffer(count: partialWordCount, as: UInt64.self)
             let paramsBuffer = try context.makeBuffer([
                 checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
@@ -613,7 +643,10 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                         partialBuffer,
                         paramsBuffer
                     ],
-                    elementCount: vectors.count * batchBuffers.matrixCount * rowBlockCount * CyclotomicRing54.degree
+                    elementCount: try checkedProduct(
+                        [vectors.count, batchBuffers.matrixCount, rowBlockCount, CyclotomicRing54.degree],
+                        name: "sparse transformed evaluation partial element count"
+                    )
                 ),
                 MetalDispatchCommand(
                     pipelineName: "sparse_transformed_eval_block_reduce_kernel",
@@ -622,12 +655,15 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                         outputBuffer,
                         paramsBuffer
                     ],
-                    elementCount: vectors.count * batchBuffers.matrixCount * CyclotomicRing54.degree,
+                    elementCount: try checkedProduct(
+                        [vectors.count, batchBuffers.matrixCount, CyclotomicRing54.degree],
+                        name: "sparse transformed evaluation reduce element count"
+                    ),
                     barrierAfter: false
                 )
             ])
 
-            return transformedEvaluationResults(
+            return try transformedEvaluationResults(
                 outputBuffer: outputBuffer,
                 outputWordCount: outputWordCount,
                 vectorCount: vectors.count,
@@ -653,10 +689,13 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                 outputBuffer,
                 paramsBuffer
             ],
-            elementCount: vectors.count * batchBuffers.matrixCount * CyclotomicRing54.degree
+            elementCount: try checkedProduct(
+                [vectors.count, batchBuffers.matrixCount, CyclotomicRing54.degree],
+                name: "sparse transformed evaluation fused element count"
+            )
         )
 
-        return transformedEvaluationResults(
+        return try transformedEvaluationResults(
             outputBuffer: outputBuffer,
             outputWordCount: outputWordCount,
             vectorCount: vectors.count,
@@ -709,12 +748,22 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         let batchCount = messages.count
         let vectorBuffer = try context.makeBuffer(flatten(messages))
         let rHatBuffer = try context.makeBuffer(flattenExt2(rHat))
-        let commitmentOutputRingCount = batchCount * rowCount
+        let commitmentOutputRingCount = try checkedProduct(
+            [batchCount, rowCount],
+            name: "combined commitment output ring count"
+        )
+        let commitmentOutputCoefficientCount = try checkedProduct(
+            [commitmentOutputRingCount, CyclotomicRing54.degree],
+            name: "combined commitment output coefficient count"
+        )
         let commitmentOutputBuffer = try context.makeEmptyBuffer(
-            count: commitmentOutputRingCount * CyclotomicRing54.degree,
+            count: commitmentOutputCoefficientCount,
             as: UInt64.self
         )
-        let evaluationOutputWordCount = batchCount * batchBuffers.matrixCount * CyclotomicRing54.degree * 2
+        let evaluationOutputWordCount = try checkedProduct(
+            [batchCount, batchBuffers.matrixCount, CyclotomicRing54.degree, 2],
+            name: "combined evaluation output word count"
+        )
         let evaluationOutputBuffer = try context.makeEmptyBuffer(count: evaluationOutputWordCount, as: UInt64.self)
 
         let ajtaiParamsBuffer = try context.makeBuffer([
@@ -726,15 +775,22 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             MetalDispatchCommand(
                 pipelineName: "ajtai_matvec_ring_batch_coeff_kernel",
                 buffers: [matrixBuffer, vectorBuffer, commitmentOutputBuffer, ajtaiParamsBuffer],
-                elementCount: commitmentOutputRingCount * CyclotomicRing54.degree,
+                elementCount: commitmentOutputCoefficientCount,
                 barrierAfter: false
             )
         ]
 
         let rowBlockSize = Self.fusedEvaluationRowBlockSize
-        let rowBlockCount = (batchBuffers.rows + rowBlockSize - 1) / rowBlockSize
+        let rowBlockCount = try checkedCeilDiv(
+            batchBuffers.rows,
+            by: rowBlockSize,
+            name: "combined sparse transformed evaluation row block count"
+        )
         if batchBuffers.rows >= Self.fusedEvaluationBlockedRowThreshold, rowBlockCount > 1 {
-            let partialWordCount = batchCount * batchBuffers.matrixCount * rowBlockCount * CyclotomicRing54.degree * 2
+            let partialWordCount = try checkedProduct(
+                [batchCount, batchBuffers.matrixCount, rowBlockCount, CyclotomicRing54.degree, 2],
+                name: "combined evaluation partial word count"
+            )
             let partialBuffer = try context.makeEmptyBuffer(count: partialWordCount, as: UInt64.self)
             let paramsBuffer = try context.makeBuffer([
                 checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
@@ -755,7 +811,10 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                     partialBuffer,
                     paramsBuffer
                 ],
-                elementCount: batchCount * batchBuffers.matrixCount * rowBlockCount * CyclotomicRing54.degree
+                elementCount: try checkedProduct(
+                    [batchCount, batchBuffers.matrixCount, rowBlockCount, CyclotomicRing54.degree],
+                    name: "combined evaluation partial element count"
+                )
             ))
             commands.append(MetalDispatchCommand(
                 pipelineName: "sparse_transformed_eval_block_reduce_kernel",
@@ -764,7 +823,10 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                     evaluationOutputBuffer,
                     paramsBuffer
                 ],
-                elementCount: batchCount * batchBuffers.matrixCount * CyclotomicRing54.degree,
+                elementCount: try checkedProduct(
+                    [batchCount, batchBuffers.matrixCount, CyclotomicRing54.degree],
+                    name: "combined evaluation reduce element count"
+                ),
                 barrierAfter: false
             ))
         } else {
@@ -785,7 +847,10 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                     evaluationOutputBuffer,
                     paramsBuffer
                 ],
-                elementCount: batchCount * batchBuffers.matrixCount * CyclotomicRing54.degree,
+                elementCount: try checkedProduct(
+                    [batchCount, batchBuffers.matrixCount, CyclotomicRing54.degree],
+                    name: "combined evaluation fused element count"
+                ),
                 barrierAfter: false
             ))
         }
@@ -797,7 +862,7 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                 outputRingCount: commitmentOutputRingCount,
                 rowCount: rowCount
             ),
-            transformedEvaluationResults(
+            try transformedEvaluationResults(
                 outputBuffer: evaluationOutputBuffer,
                 outputWordCount: evaluationOutputWordCount,
                 vectorCount: batchCount,
@@ -847,20 +912,28 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         let rowCount = key.matrix.rows
         let columnCount = key.matrix.columns
         let batchCount = messages.count
-        let tileCount = (columnCount + schedule.columnTileSize - 1) / schedule.columnTileSize
-        let partialRingCount = batchCount * tileCount * rowCount
-        let outputRingCount = batchCount * rowCount
+        let tileCount = try checkedCeilDiv(columnCount, by: schedule.columnTileSize, name: "Ajtai tile count")
+        let partialRingCount = try checkedProduct([batchCount, tileCount, rowCount], name: "Ajtai partial ring count")
+        let outputRingCount = try checkedProduct([batchCount, rowCount], name: "Ajtai output ring count")
+        let partialCoefficientCount = try checkedProduct(
+            [partialRingCount, CyclotomicRing54.degree],
+            name: "Ajtai partial coefficient count"
+        )
+        let outputCoefficientCount = try checkedProduct(
+            [outputRingCount, CyclotomicRing54.degree],
+            name: "Ajtai output coefficient count"
+        )
 
-        let messageBuffer = try context.makeBuffer(flattenCoefficientMajorMessages(
+        let messageBuffer = try context.makeBuffer(try flattenCoefficientMajorMessages(
             messages,
             columnCount: columnCount
         ))
         let partialBuffer = try context.makeEmptyBuffer(
-            count: partialRingCount * CyclotomicRing54.degree,
+            count: partialCoefficientCount,
             as: UInt64.self
         )
         let outputBuffer = try context.makeEmptyBuffer(
-            count: outputRingCount * CyclotomicRing54.degree,
+            count: outputCoefficientCount,
             as: UInt64.self
         )
         let params = try [
@@ -890,7 +963,7 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
 
         let output = try inflateRings(outputBuffer.array(
             of: UInt64.self,
-            count: outputRingCount * CyclotomicRing54.degree
+            count: outputCoefficientCount
         ))
         return stride(from: 0, to: output.count, by: rowCount).map {
             AjtaiCommitment(Array(output[$0..<$0 + rowCount]))
@@ -925,7 +998,10 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         }
 
         var rowOffsets: [Int] = []
-        rowOffsets.reserveCapacity(matrices.count * (first.rows + 1))
+        rowOffsets.reserveCapacity(try checkedProduct(
+            [matrices.count, try checkedSum(first.rows, 1, name: "sparse batch row offset count")],
+            name: "sparse batch row offset count"
+        ))
         var columnIndices: [Int] = []
         var values: [CyclotomicRing54] = []
         var entryBase = 0
@@ -934,10 +1010,12 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             guard matrix.rows == first.rows, matrix.columns == first.columns else {
                 throw SuperNeoError.invalidParameter("sparse transformed matrices in a batch must share dimensions")
             }
-            rowOffsets.append(contentsOf: matrix.rowOffsets.map { entryBase + $0 })
+            rowOffsets.append(contentsOf: try matrix.rowOffsets.map {
+                try checkedSum(entryBase, $0, name: "sparse batch row offset")
+            })
             columnIndices.append(contentsOf: matrix.columnIndices)
             values.append(contentsOf: matrix.values)
-            entryBase += matrix.values.count
+            entryBase = try checkedSum(entryBase, matrix.values.count, name: "sparse batch entry base")
         }
 
         return SparseRingMatrixBatchBuffers(
@@ -961,9 +1039,12 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
     private func flattenCoefficientMajorMessages(
         _ messages: [[CyclotomicRing54]],
         columnCount: Int
-    ) -> [UInt64] {
+    ) throws -> [UInt64] {
         var raw: [UInt64] = []
-        raw.reserveCapacity(messages.count * columnCount * CyclotomicRing54.degree)
+        raw.reserveCapacity(try checkedProduct(
+            [messages.count, columnCount, CyclotomicRing54.degree],
+            name: "coefficient-major message word count"
+        ))
         for message in messages {
             for coefficientIndex in 0..<CyclotomicRing54.degree {
                 for column in 0..<columnCount {
@@ -1002,15 +1083,31 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         outputWordCount: Int,
         vectorCount: Int,
         matrixCount: Int
-    ) -> [[CyclotomicExt2Ring54]] {
+    ) throws -> [[CyclotomicExt2Ring54]] {
         let raw = outputBuffer.array(of: UInt64.self, count: outputWordCount)
+        let ringWordCount = try checkedProduct(
+            [CyclotomicRing54.degree, 2],
+            name: "transformed evaluation ring word count"
+        )
+        let expectedWordCount = try checkedProduct(
+            [vectorCount, matrixCount, ringWordCount],
+            name: "transformed evaluation output word count"
+        )
+        guard expectedWordCount == outputWordCount else {
+            throw SuperNeoError.invalidParameter("transformed evaluation output word count mismatch")
+        }
         var evaluations = Array(repeating: [CyclotomicExt2Ring54](), count: vectorCount)
+        var offset = 0
         for vectorIndex in 0..<vectorCount {
             evaluations[vectorIndex].reserveCapacity(matrixCount)
-            for matrixIndex in 0..<matrixCount {
-                let offset = ((vectorIndex * matrixCount + matrixIndex) * CyclotomicRing54.degree) * 2
-                let words = Array(raw[offset..<offset + CyclotomicRing54.degree * 2])
+            for _ in 0..<matrixCount {
+                let endOffset = try checkedSum(offset, ringWordCount, name: "transformed evaluation output offset")
+                guard endOffset <= raw.count else {
+                    throw SuperNeoError.invalidParameter("transformed evaluation output buffer is too short")
+                }
+                let words = Array(raw[offset..<endOffset])
                 evaluations[vectorIndex].append(CyclotomicExt2Ring54(inflateExt2(words)))
+                offset = endOffset
             }
         }
         return evaluations
@@ -1021,13 +1118,51 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         outputRingCount: Int,
         rowCount: Int
     ) throws -> [AjtaiCommitment] {
+        let outputCoefficientCount = try checkedProduct(
+            [outputRingCount, CyclotomicRing54.degree],
+            name: "Ajtai output coefficient count"
+        )
         let output = try inflateRings(outputBuffer.array(
             of: UInt64.self,
-            count: outputRingCount * CyclotomicRing54.degree
+            count: outputCoefficientCount
         ))
         return stride(from: 0, to: output.count, by: rowCount).map {
             AjtaiCommitment(Array(output[$0..<$0 + rowCount]))
         }
+    }
+
+    private func checkedProduct(_ factors: [Int], name: String) throws -> Int {
+        var result = 1
+        for factor in factors {
+            guard factor >= 0 else {
+                throw SuperNeoError.invalidParameter("\(name) contains a negative factor")
+            }
+            let product = result.multipliedReportingOverflow(by: factor)
+            guard !product.overflow else {
+                throw SuperNeoError.invalidParameter("\(name) overflows Int")
+            }
+            result = product.partialValue
+        }
+        return result
+    }
+
+    private func checkedSum(_ left: Int, _ right: Int, name: String) throws -> Int {
+        guard left >= 0, right >= 0 else {
+            throw SuperNeoError.invalidParameter("\(name) contains a negative value")
+        }
+        let sum = left.addingReportingOverflow(right)
+        guard !sum.overflow else {
+            throw SuperNeoError.invalidParameter("\(name) overflows Int")
+        }
+        return sum.partialValue
+    }
+
+    private func checkedCeilDiv(_ numerator: Int, by denominator: Int, name: String) throws -> Int {
+        guard numerator >= 0, denominator > 0 else {
+            throw SuperNeoError.invalidParameter("\(name) has invalid operands")
+        }
+        let adjusted = try checkedSum(numerator, denominator - 1, name: name)
+        return adjusted / denominator
     }
 
     private func checkedUInt32(_ value: Int, name: String) throws -> UInt32 {

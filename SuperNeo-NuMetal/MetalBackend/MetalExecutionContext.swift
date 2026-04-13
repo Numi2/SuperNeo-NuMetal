@@ -45,9 +45,14 @@ public final class MetalExecutionContext: @unchecked Sendable {
     public let device: MTLDevice
     public let commandQueue: MTLCommandQueue
     public let features: SuperNeoMetalFeatures
-    @_spi(Benchmarking) public private(set) var lastCommandBufferGPUTimeSeconds: Double?
+    @_spi(Benchmarking) public var lastCommandBufferGPUTimeSeconds: Double? {
+        lock.lock()
+        defer { lock.unlock() }
+        return lastCommandBufferGPUTimeSecondsStorage
+    }
     private let pipelineStore: MetalPipelineStore
     private var pipelineCache: [String: MTLComputePipelineState] = [:]
+    private var lastCommandBufferGPUTimeSecondsStorage: Double?
     private let lock = NSLock()
 
     public init(
@@ -162,7 +167,11 @@ public final class MetalExecutionContext: @unchecked Sendable {
     }
 
     public func makeBuffer<T>(_ values: [T]) throws -> MTLBuffer {
-        let length = MemoryLayout<T>.stride * values.count
+        let length = try checkedBufferLength(
+            count: values.count,
+            stride: MemoryLayout<T>.stride,
+            role: "Metal input buffer"
+        )
         guard length > 0 else {
             return try makeEmptyBuffer(count: 1, as: T.self)
         }
@@ -176,7 +185,13 @@ public final class MetalExecutionContext: @unchecked Sendable {
     }
 
     public func makeEmptyBuffer<T>(count: Int, as _: T.Type) throws -> MTLBuffer {
-        guard let buffer = device.makeBuffer(length: MemoryLayout<T>.stride * count) else {
+        let length = try checkedBufferLength(
+            count: count,
+            stride: MemoryLayout<T>.stride,
+            role: "Metal output buffer"
+        )
+        let allocatedLength = max(length, MemoryLayout<T>.stride)
+        guard let buffer = device.makeBuffer(length: allocatedLength) else {
             throw SuperNeoError.metalFailure("failed to allocate Metal output buffer")
         }
         return buffer
@@ -232,13 +247,30 @@ public final class MetalExecutionContext: @unchecked Sendable {
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
         if commandBuffer.gpuEndTime >= commandBuffer.gpuStartTime, commandBuffer.gpuEndTime > 0 {
-            lastCommandBufferGPUTimeSeconds = commandBuffer.gpuEndTime - commandBuffer.gpuStartTime
+            setLastCommandBufferGPUTimeSeconds(commandBuffer.gpuEndTime - commandBuffer.gpuStartTime)
         } else {
-            lastCommandBufferGPUTimeSeconds = nil
+            setLastCommandBufferGPUTimeSeconds(nil)
         }
         if let error = commandBuffer.error {
             throw SuperNeoError.metalFailure(error.localizedDescription)
         }
+    }
+
+    private func checkedBufferLength(count: Int, stride: Int, role: String) throws -> Int {
+        guard count >= 0, stride > 0 else {
+            throw SuperNeoError.invalidParameter("\(role) has invalid size")
+        }
+        let (length, overflow) = count.multipliedReportingOverflow(by: stride)
+        guard !overflow else {
+            throw SuperNeoError.invalidParameter("\(role) byte length overflow")
+        }
+        return length
+    }
+
+    private func setLastCommandBufferGPUTimeSeconds(_ value: Double?) {
+        lock.lock()
+        lastCommandBufferGPUTimeSecondsStorage = value
+        lock.unlock()
     }
 }
 

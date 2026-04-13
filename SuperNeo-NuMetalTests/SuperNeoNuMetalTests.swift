@@ -202,6 +202,16 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         )
         XCTAssertThrowsSuperNeoError(
             try SparseRingMatrixCSR(
+                rows: Int.max,
+                columns: 1,
+                rowOffsets: [0],
+                columnIndices: [],
+                values: []
+            ),
+            .invalidParameter("sparse ring row offsets must have rows + 1 entries and start at zero")
+        )
+        XCTAssertThrowsSuperNeoError(
+            try SparseRingMatrixCSR(
                 rows: 2,
                 columns: 3,
                 rowOffsets: [0, 2, 1],

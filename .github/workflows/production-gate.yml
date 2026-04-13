@@ -1,0 +1,21 @@
+name: Production Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    name: Build, debug/release test, vectors, and CLI smoke
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run production gate
+        run: Scripts/production-gate.sh

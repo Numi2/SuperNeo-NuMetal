@@ -63,6 +63,11 @@ Artifacts:
 - `ProtocolE2ETests` include malformed proof-envelope and tampering tests.
 - `Docs/GPUDeterminism.md` documents the CPU oracle policy and Metal
   determinism boundary.
+- `.github/workflows/production-gate.yml` runs the release build, debug and
+  release XCTest suites, vector validation, and strict release CLI smoke tests
+  on pull requests and `main`.
+- `Scripts/production-gate.sh` provides the same local release-readiness gate,
+  with an opt-in quick benchmark pass.
 - `TestVectors/manifest.json` gives file hashes, byte counts, workloads, and
   verification commands.
 - `TestVectors/artifact.schema.json` defines the public artifact schema.

@@ -609,7 +609,10 @@ public struct SparseRingMatrixCSR: Equatable, Sendable {
         guard rows >= 0, columns >= 0 else {
             throw SuperNeoError.invalidParameter("sparse ring matrix dimensions must be nonnegative")
         }
-        guard rowOffsets.count == rows + 1, rowOffsets.first == 0 else {
+        let expectedRowOffsetCount = rows.addingReportingOverflow(1)
+        guard !expectedRowOffsetCount.overflow,
+              rowOffsets.count == expectedRowOffsetCount.partialValue,
+              rowOffsets.first == 0 else {
             throw SuperNeoError.invalidParameter("sparse ring row offsets must have rows + 1 entries and start at zero")
         }
         guard columnIndices.count == values.count, rowOffsets.last == values.count else {

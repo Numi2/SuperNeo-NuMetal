@@ -69,6 +69,18 @@ Run the test suite:
 swift test --disable-swift-testing
 ```
 
+Run the production gate:
+
+```sh
+Scripts/production-gate.sh
+```
+
+Include the quick benchmark gate in the same local run:
+
+```sh
+Scripts/production-gate.sh --with-benchmarks
+```
+
 Run the fast test slice:
 
 ```sh
@@ -103,6 +115,12 @@ swift run superneo verify /tmp/binary-add-proof.json
 ```
 
 The default CLI proof kind is a fold reduction. Use `--kind terminal` when you need a complete terminal proof with public CE opening proof material.
+
+For artifacts received outside a trusted local demo loop, verify with pinned
+context instead of relying only on artifact-supplied metadata. Pass
+`--key-seed`, `--expected-verifier-key-digest`, `--expected-shape-digest`,
+`--expected-statement-digest`, and `--expected-public-inputs`; add
+`--require-terminal` when a fold reduction is not sufficient for the caller.
 
 ## Documentation
 
