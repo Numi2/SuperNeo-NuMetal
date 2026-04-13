@@ -65,8 +65,9 @@ independent lattice-estimator reproduction, and untrusted Metal execution.
   inputs, or skip verification.
 - The lattice-estimator harness is independent repository automation, not a new
   cryptographic proof. Dry-run artifacts do not reproduce the claimed
-  `129`-bit estimate; only non-dry-run artifacts with estimator status `ran`
-  should be cited for estimator execution.
+  `129`-bit estimate; only pinned non-dry-run artifacts with estimator status
+  `ran` and `--require-claimed-security` validation should be cited for
+  estimator execution. Latest-upstream runs are drift monitoring only.
 
 ## Commands
 
@@ -75,5 +76,5 @@ swift test --disable-swift-testing --filter CommitmentCoreTests/testTier0AjtaiCo
 swift test --disable-swift-testing --filter ProtocolSmokeTests/testHighAssuranceCPUFoldMatchesOptimizedProof
 swift test --disable-swift-testing --filter MetalDifferentialTests/testTier0CPURedundantMetalPolicyVerifiesFoldOutputs
 Scripts/reproduce-lattice-estimator.sh --dry-run /tmp/superneo-lattice-estimator.json
-Scripts/validate-lattice-estimator-artifact.py --expect-status not_run /tmp/superneo-lattice-estimator.json
+Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent /tmp/superneo-lattice-estimator.json
 ```

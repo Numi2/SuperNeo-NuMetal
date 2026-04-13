@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: Scripts/reproduce-superneo-paper.sh <mode> [output-dir]
+Usage: Scripts/reproduce-superneo-paper.sh <mode> [--with-full-estimator] [output-dir]
 
 Modes:
   plan      Generate claim-map, pinned commands, and report skeleton only.
@@ -12,12 +12,16 @@ Modes:
   scaling   Run scaling benchmark profile and render a reproduction artifact.
   full      Run full benchmark profile and render a reproduction artifact.
 
+Options:
+  --with-full-estimator  Run the canonical pinned Sage/lattice-estimator lane
+                         instead of the default dry-run parameter artifact.
+
 Outputs are written under paper-reproduction/ by default.
 USAGE
 }
 
 MODE="${1:-plan}"
-if [[ $# -gt 0 ]]; then
+if [[ $# -gt 0 && "$1" != --* ]]; then
   shift
 fi
 
@@ -35,8 +39,34 @@ case "${MODE}" in
 esac
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WITH_FULL_ESTIMATOR=0
+OUTPUT_DIR_ARG=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --with-full-estimator)
+      WITH_FULL_ESTIMATOR=1
+      shift
+      ;;
+    -h|--help|help)
+      usage
+      exit 0
+      ;;
+    --*)
+      usage >&2
+      exit 64
+      ;;
+    *)
+      if [[ -n "${OUTPUT_DIR_ARG}" ]]; then
+        usage >&2
+        exit 64
+      fi
+      OUTPUT_DIR_ARG="$1"
+      shift
+      ;;
+  esac
+done
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-OUTPUT_DIR="${1:-${ROOT_DIR}/paper-reproduction/${TIMESTAMP}-${MODE}}"
+OUTPUT_DIR="${OUTPUT_DIR_ARG:-${ROOT_DIR}/paper-reproduction/${TIMESTAMP}-${MODE}}"
 LOG_DIR="${OUTPUT_DIR}/logs"
 BENCHMARK_OUT="${OUTPUT_DIR}/benchmark-results"
 VECTOR_OUT="${OUTPUT_DIR}/test-vectors"
@@ -58,6 +88,7 @@ capture_environment() {
     echo
     echo "Generated: ${TIMESTAMP}"
     echo "Mode: ${MODE}"
+    echo "Full estimator: ${WITH_FULL_ESTIMATOR}"
     echo "Root: ${ROOT_DIR}"
     echo
     echo "## Git"
@@ -96,14 +127,31 @@ copy_benchmark_results() {
 
 capture_environment
 copy_vectors
-run_and_log lattice-estimator-dry-run \
-  Scripts/reproduce-lattice-estimator.sh \
-  --dry-run \
-  "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
-run_and_log lattice-estimator-validate \
-  Scripts/validate-lattice-estimator-artifact.py \
-  --expect-status not_run \
-  "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
+if [[ "${WITH_FULL_ESTIMATOR}" -eq 1 ]]; then
+  run_and_log lattice-estimator-pinned-full \
+    Scripts/reproduce-lattice-estimator.sh \
+    --full \
+    --pinned \
+    "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
+  run_and_log lattice-estimator-validate \
+    Scripts/validate-lattice-estimator-artifact.py \
+    --expect-status ran \
+    --expect-latest-status absent \
+    --require-claimed-security \
+    "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
+else
+  run_and_log lattice-estimator-dry-run \
+    Scripts/reproduce-lattice-estimator.sh \
+    --dry-run \
+    "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
+  run_and_log lattice-estimator-validate \
+    Scripts/validate-lattice-estimator-artifact.py \
+    --expect-status not_run \
+    --expect-latest-status absent \
+    "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
+fi
+run_and_log formal-status \
+  Scripts/validate-formal-status.py
 
 case "${MODE}" in
   plan)

@@ -7,8 +7,11 @@ artifacts, and generated reports.
 
 It is an implementation artifact. It does not re-prove the paper's theorems.
 Appendix D.8 estimator execution is available through a separate Sage-backed
-command and should only be cited when the generated JSON reports estimator
-status `ran`.
+command and should only be cited when the generated JSON's pinned reproduction
+lane reports estimator status `ran` and validation requires the 129-bit
+threshold.
+
+Formal status: bounded formalization.
 
 ## Command
 
@@ -29,6 +32,12 @@ Run the quick profile and render a new artifact:
 
 ```sh
 Scripts/reproduce-superneo-paper.sh quick
+```
+
+Include the canonical pinned Sage/lattice-estimator lane when Sage is available:
+
+```sh
+Scripts/reproduce-superneo-paper.sh quick --with-full-estimator
 ```
 
 Run scaling or full profiles on pinned Apple Silicon hardware:
@@ -53,7 +62,7 @@ benchmark exports.
 | `logs/` | Command output captured by the harness. |
 | `benchmark-results/` | Copied benchmark `results.json`, `metadata.json`, and `report.md`. |
 | `test-vectors/` | Copied public test vectors used by the reproduction checks. |
-| `lattice-estimator/` | Dry-run Module-SIS estimator parameter artifact for the implemented profile, validated by the lattice artifact checker. |
+| `lattice-estimator/` | Dry-run Module-SIS parameter artifact by default, or pinned full estimator output when `--with-full-estimator` is used. |
 
 ## Claim Families
 
@@ -61,7 +70,8 @@ The harness currently tracks these paper-to-repository claims:
 
 - `D1-parameters-module-sis-profile`: Appendix B.2 constants and the claimed
   129-bit Module-SIS profile, plus exact derived and validated estimator
-  inputs.
+  inputs. Pinned full runs are the only docs-facing estimator reproduction lane;
+  latest-upstream runs are drift monitoring only.
 - `D2-pay-per-bit-commitment-cost-model`: norm-preserving embedding and
   small-coefficient Ajtai work profile.
 - `D3-field-native-folding-stages`: PiCCS, PiRLC, PiDEC, fold, and reduction
@@ -84,8 +94,11 @@ envelope and golden vector, and records benchmark rows for the selected profile.
 It does not mean:
 
 - production cryptographic certification,
-- independent Module-SIS hardness estimation unless the non-dry-run
-  lattice-estimator command completed successfully,
+- independent Module-SIS hardness estimation unless the pinned non-dry-run
+  lattice-estimator command completed successfully and validation required the
+  129-bit threshold,
+- latest-upstream estimator output as a replacement for the pinned reproduction
+  baseline,
 - formal side-channel resistance,
 - malicious-host resistance,
 - correctness of third-party integrations, or

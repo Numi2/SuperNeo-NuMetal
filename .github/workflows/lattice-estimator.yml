@@ -1,0 +1,70 @@
+name: Lattice Estimator Reproduction
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_latest:
+        description: "Also run latest-upstream drift monitoring"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+jobs:
+  estimator:
+    name: Sage-backed Module-SIS estimator
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: superneo-sage
+
+      - name: Install SageMath
+        run: conda install -y sage
+
+      - name: Run pinned estimator reproduction
+        run: |
+          Scripts/reproduce-lattice-estimator.sh \
+            --full \
+            --pinned \
+            lattice-estimator-results/superneo-goldilocks-phi81-pinned.json
+          Scripts/validate-lattice-estimator-artifact.py \
+            --expect-status ran \
+            --expect-latest-status absent \
+            --require-claimed-security \
+            lattice-estimator-results/superneo-goldilocks-phi81-pinned.json
+
+      - name: Run latest-upstream drift monitoring
+        if: ${{ inputs.run_latest == 'true' }}
+        run: |
+          Scripts/reproduce-lattice-estimator.sh \
+            --full \
+            --pinned \
+            --latest \
+            lattice-estimator-results/superneo-goldilocks-phi81-latest-monitoring.json
+          Scripts/validate-lattice-estimator-artifact.py \
+            --expect-status ran \
+            --expect-latest-status ran \
+            --require-claimed-security \
+            lattice-estimator-results/superneo-goldilocks-phi81-latest-monitoring.json
+
+      - name: Upload estimator artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lattice-estimator-results
+          path: lattice-estimator-results

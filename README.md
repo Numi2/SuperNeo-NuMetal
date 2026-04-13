@@ -86,7 +86,7 @@ Record the implemented Module-SIS estimator parameters:
 
 ```sh
 Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/validate-lattice-estimator-artifact.py --expect-status not_run lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json
 ```
 
 Include the quick benchmark gate in the same local run:
@@ -159,6 +159,7 @@ Core documentation:
 - [Production Readiness, 2026-04-13](Docs/ProductionReadiness-2026-04-13.md): review findings addressed, gate coverage, and residual trust boundaries.
 - [Paper Reproduction](Docs/PaperReproduction.md): reproducibility harness and claim map.
 - [Roadmap Status](Docs/RoadmapStatus.md): current artifact map and project status.
+- [Formal Verification](Docs/FormalVerification.md): Lean 4 formalization track and status-label policy.
 
 Benchmark reports:
 

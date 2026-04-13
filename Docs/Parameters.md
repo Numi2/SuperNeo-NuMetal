@@ -77,14 +77,23 @@ for Appendix D.8:
 
 ```sh
 Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/validate-lattice-estimator-artifact.py --expect-status not_run lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/reproduce-lattice-estimator.sh lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/reproduce-lattice-estimator.sh --full --pinned lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/validate-lattice-estimator-artifact.py --expect-status ran --expect-latest-status absent --require-claimed-security lattice-estimator-results/superneo-goldilocks-phi81.json
 ```
 
 Dry-run mode records the exact `SIS.Parameters` inputs for this profile. Full
 mode requires SageMath and the upstream `malb/lattice-estimator` checkout pinned
-in the script. Treat the estimate as independently reproduced only when the JSON
-artifact reports estimator status `ran`.
+in the script. Treat the estimate as independently reproduced only when the
+pinned lane reports estimator status `ran` and validation requires the 129-bit
+threshold. Latest-upstream runs are available for drift monitoring, not for
+replacing the pinned evidence lane.
+
+The estimator input is a coefficient-expanded SIS encoding of the protocol's
+Module-SIS/ring commitment claim: `n = kappa * d`, `m = 2^30`,
+`length_bound = sqrt(m) * (8 * T * b^k)`, `q` is the Goldilocks modulus, and
+`norm = 2`. This translation is documented in
+`Docs/LatticeEstimatorReproduction.md`.
 
 This harness does not convert the research analysis into a production
 cryptographic certification.

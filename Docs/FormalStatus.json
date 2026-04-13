@@ -1,0 +1,120 @@
+{
+  "schema": "superneo.formal-status.v1",
+  "current_label": "bounded formalization",
+  "labels": {
+    "bounded formalization": {
+      "rank": 0,
+      "required_theorem_groups": []
+    },
+    "partial formalization": {
+      "rank": 1,
+      "required_theorem_groups": [
+        "profile-constants",
+        "ajtai-commitment-map",
+        "ajtai-opening-linearity",
+        "ajtai-binding-reduction"
+      ]
+    },
+    "completed formal protocol theorem": {
+      "rank": 2,
+      "required_theorem_groups": [
+        "profile-constants",
+        "ajtai-commitment-map",
+        "ajtai-opening-linearity",
+        "ajtai-binding-reduction",
+        "pidec-recomposition",
+        "pirlc-soundness-assumptions",
+        "piccs-sumcheck-model",
+        "terminal-ce-relation",
+        "superneo-composition-theorem"
+      ]
+    }
+  },
+  "theorem_groups": [
+    {
+      "id": "profile-constants",
+      "lean_module": "SuperNeoFormal.Profile",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.goldilocksModulus_eq",
+        "SuperNeoFormal.phi81Degree_eq",
+        "SuperNeoFormal.kappa_eq",
+        "SuperNeoFormal.decompositionLength_eq"
+      ]
+    },
+    {
+      "id": "ajtai-commitment-map",
+      "lean_module": "SuperNeoFormal.Ajtai",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.commit_zero",
+        "SuperNeoFormal.commit_add",
+        "SuperNeoFormal.commit_sub"
+      ]
+    },
+    {
+      "id": "ajtai-opening-linearity",
+      "lean_module": "SuperNeoFormal.Ajtai",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.opening_commitment_unique_under_message_eq"
+      ]
+    },
+    {
+      "id": "ajtai-binding-reduction",
+      "lean_module": "SuperNeoFormal.Ajtai",
+      "status": "closed_under_msis_assumption",
+      "declarations": [
+        "SuperNeoFormal.binding_from_noShortKernel"
+      ]
+    },
+    {
+      "id": "pidec-recomposition",
+      "lean_module": "SuperNeoFormal.Roadmap",
+      "status": "planned",
+      "declarations": []
+    },
+    {
+      "id": "pirlc-soundness-assumptions",
+      "lean_module": "SuperNeoFormal.Roadmap",
+      "status": "planned",
+      "declarations": []
+    },
+    {
+      "id": "piccs-sumcheck-model",
+      "lean_module": "SuperNeoFormal.Roadmap",
+      "status": "planned",
+      "declarations": []
+    },
+    {
+      "id": "terminal-ce-relation",
+      "lean_module": "SuperNeoFormal.Roadmap",
+      "status": "planned",
+      "declarations": []
+    },
+    {
+      "id": "superneo-composition-theorem",
+      "lean_module": "SuperNeoFormal.Roadmap",
+      "status": "planned",
+      "declarations": []
+    }
+  ],
+  "documentation_claims": [
+    {
+      "path": "Docs/PaperReproduction.md",
+      "label": "bounded formalization"
+    },
+    {
+      "path": "Docs/RoadmapStatus.md",
+      "label": "bounded formalization"
+    },
+    {
+      "path": "Docs/WhatThisProves.md",
+      "label": "bounded formalization"
+    },
+    {
+      "path": "Docs/FormalVerification.md",
+      "label": "bounded formalization"
+    }
+  ]
+}

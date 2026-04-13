@@ -71,6 +71,9 @@ let outputDirectory = URL(fileURLWithPath: arguments[0], isDirectory: true)
 let mode = arguments[1]
 let benchmarkProfile = mode == "plan" || mode == "snapshot" ? "quick" : mode
 let benchmarkDirectory = outputDirectory.appendingPathComponent("benchmark-results", isDirectory: true)
+let latticeArtifactURL = outputDirectory
+    .appendingPathComponent("lattice-estimator", isDirectory: true)
+    .appendingPathComponent("superneo-goldilocks-phi81.json")
 let resultsURL = benchmarkDirectory.appendingPathComponent("results.json")
 let metadataURL = benchmarkDirectory.appendingPathComponent("metadata.json")
 let reportURL = outputDirectory.appendingPathComponent("report.md")
@@ -95,8 +98,10 @@ let claims = [
         commands: [
             "swift test --disable-swift-testing --filter ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile",
             "Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json",
-            "Scripts/validate-lattice-estimator-artifact.py --expect-status not_run lattice-estimator-results/superneo-goldilocks-phi81.json",
-            "Scripts/reproduce-lattice-estimator.sh lattice-estimator-results/superneo-goldilocks-phi81.json"
+            "Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json",
+            "Scripts/reproduce-lattice-estimator.sh --full --pinned lattice-estimator-results/superneo-goldilocks-phi81.json",
+            "Scripts/validate-lattice-estimator-artifact.py --expect-status ran --expect-latest-status absent --require-claimed-security lattice-estimator-results/superneo-goldilocks-phi81.json",
+            "Scripts/reproduce-lattice-estimator.sh --full --pinned --latest lattice-estimator-results/superneo-goldilocks-phi81-latest-monitoring.json"
         ],
         benchmarkSelectors: [],
         generatedArtifacts: [
@@ -276,6 +281,8 @@ swift run superneo inspect TestVectors/one-hot-vector-fold-v1.json
 swift run superneo inspect TestVectors/binary-addition-u8-fold-v1.json
 swift Scripts/validate-test-vectors.swift
 Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/validate-formal-status.py
 Scripts/test-slice.sh fast
 Scripts/test-slice.sh protocol
 Scripts/test-slice.sh metal
@@ -302,6 +309,8 @@ if mode != "plan", results.isEmpty {
 }
 
 let metadata = (try? String(contentsOf: metadataURL, encoding: .utf8)) ?? "{}"
+let latticeArtifact = (try? Data(contentsOf: latticeArtifactURL))
+    .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
 let wallClock = results
     .filter { $0.name.contains(" - Time (wall clock)") }
     .map { (baseBenchmarkName($0.name), $0) }
@@ -343,12 +352,57 @@ func conciseBenchmarkSummary() -> [String] {
     }
 }
 
+func laneSummary(_ lane: Any?, fallback: String) -> String {
+    guard let lane = lane as? [String: Any] else { return fallback }
+    let status = lane["status"] as? String ?? "unknown"
+    guard status == "ran" else {
+        let reason = lane["reason"] as? String ?? "not run"
+        return "`\(status)` (\(reason))"
+    }
+    let commit = lane["commit"] as? String ?? "unknown commit"
+    let shortCommit = String(commit.prefix(12))
+    let bits = lane["minimum_extracted_rop_bits"].map { "\($0)" } ?? "unknown"
+    let cleared = lane["threshold_cleared"] as? Bool
+    let result = cleared == true ? "cleared" : "did not clear"
+    return "`ran` at `\(shortCommit)`; minimum extracted ROP bits `\(bits)`; threshold \(result)"
+}
+
+func jsonScalar(_ value: Any?) -> String {
+    guard let value else { return "null" }
+    if value is NSNull { return "null" }
+    if let number = value as? NSNumber {
+        if CFGetTypeID(number) == CFBooleanGetTypeID() {
+            return number.boolValue ? "true" : "false"
+        }
+        return "\(number)"
+    }
+    return "\(value)"
+}
+
+func estimatorSummary() -> [String] {
+    guard let latticeArtifact else {
+        return ["No lattice-estimator artifact was present."]
+    }
+    let schema = latticeArtifact["artifact_schema"] as? String ?? "unknown"
+    let threshold = latticeArtifact["paper_claim_threshold_bits"] ?? "unknown"
+    let pinned = laneSummary(latticeArtifact["pinned_reproduction"], fallback: "missing")
+    let latest = laneSummary(latticeArtifact["latest_monitoring"], fallback: "not requested")
+    return [
+        "- Schema: `\(schema)`",
+        "- Paper claim threshold: `\(threshold)` bits",
+        "- Pinned reproduction: \(pinned)",
+        "- Latest-upstream monitoring: \(latest)",
+        "- `claimed_security_reproduced_under_pinned_toolchain`: `\(jsonScalar(latticeArtifact["claimed_security_reproduced_under_pinned_toolchain"]))`",
+        "- `latest_upstream_still_clears_threshold`: `\(jsonScalar(latticeArtifact["latest_upstream_still_clears_threshold"]))`"
+    ]
+}
+
 var report: [String] = [
     "# SuperNeo Paper Reproduction Report",
     "",
     "Mode: `\(mode)`",
     "",
-    "This artifact maps the bundled Neo/SuperNeo paper claims to repository commands, tests, benchmark selectors, and generated files. It is an implementation-reproduction harness: it does not re-prove the paper's theorems. It records the exact Module-SIS estimator parameters in dry-run mode; full lattice-estimator execution is a separate Sage-backed command and is only claimed when that artifact reports `status: ran`.",
+    "This artifact maps the bundled Neo/SuperNeo paper claims to repository commands, tests, benchmark selectors, and generated files. It is an implementation-reproduction harness: it does not re-prove the paper's theorems. It records the exact Module-SIS estimator parameters in dry-run mode; full lattice-estimator execution is claimed only from the pinned Sage-backed lane when that lane reports `status: ran` and validation passes.",
     "",
     "## Generated Artifacts",
     "",
@@ -357,7 +411,7 @@ var report: [String] = [
     "- `logs/`: command outputs captured by the harness when the selected mode runs commands.",
     "- `benchmark-results/`: copied benchmark JSON, metadata, and benchmark report when available.",
     "- `test-vectors/`: copied public vectors used by the reproduction checks.",
-    "- `lattice-estimator/`: derived Module-SIS estimator parameters for the implemented profile.",
+    "- `lattice-estimator/`: derived Module-SIS estimator parameters and optional pinned Sage-backed estimator output for the implemented profile.",
     "",
     "## Environment Metadata",
     "",
@@ -380,6 +434,13 @@ for claim in claims {
             + " | \(claim.benchmarkSelectors.map { "`\($0)`" }.joined(separator: "<br>")) |"
     )
 }
+
+report.append(contentsOf: [
+    "",
+    "## Lattice Estimator Summary",
+    ""
+])
+report.append(contentsOf: estimatorSummary())
 
 report.append(contentsOf: [
     "",
@@ -412,7 +473,7 @@ report.append(contentsOf: [
     "",
     "## Required Interpretation",
     "",
-    "A passing artifact supports the implementation claims listed above. It does not certify production security. Side-channel and malicious-GPU resistance depend on using the explicit high-assurance execution policy and on the remaining boundaries documented in `Docs/HighAssuranceHardening-2026-04-13.md`. Independent Module-SIS estimation is only claimed when `Scripts/reproduce-lattice-estimator.sh` completes a non-dry-run Sage/lattice-estimator execution."
+    "A passing artifact supports the implementation claims listed above. It does not certify production security. Side-channel and malicious-GPU resistance depend on using the explicit high-assurance execution policy and on the remaining boundaries documented in `Docs/HighAssuranceHardening-2026-04-13.md`. Independent Module-SIS estimation is only claimed from the pinned reproduction lane when `Scripts/reproduce-lattice-estimator.sh --full --pinned` completes under Sage and validation passes with `--require-claimed-security`. Latest-upstream runs are drift monitoring only."
 ])
 
 try report.joined(separator: "\n").write(to: reportURL, atomically: true, encoding: .utf8)

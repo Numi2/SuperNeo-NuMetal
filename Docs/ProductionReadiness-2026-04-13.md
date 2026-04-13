@@ -77,11 +77,13 @@ guidance.
 
 `Scripts/reproduce-lattice-estimator.sh` derives the exact Appendix D.8 GL
 Module-SIS inputs and can run the pinned upstream lattice-estimator through
-SageMath. `Scripts/validate-lattice-estimator-artifact.py` checks the pinned
-source, exact profile constants, derived SIS tuple, strong-sampling inequality,
-and estimator status. Dry-run generation and validation are part of the
-production gate; full estimator execution is intentionally separate because it
-requires Sage.
+SageMath. It also has a latest-upstream monitoring lane for drift reporting, but
+that lane is not canonical docs-facing evidence. `Scripts/validate-lattice-estimator-artifact.py`
+checks the pinned source, exact profile constants, derived SIS tuple,
+strong-sampling inequality, normalized estimator rows, lane-specific threshold
+semantics, and estimator status. Dry-run generation and validation are part of
+the production gate; full estimator execution is intentionally separate because
+it requires Sage.
 
 ## Verification
 

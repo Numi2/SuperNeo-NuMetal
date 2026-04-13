@@ -89,7 +89,9 @@ binary_add_path="$(make_temp_json)"
 cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_terminal_path}" "${binary_add_path}")
 
 run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
-run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run "${lattice_path}"
+run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent "${lattice_path}"
+run_step Scripts/test-lattice-estimator-artifact-validation.py
+run_step Scripts/validate-formal-status.py
 
 run_step "${SUPERNEO_CLI}" prove \
   --bits 0,0,1,0,0,0,0,0 \

@@ -4,6 +4,8 @@ This page is the shortest safe description of SuperNeo NuMetal's proof
 semantics. Use it when explaining the project to someone who needs to know what
 verifier acceptance means.
 
+Formal status: bounded formalization.
+
 ## The Relation
 
 SuperNeo NuMetal folds committed CCS instance-witness claims over the
@@ -106,6 +108,11 @@ This repository does not yet provide:
 The repository does include a pinned lattice-estimator reproduction harness and
 opt-in high-assurance execution policies. Those are hardening artifacts; they do
 not change the meaning of proof acceptance by themselves.
+
+The repository also includes a Lean 4 formalization track. The current formal
+status is bounded: the tracked theorem groups start with Ajtai commitment
+linearity and binding reduction under an explicit MSIS no-short-kernel
+assumption, but the full protocol composition theorem is not yet closed.
 
 Until those pieces exist, the correct public positioning is:
 
