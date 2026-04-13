@@ -11,6 +11,8 @@ Usage: Scripts/production-gate.sh [--with-benchmarks]
 Runs the release-readiness gate for SuperNeo NuMetal:
   - release build
   - debug and release XCTest suites
+  - Lean formal build and formal-status validation
+  - Lean/Swift profile-constant conformance validation
   - checked-in test vector validation
   - release CLI fold and terminal prove/verify smoke for bundled workloads
 
@@ -51,6 +53,14 @@ run_step() {
   echo
   echo "==> $*"
   "$@"
+}
+
+run_step_in_dir() {
+  local dir="$1"
+  shift
+  echo
+  echo "==> (${dir}) $*"
+  (cd "${dir}" && "$@")
 }
 
 run_expect_failure() {
@@ -100,8 +110,11 @@ cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_pat
 run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
 run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent "${lattice_path}"
 run_step Scripts/test-lattice-estimator-artifact-validation.py
+run_step_in_dir Formal lake build
 run_step Scripts/validate-formal-status.py
 run_step Scripts/test-formal-status-validation.py
+run_step Scripts/validate-formal-profile-constants.py
+run_step Scripts/test-formal-profile-constants-validation.py
 
 run_step "${SUPERNEO_CLI}" prove \
   --bits 0,0,1,0,0,0,0,0 \
