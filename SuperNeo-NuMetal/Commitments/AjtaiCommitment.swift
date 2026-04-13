@@ -6,10 +6,11 @@ public struct AjtaiCommitmentKey: Equatable, Sendable {
 
     public init(parameters: SuperNeoParameters = .goldilocks, columns: Int, seed: [UInt8]) throws {
         guard columns > 0 else { throw SuperNeoError.invalidParameter("Ajtai key requires at least one column") }
+        let elementCount = try checkedAjtaiKeyElementCount(parameters: parameters, columns: columns)
         var rng = DeterministicRNG(seed: seed)
         var elements: [CyclotomicRing54] = []
-        elements.reserveCapacity(parameters.kappa * columns)
-        for _ in 0..<(parameters.kappa * columns) {
+        elements.reserveCapacity(elementCount)
+        for _ in 0..<elementCount {
             let coeffs = (0..<parameters.ringDegree).map { _ in rng.nextField() }
             elements.append(CyclotomicRing54(coeffs))
         }
@@ -40,6 +41,14 @@ public struct AjtaiCommitmentKey: Equatable, Sendable {
         bytes.append(contentsOf: matrix.elements.flatMap(\.littleEndianBytes))
         return Digest256.hash(bytes)
     }
+}
+
+private func checkedAjtaiKeyElementCount(parameters: SuperNeoParameters, columns: Int) throws -> Int {
+    let product = parameters.kappa.multipliedReportingOverflow(by: columns)
+    guard !product.overflow else {
+        throw SuperNeoError.invalidParameter("Ajtai key dimensions overflow")
+    }
+    return product.partialValue
 }
 
 private func ajtaiDigestEncodeUInt16(_ value: UInt16) -> [UInt8] {

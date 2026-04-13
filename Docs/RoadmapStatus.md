@@ -89,6 +89,8 @@ Artifacts:
   context mismatches.
 - `Docs/HighAssuranceHardening-2026-04-13.md` records the side-channel,
   malicious-GPU, and estimator-reproduction hardening pass.
+- `Docs/AjtaiKeyHardening-2026-04-13.md` records the fail-closed seeded Ajtai
+  key dimension-overflow hardening pass.
 - `.github/workflows/production-gate.yml` runs the release build, debug and
   release XCTest suites, vector validation, and strict release CLI smoke tests
   on pull requests and `main`.

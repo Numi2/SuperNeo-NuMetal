@@ -290,6 +290,14 @@ final class CommitmentCoreTests: SuperNeoTestCase {
         )
     }
 
+    func testTier0AjtaiSeededKeyRejectsDimensionOverflowBeforeAllocation() {
+        let overflowingColumns = (Int.max / SuperNeoParameters.goldilocks.kappa) + 1
+        XCTAssertThrowsSuperNeoError(
+            try AjtaiCommitmentKey(columns: overflowingColumns, seed: Array("overflow".utf8)),
+            .invalidParameter("Ajtai key dimensions overflow")
+        )
+    }
+
     func testTier0AjtaiWorkProfileTracksSparseSmallCoefficientCost() throws {
         let rows = SuperNeoParameters.goldilocks.kappa
         let columns = 2
