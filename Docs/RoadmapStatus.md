@@ -87,6 +87,9 @@ Artifacts:
   proof measurements can reuse the transformed sparse CCS shape and bound Metal
   workspace while rejecting profile, shape, key, execution-policy, and Metal
   context mismatches.
+- `SuperNeoPreparedPiRLCTranscript` is available to the benchmarking SPI so
+  PiRLC stage rows can prepare and validate the post-sum-check transcript in
+  benchmark setup instead of charging sum-check proving work to PiRLC timing.
 - `Docs/HighAssuranceHardening-2026-04-13.md` records the side-channel,
   malicious-GPU, and estimator-reproduction hardening pass.
 - `Docs/AjtaiKeyHardening-2026-04-13.md` records the fail-closed seeded Ajtai
@@ -97,6 +100,8 @@ Artifacts:
 - `Docs/BinaryAdditionArtifactMetadataHardening-2026-04-13.md` records
   fail-closed binary-addition `publicSum` metadata validation in the CLI,
   vector schema, vector validator, and production gate.
+- `Docs/BenchmarkPiRLCIsolation-2026-04-14.md` records the PiRLC benchmark
+  boundary correction and validation plan.
 - `Docs/CLIHighAssurancePolicy-2026-04-13.md` records the CLI proof-generation
   switch to explicit `.highAssurance` execution policy.
 - `Docs/ArtifactUnknownFieldHardening-2026-04-13.md` records fail-closed

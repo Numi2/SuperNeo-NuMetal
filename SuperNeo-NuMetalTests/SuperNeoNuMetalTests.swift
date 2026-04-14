@@ -2451,6 +2451,41 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         )
     }
 
+    func testPreparedPiRLCTranscriptMatchesFoldAndRejectsWrongPoint() throws {
+        let fixture = try makeFoldFixture()
+        let prover = fixture.backend.makeProver(key: fixture.key)
+        let fold = try prover.foldWithOutput(fixture.input, transcriptSeed: fixture.seed)
+        let proof = fold.proof
+        let preparedTranscript = try prover.preparePiRLCTranscript(
+            input: fixture.input,
+            sumCheck: proof.sumCheck,
+            claims: proof.piCCSClaims,
+            transcriptSeed: fixture.seed
+        )
+
+        let rlc = try prover.benchmarkPiRLC(
+            claims: proof.piCCSClaims,
+            preparedTranscript: preparedTranscript
+        )
+
+        XCTAssertEqual(rlc.challenges, proof.randomLinearCombinationChallenges)
+        XCTAssertEqual(rlc.foldedClaim, proof.foldedClaim)
+
+        var wrongPoint = proof.sumCheck.finalPoint
+        wrongPoint[0] = wrongPoint[0] + .one
+        var wrongClaims = proof.piCCSClaims
+        wrongClaims[0] = replacing(wrongClaims[0], point: wrongPoint)
+        XCTAssertThrowsSuperNeoError(
+            try prover.preparePiRLCTranscript(
+                input: fixture.input,
+                sumCheck: proof.sumCheck,
+                claims: wrongClaims,
+                transcriptSeed: fixture.seed
+            ),
+            .invalidParameter("PiRLC claims must use the sum-check final point")
+        )
+    }
+
     func testVerifierRejectsTamperedDecompositionCommitment() throws {
         let fixture = try makeFoldFixture()
         let proof = try fixture.backend.makeProver(key: fixture.key).fold(fixture.input, transcriptSeed: fixture.seed)

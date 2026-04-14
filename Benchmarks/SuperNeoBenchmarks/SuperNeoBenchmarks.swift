@@ -191,6 +191,14 @@ private func registerStageBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     let preparedContext = benchmarkSetupValue("failed to prepare stage fold context for \(label)") {
         try prover.prepareFoldContext(for: fixture.input)
     }
+    let preparedPiRLCTranscript = benchmarkSetupValue("failed to prepare PiRLC transcript for \(label)") {
+        try prover.preparePiRLCTranscript(
+            input: fixture.input,
+            sumCheck: fixture.referenceFold.proof.sumCheck,
+            claims: claims,
+            transcriptSeed: fixture.transcriptSeed
+        )
+    }
 
     Benchmark("stage/sumcheck/\(label)", configuration: defaultConfiguration) { _ in
         let proof = try prover.benchmarkSumCheckProof(
@@ -228,19 +236,16 @@ private func registerStageBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
 
     Benchmark("stage/piRLC/\(label)", configuration: defaultConfiguration) { _ in
         let rlc = try prover.benchmarkPiRLC(
-            input: fixture.input,
             claims: claims,
-            transcriptSeed: fixture.transcriptSeed
+            preparedTranscript: preparedPiRLCTranscript
         )
         blackHole(rlc.challenges.count)
     }
 
     Benchmark("stage/prepared/piRLC/\(label)", configuration: defaultConfiguration) { _ in
         let rlc = try prover.benchmarkPiRLC(
-            input: fixture.input,
             claims: claims,
-            transcriptSeed: fixture.transcriptSeed,
-            preparedContext: preparedContext
+            preparedTranscript: preparedPiRLCTranscript
         )
         blackHole(rlc.challenges.count)
     }

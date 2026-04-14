@@ -202,6 +202,11 @@ Current CPU-path baseline:
   matrix compilation and Metal workspace allocation into benchmark setup, so
   repeated-proof runs measure transcript, sum-check, PiCCS, PiRLC, PiDEC, and
   backend kernel work without hiding setup churn in each iteration.
+- `stage/piRLC/*` rows prepare and validate the post-sum-check transcript during
+  benchmark setup, then measure only PiCCS claim absorption, challenge-ring
+  derivation, and random-linear-combination arithmetic. The older SPI helpers
+  remain available for integration-style timing but no longer define the stage
+  row boundary.
 - Public CE proof generation and verification precompute per-opening evaluation bases, check cheap transcript digests before expensive private-linear reconstruction, chunk prover private-linear work across Stern rounds, and batch verifier challenge-0/1 private-linear jobs after the transcript scan. CPU CE batches fuse each opening's commitment and transformed evaluations in one parallel pass; provers and verifiers with a Metal context route same-point CE batches through the combined workspace commit-plus-evaluation path.
 - CPU Ajtai commitment uses a fused coefficient-buffer matvec for the reference path.
 

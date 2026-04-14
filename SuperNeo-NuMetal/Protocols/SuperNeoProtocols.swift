@@ -145,6 +145,22 @@ public struct FoldProverOutput: Equatable, Sendable {
     }
 }
 
+@_spi(Benchmarking) public struct SuperNeoPreparedPiRLCTranscript: Sendable {
+    fileprivate let transcriptAfterSumCheck: SumCheckTranscript
+    public let sumCheckFinalPoint: [GoldilocksExt2]
+    public let claimCount: Int
+
+    fileprivate init(
+        transcriptAfterSumCheck: SumCheckTranscript,
+        sumCheckFinalPoint: [GoldilocksExt2],
+        claimCount: Int
+    ) {
+        self.transcriptAfterSumCheck = transcriptAfterSumCheck
+        self.sumCheckFinalPoint = sumCheckFinalPoint
+        self.claimCount = claimCount
+    }
+}
+
 public struct TerminalFoldProof: Equatable, Sendable {
     public let foldProof: FoldProof
     public let terminalStatement: TerminalCEStatement
@@ -1383,6 +1399,46 @@ public final class SuperNeoProver: @unchecked Sendable {
             executionPolicy: executionPolicy,
             compiledShape: compiledShape,
             metalWorkspace: metalWorkspace
+        )
+    }
+
+    @_spi(Benchmarking) public func preparePiRLCTranscript(
+        input: SuperNeoFoldInput,
+        sumCheck: SumcheckProof,
+        claims: [CCSEvaluationClaim],
+        transcriptSeed: [UInt8] = []
+    ) throws -> SuperNeoPreparedPiRLCTranscript {
+        try validateFoldInput(input, parameters: parameters)
+        let publicInput = SuperNeoPublicFoldInput(input)
+        var transcript = makeFoldTranscript(input: publicInput, transcriptSeed: transcriptSeed)
+        let qState = try makePublicQState(input: publicInput, transcript: &transcript, parameters: parameters)
+        guard sumCheck.claimedSum == (try qState.claimedSum(from: publicInput.priorClaims)) else {
+            throw SuperNeoError.invalidParameter("sum-check claimed sum mismatch")
+        }
+        try replaySumCheckTranscript(
+            sumCheck,
+            into: &transcript,
+            expectedDegree: qState.maxDegreePerRound,
+            expectedRoundCount: qState.numVars
+        )
+        guard claims.count == publicInput.instances.count + publicInput.priorClaims.count else {
+            throw SuperNeoError.invalidParameter("PiRLC claim count must match fold input")
+        }
+        guard claims.allSatisfy({ $0.point == sumCheck.finalPoint }) else {
+            throw SuperNeoError.invalidParameter("PiRLC claims must use the sum-check final point")
+        }
+        guard try qState.finalEvaluation(
+            instances: publicInput.instances,
+            priorClaims: publicInput.priorClaims,
+            proofClaims: claims,
+            point: sumCheck.finalPoint
+        ) == sumCheck.finalValue else {
+            throw SuperNeoError.invalidParameter("sum-check final value mismatch")
+        }
+        return SuperNeoPreparedPiRLCTranscript(
+            transcriptAfterSumCheck: transcript,
+            sumCheckFinalPoint: sumCheck.finalPoint,
+            claimCount: claims.count
         )
     }
 
@@ -3006,10 +3062,14 @@ private enum SuperNeoProtocolOracle {
         transcriptSeed: [UInt8] = []
     ) throws -> (foldedClaim: CCSEvaluationClaim, challenges: [CyclotomicRing54]) {
         try validateFoldInput(input, parameters: parameters)
-        var transcript = makeFoldTranscript(input: input, transcriptSeed: transcriptSeed)
-        _ = try makeSumCheckProof(input: input, transcript: &transcript)
-        absorbEvaluationClaimBatch(claims, into: &transcript)
-        return try randomLinearCombination(claims: claims, transcript: &transcript)
+        let sumCheck = try benchmarkSumCheckProof(input: input, transcriptSeed: transcriptSeed)
+        let preparedTranscript = try preparePiRLCTranscript(
+            input: input,
+            sumCheck: sumCheck,
+            claims: claims,
+            transcriptSeed: transcriptSeed
+        )
+        return try benchmarkPiRLC(claims: claims, preparedTranscript: preparedTranscript)
     }
 
     public func benchmarkPiRLC(
@@ -3020,14 +3080,64 @@ private enum SuperNeoProtocolOracle {
     ) throws -> (foldedClaim: CCSEvaluationClaim, challenges: [CyclotomicRing54]) {
         try validateFoldInput(input, parameters: parameters)
         try validatePreparedFoldContext(preparedContext, shape: input.shape)
-        var transcript = makeFoldTranscript(input: input, transcriptSeed: transcriptSeed)
-        _ = try makeSumCheckProof(
+        let sumCheck = try benchmarkSumCheckProof(
             input: input,
-            compiledShape: preparedContext.compiledShape,
-            transcript: &transcript
+            transcriptSeed: transcriptSeed,
+            preparedContext: preparedContext
         )
+        let preparedTranscript = try preparePiRLCTranscript(
+            input: input,
+            sumCheck: sumCheck,
+            claims: claims,
+            transcriptSeed: transcriptSeed
+        )
+        return try benchmarkPiRLC(claims: claims, preparedTranscript: preparedTranscript)
+    }
+
+    public func benchmarkPiRLC(
+        claims: [CCSEvaluationClaim],
+        preparedTranscript: SuperNeoPreparedPiRLCTranscript
+    ) throws -> (foldedClaim: CCSEvaluationClaim, challenges: [CyclotomicRing54]) {
+        guard claims.count == preparedTranscript.claimCount else {
+            throw SuperNeoError.invalidParameter("PiRLC claim count does not match prepared transcript")
+        }
+        guard claims.allSatisfy({ $0.point == preparedTranscript.sumCheckFinalPoint }) else {
+            throw SuperNeoError.invalidParameter("PiRLC claims must use the sum-check final point")
+        }
+        var transcript = preparedTranscript.transcriptAfterSumCheck
         absorbEvaluationClaimBatch(claims, into: &transcript)
         return try randomLinearCombination(claims: claims, transcript: &transcript)
+    }
+
+    public func benchmarkPiRLC(
+        input: SuperNeoFoldInput,
+        claims: [CCSEvaluationClaim],
+        sumCheck: SumcheckProof,
+        transcriptSeed: [UInt8] = []
+    ) throws -> (foldedClaim: CCSEvaluationClaim, challenges: [CyclotomicRing54]) {
+        let preparedTranscript = try preparePiRLCTranscript(
+            input: input,
+            sumCheck: sumCheck,
+            claims: claims,
+            transcriptSeed: transcriptSeed
+        )
+        return try benchmarkPiRLC(claims: claims, preparedTranscript: preparedTranscript)
+    }
+
+    public func benchmarkPiRLC(
+        input: SuperNeoFoldInput,
+        claims: [CCSEvaluationClaim],
+        sumCheck: SumcheckProof,
+        transcriptSeed: [UInt8] = [],
+        preparedContext: SuperNeoPreparedFoldContext
+    ) throws -> (foldedClaim: CCSEvaluationClaim, challenges: [CyclotomicRing54]) {
+        try validatePreparedFoldContext(preparedContext, shape: input.shape)
+        return try benchmarkPiRLC(
+            input: input,
+            claims: claims,
+            sumCheck: sumCheck,
+            transcriptSeed: transcriptSeed
+        )
     }
 
     public func benchmarkPiDEC(
@@ -3267,6 +3377,51 @@ private func absorbEvaluationClaimBatch(
 ) {
     transcript.absorb(transcriptEncodeCount(claims.count))
     claims.forEach { transcript.absorb($0.superNeoBytes) }
+}
+
+private func replaySumCheckTranscript(
+    _ proof: SumcheckProof,
+    into transcript: inout SumCheckTranscript,
+    expectedDegree: Int,
+    expectedRoundCount: Int
+) throws {
+    guard expectedDegree >= 0 else {
+        throw SuperNeoError.invalidParameter("sum-check expected degree must be nonnegative")
+    }
+    guard proof.rounds.count == expectedRoundCount else {
+        throw SuperNeoError.invalidParameter("sum-check round count mismatch")
+    }
+    guard proof.finalPoint.count == proof.rounds.count else {
+        throw SuperNeoError.invalidParameter("sum-check final point length mismatch")
+    }
+
+    transcript.absorb(proof.claimedSum.superNeoBytes)
+    var claim = proof.claimedSum
+    var prefix: [GoldilocksExt2] = []
+    prefix.reserveCapacity(proof.rounds.count)
+
+    for round in proof.rounds {
+        guard !round.coeffs.isEmpty, round.coeffs.count <= expectedDegree + 1 else {
+            throw SuperNeoError.invalidParameter("sum-check round polynomial degree mismatch")
+        }
+        let g0 = SumcheckVerifier.evaluatePolynomial(round.coeffs, at: .zero)
+        let g1 = SumcheckVerifier.evaluatePolynomial(round.coeffs, at: .one)
+        guard g0 + g1 == claim else {
+            throw SuperNeoError.invalidParameter("sum-check round polynomial does not match running claim")
+        }
+
+        transcript.absorb(round.superNeoBytes)
+        let challenge = transcript.challengeExt2()
+        prefix.append(challenge)
+        claim = SumcheckVerifier.evaluatePolynomial(round.coeffs, at: challenge)
+    }
+
+    guard prefix == proof.finalPoint else {
+        throw SuperNeoError.invalidParameter("sum-check final point transcript mismatch")
+    }
+    guard claim == proof.finalValue else {
+        throw SuperNeoError.invalidParameter("sum-check final value transcript mismatch")
+    }
 }
 
 private func compressedPublicInputDigest(_ input: SuperNeoPublicFoldInput) -> Digest256 {
