@@ -4,7 +4,7 @@ This page is the shortest safe description of SuperNeo NuMetal's proof
 semantics. Use it when explaining the project to someone who needs to know what
 verifier acceptance means.
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 ## The Relation
 
@@ -94,7 +94,7 @@ The envelope does not define the application-level meaning of a statement. That
 meaning comes from the CCS encoder and the application that chooses the public
 inputs.
 
-## What This Repository Does Not Yet Prove
+## What The Formal Status Proves
 
 This repository does not yet provide:
 
@@ -110,14 +110,17 @@ opt-in high-assurance execution policies. Those are hardening artifacts; they do
 not change the meaning of proof acceptance by themselves.
 
 The repository also includes a Lean 4 formalization track. The current formal
-status is narrowed conditional formalization: deterministic cores for concrete
-profile algebra, Ajtai instantiation, transcript-bound finite challenge
-scheduling, PiRLC recomposition, finite-support counting, scalar collision
-facts, PiCCS acceptance and exact public-Q reduction, finite-field low-degree
-root counting, terminal CE statement and local batch algebra, and verifier
-composition are tracked separately from MSIS,
-Phi81 folded-claim collision, sum-check, and CE-opening boundaries. The
-assumption-scoped groups are not unconditional concrete cryptographic proofs.
+status is a completed formal protocol theorem for the corrected model:
+
+- Ajtai binding is certified-key binding, not arbitrary-matrix binding.
+- PiRLC, PiCCS/sum-check, and terminal CE proof soundness are finite
+  bad-challenge/bad-seed statements, not zero-error deterministic statements.
+- End-to-end terminal composition is proved outside the certified CE bad-seed
+  set.
+
+Historical assumption-boundary groups remain in the manifest for auditability,
+but the completed label depends on closed certified-key and finite-bad-seed
+replacement groups.
 
 The correct public positioning remains:
 

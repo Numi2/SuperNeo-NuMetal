@@ -175,4 +175,48 @@ theorem noShortKernel_iff_bindingSecure {rows columns : Nat}
   · exact bindingSecure_from_noShortKernel
   · exact noShortKernel_from_bindingSecure
 
+theorem short_kernel_yields_binding_failure {rows columns : Nat}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    {diff : Message RF columns}
+    (hDiff : DifferenceOfBounded bounded diff)
+    (hCommit : commit A diff = 0)
+    (hNonzero : diff ≠ 0) :
+    ¬ BindingSecure A bounded := by
+  intro hBinding
+  rcases hDiff with ⟨lhs, rhs, hlhs, hrhs, hDiffEq⟩
+  subst diff
+  have hCommitEq : commit A lhs = commit A rhs := by
+    have hSubZero : commit A lhs - commit A rhs = 0 := by
+      simpa [commit_sub] using hCommit
+    exact sub_eq_zero.mp hSubZero
+  have hMsgEq : lhs = rhs :=
+    hBinding lhs rhs (commit A rhs) ⟨hlhs, hCommitEq⟩ ⟨hrhs, rfl⟩
+  exact hNonzero (by simp [hMsgEq])
+
+theorem binding_failure_yields_short_kernel {rows columns : Nat}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    (hFailure : ¬ BindingSecure A bounded) :
+    ∃ diff : Message RF columns,
+      DifferenceOfBounded bounded diff ∧ commit A diff = 0 ∧ diff ≠ 0 := by
+  classical
+  by_contra hNoWitness
+  apply hFailure
+  intro lhs rhs c hlhs hrhs
+  by_contra hDistinct
+  exact hNoWitness (distinct_openings_yield_short_kernel hlhs hrhs hDistinct)
+
+theorem not_bindingSecure_iff_exists_short_kernel {rows columns : Nat}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop} :
+    (¬ BindingSecure A bounded) ↔
+      ∃ diff : Message RF columns,
+        DifferenceOfBounded bounded diff ∧ commit A diff = 0 ∧ diff ≠ 0 := by
+  constructor
+  · exact binding_failure_yields_short_kernel
+  · intro hWitness
+    rcases hWitness with ⟨diff, hDiff, hCommit, hNonzero⟩
+    exact short_kernel_yields_binding_failure hDiff hCommit hNonzero
+
 end SuperNeoFormal

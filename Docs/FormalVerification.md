@@ -1,31 +1,34 @@
 # Formal Verification Track
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 The formal track lives under `Formal/` as a Lean 4 Lake workspace. It is
 separate from the Sage/lattice-estimator workflow:
 
 - Sage/lattice-estimator reproduces a heuristic Module-SIS security estimate for
   the translated SIS parameter object.
-- Lean formalization records protocol-level algebraic statements and reductions
-  under explicitly named assumptions.
+- Lean formalization records protocol-level algebraic statements, certified-key
+  reductions, and finite bad-challenge/bad-seed exclusions.
 
-The current Lean milestone is narrowed conditional formalization: closed
-deterministic theorem groups are separated from explicit cryptographic,
-probabilistic, and CE-proof boundaries. It covers profile constants,
+The current Lean milestone is a completed formal protocol theorem for the
+corrected model: Ajtai binding is consumed through certified verifier keys, and
+probabilistic PiRLC, PiCCS/sum-check, and terminal CE proof soundness are stated
+outside explicitly finite bad challenge/seed sets. It covers profile constants,
 derived parameter equalities, the strong-sampling inequality, concrete
-Goldilocks/Phi81 algebra, field-to-ring packing, concrete Ajtai instantiation,
-PiDEC recomposition, PiRLC weighted-claim recomposition, finite-support counting
-and scalar collision facts, transcript-bound finite challenge scheduling, PiCCS
-acceptance projections, the PiCCS exact public-Q bridge, finite-field
-low-degree root counting, terminal CE statement and local batch algebra, and
-deterministic verifier-acceptance composition. Binding, Phi81 collision
-probability, low-degree sum-check soundness, public CE proof soundness, and the
-CE-soundness-dependent end-to-end terminal theorem remain named assumption
-boundaries. The status
-validator rejects declaration reuse across theorem groups so closed cores and
-assumption boundaries cannot double-count the same Lean declaration. It also
-prevents boundary/assumption declarations from being marked closed and keeps the
+Goldilocks/Phi81 algebra, GoldilocksExt2 wire operations, Phi81 factorization,
+field-to-ring packing, concrete and certified Ajtai instantiation, PiDEC
+recomposition, PiRLC weighted-claim recomposition, finite-support counting,
+scalar and quotient-ring-safe collision facts, transcript-bound finite challenge
+scheduling, PiCCS acceptance projections, the PiCCS exact public-Q bridge,
+finite-field low-degree root counting, finite bad-challenge PiCCS soundness,
+terminal CE statement and local batch algebra, finite bad-seed terminal CE proof
+soundness, distinct-witness-to-short-kernel reductions, and end-to-end verifier
+composition outside the CE bad-seed set.
+
+The historical `closed_under_*` groups remain documented for auditability, but
+the manifest now uses closed replacement group IDs. The status
+validator rejects declaration reuse across theorem groups, prevents
+boundary/assumption declarations from being marked closed, and keeps the
 completed label tied to every conditional theorem-group dependency.
 
 ## Status Manifest
@@ -55,10 +58,10 @@ Allowed labels are:
 - `conditional protocol formalization`
 - `completed formal protocol theorem`
 
-Documentation must not use `completed formal protocol theorem` until every
-required theorem group is unconditionally `closed`. Groups marked
-`closed_under_*` are formal assumption boundaries and support the current
-conditional label only.
+Documentation may use `completed formal protocol theorem` only when every group
+on the completed dependency path is `closed`. Historical `closed_under_*`
+boundary IDs are replaced by closed certified-key and finite-bad-seed groups on
+that path.
 
 Recent formal pass:
 

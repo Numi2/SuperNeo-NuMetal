@@ -1,6 +1,6 @@
 # Formal CCS Semantics Progress, 2026-04-14
 
-Formal status: conditional protocol formalization
+Formal status: completed formal protocol theorem
 
 This pass adds the algebraic CCS relation layer that PiCCS and terminal CE
 claims need to target.  It does not claim final protocol soundness.

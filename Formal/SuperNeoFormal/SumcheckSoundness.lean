@@ -220,6 +220,20 @@ def sumcheckPolynomialRootsInSupport
     (polynomial : Polynomial K) : Finset K :=
   support.filter (fun value => polynomial.eval value = 0)
 
+def sumcheckPolynomialAgreementInSupport
+    (support : Finset K)
+    (prover exact : Polynomial K) : Finset K :=
+  sumcheckPolynomialRootsInSupport support (prover - exact)
+
+theorem sumcheckPolynomialAgreementInSupport_mem_iff
+    (support : Finset K)
+    (prover exact : Polynomial K)
+    (value : K) :
+    value ∈ sumcheckPolynomialAgreementInSupport support prover exact ↔
+      value ∈ support ∧ prover.eval value = exact.eval value := by
+  simp [sumcheckPolynomialAgreementInSupport, sumcheckPolynomialRootsInSupport,
+    Polynomial.eval_sub, sub_eq_zero]
+
 theorem sumcheckPolynomialRootsInSupport_card_le_natDegree
     (support : Finset K)
     {polynomial : Polynomial K}
@@ -268,6 +282,72 @@ theorem sumcheck_exists_nonroot_of_support_card_gt_degreeBound
     exact sumcheckPolynomialRootsInSupport_card_le_degreeBound
       support hNonzero hDegree
   exact (not_lt_of_ge hCard) hSupport
+
+theorem sumcheckPolynomialAgreementInSupport_card_le_mismatchDegree
+    (support : Finset K)
+    {prover exact : Polynomial K}
+    (hMismatch : prover ≠ exact) :
+    (sumcheckPolynomialAgreementInSupport support prover exact).card ≤
+      (prover - exact).natDegree := by
+  apply sumcheckPolynomialRootsInSupport_card_le_natDegree
+  intro hZero
+  exact hMismatch (sub_eq_zero.mp hZero)
+
+theorem sumcheckPolynomialAgreementInSupport_card_le_degreeBound
+    (support : Finset K)
+    {prover exact : Polynomial K}
+    {degreeBound : Nat}
+    (hMismatch : prover ≠ exact)
+    (hProverDegree : prover.natDegree ≤ degreeBound)
+    (hExactDegree : exact.natDegree ≤ degreeBound) :
+    (sumcheckPolynomialAgreementInSupport support prover exact).card ≤
+      degreeBound := by
+  refine le_trans
+    (sumcheckPolynomialAgreementInSupport_card_le_mismatchDegree
+      support hMismatch) ?_
+  simpa using
+    (Polynomial.natDegree_sub_le_of_le
+      (p := prover)
+      (q := exact)
+      hProverDegree
+      hExactDegree)
+
+theorem sumcheck_challenge_in_polynomial_agreement
+    (support : Finset K)
+    {prover exact : Polynomial K}
+    {challenge : K}
+    (hChallenge : challenge ∈ support)
+    (hEval : prover.eval challenge = exact.eval challenge) :
+    challenge ∈ sumcheckPolynomialAgreementInSupport support prover exact := by
+  rw [sumcheckPolynomialAgreementInSupport_mem_iff]
+  exact ⟨hChallenge, hEval⟩
+
+theorem sumcheck_exists_disagreeing_challenge_of_support_card_gt_degreeBound
+    (support : Finset K)
+    {prover exact : Polynomial K}
+    {degreeBound : Nat}
+    (hMismatch : prover ≠ exact)
+    (hProverDegree : prover.natDegree ≤ degreeBound)
+    (hExactDegree : exact.natDegree ≤ degreeBound)
+    (hSupport : degreeBound < support.card) :
+    ∃ value ∈ support, prover.eval value ≠ exact.eval value := by
+  have hNonzero : prover - exact ≠ 0 := by
+    intro hZero
+    exact hMismatch (sub_eq_zero.mp hZero)
+  have hDegree : (prover - exact).natDegree ≤ degreeBound := by
+    simpa using
+      (Polynomial.natDegree_sub_le_of_le
+        (p := prover)
+        (q := exact)
+        hProverDegree
+        hExactDegree)
+  rcases sumcheck_exists_nonroot_of_support_card_gt_degreeBound
+      support hNonzero hDegree hSupport with
+    ⟨value, hValue, hEval⟩
+  refine ⟨value, hValue, ?_⟩
+  intro hAgreement
+  apply hEval
+  simp [Polynomial.eval_sub, hAgreement]
 
 end LowDegreeRootCounting
 

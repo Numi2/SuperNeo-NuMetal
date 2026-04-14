@@ -1,6 +1,6 @@
 # Serialization Framing Formal Slice
 
-Formal status: conditional protocol formalization
+Formal status: completed formal protocol theorem
 
 This note records the April 14, 2026 framed-byte serialization work in
 `Formal/SuperNeoFormal/Serialization.lean`.

@@ -185,6 +185,80 @@ theorem pirlc_concrete_badSeedCount_le_of_finiteCollisionBoundary
       claims).card ≤ bound :=
   pirlc_concrete_badSeedCount_le_of_collisionBound hCollision
 
+section UnitPivotCollision
+
+variable {R : Type} [CommRing R] [DecidableEq R]
+
+def ringRLCWithoutPivot {count : Nat}
+    (fixedChallenges : Fin count → R)
+    (pivot : Fin count)
+    (deltas : Fin count → R) : R :=
+  (univ.erase pivot).sum (fun index => fixedChallenges index * deltas index)
+
+def ringRLCWithPivot {count : Nat}
+    (fixedChallenges : Fin count → R)
+    (pivot : Fin count)
+    (deltas : Fin count → R)
+    (pivotValue : R) : R :=
+  pivotValue * deltas pivot +
+    ringRLCWithoutPivot fixedChallenges pivot deltas
+
+def ringRLCBadPivotValues {count : Nat}
+    (support : Finset R)
+    (fixedChallenges : Fin count → R)
+    (pivot : Fin count)
+    (deltas : Fin count → R) : Finset R :=
+  support.filter
+    (fun value => ringRLCWithPivot fixedChallenges pivot deltas value = 0)
+
+theorem ringRLCBadPivotValues_card_le_one_of_unit {count : Nat}
+    (support : Finset R)
+    (fixedChallenges : Fin count → R)
+    (pivot : Fin count)
+    (deltas : Fin count → R)
+    (hPivotUnit : IsUnit (deltas pivot)) :
+    (ringRLCBadPivotValues support fixedChallenges pivot deltas).card ≤ 1 := by
+  rw [Finset.card_le_one]
+  intro lhs hLhs rhs hRhs
+  have hLhsZero :
+      ringRLCWithPivot fixedChallenges pivot deltas lhs = 0 :=
+    (mem_filter.mp hLhs).2
+  have hRhsZero :
+      ringRLCWithPivot fixedChallenges pivot deltas rhs = 0 :=
+    (mem_filter.mp hRhs).2
+  have hMul :
+      (lhs - rhs) * deltas pivot = 0 := by
+    calc
+      (lhs - rhs) * deltas pivot
+          = ringRLCWithPivot fixedChallenges pivot deltas lhs -
+              ringRLCWithPivot fixedChallenges pivot deltas rhs := by
+            simp [ringRLCWithPivot, ringRLCWithoutPivot]
+            ring
+      _ = 0 := by
+            rw [hLhsZero, hRhsZero]
+            ring
+  have hDiff : lhs - rhs = 0 := by
+    have hMulComm : deltas pivot * (lhs - rhs) = 0 := by
+      simpa [mul_comm] using hMul
+    exact (hPivotUnit.mul_right_eq_zero).mp hMulComm
+  exact sub_eq_zero.mp hDiff
+
+theorem phi81RLCBadPivotValues_card_le_one_of_unit [DecidableEq Phi81] {count : Nat}
+    (support : Finset Phi81)
+    (fixedChallenges : Fin count → Phi81)
+    (pivot : Fin count)
+    (deltas : Fin count → Phi81)
+    (hPivotUnit : IsUnit (deltas pivot)) :
+    (ringRLCBadPivotValues support fixedChallenges pivot deltas).card ≤ 1 :=
+  ringRLCBadPivotValues_card_le_one_of_unit
+    support
+    fixedChallenges
+    pivot
+    deltas
+    hPivotUnit
+
+end UnitPivotCollision
+
 variable {F : Type} [Field F] [DecidableEq F]
 
 def scalarRLCWithoutPivot {count : Nat}

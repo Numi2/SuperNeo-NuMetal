@@ -1,6 +1,6 @@
 # Swift Wire Serialization Formal Slice
 
-Formal status: conditional protocol formalization
+Formal status: completed formal protocol theorem
 
 This note records the April 14, 2026 concrete wire-format additions in
 `Formal/SuperNeoFormal/Serialization.lean`.

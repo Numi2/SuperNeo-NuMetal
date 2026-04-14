@@ -215,6 +215,34 @@ theorem ceLocalOpening_witness_unique_from_noShortKernel
   · exact ⟨(ceLocalOpening_claimOpening hlhs).1, (ceLocalOpening_claimOpening hlhs).2.1⟩
   · exact ⟨(ceLocalOpening_claimOpening hrhs).1, (ceLocalOpening_claimOpening hrhs).2.1⟩
 
+theorem ceLocalOpening_distinct_witnesses_yield_short_kernel
+    {rows columns publicCount evalCount pointVars : Nat}
+    {shape : CEOpeningShape}
+    {context : CEOpeningPublicContext}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    {publicBound : RF → Prop}
+    {evaluationRelation :
+      Message RF columns →
+        ProtocolVector RF pointVars →
+        ProtocolVector RF evalCount →
+        Prop}
+    {statement : CELocalStatement RF rows publicCount evalCount pointVars}
+    {lhs rhs : Message RF columns}
+    (hlhs :
+      CELocalOpeningRelation
+        shape context A bounded publicBound evaluationRelation statement lhs)
+    (hrhs :
+      CELocalOpeningRelation
+        shape context A bounded publicBound evaluationRelation statement rhs)
+    (hDistinct : lhs ≠ rhs) :
+    ∃ diff : Message RF columns,
+      DifferenceOfBounded bounded diff ∧ commit A diff = 0 ∧ diff ≠ 0 := by
+  apply distinct_openings_yield_short_kernel
+  · exact ⟨(ceLocalOpening_claimOpening hlhs).1, (ceLocalOpening_claimOpening hlhs).2.1⟩
+  · exact ⟨(ceLocalOpening_claimOpening hrhs).1, (ceLocalOpening_claimOpening hrhs).2.1⟩
+  · exact hDistinct
+
 abbrev CETerminalStatement
     (RF : Type) [CommRing RF]
     (count rows publicCount evalCount pointVars : Nat) :=
@@ -425,6 +453,35 @@ theorem ceTerminalLocalBatch_witnesses_unique_from_noShortKernel
   funext index
   exact ceLocalOpening_witness_unique_from_noShortKernel
     hKernel (hlhs index) (hrhs index)
+
+theorem ceTerminalLocalBatch_distinct_witnesses_yield_short_kernel
+    {count rows columns publicCount evalCount pointVars : Nat}
+    {shape : CEOpeningShape}
+    {context : CEOpeningPublicContext}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    {publicBound : RF → Prop}
+    {evaluationRelation :
+      Message RF columns →
+        ProtocolVector RF pointVars →
+        ProtocolVector RF evalCount →
+        Prop}
+    {statement : CETerminalStatement RF count rows publicCount evalCount pointVars}
+    {lhs rhs : Fin count → Message RF columns}
+    (hlhs :
+      CETerminalLocalBatchRelation
+        shape context A bounded publicBound evaluationRelation statement lhs)
+    (hrhs :
+      CETerminalLocalBatchRelation
+        shape context A bounded publicBound evaluationRelation statement rhs)
+    {index : Fin count}
+    (hDistinct : lhs index ≠ rhs index) :
+    ∃ diff : Message RF columns,
+      DifferenceOfBounded bounded diff ∧ commit A diff = 0 ∧ diff ≠ 0 :=
+  ceLocalOpening_distinct_witnesses_yield_short_kernel
+    (hlhs index)
+    (hrhs index)
+    hDistinct
 
 def CETerminalDecompositionCount (count : Nat) : Prop :=
   count = decompositionLength

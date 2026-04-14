@@ -5,6 +5,8 @@ import SuperNeoFormal.Embedding
 import SuperNeoFormal.Ajtai
 import SuperNeoFormal.ModuleSIS
 import SuperNeoFormal.ConcreteAjtai
+import SuperNeoFormal.CertifiedAjtai
+import SuperNeoFormal.GoldilocksExt2
 import SuperNeoFormal.PiDEC
 import SuperNeoFormal.PiDECSoundness
 import SuperNeoFormal.Sumcheck
@@ -13,11 +15,15 @@ import SuperNeoFormal.SumcheckSoundness
 import SuperNeoFormal.ChallengeSampling
 import SuperNeoFormal.PiRLC
 import SuperNeoFormal.PiRLCSoundness
+import SuperNeoFormal.Phi81Split
+import SuperNeoFormal.PiRLCFiniteSoundness
 import SuperNeoFormal.PiCCS
 import SuperNeoFormal.CCSSemantics
 import SuperNeoFormal.PiCCSSoundness
+import SuperNeoFormal.PiCCSFiniteSoundness
 import SuperNeoFormal.TerminalCE
 import SuperNeoFormal.CEOpeningRelation
+import SuperNeoFormal.TerminalCEFiniteSoundness
 import SuperNeoFormal.Serialization
 import SuperNeoFormal.Transcript
 import SuperNeoFormal.TranscriptChallenge

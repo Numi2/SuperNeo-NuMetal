@@ -20,6 +20,9 @@ The Lean layer also adds named theorems for:
 - deriving `BindingSecure` from `NoShortKernel`,
 - deriving `NoShortKernel` from `BindingSecure`, and
 - the equivalence `NoShortKernel A bounded ↔ BindingSecure A bounded`.
+- the exact failure equivalence
+  `¬ BindingSecure A bounded ↔ ∃ diff, DifferenceOfBounded bounded diff ∧
+  commit A diff = 0 ∧ diff ≠ 0`.
 
 This makes the Ajtai binding reduction explicit as a two-way algebraic boundary
 inside the current abstract ring model.
@@ -27,9 +30,10 @@ inside the current abstract ring model.
 ## Manifest Updates
 
 `Docs/FormalStatus.json` now tracks the new binding declarations under the
-closed `ajtai-binding-reduction-core` group and the
-`closed_under_msis_assumption` `ajtai-binding-boundary` group. The profile
-theorem group also lists the derived constants and strong-sampling inequality already present in
+closed `ajtai-binding-reduction-core` group. The theorem group
+`ajtai-binding-boundary` keeps only declarations that consume an explicit
+`NoShortKernel` premise to produce binding. The profile theorem group also
+lists the derived constants and strong-sampling inequality already present in
 `Profile.lean`, including the Module-SIS dimension, estimator length,
 decomposition radix bound, and `strongSampling_holds`.
 

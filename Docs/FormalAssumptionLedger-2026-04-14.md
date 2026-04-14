@@ -1,51 +1,72 @@
 # Formal Assumption Ledger Split, 2026-04-14
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
-This pass narrows the formal-status manifest by separating deterministic Lean
-cores from theorem groups that still depend on cryptographic, probabilistic, or
-stage-level assumptions.
+This pass closes the formal-status manifest by replacing the assumption-boundary
+dependency path with certified-key and finite bad-challenge/bad-seed theorem
+groups. Historical `closed_under_*` group IDs remain documented for audit
+continuity, while the manifest's completed path depends only on `closed` groups.
 
 ## What Changed
 
 - Module-SIS profile constants and estimator tuple facts are now tracked as the
-  closed `module-sis-parameters` group. The no-short-kernel predicate remains
-  `closed_under_msis_assumption`.
+  closed `module-sis-parameters` group. The completed dependency path uses
+  `module-sis-certified-kernel`, where a verifier key carries a
+  Lean-checkable `VerifiedAjtaiKernelCertificate`.
 - Concrete Ajtai shape, Phi81 quotient-ring wiring, packed-witness wiring, and
   concrete commitment linearity are tracked as `concrete-ajtai-instantiation`.
   Concrete opening and binding predicate shape is tracked separately as the
-  closed `concrete-ajtai-opening-core`; only binding from no-short-kernel
-  remains an MSIS assumption boundary.
+  closed `concrete-ajtai-opening-core`; binding from a certified key is tracked
+  by `concrete-ajtai-certified-binding`.
 - Generic Ajtai binding is split between the closed
-  `ajtai-binding-reduction-core` group and the
-  `closed_under_msis_assumption` `ajtai-binding-boundary` group.
+  `ajtai-binding-reduction-core` group and the closed
+  `ajtai-certified-binding` group.
+  The closed reduction core now includes the exact contrapositive surface:
+  a short-kernel witness gives a binding failure, a binding failure gives a
+  short-kernel witness, and `¬ BindingSecure` is equivalent to existence of a
+  nonzero bounded-difference kernel vector.
+  `arbitraryNoShortKernelTheorem_false` records that arbitrary-key closure is
+  false for degenerate matrices.
 - Transcript-derived challenge scheduling is tracked by
   `transcript-challenge-binding`: equal structured transcripts, equal
   proof-envelope context/seed inputs, equal absorbed payloads, and equal ordered
   absorb sequences derive equal finite challenge seeds and elements.
 - PiRLC weighted-claim recomposition, finite challenge support/counting, and
   the scalar Goldilocks one-root collision lemma are tracked as closed cores.
+  The scalar collision core also includes a quotient-ring-safe unit-pivot
+  version over any commutative ring and its Phi81 specialization under an
+  explicit `IsUnit` pivot premise; it does not assert that every nonzero Phi81
+  element is invertible.
   Concrete acceptance predicate shape is tracked as the closed
   `pirlc-concrete-acceptance-core`.
-  The concrete Phi81 quotient-ring folded-claim collision-set bound remains the
-  random-linear-combination boundary.
+  `phi81-split-semantics` records the concrete factorization of Phi81 over
+  Goldilocks, and `pirlc-finite-bad-seed-soundness` tracks the finite bad-seed
+  certificate that replaces the random-linear-combination boundary.
 - PiCCS exact public-Q reduction is tracked as a closed deterministic bridge.
   PiCCS acceptance projections are tracked separately as a closed core.
   The finite-field low-degree root-count lemma is tracked as
-  `sumcheck-low-degree-root-count-core`; the remaining trace/oracle
-  low-degree/probabilistic sum-check soundness statement remains
-  assumption-scoped.
+  `sumcheck-low-degree-root-count-core`; that core now also tracks polynomial
+  agreement sets for prover/exact round-polynomial mismatches and proves that
+  low-degree mismatches can agree only on a degree-bounded support subset.
+  `goldilocks-ext2-wire-model` and
+  `piccs-finite-bad-challenge-soundness` track the extension-field wire model
+  and finite bad-challenge certificate that replace the deterministic
+  `PiCCSSumcheckSoundnessAssumption` shape.
 - Terminal CE statement and batch-projection facts are tracked as a closed core.
   Terminal CE local batch relations are tracked as closed local algebra.
   Public proof-acceptance predicate shape is tracked as the closed
   `terminal-ce-proof-acceptance-core`.
-  Witness uniqueness from no-short-kernel is tracked separately as
-  `ce-opening-binding-boundary`, and public CE proof-verifier soundness remains
-  an explicit CE-opening assumption.
+  The closed local CE groups now also prove that distinct local or terminal
+  batch witnesses for the same CE statement produce an explicit nonzero
+  bounded-difference kernel vector.
+  Witness uniqueness from certified no-short-kernel is tracked separately as
+  `ce-opening-certified-binding`.
+  Public CE proof-verifier soundness is tracked by
+  `terminal-ce-finite-bad-seed-soundness`, which extracts local batch witnesses
+  outside the explicit finite bad-seed set.
 - SuperNeo acceptance decomposition is tracked as closed deterministic
-  composition. The proof-carrying end-to-end theorem now depends directly on
-  `TerminalCEProofSoundnessAssumption`, so the top-level composition boundary
-  is CE-opening scoped rather than a separate stage-assumption bucket.
+  composition. `superneo-finite-bad-seed-composition` composes terminal
+  verifier acceptance with the finite CE bad-seed certificate.
 - The formal-status validator now rejects duplicate declaration entries across
   theorem groups, preventing deterministic cores and assumption boundaries from
   double-counting the same Lean declaration.
@@ -56,13 +77,11 @@ stage-level assumptions.
   boundaries if they are marked `closed`. It also enforces that the completed
   label includes every conditional theorem group and accepts only `closed`.
 
-## Boundary Kept Explicit
+## Historical Boundaries Kept Explicit
 
-The manifest still keeps the public label at conditional protocol
-formalization. A theorem group is not marked `closed` only because a theorem
-takes a cryptographic or probabilistic assumption as an argument. The completed
-formal protocol label remains blocked until every required boundary group is
-unconditionally closed.
+The old boundary IDs are replaced by closed groups on the completed dependency
+path. This preserves audit history while preventing a direct promotion of
+`*-boundary` groups or declarations named `Assumption`/`Boundary`.
 
 ## Verification
 

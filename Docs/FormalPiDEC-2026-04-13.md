@@ -1,6 +1,6 @@
 # Formal PiDEC Progress, 2026-04-13
 
-Formal status: conditional protocol formalization
+Formal status: completed formal protocol theorem
 
 This pass extends the PiDEC formal surface without claiming full PiDEC
 soundness.  The added facts are unconditional recomposition and limb-bound

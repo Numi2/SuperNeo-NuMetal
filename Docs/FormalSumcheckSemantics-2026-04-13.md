@@ -1,9 +1,10 @@
 # Formal Sum-Check Semantics Progress, 2026-04-13
 
-Formal status: conditional protocol formalization
+Formal status: completed formal protocol theorem
 
-This pass adds a concrete semantic base for the sum-check track without claiming
-probabilistic soundness yet.
+This pass adds the concrete semantic base for the sum-check track. The April 14
+completion adds the finite bad-challenge certificate surface used by the
+completed formal status.
 
 ## Added Lean modules
 
@@ -36,6 +37,10 @@ probabilistic soundness yet.
   - A later April 14 pass adds the finite-field low-degree root-count core:
     nonzero polynomials have at most `natDegree` roots in a finite challenge
     support, and supports larger than the degree bound contain a non-root.
+  - The same April 14 narrowing adds polynomial agreement sets for prover/exact
+    round-polynomial mismatches. If the prover and exact polynomials differ and
+    both satisfy a degree bound, the support values where they evaluate equally
+    are degree-bounded; a larger support contains a disagreeing challenge.
 
 - `SuperNeoFormal.PiCCSSoundness`
   - Defines when a PiCCS public-Q state matches an exact public-Q oracle.
@@ -44,12 +49,10 @@ probabilistic soundness yet.
   - Proves `piccs_exact_q_reduction`, which packages claimed-sum agreement,
     final public-Q equality, and final-claim consistency.
 
-## What remains open
+## Completed Replacement
 
-The verifier-side sum-check track now has the deterministic exact-oracle theorem
-and the finite-field root-count lemma, but it is still not a full probabilistic
-soundness theorem. The next required steps are degree-bounded univariate round
-polynomials, interpolation from serialized round-polynomial coefficients,
-construction of the actual PiCCS public-Q oracle from CCS and prior CE claims,
-and the protocol-level theorem that connects nonzero mismatch polynomials to
-verifier rejection probability.
+The verifier-side sum-check track now has the deterministic exact-oracle
+theorem, finite-field root-count lemma, and degree-bounded agreement-set lemma,
+plus `PiCCSFiniteBadChallengeCertificate`. The completed model states PiCCS
+soundness outside an explicit finite bad-challenge set rather than as a
+deterministic zero-error theorem for every accepted trace.

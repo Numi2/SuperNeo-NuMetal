@@ -66,6 +66,14 @@ theorem concreteBindingSecure_iff_bindingSecure {columns : Nat}
     ConcreteBindingSecure A bounded ↔ BindingSecure A bounded :=
   Iff.rfl
 
+theorem moduleSISNoShortKernel_iff_concreteBindingSecure {columns : Nat}
+    (A : ConcreteAjtaiMatrix columns)
+    (bounded : ConcreteAjtaiMessage columns → Prop) :
+    ModuleSISNoShortKernel A bounded ↔ ConcreteBindingSecure A bounded := by
+  rw [moduleSISNoShortKernel_is_concrete_noShortKernel,
+    concreteBindingSecure_iff_bindingSecure]
+  exact noShortKernel_iff_bindingSecure
+
 theorem concreteAjtai_row_count :
     kappa = 18 := by
   native_decide

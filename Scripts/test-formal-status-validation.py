@@ -71,10 +71,10 @@ def main() -> None:
         raise AssertionError(f"baseline manifest failed validation: {result.stderr}")
 
     expect_failure(
-        "missing boundary declaration",
+        "missing certified declaration",
         mutate_group(
             manifest,
-            "concrete-ajtai-binding-boundary",
+            "concrete-ajtai-certified-binding",
             lambda group: group["declarations"].append("SuperNeoFormal.missingBindingTheorem"),
         ),
         "references missing declaration",
@@ -84,10 +84,10 @@ def main() -> None:
         "planned group with declaration",
         mutate_group(
             manifest,
-            "superneo-ce-opening-composition-boundary",
+            "superneo-finite-bad-seed-composition",
             lambda group: group.update({
                 "status": "planned",
-                "declarations": ["SuperNeoFormal.superneo_end_to_end_from_ce_soundness"],
+                "declarations": ["SuperNeoFormal.superneo_end_to_end_outside_ce_badSeeds"],
             }),
         ),
         "planned theorem group",
@@ -173,8 +173,8 @@ def main() -> None:
         "boundary group cannot be marked closed",
         mutate_group(
             manifest,
-            "terminal-ce-proof-soundness-boundary",
-            lambda group: group.update({"status": "closed"}),
+            "terminal-ce-finite-bad-seed-soundness",
+            lambda group: group.update({"id": "terminal-ce-synthetic-boundary"}),
         ),
         "boundary theorem group",
     )
@@ -196,24 +196,27 @@ def main() -> None:
             manifest,
             lambda copy: copy["labels"]["completed formal protocol theorem"][
                 "required_theorem_groups"
-            ].remove("ce-opening-binding-boundary"),
+            ].remove("ce-opening-certified-binding"),
         ),
         "must include every conditional theorem group",
     )
 
-    completed_manifest = json.loads(json.dumps(manifest))
-    completed_manifest["current_label"] = "completed formal protocol theorem"
     expect_failure(
-        "completed label blocked by assumption-scoped groups",
-        completed_manifest,
+        "completed label blocked by assumption-scoped replacement groups",
+        mutate_group(
+            manifest,
+            "piccs-finite-bad-challenge-soundness",
+            lambda group: group.update({"status": "closed_under_sumcheck_assumption"}),
+        ),
         "requires theorem group",
     )
 
-    overclaim_manifest = json.loads(json.dumps(manifest))
-    overclaim_manifest["documentation_claims"][0]["label"] = "completed formal protocol theorem"
     expect_failure(
         "documentation overclaim blocked",
-        overclaim_manifest,
+        mutate_manifest(
+            manifest,
+            lambda copy: copy.update({"current_label": "conditional protocol formalization"}),
+        ),
         "stronger than current label",
     )
 

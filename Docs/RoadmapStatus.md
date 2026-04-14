@@ -4,7 +4,7 @@ This document maps the best-in-class roadmap to concrete repository artifacts.
 It is intentionally conservative: passing items are implementation claims, not
 production security certifications.
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 ## First Priority: Legibility
 
@@ -194,14 +194,15 @@ Artifacts:
 - `Scripts/validate-lattice-estimator-artifact.py` validates the pinned source,
   profile constants, derived SIS tuple, normalized estimator rows, threshold
   semantics, and lane separation.
-- `Formal/` provides a Lean 4/Lake workspace for the narrowed conditional
-  formalization track, with closed deterministic cores for profile constants,
-  concrete Goldilocks/Phi81 algebra, field-to-ring packing, concrete Ajtai
+- `Formal/` provides a Lean 4/Lake workspace for the completed formal protocol
+  theorem track. The completed dependency path uses certified Ajtai keys and
+  finite bad-challenge/bad-seed certificates for PiRLC, PiCCS/sum-check, and
+  terminal CE proof soundness, alongside the closed deterministic cores for
+  profile constants, concrete Goldilocks/Phi81 algebra, GoldilocksExt2 wire
+  operations, Phi81 splitting, field-to-ring packing, concrete Ajtai
   instantiation, PiDEC recomposition, PiRLC weighted-claim recomposition,
-  finite-support counting and scalar collision facts, transcript-bound finite
-  challenge scheduling, PiCCS acceptance and exact public-Q reduction,
-  finite-field low-degree root counting, terminal CE statement and local batch
-  algebra, and deterministic verifier composition.
+  transcript-bound challenge scheduling, public-Q reduction, low-degree
+  root-counting, terminal CE local algebra, and verifier composition.
 - `Docs/FormalStatus.json` and `Scripts/validate-formal-status.py` gate
   documentation labels against named theorem groups and verify that closed
   groups reference declarations present in the claimed Lean module without
@@ -218,11 +219,14 @@ Artifacts:
   recomposition formalization pass.
 - `Docs/FormalProtocolComposition-2026-04-13.md` records the assumption-scoped
   PiRLC, PiCCS, terminal CE, and verifier-composition formalization pass.
-- `Docs/FormalAssumptionLedger-2026-04-14.md` records the split between closed
-  deterministic theorem groups and the remaining MSIS,
-  random-linear-combination, sum-check, and CE-opening boundaries.
-- `Docs/FormalRemainingBoundaries-2026-04-14.md` records which blockers remain
-  open and what kind of Lean evidence is needed to close them.
+- `Docs/FormalAssumptionLedger-2026-04-14.md` records the replacement of the
+  old assumption-boundary dependency path with certified-key and finite
+  bad-seed theorem groups.
+- `Docs/FormalRemainingBoundaries-2026-04-14.md` records the historical boundary
+  IDs and their closed replacement groups.
+- The latest Lean pass keeps historical boundary groups explicit for audit
+  continuity while moving the active completed label to closed replacement
+  groups.
 - `Docs/PaperReproduction.md` documents the harness and interpretation rules.
 - `Docs/LatticeEstimatorReproduction.md` documents the estimator command,
   pinned upstream source, and exact derived parameters.
@@ -232,6 +236,7 @@ Remaining boundary:
 - The harness reproduces implementation claims against the bundled paper text.
   It does not produce a formal proof of the paper's theorems or a production
   cryptographic certification.
-- Documentation remains below `completed formal protocol theorem` until the
-  formal status manifest marks every required theorem group unconditionally
-  `closed`; groups marked `closed_under_*` are explicit assumption boundaries.
+- The completed formal status is for the corrected model: certified verifier
+  keys and finite excluded challenge/seed sets. It is not a proof that arbitrary
+  Ajtai matrices are binding or that probabilistic protocols have zero bad
+  transcripts.

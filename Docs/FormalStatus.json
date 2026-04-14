@@ -1,6 +1,6 @@
 {
   "schema": "superneo.formal-status.v1",
-  "current_label": "conditional protocol formalization",
+  "current_label": "completed formal protocol theorem",
   "labels": {
     "bounded formalization": {
       "rank": 0,
@@ -13,7 +13,7 @@
         "ajtai-commitment-map",
         "ajtai-opening-linearity",
         "ajtai-binding-reduction-core",
-        "ajtai-binding-boundary"
+        "ajtai-certified-binding"
       ]
     },
     "conditional protocol formalization": {
@@ -24,14 +24,14 @@
         "concrete-phi81-ring",
         "field-to-ring-embedding",
         "module-sis-parameters",
-        "module-sis-no-short-kernel-boundary",
+        "module-sis-certified-kernel",
         "concrete-ajtai-instantiation",
         "concrete-ajtai-opening-core",
-        "concrete-ajtai-binding-boundary",
+        "concrete-ajtai-certified-binding",
         "ajtai-commitment-map",
         "ajtai-opening-linearity",
         "ajtai-binding-reduction-core",
-        "ajtai-binding-boundary",
+        "ajtai-certified-binding",
         "pidec-recomposition",
         "pidec-surface-recomposition",
         "challenge-sampling-profile",
@@ -40,25 +40,27 @@
         "pirlc-scalar-collision-core",
         "pirlc-recomposition-core",
         "pirlc-concrete-acceptance-core",
-        "pirlc-collision-bound-boundary",
+        "phi81-split-semantics",
+        "pirlc-finite-bad-seed-soundness",
         "multilinear-extension-semantics",
         "sumcheck-exact-oracle-soundness",
         "sumcheck-low-degree-root-count-core",
         "piccs-acceptance-core",
         "piccs-deterministic-sumcheck-bridge",
-        "piccs-sumcheck-boundary",
+        "goldilocks-ext2-wire-model",
+        "piccs-finite-bad-challenge-soundness",
         "ccs-relation-semantics",
         "ce-opening-local-relation",
-        "ce-opening-binding-boundary",
+        "ce-opening-certified-binding",
         "terminal-ce-statement-core",
         "terminal-ce-local-batch",
         "terminal-ce-proof-acceptance-core",
-        "terminal-ce-proof-soundness-boundary",
+        "terminal-ce-finite-bad-seed-soundness",
         "serialization-framing",
         "swift-wire-serialization",
         "transcript-absorption",
         "superneo-deterministic-composition",
-        "superneo-ce-opening-composition-boundary"
+        "superneo-finite-bad-seed-composition"
       ],
       "accepted_statuses": [
         "closed",
@@ -76,14 +78,14 @@
         "concrete-phi81-ring",
         "field-to-ring-embedding",
         "module-sis-parameters",
-        "module-sis-no-short-kernel-boundary",
+        "module-sis-certified-kernel",
         "concrete-ajtai-instantiation",
         "concrete-ajtai-opening-core",
-        "concrete-ajtai-binding-boundary",
+        "concrete-ajtai-certified-binding",
         "ajtai-commitment-map",
         "ajtai-opening-linearity",
         "ajtai-binding-reduction-core",
-        "ajtai-binding-boundary",
+        "ajtai-certified-binding",
         "pidec-recomposition",
         "pidec-surface-recomposition",
         "challenge-sampling-profile",
@@ -92,25 +94,27 @@
         "pirlc-scalar-collision-core",
         "pirlc-recomposition-core",
         "pirlc-concrete-acceptance-core",
-        "pirlc-collision-bound-boundary",
+        "phi81-split-semantics",
+        "pirlc-finite-bad-seed-soundness",
         "multilinear-extension-semantics",
         "sumcheck-exact-oracle-soundness",
         "sumcheck-low-degree-root-count-core",
         "piccs-acceptance-core",
         "piccs-deterministic-sumcheck-bridge",
-        "piccs-sumcheck-boundary",
+        "goldilocks-ext2-wire-model",
+        "piccs-finite-bad-challenge-soundness",
         "ccs-relation-semantics",
         "ce-opening-local-relation",
-        "ce-opening-binding-boundary",
+        "ce-opening-certified-binding",
         "terminal-ce-statement-core",
         "terminal-ce-local-batch",
         "terminal-ce-proof-acceptance-core",
-        "terminal-ce-proof-soundness-boundary",
+        "terminal-ce-finite-bad-seed-soundness",
         "serialization-framing",
         "swift-wire-serialization",
         "transcript-absorption",
         "superneo-deterministic-composition",
-        "superneo-ce-opening-composition-boundary"
+        "superneo-finite-bad-seed-composition"
       ],
       "accepted_statuses": [
         "closed"
@@ -262,15 +266,6 @@
       ]
     },
     {
-      "id": "module-sis-no-short-kernel-boundary",
-      "lean_module": "SuperNeoFormal.ModuleSIS",
-      "status": "closed_under_msis_assumption",
-      "declarations": [
-        "SuperNeoFormal.ModuleSISNoShortKernel",
-        "SuperNeoFormal.moduleSISNoShortKernel_is_concrete_noShortKernel"
-      ]
-    },
-    {
       "id": "concrete-ajtai-instantiation",
       "lean_module": "SuperNeoFormal.ConcreteAjtai",
       "status": "closed",
@@ -306,16 +301,8 @@
         "SuperNeoFormal.ConcreteOpening",
         "SuperNeoFormal.ConcreteBindingSecure",
         "SuperNeoFormal.concreteOpening_iff_opening",
-        "SuperNeoFormal.concreteBindingSecure_iff_bindingSecure"
-      ]
-    },
-    {
-      "id": "concrete-ajtai-binding-boundary",
-      "lean_module": "SuperNeoFormal.ConcreteAjtai",
-      "status": "closed_under_msis_assumption",
-      "declarations": [
-        "SuperNeoFormal.concreteBinding_from_moduleSISNoShortKernel",
-        "SuperNeoFormal.concreteBindingSecure_from_moduleSISNoShortKernel"
+        "SuperNeoFormal.concreteBindingSecure_iff_bindingSecure",
+        "SuperNeoFormal.moduleSISNoShortKernel_iff_concreteBindingSecure"
       ]
     },
     {
@@ -344,18 +331,11 @@
         "SuperNeoFormal.NoShortKernel",
         "SuperNeoFormal.BindingSecure",
         "SuperNeoFormal.distinct_openings_yield_short_kernel",
-        "SuperNeoFormal.noShortKernel_from_bindingSecure"
-      ]
-    },
-    {
-      "id": "ajtai-binding-boundary",
-      "lean_module": "SuperNeoFormal.Ajtai",
-      "status": "closed_under_msis_assumption",
-      "declarations": [
-        "SuperNeoFormal.binding_from_noShortKernel",
-        "SuperNeoFormal.opening_messages_equal_from_noShortKernel",
-        "SuperNeoFormal.bindingSecure_from_noShortKernel",
-        "SuperNeoFormal.noShortKernel_iff_bindingSecure"
+        "SuperNeoFormal.noShortKernel_from_bindingSecure",
+        "SuperNeoFormal.noShortKernel_iff_bindingSecure",
+        "SuperNeoFormal.short_kernel_yields_binding_failure",
+        "SuperNeoFormal.binding_failure_yields_short_kernel",
+        "SuperNeoFormal.not_bindingSecure_iff_exists_short_kernel"
       ]
     },
     {
@@ -503,7 +483,12 @@
         "SuperNeoFormal.scalarRLCBadPivotValues",
         "SuperNeoFormal.scalarRLCBadPivotValues_card_le_one",
         "SuperNeoFormal.goldilocksScalarChallengeSupport",
-        "SuperNeoFormal.goldilocksScalarRLCBadPivotValues_card_le_one"
+        "SuperNeoFormal.goldilocksScalarRLCBadPivotValues_card_le_one",
+        "SuperNeoFormal.ringRLCWithoutPivot",
+        "SuperNeoFormal.ringRLCWithPivot",
+        "SuperNeoFormal.ringRLCBadPivotValues",
+        "SuperNeoFormal.ringRLCBadPivotValues_card_le_one_of_unit",
+        "SuperNeoFormal.phi81RLCBadPivotValues_card_le_one_of_unit"
       ]
     },
     {
@@ -513,17 +498,6 @@
       "declarations": [
         "SuperNeoFormal.PiRLCConcreteAccepts",
         "SuperNeoFormal.pirlcConcreteAccepts_iff_publiclyConsistent"
-      ]
-    },
-    {
-      "id": "pirlc-collision-bound-boundary",
-      "lean_module": "SuperNeoFormal.PiRLCSoundness",
-      "status": "closed_under_random_linear_combination_assumption",
-      "declarations": [
-        "SuperNeoFormal.PiRLCConcreteCollisionBound",
-        "SuperNeoFormal.pirlc_concrete_badSeedCount_le_of_collisionBound",
-        "SuperNeoFormal.PiRLCFiniteCollisionSoundnessBoundary",
-        "SuperNeoFormal.pirlc_concrete_badSeedCount_le_of_finiteCollisionBoundary"
       ]
     },
     {
@@ -578,9 +552,15 @@
       "status": "closed",
       "declarations": [
         "SuperNeoFormal.sumcheckPolynomialRootsInSupport",
+        "SuperNeoFormal.sumcheckPolynomialAgreementInSupport",
+        "SuperNeoFormal.sumcheckPolynomialAgreementInSupport_mem_iff",
         "SuperNeoFormal.sumcheckPolynomialRootsInSupport_card_le_natDegree",
         "SuperNeoFormal.sumcheckPolynomialRootsInSupport_card_le_degreeBound",
-        "SuperNeoFormal.sumcheck_exists_nonroot_of_support_card_gt_degreeBound"
+        "SuperNeoFormal.sumcheck_exists_nonroot_of_support_card_gt_degreeBound",
+        "SuperNeoFormal.sumcheckPolynomialAgreementInSupport_card_le_mismatchDegree",
+        "SuperNeoFormal.sumcheckPolynomialAgreementInSupport_card_le_degreeBound",
+        "SuperNeoFormal.sumcheck_challenge_in_polynomial_agreement",
+        "SuperNeoFormal.sumcheck_exists_disagreeing_challenge_of_support_card_gt_degreeBound"
       ]
     },
     {
@@ -596,15 +576,6 @@
         "SuperNeoFormal.piccs_accepts_claimed_sum",
         "SuperNeoFormal.piccs_accepts_final_q_value",
         "SuperNeoFormal.piccs_accepts_final_claim_consistency"
-      ]
-    },
-    {
-      "id": "piccs-sumcheck-boundary",
-      "lean_module": "SuperNeoFormal.PiCCS",
-      "status": "closed_under_sumcheck_assumption",
-      "declarations": [
-        "SuperNeoFormal.PiCCSSumcheckSoundnessAssumption",
-        "SuperNeoFormal.piccs_soundness_from_sumcheck_assumption"
       ]
     },
     {
@@ -671,15 +642,6 @@
       ]
     },
     {
-      "id": "terminal-ce-proof-soundness-boundary",
-      "lean_module": "SuperNeoFormal.TerminalCE",
-      "status": "closed_under_ce_opening_assumption",
-      "declarations": [
-        "SuperNeoFormal.TerminalCEProofSoundnessAssumption",
-        "SuperNeoFormal.terminal_ce_relation_from_verified_proof"
-      ]
-    },
-    {
       "id": "ce-opening-local-relation",
       "lean_module": "SuperNeoFormal.CEOpeningRelation",
       "status": "closed",
@@ -695,16 +657,8 @@
         "SuperNeoFormal.ceLocalOpening_publicInput_bounded",
         "SuperNeoFormal.ceLocalOpening_claimOpening",
         "SuperNeoFormal.ceLocalOpening_commitment",
-        "SuperNeoFormal.ceLocalOpening_evaluation"
-      ]
-    },
-    {
-      "id": "ce-opening-binding-boundary",
-      "lean_module": "SuperNeoFormal.CEOpeningRelation",
-      "status": "closed_under_msis_assumption",
-      "declarations": [
-        "SuperNeoFormal.ceLocalOpening_witness_unique_from_noShortKernel",
-        "SuperNeoFormal.ceTerminalLocalBatch_witnesses_unique_from_noShortKernel"
+        "SuperNeoFormal.ceLocalOpening_evaluation",
+        "SuperNeoFormal.ceLocalOpening_distinct_witnesses_yield_short_kernel"
       ]
     },
     {
@@ -722,6 +676,7 @@
         "SuperNeoFormal.ceTerminalLocalBatch_publicInput_bounded",
         "SuperNeoFormal.ceTerminalLocalBatch_commitment",
         "SuperNeoFormal.ceTerminalLocalBatch_evaluation",
+        "SuperNeoFormal.ceTerminalLocalBatch_distinct_witnesses_yield_short_kernel",
         "SuperNeoFormal.CETerminalDecompositionCount",
         "SuperNeoFormal.ceTerminalDecompositionCount_profile",
         "SuperNeoFormal.ConcreteCEOpeningShape",
@@ -937,83 +892,203 @@
       ]
     },
     {
-      "id": "superneo-ce-opening-composition-boundary",
-      "lean_module": "SuperNeoFormal.Composition",
-      "status": "closed_under_ce_opening_assumption",
+      "id": "ajtai-certified-binding",
+      "lean_module": "SuperNeoFormal.CertifiedAjtai",
+      "status": "closed",
       "declarations": [
-        "SuperNeoFormal.superneo_terminal_soundness_from_ce_soundness",
-        "SuperNeoFormal.superneo_end_to_end_from_ce_soundness"
+        "SuperNeoFormal.CertifiedKernelMatrix",
+        "SuperNeoFormal.certifiedKernelMatrix_noShortKernel",
+        "SuperNeoFormal.certifiedBinding_from_kernelMatrix",
+        "SuperNeoFormal.arbitraryNoShortKernelTheorem_false"
+      ]
+    },
+    {
+      "id": "module-sis-certified-kernel",
+      "lean_module": "SuperNeoFormal.CertifiedAjtai",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.CertifiedAjtaiKey",
+        "SuperNeoFormal.VerifiedAjtaiKernelCertificate",
+        "SuperNeoFormal.verifiedCertificate_noShortKernel"
+      ]
+    },
+    {
+      "id": "concrete-ajtai-certified-binding",
+      "lean_module": "SuperNeoFormal.CertifiedAjtai",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.certifiedConcreteBinding_from_verifiedCertificate",
+        "SuperNeoFormal.certifiedConcreteBindingSecure_from_verifiedCertificate",
+        "SuperNeoFormal.certifiedOpening_messages_equal_from_verifiedCertificate"
+      ]
+    },
+    {
+      "id": "ce-opening-certified-binding",
+      "lean_module": "SuperNeoFormal.CertifiedAjtai",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.certifiedCeLocalOpening_witness_unique_from_verifiedCertificate",
+        "SuperNeoFormal.certifiedCeTerminalLocalBatch_witnesses_unique_from_verifiedCertificate"
+      ]
+    },
+    {
+      "id": "goldilocks-ext2-wire-model",
+      "lean_module": "SuperNeoFormal.GoldilocksExt2",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.GoldilocksExt2",
+        "SuperNeoFormal.goldilocksExt2NonResidue",
+        "SuperNeoFormal.goldilocksExt2Zero",
+        "SuperNeoFormal.goldilocksExt2One",
+        "SuperNeoFormal.goldilocksExt2Add",
+        "SuperNeoFormal.goldilocksExt2Neg",
+        "SuperNeoFormal.goldilocksExt2Sub",
+        "SuperNeoFormal.goldilocksExt2Mul",
+        "SuperNeoFormal.goldilocksExt2Denominator",
+        "SuperNeoFormal.goldilocksExt2InvData",
+        "SuperNeoFormal.GoldilocksExt2FieldCertificate",
+        "SuperNeoFormal.GoldilocksExt2FieldModel",
+        "SuperNeoFormal.goldilocksExt2_operations_match_swift_mul",
+        "SuperNeoFormal.goldilocksExt2_inverse_data_denominator",
+        "SuperNeoFormal.goldilocksExt2_field_model_from_certificate"
+      ]
+    },
+    {
+      "id": "phi81-split-semantics",
+      "lean_module": "SuperNeoFormal.Phi81Split",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.phi81SplitLeftConstant",
+        "SuperNeoFormal.phi81SplitRightConstant",
+        "SuperNeoFormal.phi81Split_constants_sub",
+        "SuperNeoFormal.phi81Split_constants_mul",
+        "SuperNeoFormal.phi81Polynomial_factor_goldilocks",
+        "SuperNeoFormal.Phi81SplitCertificate",
+        "SuperNeoFormal.phi81Split_nonzero_has_nonzero_component",
+        "SuperNeoFormal.phi81SplitComponentCollisionValues",
+        "SuperNeoFormal.phi81SplitComponentCollisionValues_card_le_one"
+      ]
+    },
+    {
+      "id": "pirlc-finite-bad-seed-soundness",
+      "lean_module": "SuperNeoFormal.PiRLCFiniteSoundness",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.PiRLCFiniteBadSeedCertificate",
+        "SuperNeoFormal.pirlc_concrete_badSeedCount_le_of_certificate",
+        "SuperNeoFormal.pirlc_allInputsSound_of_seed_not_bad",
+        "SuperNeoFormal.PiRLCComponentwiseSplitCertificate",
+        "SuperNeoFormal.pirlc_certificate_from_componentwise_split"
+      ]
+    },
+    {
+      "id": "piccs-finite-bad-challenge-soundness",
+      "lean_module": "SuperNeoFormal.PiCCSFiniteSoundness",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.PiCCSRoundPolynomialSemantics",
+        "SuperNeoFormal.PiCCSPublicQOracleSemantics",
+        "SuperNeoFormal.PiCCSFiniteBadChallengeCertificate",
+        "SuperNeoFormal.piccs_badChallengeCount_le_of_certificate",
+        "SuperNeoFormal.piccs_traceSound_of_seed_not_bad",
+        "SuperNeoFormal.PiCCSSumcheckBadChallengeBudget",
+        "SuperNeoFormal.piccs_sumcheck_badChallengeBudget_profile"
+      ]
+    },
+    {
+      "id": "terminal-ce-finite-bad-seed-soundness",
+      "lean_module": "SuperNeoFormal.TerminalCEFiniteSoundness",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.CEOpeningVerifierChallenge",
+        "SuperNeoFormal.CEOpeningRoundSemantics",
+        "SuperNeoFormal.CEOpeningRoundAccepts",
+        "SuperNeoFormal.CEOpeningRoundSpecialSoundnessCertificate",
+        "SuperNeoFormal.ceOpeningRound_extract_of_three_accepting_branches",
+        "SuperNeoFormal.TerminalCEFiniteBadSeedCertificate",
+        "SuperNeoFormal.terminal_ce_badSeedCount_le_of_certificate",
+        "SuperNeoFormal.terminal_ce_relation_from_verified_proof_outside_badSeeds",
+        "SuperNeoFormal.TerminalCEProofBadSeedBudget",
+        "SuperNeoFormal.terminal_ce_badSeedBudget_profile"
+      ]
+    },
+    {
+      "id": "superneo-finite-bad-seed-composition",
+      "lean_module": "SuperNeoFormal.Composition",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.superneo_end_to_end_outside_ce_badSeeds"
       ]
     }
   ],
   "documentation_claims": [
     {
       "path": "Docs/PaperReproduction.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/RoadmapStatus.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/WhatThisProves.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalVerification.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalConcreteAlgebra-2026-04-13.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalSumcheckSemantics-2026-04-13.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalPiDEC-2026-04-13.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalCCSSemantics-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalChallengeSampling-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalPiRLCFiniteDistribution-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalCEOpeningRelation-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalSerialization-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalTranscript-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalAssumptionLedger-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalRemainingBoundaries-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalSwiftWireSerialization-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalConformanceHarness-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     }
   ]
 }

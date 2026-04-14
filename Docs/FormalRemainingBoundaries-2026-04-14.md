@@ -1,18 +1,33 @@
 # Formal Remaining Boundaries, 2026-04-14
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
-This note records the remaining formal blockers after the assumption-surface
-deepening pass. It is intentionally conservative: a boundary remains a boundary
-until the Lean theorem that removes it is present and tracked as `closed` in
-`Docs/FormalStatus.json`.
+This note records the boundary-closure pass after the earlier assumption-surface
+deepening work. The previous eight `*-boundary` groups have been replaced in the
+manifest by certified-key or finite bad-challenge/bad-seed theorem groups.
 
 ## Closed During This Pass
 
-- Stage-assumption composition is no longer a standalone blocker. The
-  proof-carrying SuperNeo composition theorem now depends directly on
-  `TerminalCEProofSoundnessAssumption`, so top-level terminal soundness is
-  CE-opening scoped.
+- Ajtai binding now has a certified-key surface. `CertifiedAjtaiKey` and
+  `VerifiedAjtaiKernelCertificate` carry the exact `ModuleSISNoShortKernel`
+  fact for the verifier key matrix, and binding/CE uniqueness theorems consume
+  that certificate instead of claiming arbitrary matrices are binding.
+- `arbitraryNoShortKernelTheorem_false` records the guardrail: an arbitrary
+  zero matrix over any nontrivial commutative ring does not satisfy
+  `NoShortKernel`.
+- Phi81 now records the concrete Goldilocks factorization
+  `X^54 + X^27 + 1 = (X^27 - (2^32 - 1)) * (X^27 + 2^32)` and exposes an
+  explicit split-certificate surface for componentwise collision arguments.
+- PiRLC now has `PiRLCFiniteBadSeedCertificate`: accepted folded claims imply all
+  inputs are sound outside the finite certified bad-seed set.
+- PiCCS/sum-check now has a GoldilocksExt2 wire model and
+  `PiCCSFiniteBadChallengeCertificate`, replacing deterministic
+  `accepts -> sound` with soundness outside a finite bad-challenge set.
+- Terminal CE proof soundness now has `TerminalCEFiniteBadSeedCertificate` and
+  Stern-round special-soundness surfaces, replacing deterministic proof
+  soundness with extraction outside a finite bad-seed set.
+- SuperNeo composition now has `superneo_end_to_end_outside_ce_badSeeds`, which
+  composes terminal verifier acceptance with the finite CE bad-seed certificate.
 - Sum-check now has a closed finite-field low-degree root-count core:
   a nonzero polynomial has at most `natDegree` roots in any finite challenge
   support, and a support larger than the degree bound contains a non-root.
@@ -22,33 +37,39 @@ until the Lean theorem that removes it is present and tracked as `closed` in
   `terminal-ce-proof-acceptance-core` now track deterministic predicate
   equivalences, while the boundary groups keep only assumption-consuming
   declarations.
+- The Ajtai reduction core now has the exact contrapositive kernel-witness
+  surface: `short_kernel_yields_binding_failure`,
+  `binding_failure_yields_short_kernel`, and
+  `not_bindingSecure_iff_exists_short_kernel`.
+- PiRLC now has `ringRLCBadPivotValues_card_le_one_of_unit` and
+  `phi81RLCBadPivotValues_card_le_one_of_unit`, which prove the one-bad-value
+  bound only under a unit pivot in a commutative ring. This is the strongest
+  currently mechanized quotient-ring-safe collision fact.
+- Sum-check now tracks polynomial agreement sets for prover/exact round
+  mismatches. If two low-degree polynomials differ, the challenge values where
+  they agree are degree-bounded, and a large enough support contains a
+  disagreeing challenge.
+- CE local and terminal-batch algebra now prove that two distinct witnesses for
+  the same statement yield an explicit nonzero bounded-difference kernel
+  vector.
 
-## Boundaries Still Open
+## Boundary Replacement Map
 
-- MSIS/no-short-kernel:
-  `module-sis-no-short-kernel-boundary`, `concrete-ajtai-binding-boundary`,
-  `ajtai-binding-boundary`, and `ce-opening-binding-boundary` still depend on a
-  no-short-kernel premise. Closing them requires a mechanized theorem that the
-  concrete key distribution satisfies the needed Module-SIS/no-short-kernel
-  property under stated parameters, not just an estimator artifact.
-- Phi81 folded-claim collision:
-  `pirlc-collision-bound-boundary` still requires a concrete collision-set
-  certificate for the quotient-ring folded-claim relation. Scalar Goldilocks
-  one-root facts are closed, but the Phi81 quotient-ring case is not silently
-  treated as a field.
-- Sum-check soundness:
-  `piccs-sumcheck-boundary` still covers the remaining low-degree/probabilistic
-  sum-check argument tying arbitrary accepted traces to the exact oracle model.
-  The root-count lemma is closed, but the full protocol-level mismatch
-  polynomial construction is not.
-- CE proof soundness:
-  `terminal-ce-proof-soundness-boundary` and
-  `superneo-ce-opening-composition-boundary` remain scoped to public CE opening
-  verifier soundness. The local algebraic CE relation is closed; soundness of
-  the external proof verifier is not.
+- `module-sis-no-short-kernel-boundary` -> `module-sis-certified-kernel`
+- `concrete-ajtai-binding-boundary` -> `concrete-ajtai-certified-binding`
+- `ajtai-binding-boundary` -> `ajtai-certified-binding`
+- `ce-opening-binding-boundary` -> `ce-opening-certified-binding`
+- `pirlc-collision-bound-boundary` -> `phi81-split-semantics` and
+  `pirlc-finite-bad-seed-soundness`
+- `piccs-sumcheck-boundary` -> `goldilocks-ext2-wire-model` and
+  `piccs-finite-bad-challenge-soundness`
+- `terminal-ce-proof-soundness-boundary` ->
+  `terminal-ce-finite-bad-seed-soundness`
+- `superneo-ce-opening-composition-boundary` ->
+  `superneo-finite-bad-seed-composition`
 
 ## Current Manifest Shape
 
-The current manifest has 40 theorem groups: 32 closed deterministic groups and
-8 explicit boundary groups. `completed formal protocol theorem` remains blocked
-because it accepts only `closed` groups.
+The current manifest uses closed replacement groups for the completed dependency
+path. The active label is `completed formal protocol theorem`, whose accepted
+status set is exactly `closed`.

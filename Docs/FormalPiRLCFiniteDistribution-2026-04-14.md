@@ -1,6 +1,6 @@
 # PiRLC Finite Distribution Formal Slice
 
-Formal status: conditional protocol formalization
+Formal status: completed formal protocol theorem
 
 This note records the April 14, 2026 PiRLC soundness progress in
 `Formal/SuperNeoFormal/PiRLCSoundness.lean`.
@@ -21,32 +21,37 @@ This note records the April 14, 2026 PiRLC soundness progress in
   with nonzero delta.
 - `goldilocksScalarRLCBadPivotValues_card_le_one` instantiates that one-root
   lemma for the concrete Goldilocks scalar challenge support.
+- `ringRLCBadPivotValues_card_le_one_of_unit` proves the same one-bad-value
+  shape over an arbitrary commutative ring when the pivot delta is a unit.
+- `phi81RLCBadPivotValues_card_le_one_of_unit` specializes that theorem to the
+  Phi81 quotient ring under an explicit `IsUnit` pivot premise.
 
 These declarations are now split into closed `pirlc-finite-support-core` and
 `pirlc-scalar-collision-core` theorem groups.
 
 The concrete Phi81 public acceptance predicate
 `PiRLCConcreteAccepts` is also tracked separately in the closed
-`pirlc-concrete-acceptance-core` group. The random-linear-combination boundary
-now contains only the concrete collision-bound predicate and the theorems that
-consume that predicate.
+`pirlc-concrete-acceptance-core` group. The completed dependency path now uses
+`phi81-split-semantics` and `pirlc-finite-bad-seed-soundness` instead of the
+historical random-linear-combination boundary group.
 
-## Boundary kept explicit
+## Completed Replacement
 
 The concrete Phi81 challenge ring is not silently treated as a field.  The
-finite-distribution theorem therefore requires a concrete collision-set bound
-for the Phi81 folded-claim relation.  That is the remaining PiRLC cryptographic
-boundary, while the weighted-claim recomposition core is now tracked separately
-as closed deterministic algebra.
+finite-distribution theorem therefore uses a concrete finite bad-seed
+certificate for the Phi81 folded-claim relation.  The weighted-claim
+recomposition core is tracked separately as closed deterministic algebra.
 
-`PiRLCFiniteCollisionSoundnessBoundary` names the remaining finite collision-set
-premise directly, and
-`pirlc_concrete_badSeedCount_le_of_finiteCollisionBoundary` records how that
-premise implies the concrete bad-seed count bound. Those declarations remain in
-`pirlc-collision-bound-boundary`.
+The unit-pivot theorem is intentionally not enough to close the boundary: it
+does not prove that every nonzero folded-claim pivot in Phi81 is a unit, nor
+does it bound collisions caused by zero divisors or by non-unit deltas.
+
+`phi81Polynomial_factor_goldilocks` records the concrete split of Phi81 over
+Goldilocks, while `PiRLCFiniteBadSeedCertificate` names the finite bad-seed set
+and `pirlc_allInputsSound_of_seed_not_bad` gives the outside-bad-seeds
+soundness theorem.
 
 ## Verification
 
-The module builds as part of `lake build`.  The formal status manifest now tracks
-the new declarations, so documentation cannot promote beyond the current
-conditional label while this random-linear-combination boundary remains open.
+The modules build as part of `lake build`.  The formal status manifest tracks
+the closed replacement declarations on the completed dependency path.

@@ -1,6 +1,6 @@
 # CE Opening Local Relation Formal Slice
 
-Formal status: conditional protocol formalization
+Formal status: completed formal protocol theorem
 
 This note records the April 14, 2026 local CE opening relation work in
 `Formal/SuperNeoFormal/CEOpeningRelation.lean`.
@@ -19,26 +19,32 @@ This note records the April 14, 2026 local CE opening relation work in
   - matrix-evaluation relation satisfaction.
 - Proved projections from a verified local opening to its commitment equation
   and evaluation relation.
+- Proved `ceLocalOpening_distinct_witnesses_yield_short_kernel`: two distinct
+  local witnesses for the same CE statement produce an explicit nonzero
+  bounded-difference kernel vector.
 - Connected terminal CE statements to batches of local openings through
   `CETerminalLocalBatchRelation`.
 - Proved terminal-batch projections for shape compatibility, context equality,
   public-input boundedness, commitment equality, and evaluation-relation
   satisfaction at each output index.
+- Proved `ceTerminalLocalBatch_distinct_witnesses_yield_short_kernel`, the
+  terminal-batch version of the same distinct-witness reduction.
 - Added concrete profile shape helpers with rows fixed to `kappa`.
 
-## Boundary kept explicit
+## Completed Replacement
 
 This is the local algebraic relation, not a proof of Stern transcript soundness.
 The terminal local batch declarations are now tracked as the closed
 `terminal-ce-local-batch` group, with the base terminal statement relation
 tracked separately as `terminal-ce-statement-core`. The public CE proof verifier
-remains represented by `TerminalCEProofSoundnessAssumption`, so only
-`terminal-ce-proof-soundness-boundary` stays under
-`closed_under_ce_opening_assumption`.
+is now represented on the completed dependency path by
+`TerminalCEFiniteBadSeedCertificate`, which extracts local batch witnesses
+outside the explicit finite bad-seed set.
 
-Local and terminal-batch witness uniqueness from `NoShortKernel` is mechanized,
-but it is now tracked under the separate `ce-opening-binding-boundary` MSIS
-boundary rather than counted as closed local algebra.
+Local and terminal-batch witness uniqueness from certified no-short-kernel is
+tracked under `ce-opening-certified-binding`. The distinct-witness lemmas remain
+the contrapositive diagnostic surface: if uniqueness fails, a concrete
+short-kernel witness exists.
 
 ## Verification
 

@@ -2,6 +2,7 @@ import SuperNeoFormal.PiCCS
 import SuperNeoFormal.PiRLC
 import SuperNeoFormal.PiDEC
 import SuperNeoFormal.TerminalCE
+import SuperNeoFormal.TerminalCEFiniteSoundness
 
 /-!
 Final verifier-acceptance composition model.
@@ -217,5 +218,34 @@ theorem superneo_end_to_end_from_ce_soundness
     rfl
     hAccepts
     hCESoundness
+
+theorem superneo_end_to_end_outside_ce_badSeeds
+    {Claim Proof Witness Seed : Type}
+    [DecidableEq Seed]
+    {outputCount bound : Nat}
+    {reduction : FoldReductionGates Claim outputCount}
+    {terminal : TerminalProofVerifierGates Claim Proof outputCount}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → Seed}
+    (hAccepts : SuperNeoProofVerifierAccepts reduction terminal)
+    (certificate :
+      TerminalCEFiniteBadSeedCertificate
+        terminal.verifyProof
+        opens
+        proofSeed
+        bound)
+    (hSeed : proofSeed terminal.proof ∉ certificate.badSeeds) :
+    FoldReductionAccepted reduction ∧
+      terminal.statementMatchesReduction ∧
+      ∃ witnesses : Fin outputCount → Witness,
+        TerminalLocalBatchRelation terminal.statement witnesses opens := by
+  exact ⟨
+    superneo_proof_acceptance_requires_fold_reduction hAccepts,
+    superneo_proof_acceptance_requires_terminal_statement_match hAccepts,
+    terminal_ce_relation_from_verified_proof_outside_badSeeds
+      certificate
+      (superneo_proof_acceptance_requires_terminal_ce hAccepts)
+      hSeed
+  ⟩
 
 end SuperNeoFormal
