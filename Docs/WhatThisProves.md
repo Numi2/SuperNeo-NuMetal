@@ -4,7 +4,7 @@ This page is the shortest safe description of SuperNeo NuMetal's proof
 semantics. Use it when explaining the project to someone who needs to know what
 verifier acceptance means.
 
-Formal status: completed formal protocol theorem.
+Formal status: conditional protocol formalization.
 
 ## The Relation
 
@@ -110,7 +110,7 @@ opt-in high-assurance execution policies. Those are hardening artifacts; they do
 not change the meaning of proof acceptance by themselves.
 
 The repository also includes a Lean 4 formalization track. The current formal
-status is a completed formal protocol theorem for the corrected model:
+status is a conditional protocol formalization for the corrected model:
 
 - Ajtai binding is certified-key binding, not arbitrary-matrix binding.
 - PiRLC, PiCCS/sum-check, and terminal CE proof soundness are finite
@@ -119,8 +119,11 @@ status is a completed formal protocol theorem for the corrected model:
   set.
 
 Historical assumption-boundary IDs remain documented for auditability, but they
-are not active manifest groups. The completed label depends on closed
-certified-key and finite-bad-seed replacement groups.
+are not active manifest groups. The full theorem label is blocked until the
+remaining planned groups mechanize full cryptographic probability composition,
+complete Swift serialization equivalence, and a byte-for-byte Swift CE verifier
+equivalence proof. The Lean `GoldilocksExt2` field instance is closed
+separately by the `goldilocks-ext2-field-instance` theorem group.
 
 The correct public positioning remains:
 

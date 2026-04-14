@@ -1,16 +1,16 @@
 # Formal Assumption Ledger Split, 2026-04-14
 
-Formal status: completed formal protocol theorem.
+Formal status: conditional protocol formalization.
 
-This pass closes the formal-status manifest by replacing the assumption-boundary
-dependency path with certified-key and finite bad-challenge/bad-seed theorem
-groups. Historical `closed_under_*` group IDs remain documented for audit
-continuity, while the manifest's completed path depends only on `closed` groups.
+This pass replaces the assumption-boundary dependency path with certified-key
+and finite bad-challenge/bad-seed theorem groups. Historical `closed_under_*`
+group IDs remain documented for audit continuity, while the manifest's
+conditional path depends only on mechanized closed groups.
 
 ## What Changed
 
 - Module-SIS profile constants and estimator tuple facts are now tracked as the
-  closed `module-sis-parameters` group. The completed dependency path uses
+  closed `module-sis-parameters` group. The conditional dependency path uses
   `module-sis-certified-kernel`, where `AjtaiKernelCertificate` carries the
   concrete no-short-kernel proof and `VerifiedAjtaiKernelCertificate` is the
   checked key-metadata subtype consumed by verifier-key binding theorems.
@@ -83,7 +83,7 @@ continuity, while the manifest's completed path depends only on `closed` groups.
 
 ## Historical Boundaries Kept Explicit
 
-The old boundary IDs are replaced by closed groups on the completed dependency
+The old boundary IDs are replaced by closed groups on the conditional dependency
 path. This preserves audit history while preventing a direct promotion of
 `*-boundary` groups or declarations named `Assumption`/`Boundary`.
 

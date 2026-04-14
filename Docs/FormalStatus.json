@@ -1,6 +1,6 @@
 {
   "schema": "superneo.formal-status.v1",
-  "current_label": "completed formal protocol theorem",
+  "current_label": "conditional protocol formalization",
   "labels": {
     "bounded formalization": {
       "rank": 0,
@@ -114,13 +114,22 @@
         "swift-wire-serialization",
         "transcript-absorption",
         "superneo-deterministic-composition",
-        "superneo-finite-bad-seed-composition"
+        "superneo-finite-bad-seed-composition",
+        "superneo-full-probability-composition",
+        "goldilocks-ext2-field-instance",
+        "swift-goldilocks-ext2-serialization-equivalence",
+        "swift-ce-verifier-byte-equivalence"
       ],
       "accepted_statuses": [
         "closed"
       ]
     }
   },
+  "completion_blocker_groups": [
+    "superneo-full-probability-composition",
+    "swift-goldilocks-ext2-serialization-equivalence",
+    "swift-ce-verifier-byte-equivalence"
+  ],
   "theorem_groups": [
     {
       "id": "profile-constants",
@@ -833,6 +842,10 @@
         "SuperNeoFormal.goldilocksExt2WireEncode",
         "SuperNeoFormal.goldilocksExt2WireEncode_length",
         "SuperNeoFormal.goldilocksExt2WireEncode_injective",
+        "SuperNeoFormal.goldilocksExt2ElementWire",
+        "SuperNeoFormal.goldilocksExt2ElementEncode",
+        "SuperNeoFormal.goldilocksExt2ElementEncode_length",
+        "SuperNeoFormal.goldilocksExt2ElementEncode_injective",
         "SuperNeoFormal.finVectorEncode",
         "SuperNeoFormal.finVectorEncode_length",
         "SuperNeoFormal.finVectorEncode_injective",
@@ -1049,76 +1062,134 @@
       "declarations": [
         "SuperNeoFormal.superneo_end_to_end_outside_ce_badSeeds"
       ]
+    },
+    {
+      "id": "superneo-full-probability-composition",
+      "lean_module": "SuperNeoFormal.Composition",
+      "status": "planned",
+      "declarations": []
+    },
+    {
+      "id": "goldilocks-ext2-field-instance",
+      "lean_module": "SuperNeoFormal.GoldilocksExt2",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.goldilocksExt2NonResidue_ne_zero",
+        "SuperNeoFormal.goldilocksExt2NonResidue_pow_half_ne_one",
+        "SuperNeoFormal.goldilocksExt2_ringChar_ne_two",
+        "SuperNeoFormal.goldilocksExt2NonResidue_not_isSquare",
+        "SuperNeoFormal.goldilocksExt2NonResidue_no_square_root",
+        "SuperNeoFormal.goldilocksExt2QuadraticEquiv",
+        "SuperNeoFormal.goldilocksExt2Field",
+        "SuperNeoFormal.goldilocksExt2_zero_matches_model",
+        "SuperNeoFormal.goldilocksExt2_one_matches_model",
+        "SuperNeoFormal.goldilocksExt2_add_matches_model",
+        "SuperNeoFormal.goldilocksExt2_neg_matches_model",
+        "SuperNeoFormal.goldilocksExt2_sub_matches_model",
+        "SuperNeoFormal.goldilocksExt2_mul_matches_model",
+        "SuperNeoFormal.goldilocksExt2_denominator_eq_norm",
+        "SuperNeoFormal.goldilocksExt2_denominator_nonzero",
+        "SuperNeoFormal.goldilocksExt2FieldCertificateFromField",
+        "SuperNeoFormal.goldilocksExt2_field_model"
+      ]
+    },
+    {
+      "id": "swift-goldilocks-ext2-serialization-equivalence",
+      "lean_module": "SuperNeoFormal.Serialization",
+      "status": "planned",
+      "declarations": []
+    },
+    {
+      "id": "swift-ce-verifier-byte-equivalence",
+      "lean_module": "SuperNeoFormal.TerminalCEFiniteSoundness",
+      "status": "planned",
+      "declarations": []
     }
   ],
   "documentation_claims": [
     {
       "path": "Docs/PaperReproduction.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/RoadmapStatus.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/WhatThisProves.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalVerification.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalConcreteAlgebra-2026-04-13.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
+    },
+    {
+      "path": "Docs/FormalAjtaiBinding-2026-04-13.md",
+      "label": "conditional protocol formalization"
+    },
+    {
+      "path": "Docs/FormalPiDECRecomposition-2026-04-13.md",
+      "label": "conditional protocol formalization"
+    },
+    {
+      "path": "Docs/FormalProtocolComposition-2026-04-13.md",
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalSumcheckSemantics-2026-04-13.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalPiDEC-2026-04-13.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalCCSSemantics-2026-04-14.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalChallengeSampling-2026-04-14.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalPiRLCFiniteDistribution-2026-04-14.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalCEOpeningRelation-2026-04-14.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalSerialization-2026-04-14.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalTranscript-2026-04-14.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalAssumptionLedger-2026-04-14.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalRemainingBoundaries-2026-04-14.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalSwiftWireSerialization-2026-04-14.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
+    },
+    {
+      "path": "Docs/FormalGoldilocksExt2Field-2026-04-14.md",
+      "label": "conditional protocol formalization"
     },
     {
       "path": "Docs/FormalConformanceHarness-2026-04-14.md",
-      "label": "completed formal protocol theorem"
+      "label": "conditional protocol formalization"
     }
   ]
 }

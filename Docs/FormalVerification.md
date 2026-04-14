@@ -1,6 +1,6 @@
 # Formal Verification Track
 
-Formal status: completed formal protocol theorem.
+Formal status: conditional protocol formalization.
 
 The formal track lives under `Formal/` as a Lean 4 Lake workspace. It is
 separate from the Sage/lattice-estimator workflow:
@@ -10,13 +10,14 @@ separate from the Sage/lattice-estimator workflow:
 - Lean formalization records protocol-level algebraic statements, certified-key
   reductions, and finite bad-challenge/bad-seed exclusions.
 
-The current Lean milestone is a completed formal protocol theorem for the
+The current Lean milestone is a conditional protocol formalization for the
 corrected model: Ajtai binding is consumed through certified verifier keys, and
 probabilistic PiRLC, PiCCS/sum-check, and terminal CE proof soundness are stated
 outside explicitly finite bad challenge/seed sets. It covers profile constants,
 derived parameter equalities, the strong-sampling inequality, concrete
 Goldilocks/Phi81 algebra, GoldilocksExt2 wire operations, Phi81 factorization,
-field-to-ring packing, concrete and certified Ajtai instantiation, PiDEC
+field-to-ring packing, the complete Lean `GoldilocksExt2` field instance,
+concrete and certified Ajtai instantiation, PiDEC
 recomposition, PiRLC weighted-claim recomposition, finite-support counting,
 scalar and quotient-ring-safe collision facts, transcript-bound finite challenge
 scheduling, PiCCS acceptance projections, the PiCCS exact public-Q bridge,
@@ -25,11 +26,17 @@ terminal CE statement and local batch algebra, finite bad-seed terminal CE proof
 soundness, distinct-witness-to-short-kernel reductions, and end-to-end verifier
 composition outside the CE bad-seed set.
 
+The full theorem label is intentionally blocked by planned theorem groups for
+full cryptographic probability composition, complete Swift serialization
+equivalence for `GoldilocksExt2`, and a byte-for-byte Swift CE verifier
+equivalence proof.
+
 The historical `closed_under_*` groups remain documented for auditability, but
-the manifest now uses closed replacement group IDs. The status
-validator rejects declaration reuse across theorem groups, prevents
-boundary/assumption declarations from being marked closed, and keeps the
-completed label tied to every conditional theorem-group dependency.
+the manifest now uses closed replacement group IDs for the mechanized
+conditional path. The status validator rejects declaration reuse across theorem
+groups, prevents boundary/assumption declarations from being marked closed, and
+keeps the full theorem label tied to every conditional theorem-group dependency
+plus the explicit planned blocker groups.
 
 ## Status Manifest
 
@@ -56,12 +63,11 @@ Allowed labels are:
 - `bounded formalization`
 - `partial formalization`
 - `conditional protocol formalization`
-- `completed formal protocol theorem`
+- full formal protocol theorem
 
-Documentation may use `completed formal protocol theorem` only when every group
-on the completed dependency path is `closed`. Historical `closed_under_*`
-boundary IDs are replaced by closed certified-key and finite-bad-seed groups on
-that path.
+Documentation may use the full theorem label only when every group on that path
+is `closed`. Historical `closed_under_*` boundary IDs are replaced by closed
+certified-key and finite-bad-seed groups on the conditional path.
 
 Recent formal pass:
 

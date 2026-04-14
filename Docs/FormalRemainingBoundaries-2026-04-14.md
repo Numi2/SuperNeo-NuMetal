@@ -1,6 +1,6 @@
 # Formal Remaining Boundaries, 2026-04-14
 
-Formal status: completed formal protocol theorem.
+Formal status: conditional protocol formalization.
 
 This note records the boundary-closure pass after the earlier assumption-surface
 deepening work. The previous eight `*-boundary` groups have been replaced in the
@@ -76,6 +76,21 @@ manifest by certified-key or finite bad-challenge/bad-seed theorem groups.
 
 ## Current Manifest Shape
 
-The current manifest uses closed replacement groups for the completed dependency
-path. The active label is `completed formal protocol theorem`, whose accepted
-status set is exactly `closed`.
+The current manifest uses closed replacement groups for the conditional
+dependency path. The active label is `conditional protocol formalization`.
+
+The full theorem label still requires three planned groups:
+
+- `superneo-full-probability-composition`: full composition of the PiRLC,
+  PiCCS/sum-check, terminal CE, transcript, and CE bad-seed/bad-challenge
+  probability budgets.
+- `swift-goldilocks-ext2-serialization-equivalence`: complete Swift
+  serialization equivalence for `GoldilocksExt2` and all callers that depend on
+  it.
+- `swift-ce-verifier-byte-equivalence`: a byte-for-byte equivalence proof for
+  the Swift CE verifier proof parser and verifier path.
+
+The Lean `goldilocks-ext2-field-instance` group is now closed by transferring
+mathlib's root-free quadratic-algebra field instance onto the existing
+`GoldilocksExt2` `c0/c1` structure after proving that `7` is nonsquare in the
+Goldilocks base field.

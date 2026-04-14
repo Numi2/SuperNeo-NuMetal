@@ -1,6 +1,6 @@
 # Swift Wire Serialization Formal Slice
 
-Formal status: completed formal protocol theorem
+Formal status: conditional protocol formalization.
 
 This note records the April 14, 2026 concrete wire-format additions in
 `Formal/SuperNeoFormal/Serialization.lean`.
@@ -19,8 +19,8 @@ This note records the April 14, 2026 concrete wire-format additions in
 - Added canonical Goldilocks wire encoding through the existing Lean
   `Goldilocks = ZMod p` representation, with an injectivity theorem tied to
   canonical values below the Goldilocks modulus.
-- Added Goldilocks extension-pair wire encoding matching Swift's
-  `GoldilocksExt2` byte order.
+- Added Goldilocks extension-pair wire encoding and a Lean bridge from the
+  concrete `GoldilocksExt2` structure to `c0 || c1` byte order.
 - Added a fixed-width vector encoder and used it to formalize the Swift
   `CyclotomicRing54` coefficient byte order for degree-54 Phi81 coefficients.
 - Added a proof-envelope transcript-binding context matching Swift's
@@ -37,8 +37,9 @@ This note records the April 14, 2026 concrete wire-format additions in
 
 This slice proves canonical byte layout and injectivity for concrete public wire
 objects, plus round-trip parsing for the proof-envelope transcript-binding
-prefix.  It does not prove SHA-256 collision resistance, Fiat-Shamir
-random-oracle soundness, or parser totality for every Swift proof object.
+prefix. It does not prove SHA-256 collision resistance, Fiat-Shamir
+random-oracle soundness, parser totality for every Swift proof object, or
+complete Swift serialization equivalence for every `GoldilocksExt2` caller.
 
 ## Verification
 

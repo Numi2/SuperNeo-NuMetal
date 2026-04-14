@@ -1,6 +1,6 @@
 # Formal Challenge Sampling Progress, 2026-04-14
 
-Formal status: completed formal protocol theorem
+Formal status: conditional protocol formalization.
 
 This pass formalizes the concrete finite challenge source used for Phi81
 small-coefficient ring challenges.  It does not yet prove the full PiRLC

@@ -84,11 +84,10 @@ def main() -> None:
         "planned group with declaration",
         mutate_group(
             manifest,
-            "superneo-finite-bad-seed-composition",
-            lambda group: group.update({
-                "status": "planned",
-                "declarations": ["SuperNeoFormal.superneo_end_to_end_outside_ce_badSeeds"],
-            }),
+            "superneo-full-probability-composition",
+            lambda group: group["declarations"].append(
+                "SuperNeoFormal.superneo_end_to_end_from_ce_soundness"
+            ),
         ),
         "planned theorem group",
     )
@@ -170,6 +169,15 @@ def main() -> None:
     )
 
     expect_failure(
+        "status-bearing docs must be claimed",
+        mutate_manifest(
+            manifest,
+            lambda copy: copy["documentation_claims"].pop(),
+        ),
+        "status-bearing docs missing documentation_claims entries",
+    )
+
+    expect_failure(
         "boundary group cannot be marked closed",
         mutate_group(
             manifest,
@@ -202,11 +210,10 @@ def main() -> None:
     )
 
     expect_failure(
-        "completed label blocked by assumption-scoped replacement groups",
-        mutate_group(
+        "completed label blocked by planned completion blockers",
+        mutate_manifest(
             manifest,
-            "piccs-finite-bad-challenge-soundness",
-            lambda group: group.update({"status": "closed_under_sumcheck_assumption"}),
+            lambda copy: copy.update({"current_label": "completed formal protocol theorem"}),
         ),
         "requires theorem group",
     )
@@ -215,9 +222,35 @@ def main() -> None:
         "documentation overclaim blocked",
         mutate_manifest(
             manifest,
-            lambda copy: copy.update({"current_label": "conditional protocol formalization"}),
+            lambda copy: copy["documentation_claims"][0].update(
+                {"label": "completed formal protocol theorem"}
+            ),
         ),
         "stronger than current label",
+    )
+
+    expect_failure(
+        "completion blocker required by completed label",
+        mutate_manifest(
+            manifest,
+            lambda copy: copy["labels"]["completed formal protocol theorem"][
+                "required_theorem_groups"
+            ].remove("superneo-full-probability-composition"),
+        ),
+        "must include completion blocker",
+    )
+
+    expect_failure(
+        "completion blocker cannot be silently closed",
+        mutate_group(
+            manifest,
+            "superneo-full-probability-composition",
+            lambda group: group.update({
+                "status": "closed",
+                "declarations": ["SuperNeoFormal.superneo_end_to_end_from_ce_soundness"],
+            }),
+        ),
+        "must remain planned until mechanized",
     )
 
     print("formal status validation regression tests passed")

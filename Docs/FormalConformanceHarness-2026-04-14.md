@@ -1,6 +1,6 @@
 # Formal Conformance Harness Progress, 2026-04-14
 
-Formal status: completed formal protocol theorem
+Formal status: conditional protocol formalization.
 
 This pass adds a drift check between the implemented Swift profile and the Lean
 formal constants.

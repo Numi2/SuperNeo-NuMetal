@@ -214,6 +214,33 @@ def validate_completion_label_guard(manifest: Dict[str, Any]) -> None:
             )
 
 
+def validate_completion_blockers(manifest: Dict[str, Any], statuses: Dict[str, str]) -> None:
+    blockers = manifest.get("completion_blocker_groups")
+    if not isinstance(blockers, list) or not all(isinstance(item, str) for item in blockers):
+        fail("completion_blocker_groups must be an array of strings")
+    if len(set(blockers)) != len(blockers):
+        fail("completion_blocker_groups contains duplicates")
+
+    labels = manifest.get("labels")
+    if not isinstance(labels, dict):
+        fail("labels must be an object")
+    completed = "completed formal protocol theorem"
+    conditional = "conditional protocol formalization"
+    completed_groups = set(required_groups(manifest, completed)) if completed in labels else set()
+    conditional_groups = set(required_groups(manifest, conditional)) if conditional in labels else set()
+
+    for blocker in blockers:
+        status = statuses.get(blocker)
+        if status is None:
+            fail(f"completion blocker {blocker!r} is not a theorem group")
+        if status != "planned":
+            fail(f"completion blocker {blocker!r} must remain planned until mechanized")
+        if blocker not in completed_groups:
+            fail(f"completed formal protocol theorem must include completion blocker {blocker!r}")
+        if blocker in conditional_groups:
+            fail(f"conditional protocol formalization must not require completion blocker {blocker!r}")
+
+
 def validate_docs(manifest: Dict[str, Any]) -> None:
     current_label = manifest.get("current_label")
     if not isinstance(current_label, str):
@@ -247,6 +274,16 @@ def validate_docs(manifest: Dict[str, Any]) -> None:
             if label_rank(manifest, found) > current_rank:
                 fail(f"{rel_path} contains stronger formal status {found!r} than manifest current label {current_label!r}")
 
+    status_docs = set()
+    for path in (ROOT / "Docs").glob("*.md"):
+        rel_path = path.relative_to(ROOT).as_posix()
+        text = path.read_text(encoding="utf-8")
+        if FORMAL_STATUS_RE.search(text):
+            status_docs.add(rel_path)
+    unclaimed = sorted(status_docs - seen_paths)
+    if unclaimed:
+        fail(f"status-bearing docs missing documentation_claims entries: {unclaimed!r}")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate SuperNeo formal-status manifest and docs labels.")
@@ -260,6 +297,7 @@ def main() -> None:
     statuses = validate_theorem_groups(manifest)
     validate_labels(manifest, statuses)
     validate_completion_label_guard(manifest)
+    validate_completion_blockers(manifest, statuses)
     current_label = manifest.get("current_label")
     if not isinstance(current_label, str):
         fail("current_label must be a string")

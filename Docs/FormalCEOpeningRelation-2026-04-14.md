@@ -1,6 +1,6 @@
 # CE Opening Local Relation Formal Slice
 
-Formal status: completed formal protocol theorem
+Formal status: conditional protocol formalization.
 
 This note records the April 14, 2026 local CE opening relation work in
 `Formal/SuperNeoFormal/CEOpeningRelation.lean`.
@@ -37,7 +37,7 @@ This is the local algebraic relation, not a proof of Stern transcript soundness.
 The terminal local batch declarations are now tracked as the closed
 `terminal-ce-local-batch` group, with the base terminal statement relation
 tracked separately as `terminal-ce-statement-core`. The public CE proof verifier
-is now represented on the completed dependency path by
+is now represented on the conditional dependency path by
 `TerminalCEFiniteBadSeedCertificate`, which extracts local batch witnesses
 outside the explicit finite bad-seed set.
 

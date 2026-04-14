@@ -11,7 +11,7 @@ command and should only be cited when the generated JSON's pinned reproduction
 lane reports estimator status `ran` and validation requires the 129-bit
 threshold.
 
-Formal status: completed formal protocol theorem.
+Formal status: conditional protocol formalization.
 
 ## Command
 

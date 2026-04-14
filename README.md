@@ -91,6 +91,11 @@ This repository does not currently provide:
 - a completed formal proof of every protocol theorem, or
 - an independently certified security estimate.
 
+The active formal-status manifest now closes the Lean `GoldilocksExt2` field
+instance while intentionally keeping full cryptographic probability
+composition, complete Swift serialization equivalence, and byte-for-byte Swift
+CE verifier equivalence as planned blockers rather than closed claims.
+
 A fold reduction is not a complete application proof. It verifies the public
 reduction and returns output commitment-evaluation (CE) claims. Callers that
 need terminal acceptance must verify a terminal or compressed-terminal proof and

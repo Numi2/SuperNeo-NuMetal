@@ -1,6 +1,6 @@
 # Formal Concrete Algebra Progress, 2026-04-13
 
-Formal status: completed formal protocol theorem
+Formal status: conditional protocol formalization.
 
 This pass moves the Lean track from a purely abstract ring profile toward the
 implemented Goldilocks/Phi81 profile without weakening the existing assumption

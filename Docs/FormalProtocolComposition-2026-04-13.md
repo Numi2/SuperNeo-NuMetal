@@ -50,7 +50,7 @@ separates their deterministic cores from the remaining boundaries:
   opening soundness boundary rather than a separate aggregate stage assumption.
 
 The manifest current label is `conditional protocol formalization`.
-Documentation still must not claim `completed formal protocol theorem` because
+Documentation still must not claim the full formal protocol theorem because
 that stricter label now requires every required theorem group to have status
 `closed`, not merely `closed_under_*`.
 

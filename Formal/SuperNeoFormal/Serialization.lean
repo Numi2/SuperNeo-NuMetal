@@ -1,5 +1,6 @@
 import Mathlib
 import Mathlib.Data.Nat.Digits.Lemmas
+import SuperNeoFormal.GoldilocksExt2
 import SuperNeoFormal.Phi81
 
 /-!
@@ -367,6 +368,25 @@ theorem goldilocksExt2WireEncode_injective :
     simpa [goldilocksExt2WireEncode, goldilocksElementEncode_length] using hDrop
   exact Prod.ext (goldilocksElementEncode_injective hFstBytes)
     (goldilocksElementEncode_injective hSndBytes)
+
+def goldilocksExt2ElementWire (value : GoldilocksExt2) : GoldilocksExt2Wire :=
+  (value.c0, value.c1)
+
+def goldilocksExt2ElementEncode (value : GoldilocksExt2) : List Byte :=
+  goldilocksExt2WireEncode (goldilocksExt2ElementWire value)
+
+theorem goldilocksExt2ElementEncode_length (value : GoldilocksExt2) :
+    (goldilocksExt2ElementEncode value).length = 16 := by
+  simp [goldilocksExt2ElementEncode, goldilocksExt2WireEncode_length]
+
+theorem goldilocksExt2ElementEncode_injective :
+    Function.Injective goldilocksExt2ElementEncode := by
+  intro lhs rhs h
+  have hWire := goldilocksExt2WireEncode_injective h
+  cases lhs
+  cases rhs
+  simp [goldilocksExt2ElementWire] at hWire ⊢
+  exact hWire
 
 def finVectorEncode {α : Type} (encode : α → List Byte) :
     {n : Nat} → (Fin n → α) → List Byte

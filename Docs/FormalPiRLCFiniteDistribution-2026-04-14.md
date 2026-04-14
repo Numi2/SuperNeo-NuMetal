@@ -1,6 +1,6 @@
 # PiRLC Finite Distribution Formal Slice
 
-Formal status: completed formal protocol theorem
+Formal status: conditional protocol formalization.
 
 This note records the April 14, 2026 PiRLC soundness progress in
 `Formal/SuperNeoFormal/PiRLCSoundness.lean`.
@@ -31,7 +31,7 @@ These declarations are now split into closed `pirlc-finite-support-core` and
 
 The concrete Phi81 public acceptance predicate
 `PiRLCConcreteAccepts` is also tracked separately in the closed
-`pirlc-concrete-acceptance-core` group. The completed dependency path now uses
+`pirlc-concrete-acceptance-core` group. The conditional dependency path now uses
 `phi81-split-semantics` and `pirlc-finite-bad-seed-soundness` instead of the
 historical random-linear-combination boundary group.
 
@@ -54,4 +54,4 @@ soundness theorem.
 ## Verification
 
 The modules build as part of `lake build`.  The formal status manifest tracks
-the closed replacement declarations on the completed dependency path.
+the closed replacement declarations on the conditional dependency path.

@@ -4,7 +4,7 @@ This document maps the best-in-class roadmap to concrete repository artifacts.
 It is intentionally conservative: passing items are implementation claims, not
 production security certifications.
 
-Formal status: completed formal protocol theorem.
+Formal status: conditional protocol formalization.
 
 ## First Priority: Legibility
 
@@ -194,8 +194,8 @@ Artifacts:
 - `Scripts/validate-lattice-estimator-artifact.py` validates the pinned source,
   profile constants, derived SIS tuple, normalized estimator rows, threshold
   semantics, and lane separation.
-- `Formal/` provides a Lean 4/Lake workspace for the completed formal protocol
-  theorem track. The completed dependency path uses certified Ajtai keys and
+- `Formal/` provides a Lean 4/Lake workspace for the conditional formal
+  protocol track. The current dependency path uses certified Ajtai keys and
   finite bad-challenge/bad-seed certificates for PiRLC, PiCCS/sum-check, and
   terminal CE proof soundness, alongside the closed deterministic cores for
   profile constants, concrete Goldilocks/Phi81 algebra, GoldilocksExt2 wire
@@ -207,8 +207,9 @@ Artifacts:
   documentation labels against named theorem groups and verify that closed
   groups reference declarations present in the claimed Lean module without
   duplicate declaration assignment across groups. The gate also prevents
-  boundary/assumption declarations from being marked closed and keeps the
-  completed label dependent on every current conditional theorem group.
+  boundary/assumption declarations from being marked closed and keeps the full
+  theorem label dependent on every current conditional theorem group plus the
+  explicit planned blocker groups.
 - `Scripts/test-formal-status-validation.py` regression-tests the formal-status
   gate by mutating temporary manifests and requiring fail-closed behavior.
 - `Docs/FormalStatusPromotion-2026-04-13.md` records the partial-formalization
@@ -235,7 +236,9 @@ Remaining boundary:
 - The harness reproduces implementation claims against the bundled paper text.
   It does not produce a formal proof of the paper's theorems or a production
   cryptographic certification.
-- The completed formal status is for the corrected model: certified verifier
-  keys and finite excluded challenge/seed sets. It is not a proof that arbitrary
-  Ajtai matrices are binding or that probabilistic protocols have zero bad
-  transcripts.
+- The current formal status is conditional for the corrected model: certified
+  verifier keys and finite excluded challenge/seed sets. It is not a proof that
+  arbitrary Ajtai matrices are binding, that probabilistic protocol bounds have
+  been fully composed, that Swift Ext2 serialization has been proved equivalent
+  for every caller, or that the Swift CE verifier has been proved byte-for-byte
+  equivalent.
