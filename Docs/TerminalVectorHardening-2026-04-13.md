@@ -39,9 +39,10 @@ Results: passed.
 
 ## Residual Boundaries
 
-- The new vector is a complete proof for the one-hot workload only. The
-  binary-addition workload still has a checked-in fold vector and release-gate
-  smoke coverage, but not a checked-in terminal vector.
+- The original pass added a complete proof for the one-hot workload only. The
+  2026-04-14 follow-up added `TestVectors/binary-addition-u8-terminal-v1.json`
+  with manifest hash, byte count, trusted verifier context, and strict
+  `--require-terminal` verification coverage.
 - Terminal proof vectors are intentionally large. The manifest hash and byte
   count are the compatibility boundary; digest changes should be treated as a
   serialization, transcript, normalization, or parameter compatibility event.

@@ -235,7 +235,14 @@ public struct RelationPolynomial: Equatable, Hashable, Sendable, SuperNeoByteEnc
         for monomial in monomials {
             var term = GoldilocksExt2(monomial.coefficient)
             for (value, exponent) in zip(values, monomial.exponents) {
-                term = term * pow(value, Int(exponent))
+                switch exponent {
+                case 0:
+                    continue
+                case 1:
+                    term = term * value
+                default:
+                    term = term * pow(value, Int(exponent))
+                }
             }
             result = result + term
         }

@@ -111,10 +111,25 @@ swift run superneo prove \
   --output /tmp/one-hot-terminal-proof.json
 ```
 
+Generate a compressed terminal proof:
+
+```sh
+swift run superneo prove \
+  --kind compressed-terminal \
+  --bits 0,0,1,0 \
+  --output /tmp/one-hot-compressed-terminal-proof.json
+
+swift run superneo verify \
+  --require-terminal \
+  /tmp/one-hot-compressed-terminal-proof.json
+```
+
 Terminal mode is complete but intentionally not the default. In local Debug
 runs, even a small terminal proof is much larger and slower because it includes
-the public CE opening proof. Fold mode is the fast integration vector and reports
-that terminal relation verification remains required.
+the public CE opening proof. `compressed-terminal` keeps terminal acceptance and
+compresses public terminal statement material behind digest bindings. Fold mode
+is the fast integration vector and reports that terminal relation verification
+remains required.
 
 ## Artifact Fields
 
@@ -151,10 +166,15 @@ unsupported wrapper metadata from being silently ignored.
 Current golden vectors:
 
 - `TestVectors/one-hot-vector-fold-v1.json`
+- `TestVectors/one-hot-vector-terminal-v1.json`
+- `TestVectors/one-hot-vector-compressed-terminal-v1.json`
 - `TestVectors/binary-addition-u8-fold-v1.json`
+- `TestVectors/binary-addition-u8-terminal-v1.json`
 
-The `UsabilitySurfaceTests` load these files, reconstruct the public input and
-verifier key, and verify the fold envelopes.
+The `UsabilitySurfaceTests` cover the checked-in fold, terminal, and
+compressed-terminal vectors. The manifest validator reconstructs trusted context
+for every checked-in vector and verifies terminal and compressed-terminal
+vectors with `--require-terminal`.
 
 For external implementations, `TestVectors/manifest.json` records each vector's
 SHA-256 hash, byte count, workload, proof kind, trusted expected verifier
@@ -184,6 +204,15 @@ swift run superneo prove \
   --rhs 29 \
   --key-seed SuperNeoCLI.binary-addition.u8.v1 \
   --output TestVectors/binary-addition-u8-fold-v1.json
+
+swift run superneo prove \
+  --workload binary-add \
+  --kind terminal \
+  --operand-bits 8 \
+  --lhs 13 \
+  --rhs 29 \
+  --key-seed SuperNeoCLI.binary-addition.u8.v1 \
+  --output TestVectors/binary-addition-u8-terminal-v1.json
 ```
 
 An unintentional digest change should be treated as a compatibility regression

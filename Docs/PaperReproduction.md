@@ -89,7 +89,8 @@ The harness currently tracks these paper-to-repository claims:
 
 A passing artifact means the implementation matches the checked paper-derived
 profile constants, runs the relevant protocol stages, verifies the public proof
-envelope and golden vector, and records benchmark rows for the selected profile.
+envelopes and checked vectors, and records benchmark rows for the selected
+profile.
 
 It does not mean:
 
@@ -105,4 +106,5 @@ It does not mean:
 - that a fold-reduction vector is a complete terminal proof.
 
 Fold-reduction artifacts must continue to report that terminal CE relation
-verification is required.
+verification is required. Terminal and compressed-terminal proof vectors must be
+verified with `--require-terminal`.

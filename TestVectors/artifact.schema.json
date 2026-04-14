@@ -34,7 +34,8 @@
     "proofKind": {
       "enum": [
         "fold",
-        "terminal"
+        "terminal",
+        "compressed-terminal"
       ]
     },
     "bitCount": {

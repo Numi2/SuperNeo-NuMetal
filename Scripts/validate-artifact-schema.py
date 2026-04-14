@@ -99,6 +99,14 @@ def main() -> None:
         "verifierKeyDigestHex",
     }:
         expect(key in root_required, f"artifact root missing required key {key}")
+    expect(
+        schema.get("properties", {}).get("proofKind", {}).get("enum") == [
+            "fold",
+            "terminal",
+            "compressed-terminal",
+        ],
+        "artifact proofKind enum must match the CLI proof kinds",
+    )
 
     require_exact_workload_parameters(schema, "one-hot-vector-v1", {"selectedCount"})
     require_exact_workload_parameters(

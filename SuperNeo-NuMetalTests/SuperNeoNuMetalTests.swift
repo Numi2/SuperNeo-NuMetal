@@ -626,6 +626,29 @@ final class ProtocolShapeTests: SuperNeoTestCase {
             try matrix.transformedSparseForSuperNeo().multiplied(by: SuperNeoEmbedding.packPadded(vector)),
             try matrix.transformedForSuperNeo().multiplied(by: SuperNeoEmbedding.packPadded(vector))
         )
+        let packedVector = try SuperNeoEmbedding.packPadded(vector)
+        let denseTransformed = try matrix.transformedForSuperNeo()
+        let sparseTransformed = try matrix.transformedSparseForSuperNeo()
+        let point = [
+            GoldilocksExt2(GoldilocksField(3), GoldilocksField(5)),
+            GoldilocksExt2(GoldilocksField(7), GoldilocksField(11))
+        ]
+        let rHat = try MultilinearEvaluation.checkedBasis(at: point)
+        let expectedRows = try sparseTransformed.multiplied(by: packedVector)
+        let expectedEvaluation = CyclotomicExt2Ring54(directTransformedEvaluation(rows: expectedRows, rHat: rHat))
+
+        XCTAssertEqual(try denseTransformed.evaluatedProduct(by: packedVector, rHat: rHat), expectedEvaluation)
+        XCTAssertEqual(try sparseTransformed.evaluatedProduct(by: packedVector, rHat: rHat), expectedEvaluation)
+        XCTAssertEqual(try denseTransformed.evaluatedProductConstantWork(by: packedVector, rHat: rHat), expectedEvaluation)
+        XCTAssertEqual(try sparseTransformed.evaluatedProductConstantWork(by: packedVector, rHat: rHat), expectedEvaluation)
+        XCTAssertEqual(
+            try SuperNeoCPUBackend().transformedEvaluation(matrix: denseTransformed, vector: packedVector, point: point),
+            expectedEvaluation.coefficients
+        )
+        XCTAssertEqual(
+            try SuperNeoCPUBackend().transformedEvaluation(matrix: sparseTransformed, vector: packedVector, point: point),
+            expectedEvaluation.coefficients
+        )
         XCTAssertThrowsSuperNeoError(
             try matrix.multiplied(by: Array(vector.dropLast())),
             .invalidParameter("field matrix/vector mismatch")
@@ -2723,6 +2746,45 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertTrue(result.isValid, result.reason ?? "")
     }
 
+    func testGoldenOneHotCompressedTerminalVectorVerifies() throws {
+        let artifact = try loadGoldenArtifact(named: "one-hot-vector-compressed-terminal-v1.json")
+        XCTAssertEqual(artifact.artifactVersion, 1)
+        XCTAssertEqual(artifact.workload, "one-hot-vector-v1")
+        XCTAssertEqual(artifact.profile, SuperNeoParameterProfile.goldilocksPhi81.name)
+        XCTAssertEqual(artifact.proofKind, "compressed-terminal")
+        XCTAssertEqual(artifact.publicInputs, [1])
+        XCTAssertEqual(artifact.expectedSelectedCount, 1)
+
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: artifact.bitCount)
+        let commitment = try parseGoldenCommitment(artifact.commitmentBase64, parameters: .goldilocks)
+        let publicInput = try workload.publicFoldInput(commitment: commitment)
+        XCTAssertEqual(publicInput.shape.shapeDigest.hexStringForTest, artifact.shapeDigestHex)
+
+        let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(artifact.keySeedUTF8.utf8))
+        XCTAssertEqual(key.verifierKeyDigest.hexStringForTest, artifact.verifierKeyDigestHex)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        XCTAssertEqual(statement.statementDigest.hexStringForTest, artifact.statementDigestHex)
+
+        let proofBytes = try XCTUnwrap(Data(base64Encoded: artifact.proofEnvelopeBase64)).map { UInt8($0) }
+        let context = ProofEnvelopeContext(
+            kind: .compressedPublic,
+            statement: statement,
+            verifierKeyDigest: key.verifierKeyDigest
+        )
+        let result = SuperNeoCPUBackend()
+            .makeVerifier(key: key)
+            .verifyCompressedTerminalFoldEnvelope(
+                publicInput: publicInput,
+                proofBytes: proofBytes,
+                context: context
+            )
+
+        XCTAssertTrue(result.isValid, result.reason ?? "")
+    }
+
     func testGoldenBinaryAdditionFoldVectorVerifies() throws {
         let artifact = try loadGoldenArtifact(named: "binary-addition-u8-fold-v1.json")
         XCTAssertEqual(artifact.artifactVersion, 1)
@@ -2765,6 +2827,49 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
         XCTAssertTrue(reduction.requiresTerminalRelationCheck)
         XCTAssertEqual(reduction.outputClaims.count, key.parameters.decompositionLength)
+    }
+
+    func testGoldenBinaryAdditionTerminalVectorVerifies() throws {
+        let artifact = try loadGoldenArtifact(named: "binary-addition-u8-terminal-v1.json")
+        XCTAssertEqual(artifact.artifactVersion, 1)
+        XCTAssertEqual(artifact.workload, "binary-addition-v1")
+        XCTAssertEqual(artifact.profile, SuperNeoParameterProfile.goldilocksPhi81.name)
+        XCTAssertEqual(artifact.proofKind, "terminal")
+        XCTAssertEqual(artifact.bitCount, 8)
+        XCTAssertEqual(artifact.workloadParameters?["leftBitCount"], "8")
+        XCTAssertEqual(artifact.workloadParameters?["publicSum"], "42")
+
+        let workload = try SuperNeoBinaryAdditionWorkload(bitCount: artifact.bitCount)
+        let commitment = try parseGoldenCommitment(artifact.commitmentBase64, parameters: .goldilocks)
+        let publicInput = try workload.publicFoldInput(
+            commitment: commitment,
+            publicInput: artifact.publicInputs.map { GoldilocksField($0) }
+        )
+        XCTAssertEqual(publicInput.shape.shapeDigest.hexStringForTest, artifact.shapeDigestHex)
+
+        let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(artifact.keySeedUTF8.utf8))
+        XCTAssertEqual(key.verifierKeyDigest.hexStringForTest, artifact.verifierKeyDigestHex)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        XCTAssertEqual(statement.statementDigest.hexStringForTest, artifact.statementDigestHex)
+
+        let proofBytes = try XCTUnwrap(Data(base64Encoded: artifact.proofEnvelopeBase64)).map { UInt8($0) }
+        let context = ProofEnvelopeContext(
+            kind: .terminalLocal,
+            statement: statement,
+            verifierKeyDigest: key.verifierKeyDigest
+        )
+        let result = SuperNeoCPUBackend()
+            .makeVerifier(key: key)
+            .verifyTerminalFoldEnvelope(
+                publicInput: publicInput,
+                proofBytes: proofBytes,
+                context: context
+            )
+
+        XCTAssertTrue(result.isValid, result.reason ?? "")
     }
 
     private struct GoldenArtifact: Decodable {

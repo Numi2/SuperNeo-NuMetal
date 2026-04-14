@@ -48,14 +48,22 @@ case.
 - `swift test --disable-swift-testing`
 - `swift test -c release --disable-swift-testing`
 - `swift Scripts/validate-test-vectors.swift`
+- `Scripts/test-vector-manifest-validation.py`
 - release binary CLI fold prove/verify smoke for one-hot and binary-addition
-- release binary CLI terminal prove/verify smoke for one-hot with
-  `--require-terminal`
+- release binary CLI terminal prove/verify smoke for one-hot and
+  binary-addition with `--require-terminal`
 - negative strict-verifier checks for public-input mismatch and terminal-proof
   requirement mismatch
 - negative artifact-ingestion checks for unknown fields, duplicate JSON keys,
   missing workload parameters, non-canonical workload parameters, and workload
   parameter/public-input mismatches
+- vector-corpus mutation checks for duplicate manifest entries, duplicate raw
+  manifest and artifact JSON keys, unknown manifest keys, duplicate strict
+  verify commands, missing proof-kind coverage, and unmanifested checked vector
+  files
+- benchmark tooling mutation checks for comparator thresholds, missing and
+  duplicate timing rows, unsupported units, malformed result JSON, and Markdown
+  report rendering
 - lattice-estimator dry-run parameter derivation and artifact validation for
   the implemented `Goldilocks/Phi81(d=54)` Module-SIS tuple
 
@@ -99,15 +107,18 @@ Scripts/production-gate.sh --with-benchmarks
 Result: passed.
 
 The command covered release build, debug XCTest, release XCTest, strict vector
-validation, release CLI fold and terminal smoke tests, negative strict-verifier
-checks, and the quick benchmark profile.
+validation including the compressed-terminal vector, release CLI fold,
+terminal, and compressed-terminal smoke tests, negative strict-verifier checks,
+compressed-terminal proof-kind mismatch checks, vector manifest mutation tests,
+and the quick benchmark profile.
 
 ## Residual Boundaries
 
 - Fold reductions still are not terminal application proofs. The production
-  gate now includes a positive terminal proof smoke check; callers that need the
-  complete terminal relation must still require `--require-terminal` and verify
-  a terminal proof artifact.
+  gate now includes positive terminal proof smoke checks for both bundled
+  workloads and a compressed-terminal smoke check for one-hot; callers that need
+  the complete terminal relation must still require `--require-terminal` and
+  verify a terminal or compressed-terminal proof artifact.
 - The CLI remains an integration surface, not a wallet, server, or policy
   engine. Production embedding code should own expected context, persistence,
   replay policy, and user-facing error handling outside the proof artifact.

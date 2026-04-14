@@ -111,6 +111,10 @@ swift Scripts/compare-benchmark-results.swift \
   coverage can otherwise hide regressions. Use allow-missing only for targeted
   local runs where the selected case set is intentionally narrower than the
   baseline.
+- `Scripts/test-benchmark-tooling-validation.py` mutation-tests the benchmark
+  comparator and Markdown report renderer so malformed result JSON, unsupported
+  units, duplicate wall-clock rows, missing rows, and threshold regressions keep
+  failing closed.
 - Use Instruments or `xcrun xctrace record --template 'Metal System Trace'` only after the benchmark suite identifies a hotspot.
 
 Hardware-class reports:
@@ -182,10 +186,18 @@ Current CPU-path baseline:
 - Ring products whose coefficients are all in `{0, +/-1, +/-2}` use exact
   add/sub/double coefficient scaling after a per-ring small-coefficient scan.
   Generic ring products stay on the full-width Goldilocks multiplication loop.
-- CPU PiDEC evaluates extension-ring rows by computing `rHat` once and accumulating all 54 ring coefficients in one pass.
-- CPU PiDEC and terminal CE opening verification parallelize independent large
-  opening batches with ordered result collection. The current gate is
-  `count >= 4` and `m >= 1024`, so small smoke-profile cases stay sequential.
+- CPU transformed-evaluation paths can fuse sparse/dense ring matrix products
+  with the multilinear extension-ring accumulation, avoiding intermediate row
+  materialization when PiDEC and local CE checks only need the evaluated
+  extension-ring element. The high-assurance route keeps a separate
+  constant-work fused helper.
+- CPU PiDEC computes `rHat` once per point and accumulates all 54 extension-ring
+  coefficients in one pass.
+- CPU PiDEC and terminal CE opening verification parallelize independent opening
+  batches with ordered result collection. The current gate admits `m256`
+  decomposition-sized batches with at least 8 openings while preserving the
+  existing large-shape gate for batches with at least 4 openings at `m >= 1024`;
+  smaller smoke-profile cases stay sequential.
 - Metal dense transformed matvec uses a sparse-aware kernel for wide dense
   matrices (`columns >= 128`) so registered dense benchmark rows avoid full
   ring-product work on zero dense entries. Sparse workspace paths remain the
@@ -195,6 +207,23 @@ Current CPU-path baseline:
   polynomials for every suffix. PiDEC verifier recomposition uses base-field
   scalar powers directly, and protocol extension-row evaluation skips zero
   coefficients before extension-field scaling.
+- CPU sum-check builds relation evaluation plans from the public serialized CCS
+  relation. The prover source plan precomputes fresh matrix rows only for
+  live relation sources, merges exact-equal public CSR matrices, and cancels
+  terms after public source aliasing. Public verifier final-Q checks still
+  evaluate the original relation over proof-claim variables.
+- Sum-check prior-claim evaluation computes all 54 coefficients of a
+  prefix-weighted transformed ring row in one pass instead of rescanning the same
+  prefix row once per coefficient. The recomposition order and transcript inputs
+  are unchanged.
+- Sum-check public and shape-derived work precomputes Boolean-suffix equality
+  weights per fixed prefix and caches the fixed Q-polynomial interpolation
+  basis. The default public norm-root polynomial `[-1, 0, 1]` is evaluated as
+  `z * (z^2 - 1)` through a setup-time plan, with the generic root-product path
+  retained for non-default parameters. The latest targeted `m256` report
+  generated on 2026-04-14T03:00:20Z recorded `16 ms` for standard sum-check
+  and `16 ms` for prepared sum-check; this pass is not an aggregate throughput
+  claim.
 - Local CE batch verification compiles the sparse CCS shape once and reuses transformed matrices across openings.
 - Fold benchmarks now expose both cold and prepared lifetimes. The cold
   `fold/cpu/*` and `fold/metal/*` rows continue to represent the compatibility

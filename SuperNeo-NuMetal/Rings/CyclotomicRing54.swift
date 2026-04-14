@@ -639,6 +639,45 @@ public struct RingMatrix: Equatable, Sendable {
         }
         return output
     }
+
+    func evaluatedProduct(by vector: [CyclotomicRing54], rHat: [GoldilocksExt2]) throws -> CyclotomicExt2Ring54 {
+        guard vector.count == columns else {
+            throw SuperNeoError.invalidParameter("ring matrix/vector dimension mismatch")
+        }
+        guard rHat.count == rows else {
+            throw SuperNeoError.invalidParameter("ring matrix evaluation basis length mismatch")
+        }
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
+        for row in 0..<rows {
+            let weight = rHat[row]
+            for column in 0..<columns {
+                let product = self[row, column] * vector[column]
+                accumulateWeightedRing(product, weight: weight, into: &coefficients, skipZeroCoefficients: true)
+            }
+        }
+        return CyclotomicExt2Ring54(coefficients)
+    }
+
+    func evaluatedProductConstantWork(
+        by vector: [CyclotomicRing54],
+        rHat: [GoldilocksExt2]
+    ) throws -> CyclotomicExt2Ring54 {
+        guard vector.count == columns else {
+            throw SuperNeoError.invalidParameter("ring matrix/vector dimension mismatch")
+        }
+        guard rHat.count == rows else {
+            throw SuperNeoError.invalidParameter("ring matrix evaluation basis length mismatch")
+        }
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
+        for row in 0..<rows {
+            let weight = rHat[row]
+            for column in 0..<columns {
+                let product = self[row, column].multipliedConstantWork(by: vector[column])
+                accumulateWeightedRing(product, weight: weight, into: &coefficients, skipZeroCoefficients: false)
+            }
+        }
+        return CyclotomicExt2Ring54(coefficients)
+    }
 }
 
 public struct SparseRingMatrixCSR: Equatable, Sendable {
@@ -764,5 +803,63 @@ public struct SparseRingMatrixCSR: Equatable, Sendable {
             output[row] = acc
         }
         return output
+    }
+
+    func evaluatedProduct(by vector: [CyclotomicRing54], rHat: [GoldilocksExt2]) throws -> CyclotomicExt2Ring54 {
+        guard vector.count == columns else {
+            throw SuperNeoError.invalidParameter("sparse ring matrix/vector dimension mismatch")
+        }
+        guard rHat.count == rows else {
+            throw SuperNeoError.invalidParameter("sparse ring matrix evaluation basis length mismatch")
+        }
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
+        for row in 0..<rows {
+            let weight = rHat[row]
+            for index in rowOffsets[row]..<rowOffsets[row + 1] {
+                let product = values[index] * vector[columnIndices[index]]
+                accumulateWeightedRing(product, weight: weight, into: &coefficients, skipZeroCoefficients: true)
+            }
+        }
+        return CyclotomicExt2Ring54(coefficients)
+    }
+
+    func evaluatedProductConstantWork(
+        by vector: [CyclotomicRing54],
+        rHat: [GoldilocksExt2]
+    ) throws -> CyclotomicExt2Ring54 {
+        guard vector.count == columns else {
+            throw SuperNeoError.invalidParameter("sparse ring matrix/vector dimension mismatch")
+        }
+        guard rHat.count == rows else {
+            throw SuperNeoError.invalidParameter("sparse ring matrix evaluation basis length mismatch")
+        }
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
+        for row in 0..<rows {
+            let weight = rHat[row]
+            for index in rowOffsets[row]..<rowOffsets[row + 1] {
+                let product = values[index].multipliedConstantWork(by: vector[columnIndices[index]])
+                accumulateWeightedRing(product, weight: weight, into: &coefficients, skipZeroCoefficients: false)
+            }
+        }
+        return CyclotomicExt2Ring54(coefficients)
+    }
+}
+
+private func accumulateWeightedRing(
+    _ ring: CyclotomicRing54,
+    weight: GoldilocksExt2,
+    into coefficients: inout [GoldilocksExt2],
+    skipZeroCoefficients: Bool
+) {
+    let ringCoefficients = ring.coefficients
+    for coefficientIndex in 0..<CyclotomicRing54.degree {
+        let coefficient = ringCoefficients[coefficientIndex]
+        if skipZeroCoefficients, coefficient == .zero {
+            continue
+        }
+        let term = skipZeroCoefficients && coefficient == .one
+            ? weight
+            : weight.scaled(by: coefficient)
+        coefficients[coefficientIndex] = coefficients[coefficientIndex] + term
     }
 }

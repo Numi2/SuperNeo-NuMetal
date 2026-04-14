@@ -53,6 +53,26 @@ The artifact is a complete terminal proof for the same public one-hot statement
 as `one-hot-vector-fold-v1.json`. A strict verifier must pass
 `--require-terminal` and reject any fold-only artifact in its place.
 
+### `one-hot-vector-compressed-terminal-v1.json`
+
+Workload: `one-hot-vector-v1`
+
+Statement:
+
+- the prover knows a committed private vector of 8 field elements,
+- each private element is binary, and
+- exactly one private element is selected.
+
+Profile: `Goldilocks/Phi81(d=54)`
+
+Proof kind: `compressed-terminal`
+
+The artifact is a compressed public terminal proof for the same public one-hot
+statement as `one-hot-vector-fold-v1.json`. A strict verifier must pass
+`--require-terminal`; verification reconstructs terminal acceptance after
+checking the compressed public-input digest, terminal statement digest, and
+verifier-key binding.
+
 ### `binary-addition-u8-fold-v1.json`
 
 Workload: `binary-addition-v1`
@@ -77,20 +97,46 @@ The artifact is a fold-reduction vector, not a terminal proof. A verifier should
 accept the fold reduction and return 14 output CE claims requiring terminal CE
 verification.
 
+### `binary-addition-u8-terminal-v1.json`
+
+Workload: `binary-addition-v1`
+
+Statement:
+
+- the prover knows two committed private 8-bit integers,
+- every operand bit is binary,
+- every carry bit is binary,
+- the public little-endian sum bits encode `42`, and
+- the private operands satisfy `left + right = 42`.
+
+The checked-in witness used to generate the vector is `13 + 29 = 42`, but the
+artifact does not reveal the private operands. The public input is the constant
+one followed by 9 little-endian sum bits.
+
+Profile: `Goldilocks/Phi81(d=54)`
+
+Proof kind: `terminal`
+
+The artifact is a complete terminal proof for the binary-addition statement. A
+strict verifier must pass `--require-terminal` and reject any fold-only artifact
+in its place.
+
 ## Artifact Schema
 
 All byte arrays are base64 strings. All digests are lowercase hexadecimal
 SHA-256 strings. `artifact.schema.json` is the normative machine-readable schema
 for artifact version 1. Artifact consumers should reject duplicate JSON object
 member names before decoding, because duplicate keys make trust metadata
-parser-dependent.
+parser-dependent. The checked-in manifest validator applies this rule to both
+`manifest.json` and every manifest-listed artifact before semantic decoding,
+and rejects unknown manifest fields before Swift's decoder can ignore them.
 
 | Field | Meaning |
 | --- | --- |
 | `artifactVersion` | Test-vector schema version. Current value: `1`. |
 | `workload` | Workload identifier. Current values: `one-hot-vector-v1` and `binary-addition-v1`. |
 | `profile` | Parameter profile name. |
-| `proofKind` | `fold` or `terminal`. |
+| `proofKind` | `fold`, `terminal`, or `compressed-terminal`. |
 | `bitCount` | Number of private bit variables in the workload. |
 | `expectedSelectedCount` | Public selected-count constraint. Current value: `1`. |
 | `keySeedUTF8` | UTF-8 seed used to regenerate the public Ajtai verifier key. |

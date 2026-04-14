@@ -86,6 +86,14 @@ def main() -> None:
         "artifact root missing required key statementDigestHex",
     )
 
+    missing_compressed_kind = copy.deepcopy(schema)
+    missing_compressed_kind["properties"]["proofKind"]["enum"].remove("compressed-terminal")
+    expect_failure(
+        "missing compressed proof kind",
+        missing_compressed_kind,
+        "artifact proofKind enum must match the CLI proof kinds",
+    )
+
     one_hot_missing_workload_parameters = mutate_conditional(
         schema,
         "one-hot-vector-v1",

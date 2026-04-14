@@ -165,9 +165,13 @@ case "${MODE}" in
     run_and_log parameter-profile swift test --disable-swift-testing --filter ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile
     run_and_log usability swift test --disable-swift-testing --filter UsabilitySurfaceTests
     run_and_log golden-vector-verify swift run superneo verify TestVectors/one-hot-vector-fold-v1.json
+    run_and_log golden-compressed-terminal-vector-verify swift run superneo verify --require-terminal TestVectors/one-hot-vector-compressed-terminal-v1.json
     run_and_log binary-addition-vector-verify swift run superneo verify TestVectors/binary-addition-u8-fold-v1.json
+    run_and_log binary-addition-terminal-vector-verify swift run superneo verify --require-terminal TestVectors/binary-addition-u8-terminal-v1.json
     run_and_log golden-vector-inspect swift run superneo inspect TestVectors/one-hot-vector-fold-v1.json
+    run_and_log golden-compressed-terminal-vector-inspect swift run superneo inspect TestVectors/one-hot-vector-compressed-terminal-v1.json
     run_and_log binary-addition-vector-inspect swift run superneo inspect TestVectors/binary-addition-u8-fold-v1.json
+    run_and_log binary-addition-terminal-vector-inspect swift run superneo inspect TestVectors/binary-addition-u8-terminal-v1.json
     run_and_log test-vector-validation swift Scripts/validate-test-vectors.swift
     run_and_log fast Scripts/test-slice.sh fast
     run_and_log protocol Scripts/test-slice.sh protocol

@@ -55,14 +55,14 @@ public struct SuperNeoCPUBackend: Sendable {
             throw SuperNeoError.invalidParameter("transformed evaluation row/rHat length mismatch")
         }
         var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
-        for coefficientIndex in 0..<CyclotomicRing54.degree {
-            var total = GoldilocksExt2.zero
-            for row in rows.indices {
-                let coefficient = rows[row].coefficients[coefficientIndex]
+        for row in rows.indices {
+            let weight = rHat[row]
+            let rowCoefficients = rows[row].coefficients
+            for coefficientIndex in 0..<CyclotomicRing54.degree {
+                let coefficient = rowCoefficients[coefficientIndex]
                 guard coefficient != .zero else { continue }
-                total = total + rHat[row].scaled(by: coefficient)
+                coefficients[coefficientIndex] = coefficients[coefficientIndex] + weight.scaled(by: coefficient)
             }
-            coefficients[coefficientIndex] = total
         }
         return coefficients
     }
@@ -72,8 +72,10 @@ public struct SuperNeoCPUBackend: Sendable {
         vector: [CyclotomicRing54],
         point: [GoldilocksExt2]
     ) throws -> [GoldilocksExt2] {
-        let rows = try matrix.multiplied(by: vector)
-        return try transformedEvaluation(rows: rows, rHat: MultilinearEvaluation.checkedBasis(at: point))
+        try matrix.evaluatedProduct(
+            by: vector,
+            rHat: MultilinearEvaluation.checkedBasis(at: point)
+        ).coefficients
     }
 
     public func transformedEvaluation(
@@ -81,8 +83,10 @@ public struct SuperNeoCPUBackend: Sendable {
         vector: [CyclotomicRing54],
         point: [GoldilocksExt2]
     ) throws -> [GoldilocksExt2] {
-        let rows = try matrix.multiplied(by: vector)
-        return try transformedEvaluation(rows: rows, rHat: MultilinearEvaluation.checkedBasis(at: point))
+        try matrix.evaluatedProduct(
+            by: vector,
+            rHat: MultilinearEvaluation.checkedBasis(at: point)
+        ).coefficients
     }
 
     public func matrixVectorConstants(

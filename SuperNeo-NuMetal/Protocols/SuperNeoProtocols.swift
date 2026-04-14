@@ -835,13 +835,15 @@ public struct CCSQOracle: SumcheckOracle {
     private let freshCount: Int
     private let priorCount: Int
     private let priorClaims: [CCSEvaluationClaim]
-    private let freshMatrixRows: [[[GoldilocksField]]]
+    private let relationSourceEvaluator: RelationSourceEvaluationPlan
+    private let freshRelationMatrixRows: [[[GoldilocksField]]]
     private let allWitnessRows: [[GoldilocksField]]
     private let priorTransformedRows: [[[CyclotomicRing54]]]
     private let priorEvalPoint: [GoldilocksExt2]?
-    private let normRoots: [GoldilocksExt2]
+    private let normEvaluator: NormEvaluationPlan
     private let gammaPowers: [GoldilocksExt2]
     private let samplePoints: [GoldilocksExt2]
+    private let polynomialInterpolator: QPolynomialInterpolator
 
     public init(
         shape: CCSShape,
@@ -896,9 +898,21 @@ public struct CCSQOracle: SumcheckOracle {
             }
         }
         let maxDegreePerRound = try piCCSMaxDegreePerRound(shape: shape, parameters: parameters)
-        let matrices = try shape.matrices.map { try $0.toSparseFieldMatrix() }
-        let freshMatrixRows = try freshWitnesses.map { witness in
-            try matrices.map { matrix in try matrix.multiplied(by: witness) }
+        let relationSourceEvaluator = try RelationSourceEvaluationPlan(
+            polynomial: shape.relationPolynomial,
+            matrices: shape.matrices
+        )
+        let relationSourceMatrices = try relationSourceEvaluator.sourceVariableIndices.map {
+            try shape.matrices[$0].toSparseFieldMatrix()
+        }
+        var freshRelationMatrixRows = Array(
+            repeating: Array(repeating: [GoldilocksField](), count: relationSourceMatrices.count),
+            count: freshWitnesses.count
+        )
+        for (witnessIndex, witness) in freshWitnesses.enumerated() {
+            for (sourceIndex, matrix) in relationSourceMatrices.enumerated() {
+                freshRelationMatrixRows[witnessIndex][sourceIndex] = try matrix.multiplied(by: witness)
+            }
         }
         let allWitnessRows = freshWitnesses + priorWitnesses
         let priorTransformedRows: [[[CyclotomicRing54]]]
@@ -923,17 +937,20 @@ public struct CCSQOracle: SumcheckOracle {
         self.freshCount = freshWitnesses.count
         self.priorCount = priorClaims.count
         self.priorClaims = priorClaims
+        self.relationSourceEvaluator = relationSourceEvaluator
         self.alpha = alpha
         self.gamma = gamma
         self.numVars = numVars
         self.maxDegreePerRound = maxDegreePerRound
-        self.freshMatrixRows = freshMatrixRows
+        self.freshRelationMatrixRows = freshRelationMatrixRows
         self.allWitnessRows = allWitnessRows
         self.priorTransformedRows = priorTransformedRows
         self.priorEvalPoint = priorClaims.first?.point
-        self.normRoots = parameters.normRoots.map { GoldilocksExt2($0) }
+        self.normEvaluator = NormEvaluationPlan(roots: parameters.normRoots)
         self.gammaPowers = try makeGammaPowers(gamma, through: maxQExponent)
-        self.samplePoints = (0...maxDegreePerRound).map { GoldilocksExt2(GoldilocksField(UInt64($0))) }
+        let samplePoints = (0...maxDegreePerRound).map { GoldilocksExt2(GoldilocksField(UInt64($0))) }
+        self.samplePoints = samplePoints
+        self.polynomialInterpolator = try QPolynomialInterpolator(samplePoints: samplePoints)
     }
 
     public func claimedSumFromPriorClaims() throws -> GoldilocksExt2 {
@@ -960,7 +977,7 @@ public struct CCSQOracle: SumcheckOracle {
         let values = try samplePoints.map { sample in
             try partialHypercubeSum(fixedPrefix: prefix + [sample])
         }
-        return try interpolateQPolynomial(samplePoints: samplePoints, values: values)
+        return try polynomialInterpolator.interpolate(values: values)
     }
 
     public mutating func finalEvaluation(point: [GoldilocksExt2]) throws -> GoldilocksExt2 {
@@ -981,28 +998,35 @@ public struct CCSQOracle: SumcheckOracle {
         let prefixWeights = multilinearBasisWeights(fixedPrefix)
         let prefixWidth = prefixWeights.count
         let alphaFixedEq = try fixedPrefixEq(fixedPrefix, target: alpha)
-        let priorFixedEq = try priorEvalPoint.map { try fixedPrefixEq(fixedPrefix, target: $0) }
         let suffixCount = 1 << remaining
+        let alphaSuffixEq = try suffixEqWeights(
+            fixedEq: alphaFixedEq,
+            target: alpha,
+            fixedCount: fixedPrefix.count
+        )
+        let priorSuffixEq: [GoldilocksExt2]?
+        if let priorEvalPoint {
+            priorSuffixEq = try suffixEqWeights(
+                fixedEq: try fixedPrefixEq(fixedPrefix, target: priorEvalPoint),
+                target: priorEvalPoint,
+                fixedCount: fixedPrefix.count
+            )
+        } else {
+            priorSuffixEq = nil
+        }
+        let priorSuffixCount = priorSuffixEq?.count ?? suffixCount
+        guard alphaSuffixEq.count == suffixCount, priorSuffixCount == suffixCount else {
+            throw SuperNeoError.invalidParameter("sum-check suffix equality table length mismatch")
+        }
         var total = GoldilocksExt2.zero
         for suffixBits in 0..<suffixCount {
-            let priorEq: GoldilocksExt2?
-            if let priorFixedEq, let priorEvalPoint {
-                priorEq = suffixEq(
-                    fixedEq: priorFixedEq,
-                    target: priorEvalPoint,
-                    suffixBits: suffixBits,
-                    fixedCount: fixedPrefix.count
-                )
-            } else {
-                priorEq = nil
-            }
             total = total + (try evaluateQ(
                 suffixBits: suffixBits,
                 fixedCount: fixedPrefix.count,
                 prefixWidth: prefixWidth,
                 prefixWeights: prefixWeights,
-                alphaEq: suffixEq(fixedEq: alphaFixedEq, target: alpha, suffixBits: suffixBits, fixedCount: fixedPrefix.count),
-                priorEq: priorEq
+                alphaEq: alphaSuffixEq[suffixBits],
+                priorEq: priorSuffixEq?[suffixBits]
             ))
         }
         return total
@@ -1029,19 +1053,24 @@ public struct CCSQOracle: SumcheckOracle {
         prefixWidth: Int,
         prefixWeights: [GoldilocksExt2]
     ) throws -> GoldilocksExt2 {
+        guard !relationSourceEvaluator.isZero else { return .zero }
         var total = GoldilocksExt2.zero
         for witnessIndex in 0..<freshCount {
-            var matrixValues = Array(repeating: GoldilocksExt2.zero, count: shape.numMatrices)
-            for matrixIndex in 0..<shape.numMatrices {
-                matrixValues[matrixIndex] = weightedRowEvaluation(
-                    rows: freshMatrixRows[witnessIndex][matrixIndex],
+            var sourceValues = Array(
+                repeating: GoldilocksExt2.zero,
+                count: relationSourceEvaluator.sourceVariableIndices.count
+            )
+            for sourceIndex in freshRelationMatrixRows[witnessIndex].indices {
+                sourceValues[sourceIndex] = weightedRowEvaluation(
+                    rows: freshRelationMatrixRows[witnessIndex][sourceIndex],
                     suffixBits: suffixBits,
                     fixedCount: fixedCount,
                     prefixWidth: prefixWidth,
                     prefixWeights: prefixWeights
                 )
             }
-            total = total + power(witnessIndex) * (try shape.relationPolynomial.evaluate(matrixValues))
+            let relationValue = try relationSourceEvaluator.evaluate(sourceValues: sourceValues)
+            total = total + power(witnessIndex) * relationValue
         }
         return total
     }
@@ -1061,8 +1090,7 @@ public struct CCSQOracle: SumcheckOracle {
                 prefixWidth: prefixWidth,
                 prefixWeights: prefixWeights
             )
-            let product = normRoots.reduce(GoldilocksExt2.one) { $0 * (zAtPoint - $1) }
-            total = total + power(witnessIndex) * product
+            total = total + power(witnessIndex) * normEvaluator.evaluate(zAtPoint)
         }
         return total
     }
@@ -1076,19 +1104,20 @@ public struct CCSQOracle: SumcheckOracle {
     ) throws -> GoldilocksExt2 {
         guard let priorEq else { return .zero }
         var total = GoldilocksExt2.zero
+        var coefficientEvaluations = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
         for priorIndex in 0..<priorCount {
             for matrixIndex in 0..<shape.numMatrices {
+                weightedRingCoefficientEvaluations(
+                    rows: priorTransformedRows[priorIndex][matrixIndex],
+                    suffixBits: suffixBits,
+                    fixedCount: fixedCount,
+                    prefixWidth: prefixWidth,
+                    prefixWeights: prefixWeights,
+                    into: &coefficientEvaluations
+                )
                 for coeffIndex in 0..<CyclotomicRing54.degree {
-                    let coefficientEvaluation = weightedRingCoefficientEvaluation(
-                        rows: priorTransformedRows[priorIndex][matrixIndex],
-                        coefficientIndex: coeffIndex,
-                        suffixBits: suffixBits,
-                        fixedCount: fixedCount,
-                        prefixWidth: prefixWidth,
-                        prefixWeights: prefixWeights
-                    )
                     let exponent = priorExponent(priorIndex: priorIndex, matrixIndex: matrixIndex, coefficientIndex: coeffIndex)
-                    total = total + power(exponent) * coefficientEvaluation
+                    total = total + power(exponent) * coefficientEvaluations[coeffIndex]
                 }
             }
         }
@@ -1110,19 +1139,27 @@ public struct CCSQOracle: SumcheckOracle {
         return result
     }
 
-    private func suffixEq(
+    private func suffixEqWeights(
         fixedEq: GoldilocksExt2,
         target: [GoldilocksExt2],
-        suffixBits: Int,
         fixedCount: Int
-    ) -> GoldilocksExt2 {
-        var result = fixedEq
-        let remaining = target.count - fixedCount
-        for bit in 0..<remaining {
-            let targetValue = target[fixedCount + bit]
-            result = result * (((suffixBits >> bit) & 1) == 0 ? (.one - targetValue) : targetValue)
+    ) throws -> [GoldilocksExt2] {
+        guard fixedCount <= target.count else {
+            throw SuperNeoError.invalidParameter("sum-check fixed prefix is longer than equality target")
         }
-        return result
+        var weights = [fixedEq]
+        for index in fixedCount..<target.count {
+            let oldCount = weights.count
+            weights.append(contentsOf: repeatElement(.zero, count: oldCount))
+            let highWeight = target[index]
+            let lowWeight = GoldilocksExt2.one - highWeight
+            for weightIndex in 0..<oldCount {
+                let previous = weights[weightIndex]
+                weights[weightIndex] = previous * lowWeight
+                weights[weightIndex + oldCount] = previous * highWeight
+            }
+        }
+        return weights
     }
 
     private func weightedRowEvaluation(
@@ -1141,21 +1178,27 @@ public struct CCSQOracle: SumcheckOracle {
         return total
     }
 
-    private func weightedRingCoefficientEvaluation(
+    private func weightedRingCoefficientEvaluations(
         rows: [CyclotomicRing54],
-        coefficientIndex: Int,
         suffixBits: Int,
         fixedCount: Int,
         prefixWidth: Int,
-        prefixWeights: [GoldilocksExt2]
-    ) -> GoldilocksExt2 {
-        var total = GoldilocksExt2.zero
+        prefixWeights: [GoldilocksExt2],
+        into coefficients: inout [GoldilocksExt2]
+    ) {
+        for coefficientIndex in 0..<CyclotomicRing54.degree {
+            coefficients[coefficientIndex] = .zero
+        }
         let suffixBase = suffixBits << fixedCount
         for prefixBits in 0..<prefixWidth {
             let row = suffixBase | prefixBits
-            total = total + prefixWeights[prefixBits].scaled(by: rows[row].coefficients[coefficientIndex])
+            let weight = prefixWeights[prefixBits]
+            let rowCoefficients = rows[row].coefficients
+            for coefficientIndex in 0..<CyclotomicRing54.degree {
+                coefficients[coefficientIndex] = coefficients[coefficientIndex]
+                    + weight.scaled(by: rowCoefficients[coefficientIndex])
+            }
         }
-        return total
     }
 
     private func priorExponent(priorIndex: Int, matrixIndex: Int, coefficientIndex: Int) -> Int {
@@ -1177,7 +1220,8 @@ private struct PublicQVerifierState {
     private let freshCount: Int
     private let priorCount: Int
     private let priorEvalPoint: [GoldilocksExt2]?
-    private let normRoots: [GoldilocksExt2]
+    private let relationEvaluator: RelationEvaluationPlan
+    private let normEvaluator: NormEvaluationPlan
     private let gammaPowers: [GoldilocksExt2]
 
     init(
@@ -1212,11 +1256,15 @@ private struct PublicQVerifierState {
         self.freshCount = freshCount
         self.priorCount = priorCount
         self.priorEvalPoint = priorClaims.first?.point
+        self.relationEvaluator = try RelationEvaluationPlan(
+            polynomial: shape.relationPolynomial,
+            variableCount: shape.numMatrices
+        )
         self.alpha = alpha
         self.gamma = gamma
         self.numVars = numVars
         self.maxDegreePerRound = try piCCSMaxDegreePerRound(shape: shape, parameters: parameters)
-        self.normRoots = parameters.normRoots.map { GoldilocksExt2($0) }
+        self.normEvaluator = NormEvaluationPlan(roots: parameters.normRoots)
         self.gammaPowers = try makeGammaPowers(gamma, through: maxQExponent)
     }
 
@@ -1309,9 +1357,15 @@ private struct PublicQVerifierState {
 
     private func evaluateF(proofClaims: [CCSEvaluationClaim]) throws -> GoldilocksExt2 {
         var total = GoldilocksExt2.zero
+        let referencedVariables = relationEvaluator.referencedVariableIndices
         for witnessIndex in 0..<freshCount {
-            let matrixValues = proofClaims[witnessIndex].evaluations.map(\.constantTerm)
-            total = total + power(witnessIndex) * (try shape.relationPolynomial.evaluate(matrixValues))
+            var relationValues = Array(repeating: GoldilocksExt2.zero, count: referencedVariables.count)
+            for valueIndex in relationValues.indices {
+                let matrixIndex = referencedVariables[valueIndex]
+                relationValues[valueIndex] = proofClaims[witnessIndex].evaluations[matrixIndex].constantTerm
+            }
+            let relationValue = try relationEvaluator.evaluate(referencedValues: relationValues)
+            total = total + power(witnessIndex) * relationValue
         }
         return total
     }
@@ -1322,8 +1376,7 @@ private struct PublicQVerifierState {
             guard let zAtPoint = proofClaims[witnessIndex].evaluations.first?.constantTerm else {
                 throw SuperNeoError.invalidParameter("proof PiCCS claim is missing the identity-matrix evaluation")
             }
-            let product = normRoots.reduce(GoldilocksExt2.one) { $0 * (zAtPoint - $1) }
-            total = total + power(witnessIndex) * product
+            total = total + power(witnessIndex) * normEvaluator.evaluate(zAtPoint)
         }
         return total
     }
@@ -2587,8 +2640,12 @@ private enum SuperNeoProtocolOracle {
         ) { packed -> (commitment: AjtaiCommitment, evaluations: [CyclotomicExt2Ring54]) in
             let commitment = try commitReference(key: key, message: packed, executionPolicy: executionPolicy)
             let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-                let rows = try multiplyTransformedMatrix(matrix, by: packed, executionPolicy: executionPolicy)
-                return try evaluateExtensionRingRows(rows, rHat: rHat, executionPolicy: executionPolicy)
+                try evaluateTransformedMatrix(
+                    matrix,
+                    by: packed,
+                    rHat: rHat,
+                    executionPolicy: executionPolicy
+                )
             }
             return (commitment, evaluations)
         }
@@ -2605,15 +2662,16 @@ private enum SuperNeoProtocolOracle {
         return try AjtaiCommitter.commitReference(key: key, message: message)
     }
 
-    fileprivate static func multiplyTransformedMatrix(
+    fileprivate static func evaluateTransformedMatrix(
         _ matrix: SparseRingMatrixCSR,
         by packed: [CyclotomicRing54],
+        rHat: [GoldilocksExt2],
         executionPolicy: SuperNeoExecutionPolicy
-    ) throws -> [CyclotomicRing54] {
+    ) throws -> CyclotomicExt2Ring54 {
         if executionPolicy.usesConstantWorkCPU {
-            return try matrix.multipliedConstantWork(by: packed)
+            return try matrix.evaluatedProductConstantWork(by: packed, rHat: rHat)
         }
-        return try matrix.multiplied(by: packed)
+        return try matrix.evaluatedProduct(by: packed, rHat: rHat)
     }
 
     static func randomLinearCombination(
@@ -2779,8 +2837,12 @@ private enum SuperNeoProtocolOracle {
         guard recomputed == claim.commitment else { return false }
 
         let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-            let rows = try multiplyTransformedMatrix(matrix, by: packed, executionPolicy: executionPolicy)
-            return try evaluateExtensionRingRows(rows, rHat: rHat, executionPolicy: executionPolicy)
+            try evaluateTransformedMatrix(
+                matrix,
+                by: packed,
+                rHat: rHat,
+                executionPolicy: executionPolicy
+            )
         }
         return evaluations == claim.evaluations
     }
@@ -2818,8 +2880,12 @@ private enum SuperNeoProtocolOracle {
         let commitment = try commitReference(key: key, message: packed, executionPolicy: executionPolicy)
         let rHat = try MultilinearEvaluation.checkedBasis(at: point)
         let evaluations = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-            let rows = try multiplyTransformedMatrix(matrix, by: packed, executionPolicy: executionPolicy)
-            return try evaluateExtensionRingRows(rows, rHat: rHat, executionPolicy: executionPolicy)
+            try evaluateTransformedMatrix(
+                matrix,
+                by: packed,
+                rHat: rHat,
+                executionPolicy: executionPolicy
+            )
         }
         return CEInstance(
             commitment: commitment,
@@ -2827,54 +2893,6 @@ private enum SuperNeoProtocolOracle {
             evalPoint: point,
             matrixEvals: evaluations
         )
-    }
-
-    fileprivate static func evaluateExtensionRingRows(_ rows: [CyclotomicRing54], rHat: [GoldilocksExt2]) throws -> CyclotomicExt2Ring54 {
-        try evaluateExtensionRingRows(rows, rHat: rHat, executionPolicy: .default)
-    }
-
-    fileprivate static func evaluateExtensionRingRows(
-        _ rows: [CyclotomicRing54],
-        rHat: [GoldilocksExt2],
-        executionPolicy: SuperNeoExecutionPolicy
-    ) throws -> CyclotomicExt2Ring54 {
-        guard rows.count == rHat.count else {
-            throw SuperNeoError.invalidParameter("extension-ring row/rHat length mismatch")
-        }
-        if executionPolicy.usesConstantWorkCPU {
-            return try evaluateExtensionRingRowsConstantWork(rows, rHat: rHat)
-        }
-        var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
-        for rowIndex in rows.indices {
-            let weight = rHat[rowIndex]
-            let rowCoefficients = rows[rowIndex].coefficients
-            for coefficientIndex in 0..<CyclotomicRing54.degree {
-                let coefficient = rowCoefficients[coefficientIndex]
-                guard coefficient != .zero else { continue }
-                coefficients[coefficientIndex] = coefficients[coefficientIndex]
-                    + (coefficient == .one ? weight : weight.scaled(by: coefficient))
-            }
-        }
-        return CyclotomicExt2Ring54(coefficients)
-    }
-
-    private static func evaluateExtensionRingRowsConstantWork(
-        _ rows: [CyclotomicRing54],
-        rHat: [GoldilocksExt2]
-    ) throws -> CyclotomicExt2Ring54 {
-        guard rows.count == rHat.count else {
-            throw SuperNeoError.invalidParameter("extension-ring row/rHat length mismatch")
-        }
-        var coefficients = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
-        for rowIndex in rows.indices {
-            let weight = rHat[rowIndex]
-            let rowCoefficients = rows[rowIndex].coefficients
-            for coefficientIndex in 0..<CyclotomicRing54.degree {
-                coefficients[coefficientIndex] = coefficients[coefficientIndex]
-                    + weight.scaled(by: rowCoefficients[coefficientIndex])
-            }
-        }
-        return CyclotomicExt2Ring54(coefficients)
     }
 
     static func decompose(
@@ -3531,6 +3549,271 @@ private func makeGammaPowers(_ gamma: GoldilocksExt2, through maxExponent: Int) 
     return powers
 }
 
+private struct NormEvaluationPlan {
+    private enum Strategy {
+        case balancedTernary
+        case generic([GoldilocksExt2])
+    }
+
+    private let strategy: Strategy
+
+    init(roots: [GoldilocksField]) {
+        if roots == [-GoldilocksField.one, .zero, .one] {
+            strategy = .balancedTernary
+        } else {
+            strategy = .generic(roots.map { GoldilocksExt2($0) })
+        }
+    }
+
+    func evaluate(_ value: GoldilocksExt2) -> GoldilocksExt2 {
+        switch strategy {
+        case .balancedTernary:
+            return value * ((value * value) - .one)
+        case .generic(let roots):
+            var product = GoldilocksExt2.one
+            for root in roots {
+                product = product * (value - root)
+            }
+            return product
+        }
+    }
+}
+
+private struct RelationEvaluationPlan {
+    fileprivate struct Factor {
+        let valueIndex: Int
+        let exponent: Int
+    }
+
+    fileprivate struct Term {
+        let coefficient: GoldilocksField
+        let factors: [Factor]
+    }
+
+    let referencedVariableIndices: [Int]
+
+    private let terms: [Term]
+
+    init(polynomial: RelationPolynomial, variableCount: Int) throws {
+        guard variableCount == Int(polynomial.variableCount) else {
+            throw SuperNeoError.invalidParameter("relation evaluation plan arity mismatch")
+        }
+        var referencedVariables: Set<Int> = []
+        var rawTerms: [(coefficient: GoldilocksField, factors: [(variableIndex: Int, exponent: Int)])] = []
+        rawTerms.reserveCapacity(polynomial.monomials.count)
+        for monomial in polynomial.monomials {
+            var factors: [(variableIndex: Int, exponent: Int)] = []
+            factors.reserveCapacity(monomial.exponents.count)
+            for (variableIndex, exponent) in monomial.exponents.enumerated() where exponent > 0 {
+                referencedVariables.insert(variableIndex)
+                factors.append((variableIndex: variableIndex, exponent: Int(exponent)))
+            }
+            rawTerms.append((coefficient: monomial.coefficient, factors: factors))
+        }
+        let referencedVariableIndices = referencedVariables.sorted()
+        var valueIndexByVariable = Array(repeating: -1, count: variableCount)
+        for (valueIndex, variableIndex) in referencedVariableIndices.enumerated() {
+            valueIndexByVariable[variableIndex] = valueIndex
+        }
+        let terms = rawTerms.map { rawTerm in
+            Term(
+                coefficient: rawTerm.coefficient,
+                factors: rawTerm.factors.map { factor in
+                    Factor(valueIndex: valueIndexByVariable[factor.variableIndex], exponent: factor.exponent)
+                }
+            )
+        }
+        self.terms = terms
+        self.referencedVariableIndices = referencedVariableIndices
+    }
+
+    func evaluate(referencedValues: [GoldilocksExt2]) throws -> GoldilocksExt2 {
+        guard referencedValues.count == referencedVariableIndices.count else {
+            throw SuperNeoError.invalidParameter("relation evaluation referenced value count mismatch")
+        }
+        var result = GoldilocksExt2.zero
+        for term in terms {
+            var value = GoldilocksExt2(term.coefficient)
+            for factor in term.factors {
+                let factorValue = referencedValues[factor.valueIndex]
+                switch factor.exponent {
+                case 1:
+                    value = value * factorValue
+                default:
+                    value = value * pow(factorValue, factor.exponent)
+                }
+            }
+            result = result + value
+        }
+        return result
+    }
+
+    private func pow(_ value: GoldilocksExt2, _ exponent: Int) -> GoldilocksExt2 {
+        guard exponent > 0 else { return .one }
+        var result = GoldilocksExt2.one
+        var base = value
+        var exp = exponent
+        while exp > 0 {
+            if exp & 1 == 1 {
+                result = result * base
+            }
+            exp >>= 1
+            if exp > 0 {
+                base = base * base
+            }
+        }
+        return result
+    }
+}
+
+private struct RelationSourceEvaluationPlan {
+    private struct SourceExponent: Hashable {
+        let sourceIndex: Int
+        let exponent: Int
+    }
+
+    private struct SourceTermKey: Hashable {
+        let factors: [SourceExponent]
+    }
+
+    private struct Factor {
+        let sourceIndex: Int
+        let exponent: Int
+    }
+
+    private struct Term {
+        let coefficient: GoldilocksField
+        let factors: [Factor]
+    }
+
+    let sourceVariableIndices: [Int]
+    var isZero: Bool { terms.isEmpty }
+
+    private let terms: [Term]
+
+    init(polynomial: RelationPolynomial, matrices: [SparseMatrixCSR]) throws {
+        guard Int(polynomial.variableCount) == matrices.count else {
+            throw SuperNeoError.invalidParameter("relation source evaluation plan arity mismatch")
+        }
+
+        var sourceIndexByMatrix: [SparseMatrixCSR: Int] = [:]
+        var rawSourceVariableIndices: [Int] = []
+        var coefficientByKey: [SourceTermKey: GoldilocksField] = [:]
+        rawSourceVariableIndices.reserveCapacity(matrices.count)
+        coefficientByKey.reserveCapacity(polynomial.monomials.count)
+
+        for monomial in polynomial.monomials {
+            var exponentBySourceIndex: [Int: Int] = [:]
+            for (variableIndex, exponent) in monomial.exponents.enumerated() where exponent > 0 {
+                let rawSourceIndex: Int
+                let matrix = matrices[variableIndex]
+                if let existing = sourceIndexByMatrix[matrix] {
+                    rawSourceIndex = existing
+                } else {
+                    rawSourceIndex = rawSourceVariableIndices.count
+                    sourceIndexByMatrix[matrix] = rawSourceIndex
+                    rawSourceVariableIndices.append(variableIndex)
+                }
+                exponentBySourceIndex[rawSourceIndex, default: 0] += Int(exponent)
+            }
+            var factors = exponentBySourceIndex.map { entry in
+                SourceExponent(sourceIndex: entry.key, exponent: entry.value)
+            }
+            factors.sort { lhs, rhs in
+                if lhs.sourceIndex == rhs.sourceIndex {
+                    return lhs.exponent < rhs.exponent
+                }
+                return lhs.sourceIndex < rhs.sourceIndex
+            }
+            let key = SourceTermKey(factors: factors)
+            coefficientByKey[key, default: .zero] = coefficientByKey[key, default: .zero] + monomial.coefficient
+        }
+
+        let nonzeroRawTerms = coefficientByKey
+            .filter { $0.value != .zero }
+            .sorted { lhs, rhs in Self.isOrdered(lhs.key, before: rhs.key) }
+        var usedRawSourceIndices = Set<Int>()
+        for (key, _) in nonzeroRawTerms {
+            for factor in key.factors {
+                usedRawSourceIndices.insert(factor.sourceIndex)
+            }
+        }
+        let orderedRawSourceIndices = usedRawSourceIndices.sorted()
+        var compactSourceIndexByRawSource = Array(repeating: -1, count: rawSourceVariableIndices.count)
+        for (compactSourceIndex, rawSourceIndex) in orderedRawSourceIndices.enumerated() {
+            compactSourceIndexByRawSource[rawSourceIndex] = compactSourceIndex
+        }
+        let sourceVariableIndices = orderedRawSourceIndices.map { rawSourceVariableIndices[$0] }
+        let terms = nonzeroRawTerms.map { entry in
+            Term(
+                coefficient: entry.value,
+                factors: entry.key.factors.map { factor in
+                    Factor(
+                        sourceIndex: compactSourceIndexByRawSource[factor.sourceIndex],
+                        exponent: factor.exponent
+                    )
+                }
+            )
+        }
+
+        self.sourceVariableIndices = sourceVariableIndices
+        self.terms = terms
+    }
+
+    func evaluate(sourceValues: [GoldilocksExt2]) throws -> GoldilocksExt2 {
+        guard sourceValues.count == sourceVariableIndices.count else {
+            throw SuperNeoError.invalidParameter("relation source evaluation value count mismatch")
+        }
+        var result = GoldilocksExt2.zero
+        for term in terms {
+            var value = GoldilocksExt2(term.coefficient)
+            for factor in term.factors {
+                let sourceValue = sourceValues[factor.sourceIndex]
+                switch factor.exponent {
+                case 1:
+                    value = value * sourceValue
+                default:
+                    value = value * pow(sourceValue, factor.exponent)
+                }
+            }
+            result = result + value
+        }
+        return result
+    }
+
+    private static func isOrdered(_ lhs: SourceTermKey, before rhs: SourceTermKey) -> Bool {
+        let sharedCount = min(lhs.factors.count, rhs.factors.count)
+        for index in 0..<sharedCount {
+            let lhsFactor = lhs.factors[index]
+            let rhsFactor = rhs.factors[index]
+            if lhsFactor.sourceIndex != rhsFactor.sourceIndex {
+                return lhsFactor.sourceIndex < rhsFactor.sourceIndex
+            }
+            if lhsFactor.exponent != rhsFactor.exponent {
+                return lhsFactor.exponent < rhsFactor.exponent
+            }
+        }
+        return lhs.factors.count < rhs.factors.count
+    }
+
+    private func pow(_ value: GoldilocksExt2, _ exponent: Int) -> GoldilocksExt2 {
+        guard exponent > 0 else { return .one }
+        var result = GoldilocksExt2.one
+        var base = value
+        var exp = exponent
+        while exp > 0 {
+            if exp & 1 == 1 {
+                result = result * base
+            }
+            exp >>= 1
+            if exp > 0 {
+                base = base * base
+            }
+        }
+        return result
+    }
+}
+
 private func validateStrongSamplingCapacity(
     freshCount: Int,
     priorCount: Int,
@@ -3838,13 +4121,9 @@ private struct CEOpeningPrivateLinearBatchContext {
                 commitment = try AjtaiCommitter.commitReference(key: key, message: packed)
             }
             let matrixEvals = try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-                let rows = try SuperNeoProtocolOracle.multiplyTransformedMatrix(
+                try SuperNeoProtocolOracle.evaluateTransformedMatrix(
                     matrix,
                     by: packed,
-                    executionPolicy: executionPolicy
-                )
-                return try SuperNeoProtocolOracle.evaluateExtensionRingRows(
-                    rows,
                     rHat: openingContext.rHat,
                     executionPolicy: executionPolicy
                 )
@@ -4007,13 +4286,9 @@ private func makeCEPrivateTarget(
     }
     let publicEvaluations = try SuperNeoBenchmarkSignpost.measure("ceTargetTransformedEval") {
         try transformedMatrices.map { matrix -> CyclotomicExt2Ring54 in
-            let rows = try SuperNeoProtocolOracle.multiplyTransformedMatrix(
+            try SuperNeoProtocolOracle.evaluateTransformedMatrix(
                 matrix,
                 by: packedPublicWitness,
-                executionPolicy: executionPolicy
-            )
-            return try SuperNeoProtocolOracle.evaluateExtensionRingRows(
-                rows,
                 rHat: openingContext.rHat,
                 executionPolicy: executionPolicy
             )
@@ -4570,30 +4845,45 @@ private func multilinearBasisWeights(_ point: [GoldilocksExt2]) -> [GoldilocksEx
     return weights
 }
 
-private func interpolateQPolynomial(
-    samplePoints: [GoldilocksExt2],
-    values: [GoldilocksExt2]
-) throws -> [GoldilocksExt2] {
-    guard samplePoints.count == values.count, !samplePoints.isEmpty else {
-        throw SuperNeoError.invalidParameter("interpolation sample count mismatch")
-    }
-    var coefficients = Array(repeating: GoldilocksExt2.zero, count: values.count)
-    for index in samplePoints.indices {
-        var basis = [GoldilocksExt2.one]
-        var denominator = GoldilocksExt2.one
-        for other in samplePoints.indices where other != index {
-            basis = multiplyQPolynomial(basis, byLinearTermWithRoot: samplePoints[other])
-            denominator = denominator * (samplePoints[index] - samplePoints[other])
+private struct QPolynomialInterpolator {
+    private let basisCoefficients: [[GoldilocksExt2]]
+
+    init(samplePoints: [GoldilocksExt2]) throws {
+        guard !samplePoints.isEmpty else {
+            throw SuperNeoError.invalidParameter("interpolation sample count mismatch")
         }
-        let scale = values[index] * (try denominator.inverse())
-        for coeffIndex in basis.indices {
-            coefficients[coeffIndex] = coefficients[coeffIndex] + basis[coeffIndex] * scale
+        var basisCoefficients: [[GoldilocksExt2]] = []
+        basisCoefficients.reserveCapacity(samplePoints.count)
+        for index in samplePoints.indices {
+            var basis = [GoldilocksExt2.one]
+            var denominator = GoldilocksExt2.one
+            for other in samplePoints.indices where other != index {
+                basis = multiplyQPolynomial(basis, byLinearTermWithRoot: samplePoints[other])
+                denominator = denominator * (samplePoints[index] - samplePoints[other])
+            }
+            let inverseDenominator = try denominator.inverse()
+            basisCoefficients.append(basis.map { $0 * inverseDenominator })
         }
+        self.basisCoefficients = basisCoefficients
     }
-    while coefficients.count > 1, coefficients.last == .zero {
-        coefficients.removeLast()
+
+    func interpolate(values: [GoldilocksExt2]) throws -> [GoldilocksExt2] {
+        guard values.count == basisCoefficients.count else {
+            throw SuperNeoError.invalidParameter("interpolation sample count mismatch")
+        }
+        var coefficients = Array(repeating: GoldilocksExt2.zero, count: values.count)
+        for index in basisCoefficients.indices {
+            let value = values[index]
+            let basis = basisCoefficients[index]
+            for coeffIndex in basis.indices {
+                coefficients[coeffIndex] = coefficients[coeffIndex] + basis[coeffIndex] * value
+            }
+        }
+        while coefficients.count > 1, coefficients.last == .zero {
+            coefficients.removeLast()
+        }
+        return coefficients
     }
-    return coefficients
 }
 
 private func multiplyQPolynomial(
@@ -4655,7 +4945,7 @@ private func signedMagnitude(_ value: GoldilocksField) -> UInt64 {
 }
 
 private func shouldParallelizeOpeningBatch(shape: CCSShape, count: Int) -> Bool {
-    count >= 4 && shape.m >= 1_024
+    (count >= 8 && shape.m >= 256) || (count >= 4 && shape.m >= 1_024)
 }
 
 private func orderedParallelMap<Input, Output>(

@@ -93,8 +93,8 @@ This repository does not currently provide:
 
 A fold reduction is not a complete application proof. It verifies the public
 reduction and returns output commitment-evaluation (CE) claims. Callers that
-need terminal acceptance must verify a terminal proof and require terminal proof
-kind at the policy boundary.
+need terminal acceptance must verify a terminal or compressed-terminal proof and
+require terminal proof kind at the policy boundary.
 
 See [Docs/WhatThisProves.md](Docs/WhatThisProves.md) for the precise proof
 semantics.
@@ -213,6 +213,19 @@ swift run superneo prove \
 swift run superneo verify --require-terminal /tmp/one-hot-terminal-proof.json
 ```
 
+Generate a compressed terminal proof when the verifier wants terminal acceptance
+with compressed public terminal statement material:
+
+```sh
+swift run superneo prove \
+  --workload one-hot \
+  --kind compressed-terminal \
+  --bits 0,0,1,0 \
+  --output /tmp/one-hot-compressed-terminal-proof.json
+
+swift run superneo verify --require-terminal /tmp/one-hot-compressed-terminal-proof.json
+```
+
 The CLI proof generator uses the repository's `.highAssurance` execution policy.
 It is still an integration demo, not a production policy engine.
 
@@ -253,7 +266,9 @@ testing:
 | --- | --- | --- |
 | [TestVectors/one-hot-vector-fold-v1.json](TestVectors/one-hot-vector-fold-v1.json) | one-hot vector | fold |
 | [TestVectors/one-hot-vector-terminal-v1.json](TestVectors/one-hot-vector-terminal-v1.json) | one-hot vector | terminal |
+| [TestVectors/one-hot-vector-compressed-terminal-v1.json](TestVectors/one-hot-vector-compressed-terminal-v1.json) | one-hot vector | compressed-terminal |
 | [TestVectors/binary-addition-u8-fold-v1.json](TestVectors/binary-addition-u8-fold-v1.json) | 8-bit binary addition | fold |
+| [TestVectors/binary-addition-u8-terminal-v1.json](TestVectors/binary-addition-u8-terminal-v1.json) | 8-bit binary addition | terminal |
 
 `TestVectors/manifest.json` is the trusted context for checked-in vectors:
 hashes, byte counts, public inputs, key seeds, digests, proof-kind requirements,
@@ -365,6 +380,14 @@ Usage, artifacts, and validation:
 Benchmarking and readiness:
 
 - [Benchmarking](Docs/Benchmarking.md)
+- [PiRLC Benchmark Isolation, 2026-04-14](Docs/BenchmarkPiRLCIsolation-2026-04-14.md)
+- [Opening Batch Parallel Threshold, 2026-04-14](Docs/BenchmarkOpeningBatchThreshold-2026-04-14.md)
+- [Binary Addition Terminal Vector, 2026-04-14](Docs/BinaryAdditionTerminalVector-2026-04-14.md)
+- [Compressed Terminal Vector, 2026-04-14](Docs/CompressedTerminalVector-2026-04-14.md)
+- [Relation Evaluation Plan, 2026-04-14](Docs/BenchmarkRelationEvaluationPlan-2026-04-14.md)
+- [Sum-Check Prior-Claim Evaluation Batch, 2026-04-14](Docs/BenchmarkSumcheckPriorBatch-2026-04-14.md)
+- [Sum-Check Public Precompute Cleanup, 2026-04-14](Docs/BenchmarkSumcheckPublicPrecompute-2026-04-14.md)
+- [Transformed Evaluation Fusion, 2026-04-14](Docs/BenchmarkTransformedEvaluationFusion-2026-04-14.md)
 - [Production Readiness, 2026-04-13](Docs/ProductionReadiness-2026-04-13.md)
 - [High-Assurance Hardening, 2026-04-13](Docs/HighAssuranceHardening-2026-04-13.md)
 - [Lead Audit, 2026-04-12](Docs/LeadAudit-2026-04-12.md)

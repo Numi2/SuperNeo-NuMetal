@@ -50,11 +50,20 @@ private let demoProofArtifactTopLevelKeys: Set<String> = [
 private enum DemoProofKind: String {
     case fold
     case terminal
+    case compressedTerminal = "compressed-terminal"
 
     var envelopeKind: ProofEnvelopeKind {
         switch self {
         case .fold: return .foldReduction
         case .terminal: return .terminalLocal
+        case .compressedTerminal: return .compressedPublic
+        }
+    }
+
+    var satisfiesTerminalRequirement: Bool {
+        switch self {
+        case .fold: return false
+        case .terminal, .compressedTerminal: return true
         }
     }
 }
@@ -88,8 +97,8 @@ private struct VerifyOptions {
 private func usage() -> String {
     """
     Usage:
-      superneo prove [--workload one-hot] [--bits 0,0,1,0] [--kind fold|terminal] [--key-seed text] [--output proof.json]
-      superneo prove --workload binary-add [--operand-bits 8] [--lhs 13] [--rhs 29] [--kind fold|terminal] [--output proof.json]
+      superneo prove [--workload one-hot] [--bits 0,0,1,0] [--kind fold|terminal|compressed-terminal] [--key-seed text] [--output proof.json]
+      superneo prove --workload binary-add [--operand-bits 8] [--lhs 13] [--rhs 29] [--kind fold|terminal|compressed-terminal] [--output proof.json]
       superneo verify [--key-seed text] [--expected-verifier-key-digest hex] [--expected-shape-digest hex] [--expected-statement-digest hex] [--expected-public-inputs values] [--require-terminal] proof.json
       superneo inspect proof.json
 
@@ -99,6 +108,8 @@ private func usage() -> String {
 
     The default proof kind is fold. Terminal proofs are complete but currently
     much larger and slower because they include the public CE opening proof.
+    compressed-terminal proofs keep terminal acceptance while compressing public
+    terminal statement material behind digest bindings.
     """
 }
 
@@ -164,7 +175,7 @@ private func parseProveOptions(_ arguments: [String]) throws -> ProveOptions {
         case "--kind":
             let raw = try requireValue()
             guard let kind = DemoProofKind(rawValue: raw) else {
-                throw CLIError.invalidArgument("--kind must be terminal or fold")
+                throw CLIError.invalidArgument("--kind must be fold, terminal, or compressed-terminal")
             }
             options.proofKind = kind
         default:
@@ -292,6 +303,8 @@ private func prove(_ options: ProveOptions) throws {
         envelopeBytes = try prover.foldEnvelope(prepared.foldInput, context: context).superNeoBytes
     case .terminal:
         envelopeBytes = try prover.terminalFoldEnvelope(prepared.foldInput, context: context).superNeoBytes
+    case .compressedTerminal:
+        envelopeBytes = try prover.compressedTerminalFoldEnvelope(prepared.foldInput, context: context).superNeoBytes
     }
     let elapsed = Date().timeIntervalSince(started)
     let artifact = DemoProofArtifact(
@@ -364,7 +377,7 @@ private func verify(options: VerifyOptions) throws {
         }
     }
     let verifier = SuperNeoCPUBackend().makeVerifier(key: key)
-    if options.requireTerminalProof, kind != .terminal {
+    if options.requireTerminalProof, !kind.satisfiesTerminalRequirement {
         throw CLIError.invalidArgument("terminal proof required, but artifact contains a fold reduction")
     }
     let context = ProofEnvelopeContext(
@@ -396,6 +409,16 @@ private func verify(options: VerifyOptions) throws {
             throw CLIError.invalidArgument("terminal proof rejected: \(result.reason ?? "unknown reason")")
         }
         print("valid terminal proof")
+    case .compressedTerminal:
+        let result = verifier.verifyCompressedTerminalFoldEnvelope(
+            publicInput: publicInput,
+            proofBytes: proofBytes,
+            context: context
+        )
+        guard result.isValid else {
+            throw CLIError.invalidArgument("compressed terminal proof rejected: \(result.reason ?? "unknown reason")")
+        }
+        print("valid compressed terminal proof")
     }
     print(String(format: "verify time: %.3f s", Date().timeIntervalSince(started)))
 }

@@ -175,15 +175,21 @@ let claims = [
         commands: [
             "swift test --disable-swift-testing --filter UsabilitySurfaceTests",
             "swift run superneo verify TestVectors/one-hot-vector-fold-v1.json",
+            "swift run superneo verify --require-terminal TestVectors/one-hot-vector-compressed-terminal-v1.json",
             "swift run superneo verify TestVectors/binary-addition-u8-fold-v1.json",
+            "swift run superneo verify --require-terminal TestVectors/binary-addition-u8-terminal-v1.json",
             "swift Scripts/validate-test-vectors.swift"
         ],
         benchmarkSelectors: [],
         generatedArtifacts: [
             "logs/usability.txt",
             "logs/golden-vector-verify.txt",
+            "logs/golden-compressed-terminal-vector-verify.txt",
+            "logs/binary-addition-terminal-vector-verify.txt",
             "test-vectors/one-hot-vector-fold-v1.json",
+            "test-vectors/one-hot-vector-compressed-terminal-v1.json",
             "test-vectors/binary-addition-u8-fold-v1.json",
+            "test-vectors/binary-addition-u8-terminal-v1.json",
             "test-vectors/manifest.json",
             "test-vectors/artifact.schema.json"
         ]
@@ -220,10 +226,13 @@ let claims = [
             "SuperNeoVerifier.reduceFold",
             "SuperNeoVerifier.verifyFold",
             "ProofEnvelopeKind.foldReduction",
-            "ProofEnvelopeKind.terminalLocal"
+            "ProofEnvelopeKind.terminalLocal",
+            "ProofEnvelopeKind.compressedPublic"
         ],
         commands: [
             "swift run superneo verify TestVectors/one-hot-vector-fold-v1.json",
+            "swift run superneo verify --require-terminal TestVectors/one-hot-vector-compressed-terminal-v1.json",
+            "swift run superneo verify --require-terminal TestVectors/binary-addition-u8-terminal-v1.json",
             "Scripts/test-slice.sh protocol"
         ],
         benchmarkSelectors: [
@@ -233,6 +242,10 @@ let claims = [
         ],
         generatedArtifacts: [
             "logs/golden-vector-verify.txt",
+            "logs/golden-compressed-terminal-vector-verify.txt",
+            "logs/binary-addition-terminal-vector-verify.txt",
+            "test-vectors/one-hot-vector-compressed-terminal-v1.json",
+            "test-vectors/binary-addition-u8-terminal-v1.json",
             "benchmark-results/report.md",
             "report.md"
         ]
@@ -276,9 +289,13 @@ set -euo pipefail
 swift test --disable-swift-testing --filter ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile
 swift test --disable-swift-testing --filter UsabilitySurfaceTests
 swift run superneo verify TestVectors/one-hot-vector-fold-v1.json
+swift run superneo verify --require-terminal TestVectors/one-hot-vector-compressed-terminal-v1.json
 swift run superneo verify TestVectors/binary-addition-u8-fold-v1.json
+swift run superneo verify --require-terminal TestVectors/binary-addition-u8-terminal-v1.json
 swift run superneo inspect TestVectors/one-hot-vector-fold-v1.json
+swift run superneo inspect TestVectors/one-hot-vector-compressed-terminal-v1.json
 swift run superneo inspect TestVectors/binary-addition-u8-fold-v1.json
+swift run superneo inspect TestVectors/binary-addition-u8-terminal-v1.json
 swift Scripts/validate-test-vectors.swift
 Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
 Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json
@@ -470,7 +487,7 @@ report.append(contentsOf: [
     "",
     "## Proof-Vector Check",
     "",
-    "The checked-in vectors are `TestVectors/one-hot-vector-fold-v1.json` and `TestVectors/binary-addition-u8-fold-v1.json`. The reproduction command verifies fold-reduction envelopes and must report that terminal CE relation checking remains required. This is intentional: kind `fold` is not terminal acceptance.",
+    "The checked-in vectors include fold-reduction envelopes, terminal proof envelopes, and a compressed public terminal envelope. Fold-vector verification must report that terminal CE relation checking remains required. Terminal and compressed-terminal vector verification must use `--require-terminal`; kind `fold` is not terminal acceptance.",
     "",
     "## Required Interpretation",
     "",

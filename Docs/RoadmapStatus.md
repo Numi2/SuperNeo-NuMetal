@@ -47,8 +47,9 @@ Artifacts:
   release CLI artifacts under trusted context.
 - `TestVectors/one-hot-vector-fold-v1.json` and
   `TestVectors/binary-addition-u8-fold-v1.json` are checked-in fold vectors.
-- `TestVectors/one-hot-vector-terminal-v1.json` is a checked-in complete
-  terminal proof vector validated under `--require-terminal`.
+- `TestVectors/one-hot-vector-terminal-v1.json` and
+  `TestVectors/binary-addition-u8-terminal-v1.json` are checked-in complete
+  terminal proof vectors validated under `--require-terminal`.
 
 Remaining boundary:
 
@@ -67,6 +68,9 @@ Artifacts:
   into a machine-checkable gate with 5% kernel and 10% protocol thresholds by
   default; `Scripts/run-benchmarks.sh` can invoke it automatically when
   `SUPERNEO_BENCHMARK_BASELINE` is set.
+- `Scripts/test-benchmark-tooling-validation.py` mutation-tests benchmark
+  comparator and report-rendering failure modes before benchmark evidence is
+  trusted by the production gate.
 - `Docs/BenchmarkReports/apple-m4-quick-2026-04-12.md` is a pinned Apple M4
   quick-profile report.
 - `Docs/LeadAudit-2026-04-12.md` records the latest code audit findings,
@@ -100,8 +104,32 @@ Artifacts:
 - `Docs/BinaryAdditionArtifactMetadataHardening-2026-04-13.md` records
   fail-closed binary-addition `publicSum` metadata validation in the CLI,
   vector schema, vector validator, and production gate.
+- `Docs/BinaryAdditionTerminalVector-2026-04-14.md` records the checked-in
+  binary-addition terminal proof vector and strict `--require-terminal`
+  validation coverage.
+- `Docs/CompressedTerminalCLI-2026-04-14.md` records the CLI, schema,
+  validator, and production-gate exposure for compressed public terminal
+  envelopes.
+- `Docs/CompressedTerminalVector-2026-04-14.md` records the checked-in one-hot
+  compressed-terminal proof vector and manifest/reproduction coverage.
+- `Docs/VectorManifestDuplicateKeyHardening-2026-04-14.md` records
+  fail-closed duplicate-key scanning for the vector manifest and checked-in
+  artifact corpus.
 - `Docs/BenchmarkPiRLCIsolation-2026-04-14.md` records the PiRLC benchmark
   boundary correction and validation plan.
+- `Docs/BenchmarkOpeningBatchThreshold-2026-04-14.md` records the m256 CPU
+  opening-batch parallel threshold pass and validation plan.
+- `Docs/BenchmarkRelationEvaluationPlan-2026-04-14.md` records the sum-check
+  public relation/source evaluation-plan pass and validation plan.
+- `Docs/BenchmarkSumcheckPriorBatch-2026-04-14.md` records the sum-check
+  prior-claim coefficient batching pass and validation plan.
+- `Docs/BenchmarkSumcheckPublicPrecompute-2026-04-14.md` records the sum-check
+  public-precompute cleanup and its no-material-speedup benchmark finding.
+- `Docs/BenchmarkNormPolynomialSpecialization-2026-04-14.md` records the
+  default public norm-root polynomial specialization and its no-material
+  aggregate benchmark finding.
+- `Docs/BenchmarkTransformedEvaluationFusion-2026-04-14.md` records the CPU
+  transformed-evaluation fusion pass and validation plan.
 - `Docs/CLIHighAssurancePolicy-2026-04-13.md` records the CLI proof-generation
   switch to explicit `.highAssurance` execution policy.
 - `Docs/ArtifactUnknownFieldHardening-2026-04-13.md` records fail-closed
@@ -114,17 +142,21 @@ Artifacts:
   release XCTest suites, vector validation, and strict release CLI smoke tests
   on pull requests and `main`.
 - `Scripts/production-gate.sh` provides the same local release-readiness gate,
-  including a positive terminal proof smoke check and an opt-in quick benchmark
-  pass.
+  including positive terminal and compressed-terminal proof smoke checks and an
+  opt-in quick benchmark pass.
 - `TestVectors/manifest.json` gives file hashes, byte counts, workloads,
   trusted expected verifier context, proof-kind requirements, and strict
   verification commands.
 - `TestVectors/artifact.schema.json` defines the public artifact schema.
 - `ProofEnvelopeHeader.parsePrefix(from:)` gives CLI and artifact tooling the
   same strict envelope-header parser used by proof-envelope decoding.
-- `Scripts/validate-test-vectors.swift` checks vector hashes, schema invariants,
+- `Scripts/validate-test-vectors.swift` checks vector hashes, duplicate JSON
+  keys before decoding, exact manifest key allowlists, schema invariants,
   workload-specific public input rules, strict envelope header agreement, and
   CLI verification.
+- `Scripts/test-vector-manifest-validation.py` mutation-tests vector manifest
+  uniqueness, raw duplicate-key rejection, unknown manifest-key rejection,
+  required proof-kind coverage, and checked-file coverage.
 - `Scripts/validate-artifact-schema.py` checks that the published artifact
   schema preserves exact root and workload-parameter rejection rules.
 - `Scripts/test-artifact-schema-validation.py` regression-tests the artifact
@@ -133,7 +165,8 @@ Artifacts:
 - `Docs/ArtifactHeaderHardening-2026-04-13.md` records the CLI/vector
   envelope-header hardening pass.
 - `Docs/ArtifactDuplicateKeyHardening-2026-04-13.md` records fail-closed CLI
-  rejection of duplicate JSON object keys before artifact decoding.
+  and vector-corpus rejection of duplicate JSON object keys before artifact
+  decoding.
 
 Remaining boundary:
 

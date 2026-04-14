@@ -15,7 +15,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - Lean formal build and formal-status validation
   - Lean/Swift profile-constant conformance validation
   - checked-in test vector validation
-  - release CLI fold and terminal prove/verify smoke for bundled workloads
+  - release CLI fold, terminal, and compressed-terminal prove/verify smoke
 
 Pass --with-benchmarks to include Scripts/run-benchmarks.sh quick.
 Pass --skip-formal when a separate CI job is already running the Lean/formal gate.
@@ -109,7 +109,9 @@ run_step swift test --disable-swift-testing
 run_step swift test -c release --disable-swift-testing
 run_step Scripts/validate-artifact-schema.py
 run_step Scripts/test-artifact-schema-validation.py
+run_step Scripts/test-benchmark-tooling-validation.py
 run_step swift Scripts/validate-test-vectors.swift
+run_step Scripts/test-vector-manifest-validation.py
 
 lattice_path="$(make_temp_json)"
 one_hot_path="$(make_temp_json)"
@@ -117,12 +119,16 @@ one_hot_unknown_field_path="$(make_temp_json)"
 one_hot_duplicate_top_level_key_path="$(make_temp_json)"
 one_hot_missing_selected_count_path="$(make_temp_json)"
 one_hot_terminal_path="$(make_temp_json)"
+one_hot_compressed_terminal_path="$(make_temp_json)"
+one_hot_compressed_terminal_as_terminal_path="$(make_temp_json)"
+one_hot_compressed_terminal_as_fold_path="$(make_temp_json)"
 binary_add_path="$(make_temp_json)"
+binary_add_terminal_path="$(make_temp_json)"
 binary_add_missing_sum_path="$(make_temp_json)"
 binary_add_noncanonical_sum_path="$(make_temp_json)"
 binary_add_bad_left_bit_count_path="$(make_temp_json)"
 binary_add_duplicate_workload_key_path="$(make_temp_json)"
-cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_duplicate_top_level_key_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${binary_add_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}" "${binary_add_duplicate_workload_key_path}")
+cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_duplicate_top_level_key_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${one_hot_compressed_terminal_path}" "${one_hot_compressed_terminal_as_terminal_path}" "${one_hot_compressed_terminal_as_fold_path}" "${binary_add_path}" "${binary_add_terminal_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}" "${binary_add_duplicate_workload_key_path}")
 
 run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
 run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent "${lattice_path}"
@@ -230,6 +236,55 @@ run_step "${SUPERNEO_CLI}" verify \
   "${one_hot_terminal_path}"
 
 run_step "${SUPERNEO_CLI}" prove \
+  --kind compressed-terminal \
+  --bits 0,0,1,0,0,0,0,0 \
+  --output "${one_hot_compressed_terminal_path}"
+run_step "${SUPERNEO_CLI}" verify \
+  --key-seed "${ONE_HOT_KEY_SEED}" \
+  --expected-verifier-key-digest "${ONE_HOT_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${ONE_HOT_SHAPE_DIGEST}" \
+  --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
+  --expected-public-inputs 1 \
+  --require-terminal \
+  "${one_hot_compressed_terminal_path}"
+run_step python3 - "${one_hot_compressed_terminal_path}" "${one_hot_compressed_terminal_as_terminal_path}" terminal <<'PY'
+import json
+import sys
+source, destination, proof_kind = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(source, "r", encoding="utf-8") as handle:
+    artifact = json.load(handle)
+artifact["proofKind"] = proof_kind
+with open(destination, "w", encoding="utf-8") as handle:
+    json.dump(artifact, handle, indent=2, sort_keys=True)
+PY
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${ONE_HOT_KEY_SEED}" \
+  --expected-verifier-key-digest "${ONE_HOT_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${ONE_HOT_SHAPE_DIGEST}" \
+  --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
+  --expected-public-inputs 1 \
+  --require-terminal \
+  "${one_hot_compressed_terminal_as_terminal_path}"
+run_step python3 - "${one_hot_compressed_terminal_path}" "${one_hot_compressed_terminal_as_fold_path}" fold <<'PY'
+import json
+import sys
+source, destination, proof_kind = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(source, "r", encoding="utf-8") as handle:
+    artifact = json.load(handle)
+artifact["proofKind"] = proof_kind
+with open(destination, "w", encoding="utf-8") as handle:
+    json.dump(artifact, handle, indent=2, sort_keys=True)
+PY
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --key-seed "${ONE_HOT_KEY_SEED}" \
+  --expected-verifier-key-digest "${ONE_HOT_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${ONE_HOT_SHAPE_DIGEST}" \
+  --expected-statement-digest "${ONE_HOT_STATEMENT_DIGEST}" \
+  --expected-public-inputs 1 \
+  --require-terminal \
+  "${one_hot_compressed_terminal_as_fold_path}"
+
+run_step "${SUPERNEO_CLI}" prove \
   --workload binary-add \
   --operand-bits 8 \
   --lhs 13 \
@@ -312,6 +367,22 @@ run_step "${SUPERNEO_CLI}" verify \
   --expected-statement-digest "${BINARY_ADD_STATEMENT_DIGEST}" \
   --expected-public-inputs "${BINARY_ADD_PUBLIC_INPUTS}" \
   "${binary_add_path}"
+
+run_step "${SUPERNEO_CLI}" prove \
+  --workload binary-add \
+  --kind terminal \
+  --operand-bits 8 \
+  --lhs 13 \
+  --rhs 29 \
+  --output "${binary_add_terminal_path}"
+run_step "${SUPERNEO_CLI}" verify \
+  --key-seed "${BINARY_ADD_KEY_SEED}" \
+  --expected-verifier-key-digest "${BINARY_ADD_VERIFIER_KEY_DIGEST}" \
+  --expected-shape-digest "${BINARY_ADD_SHAPE_DIGEST}" \
+  --expected-statement-digest "${BINARY_ADD_STATEMENT_DIGEST}" \
+  --expected-public-inputs "${BINARY_ADD_PUBLIC_INPUTS}" \
+  --require-terminal \
+  "${binary_add_terminal_path}"
 
 if [[ "${RUN_BENCHMARKS}" -eq 1 ]]; then
   run_step Scripts/run-benchmarks.sh quick

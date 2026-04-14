@@ -35,6 +35,19 @@ These checks sit next to the existing unknown-field, missing-parameter,
 non-canonical-parameter, trusted-context mismatch, and terminal-proof-requirement
 negative tests.
 
+## 2026-04-14 Vector-Corpus Follow-Up
+
+`Scripts/validate-test-vectors.swift` now applies the same raw JSON
+duplicate-key scanner to `TestVectors/manifest.json` before manifest decoding
+and to each checked-in artifact before `JSONSerialization` or `JSONDecoder`
+receives it. The manifest path also rejects unknown top-level and per-vector
+keys before Swift's decoder can ignore them.
+
+`Scripts/test-vector-manifest-validation.py` mutation-tests duplicate raw
+manifest keys, unknown manifest keys, and duplicate nested artifact keys,
+updating temporary artifact hashes and byte counts where needed so the scanner
+is the failing check.
+
 ## Trust Boundary
 
 This does not change cryptographic parameters, transcript domains, proof-envelope

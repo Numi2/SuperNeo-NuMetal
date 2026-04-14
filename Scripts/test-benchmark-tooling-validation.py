@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+import json
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Any
+
+
+ROOT = Path(__file__).resolve().parents[1]
+COMPARE = ROOT / "Scripts" / "compare-benchmark-results.swift"
+RENDER = ROOT / "Scripts" / "render-benchmark-report.swift"
+
+
+def timing_row(
+    benchmark: str,
+    value: float,
+    unit: str,
+    extra: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "name": f"{benchmark} - Time (wall clock)",
+        "unit": unit,
+        "value": value,
+        "extra": extra,
+    }
+
+
+def malloc_row(benchmark: str, value: float) -> dict[str, Any]:
+    return {
+        "name": f"{benchmark} - Malloc (total)",
+        "unit": "#",
+        "value": value,
+        "extra": None,
+    }
+
+
+def write_json(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
+
+
+def run_compare(
+    baseline: Path,
+    candidate: Path,
+    *arguments: str,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["swift", str(COMPARE), str(baseline), str(candidate), *arguments],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+def run_render(results: Path, report: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["swift", str(RENDER), str(results), str(report)],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
+def expect_success(name: str, result: subprocess.CompletedProcess[str]) -> None:
+    if result.returncode != 0:
+        raise AssertionError(
+            f"{name}: command failed unexpectedly\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+
+def expect_failure(
+    name: str,
+    result: subprocess.CompletedProcess[str],
+    expected_output: str,
+) -> None:
+    combined_output = result.stdout + result.stderr
+    if result.returncode == 0:
+        raise AssertionError(f"{name}: command succeeded unexpectedly")
+    if expected_output not in combined_output:
+        raise AssertionError(
+            f"{name}: expected output to contain {expected_output!r}, got {combined_output!r}"
+        )
+
+
+def test_benchmark_comparator(temp_root: Path) -> None:
+    baseline = temp_root / "baseline.json"
+    candidate = temp_root / "candidate.json"
+    output = temp_root / "comparison.md"
+
+    baseline_rows = [
+        timing_row("kernel/fieldMultiply/m256-case", 100, "ns"),
+        timing_row("fold/cpu/m256-case", 10, "ms"),
+        timing_row("stage/sumcheck/m256-case", 20, "ms"),
+    ]
+    candidate_rows = [
+        timing_row("kernel/fieldMultiply/m256-case", 104, "ns"),
+        timing_row("fold/cpu/m256-case", 10.9, "ms"),
+        timing_row("stage/sumcheck/m256-case", 18, "ms"),
+    ]
+    write_json(baseline, baseline_rows)
+    write_json(candidate, candidate_rows)
+
+    result = run_compare(baseline, candidate, "--output", str(output))
+    expect_success("baseline comparison", result)
+    comparison = output.read_text(encoding="utf-8")
+    require("- Result: PASS" in comparison, "comparison output did not record PASS")
+    require("kernel/fieldMultiply/m256-case" in comparison, "comparison missing kernel row")
+    require("stage/sumcheck/m256-case" in comparison, "comparison missing stage row")
+
+    write_json(candidate, [timing_row("kernel/fieldMultiply/m256-case", 106, "ns")])
+    expect_failure(
+        "kernel threshold regression",
+        run_compare(baseline, candidate, "--allow-missing"),
+        "FAIL",
+    )
+
+    write_json(candidate, [timing_row("fold/cpu/m256-case", 11.1, "ms")])
+    expect_failure(
+        "protocol threshold regression",
+        run_compare(baseline, candidate, "--allow-missing"),
+        "FAIL",
+    )
+
+    warn_result = run_compare(baseline, candidate, "--allow-missing", "--warn-only")
+    expect_success("warn-only regression", warn_result)
+    require("- Result: WARN" in warn_result.stdout, "warn-only output did not record WARN")
+
+    write_json(candidate, [timing_row("kernel/fieldMultiply/m256-case", 95, "ns")])
+    expect_failure(
+        "missing candidate rows",
+        run_compare(baseline, candidate),
+        "Missing Candidate Rows",
+    )
+
+    missing_allowed = run_compare(baseline, candidate, "--allow-missing")
+    expect_success("allow missing rows", missing_allowed)
+    require(
+        "treated as warnings" in missing_allowed.stdout,
+        "allow-missing output did not mark missing rows as warnings",
+    )
+
+    write_json(candidate, [timing_row("unknown/row", 1, "ms")])
+    expect_failure(
+        "no overlap",
+        run_compare(baseline, candidate),
+        "benchmark result files have no overlapping wall-clock rows",
+    )
+
+    write_json(
+        candidate,
+        [
+            timing_row("kernel/fieldMultiply/m256-case", 95, "ns"),
+            timing_row("kernel/fieldMultiply/m256-case", 96, "ns"),
+        ],
+    )
+    expect_failure(
+        "duplicate wall-clock row",
+        run_compare(baseline, candidate),
+        "duplicate wall-clock row for kernel/fieldMultiply/m256-case",
+    )
+
+    write_json(candidate, [timing_row("kernel/fieldMultiply/m256-case", 1, "fortnight")])
+    expect_failure(
+        "unsupported time unit",
+        run_compare(baseline, candidate),
+        "unsupported benchmark time unit",
+    )
+
+
+def test_benchmark_report_renderer(temp_root: Path) -> None:
+    results = temp_root / "results.json"
+    report = temp_root / "report.md"
+    write_json(
+        results,
+        [
+            timing_row(
+                "fold/cpu/m256-case",
+                10,
+                "ms",
+                "95th percentile: 12 ms\n",
+            ),
+            malloc_row("fold/cpu/m256-case", 3),
+            timing_row("kernel/ajtaiCommit/cpu/m256-case", 250, "us"),
+            malloc_row("kernel/ajtaiCommit/cpu/m256-case", 7),
+        ],
+    )
+    report.write_text("# Existing Metadata\n\nkeep this block\n", encoding="utf-8")
+
+    result = run_render(results, report)
+    expect_success("render valid benchmark report", result)
+    rendered = report.read_text(encoding="utf-8")
+    require("# Existing Metadata" in rendered, "renderer dropped existing metadata")
+    require("## Timing Summary" in rendered, "renderer missing timing summary")
+    require("`fold/cpu/m256-case`" in rendered, "renderer missing fold row")
+    require("100.00 folds/s, 25600 constraints/s" in rendered, "renderer missing derived fold rate")
+    require("12 ms" in rendered, "renderer missing p95")
+    require("3 #" in rendered, "renderer missing malloc count")
+    require("4000.00 commitments/s" in rendered, "renderer missing commitment rate")
+
+    results.write_text("{ not json\n", encoding="utf-8")
+    expect_failure(
+        "render malformed JSON",
+        run_render(results, report),
+        "failed to decode benchmark result JSON",
+    )
+
+    write_json(results, [malloc_row("fold/cpu/m256-case", 1)])
+    expect_failure(
+        "render missing wall-clock rows",
+        run_render(results, report),
+        "did not contain wall-clock timing rows",
+    )
+
+
+def main() -> None:
+    with tempfile.TemporaryDirectory(prefix="superneo-benchmark-tooling-") as raw_tmp:
+        temp_root = Path(raw_tmp)
+        test_benchmark_comparator(temp_root)
+        test_benchmark_report_renderer(temp_root)
+    print("benchmark tooling validation regression tests passed")
+
+
+if __name__ == "__main__":
+    main()
