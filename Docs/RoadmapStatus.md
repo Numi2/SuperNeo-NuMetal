@@ -194,16 +194,20 @@ Artifacts:
 - `Scripts/validate-lattice-estimator-artifact.py` validates the pinned source,
   profile constants, derived SIS tuple, normalized estimator rows, threshold
   semantics, and lane separation.
-- `Formal/` provides a Lean 4/Lake workspace for the conditional formalization
-  track, with closed profile constants, derived parameter equalities, the
-  strong-sampling inequality, the abstract Ajtai commitment map, opening
-  linearity, binding equivalence under an explicit MSIS no-short-kernel
-  assumption, abstract PiDEC commitment recomposition, PiRLC weighted-claim
-  recomposition, PiCCS sum-check/public-Q final checking, terminal CE batch
-  opening, and top-level verifier composition.
+- `Formal/` provides a Lean 4/Lake workspace for the narrowed conditional
+  formalization track, with closed deterministic cores for profile constants,
+  concrete Goldilocks/Phi81 algebra, field-to-ring packing, concrete Ajtai
+  instantiation, PiDEC recomposition, PiRLC weighted-claim recomposition,
+  finite-support counting and scalar collision facts, transcript-bound finite
+  challenge scheduling, PiCCS acceptance and exact public-Q reduction,
+  finite-field low-degree root counting, terminal CE statement and local batch
+  algebra, and deterministic verifier composition.
 - `Docs/FormalStatus.json` and `Scripts/validate-formal-status.py` gate
   documentation labels against named theorem groups and verify that closed
-  groups reference declarations present in the claimed Lean module.
+  groups reference declarations present in the claimed Lean module without
+  duplicate declaration assignment across groups. The gate also prevents
+  boundary/assumption declarations from being marked closed and keeps the
+  completed label dependent on every current conditional theorem group.
 - `Scripts/test-formal-status-validation.py` regression-tests the formal-status
   gate by mutating temporary manifests and requiring fail-closed behavior.
 - `Docs/FormalStatusPromotion-2026-04-13.md` records the partial-formalization
@@ -214,6 +218,11 @@ Artifacts:
   recomposition formalization pass.
 - `Docs/FormalProtocolComposition-2026-04-13.md` records the assumption-scoped
   PiRLC, PiCCS, terminal CE, and verifier-composition formalization pass.
+- `Docs/FormalAssumptionLedger-2026-04-14.md` records the split between closed
+  deterministic theorem groups and the remaining MSIS,
+  random-linear-combination, sum-check, and CE-opening boundaries.
+- `Docs/FormalRemainingBoundaries-2026-04-14.md` records which blockers remain
+  open and what kind of Lean evidence is needed to close them.
 - `Docs/PaperReproduction.md` documents the harness and interpretation rules.
 - `Docs/LatticeEstimatorReproduction.md` documents the estimator command,
   pinned upstream source, and exact derived parameters.

@@ -34,6 +34,14 @@ structure TerminalVerifierGates (Claim : Type) (outputCount : Nat) where
   statementMatchesReduction : Prop
   terminalCEAccepts : Prop
 
+structure TerminalProofVerifierGates
+    (Claim Proof : Type)
+    (outputCount : Nat) where
+  statement : TerminalCEStatement Claim outputCount
+  proof : Proof
+  verifyProof : TerminalCEStatement Claim outputCount → Proof → Prop
+  statementMatchesReduction : Prop
+
 def SuperNeoVerifierAccepts
     {Claim : Type}
     {outputCount : Nat}
@@ -42,6 +50,21 @@ def SuperNeoVerifierAccepts
   FoldReductionAccepted reduction ∧
     terminal.statementMatchesReduction ∧
     terminal.terminalCEAccepts
+
+def TerminalProofVerifierCEAccepts
+    {Claim Proof : Type}
+    {outputCount : Nat}
+    (terminal : TerminalProofVerifierGates Claim Proof outputCount) : Prop :=
+  TerminalCEAccepts terminal.statement terminal.proof terminal.verifyProof
+
+def SuperNeoProofVerifierAccepts
+    {Claim Proof : Type}
+    {outputCount : Nat}
+    (reduction : FoldReductionGates Claim outputCount)
+    (terminal : TerminalProofVerifierGates Claim Proof outputCount) : Prop :=
+  FoldReductionAccepted reduction ∧
+    terminal.statementMatchesReduction ∧
+    TerminalProofVerifierCEAccepts terminal
 
 theorem fold_reduction_acceptance_from_stages
     {Claim : Type}
@@ -92,25 +115,107 @@ theorem superneo_acceptance_requires_terminal_ce
     terminal.terminalCEAccepts :=
   hAccepts.2.2
 
+theorem superneo_acceptance_deterministic_facts
+    {Claim : Type}
+    {outputCount : Nat}
+    {reduction : FoldReductionGates Claim outputCount}
+    {terminal : TerminalVerifierGates Claim outputCount}
+    (hAccepts : SuperNeoVerifierAccepts reduction terminal) :
+    FoldReductionAccepted reduction ∧
+      terminal.statementMatchesReduction ∧
+        terminal.terminalCEAccepts :=
+  ⟨
+    superneo_acceptance_requires_fold_reduction hAccepts,
+    superneo_acceptance_requires_terminal_statement_match hAccepts,
+    superneo_acceptance_requires_terminal_ce hAccepts
+  ⟩
+
+theorem superneo_proof_acceptance_requires_fold_reduction
+    {Claim Proof : Type}
+    {outputCount : Nat}
+    {reduction : FoldReductionGates Claim outputCount}
+    {terminal : TerminalProofVerifierGates Claim Proof outputCount}
+    (hAccepts : SuperNeoProofVerifierAccepts reduction terminal) :
+    FoldReductionAccepted reduction :=
+  hAccepts.1
+
+theorem superneo_proof_acceptance_requires_terminal_statement_match
+    {Claim Proof : Type}
+    {outputCount : Nat}
+    {reduction : FoldReductionGates Claim outputCount}
+    {terminal : TerminalProofVerifierGates Claim Proof outputCount}
+    (hAccepts : SuperNeoProofVerifierAccepts reduction terminal) :
+    terminal.statementMatchesReduction :=
+  hAccepts.2.1
+
+theorem superneo_proof_acceptance_requires_terminal_ce
+    {Claim Proof : Type}
+    {outputCount : Nat}
+    {reduction : FoldReductionGates Claim outputCount}
+    {terminal : TerminalProofVerifierGates Claim Proof outputCount}
+    (hAccepts : SuperNeoProofVerifierAccepts reduction terminal) :
+    TerminalProofVerifierCEAccepts terminal :=
+  hAccepts.2.2
+
+theorem superneo_proof_acceptance_deterministic_facts
+    {Claim Proof : Type}
+    {outputCount : Nat}
+    {reduction : FoldReductionGates Claim outputCount}
+    {terminal : TerminalProofVerifierGates Claim Proof outputCount}
+    (hAccepts : SuperNeoProofVerifierAccepts reduction terminal) :
+    FoldReductionAccepted reduction ∧
+      terminal.statementMatchesReduction ∧
+        TerminalProofVerifierCEAccepts terminal :=
+  ⟨
+    superneo_proof_acceptance_requires_fold_reduction hAccepts,
+    superneo_proof_acceptance_requires_terminal_statement_match hAccepts,
+    superneo_proof_acceptance_requires_terminal_ce hAccepts
+  ⟩
+
 theorem superneo_terminal_soundness_from_ce_soundness
     {Claim Proof Witness : Type}
     {outputCount : Nat}
     {reduction : FoldReductionGates Claim outputCount}
-    {terminal : TerminalVerifierGates Claim outputCount}
+    {terminal : TerminalProofVerifierGates Claim Proof outputCount}
     {verifyProof : TerminalCEStatement Claim outputCount → Proof → Prop}
     {opens : Claim → Witness → Prop}
     {proof : Proof}
-    (hAccepts : SuperNeoVerifierAccepts reduction terminal)
-    (hTerminalAccepts : TerminalCEAccepts terminal.statement proof verifyProof)
+    (hProof : terminal.proof = proof)
+    (hVerifyProof : terminal.verifyProof = verifyProof)
+    (hAccepts : SuperNeoProofVerifierAccepts reduction terminal)
     (hCESoundness : TerminalCEProofSoundnessAssumption verifyProof opens) :
     FoldReductionAccepted reduction ∧
       terminal.statementMatchesReduction ∧
       ∃ witnesses : Fin outputCount → Witness,
         TerminalLocalBatchRelation terminal.statement witnesses opens := by
+  have hTerminalAccepts :
+      TerminalCEAccepts terminal.statement proof verifyProof := by
+    subst proof
+    subst verifyProof
+    exact superneo_proof_acceptance_requires_terminal_ce hAccepts
   exact ⟨
-    superneo_acceptance_requires_fold_reduction hAccepts,
-    superneo_acceptance_requires_terminal_statement_match hAccepts,
+    superneo_proof_acceptance_requires_fold_reduction hAccepts,
+    superneo_proof_acceptance_requires_terminal_statement_match hAccepts,
     terminal_ce_relation_from_verified_proof hCESoundness hTerminalAccepts
   ⟩
+
+theorem superneo_end_to_end_from_ce_soundness
+    {Claim Proof Witness : Type}
+    {outputCount : Nat}
+    {reduction : FoldReductionGates Claim outputCount}
+    {terminal : TerminalProofVerifierGates Claim Proof outputCount}
+    {opens : Claim → Witness → Prop}
+    (hAccepts : SuperNeoProofVerifierAccepts reduction terminal)
+    (hCESoundness : TerminalCEProofSoundnessAssumption terminal.verifyProof opens) :
+    FoldReductionAccepted reduction ∧
+      terminal.statementMatchesReduction ∧
+      ∃ witnesses : Fin outputCount → Witness,
+        TerminalLocalBatchRelation terminal.statement witnesses opens :=
+  superneo_terminal_soundness_from_ce_soundness
+    (proof := terminal.proof)
+    rfl
+    rfl
+    hAccepts
+    hCESoundness
 
 end SuperNeoFormal

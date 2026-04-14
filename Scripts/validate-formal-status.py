@@ -32,6 +32,7 @@ LEAN_DECL_RE = re.compile(
     r"(?:theorem|lemma|def|abbrev|structure|inductive|class)\s+([A-Za-z_][A-Za-z0-9_'?]*)(?![A-Za-z0-9_'?])",
     re.MULTILINE,
 )
+ASSUMPTION_DECL_RE = re.compile(r"(?:Assumption|Boundary)$")
 
 
 def fail(message: str) -> None:
@@ -66,6 +67,7 @@ def validate_theorem_groups(manifest: Dict[str, Any]) -> Dict[str, str]:
         fail("theorem_groups must be an array")
     statuses: Dict[str, str] = {}
     modules: Dict[str, Set[str]] = {}
+    declaration_groups: Dict[str, str] = {}
 
     for index, group in enumerate(groups):
         if not isinstance(group, dict):
@@ -90,6 +92,16 @@ def validate_theorem_groups(manifest: Dict[str, Any]) -> Dict[str, str]:
             fail(f"planned theorem group {group_id!r} must not list closed declarations")
         if status != "planned" and not declarations:
             fail(f"closed theorem group {group_id!r} must list at least one declaration")
+        if status == "closed":
+            if group_id.endswith("-boundary"):
+                fail(f"boundary theorem group {group_id!r} must not be marked closed")
+            for declaration in declarations:
+                short_name = declaration.rsplit(".", 1)[-1]
+                if ASSUMPTION_DECL_RE.search(short_name):
+                    fail(
+                        f"closed theorem group {group_id!r} must not list assumption "
+                        f"or boundary declaration {declaration!r}"
+                    )
 
         names = modules.setdefault(module, declared_names(module))
         for declaration in declarations:
@@ -98,6 +110,13 @@ def validate_theorem_groups(manifest: Dict[str, Any]) -> Dict[str, str]:
                     f"theorem group {group_id!r} references missing declaration "
                     f"{declaration!r} in module {module!r}"
                 )
+            previous_group = declaration_groups.get(declaration)
+            if previous_group is not None:
+                fail(
+                    f"declaration {declaration!r} appears in multiple theorem groups: "
+                    f"{previous_group!r} and {group_id!r}"
+                )
+            declaration_groups[declaration] = group_id
         statuses[group_id] = status
 
     return statuses
@@ -135,6 +154,32 @@ def accepted_statuses(manifest: Dict[str, Any], label: str) -> Set[str]:
     return set(statuses)
 
 
+def validate_labels(manifest: Dict[str, Any], statuses: Dict[str, str]) -> None:
+    labels = manifest.get("labels")
+    if not isinstance(labels, dict) or not labels:
+        fail("labels must be a non-empty object")
+    seen_ranks: Dict[int, str] = {}
+    for label, item in labels.items():
+        if not isinstance(label, str) or not label:
+            fail("labels keys must be non-empty strings")
+        if not isinstance(item, dict):
+            fail(f"labels.{label} must be an object")
+        rank = item.get("rank")
+        if not isinstance(rank, int):
+            fail(f"labels.{label}.rank must be an integer")
+        previous_label = seen_ranks.get(rank)
+        if previous_label is not None:
+            fail(f"labels {previous_label!r} and {label!r} share duplicate rank {rank}")
+        seen_ranks[rank] = label
+        groups = required_groups(manifest, label)
+        if len(set(groups)) != len(groups):
+            fail(f"labels.{label}.required_theorem_groups contains duplicates")
+        for group in groups:
+            if group not in statuses:
+                fail(f"label {label!r} depends on unknown theorem group {group!r}")
+        accepted_statuses(manifest, label)
+
+
 def validate_label_dependencies(manifest: Dict[str, Any], label: str, statuses: Dict[str, str]) -> None:
     allowed = accepted_statuses(manifest, label)
     for group in required_groups(manifest, label):
@@ -148,6 +193,27 @@ def validate_label_dependencies(manifest: Dict[str, Any], label: str, statuses: 
             )
 
 
+def validate_completion_label_guard(manifest: Dict[str, Any]) -> None:
+    labels = manifest.get("labels")
+    if not isinstance(labels, dict):
+        fail("labels must be an object")
+    completed = "completed formal protocol theorem"
+    conditional = "conditional protocol formalization"
+    if completed in labels:
+        completed_statuses = accepted_statuses(manifest, completed)
+        if completed_statuses != {"closed"}:
+            fail("completed formal protocol theorem may only accept closed status")
+    if completed in labels and conditional in labels:
+        conditional_groups = set(required_groups(manifest, conditional))
+        completed_groups = set(required_groups(manifest, completed))
+        missing = sorted(conditional_groups - completed_groups)
+        if missing:
+            fail(
+                "completed formal protocol theorem must include every conditional "
+                f"theorem group; missing {missing!r}"
+            )
+
+
 def validate_docs(manifest: Dict[str, Any]) -> None:
     current_label = manifest.get("current_label")
     if not isinstance(current_label, str):
@@ -156,6 +222,7 @@ def validate_docs(manifest: Dict[str, Any]) -> None:
     claims = manifest.get("documentation_claims")
     if not isinstance(claims, list):
         fail("documentation_claims must be an array")
+    seen_paths: Set[str] = set()
 
     for index, claim in enumerate(claims):
         if not isinstance(claim, dict):
@@ -164,6 +231,9 @@ def validate_docs(manifest: Dict[str, Any]) -> None:
         expected_label = claim.get("label")
         if not isinstance(rel_path, str) or not isinstance(expected_label, str):
             fail(f"documentation_claims[{index}] requires path and label strings")
+        if rel_path in seen_paths:
+            fail(f"duplicate documentation claim path {rel_path!r}")
+        seen_paths.add(rel_path)
         if label_rank(manifest, expected_label) > current_rank:
             fail(f"{rel_path} claims {expected_label!r}, which is stronger than current label {current_label!r}")
         path = ROOT / rel_path
@@ -188,6 +258,8 @@ def main() -> None:
     if manifest.get("schema") != "superneo.formal-status.v1":
         fail("unexpected formal status schema")
     statuses = validate_theorem_groups(manifest)
+    validate_labels(manifest, statuses)
+    validate_completion_label_guard(manifest)
     current_label = manifest.get("current_label")
     if not isinstance(current_label, str):
         fail("current_label must be a string")

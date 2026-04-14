@@ -152,6 +152,46 @@ theorem transcriptAbsorb_order_two
       ] := by
   simp [transcriptAbsorb, List.append_assoc]
 
+def transcriptAbsorbFrames
+    (state : TranscriptState)
+    (frames : List TranscriptFrame) : TranscriptState where
+  frames := state.frames ++ frames
+
+theorem transcriptAbsorbFrames_frames
+    (state : TranscriptState)
+    (frames : List TranscriptFrame) :
+    (transcriptAbsorbFrames state frames).frames = state.frames ++ frames :=
+  rfl
+
+theorem transcriptAbsorbFrames_nil
+    (state : TranscriptState) :
+    transcriptAbsorbFrames state [] = state := by
+  cases state
+  simp [transcriptAbsorbFrames]
+
+theorem transcriptAbsorbFrames_singleton
+    (state : TranscriptState)
+    (frame : TranscriptFrame) :
+    transcriptAbsorbFrames state [frame] =
+      transcriptAbsorb state frame.count frame.payload := by
+  cases frame
+  rfl
+
+theorem transcriptAbsorbFrames_append
+    (state : TranscriptState)
+    (lhs rhs : List TranscriptFrame) :
+    transcriptAbsorbFrames (transcriptAbsorbFrames state lhs) rhs =
+      transcriptAbsorbFrames state (lhs ++ rhs) := by
+  cases state
+  simp [transcriptAbsorbFrames, List.append_assoc]
+
+theorem transcriptBytes_absorbFrames
+    (state : TranscriptState)
+    (frames : List TranscriptFrame) :
+    transcriptBytes (transcriptAbsorbFrames state frames) =
+      transcriptBytes state ++ transcriptFramesBytes frames := by
+  simp [transcriptBytes, transcriptAbsorbFrames, transcriptFramesBytes_append]
+
 theorem transcriptInit_injective :
     Function.Injective
       (fun input : Count64LE × List Byte × Count64LE × List Byte =>
@@ -308,6 +348,16 @@ def proofEnvelopeTranscriptInit
     (context : ProofEnvelopeContextWire) : TranscriptState :=
   transcriptInit domainCount (proofEnvelopeTranscriptBindingEncode context) seedCount seed
 
+def proofEnvelopeTranscriptWithAbsorbs
+    (domainCount : Count64LE)
+    (seedCount : Count64LE)
+    (seed : List Byte)
+    (context : ProofEnvelopeContextWire)
+    (absorbs : List TranscriptFrame) : TranscriptState :=
+  transcriptAbsorbFrames
+    (proofEnvelopeTranscriptInit domainCount seedCount seed context)
+    absorbs
+
 theorem proofEnvelopeTranscriptInit_frames
     (domainCount seedCount : Count64LE)
     (seed : List Byte)
@@ -316,6 +366,29 @@ theorem proofEnvelopeTranscriptInit_frames
       [transcriptFrame domainCount (proofEnvelopeTranscriptBindingEncode context),
         transcriptFrame seedCount seed] :=
   rfl
+
+theorem proofEnvelopeTranscriptWithAbsorbs_frames
+    (domainCount seedCount : Count64LE)
+    (seed : List Byte)
+    (context : ProofEnvelopeContextWire)
+    (absorbs : List TranscriptFrame) :
+    (proofEnvelopeTranscriptWithAbsorbs
+      domainCount seedCount seed context absorbs).frames =
+        [transcriptFrame domainCount (proofEnvelopeTranscriptBindingEncode context),
+          transcriptFrame seedCount seed] ++ absorbs := by
+  rfl
+
+theorem proofEnvelopeTranscriptWithAbsorbs_bytes
+    (domainCount seedCount : Count64LE)
+    (seed : List Byte)
+    (context : ProofEnvelopeContextWire)
+    (absorbs : List TranscriptFrame) :
+    transcriptBytes
+        (proofEnvelopeTranscriptWithAbsorbs
+          domainCount seedCount seed context absorbs) =
+      transcriptBytes (proofEnvelopeTranscriptInit domainCount seedCount seed context) ++
+        transcriptFramesBytes absorbs := by
+  simp [proofEnvelopeTranscriptWithAbsorbs, transcriptBytes_absorbFrames]
 
 theorem proofEnvelopeTranscriptInit_first_payload
     (domainCount seedCount : Count64LE)

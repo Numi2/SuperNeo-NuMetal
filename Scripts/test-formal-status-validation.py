@@ -55,6 +55,15 @@ def mutate_group(
     raise AssertionError(f"missing theorem group {group_id}")
 
 
+def mutate_manifest(
+    manifest: Dict[str, Any],
+    mutation: Callable[[Dict[str, Any]], None],
+) -> Dict[str, Any]:
+    copy = json.loads(json.dumps(manifest))
+    mutation(copy)
+    return copy
+
+
 def main() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     result = run_validator(manifest)
@@ -62,10 +71,10 @@ def main() -> None:
         raise AssertionError(f"baseline manifest failed validation: {result.stderr}")
 
     expect_failure(
-        "missing closed declaration",
+        "missing boundary declaration",
         mutate_group(
             manifest,
-            "ajtai-binding-reduction",
+            "concrete-ajtai-binding-boundary",
             lambda group: group["declarations"].append("SuperNeoFormal.missingBindingTheorem"),
         ),
         "references missing declaration",
@@ -75,10 +84,10 @@ def main() -> None:
         "planned group with declaration",
         mutate_group(
             manifest,
-            "superneo-composition-theorem",
+            "superneo-ce-opening-composition-boundary",
             lambda group: group.update({
                 "status": "planned",
-                "declarations": ["SuperNeoFormal.superneo_acceptance_composition"],
+                "declarations": ["SuperNeoFormal.superneo_end_to_end_from_ce_soundness"],
             }),
         ),
         "planned theorem group",
@@ -102,6 +111,94 @@ def main() -> None:
             lambda group: group["declarations"].append("SuperNeoFormal.uintLEDecode?_missing"),
         ),
         "references missing declaration",
+    )
+
+    expect_failure(
+        "duplicate declaration across theorem groups blocked",
+        mutate_group(
+            manifest,
+            "terminal-ce-local-batch",
+            lambda group: group["declarations"].append(
+                "SuperNeoFormal.CELocalOpeningRelation"
+            ),
+        ),
+        "appears in multiple theorem groups",
+    )
+
+    expect_failure(
+        "inactive label unknown group blocked",
+        mutate_manifest(
+            manifest,
+            lambda copy: copy["labels"]["completed formal protocol theorem"][
+                "required_theorem_groups"
+            ].append("missing-future-theorem-group"),
+        ),
+        "depends on unknown theorem group",
+    )
+
+    expect_failure(
+        "inactive label unsupported accepted status blocked",
+        mutate_manifest(
+            manifest,
+            lambda copy: copy["labels"]["completed formal protocol theorem"][
+                "accepted_statuses"
+            ].append("closed_under_magic"),
+        ),
+        "accepted_statuses contains unsupported status",
+    )
+
+    expect_failure(
+        "label duplicate required group blocked",
+        mutate_manifest(
+            manifest,
+            lambda copy: copy["labels"]["conditional protocol formalization"][
+                "required_theorem_groups"
+            ].append("profile-constants"),
+        ),
+        "required_theorem_groups contains duplicates",
+    )
+
+    expect_failure(
+        "documentation duplicate path blocked",
+        mutate_manifest(
+            manifest,
+            lambda copy: copy["documentation_claims"].append(
+                dict(copy["documentation_claims"][0])
+            ),
+        ),
+        "duplicate documentation claim path",
+    )
+
+    expect_failure(
+        "boundary group cannot be marked closed",
+        mutate_group(
+            manifest,
+            "terminal-ce-proof-soundness-boundary",
+            lambda group: group.update({"status": "closed"}),
+        ),
+        "boundary theorem group",
+    )
+
+    expect_failure(
+        "completed label closed-only guard",
+        mutate_manifest(
+            manifest,
+            lambda copy: copy["labels"]["completed formal protocol theorem"][
+                "accepted_statuses"
+            ].append("closed_under_msis_assumption"),
+        ),
+        "may only accept closed status",
+    )
+
+    expect_failure(
+        "completed label preserves conditional blockers",
+        mutate_manifest(
+            manifest,
+            lambda copy: copy["labels"]["completed formal protocol theorem"][
+                "required_theorem_groups"
+            ].remove("ce-opening-binding-boundary"),
+        ),
+        "must include every conditional theorem group",
     )
 
     completed_manifest = json.loads(json.dumps(manifest))

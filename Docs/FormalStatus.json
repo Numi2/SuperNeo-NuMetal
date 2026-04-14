@@ -12,7 +12,8 @@
         "profile-constants",
         "ajtai-commitment-map",
         "ajtai-opening-linearity",
-        "ajtai-binding-reduction"
+        "ajtai-binding-reduction-core",
+        "ajtai-binding-boundary"
       ]
     },
     "conditional protocol formalization": {
@@ -22,35 +23,49 @@
         "concrete-goldilocks-field",
         "concrete-phi81-ring",
         "field-to-ring-embedding",
-        "concrete-module-sis-profile",
-        "concrete-ajtai-profile",
+        "module-sis-parameters",
+        "module-sis-no-short-kernel-boundary",
+        "concrete-ajtai-instantiation",
+        "concrete-ajtai-opening-core",
+        "concrete-ajtai-binding-boundary",
         "ajtai-commitment-map",
         "ajtai-opening-linearity",
-        "ajtai-binding-reduction",
+        "ajtai-binding-reduction-core",
+        "ajtai-binding-boundary",
         "pidec-recomposition",
         "pidec-surface-recomposition",
         "challenge-sampling-profile",
-        "pirlc-finite-distribution-soundness",
-        "pirlc-soundness-assumptions",
+        "transcript-challenge-binding",
+        "pirlc-finite-support-core",
+        "pirlc-scalar-collision-core",
+        "pirlc-recomposition-core",
+        "pirlc-concrete-acceptance-core",
+        "pirlc-collision-bound-boundary",
         "multilinear-extension-semantics",
         "sumcheck-exact-oracle-soundness",
-        "piccs-sumcheck-model",
+        "sumcheck-low-degree-root-count-core",
+        "piccs-acceptance-core",
+        "piccs-deterministic-sumcheck-bridge",
+        "piccs-sumcheck-boundary",
         "ccs-relation-semantics",
-        "piccs-exact-q-reduction",
         "ce-opening-local-relation",
+        "ce-opening-binding-boundary",
+        "terminal-ce-statement-core",
+        "terminal-ce-local-batch",
+        "terminal-ce-proof-acceptance-core",
+        "terminal-ce-proof-soundness-boundary",
         "serialization-framing",
         "swift-wire-serialization",
         "transcript-absorption",
-        "terminal-ce-relation",
-        "superneo-composition-theorem"
+        "superneo-deterministic-composition",
+        "superneo-ce-opening-composition-boundary"
       ],
       "accepted_statuses": [
         "closed",
         "closed_under_msis_assumption",
         "closed_under_random_linear_combination_assumption",
         "closed_under_sumcheck_assumption",
-        "closed_under_ce_opening_assumption",
-        "closed_under_stage_assumptions"
+        "closed_under_ce_opening_assumption"
       ]
     },
     "completed formal protocol theorem": {
@@ -60,27 +75,42 @@
         "concrete-goldilocks-field",
         "concrete-phi81-ring",
         "field-to-ring-embedding",
-        "concrete-module-sis-profile",
-        "concrete-ajtai-profile",
+        "module-sis-parameters",
+        "module-sis-no-short-kernel-boundary",
+        "concrete-ajtai-instantiation",
+        "concrete-ajtai-opening-core",
+        "concrete-ajtai-binding-boundary",
         "ajtai-commitment-map",
         "ajtai-opening-linearity",
-        "ajtai-binding-reduction",
+        "ajtai-binding-reduction-core",
+        "ajtai-binding-boundary",
         "pidec-recomposition",
         "pidec-surface-recomposition",
         "challenge-sampling-profile",
-        "pirlc-finite-distribution-soundness",
-        "pirlc-soundness-assumptions",
+        "transcript-challenge-binding",
+        "pirlc-finite-support-core",
+        "pirlc-scalar-collision-core",
+        "pirlc-recomposition-core",
+        "pirlc-concrete-acceptance-core",
+        "pirlc-collision-bound-boundary",
         "multilinear-extension-semantics",
         "sumcheck-exact-oracle-soundness",
-        "piccs-sumcheck-model",
+        "sumcheck-low-degree-root-count-core",
+        "piccs-acceptance-core",
+        "piccs-deterministic-sumcheck-bridge",
+        "piccs-sumcheck-boundary",
         "ccs-relation-semantics",
-        "piccs-exact-q-reduction",
         "ce-opening-local-relation",
+        "ce-opening-binding-boundary",
+        "terminal-ce-statement-core",
+        "terminal-ce-local-batch",
+        "terminal-ce-proof-acceptance-core",
+        "terminal-ce-proof-soundness-boundary",
         "serialization-framing",
         "swift-wire-serialization",
         "transcript-absorption",
-        "terminal-ce-relation",
-        "superneo-composition-theorem"
+        "superneo-deterministic-composition",
+        "superneo-ce-opening-composition-boundary"
       ],
       "accepted_statuses": [
         "closed"
@@ -213,15 +243,14 @@
       ]
     },
     {
-      "id": "concrete-module-sis-profile",
+      "id": "module-sis-parameters",
       "lean_module": "SuperNeoFormal.ModuleSIS",
-      "status": "closed_under_msis_assumption",
+      "status": "closed",
       "declarations": [
         "SuperNeoFormal.ModuleSISProfile",
         "SuperNeoFormal.goldilocksPhi81ModuleSISProfile",
         "SuperNeoFormal.EstimatorTuple",
         "SuperNeoFormal.goldilocksPhi81EstimatorTuple",
-        "SuperNeoFormal.ModuleSISNoShortKernel",
         "SuperNeoFormal.goldilocksPhi81ModuleSISProfile_modulus",
         "SuperNeoFormal.goldilocksPhi81ModuleSISProfile_degree",
         "SuperNeoFormal.goldilocksPhi81ModuleSISProfile_rank",
@@ -229,14 +258,22 @@
         "SuperNeoFormal.goldilocksPhi81ModuleSISProfile_decompositionLength",
         "SuperNeoFormal.goldilocksPhi81ModuleSISProfile_normBound",
         "SuperNeoFormal.goldilocksPhi81EstimatorTuple_matches_profile",
-        "SuperNeoFormal.goldilocksPhi81EstimatorTuple_values",
+        "SuperNeoFormal.goldilocksPhi81EstimatorTuple_values"
+      ]
+    },
+    {
+      "id": "module-sis-no-short-kernel-boundary",
+      "lean_module": "SuperNeoFormal.ModuleSIS",
+      "status": "closed_under_msis_assumption",
+      "declarations": [
+        "SuperNeoFormal.ModuleSISNoShortKernel",
         "SuperNeoFormal.moduleSISNoShortKernel_is_concrete_noShortKernel"
       ]
     },
     {
-      "id": "concrete-ajtai-profile",
+      "id": "concrete-ajtai-instantiation",
       "lean_module": "SuperNeoFormal.ConcreteAjtai",
-      "status": "closed_under_msis_assumption",
+      "status": "closed",
       "declarations": [
         "SuperNeoFormal.ConcreteAjtaiMessage",
         "SuperNeoFormal.ConcreteAjtaiMatrix",
@@ -245,19 +282,40 @@
         "SuperNeoFormal.concretePackedWitness",
         "SuperNeoFormal.concreteCommit",
         "SuperNeoFormal.concreteCommitPackedFieldWitness",
-        "SuperNeoFormal.ConcreteOpening",
-        "SuperNeoFormal.ConcreteBindingSecure",
         "SuperNeoFormal.concreteAjtai_row_count",
         "SuperNeoFormal.concreteAjtai_ring_degree",
         "SuperNeoFormal.concreteAjtai_coefficient_dimension",
+        "SuperNeoFormal.concreteAjtai_phi81_relation",
+        "SuperNeoFormal.concreteAjtai_phi81_swiftMul_toQuotient",
         "SuperNeoFormal.concretePackedWitness_shape",
+        "SuperNeoFormal.concretePackedWitness_column_eq",
         "SuperNeoFormal.concreteCommit_eq_abstract",
+        "SuperNeoFormal.concreteCommit_row_eq_sum",
         "SuperNeoFormal.concreteCommit_zero",
         "SuperNeoFormal.concreteCommit_add",
         "SuperNeoFormal.concreteCommit_sub",
+        "SuperNeoFormal.concreteCommitPackedFieldWitness_eq",
+        "SuperNeoFormal.concreteCommitPackedFieldWitness_row_eq_sum"
+      ]
+    },
+    {
+      "id": "concrete-ajtai-opening-core",
+      "lean_module": "SuperNeoFormal.ConcreteAjtai",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.ConcreteOpening",
+        "SuperNeoFormal.ConcreteBindingSecure",
+        "SuperNeoFormal.concreteOpening_iff_opening",
+        "SuperNeoFormal.concreteBindingSecure_iff_bindingSecure"
+      ]
+    },
+    {
+      "id": "concrete-ajtai-binding-boundary",
+      "lean_module": "SuperNeoFormal.ConcreteAjtai",
+      "status": "closed_under_msis_assumption",
+      "declarations": [
         "SuperNeoFormal.concreteBinding_from_moduleSISNoShortKernel",
-        "SuperNeoFormal.concreteBindingSecure_from_moduleSISNoShortKernel",
-        "SuperNeoFormal.concreteCommitPackedFieldWitness_eq"
+        "SuperNeoFormal.concreteBindingSecure_from_moduleSISNoShortKernel"
       ]
     },
     {
@@ -279,16 +337,24 @@
       ]
     },
     {
-      "id": "ajtai-binding-reduction",
+      "id": "ajtai-binding-reduction-core",
+      "lean_module": "SuperNeoFormal.Ajtai",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.NoShortKernel",
+        "SuperNeoFormal.BindingSecure",
+        "SuperNeoFormal.distinct_openings_yield_short_kernel",
+        "SuperNeoFormal.noShortKernel_from_bindingSecure"
+      ]
+    },
+    {
+      "id": "ajtai-binding-boundary",
       "lean_module": "SuperNeoFormal.Ajtai",
       "status": "closed_under_msis_assumption",
       "declarations": [
-        "SuperNeoFormal.BindingSecure",
-        "SuperNeoFormal.distinct_openings_yield_short_kernel",
         "SuperNeoFormal.binding_from_noShortKernel",
         "SuperNeoFormal.opening_messages_equal_from_noShortKernel",
         "SuperNeoFormal.bindingSecure_from_noShortKernel",
-        "SuperNeoFormal.noShortKernel_from_bindingSecure",
         "SuperNeoFormal.noShortKernel_iff_bindingSecure"
       ]
     },
@@ -361,9 +427,39 @@
       ]
     },
     {
-      "id": "pirlc-soundness-assumptions",
+      "id": "transcript-challenge-binding",
+      "lean_module": "SuperNeoFormal.TranscriptChallenge",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.TranscriptChallengeSchedule",
+        "SuperNeoFormal.transcriptPhi81ChallengeSeed",
+        "SuperNeoFormal.transcriptPhi81ChallengeCoefficients",
+        "SuperNeoFormal.transcriptPhi81ChallengeElement",
+        "SuperNeoFormal.transcriptExpandedChallengeSeed",
+        "SuperNeoFormal.transcriptExpandedChallengeElements",
+        "SuperNeoFormal.transcriptPiRLCChallengeSeed",
+        "SuperNeoFormal.transcriptPiRLCChallengeElements",
+        "SuperNeoFormal.transcriptPhi81ChallengeSeed_eq_of_transcript_eq",
+        "SuperNeoFormal.transcriptPhi81ChallengeElement_eq_of_transcript_eq",
+        "SuperNeoFormal.transcriptPhi81ChallengeSeed_after_equal_absorb_payloads",
+        "SuperNeoFormal.transcriptPhi81ChallengeElement_after_equal_absorb_payloads",
+        "SuperNeoFormal.transcriptPhi81ChallengeSeed_after_equal_ordered_absorbs",
+        "SuperNeoFormal.transcriptPhi81ChallengeElement_after_equal_ordered_absorbs",
+        "SuperNeoFormal.proofEnvelopeTranscriptChallengeSeed_eq_of_context_seed_eq",
+        "SuperNeoFormal.proofEnvelopeTranscriptChallengeElement_eq_of_context_seed_eq",
+        "SuperNeoFormal.proofEnvelopeOrderedAbsorbsChallengeSeed_eq",
+        "SuperNeoFormal.proofEnvelopeOrderedAbsorbsChallengeElement_eq",
+        "SuperNeoFormal.transcriptPhi81ChallengeCoefficients_bounded",
+        "SuperNeoFormal.transcriptPhi81ChallengeElement_mem_support",
+        "SuperNeoFormal.transcriptExpandedChallengeElement_mem_support",
+        "SuperNeoFormal.transcriptPiRLCChallengeElements_mem_support",
+        "SuperNeoFormal.transcriptStrongSamplingCapacity_of_profile_bounds"
+      ]
+    },
+    {
+      "id": "pirlc-recomposition-core",
       "lean_module": "SuperNeoFormal.PiRLC",
-      "status": "closed_under_random_linear_combination_assumption",
+      "status": "closed",
       "declarations": [
         "SuperNeoFormal.ProtocolVector",
         "SuperNeoFormal.EvaluationClaim",
@@ -378,15 +474,13 @@
         "SuperNeoFormal.rlcWeightedSum_eq_sum",
         "SuperNeoFormal.commit_rlcWeightedMessage",
         "SuperNeoFormal.pirlc_commitment_recomposition",
-        "SuperNeoFormal.pirlc_folded_claim_opening",
-        "SuperNeoFormal.PiRLCRandomChallengeSoundnessAssumption",
-        "SuperNeoFormal.pirlc_soundness_from_assumption"
+        "SuperNeoFormal.pirlc_folded_claim_opening"
       ]
     },
     {
-      "id": "pirlc-finite-distribution-soundness",
+      "id": "pirlc-finite-support-core",
       "lean_module": "SuperNeoFormal.PiRLCSoundness",
-      "status": "closed_under_random_linear_combination_assumption",
+      "status": "closed",
       "declarations": [
         "SuperNeoFormal.PiRLCChallengeSeed",
         "SuperNeoFormal.pirlcChallengeElements",
@@ -396,14 +490,40 @@
         "SuperNeoFormal.AllClaimsSound",
         "SuperNeoFormal.PiRLCFoldFailure",
         "SuperNeoFormal.PiRLCBadSeedFinset",
-        "SuperNeoFormal.pirlc_badSeedCount_le_of_collisionSet",
-        "SuperNeoFormal.PiRLCConcreteAccepts",
-        "SuperNeoFormal.PiRLCConcreteCollisionBound",
-        "SuperNeoFormal.pirlc_concrete_badSeedCount_le_of_collisionBound",
+        "SuperNeoFormal.pirlc_badSeedCount_le_of_collisionSet"
+      ]
+    },
+    {
+      "id": "pirlc-scalar-collision-core",
+      "lean_module": "SuperNeoFormal.PiRLCSoundness",
+      "status": "closed",
+      "declarations": [
         "SuperNeoFormal.scalarRLCWithoutPivot",
         "SuperNeoFormal.scalarRLCWithPivot",
         "SuperNeoFormal.scalarRLCBadPivotValues",
-        "SuperNeoFormal.scalarRLCBadPivotValues_card_le_one"
+        "SuperNeoFormal.scalarRLCBadPivotValues_card_le_one",
+        "SuperNeoFormal.goldilocksScalarChallengeSupport",
+        "SuperNeoFormal.goldilocksScalarRLCBadPivotValues_card_le_one"
+      ]
+    },
+    {
+      "id": "pirlc-concrete-acceptance-core",
+      "lean_module": "SuperNeoFormal.PiRLCSoundness",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.PiRLCConcreteAccepts",
+        "SuperNeoFormal.pirlcConcreteAccepts_iff_publiclyConsistent"
+      ]
+    },
+    {
+      "id": "pirlc-collision-bound-boundary",
+      "lean_module": "SuperNeoFormal.PiRLCSoundness",
+      "status": "closed_under_random_linear_combination_assumption",
+      "declarations": [
+        "SuperNeoFormal.PiRLCConcreteCollisionBound",
+        "SuperNeoFormal.pirlc_concrete_badSeedCount_le_of_collisionBound",
+        "SuperNeoFormal.PiRLCFiniteCollisionSoundnessBoundary",
+        "SuperNeoFormal.pirlc_concrete_badSeedCount_le_of_finiteCollisionBoundary"
       ]
     },
     {
@@ -453,9 +573,20 @@
       ]
     },
     {
-      "id": "piccs-sumcheck-model",
+      "id": "sumcheck-low-degree-root-count-core",
+      "lean_module": "SuperNeoFormal.SumcheckSoundness",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.sumcheckPolynomialRootsInSupport",
+        "SuperNeoFormal.sumcheckPolynomialRootsInSupport_card_le_natDegree",
+        "SuperNeoFormal.sumcheckPolynomialRootsInSupport_card_le_degreeBound",
+        "SuperNeoFormal.sumcheck_exists_nonroot_of_support_card_gt_degreeBound"
+      ]
+    },
+    {
+      "id": "piccs-acceptance-core",
       "lean_module": "SuperNeoFormal.PiCCS",
-      "status": "closed_under_sumcheck_assumption",
+      "status": "closed",
       "declarations": [
         "SuperNeoFormal.PiCCSPublicQState",
         "SuperNeoFormal.PiCCSFinalCheck",
@@ -464,7 +595,14 @@
         "SuperNeoFormal.piccs_accepts_round_count",
         "SuperNeoFormal.piccs_accepts_claimed_sum",
         "SuperNeoFormal.piccs_accepts_final_q_value",
-        "SuperNeoFormal.piccs_accepts_final_claim_consistency",
+        "SuperNeoFormal.piccs_accepts_final_claim_consistency"
+      ]
+    },
+    {
+      "id": "piccs-sumcheck-boundary",
+      "lean_module": "SuperNeoFormal.PiCCS",
+      "status": "closed_under_sumcheck_assumption",
+      "declarations": [
         "SuperNeoFormal.PiCCSSumcheckSoundnessAssumption",
         "SuperNeoFormal.piccs_soundness_from_sumcheck_assumption"
       ]
@@ -501,7 +639,7 @@
       ]
     },
     {
-      "id": "piccs-exact-q-reduction",
+      "id": "piccs-deterministic-sumcheck-bridge",
       "lean_module": "SuperNeoFormal.PiCCSSoundness",
       "status": "closed",
       "declarations": [
@@ -513,16 +651,32 @@
       ]
     },
     {
-      "id": "terminal-ce-relation",
+      "id": "terminal-ce-statement-core",
       "lean_module": "SuperNeoFormal.TerminalCE",
-      "status": "closed_under_ce_opening_assumption",
+      "status": "closed",
       "declarations": [
         "SuperNeoFormal.TerminalCEStatement",
         "SuperNeoFormal.TerminalLocalBatchRelation",
-        "SuperNeoFormal.TerminalCEProofSoundnessAssumption",
-        "SuperNeoFormal.TerminalCEAccepts",
-        "SuperNeoFormal.terminal_ce_relation_from_verified_proof",
+        "SuperNeoFormal.terminalLocalBatchRelation_opening",
         "SuperNeoFormal.terminal_ce_statement_outputs_match"
+      ]
+    },
+    {
+      "id": "terminal-ce-proof-acceptance-core",
+      "lean_module": "SuperNeoFormal.TerminalCE",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.TerminalCEAccepts",
+        "SuperNeoFormal.terminalCEAccepts_iff_verifyProof"
+      ]
+    },
+    {
+      "id": "terminal-ce-proof-soundness-boundary",
+      "lean_module": "SuperNeoFormal.TerminalCE",
+      "status": "closed_under_ce_opening_assumption",
+      "declarations": [
+        "SuperNeoFormal.TerminalCEProofSoundnessAssumption",
+        "SuperNeoFormal.terminal_ce_relation_from_verified_proof"
       ]
     },
     {
@@ -541,14 +695,33 @@
         "SuperNeoFormal.ceLocalOpening_publicInput_bounded",
         "SuperNeoFormal.ceLocalOpening_claimOpening",
         "SuperNeoFormal.ceLocalOpening_commitment",
-        "SuperNeoFormal.ceLocalOpening_evaluation",
+        "SuperNeoFormal.ceLocalOpening_evaluation"
+      ]
+    },
+    {
+      "id": "ce-opening-binding-boundary",
+      "lean_module": "SuperNeoFormal.CEOpeningRelation",
+      "status": "closed_under_msis_assumption",
+      "declarations": [
         "SuperNeoFormal.ceLocalOpening_witness_unique_from_noShortKernel",
+        "SuperNeoFormal.ceTerminalLocalBatch_witnesses_unique_from_noShortKernel"
+      ]
+    },
+    {
+      "id": "terminal-ce-local-batch",
+      "lean_module": "SuperNeoFormal.CEOpeningRelation",
+      "status": "closed",
+      "declarations": [
         "SuperNeoFormal.CETerminalStatement",
         "SuperNeoFormal.ceTerminalOutputClaims",
         "SuperNeoFormal.CETerminalLocalBatchRelation",
         "SuperNeoFormal.ceTerminalLocalBatch_iff_terminalLocalBatchRelation",
         "SuperNeoFormal.ceTerminalLocalBatch_claimOpening",
+        "SuperNeoFormal.ceTerminalLocalBatch_shape_compatible",
+        "SuperNeoFormal.ceTerminalLocalBatch_context_eq",
+        "SuperNeoFormal.ceTerminalLocalBatch_publicInput_bounded",
         "SuperNeoFormal.ceTerminalLocalBatch_commitment",
+        "SuperNeoFormal.ceTerminalLocalBatch_evaluation",
         "SuperNeoFormal.CETerminalDecompositionCount",
         "SuperNeoFormal.ceTerminalDecompositionCount_profile",
         "SuperNeoFormal.ConcreteCEOpeningShape",
@@ -620,6 +793,12 @@
         "SuperNeoFormal.transcriptBytes_nil",
         "SuperNeoFormal.transcriptBytes_absorb",
         "SuperNeoFormal.transcriptAbsorb_order_two",
+        "SuperNeoFormal.transcriptAbsorbFrames",
+        "SuperNeoFormal.transcriptAbsorbFrames_frames",
+        "SuperNeoFormal.transcriptAbsorbFrames_nil",
+        "SuperNeoFormal.transcriptAbsorbFrames_singleton",
+        "SuperNeoFormal.transcriptAbsorbFrames_append",
+        "SuperNeoFormal.transcriptBytes_absorbFrames",
         "SuperNeoFormal.transcriptInit_injective",
         "SuperNeoFormal.transcriptInit_eq_iff",
         "SuperNeoFormal.transcriptInit_domain_ne",
@@ -638,7 +817,10 @@
         "SuperNeoFormal.lengthCountedTranscriptInit?_bytes_of_lt",
         "SuperNeoFormal.transcriptFirstPayload?",
         "SuperNeoFormal.proofEnvelopeTranscriptInit",
+        "SuperNeoFormal.proofEnvelopeTranscriptWithAbsorbs",
         "SuperNeoFormal.proofEnvelopeTranscriptInit_frames",
+        "SuperNeoFormal.proofEnvelopeTranscriptWithAbsorbs_frames",
+        "SuperNeoFormal.proofEnvelopeTranscriptWithAbsorbs_bytes",
         "SuperNeoFormal.proofEnvelopeTranscriptInit_first_payload",
         "SuperNeoFormal.proofEnvelopeTranscriptInit_first_payload_decodes",
         "SuperNeoFormal.proofEnvelopeTranscriptInit_context_injective",
@@ -731,20 +913,36 @@
       ]
     },
     {
-      "id": "superneo-composition-theorem",
+      "id": "superneo-deterministic-composition",
       "lean_module": "SuperNeoFormal.Composition",
-      "status": "closed_under_stage_assumptions",
+      "status": "closed",
       "declarations": [
         "SuperNeoFormal.FoldReductionGates",
         "SuperNeoFormal.FoldReductionAccepted",
         "SuperNeoFormal.TerminalVerifierGates",
+        "SuperNeoFormal.TerminalProofVerifierGates",
+        "SuperNeoFormal.TerminalProofVerifierCEAccepts",
+        "SuperNeoFormal.SuperNeoProofVerifierAccepts",
         "SuperNeoFormal.SuperNeoVerifierAccepts",
         "SuperNeoFormal.fold_reduction_acceptance_from_stages",
         "SuperNeoFormal.superneo_acceptance_composition",
         "SuperNeoFormal.superneo_acceptance_requires_fold_reduction",
         "SuperNeoFormal.superneo_acceptance_requires_terminal_statement_match",
         "SuperNeoFormal.superneo_acceptance_requires_terminal_ce",
-        "SuperNeoFormal.superneo_terminal_soundness_from_ce_soundness"
+        "SuperNeoFormal.superneo_acceptance_deterministic_facts",
+        "SuperNeoFormal.superneo_proof_acceptance_requires_fold_reduction",
+        "SuperNeoFormal.superneo_proof_acceptance_requires_terminal_statement_match",
+        "SuperNeoFormal.superneo_proof_acceptance_requires_terminal_ce",
+        "SuperNeoFormal.superneo_proof_acceptance_deterministic_facts"
+      ]
+    },
+    {
+      "id": "superneo-ce-opening-composition-boundary",
+      "lean_module": "SuperNeoFormal.Composition",
+      "status": "closed_under_ce_opening_assumption",
+      "declarations": [
+        "SuperNeoFormal.superneo_terminal_soundness_from_ce_soundness",
+        "SuperNeoFormal.superneo_end_to_end_from_ce_soundness"
       ]
     }
   ],
@@ -799,6 +997,14 @@
     },
     {
       "path": "Docs/FormalTranscript-2026-04-14.md",
+      "label": "conditional protocol formalization"
+    },
+    {
+      "path": "Docs/FormalAssumptionLedger-2026-04-14.md",
+      "label": "conditional protocol formalization"
+    },
+    {
+      "path": "Docs/FormalRemainingBoundaries-2026-04-14.md",
       "label": "conditional protocol formalization"
     },
     {

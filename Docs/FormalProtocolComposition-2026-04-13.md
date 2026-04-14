@@ -26,12 +26,28 @@ the top-level SuperNeo verifier composition.
 ## Status Model
 
 `Docs/FormalStatus.json` now tracks these theorem groups as closed under explicit
-assumptions instead of `planned`:
+assumptions instead of `planned`. A later 2026-04-14 assumption-ledger split
+separates their deterministic cores from the remaining boundaries:
 
-- `pirlc-soundness-assumptions`: random-linear-combination soundness assumption.
-- `piccs-sumcheck-model`: sum-check/public-Q soundness assumption.
-- `terminal-ce-relation`: CE opening proof soundness assumption.
-- `superneo-composition-theorem`: composition from the stage assumptions.
+- `pirlc-recomposition-core`, `pirlc-finite-support-core`, and
+  `pirlc-scalar-collision-core` are closed; the quotient-ring folded-claim
+  collision certificate remains in `pirlc-collision-bound-boundary`.
+- `piccs-acceptance-core` and `piccs-deterministic-sumcheck-bridge` are closed;
+  `sumcheck-low-degree-root-count-core` closes the finite-field root-count
+  lemma; `piccs-sumcheck-boundary` remains scoped to the remaining
+  trace/oracle low-degree and probabilistic sum-check argument.
+- `ce-opening-local-relation`, `terminal-ce-statement-core`, and
+  `terminal-ce-local-batch` are closed local algebra. Witness uniqueness from a
+  no-short-kernel premise is tracked separately in
+  `ce-opening-binding-boundary`, and `terminal-ce-proof-soundness-boundary`
+  remains CE-opening scoped.
+- Terminal proof acceptance itself is tracked as the closed
+  `terminal-ce-proof-acceptance-core`; only proof-verifier soundness remains in
+  `terminal-ce-proof-soundness-boundary`.
+- `superneo-deterministic-composition` is closed. The proof-carrying
+  end-to-end theorem is now tracked in
+  `superneo-ce-opening-composition-boundary`, which depends directly on the CE
+  opening soundness boundary rather than a separate aggregate stage assumption.
 
 The manifest current label is `conditional protocol formalization`.
 Documentation still must not claim `completed formal protocol theorem` because

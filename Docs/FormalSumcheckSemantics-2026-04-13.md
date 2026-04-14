@@ -33,6 +33,9 @@ probabilistic soundness yet.
     uses the exact partial-sum oracle at every round, then the final claim is
     exactly the oracle evaluated at the verifier's challenge point.
   - Proves the corresponding final-check transfer theorem.
+  - A later April 14 pass adds the finite-field low-degree root-count core:
+    nonzero polynomials have at most `natDegree` roots in a finite challenge
+    support, and supports larger than the degree bound contain a non-root.
 
 - `SuperNeoFormal.PiCCSSoundness`
   - Defines when a PiCCS public-Q state matches an exact public-Q oracle.
@@ -43,9 +46,10 @@ probabilistic soundness yet.
 
 ## What remains open
 
-The verifier-side sum-check track now has the deterministic exact-oracle
-theorem, but it is still not a full probabilistic soundness theorem. The next
-required steps are degree-bounded univariate round polynomials, interpolation
-from serialized round-polynomial coefficients, construction of the actual PiCCS
-public-Q oracle from CCS and prior CE claims, and a finite-field Schwartz-Zippel
-or explicitly assumed probability bound.
+The verifier-side sum-check track now has the deterministic exact-oracle theorem
+and the finite-field root-count lemma, but it is still not a full probabilistic
+soundness theorem. The next required steps are degree-bounded univariate round
+polynomials, interpolation from serialized round-polynomial coefficients,
+construction of the actual PiCCS public-Q oracle from CCS and prior CE claims,
+and the protocol-level theorem that connects nonzero mismatch polynomials to
+verifier rejection probability.

@@ -19,18 +19,26 @@ This note records the April 14, 2026 local CE opening relation work in
   - matrix-evaluation relation satisfaction.
 - Proved projections from a verified local opening to its commitment equation
   and evaluation relation.
-- Proved local witness uniqueness under `NoShortKernel`, matching the existing
-  Ajtai binding assumption boundary.
 - Connected terminal CE statements to batches of local openings through
   `CETerminalLocalBatchRelation`.
+- Proved terminal-batch projections for shape compatibility, context equality,
+  public-input boundedness, commitment equality, and evaluation-relation
+  satisfaction at each output index.
 - Added concrete profile shape helpers with rows fixed to `kappa`.
 
 ## Boundary kept explicit
 
 This is the local algebraic relation, not a proof of Stern transcript soundness.
-The public CE proof verifier remains represented by
-`TerminalCEProofSoundnessAssumption`, so the global terminal CE theorem group
-stays under `closed_under_ce_opening_assumption`.
+The terminal local batch declarations are now tracked as the closed
+`terminal-ce-local-batch` group, with the base terminal statement relation
+tracked separately as `terminal-ce-statement-core`. The public CE proof verifier
+remains represented by `TerminalCEProofSoundnessAssumption`, so only
+`terminal-ce-proof-soundness-boundary` stays under
+`closed_under_ce_opening_assumption`.
+
+Local and terminal-batch witness uniqueness from `NoShortKernel` is mechanized,
+but it is now tracked under the separate `ce-opening-binding-boundary` MSIS
+boundary rather than counted as closed local algebra.
 
 ## Verification
 

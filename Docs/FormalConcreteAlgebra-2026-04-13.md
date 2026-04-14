@@ -48,11 +48,17 @@ boundaries.
   - Names the concrete no-short-kernel predicate over `AjtaiMatrix Phi81 kappa`.
 
 - `SuperNeoFormal.ConcreteAjtai`
-  - Specializes Ajtai messages, matrices, commitments, openings, and commitment
-    linearity to the concrete Phi81 ring and `kappa = 18`.
+  - Specializes Ajtai messages, matrices, commitments, openings, binding
+    predicate shape, and commitment linearity to the concrete Phi81 ring and
+    `kappa = 18`.
   - Connects exact field-witness packing to concrete Ajtai commitment shape.
-  - Reuses the existing binding reduction under the concrete Module-SIS
-    no-short-kernel assumption.
+  - Tracks concrete Ajtai shape, quotient-ring multiplication wiring, packed
+    field-witness wiring, and concrete commitment row equations as closed
+    deterministic instantiation facts.
+  - Tracks concrete opening and binding predicate equivalence to the generic
+    Ajtai model as a closed `concrete-ajtai-opening-core`.
+  - Keeps only theorems that consume the concrete Module-SIS no-short-kernel
+    predicate under the MSIS assumption boundary.
 
 ## What remains open
 

@@ -96,6 +96,16 @@ def PiRLCConcreteAccepts {count rows publicCount evalCount pointVars : Nat}
     (folded : EvaluationClaim Phi81 rows publicCount evalCount pointVars) : Prop :=
   RLCClaimPubliclyConsistent point (pirlcChallengeElements seed) claims folded
 
+theorem pirlcConcreteAccepts_iff_publiclyConsistent
+    {count rows publicCount evalCount pointVars : Nat}
+    (point : ProtocolVector Phi81 pointVars)
+    (seed : PiRLCChallengeSeed count)
+    (claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars)
+    (folded : EvaluationClaim Phi81 rows publicCount evalCount pointVars) :
+    PiRLCConcreteAccepts point seed claims folded ↔
+      RLCClaimPubliclyConsistent point (pirlcChallengeElements seed) claims folded :=
+  Iff.rfl
+
 def PiRLCConcreteCollisionBound
     {count rows publicCount evalCount pointVars : Nat}
     (point : ProtocolVector Phi81 pointVars)
@@ -140,6 +150,40 @@ theorem pirlc_concrete_badSeedCount_le_of_collisionBound
   rcases hCollision with ⟨collisionSet, hBound, hSubset⟩
   exact pirlc_badSeedCount_le_of_collisionSet
     (collisionSet := collisionSet) hSubset hBound
+
+def PiRLCFiniteCollisionSoundnessBoundary
+    {count rows publicCount evalCount pointVars : Nat}
+    (point : ProtocolVector Phi81 pointVars)
+    (foldedSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop)
+    (inputSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop)
+    (claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars)
+    (bound : Nat) : Prop :=
+  PiRLCConcreteCollisionBound point foldedSound inputSound claims bound
+
+theorem pirlc_concrete_badSeedCount_le_of_finiteCollisionBoundary
+    {count rows publicCount evalCount pointVars bound : Nat}
+    {point : ProtocolVector Phi81 pointVars}
+    {foldedSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
+    {inputSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
+    {claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars}
+    [DecidablePred
+      (PiRLCFoldFailure
+        (PiRLCConcreteAccepts point)
+        foldedSound
+        inputSound
+        claims)]
+    (hCollision :
+      PiRLCFiniteCollisionSoundnessBoundary point foldedSound inputSound claims bound) :
+    (PiRLCBadSeedFinset
+      (PiRLCConcreteAccepts point)
+      foldedSound
+      inputSound
+      claims).card ≤ bound :=
+  pirlc_concrete_badSeedCount_le_of_collisionBound hCollision
 
 variable {F : Type} [Field F] [DecidableEq F]
 
@@ -194,5 +238,25 @@ theorem scalarRLCBadPivotValues_card_le_one {count : Nat}
   have hDiff : lhs - rhs = 0 := by
     exact (mul_eq_zero.mp hMul).resolve_right hPivot
   exact sub_eq_zero.mp hDiff
+
+def goldilocksScalarChallengeSupport : Finset Goldilocks :=
+  univ.image challengeCoefficientGoldilocks
+
+theorem goldilocksScalarRLCBadPivotValues_card_le_one {count : Nat}
+    (fixedChallenges : Fin count → Goldilocks)
+    (pivot : Fin count)
+    (deltas : Fin count → Goldilocks)
+    (hPivot : deltas pivot ≠ 0) :
+    (scalarRLCBadPivotValues
+      goldilocksScalarChallengeSupport
+      fixedChallenges
+      pivot
+      deltas).card ≤ 1 :=
+  scalarRLCBadPivotValues_card_le_one
+    goldilocksScalarChallengeSupport
+    fixedChallenges
+    pivot
+    deltas
+    hPivot
 
 end SuperNeoFormal

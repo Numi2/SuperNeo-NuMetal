@@ -16,19 +16,34 @@ This note records the April 14, 2026 PiRLC soundness progress in
 - The theorem `pirlc_badSeedCount_le_of_collisionSet` proves that any collision
   set covering all bad seeds gives an exact cardinality bound on verifier
   failure.
-- The theorem `pirlc_concrete_badSeedCount_le_of_collisionBound` specializes
-  that counting theorem to concrete PiRLC acceptance over Phi81 claims.
 - The scalar field lemma `scalarRLCBadPivotValues_card_le_one` proves the usual
   one-root random-linear-combination collision bound for a pivot coefficient
   with nonzero delta.
+- `goldilocksScalarRLCBadPivotValues_card_le_one` instantiates that one-root
+  lemma for the concrete Goldilocks scalar challenge support.
+
+These declarations are now split into closed `pirlc-finite-support-core` and
+`pirlc-scalar-collision-core` theorem groups.
+
+The concrete Phi81 public acceptance predicate
+`PiRLCConcreteAccepts` is also tracked separately in the closed
+`pirlc-concrete-acceptance-core` group. The random-linear-combination boundary
+now contains only the concrete collision-bound predicate and the theorems that
+consume that predicate.
 
 ## Boundary kept explicit
 
 The concrete Phi81 challenge ring is not silently treated as a field.  The
 finite-distribution theorem therefore requires a concrete collision-set bound
 for the Phi81 folded-claim relation.  That is the remaining PiRLC cryptographic
-boundary, and the manifest keeps the theorem group under
-`closed_under_random_linear_combination_assumption`.
+boundary, while the weighted-claim recomposition core is now tracked separately
+as closed deterministic algebra.
+
+`PiRLCFiniteCollisionSoundnessBoundary` names the remaining finite collision-set
+premise directly, and
+`pirlc_concrete_badSeedCount_le_of_finiteCollisionBoundary` records how that
+premise implies the concrete bad-seed count bound. Those declarations remain in
+`pirlc-collision-bound-boundary`.
 
 ## Verification
 

@@ -32,3 +32,9 @@ The remaining PiRLC probability work is the actual random-linear-combination
 collision theorem for folded claims under this finite challenge source.  The
 current module supplies the finite source, coefficient bounds, and capacity
 theorem that such a result should depend on.
+
+The follow-up `SuperNeoFormal.TranscriptChallenge` module binds this finite
+source to the ordered transcript model through an abstract challenge deriver.
+That closes deterministic transcript equality/support facts for equal
+proof-envelope context, seed, and ordered absorb sequences, but it still does
+not model SHA-256 as a random oracle or prove challenge uniformity.

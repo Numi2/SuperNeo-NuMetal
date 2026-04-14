@@ -211,4 +211,64 @@ theorem sumcheck_exact_oracle_final_check
   have hFinal := sumcheck_accepts_final_check hAccepts
   rwa [sumcheck_exact_oracle_final_claim hAccepts hMatches] at hFinal
 
+section LowDegreeRootCounting
+
+variable {K : Type} [Field K] [DecidableEq K]
+
+def sumcheckPolynomialRootsInSupport
+    (support : Finset K)
+    (polynomial : Polynomial K) : Finset K :=
+  support.filter (fun value => polynomial.eval value = 0)
+
+theorem sumcheckPolynomialRootsInSupport_card_le_natDegree
+    (support : Finset K)
+    {polynomial : Polynomial K}
+    (hNonzero : polynomial ≠ 0) :
+    (sumcheckPolynomialRootsInSupport support polynomial).card ≤
+      polynomial.natDegree := by
+  apply Polynomial.card_le_degree_of_subset_roots
+  intro value hValue
+  have hRoot : polynomial.eval value = 0 := (Finset.mem_filter.mp hValue).2
+  exact (Polynomial.mem_roots hNonzero).mpr hRoot
+
+theorem sumcheckPolynomialRootsInSupport_card_le_degreeBound
+    (support : Finset K)
+    {polynomial : Polynomial K}
+    {degreeBound : Nat}
+    (hNonzero : polynomial ≠ 0)
+    (hDegree : polynomial.natDegree ≤ degreeBound) :
+    (sumcheckPolynomialRootsInSupport support polynomial).card ≤ degreeBound :=
+  le_trans
+    (sumcheckPolynomialRootsInSupport_card_le_natDegree support hNonzero)
+    hDegree
+
+theorem sumcheck_exists_nonroot_of_support_card_gt_degreeBound
+    (support : Finset K)
+    {polynomial : Polynomial K}
+    {degreeBound : Nat}
+    (hNonzero : polynomial ≠ 0)
+    (hDegree : polynomial.natDegree ≤ degreeBound)
+    (hSupport : degreeBound < support.card) :
+    ∃ value ∈ support, polynomial.eval value ≠ 0 := by
+  by_contra hNo
+  have hAllRoots : ∀ value, value ∈ support → polynomial.eval value = 0 := by
+    intro value hValue
+    by_contra hEval
+    exact hNo ⟨value, hValue, hEval⟩
+  have hFilter :
+      sumcheckPolynomialRootsInSupport support polynomial = support := by
+    ext value
+    constructor
+    · intro hValue
+      exact (Finset.mem_filter.mp hValue).1
+    · intro hValue
+      exact Finset.mem_filter.mpr ⟨hValue, hAllRoots value hValue⟩
+  have hCard : support.card ≤ degreeBound := by
+    rw [← hFilter]
+    exact sumcheckPolynomialRootsInSupport_card_le_degreeBound
+      support hNonzero hDegree
+  exact (not_lt_of_ge hCard) hSupport
+
+end LowDegreeRootCounting
+
 end SuperNeoFormal

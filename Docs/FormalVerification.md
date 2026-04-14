@@ -10,13 +10,23 @@ separate from the Sage/lattice-estimator workflow:
 - Lean formalization records protocol-level algebraic statements and reductions
   under explicitly named assumptions.
 
-The current Lean milestone covers an assumption-scoped protocol formalization:
-profile constants, derived parameter equalities, the strong-sampling inequality,
-the abstract Ajtai commitment map, opening relation, additive linearity, binding
-equivalence with an explicit MSIS no-short-kernel assumption, abstract PiDEC
-commitment recomposition, PiRLC weighted-claim recomposition, the PiCCS
-sum-check/public-Q final-check boundary, terminal CE batch opening, and the
-top-level verifier-acceptance composition.
+The current Lean milestone is narrowed conditional formalization: closed
+deterministic theorem groups are separated from explicit cryptographic,
+probabilistic, and CE-proof boundaries. It covers profile constants,
+derived parameter equalities, the strong-sampling inequality, concrete
+Goldilocks/Phi81 algebra, field-to-ring packing, concrete Ajtai instantiation,
+PiDEC recomposition, PiRLC weighted-claim recomposition, finite-support counting
+and scalar collision facts, transcript-bound finite challenge scheduling, PiCCS
+acceptance projections, the PiCCS exact public-Q bridge, finite-field
+low-degree root counting, terminal CE statement and local batch algebra, and
+deterministic verifier-acceptance composition. Binding, Phi81 collision
+probability, low-degree sum-check soundness, public CE proof soundness, and the
+CE-soundness-dependent end-to-end terminal theorem remain named assumption
+boundaries. The status
+validator rejects declaration reuse across theorem groups so closed cores and
+assumption boundaries cannot double-count the same Lean declaration. It also
+prevents boundary/assumption declarations from being marked closed and keeps the
+completed label tied to every conditional theorem-group dependency.
 
 ## Status Manifest
 
@@ -31,7 +41,8 @@ Scripts/validate-formal-status.py
 
 The regression harness mutates temporary manifest copies and confirms the
 validator fails closed for missing declarations, declarations attached to planned
-groups, and closed groups without any declaration:
+groups, closed groups without any declaration, boundary groups marked closed,
+and completed-label dependency drift:
 
 ```sh
 Scripts/test-formal-status-validation.py
@@ -54,6 +65,8 @@ Recent formal pass:
 - [Formal Ajtai Binding, 2026-04-13](FormalAjtaiBinding-2026-04-13.md)
 - [Formal PiDEC Recomposition, 2026-04-13](FormalPiDECRecomposition-2026-04-13.md)
 - [Formal Protocol Composition, 2026-04-13](FormalProtocolComposition-2026-04-13.md)
+- [Formal Assumption Ledger Split, 2026-04-14](FormalAssumptionLedger-2026-04-14.md)
+- [Formal Remaining Boundaries, 2026-04-14](FormalRemainingBoundaries-2026-04-14.md)
 
 ## Build
 

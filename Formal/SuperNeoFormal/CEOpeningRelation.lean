@@ -291,6 +291,69 @@ theorem ceTerminalLocalBatch_claimOpening
       (witnesses index) :=
   ceLocalOpening_claimOpening (hBatch index)
 
+theorem ceTerminalLocalBatch_shape_compatible
+    {count rows columns publicCount evalCount pointVars : Nat}
+    {shape : CEOpeningShape}
+    {context : CEOpeningPublicContext}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    {publicBound : RF → Prop}
+    {evaluationRelation :
+      Message RF columns →
+        ProtocolVector RF pointVars →
+        ProtocolVector RF evalCount →
+        Prop}
+    {statement : CETerminalStatement RF count rows publicCount evalCount pointVars}
+    {witnesses : Fin count → Message RF columns}
+    (hBatch :
+      CETerminalLocalBatchRelation
+        shape context A bounded publicBound evaluationRelation statement witnesses)
+    (index : Fin count) :
+    CEOpeningShapeCompatible shape rows columns publicCount evalCount pointVars :=
+  ceLocalOpening_shape_compatible (hBatch index)
+
+theorem ceTerminalLocalBatch_context_eq
+    {count rows columns publicCount evalCount pointVars : Nat}
+    {shape : CEOpeningShape}
+    {context : CEOpeningPublicContext}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    {publicBound : RF → Prop}
+    {evaluationRelation :
+      Message RF columns →
+        ProtocolVector RF pointVars →
+        ProtocolVector RF evalCount →
+        Prop}
+    {statement : CETerminalStatement RF count rows publicCount evalCount pointVars}
+    {witnesses : Fin count → Message RF columns}
+    (hBatch :
+      CETerminalLocalBatchRelation
+        shape context A bounded publicBound evaluationRelation statement witnesses)
+    (index : Fin count) :
+    (statement.outputClaim index).context = context :=
+  ceLocalOpening_context_eq (hBatch index)
+
+theorem ceTerminalLocalBatch_publicInput_bounded
+    {count rows columns publicCount evalCount pointVars : Nat}
+    {shape : CEOpeningShape}
+    {context : CEOpeningPublicContext}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    {publicBound : RF → Prop}
+    {evaluationRelation :
+      Message RF columns →
+        ProtocolVector RF pointVars →
+        ProtocolVector RF evalCount →
+        Prop}
+    {statement : CETerminalStatement RF count rows publicCount evalCount pointVars}
+    {witnesses : Fin count → Message RF columns}
+    (hBatch :
+      CETerminalLocalBatchRelation
+        shape context A bounded publicBound evaluationRelation statement witnesses)
+    (index : Fin count) :
+    CEPublicInputBounded publicBound (statement.outputClaim index) :=
+  ceLocalOpening_publicInput_bounded (hBatch index)
+
 theorem ceTerminalLocalBatch_commitment
     {count rows columns publicCount evalCount pointVars : Nat}
     {shape : CEOpeningShape}
@@ -312,6 +375,56 @@ theorem ceTerminalLocalBatch_commitment
     commit A (witnesses index) =
       ((ceTerminalOutputClaims statement) index).commitment :=
   (ceTerminalLocalBatch_claimOpening hBatch index).2.1
+
+theorem ceTerminalLocalBatch_evaluation
+    {count rows columns publicCount evalCount pointVars : Nat}
+    {shape : CEOpeningShape}
+    {context : CEOpeningPublicContext}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    {publicBound : RF → Prop}
+    {evaluationRelation :
+      Message RF columns →
+        ProtocolVector RF pointVars →
+        ProtocolVector RF evalCount →
+        Prop}
+    {statement : CETerminalStatement RF count rows publicCount evalCount pointVars}
+    {witnesses : Fin count → Message RF columns}
+    (hBatch :
+      CETerminalLocalBatchRelation
+        shape context A bounded publicBound evaluationRelation statement witnesses)
+    (index : Fin count) :
+    evaluationRelation
+      (witnesses index)
+      ((ceTerminalOutputClaims statement) index).point
+      ((ceTerminalOutputClaims statement) index).evaluations :=
+  (ceTerminalLocalBatch_claimOpening hBatch index).2.2
+
+theorem ceTerminalLocalBatch_witnesses_unique_from_noShortKernel
+    {count rows columns publicCount evalCount pointVars : Nat}
+    {shape : CEOpeningShape}
+    {context : CEOpeningPublicContext}
+    {A : AjtaiMatrix RF rows columns}
+    {bounded : Message RF columns → Prop}
+    {publicBound : RF → Prop}
+    {evaluationRelation :
+      Message RF columns →
+        ProtocolVector RF pointVars →
+        ProtocolVector RF evalCount →
+        Prop}
+    {statement : CETerminalStatement RF count rows publicCount evalCount pointVars}
+    {lhs rhs : Fin count → Message RF columns}
+    (hKernel : NoShortKernel A bounded)
+    (hlhs :
+      CETerminalLocalBatchRelation
+        shape context A bounded publicBound evaluationRelation statement lhs)
+    (hrhs :
+      CETerminalLocalBatchRelation
+        shape context A bounded publicBound evaluationRelation statement rhs) :
+    lhs = rhs := by
+  funext index
+  exact ceLocalOpening_witness_unique_from_noShortKernel
+    hKernel (hlhs index) (hrhs index)
 
 def CETerminalDecompositionCount (count : Nat) : Prop :=
   count = decompositionLength

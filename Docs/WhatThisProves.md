@@ -110,14 +110,14 @@ opt-in high-assurance execution policies. Those are hardening artifacts; they do
 not change the meaning of proof acceptance by themselves.
 
 The repository also includes a Lean 4 formalization track. The current formal
-status is conditional protocol formalization: profile constants, the abstract
-Ajtai commitment map, derived parameter equalities, the strong-sampling
-inequality, linearity, binding equivalence under an explicit MSIS
-no-short-kernel assumption, abstract PiDEC commitment recomposition, PiRLC
-weighted-claim recomposition, PiCCS sum-check/public-Q final checking, terminal
-CE batch opening, and top-level verifier composition are tracked by named Lean
-declarations. The assumption-scoped groups are not unconditional concrete
-cryptographic proofs.
+status is narrowed conditional formalization: deterministic cores for concrete
+profile algebra, Ajtai instantiation, transcript-bound finite challenge
+scheduling, PiRLC recomposition, finite-support counting, scalar collision
+facts, PiCCS acceptance and exact public-Q reduction, finite-field low-degree
+root counting, terminal CE statement and local batch algebra, and verifier
+composition are tracked separately from MSIS,
+Phi81 folded-claim collision, sum-check, and CE-opening boundaries. The
+assumption-scoped groups are not unconditional concrete cryptographic proofs.
 
 The correct public positioning remains:
 

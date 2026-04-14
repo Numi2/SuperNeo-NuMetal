@@ -12,6 +12,8 @@ noncomputable section
 
 namespace SuperNeoFormal
 
+open Finset
+
 abbrev ConcreteAjtaiMessage (columns : Nat) :=
   Message Phi81 columns
 
@@ -50,6 +52,20 @@ def ConcreteBindingSecure {columns : Nat}
     (bounded : ConcreteAjtaiMessage columns → Prop) : Prop :=
   BindingSecure A bounded
 
+theorem concreteOpening_iff_opening {columns : Nat}
+    (A : ConcreteAjtaiMatrix columns)
+    (c : ConcreteAjtaiCommitment)
+    (bounded : ConcreteAjtaiMessage columns → Prop)
+    (z : ConcreteAjtaiMessage columns) :
+    ConcreteOpening A c bounded z ↔ Opening A c bounded z :=
+  Iff.rfl
+
+theorem concreteBindingSecure_iff_bindingSecure {columns : Nat}
+    (A : ConcreteAjtaiMatrix columns)
+    (bounded : ConcreteAjtaiMessage columns → Prop) :
+    ConcreteBindingSecure A bounded ↔ BindingSecure A bounded :=
+  Iff.rfl
+
 theorem concreteAjtai_row_count :
     kappa = 18 := by
   native_decide
@@ -62,14 +78,36 @@ theorem concreteAjtai_coefficient_dimension :
     kappa * phi81Degree = 972 := by
   native_decide
 
+theorem concreteAjtai_phi81_relation :
+    phi81X ^ 54 + phi81X ^ 27 + 1 = 0 :=
+  phi81_relation
+
+theorem concreteAjtai_phi81_swiftMul_toQuotient
+    (lhs rhs : Phi81Coefficients) :
+    phi81CoeffsToQuotient (phi81SwiftMulCoeffs lhs rhs) =
+      phi81CoeffsToQuotient lhs * phi81CoeffsToQuotient rhs :=
+  phi81SwiftMulCoeffs_toQuotient_mul lhs rhs
+
 theorem concretePackedWitness_shape {columns : Nat}
     (fieldWitness : ConcreteFieldWitness columns) :
     concretePackedWitness fieldWitness = packExactPhi81 fieldWitness := rfl
+
+theorem concretePackedWitness_column_eq {columns : Nat}
+    (fieldWitness : ConcreteFieldWitness columns)
+    (column : Fin columns) :
+    concretePackedWitness fieldWitness column = packExactPhi81 fieldWitness column := rfl
 
 theorem concreteCommit_eq_abstract {columns : Nat}
     (A : ConcreteAjtaiMatrix columns)
     (message : ConcreteAjtaiMessage columns) :
     concreteCommit A message = commit A message := rfl
+
+theorem concreteCommit_row_eq_sum {columns : Nat}
+    (A : ConcreteAjtaiMatrix columns)
+    (message : ConcreteAjtaiMessage columns)
+    (row : Fin kappa) :
+    concreteCommit A message row =
+      ∑ column : Fin columns, A row column * message column := rfl
 
 theorem concreteCommit_zero {columns : Nat}
     (A : ConcreteAjtaiMatrix columns) :
@@ -111,5 +149,12 @@ theorem concreteCommitPackedFieldWitness_eq {columns : Nat}
     (fieldWitness : ConcreteFieldWitness columns) :
     concreteCommitPackedFieldWitness A fieldWitness =
       commit A (packExactPhi81 fieldWitness) := rfl
+
+theorem concreteCommitPackedFieldWitness_row_eq_sum {columns : Nat}
+    (A : ConcreteAjtaiMatrix columns)
+    (fieldWitness : ConcreteFieldWitness columns)
+    (row : Fin kappa) :
+    concreteCommitPackedFieldWitness A fieldWitness row =
+      ∑ column : Fin columns, A row column * packExactPhi81 fieldWitness column := rfl
 
 end SuperNeoFormal
