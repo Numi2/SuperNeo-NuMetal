@@ -71,6 +71,9 @@ Artifacts:
 - `Scripts/test-benchmark-tooling-validation.py` mutation-tests benchmark
   comparator and report-rendering failure modes before benchmark evidence is
   trusted by the production gate.
+- `Docs/BenchmarkMetadataComparison-2026-04-14.md` records the metadata-aware
+  benchmark comparison pass for profile, case, environment, toolchain,
+  hardware, Metal, and clean-source policy checks.
 - `Docs/BenchmarkReports/apple-m4-quick-2026-04-12.md` is a pinned Apple M4
   quick-profile report.
 - `Docs/LeadAudit-2026-04-12.md` records the latest code audit findings,

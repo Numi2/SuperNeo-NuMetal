@@ -38,6 +38,39 @@ def write_json(path: Path, rows: list[dict[str, Any]]) -> None:
     path.write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
 
 
+def benchmark_metadata(
+    *,
+    profile: str = "quick",
+    cases: str = "m256-case",
+    case_filter: str = "m256",
+    chip: str = "Apple M4",
+    git_state: str = "dirty",
+) -> dict[str, str]:
+    return {
+        "benchmarkProfile": profile,
+        "benchmarkCases": cases,
+        "swiftVersion": "Swift test toolchain",
+        "xcodeVersion": "Xcode test toolchain",
+        "osVersion": "TestOS 1.0",
+        "modelName": "Test Mac",
+        "chip": chip,
+        "cpuCores": "10",
+        "memory": "24 GB",
+        "metalDevice": chip,
+        "metalSupport": "available",
+        "gitState": git_state,
+        "env.SUPERNEO_BENCHMARK_PROFILE": profile,
+        "env.SUPERNEO_BENCHMARK_CASE_FILTER": case_filter,
+        "env.SUPERNEO_BENCHMARK_CE": "",
+        "env.SUPERNEO_BENCHMARK_SIGNPOSTS": "",
+        "env.SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE": "",
+    }
+
+
+def write_metadata(path: Path, metadata: dict[str, str]) -> None:
+    path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def run_compare(
     baseline: Path,
     candidate: Path,
@@ -175,6 +208,134 @@ def test_benchmark_comparator(temp_root: Path) -> None:
     )
 
 
+def test_benchmark_metadata_comparison(temp_root: Path) -> None:
+    baseline = temp_root / "metadata-baseline.json"
+    candidate = temp_root / "metadata-candidate.json"
+    baseline_metadata = temp_root / "baseline-metadata.json"
+    candidate_metadata = temp_root / "candidate-metadata.json"
+    rows = [timing_row("fold/cpu/m256-case", 10, "ms")]
+    write_json(baseline, rows)
+    write_json(candidate, rows)
+    write_metadata(baseline_metadata, benchmark_metadata())
+    write_metadata(candidate_metadata, benchmark_metadata())
+
+    result = run_compare(
+        baseline,
+        candidate,
+        "--baseline-metadata",
+        str(baseline_metadata),
+        "--candidate-metadata",
+        str(candidate_metadata),
+    )
+    expect_success("metadata comparison success", result)
+    require(
+        "- Metadata comparison: PASS" in result.stdout,
+        "metadata comparison did not record PASS",
+    )
+
+    write_metadata(candidate_metadata, benchmark_metadata(chip="Apple M3"))
+    expect_failure(
+        "metadata hardware mismatch",
+        run_compare(
+            baseline,
+            candidate,
+            "--baseline-metadata",
+            str(baseline_metadata),
+            "--candidate-metadata",
+            str(candidate_metadata),
+        ),
+        "Metadata Checks",
+    )
+
+    write_metadata(candidate_metadata, benchmark_metadata(cases="m1024-case"))
+    expect_failure(
+        "metadata case mismatch",
+        run_compare(
+            baseline,
+            candidate,
+            "--baseline-metadata",
+            str(baseline_metadata),
+            "--candidate-metadata",
+            str(candidate_metadata),
+        ),
+        "benchmarkCases",
+    )
+
+    missing_key = benchmark_metadata()
+    missing_key.pop("env.SUPERNEO_BENCHMARK_CASE_FILTER")
+    write_metadata(candidate_metadata, missing_key)
+    expect_failure(
+        "metadata missing key",
+        run_compare(
+            baseline,
+            candidate,
+            "--baseline-metadata",
+            str(baseline_metadata),
+            "--candidate-metadata",
+            str(candidate_metadata),
+        ),
+        "missing candidate metadata",
+    )
+
+    write_metadata(candidate_metadata, benchmark_metadata())
+    expect_failure(
+        "one explicit metadata path",
+        run_compare(baseline, candidate, "--baseline-metadata", str(baseline_metadata)),
+        "requires both --baseline-metadata and --candidate-metadata",
+    )
+
+    expect_failure(
+        "required inferred metadata missing",
+        run_compare(baseline, candidate, "--require-metadata"),
+        "metadata comparison required",
+    )
+
+    write_metadata(baseline_metadata, benchmark_metadata(git_state="clean"))
+    write_metadata(candidate_metadata, benchmark_metadata(git_state="dirty"))
+    expect_failure(
+        "clean metadata required",
+        run_compare(
+            baseline,
+            candidate,
+            "--baseline-metadata",
+            str(baseline_metadata),
+            "--candidate-metadata",
+            str(candidate_metadata),
+            "--require-clean-metadata",
+        ),
+        "requires clean git state",
+    )
+
+    write_metadata(candidate_metadata, benchmark_metadata(git_state="clean"))
+    clean_result = run_compare(
+        baseline,
+        candidate,
+        "--baseline-metadata",
+        str(baseline_metadata),
+        "--candidate-metadata",
+        str(candidate_metadata),
+        "--require-clean-metadata",
+    )
+    expect_success("clean metadata comparison", clean_result)
+
+    baseline_dir = temp_root / "auto-baseline"
+    candidate_dir = temp_root / "auto-candidate"
+    baseline_dir.mkdir()
+    candidate_dir.mkdir()
+    auto_baseline = baseline_dir / "results.json"
+    auto_candidate = candidate_dir / "results.json"
+    write_json(auto_baseline, rows)
+    write_json(auto_candidate, rows)
+    write_metadata(baseline_dir / "metadata.json", benchmark_metadata())
+    write_metadata(candidate_dir / "metadata.json", benchmark_metadata())
+    auto_result = run_compare(auto_baseline, auto_candidate)
+    expect_success("auto metadata comparison", auto_result)
+    require(
+        "- Metadata comparison: PASS" in auto_result.stdout,
+        "auto metadata comparison did not run",
+    )
+
+
 def test_benchmark_report_renderer(temp_root: Path) -> None:
     results = temp_root / "results.json"
     report = temp_root / "report.md"
@@ -224,6 +385,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="superneo-benchmark-tooling-") as raw_tmp:
         temp_root = Path(raw_tmp)
         test_benchmark_comparator(temp_root)
+        test_benchmark_metadata_comparison(temp_root)
         test_benchmark_report_renderer(temp_root)
     print("benchmark tooling validation regression tests passed")
 

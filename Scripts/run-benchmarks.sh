@@ -52,6 +52,22 @@ swift "${ROOT_DIR}/Scripts/render-benchmark-report.swift" "${RESULT_PATH}/result
 
 if [[ -n "${SUPERNEO_BENCHMARK_BASELINE:-}" ]]; then
   COMPARE_ARGS=()
+  BASELINE_METADATA="${SUPERNEO_BENCHMARK_BASELINE_METADATA:-}"
+  if [[ -z "${BASELINE_METADATA}" ]]; then
+    INFERRED_BASELINE_METADATA="$(cd "$(dirname "${SUPERNEO_BENCHMARK_BASELINE}")" && pwd)/metadata.json"
+    if [[ -s "${INFERRED_BASELINE_METADATA}" ]]; then
+      BASELINE_METADATA="${INFERRED_BASELINE_METADATA}"
+    fi
+  fi
+  if [[ -n "${BASELINE_METADATA}" ]]; then
+    COMPARE_ARGS+=(--baseline-metadata "${BASELINE_METADATA}" --candidate-metadata "${RESULT_PATH}/metadata.json")
+  fi
+  if [[ "${SUPERNEO_BENCHMARK_REQUIRE_METADATA:-}" == "1" ]]; then
+    COMPARE_ARGS+=(--require-metadata)
+  fi
+  if [[ "${SUPERNEO_BENCHMARK_REQUIRE_CLEAN_METADATA:-}" == "1" ]]; then
+    COMPARE_ARGS+=(--require-clean-metadata)
+  fi
   if [[ -n "${SUPERNEO_BENCHMARK_KERNEL_THRESHOLD:-}" ]]; then
     COMPARE_ARGS+=(--kernel-threshold "${SUPERNEO_BENCHMARK_KERNEL_THRESHOLD}")
   fi

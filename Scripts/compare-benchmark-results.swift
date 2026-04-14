@@ -23,11 +23,15 @@ enum BenchmarkClass: String {
 struct Options {
     var baselinePath: String?
     var candidatePath: String?
+    var baselineMetadataPath: String?
+    var candidateMetadataPath: String?
     var outputPath: String?
     var kernelThreshold = 0.05
     var protocolThreshold = 0.10
     var warnOnly = false
     var allowMissing = false
+    var requireMetadata = false
+    var requireCleanMetadata = false
 }
 
 struct ComparisonRow {
@@ -41,6 +45,24 @@ struct ComparisonRow {
     let isFailure: Bool
 }
 
+struct MetadataCheckRow {
+    let key: String
+    let baseline: String
+    let candidate: String
+    let status: String
+    let isFailure: Bool
+}
+
+struct MetadataComparison {
+    let baselinePath: String
+    let candidatePath: String
+    let rows: [MetadataCheckRow]
+
+    var hasFailures: Bool {
+        rows.contains(where: \.isFailure)
+    }
+}
+
 func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
     exit(2)
@@ -49,7 +71,7 @@ func fail(_ message: String) -> Never {
 func usage() -> Never {
     fail("""
     Usage:
-      swift Scripts/compare-benchmark-results.swift baseline.json candidate.json [--output comparison.md] [--kernel-threshold 0.05] [--protocol-threshold 0.10] [--warn-only] [--allow-missing]
+      swift Scripts/compare-benchmark-results.swift baseline.json candidate.json [--output comparison.md] [--baseline-metadata metadata.json] [--candidate-metadata metadata.json] [--require-metadata] [--require-clean-metadata] [--kernel-threshold 0.05] [--protocol-threshold 0.10] [--warn-only] [--allow-missing]
     """)
 }
 
@@ -64,6 +86,14 @@ func parseOptions(_ arguments: [String]) -> Options {
             index += 1
             guard index < arguments.count else { usage() }
             options.outputPath = arguments[index]
+        case "--baseline-metadata":
+            index += 1
+            guard index < arguments.count else { usage() }
+            options.baselineMetadataPath = arguments[index]
+        case "--candidate-metadata":
+            index += 1
+            guard index < arguments.count else { usage() }
+            options.candidateMetadataPath = arguments[index]
         case "--kernel-threshold":
             index += 1
             guard index < arguments.count, let value = Double(arguments[index]), value >= 0 else { usage() }
@@ -76,6 +106,10 @@ func parseOptions(_ arguments: [String]) -> Options {
             options.warnOnly = true
         case "--allow-missing":
             options.allowMissing = true
+        case "--require-metadata":
+            options.requireMetadata = true
+        case "--require-clean-metadata":
+            options.requireCleanMetadata = true
         case "--help", "-h":
             usage()
         default:
@@ -88,6 +122,17 @@ func parseOptions(_ arguments: [String]) -> Options {
     options.baselinePath = positionals[0]
     options.candidatePath = positionals[1]
     return options
+}
+
+func inferredMetadataPath(for resultPath: String) -> String {
+    URL(fileURLWithPath: resultPath)
+        .deletingLastPathComponent()
+        .appendingPathComponent("metadata.json")
+        .path
+}
+
+func fileExists(_ path: String) -> Bool {
+    FileManager.default.fileExists(atPath: path)
 }
 
 func seconds(value: Double, unit: String) -> Double? {
@@ -170,6 +215,125 @@ func loadTimingRows(_ path: String) -> [String: TimingRow] {
         fail("benchmark result JSON at \(path) did not contain wall-clock timing rows")
     }
     return rows
+}
+
+func loadMetadata(_ path: String) -> [String: String] {
+    let url = URL(fileURLWithPath: path)
+    let data: Data
+    do {
+        data = try Data(contentsOf: url)
+    } catch {
+        fail("failed to read benchmark metadata JSON at \(path): \(error)")
+    }
+    let metadata: [String: String]
+    do {
+        metadata = try JSONDecoder().decode([String: String].self, from: data)
+    } catch {
+        fail("failed to decode benchmark metadata JSON at \(path): \(error)")
+    }
+    guard !metadata.isEmpty else {
+        fail("benchmark metadata JSON at \(path) is empty")
+    }
+    return metadata
+}
+
+let requiredComparableMetadataKeys = [
+    "benchmarkProfile",
+    "benchmarkCases",
+    "swiftVersion",
+    "xcodeVersion",
+    "osVersion",
+    "modelName",
+    "chip",
+    "cpuCores",
+    "memory",
+    "metalDevice",
+    "metalSupport",
+    "env.SUPERNEO_BENCHMARK_PROFILE",
+    "env.SUPERNEO_BENCHMARK_CASE_FILTER",
+    "env.SUPERNEO_BENCHMARK_CE",
+    "env.SUPERNEO_BENCHMARK_SIGNPOSTS",
+    "env.SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE"
+]
+
+func metadataPaths(for options: Options) -> (baseline: String, candidate: String)? {
+    let explicitBaseline = options.baselineMetadataPath
+    let explicitCandidate = options.candidateMetadataPath
+    if (explicitBaseline == nil) != (explicitCandidate == nil) {
+        fail("benchmark metadata comparison requires both --baseline-metadata and --candidate-metadata")
+    }
+    if let explicitBaseline, let explicitCandidate {
+        return (explicitBaseline, explicitCandidate)
+    }
+
+    let baseline = inferredMetadataPath(for: options.baselinePath!)
+    let candidate = inferredMetadataPath(for: options.candidatePath!)
+    if fileExists(baseline), fileExists(candidate) {
+        return (baseline, candidate)
+    }
+    if options.requireMetadata {
+        fail("metadata comparison required, but missing \(fileExists(baseline) ? candidate : baseline)")
+    }
+    return nil
+}
+
+func compareMetadata(options: Options) -> MetadataComparison? {
+    guard let paths = metadataPaths(for: options) else { return nil }
+    let baseline = loadMetadata(paths.baseline)
+    let candidate = loadMetadata(paths.candidate)
+    var rows: [MetadataCheckRow] = []
+    rows.reserveCapacity(requiredComparableMetadataKeys.count + (options.requireCleanMetadata ? 2 : 0))
+
+    for key in requiredComparableMetadataKeys {
+        let baselineValue = baseline[key]
+        let candidateValue = candidate[key]
+        let status: String
+        let isFailure: Bool
+        switch (baselineValue, candidateValue) {
+        case (.none, .none):
+            status = "missing baseline and candidate metadata"
+            isFailure = true
+        case (.none, .some):
+            status = "missing baseline metadata"
+            isFailure = true
+        case (.some, .none):
+            status = "missing candidate metadata"
+            isFailure = true
+        case (.some(let lhs), .some(let rhs)) where lhs == rhs:
+            status = "match"
+            isFailure = false
+        case (.some, .some):
+            status = "mismatch"
+            isFailure = true
+        }
+        rows.append(MetadataCheckRow(
+            key: key,
+            baseline: baselineValue ?? "",
+            candidate: candidateValue ?? "",
+            status: status,
+            isFailure: isFailure
+        ))
+    }
+
+    if options.requireCleanMetadata {
+        for (label, metadata) in [("baseline", baseline), ("candidate", candidate)] {
+            let value = metadata["gitState"] ?? ""
+            let isFailure = value != "clean"
+            rows.append(MetadataCheckRow(
+                key: "\(label).gitState",
+                baseline: label == "baseline" ? value : "",
+                candidate: label == "candidate" ? value : "",
+                status: isFailure ? "requires clean git state" : "clean",
+                isFailure: isFailure
+            ))
+        }
+    }
+
+    return MetadataComparison(
+        baselinePath: paths.baseline,
+        candidatePath: paths.candidate,
+        rows: rows
+    )
 }
 
 func formatDuration(_ seconds: Double) -> String {
@@ -258,16 +422,22 @@ func renderMarkdown(
     rows: [ComparisonRow],
     missing: [String],
     added: [String],
+    metadataComparison: MetadataComparison?,
     options: Options
 ) -> String {
     let failingRows = rows.filter(\.isFailure)
     let missingFailures = options.allowMissing ? [] : missing
-    let pass = failingRows.isEmpty && missingFailures.isEmpty
+    let metadataFailures = metadataComparison?.hasFailures ?? false
+    let pass = failingRows.isEmpty && missingFailures.isEmpty && !metadataFailures
     var lines = [
         "# SuperNeo Benchmark Comparison",
         "",
         "- Baseline: `\(markdownEscaped(options.baselinePath ?? ""))`",
         "- Candidate: `\(markdownEscaped(options.candidatePath ?? ""))`",
+        "- Baseline metadata: \(metadataComparison.map { "`\(markdownEscaped($0.baselinePath))`" } ?? "not checked")",
+        "- Candidate metadata: \(metadataComparison.map { "`\(markdownEscaped($0.candidatePath))`" } ?? "not checked")",
+        "- Metadata comparison: \(metadataComparison.map { $0.hasFailures ? "FAIL" : "PASS" } ?? "not checked")",
+        "- Clean metadata required: \(options.requireCleanMetadata ? "yes" : "no")",
         "- Kernel threshold: \(formatPercent(options.kernelThreshold))",
         "- Protocol threshold: \(formatPercent(options.protocolThreshold))",
         "- Missing baseline rows: \(options.allowMissing ? "warning" : "failure")",
@@ -316,17 +486,37 @@ func renderMarkdown(
         lines += added.map { "- `\(markdownEscaped($0))`" }
     }
 
+    if let metadataComparison {
+        lines += [
+            "",
+            "## Metadata Checks",
+            "",
+            "| Key | Baseline | Candidate | Status |",
+            "| --- | --- | --- | --- |"
+        ]
+        for row in metadataComparison.rows {
+            lines.append(
+                "| `\(markdownEscaped(row.key))`"
+                    + " | \(markdownEscaped(row.baseline))"
+                    + " | \(markdownEscaped(row.candidate))"
+                    + " | \(row.status) |"
+            )
+        }
+    }
+
     return lines.joined(separator: "\n") + "\n"
 }
 
 let options = parseOptions(Array(CommandLine.arguments.dropFirst()))
 let baselineRows = loadTimingRows(options.baselinePath!)
 let candidateRows = loadTimingRows(options.candidatePath!)
+let metadataComparison = compareMetadata(options: options)
 let comparison = compare(baseline: baselineRows, candidate: candidateRows, options: options)
 let markdown = renderMarkdown(
     rows: comparison.rows,
     missing: comparison.missing,
     added: comparison.added,
+    metadataComparison: metadataComparison,
     options: options
 )
 
@@ -342,6 +532,7 @@ if let outputPath = options.outputPath {
 
 let hasTimingFailures = comparison.rows.contains(where: \.isFailure)
 let hasMissingFailures = !options.allowMissing && !comparison.missing.isEmpty
-if (hasTimingFailures || hasMissingFailures) && !options.warnOnly {
+let hasMetadataFailures = metadataComparison?.hasFailures ?? false
+if (hasTimingFailures || hasMissingFailures || hasMetadataFailures) && !options.warnOnly {
     exit(1)
 }

@@ -98,6 +98,8 @@ Baseline policy:
 swift Scripts/compare-benchmark-results.swift \
   path/to/baseline-results.json \
   benchmark-results/results.json \
+  --baseline-metadata path/to/baseline-metadata.json \
+  --candidate-metadata benchmark-results/metadata.json \
   --output benchmark-results/comparison.md
 ```
 
@@ -107,6 +109,17 @@ swift Scripts/compare-benchmark-results.swift \
   `SUPERNEO_BENCHMARK_PROTOCOL_THRESHOLD`,
   `SUPERNEO_BENCHMARK_COMPARE_WARN_ONLY=1`, and
   `SUPERNEO_BENCHMARK_COMPARE_ALLOW_MISSING=1`.
+- Benchmark comparison is metadata-aware when `--baseline-metadata` and
+  `--candidate-metadata` are passed, or when both `results.json` files have
+  sibling `metadata.json` files. The comparator checks benchmark profile,
+  selected cases, relevant benchmark environment knobs, toolchain, OS, hardware,
+  Metal device, and Metal availability. Set
+  `SUPERNEO_BENCHMARK_BASELINE_METADATA` to pass a baseline metadata file
+  explicitly through `Scripts/run-benchmarks.sh`.
+- Set `SUPERNEO_BENCHMARK_REQUIRE_METADATA=1` for pinned baseline gates that
+  must fail instead of falling back to timing-only comparison, and
+  `SUPERNEO_BENCHMARK_REQUIRE_CLEAN_METADATA=1` when both sides must report
+  `gitState == clean`.
 - Missing candidate rows are failures by default, because deleted benchmark
   coverage can otherwise hide regressions. Use allow-missing only for targeted
   local runs where the selected case set is intentionally narrower than the
@@ -138,7 +151,8 @@ clean/dirty source state, selected benchmark profile, selected cases, and the
 benchmark environment variables that alter registration or execution, including
 `SUPERNEO_BENCHMARK_CASE_FILTER`, `SUPERNEO_BENCHMARK_CE`,
 `SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE`, benchmark-baseline comparison path,
-thresholds, and comparison failure-mode controls.
+baseline metadata path, metadata requirement controls, thresholds, and
+comparison failure-mode controls.
 
 Current Metal scaling baseline:
 

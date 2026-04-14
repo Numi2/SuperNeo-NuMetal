@@ -61,9 +61,9 @@ case.
   manifest and artifact JSON keys, unknown manifest keys, duplicate strict
   verify commands, missing proof-kind coverage, and unmanifested checked vector
   files
-- benchmark tooling mutation checks for comparator thresholds, missing and
-  duplicate timing rows, unsupported units, malformed result JSON, and Markdown
-  report rendering
+- benchmark tooling mutation checks for comparator thresholds, metadata
+  mismatches, missing and duplicate timing rows, unsupported units, malformed
+  result JSON, and Markdown report rendering
 - lattice-estimator dry-run parameter derivation and artifact validation for
   the implemented `Goldilocks/Phi81(d=54)` Module-SIS tuple
 
