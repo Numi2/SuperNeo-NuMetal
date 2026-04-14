@@ -29,7 +29,8 @@ composition outside the CE bad-seed set.
 The full theorem label is intentionally blocked by planned theorem groups for
 full cryptographic probability composition, complete Swift serialization
 equivalence for `GoldilocksExt2`, and a byte-for-byte Swift CE verifier
-equivalence proof.
+equivalence proof. The closure contracts for those remaining groups are tracked
+in [Formal Completion Research Plan, 2026-04-14](FormalCompletionResearchPlan-2026-04-14.md).
 
 The historical `closed_under_*` groups remain documented for auditability, but
 the manifest now uses closed replacement group IDs for the mechanized
@@ -76,6 +77,7 @@ Recent formal pass:
 - [Formal Protocol Composition, 2026-04-13](FormalProtocolComposition-2026-04-13.md)
 - [Formal Assumption Ledger Split, 2026-04-14](FormalAssumptionLedger-2026-04-14.md)
 - [Formal Remaining Boundaries, 2026-04-14](FormalRemainingBoundaries-2026-04-14.md)
+- [Formal Completion Research Plan, 2026-04-14](FormalCompletionResearchPlan-2026-04-14.md)
 
 ## Build
 

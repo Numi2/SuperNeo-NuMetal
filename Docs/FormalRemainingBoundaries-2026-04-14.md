@@ -94,3 +94,9 @@ The Lean `goldilocks-ext2-field-instance` group is now closed by transferring
 mathlib's root-free quadratic-algebra field instance onto the existing
 `GoldilocksExt2` `c0/c1` structure after proving that `7` is nonsquare in the
 Goldilocks base field.
+
+The closure plan for the three remaining blockers is recorded in
+[Formal Completion Research Plan, 2026-04-14](FormalCompletionResearchPlan-2026-04-14.md).
+It keeps the groups planned, identifies the concrete Swift and Lean surfaces
+that must be connected, and defines the validation gates needed before the
+completed theorem label can be used.
