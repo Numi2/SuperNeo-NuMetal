@@ -17,6 +17,13 @@ This document describes `ProofEnvelopeHeader.version == 4`.
 Do not treat kind `1` as a complete proof of an application statement. It is a
 fold reduction whose output claims must still be checked.
 
+Application integrations that need terminal acceptance should use
+`SuperNeoTerminalProofAcceptancePolicy` and
+`SuperNeoVerifier.verifyTerminalProofEnvelope(..., policy:)`. The policy
+validates trusted profile, shape, statement, verifier-key, transcript-domain,
+accepted terminal envelope form, and optional proof byte limit before dispatching
+to terminal verification.
+
 ## Header Layout
 
 `ProofEnvelopeHeader.byteCount == 141`.

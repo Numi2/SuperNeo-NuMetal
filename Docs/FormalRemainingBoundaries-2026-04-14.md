@@ -101,15 +101,17 @@ The full theorem label still requires three planned groups:
 
 The CE byte grammar itself has moved forward: `SuperNeoFormal.CEByteSerialization`
 now models the counted CE proof bytes, response tags, commitments, responses,
-rounds, and complete proof object, with round-trip theorems and a Swift drift
-validator in the production gate. This does not discharge the blocker because
-the executable Swift verifier branches are not yet proved equivalent to
+rounds, and complete proof object, with round-trip theorems, a Swift drift
+validator, and an exact Swift/Lean complete-proof vector comparator in the
+production gate. This does not discharge the blocker because the executable
+Swift verifier branches are not yet proved equivalent to
 `TerminalCEVerifierTraceAccepts`.
 
 The Ext2 caller byte surface itself has moved forward:
 `swift-ext2-caller-byte-surfaces` is closed as a supporting grammar for counted
 Ext2 vectors, counted Ext2 ring vectors, sum-check Ext2 proof fragments, and
-CCS/CE point-evaluation caller bytes. This does not discharge
+CCS/CE point-evaluation caller bytes. The production gate also runs an exact
+Swift/Lean Ext2 vector comparator. This does not discharge
 `swift-goldilocks-ext2-serialization-equivalence` because executable Swift
 behavior equivalence is still not mechanized.
 

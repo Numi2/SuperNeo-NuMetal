@@ -9,7 +9,8 @@ let package = Package(
     ],
     products: [
         .library(name: "SuperNeo_NuMetal", targets: ["SuperNeo_NuMetal"]),
-        .executable(name: "superneo", targets: ["SuperNeoCLI"])
+        .executable(name: "superneo", targets: ["SuperNeoCLI"]),
+        .executable(name: "superneo-formal-vectors", targets: ["SuperNeoFormalVectors"])
     ],
     dependencies: [],
     targets: [
@@ -30,6 +31,14 @@ let package = Package(
             name: "SuperNeoCLI",
             dependencies: ["SuperNeo_NuMetal"],
             path: "SuperNeoCLI",
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
+        ),
+        .executableTarget(
+            name: "SuperNeoFormalVectors",
+            dependencies: ["SuperNeo_NuMetal"],
+            path: "Tools/FormalVectorCLI",
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]

@@ -1,5 +1,31 @@
 import Foundation
+import Dispatch
 import Metal
+
+@_spi(Benchmarking) public struct MetalCommandBufferTiming: Equatable, Sendable {
+    public let commandCount: Int
+    public let elementCount: Int
+    public let encodeWallTimeSeconds: Double
+    public let commitWallTimeSeconds: Double
+    public let waitWallTimeSeconds: Double
+    public let gpuTimeSeconds: Double?
+
+    public init(
+        commandCount: Int,
+        elementCount: Int,
+        encodeWallTimeSeconds: Double,
+        commitWallTimeSeconds: Double,
+        waitWallTimeSeconds: Double,
+        gpuTimeSeconds: Double?
+    ) {
+        self.commandCount = commandCount
+        self.elementCount = elementCount
+        self.encodeWallTimeSeconds = encodeWallTimeSeconds
+        self.commitWallTimeSeconds = commitWallTimeSeconds
+        self.waitWallTimeSeconds = waitWallTimeSeconds
+        self.gpuTimeSeconds = gpuTimeSeconds
+    }
+}
 
 public struct MetalInlineUInt32Buffer {
     public let index: Int
@@ -74,12 +100,17 @@ public final class MetalExecutionContext: @unchecked Sendable {
     @_spi(Benchmarking) public var lastCommandBufferGPUTimeSeconds: Double? {
         lock.lock()
         defer { lock.unlock() }
-        return lastCommandBufferGPUTimeSecondsStorage
+        return lastCommandBufferTimingStorage?.gpuTimeSeconds
+    }
+    @_spi(Benchmarking) public var lastCommandBufferTiming: MetalCommandBufferTiming? {
+        lock.lock()
+        defer { lock.unlock() }
+        return lastCommandBufferTimingStorage
     }
     private let pipelineStore: MetalPipelineStore
     private var pipelineCache: [String: MTLComputePipelineState] = [:]
     private var temporaryBufferPool: [Int: [MTLBuffer]] = [:]
-    private var lastCommandBufferGPUTimeSecondsStorage: Double?
+    private var lastCommandBufferTimingStorage: MetalCommandBufferTiming?
     private let lock = NSLock()
     private static let temporaryBufferBucketSize = 4_096
     private static let maximumTemporaryBuffersPerBucket = 4
@@ -291,8 +322,10 @@ public final class MetalExecutionContext: @unchecked Sendable {
     }
 
     public func dispatch1DSequence(_ commands: [MetalDispatchCommand]) throws {
+        setLastCommandBufferTiming(nil)
         let commands = commands.filter { $0.elementCount > 0 }
         guard !commands.isEmpty else { return }
+        let encodeStart = Self.nowNanoseconds()
         guard let commandBuffer = commandQueue.makeCommandBuffer(),
               let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw SuperNeoError.metalFailure("failed to create command encoder")
@@ -334,13 +367,23 @@ public final class MetalExecutionContext: @unchecked Sendable {
         }
 
         encoder.endEncoding()
+        let encodeEnd = Self.nowNanoseconds()
+        let commitStart = Self.nowNanoseconds()
         commandBuffer.commit()
+        let commitEnd = Self.nowNanoseconds()
         commandBuffer.waitUntilCompleted()
-        if commandBuffer.gpuEndTime >= commandBuffer.gpuStartTime, commandBuffer.gpuEndTime > 0 {
-            setLastCommandBufferGPUTimeSeconds(commandBuffer.gpuEndTime - commandBuffer.gpuStartTime)
-        } else {
-            setLastCommandBufferGPUTimeSeconds(nil)
-        }
+        let waitEnd = Self.nowNanoseconds()
+        let gpuTimeSeconds = commandBuffer.gpuEndTime >= commandBuffer.gpuStartTime && commandBuffer.gpuEndTime > 0
+            ? commandBuffer.gpuEndTime - commandBuffer.gpuStartTime
+            : nil
+        setLastCommandBufferTiming(MetalCommandBufferTiming(
+            commandCount: commands.count,
+            elementCount: commands.reduce(0) { $0 + $1.elementCount },
+            encodeWallTimeSeconds: Self.seconds(from: encodeStart, to: encodeEnd),
+            commitWallTimeSeconds: Self.seconds(from: commitStart, to: commitEnd),
+            waitWallTimeSeconds: Self.seconds(from: commitEnd, to: waitEnd),
+            gpuTimeSeconds: gpuTimeSeconds
+        ))
         if let error = commandBuffer.error {
             throw SuperNeoError.metalFailure(error.localizedDescription)
         }
@@ -373,10 +416,19 @@ public final class MetalExecutionContext: @unchecked Sendable {
         return length
     }
 
-    private func setLastCommandBufferGPUTimeSeconds(_ value: Double?) {
+    private func setLastCommandBufferTiming(_ value: MetalCommandBufferTiming?) {
         lock.lock()
-        lastCommandBufferGPUTimeSecondsStorage = value
+        lastCommandBufferTimingStorage = value
         lock.unlock()
+    }
+
+    private static func nowNanoseconds() -> UInt64 {
+        DispatchTime.now().uptimeNanoseconds
+    }
+
+    private static func seconds(from start: UInt64, to end: UInt64) -> Double {
+        guard end >= start else { return 0 }
+        return Double(end - start) / 1_000_000_000
     }
 
     private static func temporaryBufferCapacity(for byteLength: Int) -> Int {

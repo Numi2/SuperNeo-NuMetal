@@ -2444,6 +2444,54 @@ public final class SuperNeoVerifier: @unchecked Sendable {
         }
     }
 
+    /// Verifies a terminal or compressed-terminal proof envelope under a trusted
+    /// terminal acceptance policy.
+    ///
+    /// Fold-reduction envelopes are rejected before reduction verification so
+    /// callers cannot accidentally treat a reduction as terminal acceptance.
+    public func verifyTerminalProofEnvelope(
+        input: SuperNeoFoldInput,
+        proofBytes: [UInt8],
+        policy: SuperNeoTerminalProofAcceptancePolicy
+    ) -> VerificationResult {
+        verifyTerminalProofEnvelope(
+            publicInput: SuperNeoPublicFoldInput(input),
+            proofBytes: proofBytes,
+            policy: policy
+        )
+    }
+
+    /// Verifies a terminal or compressed-terminal proof envelope under a trusted
+    /// terminal acceptance policy.
+    public func verifyTerminalProofEnvelope(
+        publicInput: SuperNeoPublicFoldInput,
+        proofBytes: [UInt8],
+        policy: SuperNeoTerminalProofAcceptancePolicy
+    ) -> VerificationResult {
+        do {
+            let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
+            let context = try policy.context(for: header, totalByteCount: proofBytes.count)
+            switch header.kind {
+            case .terminalLocal:
+                return verifyTerminalFoldEnvelope(
+                    publicInput: publicInput,
+                    proofBytes: proofBytes,
+                    context: context
+                )
+            case .compressedPublic:
+                return verifyCompressedTerminalFoldEnvelope(
+                    publicInput: publicInput,
+                    proofBytes: proofBytes,
+                    context: context
+                )
+            case .foldReduction:
+                return .invalid("terminal proof required")
+            }
+        } catch {
+            return .invalid("\(error)")
+        }
+    }
+
     public func reduceFoldEnvelope(
         input: SuperNeoFoldInput,
         proofBytes: [UInt8],

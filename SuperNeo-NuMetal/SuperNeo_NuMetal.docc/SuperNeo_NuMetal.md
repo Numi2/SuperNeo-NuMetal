@@ -92,6 +92,8 @@ claim:
 - ``ProofEnvelopeKind``
 - ``ProofEnvelopeHeader``
 - ``ProofEnvelopeContext``
+- ``SuperNeoTerminalProofAcceptancePolicy`` for terminal-only application
+  verifier policy, accepted terminal envelope forms, and proof byte limits.
 - ``FoldProofEnvelope``
 - ``TerminalFoldProofEnvelope``
 - ``CompressedTerminalProofEnvelope``

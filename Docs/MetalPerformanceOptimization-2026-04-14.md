@@ -44,8 +44,11 @@ References:
   fallback per-matrix buffers only when required.
 - GPU timing was captured but hidden. Benchmarks now export a
   `GPU command buffer time` metric and render a `GPU` column beside wall-clock
-  time. This separates device execution time from encoding, allocation, upload,
-  readback, and synchronous wait overhead.
+  time. A follow-up dispatch timing split also records Metal encode, commit,
+  and synchronous wait wall time for the same command buffer. This separates
+  device execution time from the host overhead that gates large-shape tuning;
+  allocation, upload, and readback outside the centralized dispatch path remain
+  visible only in the benchmark wall-clock total.
 - Standalone ring multiplication was not GPU-shaped as one thread per ring. The
   kernel now dispatches one thread per output coefficient. This improves
   parallelism, but standalone ring multiply remains launch/synchronization
@@ -69,8 +72,10 @@ References:
   routing policy before building Metal workspaces.
 - Removed duplicate transformed matrix GPU uploads for the common batched CSR
   path.
-- Added `GPU command buffer time` as a benchmark metric, rendered it in
-  generated reports, and included it in `Scripts/run-benchmarks.sh`.
+- Added `GPU command buffer time`, `Metal encode wall time`,
+  `Metal commit wall time`, and `Metal wait wall time` as benchmark metrics,
+  rendered them in generated reports, and included them in
+  `Scripts/run-benchmarks.sh`.
 - Added context-owned temporary buffer reuse and inline `UInt32` parameter
   binding for hot dispatch paths.
 - Reworked `ring_mul_kernel` from one thread per ring to one thread per output
@@ -140,7 +145,9 @@ only upstream `package-benchmark` deprecation warnings were emitted.
 ## Remaining Work
 
 - Profile the combined commit/evaluation command stream in Instruments Metal
-  System Trace to split encoding, upload, GPU execution, readback, and wait time.
+  System Trace using the benchmark encode/commit/wait columns as the first
+  host-side split, then isolate upload/readback work that lives outside the
+  centralized dispatch path.
 - Revisit row-partial transformed evaluation on `m1024+` with GPU counters
   before enabling it by default.
 - Evaluate a coefficient-tile/threadgroup reduction design for sparse

@@ -1252,7 +1252,10 @@
         "SuperNeoFormal.superneo_aggregateBadEvents_card_le",
         "SuperNeoFormal.SuperNeoStageSeeds",
         "SuperNeoFormal.superneoOutsideAggregate",
-        "SuperNeoFormal.superneo_outsideAggregate_stage_not_bad"
+        "SuperNeoFormal.superneo_outsideAggregate_stage_not_bad",
+        "SuperNeoFormal.SuperNeoStageSoundnessTargets",
+        "SuperNeoFormal.superNeoStageSoundnessTargetsAll",
+        "SuperNeoFormal.superneo_stage_soundness_from_outsideAggregate"
       ]
     },
     {

@@ -30,6 +30,9 @@ swift test --disable-swift-testing
     --metric mallocCountTotal \
     --metric memoryLeaked \
     --metric "GPU command buffer time" \
+    --metric "Metal encode wall time" \
+    --metric "Metal commit wall time" \
+    --metric "Metal wait wall time" \
     --format jsonSmallerIsBetter \
     --path "${RESULT_PATH}" \
     --no-progress)

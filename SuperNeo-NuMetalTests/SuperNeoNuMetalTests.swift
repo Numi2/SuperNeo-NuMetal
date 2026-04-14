@@ -3019,6 +3019,105 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertTrue(result.isValid, result.reason ?? "")
     }
 
+    func testTerminalAcceptancePolicyRejectsFoldAndDispatchesTerminalKinds() throws {
+        let foldArtifact = try loadGoldenArtifact(named: "one-hot-vector-fold-v1.json")
+        let terminalArtifact = try loadGoldenArtifact(named: "one-hot-vector-terminal-v1.json")
+        let compressedArtifact = try loadGoldenArtifact(named: "one-hot-vector-compressed-terminal-v1.json")
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: foldArtifact.bitCount)
+        let commitment = try parseGoldenCommitment(foldArtifact.commitmentBase64, parameters: .goldilocks)
+        let publicInput = try workload.publicFoldInput(commitment: commitment)
+        let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(foldArtifact.keySeedUTF8.utf8))
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        let policy = SuperNeoTerminalProofAcceptancePolicy(
+            publicInput: publicInput,
+            verifierKeyDigest: key.verifierKeyDigest
+        )
+        let verifier = SuperNeoCPUBackend().makeVerifier(key: key)
+
+        let foldBytes = try XCTUnwrap(Data(base64Encoded: foldArtifact.proofEnvelopeBase64)).map { UInt8($0) }
+        let foldResult = verifier.verifyTerminalProofEnvelope(
+            publicInput: publicInput,
+            proofBytes: foldBytes,
+            policy: policy
+        )
+        XCTAssertFalse(foldResult.isValid)
+        XCTAssertTrue(foldResult.reason?.contains("terminal proof required") ?? false)
+
+        let terminalBytes = try XCTUnwrap(Data(base64Encoded: terminalArtifact.proofEnvelopeBase64)).map { UInt8($0) }
+        XCTAssertTrue(
+            verifier.verifyTerminalProofEnvelope(
+                publicInput: publicInput,
+                proofBytes: terminalBytes,
+                policy: policy
+            ).isValid
+        )
+
+        let compressedBytes = try XCTUnwrap(Data(base64Encoded: compressedArtifact.proofEnvelopeBase64)).map { UInt8($0) }
+        XCTAssertTrue(
+            verifier.verifyTerminalProofEnvelope(
+                publicInput: publicInput,
+                proofBytes: compressedBytes,
+                policy: policy
+            ).isValid
+        )
+
+        let compressedOnlyPolicy = SuperNeoTerminalProofAcceptancePolicy(
+            publicInput: publicInput,
+            verifierKeyDigest: key.verifierKeyDigest,
+            proofKindPolicy: .compressedOnly
+        )
+        let terminalRejectedByKindPolicy = verifier.verifyTerminalProofEnvelope(
+            publicInput: publicInput,
+            proofBytes: terminalBytes,
+            policy: compressedOnlyPolicy
+        )
+        XCTAssertFalse(terminalRejectedByKindPolicy.isValid)
+        XCTAssertTrue(terminalRejectedByKindPolicy.reason?.contains("proof kind not accepted by policy") ?? false)
+
+        let terminalOnlyPolicy = SuperNeoTerminalProofAcceptancePolicy(
+            publicInput: publicInput,
+            verifierKeyDigest: key.verifierKeyDigest,
+            proofKindPolicy: .terminalOnly
+        )
+        let compressedRejectedByKindPolicy = verifier.verifyTerminalProofEnvelope(
+            publicInput: publicInput,
+            proofBytes: compressedBytes,
+            policy: terminalOnlyPolicy
+        )
+        XCTAssertFalse(compressedRejectedByKindPolicy.isValid)
+        XCTAssertTrue(compressedRejectedByKindPolicy.reason?.contains("proof kind not accepted by policy") ?? false)
+
+        let cappedPolicy = SuperNeoTerminalProofAcceptancePolicy(
+            publicInput: publicInput,
+            verifierKeyDigest: key.verifierKeyDigest,
+            maximumProofByteCount: terminalBytes.count - 1
+        )
+        let cappedResult = verifier.verifyTerminalProofEnvelope(
+            publicInput: publicInput,
+            proofBytes: terminalBytes,
+            policy: cappedPolicy
+        )
+        XCTAssertFalse(cappedResult.isValid)
+        XCTAssertTrue(cappedResult.reason?.contains("proof byte count exceeds policy maximum") ?? false)
+
+        let wrongStatementPolicy = SuperNeoTerminalProofAcceptancePolicy(
+            profileID: SuperNeoParameterProfile.goldilocksPhi81.profileID,
+            shapeDigest: statement.shapeDigest,
+            statementDigest: Digest256.hash("wrong statement digest"),
+            verifierKeyDigest: key.verifierKeyDigest
+        )
+        let wrongStatementResult = verifier.verifyTerminalProofEnvelope(
+            publicInput: publicInput,
+            proofBytes: terminalBytes,
+            policy: wrongStatementPolicy
+        )
+        XCTAssertFalse(wrongStatementResult.isValid)
+        XCTAssertTrue(wrongStatementResult.reason?.contains("statement digest mismatch") ?? false)
+    }
+
     func testGoldenBinaryAdditionFoldVectorVerifies() throws {
         let artifact = try loadGoldenArtifact(named: "binary-addition-u8-fold-v1.json")
         XCTAssertEqual(artifact.artifactVersion, 1)

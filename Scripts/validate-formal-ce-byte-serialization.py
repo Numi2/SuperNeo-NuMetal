@@ -47,6 +47,11 @@ def main() -> None:
     swift_protocols = read(root / "SuperNeo-NuMetal" / "Protocols" / "SuperNeoProtocols.swift")
     swift_serialization = read(root / "SuperNeo-NuMetal" / "SuperNeoSerialization.swift")
     swift_tests = read(root / "SuperNeo-NuMetalTests" / "SuperNeoNuMetalTests.swift")
+    swift_vector_tool = read(root / "Tools" / "FormalVectorCLI" / "main.swift")
+    lean_vector_tool = read(root / "Scripts" / "emit-formal-ce-vectors.lean")
+    vector_comparator = read(root / "Scripts" / "compare-formal-ce-vectors.py")
+    vector_comparator_tests = read(root / "Scripts" / "test-formal-ce-vector-bridge.py")
+    production_gate = read(root / "Scripts" / "production-gate.sh")
 
     require_contains(
         lean_top,
@@ -215,6 +220,53 @@ def main() -> None:
         (".invalidEncoding(\"trailing proof bytes\")", "trailing byte rejection"),
     ]:
         require_contains(swift_tests, fragment, description)
+
+    for fragment, description in [
+        ("superneo-formal-vectors ext2|ce", "Swift vector tool usage must include CE mode"),
+        ("CEOpeningProof(bytes: bytes)", "Swift CE vector tool decode path"),
+        ("CEOpeningProof.roundCount", "Swift CE vector tool exact round-count fixture"),
+        ("CEOpeningProofResponse.mask", "Swift CE vector tool mask branch fixture"),
+        ("CEOpeningProofResponse.maskedWitness", "Swift CE vector tool masked-witness branch fixture"),
+        ("CEOpeningProofResponse.permutedWitness", "Swift CE vector tool permuted-witness branch fixture"),
+        ("ce_proof_decode_invalid_tag", "Swift CE vector tool invalid-tag fixture"),
+        ("ce_proof_decode_wrong_response_count", "Swift CE vector tool response-count fixture"),
+    ]:
+        require_contains(swift_vector_tool, fragment, description)
+
+    for fragment, description in [
+        ("import SuperNeoFormal.CEByteSerialization", "Lean CE vector tool grammar import"),
+        ("ceOpeningProofResponseWireEncode hCount2 hVector2 maskResponse", "Lean CE vector tool mask branch fixture"),
+        ("ceOpeningProofResponseWireEncode hCount2 hVector2 maskedWitnessResponse", "Lean CE vector tool masked-witness branch fixture"),
+        ("ceOpeningProofResponseWireEncode hCount2 hVector2 permutedWitnessResponse", "Lean CE vector tool permuted-witness branch fixture"),
+        ("ceOpeningProofWireEncode hCount2 hVector2 fixtureProof", "Lean CE vector tool full proof fixture"),
+        ("ceOpeningProofWireDecode? hOpeningPositive2 hCount2 hVector2", "Lean CE vector tool decode fixture"),
+        ("ce_proof_decode_wrong_response_count", "Lean CE vector tool response-count fixture"),
+    ]:
+        require_contains(lean_vector_tool, fragment, description)
+
+    for fragment, description in [
+        ('"swift", "run"', "CE vector comparator must execute Swift emitter"),
+        ("superneo-formal-vectors", "CE vector comparator must call formal vector executable"),
+        ("emit-formal-ce-vectors.lean", "CE vector comparator must call Lean vector script"),
+        ("Swift/Lean CE vector mismatch", "CE vector comparator must fail on value drift"),
+    ]:
+        require_contains(vector_comparator, fragment, description)
+
+    require_contains(
+        vector_comparator_tests,
+        "formal CE vector bridge validation regression tests passed",
+        "CE vector comparator regression harness",
+    )
+    require_contains(
+        production_gate,
+        "Scripts/compare-formal-ce-vectors.py",
+        "Production gate must run the Swift/Lean CE vector comparison",
+    )
+    require_contains(
+        production_gate,
+        "Scripts/test-formal-ce-vector-bridge.py",
+        "Production gate must run the CE vector comparison regression harness",
+    )
 
     print(f"validated CE opening byte serialization conformance under {root}")
 

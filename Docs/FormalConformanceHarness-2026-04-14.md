@@ -49,6 +49,15 @@ formal constants.
     caller-surface imports, caller grammar, and fixture offset surfaces and
     requires validation failure.
 
+- `Scripts/compare-formal-ext2-vectors.py`
+  - Runs the executable Swift vector tool and the Lean Ext2 vector emitter.
+  - Compares canonical Goldilocks, GoldilocksExt2, caller-surface, and negative
+    parser vectors exactly by label.
+
+- `Scripts/test-formal-ext2-vector-bridge.py`
+  - Mutation-tests missing labels, duplicate labels, unexpected labels, and
+    byte drift in the Ext2 vector comparator.
+
 - `Scripts/validate-formal-ce-byte-serialization.py`
   - Checks the Lean `SuperNeoFormal.CEByteSerialization` declarations are
     present and imported by the top-level formal target.
@@ -68,6 +77,15 @@ formal constants.
   - Mutates temporary Lean and Swift CE round-count, response-tag, parser-tag,
     and fixture surfaces and requires validation failure.
 
+- `Scripts/compare-formal-ce-vectors.py`
+  - Runs the executable Swift vector tool and the Lean CE vector emitter.
+  - Compares all three response branches, round widths, complete 219-round
+    proof bytes, and parser rejection statuses exactly by label.
+
+- `Scripts/test-formal-ce-vector-bridge.py`
+  - Mutation-tests missing labels, duplicate labels, unexpected labels, and
+    byte drift in the CE vector comparator.
+
 - `Scripts/validate-formal-status.py`
   - Declaration scanning now includes Lean names ending in `?`, so parser
     declarations such as `proofEnvelopeTranscriptBindingDecode?` are checked
@@ -78,9 +96,10 @@ formal constants.
 `Scripts/production-gate.sh` now runs both the profile-constant validator and
 its mutation tests after the Lean build and formal-status validation. It also
 runs the Ext2 serialization conformance validator, the CE opening byte
-serialization validator, and their mutation tests, so byte-order, parser-width,
-round-count, or response-tag drift fails the release gate before public claims
-can move forward.
+serialization validator, the Swift/Lean Ext2 and CE vector comparators, and all
+associated mutation tests, so byte-order, parser-width, round-count,
+response-tag, or executable/vector drift fails the release gate before public
+claims can move forward.
 
 ## What remains open
 

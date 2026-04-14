@@ -141,6 +141,143 @@ public struct ProofEnvelopeContext: Equatable, Sendable {
     }
 }
 
+/// Trusted context for accepting complete terminal proofs.
+///
+/// This policy is intentionally terminal-only: it rejects fold-reduction
+/// envelopes before proof verification. Applications still own artifact
+/// provenance, replay policy, key distribution, and statement semantics.
+public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
+    public enum ProofKindPolicy: Equatable, Sendable {
+        case terminalOrCompressed
+        case terminalOnly
+        case compressedOnly
+
+        public func accepts(_ kind: ProofEnvelopeKind) -> Bool {
+            switch (self, kind) {
+            case (.terminalOrCompressed, .terminalLocal),
+                 (.terminalOrCompressed, .compressedPublic),
+                 (.terminalOnly, .terminalLocal),
+                 (.compressedOnly, .compressedPublic):
+                return true
+            case (.terminalOrCompressed, .foldReduction),
+                 (.terminalOnly, .foldReduction),
+                 (.terminalOnly, .compressedPublic),
+                 (.compressedOnly, .foldReduction),
+                 (.compressedOnly, .terminalLocal):
+                return false
+            }
+        }
+    }
+
+    public let profileID: UInt16
+    public let shapeDigest: Digest256
+    public let statementDigest: Digest256
+    public let verifierKeyDigest: Digest256
+    public let transcriptDomain: Digest256
+    public let proofKindPolicy: ProofKindPolicy
+    public let maximumProofByteCount: Int?
+
+    public init(
+        profileID: UInt16 = SuperNeoParameterProfile.goldilocksPhi81.profileID,
+        shapeDigest: Digest256,
+        statementDigest: Digest256,
+        verifierKeyDigest: Digest256,
+        transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1"),
+        proofKindPolicy: ProofKindPolicy = .terminalOrCompressed,
+        maximumProofByteCount: Int? = nil
+    ) {
+        self.profileID = profileID
+        self.shapeDigest = shapeDigest
+        self.statementDigest = statementDigest
+        self.verifierKeyDigest = verifierKeyDigest
+        self.transcriptDomain = transcriptDomain
+        self.proofKindPolicy = proofKindPolicy
+        self.maximumProofByteCount = maximumProofByteCount
+    }
+
+    public init(
+        statement: CCSStatement,
+        verifierKeyDigest: Digest256,
+        profileID: UInt16 = SuperNeoParameterProfile.goldilocksPhi81.profileID,
+        transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1"),
+        proofKindPolicy: ProofKindPolicy = .terminalOrCompressed,
+        maximumProofByteCount: Int? = nil
+    ) {
+        self.init(
+            profileID: profileID,
+            shapeDigest: statement.shapeDigest,
+            statementDigest: statement.statementDigest,
+            verifierKeyDigest: verifierKeyDigest,
+            transcriptDomain: transcriptDomain,
+            proofKindPolicy: proofKindPolicy,
+            maximumProofByteCount: maximumProofByteCount
+        )
+    }
+
+    public init(
+        publicInput: SuperNeoPublicFoldInput,
+        verifierKeyDigest: Digest256,
+        profileID: UInt16 = SuperNeoParameterProfile.goldilocksPhi81.profileID,
+        transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1"),
+        proofKindPolicy: ProofKindPolicy = .terminalOrCompressed,
+        maximumProofByteCount: Int? = nil
+    ) {
+        self.init(
+            statement: CCSStatement(
+                shapeDigest: publicInput.shape.shapeDigest,
+                ccsInstances: publicInput.instances,
+                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+            ),
+            verifierKeyDigest: verifierKeyDigest,
+            profileID: profileID,
+            transcriptDomain: transcriptDomain,
+            proofKindPolicy: proofKindPolicy,
+            maximumProofByteCount: maximumProofByteCount
+        )
+    }
+
+    public func context(for header: ProofEnvelopeHeader, totalByteCount: Int) throws -> ProofEnvelopeContext {
+        if let maximumProofByteCount {
+            guard maximumProofByteCount > 0 else {
+                throw SuperNeoError.invalidParameter("maximum proof byte count must be positive")
+            }
+            guard totalByteCount <= maximumProofByteCount else {
+                throw SuperNeoError.verificationFailed("proof byte count exceeds policy maximum")
+            }
+        }
+        try header.validateEnvelopeLength(totalByteCount: totalByteCount)
+        guard header.profileID == profileID else {
+            throw SuperNeoError.verificationFailed("profile mismatch")
+        }
+        guard header.shapeDigest == shapeDigest else {
+            throw SuperNeoError.verificationFailed("shape digest mismatch")
+        }
+        guard header.statementDigest == statementDigest else {
+            throw SuperNeoError.verificationFailed("statement digest mismatch")
+        }
+        guard header.verifierKeyDigest == verifierKeyDigest else {
+            throw SuperNeoError.verificationFailed("verifier key digest mismatch")
+        }
+        guard header.transcriptDomain == transcriptDomain else {
+            throw SuperNeoError.verificationFailed("transcript domain mismatch")
+        }
+        guard header.kind == .terminalLocal || header.kind == .compressedPublic else {
+            throw SuperNeoError.verificationFailed("terminal proof required")
+        }
+        guard proofKindPolicy.accepts(header.kind) else {
+            throw SuperNeoError.verificationFailed("proof kind not accepted by policy")
+        }
+        return ProofEnvelopeContext(
+            profileID: profileID,
+            kind: header.kind,
+            shapeDigest: shapeDigest,
+            statementDigest: statementDigest,
+            verifierKeyDigest: verifierKeyDigest,
+            transcriptDomain: transcriptDomain
+        )
+    }
+}
+
 public struct FoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncodable {
     public typealias Kind = ProofEnvelopeKind
 

@@ -50,6 +50,12 @@ func baseBenchmarkName(_ name: String) -> String {
     return name
 }
 
+func nanosecondMetricRows(_ results: [BenchmarkResult], containing metricName: String) -> [String: String] {
+    Dictionary(uniqueKeysWithValues: results
+        .filter { $0.name.contains(" - \(metricName)") }
+        .map { (baseBenchmarkName($0.name), nanoseconds($0.value)) })
+}
+
 func caseConstraintCount(_ benchmark: String) -> Int? {
     guard let range = benchmark.range(of: #"m\d+"#, options: .regularExpression) else { return nil }
     return Int(benchmark[range].dropFirst())
@@ -78,9 +84,10 @@ guard !wallClock.isEmpty else {
 let mallocCounts = Dictionary(uniqueKeysWithValues: results
     .filter { $0.name.contains(" - Malloc (total)") }
     .map { (baseBenchmarkName($0.name), String(format: "%.0f %@", $0.value, $0.unit)) })
-let gpuTimes = Dictionary(uniqueKeysWithValues: results
-    .filter { $0.name.contains(" - GPU command buffer time") }
-    .map { (baseBenchmarkName($0.name), nanoseconds($0.value)) })
+let gpuTimes = nanosecondMetricRows(results, containing: "GPU command buffer time")
+let metalEncodeTimes = nanosecondMetricRows(results, containing: "Metal encode wall time")
+let metalCommitTimes = nanosecondMetricRows(results, containing: "Metal commit wall time")
+let metalWaitTimes = nanosecondMetricRows(results, containing: "Metal wait wall time")
 
 let selectedPrefixes = [
     "fold/cpu/",
@@ -105,8 +112,8 @@ var lines = [
     "",
     "## Timing Summary",
     "",
-    "| Benchmark | Time | GPU | p95 | Derived | Allocations |",
-    "| --- | ---: | ---: | ---: | ---: | ---: |"
+    "| Benchmark | Time | GPU | Encode | Commit | Wait | p95 | Derived | Allocations |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
 ]
 
 for result in wallClock.sorted(by: { $0.name < $1.name }) {
@@ -129,6 +136,9 @@ for result in wallClock.sorted(by: { $0.name < $1.name }) {
         "| `\(benchmark)`"
             + " | \(String(format: "%.3g %@", result.value, result.unit))"
             + " | \(gpuTimes[benchmark] ?? "")"
+            + " | \(metalEncodeTimes[benchmark] ?? "")"
+            + " | \(metalCommitTimes[benchmark] ?? "")"
+            + " | \(metalWaitTimes[benchmark] ?? "")"
             + " | \(p95(from: result.extra))"
             + " | \(derived)"
             + " | \(mallocCounts[benchmark] ?? "") |"

@@ -243,4 +243,59 @@ theorem superneo_outsideAggregate_stage_not_bad
     exact hOutside.2.2.2 (by
       simp [superNeoBadEventsAggregate, superNeoBadEventsTranscript, hSeed])
 
+structure SuperNeoStageSoundnessTargets where
+  pirlcSound : Prop
+  piccsSound : Prop
+  terminalCESound : Prop
+  transcriptSound : Prop
+
+def superNeoStageSoundnessTargetsAll
+    (targets : SuperNeoStageSoundnessTargets) : Prop :=
+  targets.pirlcSound ∧
+    targets.piccsSound ∧
+    targets.terminalCESound ∧
+    targets.transcriptSound
+
+theorem superneo_stage_soundness_from_outsideAggregate
+    (pirlcBadSeeds : Finset PiRLCSeed)
+    (piccsBadSeeds : Finset PiCCSSeed)
+    (terminalCEBadSeeds : Finset TerminalCESeed)
+    (transcriptBadSeeds : Finset TranscriptSeed)
+    (seeds : SuperNeoStageSeeds PiRLCSeed PiCCSSeed TerminalCESeed TranscriptSeed)
+    (targets : SuperNeoStageSoundnessTargets)
+    (hOutside :
+      superneoOutsideAggregate
+        pirlcBadSeeds
+        piccsBadSeeds
+        terminalCEBadSeeds
+        transcriptBadSeeds
+        seeds)
+    (hPiRLC :
+      seeds.pirlcSeed ∉ pirlcBadSeeds →
+        targets.pirlcSound)
+    (hPiCCS :
+      seeds.piccsSeed ∉ piccsBadSeeds →
+        targets.piccsSound)
+    (hTerminalCE :
+      seeds.terminalCESeed ∉ terminalCEBadSeeds →
+        targets.terminalCESound)
+    (hTranscript :
+      seeds.transcriptSeed ∉ transcriptBadSeeds →
+        targets.transcriptSound) :
+    superNeoStageSoundnessTargetsAll targets := by
+  have hNotBad :=
+    superneo_outsideAggregate_stage_not_bad
+      pirlcBadSeeds
+      piccsBadSeeds
+      terminalCEBadSeeds
+      transcriptBadSeeds
+      seeds
+      hOutside
+  exact ⟨
+    hPiRLC hNotBad.1,
+    hPiCCS hNotBad.2.1,
+    hTerminalCE hNotBad.2.2.1,
+    hTranscript hNotBad.2.2.2
+  ⟩
+
 end SuperNeoFormal

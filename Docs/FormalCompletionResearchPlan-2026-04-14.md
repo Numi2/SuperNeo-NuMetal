@@ -135,16 +135,16 @@ Completed supporting steps:
    `CEInstance` fragments that contain Ext2 values.
 4. Recorded caller grammar coverage in the manifest as the closed supporting
    group `swift-ext2-caller-byte-surfaces`.
+5. Added `superneo-formal-vectors ext2`, a Lean Ext2 vector emitter, an exact
+   Swift/Lean vector comparator, comparator mutation tests, and production-gate
+   integration.
 
 Remaining closure steps:
 
-1. Add a repository script or generated bridge that compares Swift vectors
-   against Lean specification outputs. This is not a theorem by itself, but it
-   gives CI a drift detector while the theorem group is being completed.
-2. Mechanize the executable Swift behavior model, or generate the Swift and Lean
+1. Mechanize the executable Swift behavior model, or generate the Swift and Lean
    parser/encoder from a single source, so the theorem is about the actual
    implementation rather than source-shape validation plus fixtures.
-3. Record declarations under `swift-goldilocks-ext2-serialization-equivalence`
+2. Record declarations under `swift-goldilocks-ext2-serialization-equivalence`
    only after the executable Swift-behavior equivalence is mechanized.
 
 ### Acceptance criteria
@@ -276,6 +276,9 @@ Completed supporting steps:
    branches and malformed proof classes.
 6. Added a production-gate validator and mutation harness for CE proof byte
    grammar drift.
+7. Added `superneo-formal-vectors ce`, a Lean CE vector emitter, an exact
+   Swift/Lean complete-proof vector comparator, comparator mutation tests, and
+   production-gate integration.
 
 Remaining closure steps:
 
@@ -458,6 +461,9 @@ checks as they become available:
 - Swift/Lean Ext2 serialization-vector comparison.
 - Swift/Lean CE proof parser-vector comparison.
 - CE verifier branch-selection vector comparison.
+- CE verifier branch-selection vector comparison. The CE proof parser-vector
+  comparison is already in the production gate; verifier transcript branch
+  selection remains separate.
 - Formal status validation that rejects any completion-label upgrade until all
   three groups are `closed`.
 - Regression mutations that change an Ext2 byte order, CE response tag, CE

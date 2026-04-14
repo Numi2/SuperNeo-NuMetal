@@ -142,8 +142,12 @@ if [[ "${RUN_FORMAL}" -eq 1 ]]; then
   run_step Scripts/test-formal-profile-constants-validation.py
   run_step Scripts/validate-formal-ext2-serialization.py
   run_step Scripts/test-formal-ext2-serialization-validation.py
+  run_step Scripts/compare-formal-ext2-vectors.py
+  run_step Scripts/test-formal-ext2-vector-bridge.py
   run_step Scripts/validate-formal-ce-byte-serialization.py
   run_step Scripts/test-formal-ce-byte-serialization-validation.py
+  run_step Scripts/compare-formal-ce-vectors.py
+  run_step Scripts/test-formal-ce-vector-bridge.py
 fi
 
 run_step "${SUPERNEO_CLI}" prove \

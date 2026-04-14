@@ -50,6 +50,12 @@ def main() -> None:
     swift_serialization = read(root / "SuperNeo-NuMetal" / "SuperNeoSerialization.swift")
     swift_ccs = read(root / "SuperNeo-NuMetal" / "CCS" / "CCS.swift")
     swift_tests = read(root / "SuperNeo-NuMetalTests" / "SuperNeoNuMetalTests.swift")
+    package = read(root / "Package.swift")
+    swift_vector_tool = read(root / "Tools" / "FormalVectorCLI" / "main.swift")
+    lean_vector_tool = read(root / "Scripts" / "emit-formal-ext2-vectors.lean")
+    vector_comparator = read(root / "Scripts" / "compare-formal-ext2-vectors.py")
+    vector_comparator_tests = read(root / "Scripts" / "test-formal-ext2-vector-bridge.py")
+    production_gate = read(root / "Scripts" / "production-gate.sh")
 
     require_contains(
         top_level_formal,
@@ -263,6 +269,65 @@ def main() -> None:
         r"stride\(from:\s*0,\s*to:\s*bytes\.count,\s*by:\s*16\).*"
         r"GoldilocksExt2\s*\(littleEndianBytes:\s*bytes\[offset..<offset\s*\+\s*16\]\)",
         "Swift CyclotomicExt2Ring54 must encode/decode contiguous 16-byte Ext2 coefficients",
+    )
+
+    require_contains(
+        package,
+        '.executable(name: "superneo-formal-vectors", targets: ["SuperNeoFormalVectors"])',
+        "Swift package must expose the formal vector emitter executable",
+    )
+    require_contains(
+        package,
+        'name: "SuperNeoFormalVectors"',
+        "Swift package formal vector target",
+    )
+    require_contains(
+        swift_vector_tool,
+        "import SuperNeo_NuMetal",
+        "Swift vector tool must use the executable implementation module",
+    )
+    for fragment, description in [
+        ("GoldilocksExt2(littleEndianBytes: bytes[...])", "Swift vector tool decode path"),
+        ("GoldilocksField.modulus", "Swift vector tool non-canonical modulus fixture"),
+        ("CyclotomicExt2Ring54([element, swapped])", "Swift vector tool extension-ring fixture"),
+        ("SumcheckProof(", "Swift vector tool sum-check caller fixture"),
+        ("point_evaluation_ext2_surface_encode", "Swift vector tool point/evaluation fixture label"),
+    ]:
+        require_contains(swift_vector_tool, fragment, description)
+
+    for fragment, description in [
+        ("import SuperNeoFormal.Ext2CallerSerialization", "Lean vector tool caller grammar import"),
+        ("goldilocksExt2ElementEncode fixtureElement", "Lean vector tool primitive Ext2 encode fixture"),
+        ("goldilocksExt2ElementDecode?", "Lean vector tool primitive Ext2 decode fixture"),
+        ("swiftCyclotomicExt2Ring54WireEncode fixtureRing", "Lean vector tool extension-ring fixture"),
+        ("swiftSumcheckProofExt2WireEncode fixtureSumcheck", "Lean vector tool sum-check caller fixture"),
+        ("swiftExt2PointEvaluationSurfaceWireEncode fixturePointEvaluationSurface", "Lean vector tool point/evaluation fixture"),
+    ]:
+        require_contains(lean_vector_tool, fragment, description)
+
+    for fragment, description in [
+        ('"swift", "run"', "Ext2 vector comparator must execute Swift emitter"),
+        ("superneo-formal-vectors", "Ext2 vector comparator must call formal vector executable"),
+        ("lake", "Ext2 vector comparator must execute Lean emitter"),
+        ("emit-formal-ext2-vectors.lean", "Ext2 vector comparator must call Lean vector script"),
+        ("Swift/Lean Ext2 vector mismatch", "Ext2 vector comparator must fail on value drift"),
+    ]:
+        require_contains(vector_comparator, fragment, description)
+
+    require_contains(
+        vector_comparator_tests,
+        "formal Ext2 vector bridge validation regression tests passed",
+        "Ext2 vector comparator regression harness",
+    )
+    require_contains(
+        production_gate,
+        "Scripts/compare-formal-ext2-vectors.py",
+        "Production gate must run the Swift/Lean Ext2 vector comparison",
+    )
+    require_contains(
+        production_gate,
+        "Scripts/test-formal-ext2-vector-bridge.py",
+        "Production gate must run the Ext2 vector comparison regression harness",
     )
 
     require_contains(

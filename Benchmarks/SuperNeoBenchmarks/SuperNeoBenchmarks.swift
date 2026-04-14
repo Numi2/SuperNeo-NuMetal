@@ -8,13 +8,31 @@ private enum SuperNeoBenchmarkMetrics {
         polarity: .prefersSmaller,
         useScalingFactor: false
     )
+    static let metalEncodeWallTime = BenchmarkMetric.custom(
+        "Metal encode wall time",
+        polarity: .prefersSmaller,
+        useScalingFactor: false
+    )
+    static let metalCommitWallTime = BenchmarkMetric.custom(
+        "Metal commit wall time",
+        polarity: .prefersSmaller,
+        useScalingFactor: false
+    )
+    static let metalWaitWallTime = BenchmarkMetric.custom(
+        "Metal wait wall time",
+        polarity: .prefersSmaller,
+        useScalingFactor: false
+    )
 }
 
 private let benchmarkMetrics: [BenchmarkMetric] = [
     .wallClock,
     .mallocCountTotal,
     .memoryLeaked,
-    SuperNeoBenchmarkMetrics.gpuCommandBufferTime
+    SuperNeoBenchmarkMetrics.gpuCommandBufferTime,
+    SuperNeoBenchmarkMetrics.metalEncodeWallTime,
+    SuperNeoBenchmarkMetrics.metalCommitWallTime,
+    SuperNeoBenchmarkMetrics.metalWaitWallTime
 ]
 
 private let defaultConfiguration = Benchmark.Configuration(
@@ -89,11 +107,28 @@ private func requireValid(_ result: FoldReductionResult) throws {
     }
 }
 
-private func recordGPUTime(_ benchmark: Benchmark, context: MetalExecutionContext) {
-    guard let seconds = context.lastCommandBufferGPUTimeSeconds else { return }
-    let nanoseconds = max(0, Int((seconds * 1_000_000_000).rounded()))
-    benchmark.measurement(SuperNeoBenchmarkMetrics.gpuCommandBufferTime, nanoseconds)
-    blackHole(nanoseconds)
+private func timingNanoseconds(_ seconds: Double) -> Int {
+    max(0, Int((seconds * 1_000_000_000).rounded()))
+}
+
+private func recordMetalTiming(_ benchmark: Benchmark, context: MetalExecutionContext) {
+    guard let timing = context.lastCommandBufferTiming else { return }
+    let encodeNanoseconds = timingNanoseconds(timing.encodeWallTimeSeconds)
+    let commitNanoseconds = timingNanoseconds(timing.commitWallTimeSeconds)
+    let waitNanoseconds = timingNanoseconds(timing.waitWallTimeSeconds)
+    if let seconds = timing.gpuTimeSeconds {
+        let nanoseconds = timingNanoseconds(seconds)
+        benchmark.measurement(SuperNeoBenchmarkMetrics.gpuCommandBufferTime, nanoseconds)
+        blackHole(nanoseconds)
+    }
+    benchmark.measurement(SuperNeoBenchmarkMetrics.metalEncodeWallTime, encodeNanoseconds)
+    benchmark.measurement(SuperNeoBenchmarkMetrics.metalCommitWallTime, commitNanoseconds)
+    benchmark.measurement(SuperNeoBenchmarkMetrics.metalWaitWallTime, waitNanoseconds)
+    blackHole(timing.commandCount)
+    blackHole(timing.elementCount)
+    blackHole(encodeNanoseconds)
+    blackHole(commitNanoseconds)
+    blackHole(waitNanoseconds)
 }
 
 private func registerEndToEndBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
@@ -183,7 +218,7 @@ private func registerEndToEndBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 output.proof == fixture.referenceFold.proof,
                 "Metal fold output did not match CPU reference for \(label)"
             )
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(output.outputClaims.count)
         }
 
@@ -197,7 +232,7 @@ private func registerEndToEndBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 output.proof == fixture.referenceFold.proof,
                 "prepared Metal fold output did not match CPU reference for \(label)"
             )
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(output.outputClaims.count)
         }
     }
@@ -417,7 +452,7 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 metalWorkspace: metalWorkspace
             )
             try requireBenchmarkInvariant(proof == ceOpeningProof, "Metal CE opening proof changed for \(label)")
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(proof.rounds.count)
         }
 
@@ -433,7 +468,7 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 ),
                 "Metal CE opening proof verification failed for \(label)"
             )
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
         }
 
         Benchmark("compressedEnvelope/prove/metal/\(label)", configuration: expensiveConfiguration) { benchmark in
@@ -443,7 +478,7 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 ceRandomSeed: compressedCESeed
             )
             try requireBenchmarkInvariant(envelope == compressedEnvelope, "Metal compressed envelope changed for \(label)")
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(envelope.superNeoBytes.count)
         }
 
@@ -453,7 +488,7 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 proofBytes: compressedEnvelopeBytes,
                 context: compressedContext
             ))
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
         }
     }
 }
@@ -617,14 +652,14 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
         Benchmark("kernel/fieldMultiply/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let product = try metalBackend.multiply(fieldVector, fieldVector)
             try requireBenchmarkInvariant(product == zip(fieldVector, fieldVector).map(*), "Metal field multiply changed for \(label)")
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(product.count)
         }
 
         Benchmark("kernel/ringMultiply/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let product = try metalBackend.multiply(ringVector, ringVector)
             try requireBenchmarkInvariant(product == zip(ringVector, ringVector).map(*), "Metal ring multiply changed for \(label)")
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(product.count)
         }
 
@@ -634,7 +669,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 product == zip(ringVector, scalarVector).map { $0.scaled(by: $1) },
                 "Metal ring scalar multiply changed for \(label)"
             )
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(product.count)
         }
 
@@ -645,14 +680,14 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 context: metalContext
             )
             try requireBenchmarkInvariant(commitment == referenceCommitment, "Metal commitment changed for \(label)")
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(commitment.elements.count)
         }
 
         Benchmark("kernel/ajtaiCommit/batch/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let commitments = try metalBackend.ajtaiCommitments(key: fixture.key, messages: batchMessages)
             try requireBenchmarkInvariant(commitments == referenceBatchCommitments, "Metal batch commitment changed for \(label)")
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(commitments.count)
         }
 
@@ -662,7 +697,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 commitments == referenceBatchCommitments,
                 "Metal workspace batch commitment changed for \(label)"
             )
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(commitments.count)
         }
 
@@ -674,7 +709,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 evaluation == referenceTransformedEvaluation,
                 "Metal transformed evaluation changed for \(label)"
             )
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(evaluation.count)
         }
 
@@ -686,7 +721,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 evaluation == referenceTransformedEvaluation,
                 "Metal sparse transformed evaluation changed for \(label)"
             )
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(evaluation.count)
         }
 
@@ -700,7 +735,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 evaluations == referenceSparseBatchEvaluations,
                 "Metal sparse batch transformed evaluation changed for \(label)"
             )
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(evaluations.count)
         }
 
@@ -713,7 +748,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 evaluations == referenceSparseBatchEvaluations,
                 "Metal workspace sparse batch transformed evaluation changed for \(label)"
             )
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(evaluations.count)
         }
 
@@ -730,7 +765,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 combined.evaluations == referenceSparseBatchEvaluations,
                 "Metal combined workspace transformed evaluations changed for \(label)"
             )
-            recordGPUTime(benchmark, context: metalContext)
+            recordMetalTiming(benchmark, context: metalContext)
             blackHole(combined.commitments.count + combined.evaluations.count)
         }
 
@@ -751,7 +786,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                     commitments == referenceBatchSizingCommitments,
                     "Metal workspace batch-16 commitments changed for \(label)"
                 )
-                recordGPUTime(benchmark, context: metalContext)
+                recordMetalTiming(benchmark, context: metalContext)
                 blackHole(commitments.count)
             }
 
@@ -764,7 +799,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                     commitments == referenceBatchSizingCommitments,
                     "Metal workspace batch-32 commitments changed for \(label)"
                 )
-                recordGPUTime(benchmark, context: metalContext)
+                recordMetalTiming(benchmark, context: metalContext)
                 blackHole(commitments.count)
             }
 
@@ -778,7 +813,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                     combined.commitments == referenceBatchSizingCommitments,
                     "Metal combined workspace batch-32 commitments changed for \(label)"
                 )
-                recordGPUTime(benchmark, context: metalContext)
+                recordMetalTiming(benchmark, context: metalContext)
                 blackHole(combined.commitments.count + combined.evaluations.count)
             }
         }

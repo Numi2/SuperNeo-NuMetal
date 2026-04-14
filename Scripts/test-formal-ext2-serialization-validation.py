@@ -19,6 +19,12 @@ REQUIRED_FILES = [
     "SuperNeo-NuMetal/SuperNeoSerialization.swift",
     "SuperNeo-NuMetal/CCS/CCS.swift",
     "SuperNeo-NuMetalTests/SuperNeoNuMetalTests.swift",
+    "Package.swift",
+    "Tools/FormalVectorCLI/main.swift",
+    "Scripts/emit-formal-ext2-vectors.lean",
+    "Scripts/compare-formal-ext2-vectors.py",
+    "Scripts/test-formal-ext2-vector-bridge.py",
+    "Scripts/production-gate.sh",
 ]
 
 
@@ -153,6 +159,30 @@ def main() -> None:
         "let ceMatrixEvalCountOffset = cePointCountOffset + encodedCountByteWidth + 16",
         "let ceMatrixEvalCountOffset = cePointCountOffset + encodedCountByteWidth + 8",
         "CE instance Ext2 matrix-evaluation offset fixture",
+    )
+    run_mutation(
+        "Tools/FormalVectorCLI/main.swift",
+        "GoldilocksExt2(littleEndianBytes: bytes[...])",
+        "GoldilocksExt2(.zero)",
+        "Swift vector tool decode path",
+    )
+    run_mutation(
+        "Scripts/emit-formal-ext2-vectors.lean",
+        "swiftSumcheckProofExt2WireEncode fixtureSumcheck",
+        "goldilocksExt2ElementEncode fixtureElement",
+        "Lean vector tool sum-check caller fixture",
+    )
+    run_mutation(
+        "Scripts/compare-formal-ext2-vectors.py",
+        "Swift/Lean Ext2 vector mismatch",
+        "Swift/Lean drift",
+        "Ext2 vector comparator must fail on value drift",
+    )
+    run_mutation(
+        "Scripts/production-gate.sh",
+        "run_step Scripts/compare-formal-ext2-vectors.py",
+        "run_step Scripts/compare-formal-ext2-vectors-disabled.py",
+        "Production gate must run the Swift/Lean Ext2 vector comparison",
     )
 
     print("formal Ext2 serialization validation regression tests passed")

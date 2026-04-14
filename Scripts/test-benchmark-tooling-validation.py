@@ -9,6 +9,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 COMPARE = ROOT / "Scripts" / "compare-benchmark-results.swift"
 RENDER = ROOT / "Scripts" / "render-benchmark-report.swift"
+RUN_BENCHMARKS = ROOT / "Scripts" / "run-benchmarks.sh"
 
 
 def timing_row(
@@ -29,6 +30,15 @@ def malloc_row(benchmark: str, value: float) -> dict[str, Any]:
     return {
         "name": f"{benchmark} - Malloc (total)",
         "unit": "#",
+        "value": value,
+        "extra": None,
+    }
+
+
+def nanosecond_metric_row(benchmark: str, metric: str, value: float) -> dict[str, Any]:
+    return {
+        "name": f"{benchmark} - {metric}",
+        "unit": "ns",
         "value": value,
         "extra": None,
     }
@@ -351,6 +361,10 @@ def test_benchmark_report_renderer(temp_root: Path) -> None:
                 "95th percentile: 12 ms\n",
             ),
             malloc_row("fold/cpu/m256-case", 3),
+            nanosecond_metric_row("fold/cpu/m256-case", "GPU command buffer time", 2_500_000),
+            nanosecond_metric_row("fold/cpu/m256-case", "Metal encode wall time", 80_000),
+            nanosecond_metric_row("fold/cpu/m256-case", "Metal commit wall time", 4_000),
+            nanosecond_metric_row("fold/cpu/m256-case", "Metal wait wall time", 2_750_000),
             timing_row("kernel/ajtaiCommit/cpu/m256-case", 250, "us"),
             malloc_row("kernel/ajtaiCommit/cpu/m256-case", 7),
         ],
@@ -362,8 +376,13 @@ def test_benchmark_report_renderer(temp_root: Path) -> None:
     rendered = report.read_text(encoding="utf-8")
     require("# Existing Metadata" in rendered, "renderer dropped existing metadata")
     require("## Timing Summary" in rendered, "renderer missing timing summary")
+    require("| Benchmark | Time | GPU | Encode | Commit | Wait | p95 | Derived | Allocations |" in rendered, "renderer missing timing split columns")
     require("`fold/cpu/m256-case`" in rendered, "renderer missing fold row")
     require("100.00 folds/s, 25600 constraints/s" in rendered, "renderer missing derived fold rate")
+    require("2.5 ms" in rendered, "renderer missing GPU metric")
+    require("80 μs" in rendered, "renderer missing Metal encode metric")
+    require("4 μs" in rendered, "renderer missing Metal commit metric")
+    require("2.75 ms" in rendered, "renderer missing Metal wait metric")
     require("12 ms" in rendered, "renderer missing p95")
     require("3 #" in rendered, "renderer missing malloc count")
     require("4000.00 commitments/s" in rendered, "renderer missing commitment rate")
@@ -383,12 +402,24 @@ def test_benchmark_report_renderer(temp_root: Path) -> None:
     )
 
 
+def test_benchmark_runner_exports_metal_timing_metrics() -> None:
+    script = RUN_BENCHMARKS.read_text(encoding="utf-8")
+    for metric in [
+        '"GPU command buffer time"',
+        '"Metal encode wall time"',
+        '"Metal commit wall time"',
+        '"Metal wait wall time"',
+    ]:
+        require(metric in script, f"run-benchmarks.sh missing metric {metric}")
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="superneo-benchmark-tooling-") as raw_tmp:
         temp_root = Path(raw_tmp)
         test_benchmark_comparator(temp_root)
         test_benchmark_metadata_comparison(temp_root)
         test_benchmark_report_renderer(temp_root)
+        test_benchmark_runner_exports_metal_timing_metrics()
     print("benchmark tooling validation regression tests passed")
 
 

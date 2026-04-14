@@ -16,6 +16,11 @@ REQUIRED_FILES = [
     "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift",
     "SuperNeo-NuMetal/SuperNeoSerialization.swift",
     "SuperNeo-NuMetalTests/SuperNeoNuMetalTests.swift",
+    "Tools/FormalVectorCLI/main.swift",
+    "Scripts/emit-formal-ce-vectors.lean",
+    "Scripts/compare-formal-ce-vectors.py",
+    "Scripts/test-formal-ce-vector-bridge.py",
+    "Scripts/production-gate.sh",
 ]
 
 
@@ -114,6 +119,30 @@ def main() -> None:
         "XCTAssertEqual(bytes[responseTagOffset(round: 2)], 2)",
         "XCTAssertEqual(bytes[responseTagOffset(round: 2)], 3)",
         "permuted-witness tag byte fixture",
+    )
+    run_mutation(
+        "Tools/FormalVectorCLI/main.swift",
+        "CEOpeningProof(bytes: bytes)",
+        "CEOpeningProof(rounds: [])",
+        "Swift CE vector tool decode path",
+    )
+    run_mutation(
+        "Scripts/emit-formal-ce-vectors.lean",
+        "ceOpeningProofWireEncode hCount2 hVector2 fixtureProof",
+        "ceOpeningProofRoundWireEncode hCount2 hVector2 maskRound",
+        "Lean CE vector tool full proof fixture",
+    )
+    run_mutation(
+        "Scripts/compare-formal-ce-vectors.py",
+        "Swift/Lean CE vector mismatch",
+        "Swift/Lean CE drift",
+        "CE vector comparator must fail on value drift",
+    )
+    run_mutation(
+        "Scripts/production-gate.sh",
+        "run_step Scripts/compare-formal-ce-vectors.py",
+        "run_step Scripts/compare-formal-ce-vectors-disabled.py",
+        "Production gate must run the Swift/Lean CE vector comparison",
     )
 
     print("formal CE byte serialization validation regression tests passed")

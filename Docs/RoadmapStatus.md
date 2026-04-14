@@ -43,6 +43,11 @@ Artifacts:
 - `SuperNeoBinaryAdditionWorkload` provides a second workload with public sum
   bits, private operands, and private carries.
 - The `superneo` executable supports `prove`, `verify`, and `inspect`.
+- `SuperNeoTerminalProofAcceptancePolicy` gives application code a reusable
+  terminal-only envelope acceptance surface for terminal and compressed-terminal
+  proof bytes, rejecting fold reductions before terminal verification. It also
+  supports direct trusted-public-input construction, strict terminal/compressed
+  proof-kind policy, and optional proof byte limits.
 - `Scripts/production-gate.sh` proves and verifies both fold and terminal
   release CLI artifacts under trusted context.
 - `TestVectors/one-hot-vector-fold-v1.json` and
@@ -53,8 +58,9 @@ Artifacts:
 
 Remaining boundary:
 
-- The CLI is an integration surface, not a full application frontend or
-  compiler from general programs to CCS.
+- The CLI and terminal acceptance policy are integration surfaces, not a full
+  application frontend, persistence layer, replay-protection system, or compiler
+  from general programs to CCS.
 
 ## Third Priority: Credibility
 

@@ -18,14 +18,30 @@ cryptographic library.
 | Area | Current state |
 | --- | --- |
 | Profile | `Goldilocks/Phi81(d=54)`, `profileID = 1`. |
-| Package | macOS 14+ Swift package with library product `SuperNeo_NuMetal` and executable product `superneo`. |
+| Package | macOS 14+ Swift package with library product `SuperNeo_NuMetal`, CLI executable `superneo`, and formal-vector helper `superneo-formal-vectors`. |
 | Proof modes | Fold reductions, terminal proofs with public CE opening material, and compressed public terminal envelopes. |
 | Workloads | Bundled one-hot vector and 8-bit binary-addition CCS workloads. |
 | Backends | CPU reference implementation plus selected Metal acceleration. Default routing avoids Metal on small shapes and keeps Metal as an acceleration path, not a trust oracle. |
-| Assurance policies | `.highAssurance` for covered constant-work CPU paths and `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs. |
+| Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
 | Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/` and summarized below. |
 | Formalization | Conditional protocol formalization in Lean 4, tracked by `Docs/FormalStatus.json`. |
+
+## Highlights
+
+- Terminal application acceptance now has a reusable policy API. Callers can
+  pin trusted statement context, reject fold reductions before terminal
+  verification, choose terminal-only, compressed-only, or either terminal proof
+  form, and set a maximum proof byte count.
+- Swift/Lean conformance bridges now compare executable Swift vectors against
+  Lean-emitted Ext2 and CE proof byte vectors in the production gate, with
+  mutation tests for fail-closed drift detection.
+- Benchmark instrumentation now splits Metal command-buffer GPU time from host
+  encode, commit, and wait time so reports can distinguish device work from
+  submission overhead.
+- The Lean formal track has a conservative tagged bad-event composition layer,
+  while the full protocol theorem remains intentionally blocked on mechanized
+  probability composition and Swift equivalence proofs.
 
 ## Capabilities
 
@@ -39,6 +55,8 @@ cryptographic library.
   proofs.
 - Deterministic serialization for proof envelopes, commitments, public inputs,
   evaluation claims, verifier-key material, and test-vector artifacts.
+- Terminal proof acceptance policy APIs for trusted verifier contexts, accepted
+  proof-kind policy, and proof byte limits.
 - R1CS-to-CCS helper surfaces for the bundled one-hot vector and binary-addition
   workloads.
 - CPU reference execution plus Metal kernels for selected field, ring,
@@ -77,14 +95,16 @@ artifact provenance, replay policy, and user-facing acceptance semantics.
 A fold reduction verifies the public reduction and returns output
 commitment-evaluation claims. Callers that need terminal acceptance should
 verify a terminal or compressed-terminal proof and require terminal proof kind
-at the policy boundary.
+at the policy boundary. `SuperNeoTerminalProofAcceptancePolicy` also lets
+applications restrict accepted terminal envelope forms and reject oversized
+proof bytes before the expensive verifier path.
 
 Current boundaries:
 
 - no production audit or independent security certification,
 - no general compiler from programs to CCS,
-- no application-layer policy engine, persistence layer, replay-protection
-  system, or user-facing verification product,
+- no persistence layer, replay-protection system, or user-facing verification
+  product,
 - no production zero-knowledge claim for arbitrary application statements,
 - no completed formal constant-time or side-channel proof, and
 - no completed full formal protocol theorem.
@@ -251,6 +271,28 @@ proof envelope binds proof bytes to profile ID, proof kind, CCS shape digest,
 statement digest, verifier-key digest, transcript domain, and body length. See
 [Docs/ProofEnvelope.md](Docs/ProofEnvelope.md).
 
+Library integrations should prefer a terminal acceptance policy over manual
+proof-kind dispatch:
+
+```swift
+let policy = SuperNeoTerminalProofAcceptancePolicy(
+    publicInput: publicInput,
+    verifierKeyDigest: key.verifierKeyDigest,
+    proofKindPolicy: .compressedOnly,
+    maximumProofByteCount: 4 * 1024 * 1024
+)
+
+let result = verifier.verifyTerminalProofEnvelope(
+    publicInput: publicInput,
+    proofBytes: proofBytes,
+    policy: policy
+)
+```
+
+Use `.terminalOrCompressed` when both complete terminal envelope forms are
+acceptable. Use `.terminalOnly` or `.compressedOnly` when resource policy,
+artifact policy, or deployment compatibility requires one form.
+
 ## Test Vectors
 
 Checked-in vectors are intended for compatibility and cross-implementation
@@ -288,7 +330,8 @@ Current performance highlights:
   use `.metalAccelerated` when a caller wants to force GPU work for a known
   workload or benchmark row.
 - Generated benchmark reports now include a GPU command-buffer column for Metal
-  rows, making device time visible beside wall-clock time.
+  rows plus Metal encode, commit, and wait wall-time columns for host-side
+  submission visibility.
 - The latest Metal audit pass removed duplicate workspace CSR uploads, added
   scratch-buffer reuse and inline dispatch parameters, introduced a
   coefficient-parallel ring-multiply kernel, and added a narrow Ajtai
@@ -361,6 +404,13 @@ Scripts/validate-formal-status.py
 Scripts/test-formal-status-validation.py
 ```
 
+Compare executable Swift formal vectors against Lean-emitted vectors:
+
+```sh
+Scripts/compare-formal-ext2-vectors.py
+Scripts/compare-formal-ce-vectors.py
+```
+
 Generate a paper-claim reproduction artifact:
 
 ```sh
@@ -393,6 +443,7 @@ Core references:
 - [Threat Model](Docs/ThreatModel.md)
 - [Proof Semantics](Docs/WhatThisProves.md)
 - [Proof Envelope](Docs/ProofEnvelope.md)
+- [Application Acceptance Policy](Docs/ApplicationAcceptancePolicy-2026-04-14.md)
 - [CLI](Docs/CLI.md)
 - [Benchmarking](Docs/Benchmarking.md)
 - [GPU Determinism](Docs/GPUDeterminism.md)
@@ -404,6 +455,7 @@ Core references:
 Recent implementation and hardening notes:
 
 - [Benchmark Metadata Comparison, 2026-04-14](Docs/BenchmarkMetadataComparison-2026-04-14.md)
+- [Application Acceptance Policy, 2026-04-14](Docs/ApplicationAcceptancePolicy-2026-04-14.md)
 - [PiRLC Benchmark Isolation, 2026-04-14](Docs/BenchmarkPiRLCIsolation-2026-04-14.md)
 - [Opening Batch Parallel Threshold, 2026-04-14](Docs/BenchmarkOpeningBatchThreshold-2026-04-14.md)
 - [Relation Evaluation Plan, 2026-04-14](Docs/BenchmarkRelationEvaluationPlan-2026-04-14.md)
