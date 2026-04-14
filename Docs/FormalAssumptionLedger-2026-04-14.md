@@ -11,8 +11,9 @@ continuity, while the manifest's completed path depends only on `closed` groups.
 
 - Module-SIS profile constants and estimator tuple facts are now tracked as the
   closed `module-sis-parameters` group. The completed dependency path uses
-  `module-sis-certified-kernel`, where a verifier key carries a
-  Lean-checkable `VerifiedAjtaiKernelCertificate`.
+  `module-sis-certified-kernel`, where `AjtaiKernelCertificate` carries the
+  concrete no-short-kernel proof and `VerifiedAjtaiKernelCertificate` is the
+  checked key-metadata subtype consumed by verifier-key binding theorems.
 - Concrete Ajtai shape, Phi81 quotient-ring wiring, packed-witness wiring, and
   concrete commitment linearity are tracked as `concrete-ajtai-instantiation`.
   Concrete opening and binding predicate shape is tracked separately as the
@@ -40,17 +41,19 @@ continuity, while the manifest's completed path depends only on `closed` groups.
   Concrete acceptance predicate shape is tracked as the closed
   `pirlc-concrete-acceptance-core`.
   `phi81-split-semantics` records the concrete factorization of Phi81 over
-  Goldilocks, and `pirlc-finite-bad-seed-soundness` tracks the finite bad-seed
-  certificate that replaces the random-linear-combination boundary.
+  Goldilocks, and `pirlc-finite-bad-seed-soundness` tracks the split-carrying
+  finite bad-seed certificate plus the component-projection one-bad-value
+  theorem used by the random-linear-combination boundary.
 - PiCCS exact public-Q reduction is tracked as a closed deterministic bridge.
   PiCCS acceptance projections are tracked separately as a closed core.
   The finite-field low-degree root-count lemma is tracked as
   `sumcheck-low-degree-root-count-core`; that core now also tracks polynomial
   agreement sets for prover/exact round-polynomial mismatches and proves that
   low-degree mismatches can agree only on a degree-bounded support subset.
-  `goldilocks-ext2-wire-model` and
-  `piccs-finite-bad-challenge-soundness` track the extension-field wire model
-  and finite bad-challenge certificate that replace the deterministic
+  `goldilocks-ext2-wire-model` tracks the extension-field wire operations and
+  inverse-data correctness. `piccs-finite-bad-challenge-soundness` tracks the
+  public-Q oracle semantics, round-polynomial degree witnesses, and finite
+  bad-challenge certificate that replace the deterministic
   `PiCCSSumcheckSoundnessAssumption` shape.
 - Terminal CE statement and batch-projection facts are tracked as a closed core.
   Terminal CE local batch relations are tracked as closed local algebra.
@@ -62,8 +65,9 @@ continuity, while the manifest's completed path depends only on `closed` groups.
   Witness uniqueness from certified no-short-kernel is tracked separately as
   `ce-opening-certified-binding`.
   Public CE proof-verifier soundness is tracked by
-  `terminal-ce-finite-bad-seed-soundness`, which extracts local batch witnesses
-  outside the explicit finite bad-seed set.
+  `terminal-ce-finite-bad-seed-soundness`, which now includes the three-symbol
+  challenge domain, parsed verifier-round trace semantics, and extraction of
+  local batch witnesses outside the explicit finite bad-seed set.
 - SuperNeo acceptance decomposition is tracked as closed deterministic
   composition. `superneo-finite-bad-seed-composition` composes terminal
   verifier acceptance with the finite CE bad-seed certificate.

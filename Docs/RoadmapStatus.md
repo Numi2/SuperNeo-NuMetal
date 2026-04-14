@@ -224,9 +224,8 @@ Artifacts:
   bad-seed theorem groups.
 - `Docs/FormalRemainingBoundaries-2026-04-14.md` records the historical boundary
   IDs and their closed replacement groups.
-- The latest Lean pass keeps historical boundary groups explicit for audit
-  continuity while moving the active completed label to closed replacement
-  groups.
+- The latest Lean pass keeps historical boundary IDs documented for audit
+  continuity while keeping the active manifest on closed replacement groups.
 - `Docs/PaperReproduction.md` documents the harness and interpretation rules.
 - `Docs/LatticeEstimatorReproduction.md` documents the estimator command,
   pinned upstream source, and exact derived parameters.

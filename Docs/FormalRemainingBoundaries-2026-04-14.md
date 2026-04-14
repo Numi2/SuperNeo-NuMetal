@@ -9,9 +9,9 @@ manifest by certified-key or finite bad-challenge/bad-seed theorem groups.
 ## Closed During This Pass
 
 - Ajtai binding now has a certified-key surface. `CertifiedAjtaiKey` and
-  `VerifiedAjtaiKernelCertificate` carry the exact `ModuleSISNoShortKernel`
-  fact for the verifier key matrix, and binding/CE uniqueness theorems consume
-  that certificate instead of claiming arbitrary matrices are binding.
+  `AjtaiKernelCertificate` carry the exact `ModuleSISNoShortKernel` fact for a
+  certified matrix; `checkAjtaiKernelCertificate` ties that payload to the
+  verifier key metadata before binding/CE uniqueness theorems consume it.
 - `arbitraryNoShortKernelTheorem_false` records the guardrail: an arbitrary
   zero matrix over any nontrivial commutative ring does not satisfy
   `NoShortKernel`.
@@ -19,13 +19,19 @@ manifest by certified-key or finite bad-challenge/bad-seed theorem groups.
   `X^54 + X^27 + 1 = (X^27 - (2^32 - 1)) * (X^27 + 2^32)` and exposes an
   explicit split-certificate surface for componentwise collision arguments.
 - PiRLC now has `PiRLCFiniteBadSeedCertificate`: accepted folded claims imply all
-  inputs are sound outside the finite certified bad-seed set.
+  inputs are sound outside the finite certified bad-seed set. The certificate
+  carries the Phi81 split, and the file records projected component deltas and a
+  one-bad-value theorem for nonzero projected pivots.
 - PiCCS/sum-check now has a GoldilocksExt2 wire model and
   `PiCCSFiniteBadChallengeCertificate`, replacing deterministic
-  `accepts -> sound` with soundness outside a finite bad-challenge set.
+  `accepts -> sound` with soundness outside a finite bad-challenge set. The
+  certificate also carries public-Q oracle semantics and max-degree-bounded
+  round-polynomial witnesses.
 - Terminal CE proof soundness now has `TerminalCEFiniteBadSeedCertificate` and
   Stern-round special-soundness surfaces, replacing deterministic proof
-  soundness with extraction outside a finite bad-seed set.
+  soundness with extraction outside a finite bad-seed set. The file also models
+  the three-symbol verifier challenge domain, parsed verifier-round traces, and
+  branch-derived local batch extraction.
 - SuperNeo composition now has `superneo_end_to_end_outside_ce_badSeeds`, which
   composes terminal verifier acceptance with the finite CE bad-seed certificate.
 - Sum-check now has a closed finite-field low-degree root-count core:
@@ -35,8 +41,8 @@ manifest by certified-key or finite bad-challenge/bad-seed theorem groups.
   buckets. `concrete-ajtai-opening-core`,
   `pirlc-concrete-acceptance-core`, and
   `terminal-ce-proof-acceptance-core` now track deterministic predicate
-  equivalences, while the boundary groups keep only assumption-consuming
-  declarations.
+  equivalences; the old boundary IDs are retained only in this historical
+  replacement map, not as active manifest groups.
 - The Ajtai reduction core now has the exact contrapositive kernel-witness
   surface: `short_kernel_yields_binding_failure`,
   `binding_failure_yields_short_kernel`, and

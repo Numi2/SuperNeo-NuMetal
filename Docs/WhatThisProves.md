@@ -118,9 +118,9 @@ status is a completed formal protocol theorem for the corrected model:
 - End-to-end terminal composition is proved outside the certified CE bad-seed
   set.
 
-Historical assumption-boundary groups remain in the manifest for auditability,
-but the completed label depends on closed certified-key and finite-bad-seed
-replacement groups.
+Historical assumption-boundary IDs remain documented for auditability, but they
+are not active manifest groups. The completed label depends on closed
+certified-key and finite-bad-seed replacement groups.
 
 The correct public positioning remains:
 

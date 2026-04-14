@@ -89,6 +89,28 @@ theorem goldilocksExt2_inverse_data_denominator
       rw [hInv]
       ring
 
+theorem goldilocksExt2_mul_invData
+    (value : GoldilocksExt2)
+    {denominatorInv : Goldilocks}
+    (hInv : goldilocksExt2Denominator value * denominatorInv = 1) :
+    goldilocksExt2Mul value (goldilocksExt2InvData value denominatorInv) =
+      goldilocksExt2One := by
+  cases value with
+  | mk c0 c1 =>
+      rw [GoldilocksExt2.mk.injEq]
+      constructor
+      · simp [goldilocksExt2Mul, goldilocksExt2InvData, goldilocksExt2One,
+          goldilocksExt2Denominator] at hInv ⊢
+        calc
+          c0 * (c0 * denominatorInv) +
+              -(c1 * (c1 * denominatorInv) * goldilocksExt2NonResidue) =
+            (c0 * c0 - c1 * c1 * goldilocksExt2NonResidue) * denominatorInv := by
+              ring
+          _ = 1 := hInv
+      · simp [goldilocksExt2Mul, goldilocksExt2InvData, goldilocksExt2One,
+          goldilocksExt2NonResidue]
+        ring
+
 theorem goldilocksExt2_field_model_from_certificate
     (certificate : GoldilocksExt2FieldCertificate) :
     GoldilocksExt2FieldModel :=

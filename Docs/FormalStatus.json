@@ -908,6 +908,9 @@
       "status": "closed",
       "declarations": [
         "SuperNeoFormal.CertifiedAjtaiKey",
+        "SuperNeoFormal.AjtaiKernelCertificate",
+        "SuperNeoFormal.checkAjtaiKernelCertificate",
+        "SuperNeoFormal.checkedAjtaiKernelCertificate_noShortKernel",
         "SuperNeoFormal.VerifiedAjtaiKernelCertificate",
         "SuperNeoFormal.verifiedCertificate_noShortKernel"
       ]
@@ -950,6 +953,7 @@
         "SuperNeoFormal.GoldilocksExt2FieldModel",
         "SuperNeoFormal.goldilocksExt2_operations_match_swift_mul",
         "SuperNeoFormal.goldilocksExt2_inverse_data_denominator",
+        "SuperNeoFormal.goldilocksExt2_mul_invData",
         "SuperNeoFormal.goldilocksExt2_field_model_from_certificate"
       ]
     },
@@ -974,8 +978,14 @@
       "lean_module": "SuperNeoFormal.PiRLCFiniteSoundness",
       "status": "closed",
       "declarations": [
+        "SuperNeoFormal.Phi81SplitSide",
+        "SuperNeoFormal.phi81SplitProjection",
+        "SuperNeoFormal.pirlcProjectedDeltas",
+        "SuperNeoFormal.pirlcProjectedComponentBadValues",
+        "SuperNeoFormal.pirlcProjectedComponentBadValues_card_le_one",
         "SuperNeoFormal.PiRLCFiniteBadSeedCertificate",
         "SuperNeoFormal.pirlc_concrete_badSeedCount_le_of_certificate",
+        "SuperNeoFormal.pirlc_certificate_split",
         "SuperNeoFormal.pirlc_allInputsSound_of_seed_not_bad",
         "SuperNeoFormal.PiRLCComponentwiseSplitCertificate",
         "SuperNeoFormal.pirlc_certificate_from_componentwise_split"
@@ -988,8 +998,13 @@
       "declarations": [
         "SuperNeoFormal.PiCCSRoundPolynomialSemantics",
         "SuperNeoFormal.PiCCSPublicQOracleSemantics",
+        "SuperNeoFormal.PiCCSVerifierPolynomialSemantics",
+        "SuperNeoFormal.piccs_verifierPolynomialSemantics_round_degree_le",
+        "SuperNeoFormal.piccs_exact_q_reduction_from_verifier_semantics",
         "SuperNeoFormal.PiCCSFiniteBadChallengeCertificate",
         "SuperNeoFormal.piccs_badChallengeCount_le_of_certificate",
+        "SuperNeoFormal.piccs_certificate_round_degree_le",
+        "SuperNeoFormal.piccs_certificate_exact_q_reduction",
         "SuperNeoFormal.piccs_traceSound_of_seed_not_bad",
         "SuperNeoFormal.PiCCSSumcheckBadChallengeBudget",
         "SuperNeoFormal.piccs_sumcheck_badChallengeBudget_profile"
@@ -1001,11 +1016,26 @@
       "status": "closed",
       "declarations": [
         "SuperNeoFormal.CEOpeningVerifierChallenge",
+        "SuperNeoFormal.CEOpeningChallengeSymbol",
+        "SuperNeoFormal.ceOpeningChallengeFromSymbol",
+        "SuperNeoFormal.CEOpeningChallengeDomain",
+        "SuperNeoFormal.ceOpeningChallengeDomain_card",
+        "SuperNeoFormal.ceOpeningChallengeFromSymbol_mem_domain",
+        "SuperNeoFormal.ceOpeningVerifierChallenge_mem_domain",
         "SuperNeoFormal.CEOpeningRoundSemantics",
         "SuperNeoFormal.CEOpeningRoundAccepts",
         "SuperNeoFormal.CEOpeningRoundSpecialSoundnessCertificate",
         "SuperNeoFormal.ceOpeningRound_extract_of_three_accepting_branches",
+        "SuperNeoFormal.TerminalCEVerifierTrace",
+        "SuperNeoFormal.TerminalCEVerifierTraceAccepts",
+        "SuperNeoFormal.terminalCEVerifierTrace_roundCount",
+        "SuperNeoFormal.terminalCEVerifierTrace_challenge_mem_domain",
+        "SuperNeoFormal.terminalCEVerifierTrace_accepts_derived_branch",
+        "SuperNeoFormal.TerminalCEVerifierExtractionCertificate",
+        "SuperNeoFormal.terminalCEVerifierTrace_extract_batch_from_round_certificates",
         "SuperNeoFormal.TerminalCEFiniteBadSeedCertificate",
+        "SuperNeoFormal.TerminalCEFiniteVerifierCertificate",
+        "SuperNeoFormal.terminalCEFiniteBadSeedCertificate_from_verifierCertificate",
         "SuperNeoFormal.terminal_ce_badSeedCount_le_of_certificate",
         "SuperNeoFormal.terminal_ce_relation_from_verified_proof_outside_badSeeds",
         "SuperNeoFormal.TerminalCEProofBadSeedBudget",

@@ -19,6 +19,35 @@ inductive CEOpeningVerifierChallenge where
   | permutedWitness
   deriving DecidableEq
 
+abbrev CEOpeningChallengeSymbol :=
+  Fin 3
+
+def ceOpeningChallengeFromSymbol
+    (symbol : CEOpeningChallengeSymbol) : CEOpeningVerifierChallenge :=
+  match symbol.val with
+  | 0 => CEOpeningVerifierChallenge.mask
+  | 1 => CEOpeningVerifierChallenge.maskedWitness
+  | _ => CEOpeningVerifierChallenge.permutedWitness
+
+def CEOpeningChallengeDomain : Finset CEOpeningVerifierChallenge :=
+  { CEOpeningVerifierChallenge.mask,
+    CEOpeningVerifierChallenge.maskedWitness,
+    CEOpeningVerifierChallenge.permutedWitness }
+
+theorem ceOpeningChallengeDomain_card :
+    CEOpeningChallengeDomain.card = 3 := by
+  native_decide
+
+theorem ceOpeningChallengeFromSymbol_mem_domain
+    (symbol : CEOpeningChallengeSymbol) :
+    ceOpeningChallengeFromSymbol symbol ∈ CEOpeningChallengeDomain := by
+  fin_cases symbol <;> native_decide
+
+theorem ceOpeningVerifierChallenge_mem_domain
+    (challenge : CEOpeningVerifierChallenge) :
+    challenge ∈ CEOpeningChallengeDomain := by
+  cases challenge <;> native_decide
+
 structure CEOpeningRoundSemantics (Commitment Response Witness : Type) where
   commitments : List Commitment
   response : Response
@@ -49,6 +78,79 @@ theorem ceOpeningRound_extract_of_three_accepting_branches
     ∃ witness, opens witness :=
   ⟨certificate.extractedWitness, certificate.extracted_opens⟩
 
+structure TerminalCEVerifierTrace
+    (Commitment Response Witness Seed : Type)
+    (roundCount : Nat) where
+  seed : Seed
+  rounds : Fin roundCount → CEOpeningRoundSemantics Commitment Response Witness
+  challengeSymbols : Fin roundCount → CEOpeningChallengeSymbol
+  challenges_match :
+    ∀ round,
+      (rounds round).challenge =
+        ceOpeningChallengeFromSymbol (challengeSymbols round)
+
+def TerminalCEVerifierTraceAccepts
+    {Commitment Response Witness Seed : Type}
+    {roundCount : Nat}
+    (trace : TerminalCEVerifierTrace Commitment Response Witness Seed roundCount) :
+    Prop :=
+  ∀ round, CEOpeningRoundAccepts (trace.rounds round)
+
+theorem terminalCEVerifierTrace_roundCount
+    {Commitment Response Witness Seed : Type}
+    {roundCount : Nat}
+    (_trace : TerminalCEVerifierTrace Commitment Response Witness Seed roundCount) :
+    Fintype.card (Fin roundCount) = roundCount := by
+  simp
+
+theorem terminalCEVerifierTrace_challenge_mem_domain
+    {Commitment Response Witness Seed : Type}
+    {roundCount : Nat}
+    (trace : TerminalCEVerifierTrace Commitment Response Witness Seed roundCount)
+    (round : Fin roundCount) :
+    (trace.rounds round).challenge ∈ CEOpeningChallengeDomain := by
+  rw [trace.challenges_match round]
+  exact ceOpeningChallengeFromSymbol_mem_domain (trace.challengeSymbols round)
+
+theorem terminalCEVerifierTrace_accepts_derived_branch
+    {Commitment Response Witness Seed : Type}
+    {roundCount : Nat}
+    {trace : TerminalCEVerifierTrace Commitment Response Witness Seed roundCount}
+    (hAccepts : TerminalCEVerifierTraceAccepts trace)
+    (round : Fin roundCount) :
+    (trace.rounds round).verifierChecks
+      (ceOpeningChallengeFromSymbol (trace.challengeSymbols round)) := by
+  have hRound := hAccepts round
+  rw [← trace.challenges_match round]
+  exact hRound
+
+structure TerminalCEVerifierExtractionCertificate
+    {Claim Commitment Response Witness Seed : Type}
+    {count roundCount : Nat}
+    (trace : TerminalCEVerifierTrace Commitment Response Witness Seed roundCount)
+    (statement : TerminalCEStatement Claim count)
+    (opens : Claim → Witness → Prop) where
+  roundForOutput : Fin count → Fin roundCount
+  branchCertificates :
+    ∀ index,
+      CEOpeningRoundSpecialSoundnessCertificate
+        (trace.rounds (roundForOutput index))
+        (fun witness => opens (statement.outputClaim index) witness)
+
+theorem terminalCEVerifierTrace_extract_batch_from_round_certificates
+    {Claim Commitment Response Witness Seed : Type}
+    {count roundCount : Nat}
+    {trace : TerminalCEVerifierTrace Commitment Response Witness Seed roundCount}
+    {statement : TerminalCEStatement Claim count}
+    {opens : Claim → Witness → Prop}
+    (certificate :
+      TerminalCEVerifierExtractionCertificate trace statement opens) :
+    ∃ witnesses : Fin count → Witness,
+      TerminalLocalBatchRelation statement witnesses opens := by
+  refine ⟨fun index => (certificate.branchCertificates index).extractedWitness, ?_⟩
+  intro index
+  exact (certificate.branchCertificates index).extracted_opens
+
 structure TerminalCEFiniteBadSeedCertificate
     {Claim Proof Witness Seed : Type}
     [DecidableEq Seed]
@@ -65,6 +167,58 @@ structure TerminalCEFiniteBadSeedCertificate
         proofSeed proof ∉ badSeeds →
           ∃ witnesses : Fin count → Witness,
             TerminalLocalBatchRelation statement witnesses opens
+
+structure TerminalCEFiniteVerifierCertificate
+    {Claim Proof Witness Seed Commitment Response : Type}
+    [DecidableEq Seed]
+    {count roundCount : Nat}
+    (verifyProof : TerminalCEStatement Claim count → Proof → Prop)
+    (opens : Claim → Witness → Prop)
+    (proofSeed : Proof → Seed)
+    (bound : Nat) where
+  badSeeds : Finset Seed
+  card_le : badSeeds.card ≤ bound
+  parseTrace :
+    ∀ statement proof,
+      verifyProof statement proof →
+        TerminalCEVerifierTrace Commitment Response Witness Seed roundCount
+  trace_seed :
+    ∀ statement proof hAccepts,
+      (parseTrace statement proof hAccepts).seed = proofSeed proof
+  trace_accepts :
+    ∀ statement proof hAccepts,
+      TerminalCEVerifierTraceAccepts (parseTrace statement proof hAccepts)
+  extraction :
+    ∀ statement proof hAccepts,
+      proofSeed proof ∉ badSeeds →
+        TerminalCEVerifierExtractionCertificate
+          (parseTrace statement proof hAccepts)
+          statement
+          opens
+
+def terminalCEFiniteBadSeedCertificate_from_verifierCertificate
+    {Claim Proof Witness Seed Commitment Response : Type}
+    [DecidableEq Seed]
+    {count roundCount bound : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → Seed}
+    (certificate :
+      TerminalCEFiniteVerifierCertificate
+        (Commitment := Commitment)
+        (Response := Response)
+        (roundCount := roundCount)
+        verifyProof
+        opens
+        proofSeed
+        bound) :
+    TerminalCEFiniteBadSeedCertificate verifyProof opens proofSeed bound where
+  badSeeds := certificate.badSeeds
+  card_le := certificate.card_le
+  extract_outside_bad := by
+    intro statement proof hAccepts hSeed
+    exact terminalCEVerifierTrace_extract_batch_from_round_certificates
+      (certificate.extraction statement proof hAccepts hSeed)
 
 theorem terminal_ce_badSeedCount_le_of_certificate
     {Claim Proof Witness Seed : Type}

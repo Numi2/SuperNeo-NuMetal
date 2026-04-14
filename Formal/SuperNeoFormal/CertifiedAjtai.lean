@@ -49,11 +49,39 @@ structure CertifiedAjtaiKey (columns : Nat) where
   profileID : Nat
   verifierKeyDigest : Nat
 
+structure AjtaiKernelCertificate
+    {columns : Nat}
+    (bounded : ConcreteAjtaiMessage columns → Prop) where
+  matrix : ConcreteAjtaiMatrix columns
+  profileID : Nat
+  verifierKeyDigest : Nat
+  noShortKernel : ModuleSISNoShortKernel matrix bounded
+
+def checkAjtaiKernelCertificate
+    {columns : Nat}
+    {bounded : ConcreteAjtaiMessage columns → Prop}
+    (key : CertifiedAjtaiKey columns)
+    (certificate : AjtaiKernelCertificate bounded) : Prop :=
+  certificate.matrix = key.matrix ∧
+    certificate.profileID = key.profileID ∧
+      certificate.verifierKeyDigest = key.verifierKeyDigest
+
+theorem checkedAjtaiKernelCertificate_noShortKernel
+    {columns : Nat}
+    {key : CertifiedAjtaiKey columns}
+    {bounded : ConcreteAjtaiMessage columns → Prop}
+    {certificate : AjtaiKernelCertificate bounded}
+    (hCheck : checkAjtaiKernelCertificate key certificate) :
+    ModuleSISNoShortKernel key.matrix bounded := by
+  rcases hCheck with ⟨hMatrix, _hProfile, _hDigest⟩
+  simpa [hMatrix] using certificate.noShortKernel
+
 def VerifiedAjtaiKernelCertificate
     {columns : Nat}
     (key : CertifiedAjtaiKey columns)
-    (bounded : ConcreteAjtaiMessage columns → Prop) : Prop :=
-  ModuleSISNoShortKernel key.matrix bounded
+    (bounded : ConcreteAjtaiMessage columns → Prop) : Type :=
+  { certificate : AjtaiKernelCertificate bounded //
+      checkAjtaiKernelCertificate key certificate }
 
 theorem verifiedCertificate_noShortKernel
     {columns : Nat}
@@ -61,7 +89,7 @@ theorem verifiedCertificate_noShortKernel
     {bounded : ConcreteAjtaiMessage columns → Prop}
     (certificate : VerifiedAjtaiKernelCertificate key bounded) :
     ModuleSISNoShortKernel key.matrix bounded :=
-  certificate
+  checkedAjtaiKernelCertificate_noShortKernel certificate.property
 
 theorem certifiedConcreteBinding_from_verifiedCertificate
     {columns : Nat}
@@ -74,7 +102,7 @@ theorem certifiedConcreteBinding_from_verifiedCertificate
     (hCommit : concreteCommit key.matrix lhs = concreteCommit key.matrix rhs) :
     lhs = rhs :=
   concreteBinding_from_moduleSISNoShortKernel
-    certificate
+    (verifiedCertificate_noShortKernel certificate)
     hlhs
     hrhs
     hCommit
@@ -85,7 +113,8 @@ theorem certifiedConcreteBindingSecure_from_verifiedCertificate
     {bounded : ConcreteAjtaiMessage columns → Prop}
     (certificate : VerifiedAjtaiKernelCertificate key bounded) :
     ConcreteBindingSecure key.matrix bounded :=
-  concreteBindingSecure_from_moduleSISNoShortKernel certificate
+  concreteBindingSecure_from_moduleSISNoShortKernel
+    (verifiedCertificate_noShortKernel certificate)
 
 theorem certifiedOpening_messages_equal_from_verifiedCertificate
     {columns : Nat}
@@ -97,7 +126,10 @@ theorem certifiedOpening_messages_equal_from_verifiedCertificate
     (hlhs : ConcreteOpening key.matrix c bounded lhs)
     (hrhs : ConcreteOpening key.matrix c bounded rhs) :
     lhs = rhs :=
-  opening_messages_equal_from_noShortKernel certificate hlhs hrhs
+  opening_messages_equal_from_noShortKernel
+    (verifiedCertificate_noShortKernel certificate)
+    hlhs
+    hrhs
 
 theorem certifiedCeLocalOpening_witness_unique_from_verifiedCertificate
     {columns publicCount evalCount pointVars : Nat}
@@ -122,7 +154,7 @@ theorem certifiedCeLocalOpening_witness_unique_from_verifiedCertificate
         shape context key.matrix bounded publicBound evaluationRelation statement rhs) :
     lhs = rhs :=
   ceLocalOpening_witness_unique_from_noShortKernel
-    certificate
+    (verifiedCertificate_noShortKernel certificate)
     hlhs
     hrhs
 
@@ -149,7 +181,7 @@ theorem certifiedCeTerminalLocalBatch_witnesses_unique_from_verifiedCertificate
         shape context key.matrix bounded publicBound evaluationRelation statement rhs) :
     lhs = rhs :=
   ceTerminalLocalBatch_witnesses_unique_from_noShortKernel
-    certificate
+    (verifiedCertificate_noShortKernel certificate)
     hlhs
     hrhs
 
