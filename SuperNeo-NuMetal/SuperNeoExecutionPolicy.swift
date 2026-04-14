@@ -21,8 +21,24 @@ public enum SuperNeoMetalTrustPolicy: Equatable, Sendable {
     case cpuRedundant
 }
 
+public enum SuperNeoMetalRoutingPolicy: Equatable, Sendable {
+    /// Use Metal only for shapes where local benchmarks show it is likely to win.
+    case automatic
+
+    /// Use Metal whenever a context is supplied and secret-bearing GPU work is allowed.
+    case always
+}
+
 public struct SuperNeoExecutionPolicy: Equatable, Sendable {
     public static let `default` = SuperNeoExecutionPolicy()
+
+    /// Force Metal acceleration when a context is supplied. This is useful for
+    /// benchmarking, kernel development, and users who know their workload wins
+    /// on their target hardware.
+    public static let metalAccelerated = SuperNeoExecutionPolicy(
+        secretArithmetic: .optimized,
+        metalRouting: .always
+    )
 
     /// Conservative local policy for high-assurance runs: no secret-bearing GPU
     /// work, and any remaining Metal use must match the CPU oracle.
@@ -35,18 +51,22 @@ public struct SuperNeoExecutionPolicy: Equatable, Sendable {
     /// acceleration enabled, but make CPU equality mandatory.
     public static let cpuRedundantMetal = SuperNeoExecutionPolicy(
         secretArithmetic: .optimized,
-        metalTrust: .cpuRedundant
+        metalTrust: .cpuRedundant,
+        metalRouting: .always
     )
 
     public let secretArithmetic: SuperNeoSecretArithmeticPolicy
     public let metalTrust: SuperNeoMetalTrustPolicy
+    public let metalRouting: SuperNeoMetalRoutingPolicy
 
     public init(
         secretArithmetic: SuperNeoSecretArithmeticPolicy = .optimized,
-        metalTrust: SuperNeoMetalTrustPolicy = .accelerationOnly
+        metalTrust: SuperNeoMetalTrustPolicy = .accelerationOnly,
+        metalRouting: SuperNeoMetalRoutingPolicy = .automatic
     ) {
         self.secretArithmetic = secretArithmetic
         self.metalTrust = metalTrust
+        self.metalRouting = metalRouting
     }
 
     var usesConstantWorkCPU: Bool {
@@ -55,5 +75,15 @@ public struct SuperNeoExecutionPolicy: Equatable, Sendable {
 
     var requiresMetalCPUCheck: Bool {
         metalTrust == .cpuRedundant
+    }
+
+    func usesMetalAcceleration(for shape: CCSShape) -> Bool {
+        guard !usesConstantWorkCPU else { return false }
+        switch metalRouting {
+        case .always:
+            return true
+        case .automatic:
+            return shape.m >= 1024
+        }
     }
 }

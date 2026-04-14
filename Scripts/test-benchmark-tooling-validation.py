@@ -64,6 +64,8 @@ def benchmark_metadata(
         "env.SUPERNEO_BENCHMARK_CE": "",
         "env.SUPERNEO_BENCHMARK_SIGNPOSTS": "",
         "env.SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE": "",
+        "env.SUPERNEO_METAL_EVAL_ROW_PARTIAL_THRESHOLD": "",
+        "env.SUPERNEO_METAL_EVAL_ROW_PARTIAL_MAX_WORDS": "",
     }
 
 

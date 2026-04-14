@@ -21,7 +21,7 @@ cryptographic library.
 | Package | macOS 14+ Swift package with library product `SuperNeo_NuMetal` and executable product `superneo`. |
 | Proof modes | Fold reductions, terminal proofs with public CE opening material, and compressed public terminal envelopes. |
 | Workloads | Bundled one-hot vector and 8-bit binary-addition CCS workloads. |
-| Backends | CPU reference implementation plus selected Metal acceleration. Metal is treated as an acceleration path, not a trust oracle. |
+| Backends | CPU reference implementation plus selected Metal acceleration. Default routing avoids Metal on small shapes and keeps Metal as an acceleration path, not a trust oracle. |
 | Assurance policies | `.highAssurance` for covered constant-work CPU paths and `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
 | Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/` and summarized below. |
@@ -43,6 +43,9 @@ cryptographic library.
   workloads.
 - CPU reference execution plus Metal kernels for selected field, ring,
   commitment, transformed-evaluation, and fused commit/evaluation workloads.
+- Adaptive Metal routing that keeps small default proofs on CPU while preserving
+  forced Metal policies for large-shape acceleration, benchmark coverage, and
+  kernel development.
 - Differential CPU/Metal checking where both paths exist.
 - Hardening around proof-envelope parsing, verifier-context binding, duplicate
   JSON keys, artifact schemas, workload metadata, key-seed domain separation,
@@ -279,6 +282,21 @@ Benchmark results are meaningful only with the documented correctness gates.
 The benchmark runner verifies protocol outputs before exporting results and
 compares CPU/Metal outputs where both paths exist.
 
+Current performance highlights:
+
+- Default execution uses automatic Metal routing and keeps small shapes on CPU;
+  use `.metalAccelerated` when a caller wants to force GPU work for a known
+  workload or benchmark row.
+- Generated benchmark reports now include a GPU command-buffer column for Metal
+  rows, making device time visible beside wall-clock time.
+- The latest Metal audit pass removed duplicate workspace CSR uploads, added
+  scratch-buffer reuse and inline dispatch parameters, introduced a
+  coefficient-parallel ring-multiply kernel, and added a narrow Ajtai
+  small-message coefficient kernel for decomposition-sized messages.
+- The row-partial sparse transformed-evaluation schedule is available for
+  tuning but remains opt-in because the local small-shape A/B run was slower
+  than the blocked baseline.
+
 Latest local benchmark snapshot:
 
 | Field | Value |
@@ -377,6 +395,7 @@ Core references:
 - [Proof Envelope](Docs/ProofEnvelope.md)
 - [CLI](Docs/CLI.md)
 - [Benchmarking](Docs/Benchmarking.md)
+- [GPU Determinism](Docs/GPUDeterminism.md)
 - [Formal Verification](Docs/FormalVerification.md)
 - [Paper Reproduction](Docs/PaperReproduction.md)
 - [Lattice Estimator Reproduction](Docs/LatticeEstimatorReproduction.md)
@@ -391,6 +410,7 @@ Recent implementation and hardening notes:
 - [Sum-Check Prior-Claim Evaluation Batch, 2026-04-14](Docs/BenchmarkSumcheckPriorBatch-2026-04-14.md)
 - [Sum-Check Public Precompute Cleanup, 2026-04-14](Docs/BenchmarkSumcheckPublicPrecompute-2026-04-14.md)
 - [Transformed Evaluation Fusion, 2026-04-14](Docs/BenchmarkTransformedEvaluationFusion-2026-04-14.md)
+- [Metal Performance Optimization, 2026-04-14](Docs/MetalPerformanceOptimization-2026-04-14.md)
 - [Binary Addition Terminal Vector, 2026-04-14](Docs/BinaryAdditionTerminalVector-2026-04-14.md)
 - [Compressed Terminal Vector, 2026-04-14](Docs/CompressedTerminalVector-2026-04-14.md)
 - [Vector Manifest Duplicate Key Hardening, 2026-04-14](Docs/VectorManifestDuplicateKeyHardening-2026-04-14.md)

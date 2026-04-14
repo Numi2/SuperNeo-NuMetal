@@ -2,21 +2,28 @@ import Benchmark
 import Foundation
 @_spi(Benchmarking) import SuperNeo_NuMetal
 
+private enum SuperNeoBenchmarkMetrics {
+    static let gpuCommandBufferTime = BenchmarkMetric.custom(
+        "GPU command buffer time",
+        polarity: .prefersSmaller,
+        useScalingFactor: false
+    )
+}
+
+private let benchmarkMetrics: [BenchmarkMetric] = [
+    .wallClock,
+    .mallocCountTotal,
+    .memoryLeaked,
+    SuperNeoBenchmarkMetrics.gpuCommandBufferTime
+]
+
 private let defaultConfiguration = Benchmark.Configuration(
-    metrics: [
-        .wallClock,
-        .mallocCountTotal,
-        .memoryLeaked
-    ],
+    metrics: benchmarkMetrics,
     maxDuration: .seconds(3),
     maxIterations: 20
 )
 private let expensiveConfiguration = Benchmark.Configuration(
-    metrics: [
-        .wallClock,
-        .mallocCountTotal,
-        .memoryLeaked
-    ],
+    metrics: benchmarkMetrics,
     maxDuration: .seconds(1),
     maxIterations: 1
 )
@@ -80,6 +87,13 @@ private func requireValid(_ result: FoldReductionResult) throws {
     guard result.isReductionAccepted else {
         throw BenchmarkInvariantError(message: "reduction failed: \(result.reason ?? "unknown")")
     }
+}
+
+private func recordGPUTime(_ benchmark: Benchmark, context: MetalExecutionContext) {
+    guard let seconds = context.lastCommandBufferGPUTimeSeconds else { return }
+    let nanoseconds = max(0, Int((seconds * 1_000_000_000).rounded()))
+    benchmark.measurement(SuperNeoBenchmarkMetrics.gpuCommandBufferTime, nanoseconds)
+    blackHole(nanoseconds)
 }
 
 private func registerEndToEndBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
@@ -154,20 +168,26 @@ private func registerEndToEndBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     }
 
     if let metalContext {
-        let metalProver = SuperNeoProver(parameters: fixture.parameters, key: fixture.key, context: metalContext)
+        let metalProver = SuperNeoProver(
+            parameters: fixture.parameters,
+            key: fixture.key,
+            context: metalContext,
+            executionPolicy: .metalAccelerated
+        )
         let metalPreparedContext = benchmarkSetupValue("failed to prepare Metal fold context for \(label)") {
             try metalProver.prepareFoldContext(for: fixture.input)
         }
-        Benchmark("fold/metal/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("fold/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let output = try metalProver.foldWithOutput(fixture.input, transcriptSeed: fixture.transcriptSeed)
             try requireBenchmarkInvariant(
                 output.proof == fixture.referenceFold.proof,
                 "Metal fold output did not match CPU reference for \(label)"
             )
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(output.outputClaims.count)
         }
 
-        Benchmark("fold/prepared/metal/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("fold/prepared/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let output = try metalProver.foldWithOutput(
                 fixture.input,
                 transcriptSeed: fixture.transcriptSeed,
@@ -177,7 +197,7 @@ private func registerEndToEndBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 output.proof == fixture.referenceFold.proof,
                 "prepared Metal fold output did not match CPU reference for \(label)"
             )
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(output.outputClaims.count)
         }
     }
@@ -373,10 +393,20 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 compiledShape: compiledShape
             )
         }
-        let metalProver = SuperNeoProver(parameters: fixture.parameters, key: fixture.key, context: metalContext)
-        let metalVerifier = SuperNeoVerifier(parameters: fixture.parameters, key: fixture.key, context: metalContext)
+        let metalProver = SuperNeoProver(
+            parameters: fixture.parameters,
+            key: fixture.key,
+            context: metalContext,
+            executionPolicy: .metalAccelerated
+        )
+        let metalVerifier = SuperNeoVerifier(
+            parameters: fixture.parameters,
+            key: fixture.key,
+            context: metalContext,
+            executionPolicy: .metalAccelerated
+        )
 
-        Benchmark("ceOpeningProof/prove/metal/\(label)", configuration: expensiveConfiguration) { _ in
+        Benchmark("ceOpeningProof/prove/metal/\(label)", configuration: expensiveConfiguration) { benchmark in
             let proof = try CEOpeningRelation.proveLocalBatchDeterministic(
                 statement: terminalStatement,
                 witnesses: terminalWitnesses,
@@ -387,11 +417,11 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 metalWorkspace: metalWorkspace
             )
             try requireBenchmarkInvariant(proof == ceOpeningProof, "Metal CE opening proof changed for \(label)")
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(proof.rounds.count)
         }
 
-        Benchmark("ceOpeningProof/verify/metal/\(label)", configuration: expensiveConfiguration) { _ in
+        Benchmark("ceOpeningProof/verify/metal/\(label)", configuration: expensiveConfiguration) { benchmark in
             try requireBenchmarkInvariant(
                 try CEOpeningRelation.verify(
                     proof: ceOpeningProof,
@@ -403,27 +433,27 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 ),
                 "Metal CE opening proof verification failed for \(label)"
             )
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
         }
 
-        Benchmark("compressedEnvelope/prove/metal/\(label)", configuration: expensiveConfiguration) { _ in
+        Benchmark("compressedEnvelope/prove/metal/\(label)", configuration: expensiveConfiguration) { benchmark in
             let envelope = try metalProver.compressedTerminalFoldEnvelopeDeterministic(
                 fixture.input,
                 context: compressedContext,
                 ceRandomSeed: compressedCESeed
             )
             try requireBenchmarkInvariant(envelope == compressedEnvelope, "Metal compressed envelope changed for \(label)")
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(envelope.superNeoBytes.count)
         }
 
-        Benchmark("compressedEnvelope/verify/metal/\(label)", configuration: expensiveConfiguration) { _ in
+        Benchmark("compressedEnvelope/verify/metal/\(label)", configuration: expensiveConfiguration) { benchmark in
             try requireValid(metalVerifier.verifyCompressedTerminalFoldEnvelope(
                 publicInput: fixture.publicInput,
                 proofBytes: compressedEnvelopeBytes,
                 context: compressedContext
             ))
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
         }
     }
 }
@@ -584,59 +614,59 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
             "Metal commitment setup did not match CPU reference for \(label)"
         )
 
-        Benchmark("kernel/fieldMultiply/metal/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/fieldMultiply/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let product = try metalBackend.multiply(fieldVector, fieldVector)
             try requireBenchmarkInvariant(product == zip(fieldVector, fieldVector).map(*), "Metal field multiply changed for \(label)")
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(product.count)
         }
 
-        Benchmark("kernel/ringMultiply/metal/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/ringMultiply/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let product = try metalBackend.multiply(ringVector, ringVector)
             try requireBenchmarkInvariant(product == zip(ringVector, ringVector).map(*), "Metal ring multiply changed for \(label)")
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(product.count)
         }
 
-        Benchmark("kernel/ringScalarMultiply/metal/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/ringScalarMultiply/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let product = try metalBackend.multiply(ringVector, by: scalarVector)
             try requireBenchmarkInvariant(
                 product == zip(ringVector, scalarVector).map { $0.scaled(by: $1) },
                 "Metal ring scalar multiply changed for \(label)"
             )
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(product.count)
         }
 
-        Benchmark("kernel/ajtaiCommit/metal/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/ajtaiCommit/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let commitment = try AjtaiCommitter.commit(
                 key: fixture.key,
                 fieldWitness: fieldVector,
                 context: metalContext
             )
             try requireBenchmarkInvariant(commitment == referenceCommitment, "Metal commitment changed for \(label)")
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(commitment.elements.count)
         }
 
-        Benchmark("kernel/ajtaiCommit/batch/metal/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/ajtaiCommit/batch/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let commitments = try metalBackend.ajtaiCommitments(key: fixture.key, messages: batchMessages)
             try requireBenchmarkInvariant(commitments == referenceBatchCommitments, "Metal batch commitment changed for \(label)")
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(commitments.count)
         }
 
-        Benchmark("kernel/ajtaiCommit/batchWorkspace/metal/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/ajtaiCommit/batchWorkspace/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let commitments = try metalWorkspace.ajtaiCommitments(messages: batchMessages)
             try requireBenchmarkInvariant(
                 commitments == referenceBatchCommitments,
                 "Metal workspace batch commitment changed for \(label)"
             )
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(commitments.count)
         }
 
-        Benchmark("kernel/transformedEvaluation/metalDense/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/transformedEvaluation/metalDense/\(label)", configuration: defaultConfiguration) { benchmark in
             let rows = try metalBackend.transformedMatrixVector(matrix: transformed, vector: ringVector)
             try requireBenchmarkInvariant(rows == referenceRows, "Metal transformed rows changed for \(label)")
             let evaluation = try metalBackend.transformedEvaluation(rows: rows, rHat: rHat)
@@ -644,11 +674,11 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 evaluation == referenceTransformedEvaluation,
                 "Metal transformed evaluation changed for \(label)"
             )
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(evaluation.count)
         }
 
-        Benchmark("kernel/transformedEvaluation/metalSparse/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/transformedEvaluation/metalSparse/\(label)", configuration: defaultConfiguration) { benchmark in
             let rows = try metalBackend.transformedMatrixVector(matrix: sparseTransformed, vector: ringVector)
             try requireBenchmarkInvariant(rows == referenceSparseRows, "Metal sparse transformed rows changed for \(label)")
             let evaluation = try metalBackend.transformedEvaluation(rows: rows, rHat: rHat)
@@ -656,11 +686,11 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 evaluation == referenceTransformedEvaluation,
                 "Metal sparse transformed evaluation changed for \(label)"
             )
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(evaluation.count)
         }
 
-        Benchmark("kernel/transformedEvaluation/metalSparseBatch/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/transformedEvaluation/metalSparseBatch/\(label)", configuration: defaultConfiguration) { benchmark in
             let evaluations = try metalBackend.transformedEvaluations(
                 matrices: sparseBatchMatrices,
                 vectors: batchMessages,
@@ -670,11 +700,11 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 evaluations == referenceSparseBatchEvaluations,
                 "Metal sparse batch transformed evaluation changed for \(label)"
             )
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(evaluations.count)
         }
 
-        Benchmark("kernel/transformedEvaluation/metalSparseBatchWorkspace/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/transformedEvaluation/metalSparseBatchWorkspace/\(label)", configuration: defaultConfiguration) { benchmark in
             let evaluations = try metalWorkspace.transformedEvaluations(
                 vectors: batchMessages,
                 point: point
@@ -683,11 +713,11 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 evaluations == referenceSparseBatchEvaluations,
                 "Metal workspace sparse batch transformed evaluation changed for \(label)"
             )
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(evaluations.count)
         }
 
-        Benchmark("kernel/combinedCommitEval/batchWorkspace/metal/\(label)", configuration: defaultConfiguration) { _ in
+        Benchmark("kernel/combinedCommitEval/batchWorkspace/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
                 messages: batchMessages,
                 point: point
@@ -700,7 +730,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 combined.evaluations == referenceSparseBatchEvaluations,
                 "Metal combined workspace transformed evaluations changed for \(label)"
             )
-            blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+            recordGPUTime(benchmark, context: metalContext)
             blackHole(combined.commitments.count + combined.evaluations.count)
         }
 
@@ -712,7 +742,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 try AjtaiMatvecSchedule(maxBatchSize: 32)
             }
 
-            Benchmark("kernel/ajtaiCommit/batchWorkspace16/b32/metal/\(label)", configuration: defaultConfiguration) { _ in
+            Benchmark("kernel/ajtaiCommit/batchWorkspace16/b32/metal/\(label)", configuration: defaultConfiguration) { benchmark in
                 let commitments = try metalWorkspace.ajtaiCommitments(
                     messages: batchSizingMessages,
                     schedule: schedule16
@@ -721,11 +751,11 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                     commitments == referenceBatchSizingCommitments,
                     "Metal workspace batch-16 commitments changed for \(label)"
                 )
-                blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+                recordGPUTime(benchmark, context: metalContext)
                 blackHole(commitments.count)
             }
 
-            Benchmark("kernel/ajtaiCommit/batchWorkspace32/b32/metal/\(label)", configuration: defaultConfiguration) { _ in
+            Benchmark("kernel/ajtaiCommit/batchWorkspace32/b32/metal/\(label)", configuration: defaultConfiguration) { benchmark in
                 let commitments = try metalWorkspace.ajtaiCommitments(
                     messages: batchSizingMessages,
                     schedule: schedule32
@@ -734,11 +764,11 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                     commitments == referenceBatchSizingCommitments,
                     "Metal workspace batch-32 commitments changed for \(label)"
                 )
-                blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+                recordGPUTime(benchmark, context: metalContext)
                 blackHole(commitments.count)
             }
 
-            Benchmark("kernel/combinedCommitEval/batchWorkspace32/b32/metal/\(label)", configuration: defaultConfiguration) { _ in
+            Benchmark("kernel/combinedCommitEval/batchWorkspace32/b32/metal/\(label)", configuration: defaultConfiguration) { benchmark in
                 let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
                     messages: batchSizingMessages,
                     point: point,
@@ -748,7 +778,7 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                     combined.commitments == referenceBatchSizingCommitments,
                     "Metal combined workspace batch-32 commitments changed for \(label)"
                 )
-                blackHole(metalContext.lastCommandBufferGPUTimeSeconds ?? 0)
+                recordGPUTime(benchmark, context: metalContext)
                 blackHole(combined.commitments.count + combined.evaluations.count)
             }
         }

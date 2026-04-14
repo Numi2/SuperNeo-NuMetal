@@ -20,6 +20,12 @@ fileprivate struct SparseRingMatrixBatchBuffers {
     let columns: Int
 }
 
+fileprivate enum SparseEvaluationDispatchPlan {
+    case rowPartial(wordCount: Int)
+    case blocked(wordCount: Int)
+    case fused
+}
+
 public final class SuperNeoMetalWorkspace: @unchecked Sendable {
     public let context: MetalExecutionContext
     public let key: AjtaiCommitmentKey
@@ -69,10 +75,15 @@ public final class SuperNeoMetalWorkspace: @unchecked Sendable {
         self.transformedMatricesDigest = Self.transformedMatricesDigest(for: transformedSparseMatrices)
         self.keyMatrixBuffer = try context.makeBuffer(backend.flatten(key.matrix.elements))
         self.transformedSparseMatrices = transformedSparseMatrices
-        self.transformedMatrixBuffers = try transformedSparseMatrices.map {
-            try backend.makeSparseRingMatrixBuffers($0)
+        let batchBuffers = try backend.makeSparseRingMatrixBatchBuffers(transformedSparseMatrices)
+        self.transformedMatrixBatchBuffers = batchBuffers
+        if batchBuffers == nil {
+            self.transformedMatrixBuffers = try transformedSparseMatrices.map {
+                try backend.makeSparseRingMatrixBuffers($0)
+            }
+        } else {
+            self.transformedMatrixBuffers = []
         }
-        self.transformedMatrixBatchBuffers = try backend.makeSparseRingMatrixBatchBuffers(transformedSparseMatrices)
     }
 
     public func ajtaiCommitments(
@@ -263,6 +274,24 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         }
         return value
     }()
+    private static let fusedEvaluationRowPartialThreshold: Int = {
+        guard let rawValue = ProcessInfo.processInfo.environment["SUPERNEO_METAL_EVAL_ROW_PARTIAL_THRESHOLD"],
+              let value = Int(rawValue),
+              value > 0 else {
+            // Correct but not a default win on the current m64 local benchmark;
+            // keep it available for hardware/profile tuning.
+            return Int.max
+        }
+        return value
+    }()
+    private static let fusedEvaluationRowPartialMaxWordCount: Int = {
+        guard let rawValue = ProcessInfo.processInfo.environment["SUPERNEO_METAL_EVAL_ROW_PARTIAL_MAX_WORDS"],
+              let value = Int(rawValue),
+              value > 0 else {
+            return 4_194_304
+        }
+        return value
+    }()
     private static let fusedEvaluationBlockedRowThreshold = 512
     private static let sparseAwareDenseMatvecColumnThreshold = 128
 
@@ -327,7 +356,7 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         try context.dispatch1D(
             pipelineName: "ring_mul_kernel",
             buffers: [lhsBuffer, rhsBuffer, outputBuffer],
-            elementCount: lhs.count
+            elementCount: coefficientCount
         )
         return try inflateRings(outputBuffer.array(of: UInt64.self, count: coefficientCount))
     }
@@ -426,7 +455,8 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             [outputRingCount, CyclotomicRing54.degree],
             name: "Ajtai output coefficient count"
         )
-        let messageBuffer = try context.makeBuffer(flatten(messages))
+        let messageWords = flatten(messages)
+        let messageBuffer = try context.makeBuffer(messageWords)
         let outputBuffer = try context.makeEmptyBuffer(
             count: outputCoefficientCount,
             as: UInt64.self
@@ -436,10 +466,14 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             checkedUInt32(columnCount, name: "Ajtai column count"),
             checkedUInt32(batchCount, name: "Ajtai batch count")
         ]
-        let paramsBuffer = try context.makeBuffer(params)
+        let pipelineName = rawWordsUseOnlySmallCoefficients(messageWords)
+            ? "ajtai_matvec_ring_batch_coeff_small_message_kernel"
+            : "ajtai_matvec_ring_batch_coeff_kernel"
         try context.dispatch1D(
-            pipelineName: "ajtai_matvec_ring_batch_coeff_kernel",
-            buffers: [matrixBuffer, messageBuffer, outputBuffer, paramsBuffer],
+            pipelineName: pipelineName,
+            buffers: [matrixBuffer, messageBuffer, outputBuffer],
+            inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 3, values: params)],
+            countBufferIndex: 4,
             elementCount: outputCoefficientCount
         )
 
@@ -469,10 +503,11 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         let pipelineName = matrix.columns >= Self.sparseAwareDenseMatvecColumnThreshold
             ? "transformed_matvec_sparse_aware_kernel"
             : "transformed_matvec_kernel"
-        let paramsBuffer = try context.makeBuffer(params)
         try context.dispatch1D(
             pipelineName: pipelineName,
-            buffers: [matrixBuffer, vectorBuffer, outputBuffer, paramsBuffer],
+            buffers: [matrixBuffer, vectorBuffer, outputBuffer],
+            inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 3, values: params)],
+            countBufferIndex: 4,
             elementCount: matrix.rows
         )
         return try inflateRings(outputBuffer.array(of: UInt64.self, count: outputCount))
@@ -492,14 +527,16 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             name: "sparse transformed matrix output coefficient count"
         )
         let outputBuffer = try context.makeEmptyBuffer(count: outputCount, as: UInt64.self)
-        let paramsBuffer = try context.makeBuffer([
+        let params = try [
             checkedUInt32(matrix.rows, name: "sparse transformed matrix row count"),
             checkedUInt32(matrix.columns, name: "sparse transformed matrix column count"),
             checkedUInt32(matrix.values.count, name: "sparse transformed matrix value count")
-        ])
+        ]
         try context.dispatch1D(
             pipelineName: "sparse_transformed_matvec_kernel",
-            buffers: [rowOffsetsBuffer, columnIndicesBuffer, valuesBuffer, vectorBuffer, outputBuffer, paramsBuffer],
+            buffers: [rowOffsetsBuffer, columnIndicesBuffer, valuesBuffer, vectorBuffer, outputBuffer],
+            inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 5, values: params)],
+            countBufferIndex: 6,
             elementCount: matrix.rows
         )
         return try inflateRings(outputBuffer.array(of: UInt64.self, count: outputCount))
@@ -513,12 +550,14 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         let rowsBuffer = try context.makeBuffer(flatten(rows))
         let rHatBuffer = try context.makeBuffer(flattenExt2(rHat))
         let outputBuffer = try context.makeEmptyBuffer(count: CyclotomicRing54.degree * 2, as: UInt64.self)
-        let paramsBuffer = try context.makeBuffer([
+        let params = try [
             checkedUInt32(rows.count, name: "transformed evaluation row count")
-        ])
+        ]
         try context.dispatch1D(
             pipelineName: "transformed_eval_dot_kernel",
-            buffers: [rowsBuffer, rHatBuffer, outputBuffer, paramsBuffer],
+            buffers: [rowsBuffer, rHatBuffer, outputBuffer],
+            inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 3, values: params)],
+            countBufferIndex: 4,
             elementCount: CyclotomicRing54.degree
         )
         return inflateExt2(outputBuffer.array(of: UInt64.self, count: CyclotomicRing54.degree * 2))
@@ -702,66 +741,197 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             throw SuperNeoError.invalidParameter("sparse transformed matrix/vector dimension mismatch")
         }
 
-        let vectorBuffer = try context.makeBuffer(flatten(vectors))
-        let rHatBuffer = try context.makeBuffer(flattenExt2(rHat))
+        let vectorWords = flatten(vectors)
+        let rHatWords = flattenExt2(rHat)
         let outputWordCount = try checkedProduct(
             [vectors.count, batchBuffers.matrixCount, CyclotomicRing54.degree, 2],
             name: "sparse transformed evaluation output word count"
         )
-        let outputBuffer = try context.makeEmptyBuffer(count: outputWordCount, as: UInt64.self)
         let rowBlockSize = Self.fusedEvaluationRowBlockSize
         let rowBlockCount = try checkedCeilDiv(
             batchBuffers.rows,
             by: rowBlockSize,
             name: "sparse transformed evaluation row block count"
         )
-
-        if batchBuffers.rows >= Self.fusedEvaluationBlockedRowThreshold, rowBlockCount > 1 {
+        let dispatchPlan: SparseEvaluationDispatchPlan
+        if batchBuffers.rows >= Self.fusedEvaluationRowPartialThreshold,
+           batchBuffers.rows < Self.fusedEvaluationBlockedRowThreshold {
+            let rowPartialWordCount = try checkedProduct(
+                [vectors.count, batchBuffers.matrixCount, batchBuffers.rows, CyclotomicRing54.degree, 2],
+                name: "sparse transformed evaluation row partial word count"
+            )
+            if rowPartialWordCount <= Self.fusedEvaluationRowPartialMaxWordCount {
+                dispatchPlan = .rowPartial(wordCount: rowPartialWordCount)
+            } else {
+                dispatchPlan = .fused
+            }
+        } else if batchBuffers.rows >= Self.fusedEvaluationBlockedRowThreshold, rowBlockCount > 1 {
             let partialWordCount = try checkedProduct(
                 [vectors.count, batchBuffers.matrixCount, rowBlockCount, CyclotomicRing54.degree, 2],
                 name: "sparse transformed evaluation partial word count"
             )
-            let partialBuffer = try context.makeEmptyBuffer(count: partialWordCount, as: UInt64.self)
-            let paramsBuffer = try context.makeBuffer([
-                checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
-                checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
-                checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
-                checkedUInt32(vectors.count, name: "sparse transformed vector batch count"),
-                checkedUInt32(rowBlockSize, name: "sparse transformed row block size"),
-                checkedUInt32(rowBlockCount, name: "sparse transformed row block count")
-            ])
+            dispatchPlan = .blocked(wordCount: partialWordCount)
+        } else {
+            dispatchPlan = .fused
+        }
 
-            try context.dispatch1DSequence([
-                MetalDispatchCommand(
-                    pipelineName: "sparse_transformed_eval_block_partial_kernel",
+        var requests = try [
+            MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: vectorWords.count,
+                    as: UInt64.self,
+                    role: "sparse transformed evaluation vector buffer"
+                ),
+                role: "sparse transformed evaluation vector buffer"
+            ),
+            MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: rHatWords.count,
+                    as: UInt64.self,
+                    role: "sparse transformed evaluation rHat buffer"
+                ),
+                role: "sparse transformed evaluation rHat buffer"
+            ),
+            MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: outputWordCount,
+                    as: UInt64.self,
+                    role: "sparse transformed evaluation output buffer"
+                ),
+                role: "sparse transformed evaluation output buffer"
+            )
+        ]
+        switch dispatchPlan {
+        case .rowPartial(let wordCount), .blocked(let wordCount):
+            requests.append(try MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: wordCount,
+                    as: UInt64.self,
+                    role: "sparse transformed evaluation partial buffer"
+                ),
+                role: "sparse transformed evaluation partial buffer"
+            ))
+        case .fused:
+            break
+        }
+
+        return try context.withTemporaryBuffers(requests) { temporaryBuffers in
+            let vectorBuffer = temporaryBuffers[0]
+            let rHatBuffer = temporaryBuffers[1]
+            let outputBuffer = temporaryBuffers[2]
+            try context.copyValues(vectorWords, to: vectorBuffer, role: "sparse transformed evaluation vector buffer")
+            try context.copyValues(rHatWords, to: rHatBuffer, role: "sparse transformed evaluation rHat buffer")
+
+            switch dispatchPlan {
+            case .rowPartial:
+                let partialBuffer = temporaryBuffers[3]
+                let params = try [
+                    checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
+                    checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
+                    checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
+                    checkedUInt32(vectors.count, name: "sparse transformed vector batch count")
+                ]
+                try context.dispatch1DSequence([
+                    MetalDispatchCommand(
+                        pipelineName: "sparse_transformed_eval_row_partial_kernel",
+                        buffers: [
+                            batchBuffers.rowOffsets,
+                            batchBuffers.columnIndices,
+                            batchBuffers.values,
+                            vectorBuffer,
+                            rHatBuffer,
+                            partialBuffer
+                        ],
+                        inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 6, values: params)],
+                        elementCount: try checkedProduct(
+                            [vectors.count, batchBuffers.matrixCount, batchBuffers.rows],
+                            name: "sparse transformed evaluation row partial element count"
+                        ),
+                        countBufferIndex: 7
+                    ),
+                    MetalDispatchCommand(
+                        pipelineName: "sparse_transformed_eval_row_reduce_kernel",
+                        buffers: [
+                            partialBuffer,
+                            outputBuffer
+                        ],
+                        inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 2, values: params)],
+                        elementCount: try checkedProduct(
+                            [vectors.count, batchBuffers.matrixCount, CyclotomicRing54.degree],
+                            name: "sparse transformed evaluation row reduce element count"
+                        ),
+                        countBufferIndex: 3,
+                        barrierAfter: false
+                    )
+                ])
+            case .blocked:
+                let partialBuffer = temporaryBuffers[3]
+                let params = try [
+                    checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
+                    checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
+                    checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
+                    checkedUInt32(vectors.count, name: "sparse transformed vector batch count"),
+                    checkedUInt32(rowBlockSize, name: "sparse transformed row block size"),
+                    checkedUInt32(rowBlockCount, name: "sparse transformed row block count")
+                ]
+                try context.dispatch1DSequence([
+                    MetalDispatchCommand(
+                        pipelineName: "sparse_transformed_eval_block_partial_kernel",
+                        buffers: [
+                            batchBuffers.rowOffsets,
+                            batchBuffers.columnIndices,
+                            batchBuffers.values,
+                            vectorBuffer,
+                            rHatBuffer,
+                            partialBuffer
+                        ],
+                        inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 6, values: params)],
+                        elementCount: try checkedProduct(
+                            [vectors.count, batchBuffers.matrixCount, rowBlockCount, CyclotomicRing54.degree],
+                            name: "sparse transformed evaluation partial element count"
+                        ),
+                        countBufferIndex: 7
+                    ),
+                    MetalDispatchCommand(
+                        pipelineName: "sparse_transformed_eval_block_reduce_kernel",
+                        buffers: [
+                            partialBuffer,
+                            outputBuffer
+                        ],
+                        inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 2, values: params)],
+                        elementCount: try checkedProduct(
+                            [vectors.count, batchBuffers.matrixCount, CyclotomicRing54.degree],
+                            name: "sparse transformed evaluation reduce element count"
+                        ),
+                        countBufferIndex: 3,
+                        barrierAfter: false
+                    )
+                ])
+            case .fused:
+                let params = try [
+                    checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
+                    checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
+                    checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
+                    checkedUInt32(vectors.count, name: "sparse transformed vector batch count")
+                ]
+                try context.dispatch1D(
+                    pipelineName: "sparse_transformed_eval_fused_kernel",
                     buffers: [
                         batchBuffers.rowOffsets,
                         batchBuffers.columnIndices,
                         batchBuffers.values,
                         vectorBuffer,
                         rHatBuffer,
-                        partialBuffer,
-                        paramsBuffer
+                        outputBuffer
                     ],
-                    elementCount: try checkedProduct(
-                        [vectors.count, batchBuffers.matrixCount, rowBlockCount, CyclotomicRing54.degree],
-                        name: "sparse transformed evaluation partial element count"
-                    )
-                ),
-                MetalDispatchCommand(
-                    pipelineName: "sparse_transformed_eval_block_reduce_kernel",
-                    buffers: [
-                        partialBuffer,
-                        outputBuffer,
-                        paramsBuffer
-                    ],
+                    inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 6, values: params)],
+                    countBufferIndex: 7,
                     elementCount: try checkedProduct(
                         [vectors.count, batchBuffers.matrixCount, CyclotomicRing54.degree],
-                        name: "sparse transformed evaluation reduce element count"
-                    ),
-                    barrierAfter: false
+                        name: "sparse transformed evaluation fused element count"
+                    )
                 )
-            ])
+            }
 
             return try transformedEvaluationResults(
                 outputBuffer: outputBuffer,
@@ -770,37 +940,6 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                 matrixCount: batchBuffers.matrixCount
             )
         }
-
-        let paramsBuffer = try context.makeBuffer([
-            checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
-            checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
-            checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
-            checkedUInt32(vectors.count, name: "sparse transformed vector batch count")
-        ])
-
-        try context.dispatch1D(
-            pipelineName: "sparse_transformed_eval_fused_kernel",
-            buffers: [
-                batchBuffers.rowOffsets,
-                batchBuffers.columnIndices,
-                batchBuffers.values,
-                vectorBuffer,
-                rHatBuffer,
-                outputBuffer,
-                paramsBuffer
-            ],
-            elementCount: try checkedProduct(
-                [vectors.count, batchBuffers.matrixCount, CyclotomicRing54.degree],
-                name: "sparse transformed evaluation fused element count"
-            )
-        )
-
-        return try transformedEvaluationResults(
-            outputBuffer: outputBuffer,
-            outputWordCount: outputWordCount,
-            vectorCount: vectors.count,
-            matrixCount: batchBuffers.matrixCount
-        )
     }
 
     fileprivate func commitmentsAndTransformedEvaluations(
@@ -846,8 +985,9 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         let rowCount = key.matrix.rows
         let columnCount = key.matrix.columns
         let batchCount = messages.count
-        let vectorBuffer = try context.makeBuffer(flatten(messages))
-        let rHatBuffer = try context.makeBuffer(flattenExt2(rHat))
+        let vectorWords = flatten(messages)
+        let useSmallMessageAjtaiKernel = rawWordsUseOnlySmallCoefficients(vectorWords)
+        let rHatWords = flattenExt2(rHat)
         let commitmentOutputRingCount = try checkedProduct(
             [batchCount, rowCount],
             name: "combined commitment output ring count"
@@ -856,29 +996,35 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             [commitmentOutputRingCount, CyclotomicRing54.degree],
             name: "combined commitment output coefficient count"
         )
-        let commitmentOutputBuffer = try context.makeEmptyBuffer(
-            count: commitmentOutputCoefficientCount,
-            as: UInt64.self
-        )
         let evaluationOutputWordCount = try checkedProduct(
             [batchCount, batchBuffers.matrixCount, CyclotomicRing54.degree, 2],
             name: "combined evaluation output word count"
         )
-        let evaluationOutputBuffer = try context.makeEmptyBuffer(count: evaluationOutputWordCount, as: UInt64.self)
 
-        let ajtaiParamsBuffer = try context.makeBuffer([
-            checkedUInt32(rowCount, name: "Ajtai row count"),
-            checkedUInt32(columnCount, name: "Ajtai column count"),
-            checkedUInt32(batchCount, name: "Ajtai batch count")
-        ])
-        var commands = [
-            MetalDispatchCommand(
-                pipelineName: "ajtai_matvec_ring_batch_coeff_kernel",
-                buffers: [matrixBuffer, vectorBuffer, commitmentOutputBuffer, ajtaiParamsBuffer],
-                elementCount: commitmentOutputCoefficientCount,
-                barrierAfter: false
+        let coefficientMajorMessageWords: [UInt64]?
+        let ajtaiPartialCoefficientCount: Int?
+        let tileCount: Int?
+        switch planned.kernel {
+        case .coefficient:
+            coefficientMajorMessageWords = nil
+            ajtaiPartialCoefficientCount = nil
+            tileCount = nil
+        case .tiled:
+            let plannedTileCount = try checkedCeilDiv(columnCount, by: planned.columnTileSize, name: "Ajtai tile count")
+            let partialRingCount = try checkedProduct(
+                [batchCount, plannedTileCount, rowCount],
+                name: "Ajtai partial ring count"
             )
-        ]
+            coefficientMajorMessageWords = try flattenCoefficientMajorMessages(
+                messages,
+                columnCount: columnCount
+            )
+            ajtaiPartialCoefficientCount = try checkedProduct(
+                [partialRingCount, CyclotomicRing54.degree],
+                name: "Ajtai partial coefficient count"
+            )
+            tileCount = plannedTileCount
+        }
 
         let rowBlockSize = Self.fusedEvaluationRowBlockSize
         let rowBlockCount = try checkedCeilDiv(
@@ -886,89 +1032,299 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             by: rowBlockSize,
             name: "combined sparse transformed evaluation row block count"
         )
-        if batchBuffers.rows >= Self.fusedEvaluationBlockedRowThreshold, rowBlockCount > 1 {
+        let evaluationDispatchPlan: SparseEvaluationDispatchPlan
+        if batchBuffers.rows >= Self.fusedEvaluationRowPartialThreshold,
+           batchBuffers.rows < Self.fusedEvaluationBlockedRowThreshold {
+            let rowPartialWordCount = try checkedProduct(
+                [batchCount, batchBuffers.matrixCount, batchBuffers.rows, CyclotomicRing54.degree, 2],
+                name: "combined evaluation row partial word count"
+            )
+            if rowPartialWordCount <= Self.fusedEvaluationRowPartialMaxWordCount {
+                evaluationDispatchPlan = .rowPartial(wordCount: rowPartialWordCount)
+            } else {
+                evaluationDispatchPlan = .fused
+            }
+        } else if batchBuffers.rows >= Self.fusedEvaluationBlockedRowThreshold, rowBlockCount > 1 {
             let partialWordCount = try checkedProduct(
                 [batchCount, batchBuffers.matrixCount, rowBlockCount, CyclotomicRing54.degree, 2],
                 name: "combined evaluation partial word count"
             )
-            let partialBuffer = try context.makeEmptyBuffer(count: partialWordCount, as: UInt64.self)
-            let paramsBuffer = try context.makeBuffer([
-                checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
-                checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
-                checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
-                checkedUInt32(batchCount, name: "sparse transformed vector batch count"),
-                checkedUInt32(rowBlockSize, name: "sparse transformed row block size"),
-                checkedUInt32(rowBlockCount, name: "sparse transformed row block count")
-            ])
-            commands.append(MetalDispatchCommand(
-                pipelineName: "sparse_transformed_eval_block_partial_kernel",
-                buffers: [
-                    batchBuffers.rowOffsets,
-                    batchBuffers.columnIndices,
-                    batchBuffers.values,
-                    vectorBuffer,
-                    rHatBuffer,
-                    partialBuffer,
-                    paramsBuffer
-                ],
-                elementCount: try checkedProduct(
-                    [batchCount, batchBuffers.matrixCount, rowBlockCount, CyclotomicRing54.degree],
-                    name: "combined evaluation partial element count"
-                )
-            ))
-            commands.append(MetalDispatchCommand(
-                pipelineName: "sparse_transformed_eval_block_reduce_kernel",
-                buffers: [
-                    partialBuffer,
-                    evaluationOutputBuffer,
-                    paramsBuffer
-                ],
-                elementCount: try checkedProduct(
-                    [batchCount, batchBuffers.matrixCount, CyclotomicRing54.degree],
-                    name: "combined evaluation reduce element count"
-                ),
-                barrierAfter: false
-            ))
+            evaluationDispatchPlan = .blocked(wordCount: partialWordCount)
         } else {
-            let paramsBuffer = try context.makeBuffer([
-                checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
-                checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
-                checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
-                checkedUInt32(batchCount, name: "sparse transformed vector batch count")
-            ])
-            commands.append(MetalDispatchCommand(
-                pipelineName: "sparse_transformed_eval_fused_kernel",
-                buffers: [
-                    batchBuffers.rowOffsets,
-                    batchBuffers.columnIndices,
-                    batchBuffers.values,
-                    vectorBuffer,
-                    rHatBuffer,
-                    evaluationOutputBuffer,
-                    paramsBuffer
-                ],
-                elementCount: try checkedProduct(
-                    [batchCount, batchBuffers.matrixCount, CyclotomicRing54.degree],
-                    name: "combined evaluation fused element count"
-                ),
-                barrierAfter: false
-            ))
+            evaluationDispatchPlan = .fused
         }
 
-        try context.dispatch1DSequence(commands)
-        return (
-            try ajtaiCommitmentResults(
-                outputBuffer: commitmentOutputBuffer,
-                outputRingCount: commitmentOutputRingCount,
-                rowCount: rowCount
+        var requests = try [
+            MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: vectorWords.count,
+                    as: UInt64.self,
+                    role: "combined commit/eval vector buffer"
+                ),
+                role: "combined commit/eval vector buffer"
             ),
-            try transformedEvaluationResults(
-                outputBuffer: evaluationOutputBuffer,
-                outputWordCount: evaluationOutputWordCount,
-                vectorCount: batchCount,
-                matrixCount: batchBuffers.matrixCount
+            MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: rHatWords.count,
+                    as: UInt64.self,
+                    role: "combined commit/eval rHat buffer"
+                ),
+                role: "combined commit/eval rHat buffer"
+            ),
+            MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: commitmentOutputCoefficientCount,
+                    as: UInt64.self,
+                    role: "combined commitment output buffer"
+                ),
+                role: "combined commitment output buffer"
+            ),
+            MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: evaluationOutputWordCount,
+                    as: UInt64.self,
+                    role: "combined evaluation output buffer"
+                ),
+                role: "combined evaluation output buffer"
             )
-        )
+        ]
+        var coefficientMajorBufferIndex: Int?
+        var ajtaiPartialBufferIndex: Int?
+        if let coefficientMajorMessageWords, let ajtaiPartialCoefficientCount {
+            coefficientMajorBufferIndex = requests.count
+            requests.append(try MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: coefficientMajorMessageWords.count,
+                    as: UInt64.self,
+                    role: "combined tiled Ajtai message buffer"
+                ),
+                role: "combined tiled Ajtai message buffer"
+            ))
+            ajtaiPartialBufferIndex = requests.count
+            requests.append(try MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: ajtaiPartialCoefficientCount,
+                    as: UInt64.self,
+                    role: "combined tiled Ajtai partial buffer"
+                ),
+                role: "combined tiled Ajtai partial buffer"
+            ))
+        }
+        var evaluationPartialBufferIndex: Int?
+        switch evaluationDispatchPlan {
+        case .rowPartial(let wordCount), .blocked(let wordCount):
+            evaluationPartialBufferIndex = requests.count
+            requests.append(try MetalTemporaryBufferRequest(
+                byteLength: context.temporaryBufferByteLength(
+                    count: wordCount,
+                    as: UInt64.self,
+                    role: "combined evaluation partial buffer"
+                ),
+                role: "combined evaluation partial buffer"
+            ))
+        case .fused:
+            break
+        }
+
+        return try context.withTemporaryBuffers(requests) { temporaryBuffers in
+            let vectorBuffer = temporaryBuffers[0]
+            let rHatBuffer = temporaryBuffers[1]
+            let commitmentOutputBuffer = temporaryBuffers[2]
+            let evaluationOutputBuffer = temporaryBuffers[3]
+            try context.copyValues(vectorWords, to: vectorBuffer, role: "combined commit/eval vector buffer")
+            try context.copyValues(rHatWords, to: rHatBuffer, role: "combined commit/eval rHat buffer")
+
+            var commands: [MetalDispatchCommand] = []
+            switch planned.kernel {
+            case .coefficient:
+                let ajtaiParams = try [
+                    checkedUInt32(rowCount, name: "Ajtai row count"),
+                    checkedUInt32(columnCount, name: "Ajtai column count"),
+                    checkedUInt32(batchCount, name: "Ajtai batch count")
+                ]
+                commands.append(MetalDispatchCommand(
+                    pipelineName: useSmallMessageAjtaiKernel
+                        ? "ajtai_matvec_ring_batch_coeff_small_message_kernel"
+                        : "ajtai_matvec_ring_batch_coeff_kernel",
+                    buffers: [matrixBuffer, vectorBuffer, commitmentOutputBuffer],
+                    inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 3, values: ajtaiParams)],
+                    elementCount: commitmentOutputCoefficientCount,
+                    countBufferIndex: 4,
+                    barrierAfter: false
+                ))
+            case .tiled:
+                guard let tileCount,
+                      let coefficientMajorMessageWords,
+                      let coefficientMajorBufferIndex,
+                      let ajtaiPartialBufferIndex else {
+                    throw SuperNeoError.metalFailure("combined tiled Ajtai temporary buffers were not prepared")
+                }
+                let coefficientMajorMessageBuffer = temporaryBuffers[coefficientMajorBufferIndex]
+                let partialBuffer = temporaryBuffers[ajtaiPartialBufferIndex]
+                try context.copyValues(
+                    coefficientMajorMessageWords,
+                    to: coefficientMajorMessageBuffer,
+                    role: "combined tiled Ajtai message buffer"
+                )
+                let partialRingCount = try checkedProduct(
+                    [batchCount, tileCount, rowCount],
+                    name: "Ajtai partial ring count"
+                )
+                let ajtaiParams = try [
+                    checkedUInt32(rowCount, name: "Ajtai row count"),
+                    checkedUInt32(columnCount, name: "Ajtai column count"),
+                    checkedUInt32(planned.columnTileSize, name: "Ajtai column tile size"),
+                    checkedUInt32(tileCount, name: "Ajtai tile count"),
+                    checkedUInt32(batchCount, name: "Ajtai batch count")
+                ]
+                commands.append(MetalDispatchCommand(
+                    pipelineName: "ajtai_matvec_tile_kernel",
+                    buffers: [matrixBuffer, coefficientMajorMessageBuffer, partialBuffer],
+                    inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 3, values: ajtaiParams)],
+                    elementCount: partialRingCount,
+                    threadsPerThreadgroup: planned.rowTileSize,
+                    countBufferIndex: 4
+                ))
+                commands.append(MetalDispatchCommand(
+                    pipelineName: "ajtai_matvec_reduce_kernel",
+                    buffers: [partialBuffer, commitmentOutputBuffer],
+                    inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 2, values: ajtaiParams)],
+                    elementCount: commitmentOutputRingCount,
+                    threadsPerThreadgroup: planned.rowTileSize,
+                    countBufferIndex: 3,
+                    barrierAfter: false
+                ))
+            }
+
+            switch evaluationDispatchPlan {
+            case .rowPartial:
+                guard let evaluationPartialBufferIndex else {
+                    throw SuperNeoError.metalFailure("combined row-partial evaluation buffer was not prepared")
+                }
+                let partialBuffer = temporaryBuffers[evaluationPartialBufferIndex]
+                let params = try [
+                    checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
+                    checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
+                    checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
+                    checkedUInt32(batchCount, name: "sparse transformed vector batch count")
+                ]
+                commands.append(MetalDispatchCommand(
+                    pipelineName: "sparse_transformed_eval_row_partial_kernel",
+                    buffers: [
+                        batchBuffers.rowOffsets,
+                        batchBuffers.columnIndices,
+                        batchBuffers.values,
+                        vectorBuffer,
+                        rHatBuffer,
+                        partialBuffer
+                    ],
+                    inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 6, values: params)],
+                    elementCount: try checkedProduct(
+                        [batchCount, batchBuffers.matrixCount, batchBuffers.rows],
+                        name: "combined evaluation row partial element count"
+                    ),
+                    countBufferIndex: 7
+                ))
+                commands.append(MetalDispatchCommand(
+                    pipelineName: "sparse_transformed_eval_row_reduce_kernel",
+                    buffers: [
+                        partialBuffer,
+                        evaluationOutputBuffer
+                    ],
+                    inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 2, values: params)],
+                    elementCount: try checkedProduct(
+                        [batchCount, batchBuffers.matrixCount, CyclotomicRing54.degree],
+                        name: "combined evaluation row reduce element count"
+                    ),
+                    countBufferIndex: 3,
+                    barrierAfter: false
+                ))
+            case .blocked:
+                guard let evaluationPartialBufferIndex else {
+                    throw SuperNeoError.metalFailure("combined blocked evaluation buffer was not prepared")
+                }
+                let partialBuffer = temporaryBuffers[evaluationPartialBufferIndex]
+                let params = try [
+                    checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
+                    checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
+                    checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
+                    checkedUInt32(batchCount, name: "sparse transformed vector batch count"),
+                    checkedUInt32(rowBlockSize, name: "sparse transformed row block size"),
+                    checkedUInt32(rowBlockCount, name: "sparse transformed row block count")
+                ]
+                commands.append(MetalDispatchCommand(
+                    pipelineName: "sparse_transformed_eval_block_partial_kernel",
+                    buffers: [
+                        batchBuffers.rowOffsets,
+                        batchBuffers.columnIndices,
+                        batchBuffers.values,
+                        vectorBuffer,
+                        rHatBuffer,
+                        partialBuffer
+                    ],
+                    inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 6, values: params)],
+                    elementCount: try checkedProduct(
+                        [batchCount, batchBuffers.matrixCount, rowBlockCount, CyclotomicRing54.degree],
+                        name: "combined evaluation partial element count"
+                    ),
+                    countBufferIndex: 7
+                ))
+                commands.append(MetalDispatchCommand(
+                    pipelineName: "sparse_transformed_eval_block_reduce_kernel",
+                    buffers: [
+                        partialBuffer,
+                        evaluationOutputBuffer
+                    ],
+                    inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 2, values: params)],
+                    elementCount: try checkedProduct(
+                        [batchCount, batchBuffers.matrixCount, CyclotomicRing54.degree],
+                        name: "combined evaluation reduce element count"
+                    ),
+                    countBufferIndex: 3,
+                    barrierAfter: false
+                ))
+            case .fused:
+                let params = try [
+                    checkedUInt32(batchBuffers.matrixCount, name: "sparse transformed matrix batch count"),
+                    checkedUInt32(batchBuffers.rows, name: "sparse transformed matrix row count"),
+                    checkedUInt32(batchBuffers.columns, name: "sparse transformed matrix column count"),
+                    checkedUInt32(batchCount, name: "sparse transformed vector batch count")
+                ]
+                commands.append(MetalDispatchCommand(
+                    pipelineName: "sparse_transformed_eval_fused_kernel",
+                    buffers: [
+                        batchBuffers.rowOffsets,
+                        batchBuffers.columnIndices,
+                        batchBuffers.values,
+                        vectorBuffer,
+                        rHatBuffer,
+                        evaluationOutputBuffer
+                    ],
+                    inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 6, values: params)],
+                    elementCount: try checkedProduct(
+                        [batchCount, batchBuffers.matrixCount, CyclotomicRing54.degree],
+                        name: "combined evaluation fused element count"
+                    ),
+                    countBufferIndex: 7,
+                    barrierAfter: false
+                ))
+            }
+
+            try context.dispatch1DSequence(commands)
+            return (
+                try ajtaiCommitmentResults(
+                    outputBuffer: commitmentOutputBuffer,
+                    outputRingCount: commitmentOutputRingCount,
+                    rowCount: rowCount
+                ),
+                try transformedEvaluationResults(
+                    outputBuffer: evaluationOutputBuffer,
+                    outputWordCount: evaluationOutputWordCount,
+                    vectorCount: batchCount,
+                    matrixCount: batchBuffers.matrixCount
+                )
+            )
+        }
     }
 
     private func binaryFieldOperation(
@@ -981,6 +1337,18 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         }
         let output = try binaryRawOperation(lhs.map(\.rawValue), rhs.map(\.rawValue), pipelineName: pipelineName)
         return output.map { GoldilocksField($0) }
+    }
+
+    private func rawWordsUseOnlySmallCoefficients(_ words: [UInt64]) -> Bool {
+        words.allSatisfy(isSmallMessageCoefficient)
+    }
+
+    private func isSmallMessageCoefficient(_ word: UInt64) -> Bool {
+        word == 0
+            || word == 1
+            || word == 2
+            || word == GoldilocksField.modulus - 1
+            || word == GoldilocksField.modulus - 2
     }
 
     private func binaryRawOperation(
@@ -1043,20 +1411,23 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             checkedUInt32(tileCount, name: "Ajtai tile count"),
             checkedUInt32(batchCount, name: "Ajtai batch count")
         ]
-        let paramsBuffer = try context.makeBuffer(params)
 
         try context.dispatch1DSequence([
             MetalDispatchCommand(
                 pipelineName: "ajtai_matvec_tile_kernel",
-                buffers: [matrixBuffer, messageBuffer, partialBuffer, paramsBuffer],
+                buffers: [matrixBuffer, messageBuffer, partialBuffer],
+                inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 3, values: params)],
                 elementCount: partialRingCount,
-                threadsPerThreadgroup: schedule.rowTileSize
+                threadsPerThreadgroup: schedule.rowTileSize,
+                countBufferIndex: 4
             ),
             MetalDispatchCommand(
                 pipelineName: "ajtai_matvec_reduce_kernel",
-                buffers: [partialBuffer, outputBuffer, paramsBuffer],
+                buffers: [partialBuffer, outputBuffer],
+                inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 2, values: params)],
                 elementCount: outputRingCount,
                 threadsPerThreadgroup: schedule.rowTileSize,
+                countBufferIndex: 3,
                 barrierAfter: false
             )
         ])

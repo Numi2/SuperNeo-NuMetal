@@ -35,7 +35,7 @@ The report renderer fails on malformed result JSON and on result files without
 wall-clock rows, so benchmark reports should not silently fall back to stale or
 empty evidence.
 
-Benchmarks are built and run from `Benchmarks/Package.swift` with `package-benchmark`, keeping the benchmark plugin out of the main `swift test` graph. The dependency disables package-benchmark's default Jemalloc trait so the suite runs on stock macOS without `brew install jemalloc`. The script records wall-clock, total malloc count, and leaked-memory metrics, then renders a Markdown summary with proof sizes and derived folds/sec, constraints/sec, and commitments/sec where applicable. The script disables SwiftPM's command-plugin sandbox so the benchmark child process can discover the system Metal device, and passes package-directory write permission so benchmark exports can be written under `benchmark-results/`. The Xcode project remains the source of truth for app/framework development; the root `Package.swift` exists to run tests reproducibly from the command line, while the benchmark package owns benchmark-only dependencies.
+Benchmarks are built and run from `Benchmarks/Package.swift` with `package-benchmark`, keeping the benchmark plugin out of the main `swift test` graph. The dependency disables package-benchmark's default Jemalloc trait so the suite runs on stock macOS without `brew install jemalloc`. The script records wall-clock, total malloc count, leaked-memory, and GPU command-buffer time metrics, then renders a Markdown summary with proof sizes and derived folds/sec, constraints/sec, and commitments/sec where applicable. The GPU column reports device command-buffer execution time for Metal rows; wall-clock still includes host encoding, allocation, upload, readback, and synchronous wait overhead. The script disables SwiftPM's command-plugin sandbox so the benchmark child process can discover the system Metal device, and passes package-directory write permission so benchmark exports can be written under `benchmark-results/`. The Xcode project remains the source of truth for app/framework development; the root `Package.swift` exists to run tests reproducibly from the command line, while the benchmark package owns benchmark-only dependencies.
 
 Profiles:
 
@@ -46,7 +46,10 @@ Profiles:
 Metal benchmarks are registered only when `MetalExecutionContext` can create a device inside the benchmark runner process. If the runner reports Metal unavailable, CPU benchmarks still run and the existing XCTest Metal coverage remains the correctness gate for Metal kernels.
 
 Set `SUPERNEO_BENCHMARK_CASE_FILTER` to a comma-separated list of label fragments, for example `m1024,m4096`, to isolate large scaling cases while preserving the same benchmark definitions.
-For Metal row-block tuning runs, set `SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE` in the benchmark process and record the value with the generated report.
+For Metal row-block tuning runs, set `SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE` in the benchmark process and keep the generated metadata with the report.
+For experimental row-partial transformed-evaluation runs, set
+`SUPERNEO_METAL_EVAL_ROW_PARTIAL_THRESHOLD` and optionally
+`SUPERNEO_METAL_EVAL_ROW_PARTIAL_MAX_WORDS`.
 When `SUPERNEO_BENCHMARK_CE=1` is set, CE proof and compressed-envelope
 benchmarks are registered for every selected fixture after case filtering. Use
 `SUPERNEO_BENCHMARK_CASE_FILTER` for targeted CE runs on large profiles; CE
@@ -58,6 +61,7 @@ Examples:
 ```sh
 SUPERNEO_BENCHMARK_CASE_FILTER=m1024,m4096 Scripts/run-benchmarks.sh scaling
 SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE=128 SUPERNEO_BENCHMARK_CASE_FILTER=m4096 Scripts/run-benchmarks.sh scaling
+SUPERNEO_METAL_EVAL_ROW_PARTIAL_THRESHOLD=1024 SUPERNEO_BENCHMARK_CASE_FILTER=m1024 Scripts/run-benchmarks.sh scaling
 ```
 
 Benchmark groups:
@@ -150,13 +154,26 @@ Generated metadata records the repository root, short and full commit hash,
 clean/dirty source state, selected benchmark profile, selected cases, and the
 benchmark environment variables that alter registration or execution, including
 `SUPERNEO_BENCHMARK_CASE_FILTER`, `SUPERNEO_BENCHMARK_CE`,
-`SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE`, benchmark-baseline comparison path,
-baseline metadata path, metadata requirement controls, thresholds, and
+`SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE`,
+`SUPERNEO_METAL_EVAL_ROW_PARTIAL_THRESHOLD`,
+`SUPERNEO_METAL_EVAL_ROW_PARTIAL_MAX_WORDS`, benchmark-baseline comparison
+path, baseline metadata path, metadata requirement controls, thresholds, and
 comparison failure-mode controls.
 
 Current Metal scaling baseline:
 
+- Default protocol routing uses Metal automatically only for `m >= 1024`.
+  Smaller shapes stay on CPU unless callers opt into `.metalAccelerated` or
+  `.cpuRedundantMetal`. Forced Metal benchmark rows remain registered so small
+  kernels stay covered and regressions remain visible.
 - `SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE=128` is the default. It won end-to-end at `m1024` and tied the best full-fold result at `m4096`; `256` can win isolated transformed evaluation but did not improve the complete fold path.
+- The row-partial transformed-evaluation schedule is disabled by default. It is
+  correctness-covered and available for tuning through
+  `SUPERNEO_METAL_EVAL_ROW_PARTIAL_THRESHOLD`, but the local m64 A/B run was
+  slower than the blocked baseline.
+- Ajtai coefficient batches use a small-message Metal kernel for
+  decomposition-sized message words in `{0, 1, 2, -1, -2}` and keep the generic
+  coefficient kernel for full-width messages.
 - Ajtai workspace batching stays at max batch size `16`. The measured b32 path was slower at `m1024` and `m16384`, including the combined commit/evaluation path.
 - The combined workspace commit-plus-evaluation path is the baseline for PiCCS/PiDEC protocol measurements.
 
@@ -378,9 +395,23 @@ Latest Metal dense-matvec pass, measured locally on 2026-04-13:
 
 This pass added a thresholded sparse-aware dense Metal kernel. The route is
 intentionally limited to wide dense matrices because the zero scan does not pay
-for itself on smaller dense rows. Direct Metal ring-multiply rewriting, tiled
-Ajtai as the default schedule, and `setBytes` parameter binding were measured
-and rejected after regressions in targeted rows.
+for itself on smaller dense rows. Tiled Ajtai as the default schedule was
+measured and rejected after regressions in targeted rows.
+
+Latest Metal performance audit pass, measured locally on 2026-04-14:
+
+| Row | Wall-clock p50 | GPU p50 | Notes |
+| --- | ---: | ---: | --- |
+| `kernel/ajtaiCommit/batchWorkspace/metal/m64-K1-k0-binary` | 513 us | 136 us | small-message coefficient kernel |
+| `kernel/ajtaiCommit/metal/m64-K1-k0-binary` | 389 us | 146 us | small-message coefficient kernel |
+| `kernel/combinedCommitEval/batchWorkspace/metal/m64-K1-k0-binary` | 3.394 ms | 2.693 ms | scratch buffers plus small-message Ajtai |
+
+This pass added adaptive Metal routing, visible GPU command-buffer metrics,
+batched-CSR-only workspace construction for the common path, scratch-buffer
+reuse, inline parameter binding, coefficient-parallel ring multiplication, an
+experimental row-partial sparse transformed-evaluation schedule, and a narrow
+Ajtai small-message coefficient kernel. Details are recorded in
+[Metal Performance Optimization, 2026-04-14](MetalPerformanceOptimization-2026-04-14.md).
 
 CI:
 

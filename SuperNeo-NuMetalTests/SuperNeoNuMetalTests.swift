@@ -3190,11 +3190,22 @@ final class MetalDifferentialTests: SuperNeoTestCase {
         )
         let prover = SuperNeoProver(key: fixture.key, context: context)
         let preparedContext = try prover.prepareFoldContext(for: fixture.input)
+        let forcedMetalProver = SuperNeoProver(
+            key: fixture.key,
+            context: context,
+            executionPolicy: .metalAccelerated
+        )
+        let forcedMetalPreparedContext = try forcedMetalProver.prepareFoldContext(for: fixture.input)
 
         let prepared = try prover.foldWithOutput(
             fixture.input,
             transcriptSeed: fixture.seed,
             preparedContext: preparedContext
+        )
+        let forcedMetalPrepared = try forcedMetalProver.foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed,
+            preparedContext: forcedMetalPreparedContext
         )
         let highAssurancePreparedContext = try SuperNeoProver(
             key: fixture.key,
@@ -3202,8 +3213,10 @@ final class MetalDifferentialTests: SuperNeoTestCase {
             executionPolicy: .highAssurance
         ).prepareFoldContext(for: fixture.input)
 
-        XCTAssertNotNil(preparedContext.metalWorkspace)
+        XCTAssertNil(preparedContext.metalWorkspace)
+        XCTAssertNotNil(forcedMetalPreparedContext.metalWorkspace)
         XCTAssertEqual(prepared, cpuReference)
+        XCTAssertEqual(forcedMetalPrepared, cpuReference)
         XCTAssertNil(highAssurancePreparedContext.metalWorkspace)
     }
 
@@ -3439,6 +3452,19 @@ final class MetalDifferentialTests: SuperNeoTestCase {
         ])
         XCTAssertEqual(combinedWorkspaceResults.evaluations[0][0].coefficients, directTransformedEvaluation(rows: rows, rHat: rHat))
         XCTAssertEqual(combinedWorkspaceResults.evaluations[1][0].coefficients, directTransformedEvaluation(rows: secondRows, rHat: rHat))
+        let combinedTiledSchedule = try AjtaiMatvecSchedule(
+            columnTileSize: 1,
+            rowTileSize: 2,
+            maxBatchSize: 2,
+            kernel: .tiled
+        )
+        let tiledCombinedWorkspaceResults = try workspace.commitmentsAndTransformedEvaluations(
+            messages: [vector, secondVector],
+            point: point,
+            schedule: combinedTiledSchedule
+        )
+        XCTAssertEqual(tiledCombinedWorkspaceResults.commitments, combinedWorkspaceResults.commitments)
+        XCTAssertEqual(tiledCombinedWorkspaceResults.evaluations, combinedWorkspaceResults.evaluations)
         let highAssuranceCombinedWorkspaceResults = try workspace.commitmentsAndTransformedEvaluations(
             messages: [vector],
             point: point,

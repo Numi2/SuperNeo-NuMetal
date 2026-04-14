@@ -74,6 +74,20 @@ transformed evaluation. It is a performance knob, not a transcript input.
 Changing it must not change proof bytes or verifier results. When benchmarking,
 record the value in the report notes so performance results are attributable.
 
+`SUPERNEO_METAL_EVAL_ROW_PARTIAL_THRESHOLD` enables the experimental row-partial
+transformed-evaluation schedule for batch row counts at or above the configured
+threshold. The default leaves the schedule disabled because the local m64
+correctness run was slower than the blocked baseline even though it produced the
+same values.
+
+`SUPERNEO_METAL_EVAL_ROW_PARTIAL_MAX_WORDS` caps temporary partial-buffer
+allocation for the row-partial schedule. If the required partial buffer is larger
+than this cap, the backend falls back to the blocked/fused schedule.
+
+Benchmark metadata records all three Metal tuning variables. Baseline
+comparisons treat them as comparable metadata, so runs with different tuning
+values are not silently compared as equivalent evidence.
+
 ## Non-Goals
 
 The current implementation does not try to protect against:

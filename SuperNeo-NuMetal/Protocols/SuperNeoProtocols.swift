@@ -1577,7 +1577,7 @@ public final class SuperNeoProver: @unchecked Sendable {
             throw SuperNeoError.invalidParameter("prepared fold context execution policy mismatch")
         }
 
-        let expectsMetalWorkspace = context != nil && !executionPolicy.usesConstantWorkCPU
+        let expectsMetalWorkspace = context != nil && executionPolicy.usesMetalAcceleration(for: shape)
         guard (preparedContext.metalWorkspace != nil) == expectsMetalWorkspace else {
             throw SuperNeoError.invalidParameter("prepared fold context Metal workspace availability mismatch")
         }
@@ -1927,7 +1927,7 @@ public final class SuperNeoProver: @unchecked Sendable {
     }
 
     private func makeMetalWorkspace(compiledShape: CompiledCCSShape) throws -> SuperNeoMetalWorkspace? {
-        guard let context, !executionPolicy.usesConstantWorkCPU else { return nil }
+        guard let context, executionPolicy.usesMetalAcceleration(for: compiledShape.shape) else { return nil }
         return try SuperNeoMetalWorkspace(
             context: context,
             key: key,
@@ -1936,7 +1936,7 @@ public final class SuperNeoProver: @unchecked Sendable {
     }
 
     private func makeCEOpeningMetalWorkspace(shape: CCSShape) throws -> SuperNeoMetalWorkspace? {
-        guard context != nil else { return nil }
+        guard context != nil, executionPolicy.usesMetalAcceleration(for: shape) else { return nil }
         let compiledShape = try shape.compiledSparseForSuperNeo()
         return try makeMetalWorkspace(compiledShape: compiledShape)
     }
@@ -2526,7 +2526,7 @@ public final class SuperNeoVerifier: @unchecked Sendable {
     }
 
     private func makeCEOpeningMetalWorkspace(shape: CCSShape) throws -> SuperNeoMetalWorkspace? {
-        guard let context else { return nil }
+        guard let context, executionPolicy.usesMetalAcceleration(for: shape) else { return nil }
         let compiledShape = try shape.compiledSparseForSuperNeo()
         return try SuperNeoMetalWorkspace(
             context: context,

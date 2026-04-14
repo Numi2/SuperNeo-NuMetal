@@ -253,7 +253,9 @@ let requiredComparableMetadataKeys = [
     "env.SUPERNEO_BENCHMARK_CASE_FILTER",
     "env.SUPERNEO_BENCHMARK_CE",
     "env.SUPERNEO_BENCHMARK_SIGNPOSTS",
-    "env.SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE"
+    "env.SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE",
+    "env.SUPERNEO_METAL_EVAL_ROW_PARTIAL_THRESHOLD",
+    "env.SUPERNEO_METAL_EVAL_ROW_PARTIAL_MAX_WORDS"
 ]
 
 func metadataPaths(for options: Options) -> (baseline: String, candidate: String)? {

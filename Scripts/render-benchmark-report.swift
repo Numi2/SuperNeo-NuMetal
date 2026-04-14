@@ -30,6 +30,19 @@ func p95(from extra: String?) -> String {
     return ""
 }
 
+func nanoseconds(_ value: Double) -> String {
+    switch value {
+    case ..<1_000:
+        return String(format: "%.3g ns", value)
+    case ..<1_000_000:
+        return String(format: "%.3g μs", value / 1_000)
+    case ..<1_000_000_000:
+        return String(format: "%.3g ms", value / 1_000_000)
+    default:
+        return String(format: "%.3g s", value / 1_000_000_000)
+    }
+}
+
 func baseBenchmarkName(_ name: String) -> String {
     if let range = name.range(of: " - ") {
         return String(name[..<range.lowerBound])
@@ -65,6 +78,9 @@ guard !wallClock.isEmpty else {
 let mallocCounts = Dictionary(uniqueKeysWithValues: results
     .filter { $0.name.contains(" - Malloc (total)") }
     .map { (baseBenchmarkName($0.name), String(format: "%.0f %@", $0.value, $0.unit)) })
+let gpuTimes = Dictionary(uniqueKeysWithValues: results
+    .filter { $0.name.contains(" - GPU command buffer time") }
+    .map { (baseBenchmarkName($0.name), nanoseconds($0.value)) })
 
 let selectedPrefixes = [
     "fold/cpu/",
@@ -89,8 +105,8 @@ var lines = [
     "",
     "## Timing Summary",
     "",
-    "| Benchmark | Time | p95 | Derived | Allocations |",
-    "| --- | ---: | ---: | ---: | ---: |"
+    "| Benchmark | Time | GPU | p95 | Derived | Allocations |",
+    "| --- | ---: | ---: | ---: | ---: | ---: |"
 ]
 
 for result in wallClock.sorted(by: { $0.name < $1.name }) {
@@ -112,6 +128,7 @@ for result in wallClock.sorted(by: { $0.name < $1.name }) {
     lines.append(
         "| `\(benchmark)`"
             + " | \(String(format: "%.3g %@", result.value, result.unit))"
+            + " | \(gpuTimes[benchmark] ?? "")"
             + " | \(p95(from: result.extra))"
             + " | \(derived)"
             + " | \(mallocCounts[benchmark] ?? "") |"

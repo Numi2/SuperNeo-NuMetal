@@ -1,25 +1,51 @@
 import Foundation
 import Metal
 
+public struct MetalInlineUInt32Buffer {
+    public let index: Int
+    public let values: [UInt32]
+
+    public init(index: Int, values: [UInt32]) {
+        self.index = index
+        self.values = values
+    }
+}
+
 public struct MetalDispatchCommand {
     public let pipelineName: String
     public let buffers: [MTLBuffer]
+    public let inlineUInt32Buffers: [MetalInlineUInt32Buffer]
     public let elementCount: Int
     public let threadsPerThreadgroup: Int?
+    public let countBufferIndex: Int?
     public let barrierAfter: Bool
 
     public init(
         pipelineName: String,
         buffers: [MTLBuffer],
+        inlineUInt32Buffers: [MetalInlineUInt32Buffer] = [],
         elementCount: Int,
         threadsPerThreadgroup: Int? = nil,
+        countBufferIndex: Int? = nil,
         barrierAfter: Bool = true
     ) {
         self.pipelineName = pipelineName
         self.buffers = buffers
+        self.inlineUInt32Buffers = inlineUInt32Buffers
         self.elementCount = elementCount
         self.threadsPerThreadgroup = threadsPerThreadgroup
+        self.countBufferIndex = countBufferIndex
         self.barrierAfter = barrierAfter
+    }
+}
+
+struct MetalTemporaryBufferRequest {
+    let byteLength: Int
+    let role: String
+
+    init(byteLength: Int, role: String) {
+        self.byteLength = byteLength
+        self.role = role
     }
 }
 
@@ -52,8 +78,12 @@ public final class MetalExecutionContext: @unchecked Sendable {
     }
     private let pipelineStore: MetalPipelineStore
     private var pipelineCache: [String: MTLComputePipelineState] = [:]
+    private var temporaryBufferPool: [Int: [MTLBuffer]] = [:]
     private var lastCommandBufferGPUTimeSecondsStorage: Double?
     private let lock = NSLock()
+    private static let temporaryBufferBucketSize = 4_096
+    private static let maximumTemporaryBuffersPerBucket = 4
+    private static let maximumPooledTemporaryBufferLength = 64 * 1_024 * 1_024
 
     public init(
         device: MTLDevice? = MTLCreateSystemDefaultDevice(),
@@ -145,7 +175,10 @@ public final class MetalExecutionContext: @unchecked Sendable {
             "sparse_transformed_eval_fused_kernel",
             "sparse_transformed_eval_block_partial_kernel",
             "sparse_transformed_eval_block_reduce_kernel",
+            "sparse_transformed_eval_row_partial_kernel",
+            "sparse_transformed_eval_row_reduce_kernel",
             "ajtai_matvec_ring_batch_coeff_kernel",
+            "ajtai_matvec_ring_batch_coeff_small_message_kernel",
             "ajtai_matvec_tile_kernel",
             "ajtai_matvec_reduce_kernel"
         ])
@@ -197,13 +230,63 @@ public final class MetalExecutionContext: @unchecked Sendable {
         return buffer
     }
 
+    func temporaryBufferByteLength<T>(count: Int, as _: T.Type, role: String) throws -> Int {
+        try checkedBufferLength(count: count, stride: MemoryLayout<T>.stride, role: role)
+    }
+
+    func copyValues<T>(_ values: [T], to buffer: MTLBuffer, role: String) throws {
+        let length = try checkedBufferLength(count: values.count, stride: MemoryLayout<T>.stride, role: role)
+        guard length <= buffer.length else {
+            throw SuperNeoError.metalFailure("\(role) does not fit in temporary Metal buffer")
+        }
+        guard length > 0 else { return }
+        try values.withUnsafeBytes { bytes in
+            guard let baseAddress = bytes.baseAddress else {
+                throw SuperNeoError.invalidParameter("\(role) has no source bytes")
+            }
+            memcpy(buffer.contents(), baseAddress, length)
+            buffer.didModifyRange(0..<length)
+        }
+    }
+
+    func withTemporaryBuffers<Result>(
+        _ requests: [MetalTemporaryBufferRequest],
+        _ body: ([MTLBuffer]) throws -> Result
+    ) throws -> Result {
+        var leasedCapacities: [Int] = []
+        var leasedBuffers: [MTLBuffer] = []
+        leasedCapacities.reserveCapacity(requests.count)
+        leasedBuffers.reserveCapacity(requests.count)
+        defer {
+            returnTemporaryBuffers(capacities: leasedCapacities, buffers: leasedBuffers)
+        }
+        for request in requests {
+            guard request.byteLength >= 0 else {
+                throw SuperNeoError.invalidParameter("\(request.role) has invalid byte length")
+            }
+            let capacity = Self.temporaryBufferCapacity(for: request.byteLength)
+            let buffer = try leaseTemporaryBuffer(capacity: capacity, role: request.role)
+            leasedCapacities.append(capacity)
+            leasedBuffers.append(buffer)
+        }
+        return try body(leasedBuffers)
+    }
+
     public func dispatch1D(
         pipelineName: String,
         buffers: [MTLBuffer],
+        inlineUInt32Buffers: [MetalInlineUInt32Buffer] = [],
+        countBufferIndex: Int? = nil,
         elementCount: Int
     ) throws {
         try dispatch1DSequence([
-            MetalDispatchCommand(pipelineName: pipelineName, buffers: buffers, elementCount: elementCount)
+            MetalDispatchCommand(
+                pipelineName: pipelineName,
+                buffers: buffers,
+                inlineUInt32Buffers: inlineUInt32Buffers,
+                elementCount: elementCount,
+                countBufferIndex: countBufferIndex
+            )
         ])
     }
 
@@ -222,10 +305,17 @@ public final class MetalExecutionContext: @unchecked Sendable {
             for (index, buffer) in command.buffers.enumerated() {
                 encoder.setBuffer(buffer, offset: 0, index: index)
             }
+            for inlineBuffer in command.inlineUInt32Buffers {
+                try setInlineUInt32Buffer(inlineBuffer, encoder: encoder, pipelineName: command.pipelineName)
+            }
             guard var count = UInt32(exactly: command.elementCount) else {
                 throw SuperNeoError.metalFailure("\(command.pipelineName) element count exceeds UInt32")
             }
-            encoder.setBytes(&count, length: MemoryLayout<UInt32>.stride, index: command.buffers.count)
+            encoder.setBytes(
+                &count,
+                length: MemoryLayout<UInt32>.stride,
+                index: command.countBufferIndex ?? command.buffers.count
+            )
             let requestedWidth = command.threadsPerThreadgroup ?? 256
             let width = min(pipeline.maxTotalThreadsPerThreadgroup, max(1, requestedWidth))
             let threads = MTLSize(width: width, height: 1, depth: 1)
@@ -256,6 +346,22 @@ public final class MetalExecutionContext: @unchecked Sendable {
         }
     }
 
+    private func setInlineUInt32Buffer(
+        _ inlineBuffer: MetalInlineUInt32Buffer,
+        encoder: MTLComputeCommandEncoder,
+        pipelineName: String
+    ) throws {
+        guard !inlineBuffer.values.isEmpty else {
+            throw SuperNeoError.invalidParameter("\(pipelineName) inline parameter buffer cannot be empty")
+        }
+        try inlineBuffer.values.withUnsafeBytes { bytes in
+            guard let baseAddress = bytes.baseAddress else {
+                throw SuperNeoError.invalidParameter("\(pipelineName) inline parameter buffer is empty")
+            }
+            encoder.setBytes(baseAddress, length: bytes.count, index: inlineBuffer.index)
+        }
+    }
+
     private func checkedBufferLength(count: Int, stride: Int, role: String) throws -> Int {
         guard count >= 0, stride > 0 else {
             throw SuperNeoError.invalidParameter("\(role) has invalid size")
@@ -270,6 +376,47 @@ public final class MetalExecutionContext: @unchecked Sendable {
     private func setLastCommandBufferGPUTimeSeconds(_ value: Double?) {
         lock.lock()
         lastCommandBufferGPUTimeSecondsStorage = value
+        lock.unlock()
+    }
+
+    private static func temporaryBufferCapacity(for byteLength: Int) -> Int {
+        let requestedLength = max(byteLength, 1)
+        let bucketSize = temporaryBufferBucketSize
+        guard requestedLength <= Int.max - (bucketSize - 1) else {
+            return requestedLength
+        }
+        return ((requestedLength + bucketSize - 1) / bucketSize) * bucketSize
+    }
+
+    private func leaseTemporaryBuffer(capacity: Int, role: String) throws -> MTLBuffer {
+        if capacity <= Self.maximumPooledTemporaryBufferLength {
+            lock.lock()
+            if var buffers = temporaryBufferPool[capacity], let buffer = buffers.popLast() {
+                temporaryBufferPool[capacity] = buffers
+                lock.unlock()
+                return buffer
+            }
+            lock.unlock()
+        }
+        guard let buffer = device.makeBuffer(length: capacity, options: .storageModeShared) else {
+            throw SuperNeoError.metalFailure("failed to allocate temporary Metal buffer for \(role)")
+        }
+        return buffer
+    }
+
+    private func returnTemporaryBuffers(capacities: [Int], buffers: [MTLBuffer]) {
+        guard !buffers.isEmpty else { return }
+        lock.lock()
+        for index in buffers.indices {
+            let capacity = capacities[index]
+            guard capacity <= Self.maximumPooledTemporaryBufferLength else { continue }
+            let buffer = buffers[index]
+            var bucket = temporaryBufferPool[capacity] ?? []
+            if bucket.count < Self.maximumTemporaryBuffersPerBucket {
+                bucket.append(buffer)
+                temporaryBufferPool[capacity] = bucket
+            }
+        }
         lock.unlock()
     }
 }

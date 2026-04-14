@@ -140,6 +140,24 @@ kernel void ring_scalar_mul_kernel(
     out[id] = goldilocks_mul_small_or_full(rings[id], scalars[ringIndex]);
 }
 
+inline ulong ring_raw_product_coefficient(
+    device const ulong *lhs,
+    device const ulong *rhs,
+    uint base,
+    uint target
+) {
+    ulong acc = 0;
+    uint start = target > 53 ? target - 53 : 0;
+    uint end = target < 53 ? target : 53;
+    for (uint i = start; i <= end; i++) {
+        ulong a = lhs[base + i];
+        ulong b = rhs[base + target - i];
+        if (a == 0 || b == 0) { continue; }
+        acc = goldilocks_add(acc, goldilocks_mul_small_or_full(a, b));
+    }
+    return acc;
+}
+
 kernel void ring_mul_kernel(
     device const ulong *lhs [[buffer(0)]],
     device const ulong *rhs [[buffer(1)]],
@@ -149,34 +167,20 @@ kernel void ring_mul_kernel(
 ) {
     if (id >= count) { return; }
 
-    ulong product[107];
-    for (uint i = 0; i < 107; i++) {
-        product[i] = 0;
+    uint base = (id / 54) * 54;
+    uint coeff = id % 54;
+
+    ulong acc = ring_raw_product_coefficient(lhs, rhs, base, coeff);
+    if (coeff <= 26) {
+        acc = goldilocks_sub(acc, ring_raw_product_coefficient(lhs, rhs, base, coeff + 54));
+    } else {
+        acc = goldilocks_sub(acc, ring_raw_product_coefficient(lhs, rhs, base, coeff + 27));
+    }
+    if (coeff <= 25) {
+        acc = goldilocks_add(acc, ring_raw_product_coefficient(lhs, rhs, base, coeff + 81));
     }
 
-    uint base = id * 54;
-    for (uint i = 0; i < 54; i++) {
-        ulong a = lhs[base + i];
-        if (a == 0) { continue; }
-        for (uint j = 0; j < 54; j++) {
-            ulong b = rhs[base + j];
-            if (b == 0) { continue; }
-            product[i + j] = goldilocks_add(product[i + j], goldilocks_mul_small_or_full(a, b));
-        }
-    }
-
-    for (int exponent = 106; exponent >= 54; exponent--) {
-        ulong value = product[exponent];
-        if (value == 0) { continue; }
-        product[exponent] = 0;
-        int shifted = exponent - 54;
-        product[shifted] = goldilocks_sub(product[shifted], value);
-        product[shifted + 27] = goldilocks_sub(product[shifted + 27], value);
-    }
-
-    for (uint i = 0; i < 54; i++) {
-        out[base + i] = product[i];
-    }
+    out[base + coeff] = acc;
 }
 
 inline void ring_mul_local(
@@ -457,6 +461,35 @@ inline void ajtai_accumulate_target_coefficient(
     acc = subtractTerm ? goldilocks_sub(acc, term) : goldilocks_add(acc, term);
 }
 
+inline void ajtai_accumulate_target_coefficient_small_message(
+    device const ulong *matrixRing,
+    ulong scalar,
+    int matrixCoeff,
+    thread ulong &acc,
+    bool subtractTerm
+) {
+    if (scalar == 0) { return; }
+    if (matrixCoeff < 0 || matrixCoeff >= 54) { return; }
+    ulong matrixValue = matrixRing[matrixCoeff];
+    if (matrixValue == 0) { return; }
+
+    ulong term = matrixValue;
+    bool negateTerm = false;
+    if (scalar == 2) {
+        term = goldilocks_add(matrixValue, matrixValue);
+    } else if (scalar == GOLDILOCKS_MODULUS - 1) {
+        negateTerm = true;
+    } else if (scalar == GOLDILOCKS_MODULUS - 2) {
+        term = goldilocks_add(matrixValue, matrixValue);
+        negateTerm = true;
+    } else if (scalar != 1) {
+        term = goldilocks_mul(matrixValue, scalar);
+    }
+
+    bool shouldSubtract = subtractTerm != negateTerm;
+    acc = shouldSubtract ? goldilocks_sub(acc, term) : goldilocks_add(acc, term);
+}
+
 inline void sparse_transformed_eval_accumulate_rows(
     device const uint *rowOffsets,
     device const uint *columnIndices,
@@ -633,6 +666,84 @@ kernel void sparse_transformed_eval_block_reduce_kernel(
     outExtCoeffs[outOffset + 1] = acc1;
 }
 
+kernel void sparse_transformed_eval_row_partial_kernel(
+    device const uint *rowOffsets [[buffer(0)]],
+    device const uint *columnIndices [[buffer(1)]],
+    device const ulong *values [[buffer(2)]],
+    device const ulong *vectors [[buffer(3)]],
+    device const ulong *rHat [[buffer(4)]],
+    device ulong *partialExtCoeffs [[buffer(5)]],
+    device const uint *params [[buffer(6)]],
+    constant uint &count [[buffer(7)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id >= count) { return; }
+    uint matrixCount = params[0];
+    uint rowCount = params[1];
+    uint columnCount = params[2];
+    uint vectorCount = params[3];
+
+    uint row = id % rowCount;
+    uint matrix = (id / rowCount) % matrixCount;
+    uint vector = id / (matrixCount * rowCount);
+    if (vector >= vectorCount) { return; }
+
+    ulong rowCoeff[54];
+    for (uint coeff = 0; coeff < 54; coeff++) {
+        rowCoeff[coeff] = 0;
+    }
+
+    uint rowOffsetBase = matrix * (rowCount + 1);
+    uint vectorBase = vector * columnCount * 54;
+    uint start = rowOffsets[rowOffsetBase + row];
+    uint end = rowOffsets[rowOffsetBase + row + 1];
+    for (uint entry = start; entry < end; entry++) {
+        uint valueOffset = entry * 54;
+        uint vectorOffset = vectorBase + columnIndices[entry] * 54;
+        ring_mul_accumulate_rhs_coefficients(values + valueOffset, vectors + vectorOffset, rowCoeff);
+    }
+
+    ulong r0 = rHat[row * 2];
+    ulong r1 = rHat[row * 2 + 1];
+    uint outOffset = (((vector * matrixCount + matrix) * rowCount + row) * 54) * 2;
+    for (uint coeff = 0; coeff < 54; coeff++) {
+        ulong value = rowCoeff[coeff];
+        partialExtCoeffs[outOffset + coeff * 2] = goldilocks_mul(value, r0);
+        partialExtCoeffs[outOffset + coeff * 2 + 1] = goldilocks_mul(value, r1);
+    }
+}
+
+kernel void sparse_transformed_eval_row_reduce_kernel(
+    device const ulong *partialExtCoeffs [[buffer(0)]],
+    device ulong *outExtCoeffs [[buffer(1)]],
+    device const uint *params [[buffer(2)]],
+    constant uint &count [[buffer(3)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id >= count) { return; }
+    uint matrixCount = params[0];
+    uint rowCount = params[1];
+    uint vectorCount = params[3];
+
+    uint coeff = id % 54;
+    uint matrix = (id / 54) % matrixCount;
+    uint vector = id / (matrixCount * 54);
+    if (vector >= vectorCount) { return; }
+
+    ulong acc0 = 0;
+    ulong acc1 = 0;
+    uint partialBase = ((vector * matrixCount + matrix) * rowCount * 54 + coeff) * 2;
+    for (uint row = 0; row < rowCount; row++) {
+        uint partialOffset = partialBase + row * 54 * 2;
+        acc0 = goldilocks_add(acc0, partialExtCoeffs[partialOffset]);
+        acc1 = goldilocks_add(acc1, partialExtCoeffs[partialOffset + 1]);
+    }
+
+    uint outOffset = ((vector * matrixCount + matrix) * 54 + coeff) * 2;
+    outExtCoeffs[outOffset] = acc0;
+    outExtCoeffs[outOffset + 1] = acc1;
+}
+
 kernel void ajtai_matvec_ring_batch_coeff_kernel(
     device const ulong *matrix [[buffer(0)]],
     device const ulong *messages [[buffer(1)]],
@@ -670,6 +781,50 @@ kernel void ajtai_matvec_ring_batch_coeff_kernel(
             }
             if (target <= 25) {
                 ajtai_accumulate_target_coefficient(matrix + matrixOffset, scalar, target + 81 - shifted, acc, false);
+            }
+        }
+    }
+
+    outRows[(batch * rowCount + row) * 54 + coeff] = acc;
+}
+
+kernel void ajtai_matvec_ring_batch_coeff_small_message_kernel(
+    device const ulong *matrix [[buffer(0)]],
+    device const ulong *messages [[buffer(1)]],
+    device ulong *outRows [[buffer(2)]],
+    device const uint *params [[buffer(3)]],
+    constant uint &count [[buffer(4)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id >= count) { return; }
+    uint rowCount = params[0];
+    uint columnCount = params[1];
+    uint batchCount = params[2];
+
+    uint coeff = id % 54;
+    uint row = (id / 54) % rowCount;
+    uint batch = id / (rowCount * 54);
+    if (batch >= batchCount) { return; }
+
+    int target = int(coeff);
+    ulong acc = 0;
+    uint messageBatchBase = batch * columnCount * 54;
+    for (uint column = 0; column < columnCount; column++) {
+        uint matrixOffset = ((row * columnCount) + column) * 54;
+        uint messageOffset = messageBatchBase + column * 54;
+        for (uint shift = 0; shift < 54; shift++) {
+            ulong scalar = messages[messageOffset + shift];
+            if (scalar == 0) { continue; }
+            int shifted = int(shift);
+            ajtai_accumulate_target_coefficient_small_message(matrix + matrixOffset, scalar, target - shifted, acc, false);
+            if (target <= 26) {
+                ajtai_accumulate_target_coefficient_small_message(matrix + matrixOffset, scalar, target + 54 - shifted, acc, true);
+            }
+            if (target >= 27) {
+                ajtai_accumulate_target_coefficient_small_message(matrix + matrixOffset, scalar, target + 27 - shifted, acc, true);
+            }
+            if (target <= 25) {
+                ajtai_accumulate_target_coefficient_small_message(matrix + matrixOffset, scalar, target + 81 - shifted, acc, false);
             }
         }
     }
