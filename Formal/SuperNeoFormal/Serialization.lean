@@ -202,6 +202,22 @@ theorem uintLEEncode_injective (width : Nat) :
     Nat.ofDigits_digits, Nat.ofDigits_digits] at hDigits
   exact hDigits
 
+def uintLEDecode? (width : Nat) (bytes : List Byte) : Option (UIntLE width) :=
+  if bytes.length = width then
+    let value := Nat.ofDigits 256 (bytes.map (fun byte => byte.val))
+    if hValue : value < 256 ^ width then
+      some ⟨value, hValue⟩
+    else
+      none
+  else
+    none
+
+theorem uintLEDecode?_encode (width : Nat) (value : UIntLE width) :
+    uintLEDecode? width (uintLEEncode width value) = some value := by
+  simp [uintLEDecode?, uintLEEncode_length]
+  rw [uintLEEncode_natDigits]
+  simp [Nat.ofDigits_append_replicate_zero, Nat.ofDigits_digits]
+
 def uint16LEEncode : UInt16LE → List Byte :=
   uintLEEncode 2
 
@@ -235,6 +251,28 @@ theorem uint64LEEncode_injective :
     Function.Injective uint64LEEncode :=
   uintLEEncode_injective 8
 
+def count64FromUInt64 (value : UInt64LE) : Count64LE :=
+  fun index =>
+    (uint64LEEncode value).get
+      ⟨index.val, by simp [uint64LEEncode_length, index.isLt]⟩
+
+theorem count64Encode_count64FromUInt64 (value : UInt64LE) :
+    count64Encode (count64FromUInt64 value) = uint64LEEncode value := by
+  apply List.ext_get
+  · simp [count64Encode_length, uint64LEEncode_length]
+  · intro index hLeft hRight
+    have hIndex : index < 8 := by
+      simpa [count64Encode_length] using hLeft
+    interval_cases index <;> simp [count64Encode, count64FromUInt64]
+
+def count64Decode? (count : Count64LE) : Option UInt64LE :=
+  uintLEDecode? 8 (count64Encode count)
+
+theorem count64Decode?_count64FromUInt64 (value : UInt64LE) :
+    count64Decode? (count64FromUInt64 value) = some value := by
+  simp [count64Decode?, count64Encode_count64FromUInt64, uint64LEEncode,
+    uintLEDecode?_encode]
+
 abbrev Digest256Wire :=
   Fin 32 → Byte
 
@@ -249,6 +287,24 @@ theorem digest256Encode_injective :
     Function.Injective digest256Encode := by
   intro lhs rhs h
   simpa [digest256Encode] using (List.ofFn_inj.mp h)
+
+def fixedVectorDecode? (width : Nat) (bytes : List Byte) : Option (Fin width → Byte) :=
+  if hLength : bytes.length = width then
+    some (fun index : Fin width =>
+      bytes.get ⟨index.val, by simp [hLength, index.isLt]⟩)
+  else
+    none
+
+theorem fixedVectorDecode?_ofFn (width : Nat) (value : Fin width → Byte) :
+    fixedVectorDecode? width (List.ofFn value) = some value := by
+  simp [fixedVectorDecode?]
+
+def digest256Decode? (bytes : List Byte) : Option Digest256Wire :=
+  fixedVectorDecode? 32 bytes
+
+theorem digest256Decode?_encode (digest : Digest256Wire) :
+    digest256Decode? (digest256Encode digest) = some digest := by
+  exact fixedVectorDecode?_ofFn 32 digest
 
 abbrev GoldilocksWire :=
   Fin goldilocksModulus
@@ -384,6 +440,28 @@ theorem proofEnvelopeKindEncode_injective :
   intro lhs rhs h
   cases lhs <;> cases rhs <;> simp [proofEnvelopeKindEncode, byteOfNat] at h ⊢
 
+def proofEnvelopeKindDecode? (byte : Byte) : Option ProofEnvelopeKindWire :=
+  if byte = proofEnvelopeKindEncode .foldReduction then
+    some .foldReduction
+  else if byte = proofEnvelopeKindEncode .terminalLocal then
+    some .terminalLocal
+  else if byte = proofEnvelopeKindEncode .compressedPublic then
+    some .compressedPublic
+  else
+    none
+
+theorem proofEnvelopeKindDecode?_encode (kind : ProofEnvelopeKindWire) :
+    proofEnvelopeKindDecode? (proofEnvelopeKindEncode kind) = some kind := by
+  cases kind <;> simp [proofEnvelopeKindDecode?, proofEnvelopeKindEncode, byteOfNat]
+
+def proofEnvelopeKindListDecode? : List Byte → Option ProofEnvelopeKindWire
+  | [byte] => proofEnvelopeKindDecode? byte
+  | _ => none
+
+theorem proofEnvelopeKindListDecode?_encode (kind : ProofEnvelopeKindWire) :
+    proofEnvelopeKindListDecode? [proofEnvelopeKindEncode kind] = some kind := by
+  simp [proofEnvelopeKindListDecode?, proofEnvelopeKindDecode?_encode]
+
 def proofEnvelopeMagic : UInt32LE :=
   ⟨0x4E554D51, by native_decide⟩
 
@@ -432,6 +510,133 @@ theorem proofEnvelopeTranscriptBindingEncode_length
     (proofEnvelopeTranscriptBindingEncode context).length = 137 := by
   simp [proofEnvelopeTranscriptBindingEncode, uint32LEEncode_length,
     uint16LEEncode_length, digest256Encode_length]
+
+theorem proofEnvelopeTranscriptBindingEncode_magic_slice
+    (context : ProofEnvelopeContextWire) :
+    (proofEnvelopeTranscriptBindingEncode context).take 4 =
+      uint32LEEncode proofEnvelopeMagic := by
+  simp [proofEnvelopeTranscriptBindingEncode, uint32LEEncode_length]
+
+theorem proofEnvelopeTranscriptBindingEncode_version_slice
+    (context : ProofEnvelopeContextWire) :
+    ((proofEnvelopeTranscriptBindingEncode context).drop 4).take 2 =
+      uint16LEEncode proofEnvelopeVersion := by
+  simp [proofEnvelopeTranscriptBindingEncode, uint32LEEncode_length, uint16LEEncode_length]
+
+theorem proofEnvelopeTranscriptBindingEncode_profile_slice
+    (context : ProofEnvelopeContextWire) :
+    ((proofEnvelopeTranscriptBindingEncode context).drop 6).take 2 =
+      uint16LEEncode context.profileID := by
+  simp [proofEnvelopeTranscriptBindingEncode, List.drop_append,
+    List.drop_eq_nil_of_le, uint32LEEncode_length, uint16LEEncode_length]
+
+theorem proofEnvelopeTranscriptBindingEncode_kind_slice
+    (context : ProofEnvelopeContextWire) :
+    ((proofEnvelopeTranscriptBindingEncode context).drop 8).take 1 =
+      [proofEnvelopeKindEncode context.kind] := by
+  simp [proofEnvelopeTranscriptBindingEncode, List.drop_append,
+    List.drop_eq_nil_of_le, uint32LEEncode_length, uint16LEEncode_length]
+
+theorem proofEnvelopeTranscriptBindingEncode_shape_slice
+    (context : ProofEnvelopeContextWire) :
+    ((proofEnvelopeTranscriptBindingEncode context).drop 9).take 32 =
+      digest256Encode context.shapeDigest := by
+  simp [proofEnvelopeTranscriptBindingEncode, List.drop_append,
+    List.drop_eq_nil_of_le, uint32LEEncode_length, uint16LEEncode_length,
+    digest256Encode_length]
+
+theorem proofEnvelopeTranscriptBindingEncode_statement_slice
+    (context : ProofEnvelopeContextWire) :
+    ((proofEnvelopeTranscriptBindingEncode context).drop 41).take 32 =
+      digest256Encode context.statementDigest := by
+  simp [proofEnvelopeTranscriptBindingEncode, List.drop_append,
+    List.drop_eq_nil_of_le, uint32LEEncode_length, uint16LEEncode_length,
+    digest256Encode_length]
+
+theorem proofEnvelopeTranscriptBindingEncode_verifierKey_slice
+    (context : ProofEnvelopeContextWire) :
+    ((proofEnvelopeTranscriptBindingEncode context).drop 73).take 32 =
+      digest256Encode context.verifierKeyDigest := by
+  simp [proofEnvelopeTranscriptBindingEncode, List.drop_append,
+    List.drop_eq_nil_of_le, uint32LEEncode_length, uint16LEEncode_length,
+    digest256Encode_length]
+
+theorem proofEnvelopeTranscriptBindingEncode_transcriptDomain_slice
+    (context : ProofEnvelopeContextWire) :
+    ((proofEnvelopeTranscriptBindingEncode context).drop 105).take 32 =
+      digest256Encode context.transcriptDomain := by
+  simp [proofEnvelopeTranscriptBindingEncode, List.drop_append,
+    List.drop_eq_nil_of_le, uint32LEEncode_length, uint16LEEncode_length,
+    digest256Encode_length]
+
+def proofEnvelopeTranscriptBindingDecode?
+    (bytes : List Byte) : Option ProofEnvelopeContextWire :=
+  if bytes.length = 137 then
+    if bytes.take 4 = uint32LEEncode proofEnvelopeMagic then
+      if (bytes.drop 4).take 2 = uint16LEEncode proofEnvelopeVersion then
+        match uintLEDecode? 2 ((bytes.drop 6).take 2),
+            proofEnvelopeKindListDecode? ((bytes.drop 8).take 1),
+            digest256Decode? ((bytes.drop 9).take 32),
+            digest256Decode? ((bytes.drop 41).take 32),
+            digest256Decode? ((bytes.drop 73).take 32),
+            digest256Decode? ((bytes.drop 105).take 32) with
+        | some profileID, some kind, some shapeDigest, some statementDigest,
+            some verifierKeyDigest, some transcriptDomain =>
+            some {
+              profileID := profileID,
+              kind := kind,
+              shapeDigest := shapeDigest,
+              statementDigest := statementDigest,
+              verifierKeyDigest := verifierKeyDigest,
+              transcriptDomain := transcriptDomain
+            }
+        | _, _, _, _, _, _ => none
+      else
+        none
+    else
+      none
+  else
+    none
+
+theorem proofEnvelopeTranscriptBindingDecode?_encode
+    (context : ProofEnvelopeContextWire) :
+    proofEnvelopeTranscriptBindingDecode?
+      (proofEnvelopeTranscriptBindingEncode context) = some context := by
+  simp [proofEnvelopeTranscriptBindingDecode?, proofEnvelopeTranscriptBindingEncode_length,
+    proofEnvelopeTranscriptBindingEncode_magic_slice,
+    proofEnvelopeTranscriptBindingEncode_version_slice,
+    proofEnvelopeTranscriptBindingEncode_profile_slice,
+    proofEnvelopeTranscriptBindingEncode_kind_slice,
+    proofEnvelopeTranscriptBindingEncode_shape_slice,
+    proofEnvelopeTranscriptBindingEncode_statement_slice,
+    proofEnvelopeTranscriptBindingEncode_verifierKey_slice,
+    proofEnvelopeTranscriptBindingEncode_transcriptDomain_slice,
+    uint16LEEncode, uintLEDecode?_encode, digest256Decode?_encode,
+    proofEnvelopeKindListDecode?_encode]
+
+theorem proofEnvelopeTranscriptBindingDecode?_length_of_some
+    {bytes : List Byte} {context : ProofEnvelopeContextWire}
+    (hDecode : proofEnvelopeTranscriptBindingDecode? bytes = some context) :
+    bytes.length = 137 := by
+  unfold proofEnvelopeTranscriptBindingDecode? at hDecode
+  split_ifs at hDecode with hLength hMagic hVersion
+  exact hLength
+
+theorem proofEnvelopeTranscriptBindingDecode?_magic_of_some
+    {bytes : List Byte} {context : ProofEnvelopeContextWire}
+    (hDecode : proofEnvelopeTranscriptBindingDecode? bytes = some context) :
+    bytes.take 4 = uint32LEEncode proofEnvelopeMagic := by
+  unfold proofEnvelopeTranscriptBindingDecode? at hDecode
+  split_ifs at hDecode with hLength hMagic hVersion
+  exact hMagic
+
+theorem proofEnvelopeTranscriptBindingDecode?_version_of_some
+    {bytes : List Byte} {context : ProofEnvelopeContextWire}
+    (hDecode : proofEnvelopeTranscriptBindingDecode? bytes = some context) :
+    (bytes.drop 4).take 2 = uint16LEEncode proofEnvelopeVersion := by
+  unfold proofEnvelopeTranscriptBindingDecode? at hDecode
+  split_ifs at hDecode with hLength hMagic hVersion
+  exact hVersion
 
 theorem proofEnvelopeTranscriptBindingEncode_injective :
     Function.Injective proofEnvelopeTranscriptBindingEncode := by

@@ -29,7 +29,7 @@ FORMAL_STATUS_RE = re.compile(
 )
 LEAN_DECL_RE = re.compile(
     r"^\s*(?:noncomputable\s+)?(?:protected\s+|private\s+)?"
-    r"(?:theorem|lemma|def|abbrev|structure|inductive|class)\s+([A-Za-z_][A-Za-z0-9_']*)\b",
+    r"(?:theorem|lemma|def|abbrev|structure|inductive|class)\s+([A-Za-z_][A-Za-z0-9_'?]*)(?![A-Za-z0-9_'?])",
     re.MULTILINE,
 )
 

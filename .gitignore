@@ -33,6 +33,7 @@ Formal/lake-manifest.json
 benchmark-results/
 paper-reproduction/
 lattice-estimator-results/
+output/pdf/
 .external/
 tmp/
 

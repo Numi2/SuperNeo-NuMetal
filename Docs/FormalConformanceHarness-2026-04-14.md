@@ -30,6 +30,11 @@ formal constants.
   - Mutates temporary Lean proof-envelope magic, transcript-binding length, and
     proof-kind tags and requires validation failure.
 
+- `Scripts/validate-formal-status.py`
+  - Declaration scanning now includes Lean names ending in `?`, so parser
+    declarations such as `proofEnvelopeTranscriptBindingDecode?` are checked
+    by the manifest instead of silently falling outside the harness.
+
 ## Gate integration
 
 `Scripts/production-gate.sh` now runs both the profile-constant validator and

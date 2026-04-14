@@ -209,6 +209,163 @@ theorem transcriptInit_seed_ne
   cases hInputs
   exact hSeed rfl
 
+def payloadLengthUInt64? (payload : List Byte) : Option UInt64LE :=
+  if hLength : payload.length < 256 ^ 8 then
+    some ⟨payload.length, hLength⟩
+  else
+    none
+
+theorem payloadLengthUInt64?_eq_some_of_lt
+    (payload : List Byte) (hLength : payload.length < 256 ^ 8) :
+    payloadLengthUInt64? payload = some ⟨payload.length, hLength⟩ := by
+  have hActual : payload.length < 18446744073709551616 := by
+    norm_num at hLength ⊢
+    exact hLength
+  simp [payloadLengthUInt64?, hActual]
+
+def payloadLengthCount64? (payload : List Byte) : Option Count64LE :=
+  (payloadLengthUInt64? payload).map count64FromUInt64
+
+theorem payloadLengthCount64?_eq_some_of_lt
+    (payload : List Byte) (hLength : payload.length < 256 ^ 8) :
+    payloadLengthCount64? payload =
+      some (count64FromUInt64 ⟨payload.length, hLength⟩) := by
+  simp [payloadLengthCount64?, payloadLengthUInt64?_eq_some_of_lt payload hLength]
+
+def lengthCountedTranscriptFrame? (payload : List Byte) : Option TranscriptFrame :=
+  (payloadLengthCount64? payload).map (fun count => transcriptFrame count payload)
+
+theorem lengthCountedTranscriptFrame?_eq_some_of_lt
+    (payload : List Byte) (hLength : payload.length < 256 ^ 8) :
+    lengthCountedTranscriptFrame? payload =
+      some (transcriptFrame (count64FromUInt64 ⟨payload.length, hLength⟩) payload) := by
+  simp [lengthCountedTranscriptFrame?, payloadLengthCount64?_eq_some_of_lt payload hLength]
+
+theorem transcriptFrameEncode_lengthCounted_of_lt
+    (payload : List Byte) (hLength : payload.length < 256 ^ 8) :
+    transcriptFrameEncode
+        (transcriptFrame (count64FromUInt64 ⟨payload.length, hLength⟩) payload) =
+      uint64LEEncode ⟨payload.length, hLength⟩ ++ payload := by
+  simp [transcriptFrameEncode, transcriptFrame, count64Encode_count64FromUInt64]
+
+theorem lengthCountedTranscriptFrame?_encode_of_lt
+    (payload : List Byte) (hLength : payload.length < 256 ^ 8) :
+    (lengthCountedTranscriptFrame? payload).map transcriptFrameEncode =
+      some (uint64LEEncode ⟨payload.length, hLength⟩ ++ payload) := by
+  simp [lengthCountedTranscriptFrame?_eq_some_of_lt payload hLength,
+    transcriptFrameEncode_lengthCounted_of_lt payload hLength]
+
+def lengthCountedTranscriptInit? (domain seed : List Byte) : Option TranscriptState :=
+  match payloadLengthCount64? domain, payloadLengthCount64? seed with
+  | some domainCount, some seedCount => some (transcriptInit domainCount domain seedCount seed)
+  | _, _ => none
+
+theorem lengthCountedTranscriptInit?_eq_some_of_lt
+    (domain seed : List Byte)
+    (hDomain : domain.length < 256 ^ 8)
+    (hSeed : seed.length < 256 ^ 8) :
+    lengthCountedTranscriptInit? domain seed =
+      some (transcriptInit
+        (count64FromUInt64 ⟨domain.length, hDomain⟩)
+        domain
+        (count64FromUInt64 ⟨seed.length, hSeed⟩)
+        seed) := by
+  simp [lengthCountedTranscriptInit?, payloadLengthCount64?_eq_some_of_lt domain hDomain,
+    payloadLengthCount64?_eq_some_of_lt seed hSeed]
+
+theorem transcriptBytes_lengthCountedInit_of_lt
+    (domain seed : List Byte)
+    (hDomain : domain.length < 256 ^ 8)
+    (hSeed : seed.length < 256 ^ 8) :
+    transcriptBytes
+        (transcriptInit
+          (count64FromUInt64 ⟨domain.length, hDomain⟩)
+          domain
+          (count64FromUInt64 ⟨seed.length, hSeed⟩)
+          seed) =
+      uint64LEEncode ⟨domain.length, hDomain⟩ ++ domain ++
+        uint64LEEncode ⟨seed.length, hSeed⟩ ++ seed := by
+  simp [transcriptBytes, transcriptInit, transcriptFramesBytes, transcriptFrameEncode,
+    transcriptFrame, count64Encode_count64FromUInt64, List.append_assoc]
+
+theorem lengthCountedTranscriptInit?_bytes_of_lt
+    (domain seed : List Byte)
+    (hDomain : domain.length < 256 ^ 8)
+    (hSeed : seed.length < 256 ^ 8) :
+    (lengthCountedTranscriptInit? domain seed).map transcriptBytes =
+      some (uint64LEEncode ⟨domain.length, hDomain⟩ ++ domain ++
+        uint64LEEncode ⟨seed.length, hSeed⟩ ++ seed) := by
+  simp [lengthCountedTranscriptInit?_eq_some_of_lt domain seed hDomain hSeed,
+    transcriptBytes_lengthCountedInit_of_lt domain seed hDomain hSeed]
+
+def transcriptFirstPayload? (state : TranscriptState) : Option (List Byte) :=
+  state.frames.head?.map TranscriptFrame.payload
+
+def proofEnvelopeTranscriptInit
+    (domainCount : Count64LE)
+    (seedCount : Count64LE)
+    (seed : List Byte)
+    (context : ProofEnvelopeContextWire) : TranscriptState :=
+  transcriptInit domainCount (proofEnvelopeTranscriptBindingEncode context) seedCount seed
+
+theorem proofEnvelopeTranscriptInit_frames
+    (domainCount seedCount : Count64LE)
+    (seed : List Byte)
+    (context : ProofEnvelopeContextWire) :
+    (proofEnvelopeTranscriptInit domainCount seedCount seed context).frames =
+      [transcriptFrame domainCount (proofEnvelopeTranscriptBindingEncode context),
+        transcriptFrame seedCount seed] :=
+  rfl
+
+theorem proofEnvelopeTranscriptInit_first_payload
+    (domainCount seedCount : Count64LE)
+    (seed : List Byte)
+    (context : ProofEnvelopeContextWire) :
+    transcriptFirstPayload? (proofEnvelopeTranscriptInit domainCount seedCount seed context) =
+      some (proofEnvelopeTranscriptBindingEncode context) :=
+  rfl
+
+theorem proofEnvelopeTranscriptInit_first_payload_decodes
+    (domainCount seedCount : Count64LE)
+    (seed : List Byte)
+    (context : ProofEnvelopeContextWire) :
+    (transcriptFirstPayload? (proofEnvelopeTranscriptInit domainCount seedCount seed context)).bind
+        proofEnvelopeTranscriptBindingDecode? = some context := by
+  simp [proofEnvelopeTranscriptInit_first_payload, proofEnvelopeTranscriptBindingDecode?_encode]
+
+theorem proofEnvelopeTranscriptInit_context_injective
+    (domainCount seedCount : Count64LE)
+    (seed : List Byte) :
+    Function.Injective (proofEnvelopeTranscriptInit domainCount seedCount seed) := by
+  intro lhs rhs h
+  have hInputs :
+      (domainCount, proofEnvelopeTranscriptBindingEncode lhs, seedCount, seed) =
+        (domainCount, proofEnvelopeTranscriptBindingEncode rhs, seedCount, seed) :=
+    transcriptInit_injective h
+  have hBytes :
+      proofEnvelopeTranscriptBindingEncode lhs = proofEnvelopeTranscriptBindingEncode rhs :=
+    congrArg (fun input : Count64LE × List Byte × Count64LE × List Byte => input.2.1)
+      hInputs
+  exact proofEnvelopeTranscriptBindingEncode_injective hBytes
+
+def proofEnvelopeLengthCountedTranscriptInit?
+    (seed : List Byte) (context : ProofEnvelopeContextWire) : Option TranscriptState :=
+  lengthCountedTranscriptInit? (proofEnvelopeTranscriptBindingEncode context) seed
+
+theorem proofEnvelopeLengthCountedTranscriptInit?_first_payload_decodes
+    (seed : List Byte) (hSeed : seed.length < 256 ^ 8)
+    (context : ProofEnvelopeContextWire) :
+    (proofEnvelopeLengthCountedTranscriptInit? seed context).bind
+        (fun state => (transcriptFirstPayload? state).bind proofEnvelopeTranscriptBindingDecode?) =
+      some context := by
+  unfold proofEnvelopeLengthCountedTranscriptInit?
+  have hDomain : (proofEnvelopeTranscriptBindingEncode context).length < 256 ^ 8 := by
+    rw [proofEnvelopeTranscriptBindingEncode_length]
+    native_decide
+  rw [lengthCountedTranscriptInit?_eq_some_of_lt _ _ hDomain hSeed]
+  simp [transcriptInit, transcriptFirstPayload?, transcriptFrame,
+    proofEnvelopeTranscriptBindingDecode?_encode]
+
 def ChallengeDeriver (Challenge : Type) :=
   TranscriptState → Challenge
 

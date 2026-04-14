@@ -94,6 +94,16 @@ def main() -> None:
         "must list at least one declaration",
     )
 
+    expect_failure(
+        "question mark declaration names checked",
+        mutate_group(
+            manifest,
+            "swift-wire-serialization",
+            lambda group: group["declarations"].append("SuperNeoFormal.uintLEDecode?_missing"),
+        ),
+        "references missing declaration",
+    )
+
     completed_manifest = json.loads(json.dumps(manifest))
     completed_manifest["current_label"] = "completed formal protocol theorem"
     expect_failure(

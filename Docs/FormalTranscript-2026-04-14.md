@@ -18,6 +18,17 @@ This note records the April 14, 2026 transcript absorption work in
 - Proved two consecutive absorbs preserve order.
 - Proved transcript initialization is injective at the structured level, so
   changing the domain or seed changes the initialized transcript state.
+- Added length-counted transcript frames: for payloads whose length fits in
+  `UInt64`, Lean proves the frame count bytes are exactly Swift's little-endian
+  payload length and the transcript bytes are `len(domain) || domain ||
+  len(seed) || seed`.
+- Connected proof-envelope transcript-binding bytes to transcript
+  initialization: Lean now exposes the first payload, proves it decodes back to
+  the public envelope context, and proves context changes are injective through
+  transcript initialization when counts and seed are fixed.
+- Added the proof-envelope length-counted initialization theorem, so the
+  checked 137-byte binding payload is recovered even when transcript counts are
+  generated from concrete payload lengths.
 - Added an abstract `ChallengeDeriver` and proved challenge consistency when
   prover and verifier have equal structured transcripts or equal absorbed
   payloads.
@@ -26,8 +37,9 @@ This note records the April 14, 2026 transcript absorption work in
 
 This is not a Fiat-Shamir proof and does not model SHA-256 as a random oracle.
 It proves deterministic transcript-state consistency for the ordered absorption
-surface.  Challenge uniformity, random-oracle programming, and full byte-level
-Swift compatibility for every serialized object remain separate formal work.
+surface, including the proof-envelope binding payload.  Challenge uniformity,
+random-oracle programming, and full byte-level Swift compatibility for every
+serialized proof object remain separate formal work.
 
 ## Verification
 
