@@ -140,6 +140,10 @@ if [[ "${RUN_FORMAL}" -eq 1 ]]; then
   run_step Scripts/test-formal-status-validation.py
   run_step Scripts/validate-formal-profile-constants.py
   run_step Scripts/test-formal-profile-constants-validation.py
+  run_step Scripts/validate-formal-ext2-serialization.py
+  run_step Scripts/test-formal-ext2-serialization-validation.py
+  run_step Scripts/validate-formal-ce-byte-serialization.py
+  run_step Scripts/test-formal-ce-byte-serialization-validation.py
 fi
 
 run_step "${SUPERNEO_CLI}" prove \

@@ -1,47 +1,33 @@
 # SuperNeo NuMetal
 
-Research-grade Swift and Metal implementation of the SuperNeo lattice folding
-protocol for Customizable Constraint Systems (CCS) on Apple platforms.
+SuperNeo NuMetal is a research-grade Swift and Metal implementation of the
+SuperNeo lattice folding protocol for Customizable Constraint Systems (CCS) on
+Apple platforms.
 
 The implemented public profile is `Goldilocks/Phi81(d=54)`: Goldilocks field
 arithmetic, a degree-54 cyclotomic ring, Ajtai-style lattice commitments,
-folding protocol stages, versioned proof envelopes, CLI proof artifacts,
-checked-in test vectors, benchmark tooling, and a Lean formalization track.
+folding protocol stages, versioned proof envelopes, checked test vectors,
+benchmark tooling, and an assumption-scoped Lean formalization track.
 
-> Status: serious research implementation. This repository is not a
-> production-audited cryptographic library and should not be described as a
-> production-secure SNARK, IVC, or PCD system.
+This repository is intended for protocol research, implementation validation,
+benchmarking, and reproducibility work. It is not a production-audited
+cryptographic library.
 
-## Contents
-
-- [Project Status](#project-status)
-- [What Is Implemented](#what-is-implemented)
-- [What This Does Not Claim](#what-this-does-not-claim)
-- [Requirements](#requirements)
-- [Repository Layout](#repository-layout)
-- [Quick Start](#quick-start)
-- [CLI Examples](#cli-examples)
-- [External Artifact Verification](#external-artifact-verification)
-- [Test Vectors](#test-vectors)
-- [Benchmarks](#benchmarks)
-- [Formalization And Reproduction](#formalization-and-reproduction)
-- [Documentation Map](#documentation-map)
-- [Trust Posture](#trust-posture)
-
-## Project Status
+## Status
 
 | Area | Current state |
 | --- | --- |
-| Parameter profile | One implemented public profile: `Goldilocks/Phi81(d=54)`, `profileID = 1`. |
-| Swift package | macOS 14+ package with library product `SuperNeo_NuMetal` and executable product `superneo`. |
-| Proof paths | Fold reductions, terminal local proofs with public CE opening material, and compressed public terminal envelopes. |
-| CLI surface | Integration demo for one-hot vector and binary-addition CCS workloads. |
-| Backends | CPU reference implementation plus selected Metal acceleration. Metal is an acceleration path, not a trust oracle. |
-| Assurance modes | `.highAssurance` and `.cpuRedundantMetal` execution policies are available for covered CPU-only or CPU-rechecked paths. |
-| Benchmarks | Pinned Apple M4 reports exist. Cross-generation performance claims are intentionally out of scope until more reports are pinned. |
-| Formal status | Conditional protocol formalization in Lean 4. Assumption-scoped theorem groups are tracked by `Docs/FormalStatus.json`. |
+| Profile | `Goldilocks/Phi81(d=54)`, `profileID = 1`. |
+| Package | macOS 14+ Swift package with library product `SuperNeo_NuMetal` and executable product `superneo`. |
+| Proof modes | Fold reductions, terminal proofs with public CE opening material, and compressed public terminal envelopes. |
+| Workloads | Bundled one-hot vector and 8-bit binary-addition CCS workloads. |
+| Backends | CPU reference implementation plus selected Metal acceleration. Metal is treated as an acceleration path, not a trust oracle. |
+| Assurance policies | `.highAssurance` for covered constant-work CPU paths and `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs. |
+| Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
+| Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/` and summarized below. |
+| Formalization | Conditional protocol formalization in Lean 4, tracked by `Docs/FormalStatus.json`. |
 
-## What Is Implemented
+## Capabilities
 
 - Goldilocks base field arithmetic and degree-2 extension arithmetic.
 - Degree-54 cyclotomic ring arithmetic for `Phi_81(X) = X^54 + X^27 + 1`.
@@ -51,8 +37,8 @@ checked-in test vectors, benchmark tooling, and a Lean formalization track.
 - `PiCCS`, `PiRLC`, `PiDEC`, fold reduction verification, terminal CE
   verification, compressed public terminal envelopes, and opt-in CE opening
   proofs.
-- Deterministic binary serialization for proof envelopes, commitments, public
-  inputs, evaluation claims, verifier-key material, and test-vector artifacts.
+- Deterministic serialization for proof envelopes, commitments, public inputs,
+  evaluation claims, verifier-key material, and test-vector artifacts.
 - R1CS-to-CCS helper surfaces for the bundled one-hot vector and binary-addition
   workloads.
 - CPU reference execution plus Metal kernels for selected field, ring,
@@ -78,40 +64,39 @@ Core profile constants are documented in [Docs/Parameters.md](Docs/Parameters.md
 | Maximum fresh batch count | `61` |
 | Maximum prior CE claim count | `14` |
 
-## What This Does Not Claim
+## Scope and Trust Model
 
-This repository does not currently provide:
+Verifier acceptance is meaningful only relative to the supplied CCS shape,
+public inputs, proof kind, verifier key, proof envelope context, and terminal
+relation policy. Application code must own expected context, key distribution,
+artifact provenance, replay policy, and user-facing acceptance semantics.
 
-- a production-audited cryptographic library,
-- a general compiler from programs to CCS,
-- a standalone application proving system with policy, persistence, replay
-  protection, or user-facing verification semantics,
-- a production zero-knowledge claim for arbitrary application statements,
-- formal constant-time or side-channel resistance,
-- a completed formal proof of every protocol theorem, or
-- an independently certified security estimate.
+A fold reduction verifies the public reduction and returns output
+commitment-evaluation claims. Callers that need terminal acceptance should
+verify a terminal or compressed-terminal proof and require terminal proof kind
+at the policy boundary.
 
-The active formal-status manifest now closes the Lean `GoldilocksExt2` field
-instance while intentionally keeping full cryptographic probability
-composition, complete Swift serialization equivalence, and byte-for-byte Swift
-CE verifier equivalence as planned blockers rather than closed claims.
+Current boundaries:
 
-A fold reduction is not a complete application proof. It verifies the public
-reduction and returns output commitment-evaluation (CE) claims. Callers that
-need terminal acceptance must verify a terminal or compressed-terminal proof and
-require terminal proof kind at the policy boundary.
+- no production audit or independent security certification,
+- no general compiler from programs to CCS,
+- no application-layer policy engine, persistence layer, replay-protection
+  system, or user-facing verification product,
+- no production zero-knowledge claim for arbitrary application statements,
+- no completed formal constant-time or side-channel proof, and
+- no completed full formal protocol theorem.
 
-See [Docs/WhatThisProves.md](Docs/WhatThisProves.md) for the precise proof
-semantics.
+The concise proof semantics are documented in
+[Docs/WhatThisProves.md](Docs/WhatThisProves.md), and the operational threat
+model is documented in [Docs/ThreatModel.md](Docs/ThreatModel.md).
 
 ## Requirements
 
 - macOS 14 or newer.
-- Swift tools version 6.1 or newer, through Xcode or the Xcode command-line
+- Swift tools version 6.1 or newer through Xcode or the Xcode command-line
   tools.
 - A Metal-capable Apple platform for GPU acceleration and Metal benchmark rows.
-  CPU tests and CPU proof paths remain available without registering Metal
-  benchmark rows.
+  CPU tests and CPU proof paths remain available without Metal benchmark rows.
 - Lean 4 through `elan` for the optional formalization workspace.
 - SageMath plus the pinned upstream lattice-estimator checkout for full
   estimator reproduction. Dry-run estimator parameter derivation does not
@@ -147,7 +132,7 @@ Run the fast local slice:
 Scripts/test-slice.sh fast
 ```
 
-Run the production gate used by local release-readiness checks:
+Run the local release-readiness gate:
 
 ```sh
 Scripts/production-gate.sh
@@ -165,7 +150,7 @@ Validate checked-in test vectors:
 swift Scripts/validate-test-vectors.swift
 ```
 
-Run the quick benchmark profile directly:
+Run the quick benchmark profile:
 
 ```sh
 Scripts/run-benchmarks.sh quick
@@ -177,7 +162,7 @@ Compare a benchmark run against a hardware-class baseline:
 SUPERNEO_BENCHMARK_BASELINE=path/to/baseline-results.json Scripts/run-benchmarks.sh quick
 ```
 
-## CLI Examples
+## CLI
 
 Generate, verify, and inspect the default one-hot fold artifact:
 
@@ -218,8 +203,8 @@ swift run superneo prove \
 swift run superneo verify --require-terminal /tmp/one-hot-terminal-proof.json
 ```
 
-Generate a compressed terminal proof when the verifier wants terminal acceptance
-with compressed public terminal statement material:
+Generate a compressed terminal proof with compressed public terminal statement
+material:
 
 ```sh
 swift run superneo prove \
@@ -231,16 +216,20 @@ swift run superneo prove \
 swift run superneo verify --require-terminal /tmp/one-hot-compressed-terminal-proof.json
 ```
 
-The CLI proof generator uses the repository's `.highAssurance` execution policy.
-It is still an integration demo, not a production policy engine.
+The CLI proof generator uses the repository's `.highAssurance` execution
+policy. It remains an integration demo, not a production policy engine. More
+detail is available in [Docs/CLI.md](Docs/CLI.md).
 
-More detail is available in [Docs/CLI.md](Docs/CLI.md).
+## Artifact Verification
 
-## External Artifact Verification
+The short form is a local self-consistency check:
 
-The short `superneo verify path/to/artifact.json` form is a local
-self-consistency check. For artifacts received from another process or party,
-the caller should pin the expected verifier context outside the artifact:
+```sh
+swift run superneo verify path/to/artifact.json
+```
+
+For artifacts received from another process or party, pin the expected verifier
+context outside the artifact:
 
 ```sh
 swift run superneo verify \
@@ -253,14 +242,11 @@ swift run superneo verify \
   path/to/artifact.json
 ```
 
-Use `--require-terminal` whenever a fold reduction is not sufficient for the
-application. Without trusted context arguments, the verifier reads the seed and
-digests from the artifact itself, which is useful for demos but not a policy
-decision.
-
-The proof envelope binds proof bytes to profile ID, proof kind, CCS shape
-digest, statement digest, verifier-key digest, transcript domain, and body
-length. See [Docs/ProofEnvelope.md](Docs/ProofEnvelope.md).
+Without trusted context arguments, the verifier reads the seed and digests from
+the artifact itself, which is useful for demos but not a policy decision. The
+proof envelope binds proof bytes to profile ID, proof kind, CCS shape digest,
+statement digest, verifier-key digest, transcript domain, and body length. See
+[Docs/ProofEnvelope.md](Docs/ProofEnvelope.md).
 
 ## Test Vectors
 
@@ -280,8 +266,6 @@ hashes, byte counts, public inputs, key seeds, digests, proof-kind requirements,
 and strict verification commands. `TestVectors/artifact.schema.json` is the
 machine-readable artifact schema.
 
-Run:
-
 ```sh
 swift Scripts/validate-test-vectors.swift
 ```
@@ -291,40 +275,59 @@ schema expectations.
 
 ## Benchmarks
 
-Benchmark results are only meaningful when paired with the documented
-correctness gates. The benchmark runner verifies protocol outputs before
-exporting results and compares CPU/Metal outputs where both paths exist.
+Benchmark results are meaningful only with the documented correctness gates.
+The benchmark runner verifies protocol outputs before exporting results and
+compares CPU/Metal outputs where both paths exist.
 
-Latest pinned local quick profile on Apple M4, measured 2026-04-12:
+Latest local benchmark snapshot:
 
-| Case | Earlier local quick | Latest quick | Speedup |
-| --- | ---: | ---: | ---: |
-| `fold/cpu/m64` | 5.465 ms | 4.349 ms | 1.26x |
-| `fold/cpu/m256` | 42 ms | 38 ms | 1.11x |
-| `fold/metal/m64` | 19 ms | 14.29 ms | 1.33x |
-| `fold/metal/m256` | 69 ms | 63 ms | 1.10x |
-| `stage/sumcheck/m64` | 1.848 ms | 0.302 ms | 6.12x |
-| `stage/piCCSClaims/m64` | 1.509 ms | 0.337 ms | 4.48x |
-| `stage/piRLC/m64` | 2.086 ms | 1.016 ms | 2.05x |
-| `stage/piDEC/m64` | 3.686 ms | 2.302 ms | 1.60x |
-| `terminalVerify/cpu/m64` | 5.434 ms | 3.299 ms | 1.65x |
-| `terminalVerify/cpu/m256` | 20 ms | 13 ms | 1.54x |
-| `proofEnvelope/roundTrip/m64` | 9.135 ms | 6.744 ms | 1.35x |
-| `proofEnvelope/roundTrip/m256` | 25 ms | 17 ms | 1.47x |
+| Field | Value |
+| --- | --- |
+| Generated | `2026-04-14T03:00:20Z` |
+| Source commit | `31d69f0` |
+| Source state | dirty |
+| Host | MacBook Air, Apple M4, 10 CPU cores, 24 GB memory |
+| Toolchain | Swift 6.3, Xcode 26.4 |
+| OS | macOS 26.5 build `25F5042g` |
+| Profile | `quick` |
+| Case filter | `m256-K2-k1-binary` |
+| Metal device | Apple M4 |
 
-Recent Apple M4 scaling reference points:
+Proof size for the latest case:
 
-| Case | CPU fold | Metal fold | Notes |
-| --- | ---: | ---: | --- |
-| `m1024` | 578 ms | 74 ms | row-block 128 baseline |
-| `m4096` | 4.37 s | 247 ms | row-block 128 and 256 effectively tied |
-| `m16384` | 50 s | 950 ms | row-block 128 completed the scaling run |
+| Case | Constraints | Proof | Envelope | Sum-check | PiCCS | PiRLC | PiDEC | Output claims |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `m256-K2-k1-binary` | 256 | 344,616 B | 344,757 B | 880 B | 32,856 B | 12,248 B | 145,280 B | 153,328 B |
 
-Prepared-context rows, CE proof rows, compressed-envelope rows, row-block tuning,
-and exact-arithmetic reports live in [Docs/Benchmarking.md](Docs/Benchmarking.md)
-and [Docs/BenchmarkReports](Docs/BenchmarkReports).
+Selected timing rows from the same run:
 
-## Formalization And Reproduction
+| Row | Time | Derived rate |
+| --- | ---: | ---: |
+| `fold/cpu/m256-K2-k1-binary` | 28 ms | 35.71 folds/s, 9,143 constraints/s |
+| `fold/metal/m256-K2-k1-binary` | 41 ms | 24.39 folds/s, 6,244 constraints/s |
+| `fold/prepared/cpu/m256-K2-k1-binary` | 27 ms | 37.04 folds/s, 9,481 constraints/s |
+| `fold/prepared/metal/m256-K2-k1-binary` | 38 ms | 26.32 folds/s, 6,737 constraints/s |
+| `stage/sumcheck/m256-K2-k1-binary` | 16 ms |  |
+| `stage/piCCSClaims/m256-K2-k1-binary` | 4.64 ms |  |
+| `stage/piRLC/m256-K2-k1-binary` | 2.18 ms |  |
+| `stage/piDEC/m256-K2-k1-binary` | 2.64 ms |  |
+| `reduceFold/cpu/m256-K2-k1-binary` | 2.37 ms |  |
+| `terminalVerify/cpu/m256-K2-k1-binary` | 4.83 ms |  |
+| `proofEnvelope/roundTrip/m256-K2-k1-binary` | 9.09 ms |  |
+| `kernel/ajtaiCommit/batch/cpu/m256-K2-k1-binary` | 5.34 ms | 187.23 commitments/s |
+| `kernel/ajtaiCommit/batch/metal/m256-K2-k1-binary` | 1.79 ms | 559.60 commitments/s |
+| `kernel/transformedEvaluation/cpuSparse/m256-K2-k1-binary` | 83 us |  |
+| `kernel/transformedEvaluation/metalSparse/m256-K2-k1-binary` | 4.13 ms |  |
+
+The full generated report is
+[benchmark-results/report.md](benchmark-results/report.md). Benchmark profiles,
+correctness gates, metadata-aware baseline comparison, and hardware-class report
+policy are documented in [Docs/Benchmarking.md](Docs/Benchmarking.md).
+
+Do not use these numbers for cross-generation claims. Current pinned README
+figures cover the latest local Apple M4 quick slice only.
+
+## Formalization and Reproduction
 
 Build the Lean workspace:
 
@@ -364,68 +367,34 @@ See [Docs/FormalVerification.md](Docs/FormalVerification.md),
 [Docs/PaperReproduction.md](Docs/PaperReproduction.md), and
 [Docs/LatticeEstimatorReproduction.md](Docs/LatticeEstimatorReproduction.md).
 
-## Documentation Map
+## Documentation
 
-Protocol and semantics:
+Core references:
 
 - [Parameters](Docs/Parameters.md)
 - [Threat Model](Docs/ThreatModel.md)
-- [What This Proves](Docs/WhatThisProves.md)
+- [Proof Semantics](Docs/WhatThisProves.md)
 - [Proof Envelope](Docs/ProofEnvelope.md)
-- [GPU Determinism](Docs/GPUDeterminism.md)
-
-Usage, artifacts, and validation:
-
 - [CLI](Docs/CLI.md)
-- [Test Vector README](TestVectors/README.md)
-- [Test Vector Schema](TestVectors/artifact.schema.json)
-- [Test Vector Manifest](TestVectors/manifest.json)
-- [Test Suite Notes](SuperNeo-NuMetalTests/README.md)
-
-Benchmarking and readiness:
-
 - [Benchmarking](Docs/Benchmarking.md)
+- [Formal Verification](Docs/FormalVerification.md)
+- [Paper Reproduction](Docs/PaperReproduction.md)
+- [Lattice Estimator Reproduction](Docs/LatticeEstimatorReproduction.md)
+- [Roadmap Status](Docs/RoadmapStatus.md)
+
+Recent implementation and hardening notes:
+
+- [Benchmark Metadata Comparison, 2026-04-14](Docs/BenchmarkMetadataComparison-2026-04-14.md)
 - [PiRLC Benchmark Isolation, 2026-04-14](Docs/BenchmarkPiRLCIsolation-2026-04-14.md)
 - [Opening Batch Parallel Threshold, 2026-04-14](Docs/BenchmarkOpeningBatchThreshold-2026-04-14.md)
-- [Binary Addition Terminal Vector, 2026-04-14](Docs/BinaryAdditionTerminalVector-2026-04-14.md)
-- [Compressed Terminal Vector, 2026-04-14](Docs/CompressedTerminalVector-2026-04-14.md)
 - [Relation Evaluation Plan, 2026-04-14](Docs/BenchmarkRelationEvaluationPlan-2026-04-14.md)
 - [Sum-Check Prior-Claim Evaluation Batch, 2026-04-14](Docs/BenchmarkSumcheckPriorBatch-2026-04-14.md)
 - [Sum-Check Public Precompute Cleanup, 2026-04-14](Docs/BenchmarkSumcheckPublicPrecompute-2026-04-14.md)
 - [Transformed Evaluation Fusion, 2026-04-14](Docs/BenchmarkTransformedEvaluationFusion-2026-04-14.md)
-- [Production Readiness, 2026-04-13](Docs/ProductionReadiness-2026-04-13.md)
-- [High-Assurance Hardening, 2026-04-13](Docs/HighAssuranceHardening-2026-04-13.md)
-- [Lead Audit, 2026-04-12](Docs/LeadAudit-2026-04-12.md)
-- [Roadmap Status](Docs/RoadmapStatus.md)
+- [Binary Addition Terminal Vector, 2026-04-14](Docs/BinaryAdditionTerminalVector-2026-04-14.md)
+- [Compressed Terminal Vector, 2026-04-14](Docs/CompressedTerminalVector-2026-04-14.md)
+- [Vector Manifest Duplicate Key Hardening, 2026-04-14](Docs/VectorManifestDuplicateKeyHardening-2026-04-14.md)
 
-Formalization and reproduction:
-
-- [Formal Verification](Docs/FormalVerification.md)
-- [Paper Reproduction](Docs/PaperReproduction.md)
-- [Lattice Estimator Reproduction](Docs/LatticeEstimatorReproduction.md)
-- [Formal Status Manifest](Docs/FormalStatus.json)
-- [DocC Module Overview](SuperNeo-NuMetal/SuperNeo_NuMetal.docc/SuperNeo_NuMetal.md)
-- [Bundled SuperNeo Paper Notes](SuperNeo-NuMetal/SuperNeo_NuMetal.docc/superneopaper.md)
-
-Detailed dated hardening notes for artifact parsing, workload canonicality,
-key-seed domain separation, terminal vectors, Ajtai keys, and formal promotion
-passes are kept under [Docs](Docs).
-
-## Trust Posture
-
-Verifier acceptance is meaningful only relative to the supplied CCS shape,
-public inputs, proof kind, verifier key, proof envelope context, and terminal
-relation policy. Application code must own expected context, key distribution,
-artifact provenance, replay policy, and user-facing acceptance semantics.
-
-Metal output should be treated as an acceleration result. Use
-`.cpuRedundantMetal` when covered Metal outputs must be checked against CPU
-computation, or `.highAssurance` when covered prover work should stay on the
-constant-work CPU paths provided by this repository.
-
-The concise public description is:
-
-> SuperNeo NuMetal is a research-grade Swift/Metal implementation of the
-> SuperNeo folding protocol over `Goldilocks/Phi81(d=54)`, with versioned proof
-> envelopes, checked test vectors, benchmark gates, and an assumption-scoped
-> formalization track.
+Detailed dated notes for artifact parsing, workload canonicality, key-seed
+domain separation, terminal vectors, Ajtai keys, benchmark passes, and formal
+promotion are kept under [Docs](Docs).

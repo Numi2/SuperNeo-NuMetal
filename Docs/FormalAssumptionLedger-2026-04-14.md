@@ -55,6 +55,11 @@ conditional path depends only on mechanized closed groups.
   public-Q oracle semantics, round-polynomial degree witnesses, and finite
   bad-challenge certificate that replace the deterministic
   `PiCCSSumcheckSoundnessAssumption` shape.
+- Swift wire support now includes `swift-ext2-caller-byte-surfaces`, a closed
+  grammar layer for counted Ext2 vectors, counted Ext2 ring vectors,
+  sum-check Ext2 proof fragments, and CCS/CE point-evaluation caller bytes.
+  This is source/grammar coverage only; it does not replace the planned
+  executable Swift Ext2 serialization-equivalence blocker.
 - Terminal CE statement and batch-projection facts are tracked as a closed core.
   Terminal CE local batch relations are tracked as closed local algebra.
   Public proof-acceptance predicate shape is tracked as the closed
@@ -71,6 +76,10 @@ conditional path depends only on mechanized closed groups.
 - SuperNeo acceptance decomposition is tracked as closed deterministic
   composition. `superneo-finite-bad-seed-composition` composes terminal
   verifier acceptance with the finite CE bad-seed certificate.
+  `superneo-tagged-bad-event-composition` now tracks only the finite tagged
+  union/cardinality layer for PiRLC, PiCCS/sum-check, terminal CE, and
+  transcript bad-event sets. It is not a probability theorem and does not
+  replace the planned full probability-composition blocker.
 - The formal-status validator now rejects duplicate declaration entries across
   theorem groups, preventing deterministic cores and assumption boundaries from
   double-counting the same Lean declaration.

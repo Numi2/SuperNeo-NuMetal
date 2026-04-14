@@ -19,10 +19,20 @@ This note records the April 14, 2026 concrete wire-format additions in
 - Added canonical Goldilocks wire encoding through the existing Lean
   `Goldilocks = ZMod p` representation, with an injectivity theorem tied to
   canonical values below the Goldilocks modulus.
-- Added Goldilocks extension-pair wire encoding and a Lean bridge from the
-  concrete `GoldilocksExt2` structure to `c0 || c1` byte order.
+- Added Goldilocks canonical wire decoding, including encode/decode round trip,
+  wrong-length rejection, and rejection for 64-bit little-endian values greater
+  than or equal to the Goldilocks modulus.
+- Added Goldilocks extension-pair wire encoding and decoding, with a Lean bridge
+  from the concrete `GoldilocksExt2` structure to `c0 || c1` byte order and an
+  exact 16-byte decode round trip.
 - Added a fixed-width vector encoder and used it to formalize the Swift
   `CyclotomicRing54` coefficient byte order for degree-54 Phi81 coefficients.
+- Added a fixed-width vector decoder with encode/decode round-trip and
+  wrong-length rejection theorems.
+- Added a `Phi81Ext2Coefficients` wire grammar for `CyclotomicExt2Ring54`:
+  degree-54 contiguous `GoldilocksExt2` coefficients, exact
+  `phi81Degree * 16` byte length, injective encoding, exact decode round trip,
+  and wrong-length rejection.
 - Added a proof-envelope transcript-binding context matching Swift's
   `transcriptBindingBytes` order:
   magic, version, profile id, proof kind, shape digest, statement digest,
@@ -32,16 +42,42 @@ This note records the April 14, 2026 concrete wire-format additions in
 - Added a checked parser for that 137-byte transcript binding.  Lean now proves
   that encoding then decoding recovers the full context, and that any successful
   parse has the exact binding length, magic value, and version bytes.
+- Added `SuperNeoFormal.CEByteSerialization`, a dedicated CE opening proof byte
+  grammar. It models Swift's 219-round CE proof count, digest-triple
+  commitments, response tags `0`, `1`, and `2`, Swift-accepted `Int` wire
+  values, linear and norm response payload vectors, response count framing,
+  proof rounds, and complete CE opening proof byte strings.
+- Proved CE byte-grammar encode/decode round trips for commitments, linear
+  responses, norm responses, tagged proof responses, proof rounds, and complete
+  CE opening proofs. The response tag layer is also linked to the existing
+  terminal CE challenge-branch domain.
+- Added `SuperNeoFormal.Ext2CallerSerialization`, a caller-surface grammar for
+  the Swift proof objects that carry Ext2 values: counted Ext2 vectors, counted
+  `CyclotomicExt2Ring54` vectors, sum-check Ext2 rounds/proofs, and CCS/CE
+  point-evaluation surfaces after opaque non-Ext2 prefixes.
+- Proved round-trip parser facts for counted Ext2 vectors, counted
+  `CyclotomicExt2Ring54` vectors, and sum-check Ext2 rounds. The larger
+  variable-length proof-object parsers are present as grammar nodes, but their
+  executable Swift equivalence remains a separate planned blocker.
 
 ## Boundary kept explicit
 
 This slice proves canonical byte layout and injectivity for concrete public wire
-objects, plus round-trip parsing for the proof-envelope transcript-binding
-prefix. It does not prove SHA-256 collision resistance, Fiat-Shamir
-random-oracle soundness, parser totality for every Swift proof object, or
-complete Swift serialization equivalence for every `GoldilocksExt2` caller.
+objects, exact Goldilocks/GoldilocksExt2 decode round trips, round-trip parsing
+for the proof-envelope transcript-binding prefix, a Lean CE opening proof byte
+grammar, and Lean Ext2 caller-surface grammar nodes for higher proof objects.
+It does not prove SHA-256 collision resistance, Fiat-Shamir random-oracle
+soundness, complete executable Swift parser equivalence for every proof object,
+or Swift CE verifier equivalence to `TerminalCEVerifierTrace`.
 
 ## Verification
 
 The declarations are tracked by `Docs/FormalStatus.json`, and the full formal
-target builds with `lake build`.
+target builds with `lake build`. `Scripts/validate-formal-ext2-serialization.py`
+checks the Lean Ext2 and Phi81/Ext2 coefficient grammars against the Swift
+encoder/parser shape, direct 16-byte reader call sites, Ext2 ring caller layout,
+Ext2 caller-surface grammar, and the independent Swift runtime fixture test.
+`Scripts/validate-formal-ce-byte-serialization.py`
+checks the CE byte grammar against Swift CE proof encoding/parsing and the
+all-tags parser fixture. Both mutation harnesses are part of the production
+gate.

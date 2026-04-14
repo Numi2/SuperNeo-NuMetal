@@ -25,6 +25,9 @@ import SuperNeoFormal.TerminalCE
 import SuperNeoFormal.CEOpeningRelation
 import SuperNeoFormal.TerminalCEFiniteSoundness
 import SuperNeoFormal.Serialization
+import SuperNeoFormal.CEByteSerialization
+import SuperNeoFormal.Ext2CallerSerialization
 import SuperNeoFormal.Transcript
 import SuperNeoFormal.TranscriptChallenge
 import SuperNeoFormal.Composition
+import SuperNeoFormal.ProbabilityComposition

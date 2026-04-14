@@ -34,6 +34,15 @@ manifest by certified-key or finite bad-challenge/bad-seed theorem groups.
   branch-derived local batch extraction.
 - SuperNeo composition now has `superneo_end_to_end_outside_ce_badSeeds`, which
   composes terminal verifier acceptance with the finite CE bad-seed certificate.
+- Probability composition now has a conservative tagged finite-event layer:
+  `SuperNeoFormal.ProbabilityComposition` tags PiRLC, PiCCS/sum-check, terminal
+  CE, and transcript bad-event sets, proves the aggregate finite-cardinality
+  bound, and proves that being outside the aggregate implies being outside each
+  stage set.
+- Ext2 caller byte surfaces now have `SuperNeoFormal.Ext2CallerSerialization`,
+  which models counted Ext2 vectors, counted `CyclotomicExt2Ring54` vectors,
+  sum-check Ext2 rounds/proofs, and CCS/CE point-evaluation surfaces after
+  their opaque non-Ext2 prefixes.
 - Sum-check now has a closed finite-field low-degree root-count core:
   a nonzero polynomial has at most `natDegree` roots in any finite challenge
   support, and a support larger than the degree bound contains a non-root.
@@ -89,6 +98,27 @@ The full theorem label still requires three planned groups:
   it.
 - `swift-ce-verifier-byte-equivalence`: a byte-for-byte equivalence proof for
   the Swift CE verifier proof parser and verifier path.
+
+The CE byte grammar itself has moved forward: `SuperNeoFormal.CEByteSerialization`
+now models the counted CE proof bytes, response tags, commitments, responses,
+rounds, and complete proof object, with round-trip theorems and a Swift drift
+validator in the production gate. This does not discharge the blocker because
+the executable Swift verifier branches are not yet proved equivalent to
+`TerminalCEVerifierTraceAccepts`.
+
+The Ext2 caller byte surface itself has moved forward:
+`swift-ext2-caller-byte-surfaces` is closed as a supporting grammar for counted
+Ext2 vectors, counted Ext2 ring vectors, sum-check Ext2 proof fragments, and
+CCS/CE point-evaluation caller bytes. This does not discharge
+`swift-goldilocks-ext2-serialization-equivalence` because executable Swift
+behavior equivalence is still not mechanized.
+
+The tagged bad-event composition itself has moved forward:
+`superneo-tagged-bad-event-composition` is closed as finite bookkeeping for the
+PiRLC, PiCCS/sum-check, terminal CE, and transcript event sets. This does not
+discharge `superneo-full-probability-composition` because no transcript-seed
+distribution, Fiat-Shamir projection map, fiber bound, or rational probability
+denominator is mechanized yet.
 
 The Lean `goldilocks-ext2-field-instance` group is now closed by transferring
 mathlib's root-free quadratic-algebra field instance onto the existing

@@ -120,6 +120,131 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         )
     }
 
+    func testTier0GoldilocksExt2SerializationUsesCanonicalC0ThenC1Order() throws {
+        func leBytes(_ value: UInt64) -> [UInt8] {
+            withUnsafeBytes(of: value.littleEndian, Array.init)
+        }
+
+        let c0Raw: UInt64 = 0x0102_0304_0506_0708
+        let c1Raw: UInt64 = 0x1110_0F0E_0D0C_0B0A
+        let c0 = GoldilocksField(c0Raw)
+        let c1 = GoldilocksField(c1Raw)
+        let element = GoldilocksExt2(c0, c1)
+        let expected = leBytes(c0Raw) + leBytes(c1Raw)
+
+        XCTAssertLessThan(c0Raw, GoldilocksField.modulus)
+        XCTAssertLessThan(c1Raw, GoldilocksField.modulus)
+        XCTAssertEqual(element.littleEndianBytes, expected)
+        XCTAssertEqual(element.superNeoBytes, expected)
+        XCTAssertEqual(try GoldilocksExt2(littleEndianBytes: expected[...]), element)
+
+        let swapped = leBytes(c1Raw) + leBytes(c0Raw)
+        XCTAssertEqual(try GoldilocksExt2(littleEndianBytes: swapped[...]), GoldilocksExt2(c1, c0))
+        XCTAssertNotEqual(swapped, expected)
+
+        let modulusBytes = leBytes(GoldilocksField.modulus)
+        var nonCanonicalC0 = expected
+        nonCanonicalC0.replaceSubrange(0..<8, with: modulusBytes)
+        XCTAssertThrowsSuperNeoError(
+            try GoldilocksExt2(littleEndianBytes: nonCanonicalC0[...]),
+            .invalidEncoding("non-canonical Goldilocks element")
+        )
+
+        var nonCanonicalC1 = expected
+        nonCanonicalC1.replaceSubrange(8..<16, with: modulusBytes)
+        XCTAssertThrowsSuperNeoError(
+            try GoldilocksExt2(littleEndianBytes: nonCanonicalC1[...]),
+            .invalidEncoding("non-canonical Goldilocks element")
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try GoldilocksExt2(littleEndianBytes: (expected + [0])[...]),
+            .invalidEncoding("GoldilocksExt2 element must be 16 bytes")
+        )
+
+        let ring = CyclotomicExt2Ring54([element, GoldilocksExt2(c1, c0)])
+        XCTAssertEqual(Array(ring.littleEndianBytes.prefix(16)), expected)
+        XCTAssertEqual(Array(ring.littleEndianBytes.dropFirst(16).prefix(16)), swapped)
+        XCTAssertEqual(try CyclotomicExt2Ring54(littleEndianBytes: ring.littleEndianBytes), ring)
+
+        let sumcheck = SumcheckProof(
+            claimedSum: element,
+            rounds: [SumcheckRound(coeffs: [GoldilocksExt2(c1, c0), element])],
+            finalPoint: [element],
+            finalValue: GoldilocksExt2(c1, c0)
+        )
+        XCTAssertEqual(Array(sumcheck.superNeoBytes.prefix(16)), expected)
+        XCTAssertEqual(Array(sumcheck.superNeoBytes.dropFirst(32).prefix(16)), swapped)
+        XCTAssertEqual(Array(sumcheck.superNeoBytes.dropFirst(48).prefix(16)), expected)
+        XCTAssertEqual(Array(sumcheck.superNeoBytes.dropFirst(72).prefix(16)), expected)
+        XCTAssertEqual(Array(sumcheck.superNeoBytes.dropFirst(88).prefix(16)), swapped)
+
+        let commitment = AjtaiCommitment(
+            (0..<SuperNeoParameters.goldilocks.kappa).map { index in
+                CyclotomicRing54([GoldilocksField(UInt64(index + 3))])
+            }
+        )
+        let publicInput = [GoldilocksField(7), GoldilocksField(19)]
+        let evaluationRing = CyclotomicExt2Ring54([element, GoldilocksExt2(c1, c0)])
+        let claim = CCSEvaluationClaim(
+            commitment: commitment,
+            publicInput: publicInput,
+            point: [element],
+            evaluations: [evaluationRing]
+        )
+        let claimPointCountOffset = commitment.superNeoBytes.count
+            + encodedCountByteWidth
+            + publicInput.count * 8
+        XCTAssertEqual(
+            Array(claim.superNeoBytes.dropFirst(claimPointCountOffset).prefix(encodedCountByteWidth)),
+            leBytes(1)
+        )
+        XCTAssertEqual(
+            Array(claim.superNeoBytes.dropFirst(claimPointCountOffset + encodedCountByteWidth).prefix(16)),
+            expected
+        )
+        let claimEvaluationCountOffset = claimPointCountOffset + encodedCountByteWidth + 16
+        XCTAssertEqual(
+            Array(claim.superNeoBytes.dropFirst(claimEvaluationCountOffset).prefix(encodedCountByteWidth)),
+            leBytes(1)
+        )
+        XCTAssertEqual(
+            Array(claim.superNeoBytes.dropFirst(claimEvaluationCountOffset + encodedCountByteWidth).prefix(16)),
+            expected
+        )
+        XCTAssertEqual(
+            Array(claim.superNeoBytes.dropFirst(claimEvaluationCountOffset + encodedCountByteWidth + 16).prefix(16)),
+            swapped
+        )
+
+        let ceInstance = CEInstance(
+            commitment: commitment,
+            publicInput: publicInput,
+            evalPoint: [GoldilocksExt2(c1, c0)],
+            matrixEvals: [evaluationRing]
+        )
+        let cePointCountOffset = commitment.superNeoBytes.count
+            + ceInstance.publicInputEncoding.superNeoBytes.count
+        XCTAssertEqual(
+            Array(ceInstance.superNeoBytes.dropFirst(cePointCountOffset).prefix(encodedCountByteWidth)),
+            leBytes(1)
+        )
+        XCTAssertEqual(
+            Array(ceInstance.superNeoBytes.dropFirst(cePointCountOffset + encodedCountByteWidth).prefix(16)),
+            swapped
+        )
+        let ceMatrixEvalCountOffset = cePointCountOffset + encodedCountByteWidth + 16
+        XCTAssertEqual(
+            Array(ceInstance.superNeoBytes.dropFirst(ceMatrixEvalCountOffset).prefix(encodedCountByteWidth)),
+            leBytes(1)
+        )
+        XCTAssertEqual(
+            Array(ceInstance.superNeoBytes.dropFirst(ceMatrixEvalCountOffset + encodedCountByteWidth).prefix(16)),
+            expected
+        )
+        XCTAssertEqual(try CEInstance(bytes: ceInstance.superNeoBytes), ceInstance)
+    }
+
     func testTier0DeterministicRNGAndTranscriptMatchSHA256CounterReference() throws {
         let seed = Array("deterministic-rng-byte-stream".utf8)
         var rng = DeterministicRNG(seed: seed)
@@ -1192,6 +1317,115 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
                 key: fixture.key
             ))
         }
+    }
+
+    func testCEOpeningProofSerializationCoversAllResponseTagsAndParserFailures() throws {
+        func digest(_ seed: UInt8) throws -> Digest256 {
+            try Digest256((0..<Digest256.byteCount).map { UInt8(truncatingIfNeeded: Int(seed) + $0) })
+        }
+
+        let firstCommitment = CEOpeningProofCommitments(
+            maskLinearDigest: try digest(10),
+            permutedMaskDigest: try digest(11),
+            permutedMaskedWitnessDigest: try digest(12)
+        )
+        let secondCommitment = CEOpeningProofCommitments(
+            maskLinearDigest: try digest(13),
+            permutedMaskDigest: try digest(14),
+            permutedMaskedWitnessDigest: try digest(15)
+        )
+        let commitments = [firstCommitment, secondCommitment]
+        let maskOpenings = [
+            CEOpeningLinearResponse(permutation: [0, 1], vector: [GoldilocksField(7), GoldilocksField(11)]),
+            CEOpeningLinearResponse(permutation: [1, 0], vector: [GoldilocksField(13), GoldilocksField(17)])
+        ]
+        let maskedWitnessOpenings = [
+            CEOpeningLinearResponse(permutation: [1, 1], vector: [GoldilocksField(19), GoldilocksField(23)]),
+            CEOpeningLinearResponse(permutation: [0, 0], vector: [GoldilocksField(29), GoldilocksField(31)])
+        ]
+        let permutedWitnessOpenings = [
+            CEOpeningNormResponse(
+                permutedMask: [GoldilocksField(37), GoldilocksField(41)],
+                permutedWitness: [GoldilocksField(43), GoldilocksField(47)]
+            ),
+            CEOpeningNormResponse(
+                permutedMask: [GoldilocksField(53), GoldilocksField(59)],
+                permutedWitness: [GoldilocksField(61), GoldilocksField(67)]
+            )
+        ]
+
+        let rounds = (0..<CEOpeningProof.roundCount).map { index in
+            let response: CEOpeningProofResponse
+            switch index % 3 {
+            case 0:
+                response = .mask(maskOpenings)
+            case 1:
+                response = .maskedWitness(maskedWitnessOpenings)
+            default:
+                response = .permutedWitness(permutedWitnessOpenings)
+            }
+            return CEOpeningProofRound(commitments: commitments, response: response)
+        }
+        let proof = try CEOpeningProof(rounds: rounds)
+        let bytes = proof.superNeoBytes
+        let roundWidth = rounds[0].superNeoBytes.count
+        let responseTagOffsetInRound = encodedCountByteWidth + commitments.count * 3 * Digest256.byteCount
+        func responseTagOffset(round index: Int) -> Int {
+            encodedCountByteWidth + index * roundWidth + responseTagOffsetInRound
+        }
+
+        XCTAssertTrue(rounds.allSatisfy { $0.superNeoBytes.count == roundWidth })
+        XCTAssertEqual(bytes[responseTagOffset(round: 0)], 0)
+        XCTAssertEqual(bytes[responseTagOffset(round: 1)], 1)
+        XCTAssertEqual(bytes[responseTagOffset(round: 2)], 2)
+        XCTAssertEqual(try CEOpeningProof(bytes: bytes), proof)
+
+        let reparsed = try CEOpeningProof(bytes: bytes)
+        if case .mask(let openings) = reparsed.rounds[0].response {
+            XCTAssertEqual(openings, maskOpenings)
+        } else {
+            XCTFail("round 0 should parse as mask response")
+        }
+        if case .maskedWitness(let openings) = reparsed.rounds[1].response {
+            XCTAssertEqual(openings, maskedWitnessOpenings)
+        } else {
+            XCTFail("round 1 should parse as masked-witness response")
+        }
+        if case .permutedWitness(let openings) = reparsed.rounds[2].response {
+            XCTAssertEqual(openings, permutedWitnessOpenings)
+        } else {
+            XCTFail("round 2 should parse as permuted-witness response")
+        }
+
+        var wrongRoundCount = bytes
+        wrongRoundCount[0] = UInt8(CEOpeningProof.roundCount - 1)
+        XCTAssertThrowsSuperNeoError(
+            try CEOpeningProof(bytes: wrongRoundCount),
+            .invalidEncoding("wrong CE opening proof round count")
+        )
+
+        var invalidTag = bytes
+        invalidTag[responseTagOffset(round: 0)] = 9
+        XCTAssertThrowsSuperNeoError(
+            try CEOpeningProof(bytes: invalidTag),
+            .invalidEncoding("unsupported CE opening response challenge")
+        )
+
+        var wrongResponseCount = bytes
+        wrongResponseCount[responseTagOffset(round: 0) + 1] = 1
+        XCTAssertThrowsSuperNeoError(
+            try CEOpeningProof(bytes: wrongResponseCount),
+            .invalidEncoding("CE opening response count mismatch")
+        )
+
+        var truncatedCommitmentDigest = bytes
+        truncatedCommitmentDigest.remove(at: encodedCountByteWidth + encodedCountByteWidth + Digest256.byteCount - 1)
+        XCTAssertThrowsError(try CEOpeningProof(bytes: truncatedCommitmentDigest))
+
+        XCTAssertThrowsSuperNeoError(
+            try CEOpeningProof(bytes: bytes + [0]),
+            .invalidEncoding("trailing proof bytes")
+        )
     }
 
     func testCEOpeningMetalVerifierUsesWorkspaceTargetPreparation() throws {

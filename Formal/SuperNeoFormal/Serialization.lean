@@ -329,6 +329,31 @@ theorem goldilocksWireEncode_injective :
   apply Fin.ext
   simpa [goldilocksWireToUInt64] using congrArg Fin.val hUInt
 
+def goldilocksWireDecode? (bytes : List Byte) : Option GoldilocksWire :=
+  match uintLEDecode? 8 bytes with
+  | some value =>
+      if hValue : value.val < goldilocksModulus then
+        some ⟨value.val, hValue⟩
+      else
+        none
+  | none => none
+
+theorem goldilocksWireDecode?_encode (value : GoldilocksWire) :
+    goldilocksWireDecode? (goldilocksWireEncode value) = some value := by
+  simp [goldilocksWireDecode?, goldilocksWireEncode, uint64LEEncode,
+    uintLEDecode?_encode, goldilocksWireToUInt64]
+
+theorem goldilocksWireDecode?_none_of_length_ne {bytes : List Byte}
+    (hLength : bytes.length ≠ 8) :
+    goldilocksWireDecode? bytes = none := by
+  simp [goldilocksWireDecode?, uintLEDecode?, hLength]
+
+theorem goldilocksWireDecode?_uint64Encode_of_ge_modulus
+    (value : UInt64LE) (hValue : goldilocksModulus ≤ value.val) :
+    goldilocksWireDecode? (uint64LEEncode value) = none := by
+  simp [goldilocksWireDecode?, uint64LEEncode, uintLEDecode?_encode,
+    Nat.not_lt.mpr hValue]
+
 def goldilocksElementWire (value : Goldilocks) : GoldilocksWire :=
   ⟨value.val, value.2⟩
 
@@ -346,6 +371,29 @@ theorem goldilocksElementEncode_injective :
   have hVal : lhs.val = rhs.val := by
     simpa [goldilocksElementWire] using congrArg Fin.val hWire
   exact ZMod.val_injective goldilocksModulus hVal
+
+def goldilocksElementDecode? (bytes : List Byte) : Option Goldilocks :=
+  match goldilocksWireDecode? bytes with
+  | some value => some (value.val : Goldilocks)
+  | none => none
+
+theorem goldilocksElementDecode?_encode (value : Goldilocks) :
+    goldilocksElementDecode? (goldilocksElementEncode value) = some value := by
+  simp [goldilocksElementDecode?, goldilocksElementEncode,
+    goldilocksWireDecode?_encode, goldilocksElementWire]
+
+theorem goldilocksElementDecode?_none_of_length_ne {bytes : List Byte}
+    (hLength : bytes.length ≠ 8) :
+    goldilocksElementDecode? bytes = none := by
+  simp [goldilocksElementDecode?, goldilocksWireDecode?_none_of_length_ne hLength]
+
+theorem goldilocksElementDecode?_length_of_some
+    {bytes : List Byte} {value : Goldilocks}
+    (hDecode : goldilocksElementDecode? bytes = some value) :
+    bytes.length = 8 := by
+  by_contra hLength
+  rw [goldilocksElementDecode?_none_of_length_ne hLength] at hDecode
+  contradiction
 
 abbrev GoldilocksExt2Wire :=
   Goldilocks × Goldilocks
@@ -369,6 +417,33 @@ theorem goldilocksExt2WireEncode_injective :
   exact Prod.ext (goldilocksElementEncode_injective hFstBytes)
     (goldilocksElementEncode_injective hSndBytes)
 
+def goldilocksExt2WireDecode? (bytes : List Byte) : Option GoldilocksExt2Wire :=
+  if bytes.length = 16 then
+    match goldilocksElementDecode? (bytes.take 8),
+        goldilocksElementDecode? (bytes.drop 8) with
+    | some c0, some c1 => some (c0, c1)
+    | _, _ => none
+  else
+    none
+
+theorem goldilocksExt2WireDecode?_encode (value : GoldilocksExt2Wire) :
+    goldilocksExt2WireDecode? (goldilocksExt2WireEncode value) = some value := by
+  simp [goldilocksExt2WireDecode?, goldilocksExt2WireEncode,
+    goldilocksElementEncode_length, goldilocksElementDecode?_encode]
+
+theorem goldilocksExt2WireDecode?_none_of_length_ne {bytes : List Byte}
+    (hLength : bytes.length ≠ 16) :
+    goldilocksExt2WireDecode? bytes = none := by
+  simp [goldilocksExt2WireDecode?, hLength]
+
+theorem goldilocksExt2WireDecode?_length_of_some
+    {bytes : List Byte} {value : GoldilocksExt2Wire}
+    (hDecode : goldilocksExt2WireDecode? bytes = some value) :
+    bytes.length = 16 := by
+  by_contra hLength
+  rw [goldilocksExt2WireDecode?_none_of_length_ne hLength] at hDecode
+  contradiction
+
 def goldilocksExt2ElementWire (value : GoldilocksExt2) : GoldilocksExt2Wire :=
   (value.c0, value.c1)
 
@@ -387,6 +462,30 @@ theorem goldilocksExt2ElementEncode_injective :
   cases rhs
   simp [goldilocksExt2ElementWire] at hWire ⊢
   exact hWire
+
+def goldilocksExt2ElementDecode? (bytes : List Byte) : Option GoldilocksExt2 :=
+  match goldilocksExt2WireDecode? bytes with
+  | some value => some ⟨value.1, value.2⟩
+  | none => none
+
+theorem goldilocksExt2ElementDecode?_encode (value : GoldilocksExt2) :
+    goldilocksExt2ElementDecode? (goldilocksExt2ElementEncode value) = some value := by
+  cases value
+  simp [goldilocksExt2ElementDecode?, goldilocksExt2ElementEncode,
+    goldilocksExt2ElementWire, goldilocksExt2WireDecode?_encode]
+
+theorem goldilocksExt2ElementDecode?_none_of_length_ne {bytes : List Byte}
+    (hLength : bytes.length ≠ 16) :
+    goldilocksExt2ElementDecode? bytes = none := by
+  simp [goldilocksExt2ElementDecode?, goldilocksExt2WireDecode?_none_of_length_ne hLength]
+
+theorem goldilocksExt2ElementDecode?_length_of_some
+    {bytes : List Byte} {value : GoldilocksExt2}
+    (hDecode : goldilocksExt2ElementDecode? bytes = some value) :
+    bytes.length = 16 := by
+  by_contra hLength
+  rw [goldilocksExt2ElementDecode?_none_of_length_ne hLength] at hDecode
+  contradiction
 
 def finVectorEncode {α : Type} (encode : α → List Byte) :
     {n : Nat} → (Fin n → α) → List Byte
@@ -433,6 +532,68 @@ theorem finVectorEncode_injective {α : Type} {encode : α → List Byte} {width
       | zero => exact hHead
       | succ index => exact congrFun hTail index
 
+def finVectorDecode? {α : Type} (decode : List Byte → Option α) (width : Nat) :
+    {n : Nat} → List Byte → Option (Fin n → α)
+  | 0, bytes =>
+      if bytes = [] then
+        some (fun index => Fin.elim0 index)
+      else
+        none
+  | n + 1, bytes =>
+      if bytes.length = (n + 1) * width then
+        match decode (bytes.take width),
+            finVectorDecode? decode width (n := n) (bytes.drop width) with
+        | some head, some tail => some (Fin.cases head tail)
+        | _, _ => none
+      else
+        none
+
+theorem finVectorDecode?_encode {α : Type} {encode : α → List Byte}
+    {decode : List Byte → Option α} {width : Nat}
+    (hLen : ∀ value, (encode value).length = width)
+    (hRoundTrip : ∀ value, decode (encode value) = some value) :
+    ∀ {n : Nat} (values : Fin n → α),
+      finVectorDecode? decode width (finVectorEncode encode values) = some values
+  | 0, values => by
+      simp [finVectorEncode, finVectorDecode?]
+      funext index
+      exact Fin.elim0 index
+  | n + 1, values => by
+      have hTail :=
+        finVectorDecode?_encode hLen hRoundTrip
+          (fun index : Fin n => values index.succ)
+      simp [finVectorEncode, finVectorDecode?, hLen,
+        finVectorEncode_length hLen (fun index : Fin n => values index.succ),
+        hRoundTrip, hTail, Nat.succ_mul]
+      constructor
+      · omega
+      · funext index
+        cases index using Fin.cases with
+        | zero => simp
+        | succ index => simp
+
+theorem finVectorDecode?_none_of_length_ne {α : Type}
+    {decode : List Byte → Option α} {width : Nat} :
+    ∀ {n : Nat} {bytes : List Byte},
+      bytes.length ≠ n * width →
+        finVectorDecode? decode width (n := n) bytes = none
+  | 0, bytes, hLength => by
+      simp [finVectorDecode?]
+      intro hBytes
+      apply hLength
+      simp [hBytes]
+  | n + 1, bytes, hLength => by
+      simp [finVectorDecode?, hLength]
+
+theorem finVectorDecode?_length_of_some {α : Type}
+    {decode : List Byte → Option α} {width : Nat}
+    {n : Nat} {bytes : List Byte} {values : Fin n → α}
+    (hDecode : finVectorDecode? decode width (n := n) bytes = some values) :
+    bytes.length = n * width := by
+  by_contra hLength
+  rw [finVectorDecode?_none_of_length_ne hLength] at hDecode
+  contradiction
+
 def phi81CoefficientsWireEncode (coefficients : Phi81Coefficients) : List Byte :=
   finVectorEncode goldilocksElementEncode coefficients
 
@@ -443,6 +604,45 @@ theorem phi81CoefficientsWireEncode_length (coefficients : Phi81Coefficients) :
 theorem phi81CoefficientsWireEncode_injective :
     Function.Injective phi81CoefficientsWireEncode :=
   finVectorEncode_injective goldilocksElementEncode_length goldilocksElementEncode_injective
+
+abbrev Phi81Ext2Coefficients :=
+  Fin phi81Degree → GoldilocksExt2
+
+def phi81Ext2CoefficientsWireEncode
+    (coefficients : Phi81Ext2Coefficients) : List Byte :=
+  finVectorEncode goldilocksExt2ElementEncode coefficients
+
+theorem phi81Ext2CoefficientsWireEncode_length
+    (coefficients : Phi81Ext2Coefficients) :
+    (phi81Ext2CoefficientsWireEncode coefficients).length = phi81Degree * 16 := by
+  exact finVectorEncode_length goldilocksExt2ElementEncode_length coefficients
+
+theorem phi81Ext2CoefficientsWireEncode_injective :
+    Function.Injective phi81Ext2CoefficientsWireEncode :=
+  finVectorEncode_injective goldilocksExt2ElementEncode_length
+    goldilocksExt2ElementEncode_injective
+
+def phi81Ext2CoefficientsWireDecode?
+    (bytes : List Byte) : Option Phi81Ext2Coefficients :=
+  finVectorDecode? goldilocksExt2ElementDecode? 16 (n := phi81Degree) bytes
+
+theorem phi81Ext2CoefficientsWireDecode?_encode
+    (coefficients : Phi81Ext2Coefficients) :
+    phi81Ext2CoefficientsWireDecode?
+      (phi81Ext2CoefficientsWireEncode coefficients) = some coefficients := by
+  exact finVectorDecode?_encode goldilocksExt2ElementEncode_length
+    goldilocksExt2ElementDecode?_encode coefficients
+
+theorem phi81Ext2CoefficientsWireDecode?_none_of_length_ne
+    {bytes : List Byte} (hLength : bytes.length ≠ phi81Degree * 16) :
+    phi81Ext2CoefficientsWireDecode? bytes = none := by
+  exact finVectorDecode?_none_of_length_ne hLength
+
+theorem phi81Ext2CoefficientsWireDecode?_length_of_some
+    {bytes : List Byte} {coefficients : Phi81Ext2Coefficients}
+    (hDecode : phi81Ext2CoefficientsWireDecode? bytes = some coefficients) :
+    bytes.length = phi81Degree * 16 := by
+  exact finVectorDecode?_length_of_some hDecode
 
 inductive ProofEnvelopeKindWire where
   | foldReduction

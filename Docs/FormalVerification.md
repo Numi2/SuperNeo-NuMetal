@@ -15,8 +15,9 @@ corrected model: Ajtai binding is consumed through certified verifier keys, and
 probabilistic PiRLC, PiCCS/sum-check, and terminal CE proof soundness are stated
 outside explicitly finite bad challenge/seed sets. It covers profile constants,
 derived parameter equalities, the strong-sampling inequality, concrete
-Goldilocks/Phi81 algebra, GoldilocksExt2 wire operations, Phi81 factorization,
-field-to-ring packing, the complete Lean `GoldilocksExt2` field instance,
+Goldilocks/Phi81 algebra, GoldilocksExt2 wire operations, Ext2 caller byte
+surfaces, CE opening proof byte grammar, Phi81 factorization, field-to-ring
+packing, the complete Lean `GoldilocksExt2` field instance,
 concrete and certified Ajtai instantiation, PiDEC
 recomposition, PiRLC weighted-claim recomposition, finite-support counting,
 scalar and quotient-ring-safe collision facts, transcript-bound finite challenge
@@ -24,7 +25,10 @@ scheduling, PiCCS acceptance projections, the PiCCS exact public-Q bridge,
 finite-field low-degree root counting, finite bad-challenge PiCCS soundness,
 terminal CE statement and local batch algebra, finite bad-seed terminal CE proof
 soundness, distinct-witness-to-short-kernel reductions, and end-to-end verifier
-composition outside the CE bad-seed set.
+composition outside the CE bad-seed set. It also includes the conservative
+`SuperNeoFormal.ProbabilityComposition` tagged finite bad-event aggregation
+layer, which is finite bookkeeping only and does not yet claim a transcript
+distribution or end-to-end probability bound.
 
 The full theorem label is intentionally blocked by planned theorem groups for
 full cryptographic probability composition, complete Swift serialization
