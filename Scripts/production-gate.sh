@@ -3,10 +3,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_BENCHMARKS=0
+RUN_FORMAL=1
 
 usage() {
   cat <<'USAGE'
-Usage: Scripts/production-gate.sh [--with-benchmarks]
+Usage: Scripts/production-gate.sh [--with-benchmarks] [--skip-formal]
 
 Runs the release-readiness gate for SuperNeo NuMetal:
   - release build
@@ -17,6 +18,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - release CLI fold and terminal prove/verify smoke for bundled workloads
 
 Pass --with-benchmarks to include Scripts/run-benchmarks.sh quick.
+Pass --skip-formal when a separate CI job is already running the Lean/formal gate.
 USAGE
 }
 
@@ -24,6 +26,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --with-benchmarks)
       RUN_BENCHMARKS=1
+      shift
+      ;;
+    --skip-formal)
+      RUN_FORMAL=0
       shift
       ;;
     -h|--help)
@@ -121,12 +127,14 @@ cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_pat
 run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
 run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent "${lattice_path}"
 run_step Scripts/test-lattice-estimator-artifact-validation.py
-require_lake
-run_step_in_dir Formal lake build
-run_step Scripts/validate-formal-status.py
-run_step Scripts/test-formal-status-validation.py
-run_step Scripts/validate-formal-profile-constants.py
-run_step Scripts/test-formal-profile-constants-validation.py
+if [[ "${RUN_FORMAL}" -eq 1 ]]; then
+  require_lake
+  run_step_in_dir Formal lake build
+  run_step Scripts/validate-formal-status.py
+  run_step Scripts/test-formal-status-validation.py
+  run_step Scripts/validate-formal-profile-constants.py
+  run_step Scripts/test-formal-profile-constants-validation.py
+fi
 
 run_step "${SUPERNEO_CLI}" prove \
   --bits 0,0,1,0,0,0,0,0 \

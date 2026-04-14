@@ -11,17 +11,42 @@ permissions:
   contents: read
 
 jobs:
-  production:
-    name: Build, debug/release test, vectors, and CLI smoke
+  swift:
+    name: Swift build, tests, vectors, and CLI smoke
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - name: Run production gate
+        run: Scripts/production-gate.sh --skip-formal
+
+  formal:
+    name: Lean formal build and validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Install elan
         run: |
           curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
             | sh -s -- -y --default-toolchain none
           echo "${HOME}/.elan/bin" >> "${GITHUB_PATH}"
 
-      - name: Run production gate
-        run: Scripts/production-gate.sh
+      - name: Build Lean workspace
+        run: |
+          cd Formal
+          lake build
+
+      - name: Validate formal status manifest
+        run: Scripts/validate-formal-status.py
+
+      - name: Regression-test formal status validator
+        run: Scripts/test-formal-status-validation.py
+
+      - name: Validate formal profile constants
+        run: Scripts/validate-formal-profile-constants.py
+
+      - name: Regression-test formal profile constants validator
+        run: Scripts/test-formal-profile-constants-validation.py
