@@ -10,7 +10,7 @@ public enum NumiSealSumcheckOracle {
     ) throws -> SumcheckProof {
         try validateBindings(linearResidual: linearResidual, digitTensor: digitTensor)
         let context = try makeContext(linearResidual: linearResidual, digitTensor: digitTensor)
-        var oracle = try makeReferenceOracle(context: context)
+        var oracle = OptimizedDenseOracle(context: context)
         var transcript = makeTranscript(context: context)
         return try SumcheckProver.prove(
             oracle: &oracle,
@@ -52,8 +52,8 @@ public enum NumiSealSumcheckOracle {
         let slotCount = try checkedSlotCount(columnCount: columnCount)
         let paddedSlotCount = nextPowerOfTwo(slotCount)
         let variableCount = try log2Exact(paddedSlotCount)
-        guard variableCount <= maximumReferenceVariableCount else {
-            throw SuperNeoError.invalidParameter("NumiSeal reference sum-check variable count is too large")
+        guard columnCount <= NumiSealWireLimits.maximumDigitTensorColumnCount else {
+            throw SuperNeoError.invalidParameter("NumiSeal digit tensor column count is too large")
         }
         guard activeDigitCount >= 0, activeDigitCount <= slotCount else {
             throw SuperNeoError.invalidParameter("NumiSeal active digit count exceeds tensor size")
@@ -114,17 +114,6 @@ public enum NumiSealSumcheckOracle {
         }
     }
 
-    private static func makeReferenceOracle(
-        context: Context
-    ) throws -> EvaluatingSumcheckOracle {
-        try EvaluatingSumcheckOracle(
-            numVars: context.variableCount,
-            maxDegreePerRound: maxDegreePerRound
-        ) { point in
-            try evaluate(context: context, at: point)
-        }
-    }
-
     private static func makeContext(
         linearResidual: NumiSealLinearResidual,
         digitTensor: NumiSealDigitTensor
@@ -132,9 +121,6 @@ public enum NumiSealSumcheckOracle {
         let slotCount = digitTensor.digits.count
         let paddedSlotCount = nextPowerOfTwo(slotCount)
         let variableCount = try log2Exact(paddedSlotCount)
-        guard variableCount <= maximumReferenceVariableCount else {
-            throw SuperNeoError.invalidParameter("NumiSeal reference sum-check variable count is too large")
-        }
         var digitValues = digitTensor.digits.map(\.fieldElement)
         digitValues += Array(repeating: .zero, count: paddedSlotCount - digitValues.count)
         var paddingSelector = Array(repeating: GoldilocksField.zero, count: paddedSlotCount)
@@ -314,5 +300,129 @@ public enum NumiSealSumcheckOracle {
         let languageWeight: GoldilocksExt2
         let paddingWeight: GoldilocksExt2
         let weightDigest: Digest256
+    }
+
+    private struct OptimizedDenseOracle: SumcheckOracle {
+        let numVars: Int
+        let maxDegreePerRound = NumiSealSumcheckOracle.maxDegreePerRound
+
+        private let residualValue: GoldilocksExt2
+        private let languageWeight: GoldilocksExt2
+        private let paddingWeight: GoldilocksExt2
+        private var digitLayer: [GoldilocksExt2]
+        private var paddingLayer: [GoldilocksExt2]
+        private var fixedEqZeroPrefix = GoldilocksExt2.one
+        private var foldedPrefix: [GoldilocksExt2] = []
+
+        init(context: Context) {
+            self.numVars = context.variableCount
+            self.residualValue = context.linearResidual.residualValue
+            self.languageWeight = context.languageWeight
+            self.paddingWeight = context.paddingWeight
+            self.digitLayer = context.digitValues.map { GoldilocksExt2($0) }
+            self.paddingLayer = context.paddingSelector.map { GoldilocksExt2($0) }
+            self.foldedPrefix.reserveCapacity(context.variableCount)
+        }
+
+        mutating func roundPolynomial(prefix: [GoldilocksExt2]) throws -> [GoldilocksExt2] {
+            guard prefix.count < numVars else {
+                throw SuperNeoError.invalidParameter("NumiSeal sum-check prefix is already complete")
+            }
+            try advance(to: prefix)
+            guard digitLayer.count == paddingLayer.count, digitLayer.count > 1, digitLayer.count.isMultiple(of: 2) else {
+                throw SuperNeoError.invalidParameter("NumiSeal dense sum-check layer has invalid width")
+            }
+
+            var coeffs = Array(repeating: GoldilocksExt2.zero, count: maxDegreePerRound + 1)
+            let three = GoldilocksField(3)
+            let halfWidth = digitLayer.count / 2
+            for index in 0..<halfWidth {
+                let lowIndex = index * 2
+                let highIndex = lowIndex + 1
+                let d0 = digitLayer[lowIndex]
+                let d1 = digitLayer[highIndex]
+                let p0 = paddingLayer[lowIndex]
+                let p1 = paddingLayer[highIndex]
+
+                let da = d0
+                let db = d1 - d0
+                let pa = p0
+                let pb = p1 - p0
+                let daSquared = da * da
+                let dbSquared = db * db
+
+                let language0 = daSquared * da - da
+                let language1 = (daSquared * db).scaled(by: three) - db
+                let language2 = (da * dbSquared).scaled(by: three)
+                let language3 = dbSquared * db
+                let padding0 = pa * da
+                let padding1 = pa * db + pb * da
+                let padding2 = pb * db
+
+                coeffs[0] = coeffs[0] + languageWeight * language0 + paddingWeight * padding0
+                coeffs[1] = coeffs[1] + languageWeight * language1 + paddingWeight * padding1
+                coeffs[2] = coeffs[2] + languageWeight * language2 + paddingWeight * padding2
+                coeffs[3] = coeffs[3] + languageWeight * language3
+            }
+
+            let residualPrefix = residualValue * fixedEqZeroPrefix
+            coeffs[0] = coeffs[0] + residualPrefix
+            coeffs[1] = coeffs[1] - residualPrefix
+            return coeffs
+        }
+
+        mutating func finalEvaluation(point: [GoldilocksExt2]) throws -> GoldilocksExt2 {
+            guard point.count == numVars else {
+                throw SuperNeoError.invalidParameter("NumiSeal sum-check final point length mismatch")
+            }
+            try advance(to: point)
+            guard digitLayer.count == 1, paddingLayer.count == 1 else {
+                throw SuperNeoError.invalidParameter("NumiSeal dense sum-check final layer has invalid width")
+            }
+            let digit = digitLayer[0]
+            let padding = paddingLayer[0]
+            let language = digit * (digit - .one) * (digit + .one)
+            let paddingTerm = padding * digit
+            let residualTerm = residualValue * fixedEqZeroPrefix
+            return residualTerm + languageWeight * language + paddingWeight * paddingTerm
+        }
+
+        private mutating func advance(to prefix: [GoldilocksExt2]) throws {
+            guard prefix.count <= numVars else {
+                throw SuperNeoError.invalidParameter("NumiSeal sum-check prefix is longer than variable count")
+            }
+            guard prefix.count >= foldedPrefix.count else {
+                throw SuperNeoError.invalidParameter("NumiSeal dense sum-check oracle cannot rewind")
+            }
+            guard Array(prefix.prefix(foldedPrefix.count)) == foldedPrefix else {
+                throw SuperNeoError.invalidParameter("NumiSeal dense sum-check prefix changed after folding")
+            }
+            while foldedPrefix.count < prefix.count {
+                let challenge = prefix[foldedPrefix.count]
+                try foldLayer(by: challenge)
+                fixedEqZeroPrefix = fixedEqZeroPrefix * (.one - challenge)
+                foldedPrefix.append(challenge)
+            }
+        }
+
+        private mutating func foldLayer(by challenge: GoldilocksExt2) throws {
+            guard digitLayer.count == paddingLayer.count, digitLayer.count > 1, digitLayer.count.isMultiple(of: 2) else {
+                throw SuperNeoError.invalidParameter("NumiSeal dense sum-check layer has invalid width")
+            }
+            let lowWeight = GoldilocksExt2.one - challenge
+            let halfWidth = digitLayer.count / 2
+            var nextDigitLayer: [GoldilocksExt2] = []
+            var nextPaddingLayer: [GoldilocksExt2] = []
+            nextDigitLayer.reserveCapacity(halfWidth)
+            nextPaddingLayer.reserveCapacity(halfWidth)
+            for index in 0..<halfWidth {
+                let lowIndex = index * 2
+                let highIndex = lowIndex + 1
+                nextDigitLayer.append(digitLayer[lowIndex] * lowWeight + digitLayer[highIndex] * challenge)
+                nextPaddingLayer.append(paddingLayer[lowIndex] * lowWeight + paddingLayer[highIndex] * challenge)
+            }
+            digitLayer = nextDigitLayer
+            paddingLayer = nextPaddingLayer
+        }
     }
 }

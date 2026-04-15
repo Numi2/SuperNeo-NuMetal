@@ -82,25 +82,96 @@ private struct NumiSealVectorMaterial {
     let envelope: NumiSealProofEnvelope
 }
 
+private struct NumiSealVectorSpec {
+    let artifactFile: String
+    let workload: String
+    let publicClaim: String
+    let keySeed: String
+    let foldTranscriptSeed: String
+    let laneIDs: [String]
+    let sourceFoldDigestSeeds: [String]
+    let ceRandomSeeds: [String]
+    let publicInputCount: Int
+    let privateWitnessCount: Int
+    let maximumObligationsPerAggregate: Int
+    let maximumLaneCount: Int
+    let maximumAggregatesPerLane: Int
+
+    var keyColumnCount: Int {
+        expectedKeyColumnCount(
+            publicInputCount: publicInputCount,
+            privateWitnessCount: privateWitnessCount
+        )
+    }
+}
+
 private enum Defaults {
-    static let artifactFile = "numiseal-terminal-single-aggregate-v1.json"
     static let manifestFile = "numiseal-manifest.json"
     static let schemaFile = "numiseal-artifact.schema.json"
-    static let workload = "numiseal-terminal-single-aggregate-v1"
     static let proofKind = "numiseal-terminal"
     static let residualMode = "immediate"
-    static let publicClaim = "single direct digit-commitment immediate-residual NumiSeal aggregate over a fold output claim"
     static let profile = SuperNeoParameterProfile.goldilocksPhi81.name
-    static let keySeed = "SuperNeoNumiSeal.vector.single-aggregate.key.v1"
-    static let foldTranscriptSeed = "SuperNeoNumiSeal.vector.single-aggregate.fold.v1"
-    static let laneID = "numiseal-vector-main"
-    static let sourceFoldDigestSeed = "SuperNeoNumiSeal.vector.single-aggregate.source.0.v1"
-    static let ceRandomSeed = "SuperNeoNumiSeal.vector.single-aggregate.ce.0.v1"
     static let publicInputCount = CyclotomicRing54.degree
     static let privateWitnessCount = 10
-    static let maximumObligationsPerAggregate = 1
-    static let maximumLaneCount = 1
-    static let maximumAggregatesPerLane = 1
+    static let specs = [
+        NumiSealVectorSpec(
+            artifactFile: "numiseal-terminal-single-aggregate-v1.json",
+            workload: "numiseal-terminal-single-aggregate-v1",
+            publicClaim: "single direct digit-commitment immediate-residual NumiSeal aggregate over a fold output claim",
+            keySeed: "SuperNeoNumiSeal.vector.single-aggregate.key.v1",
+            foldTranscriptSeed: "SuperNeoNumiSeal.vector.single-aggregate.fold.v1",
+            laneIDs: ["numiseal-vector-main"],
+            sourceFoldDigestSeeds: ["SuperNeoNumiSeal.vector.single-aggregate.source.0.v1"],
+            ceRandomSeeds: ["SuperNeoNumiSeal.vector.single-aggregate.ce.0.v1"],
+            publicInputCount: publicInputCount,
+            privateWitnessCount: privateWitnessCount,
+            maximumObligationsPerAggregate: 1,
+            maximumLaneCount: 1,
+            maximumAggregatesPerLane: 1
+        ),
+        NumiSealVectorSpec(
+            artifactFile: "numiseal-terminal-two-aggregate-v1.json",
+            workload: "numiseal-terminal-two-aggregate-v1",
+            publicClaim: "two direct digit-commitment immediate-residual NumiSeal aggregates in one lane",
+            keySeed: "SuperNeoNumiSeal.vector.two-aggregate.key.v1",
+            foldTranscriptSeed: "SuperNeoNumiSeal.vector.two-aggregate.fold.v1",
+            laneIDs: ["numiseal-vector-main", "numiseal-vector-main"],
+            sourceFoldDigestSeeds: [
+                "SuperNeoNumiSeal.vector.two-aggregate.source.0.v1",
+                "SuperNeoNumiSeal.vector.two-aggregate.source.1.v1",
+            ],
+            ceRandomSeeds: [
+                "SuperNeoNumiSeal.vector.two-aggregate.ce.0.v1",
+                "SuperNeoNumiSeal.vector.two-aggregate.ce.1.v1",
+            ],
+            publicInputCount: publicInputCount,
+            privateWitnessCount: privateWitnessCount,
+            maximumObligationsPerAggregate: 1,
+            maximumLaneCount: 1,
+            maximumAggregatesPerLane: 2
+        ),
+        NumiSealVectorSpec(
+            artifactFile: "numiseal-terminal-two-lane-v1.json",
+            workload: "numiseal-terminal-two-lane-v1",
+            publicClaim: "two direct digit-commitment immediate-residual NumiSeal aggregates across two accepted lanes",
+            keySeed: "SuperNeoNumiSeal.vector.two-lane.key.v1",
+            foldTranscriptSeed: "SuperNeoNumiSeal.vector.two-lane.fold.v1",
+            laneIDs: ["numiseal-vector-main", "numiseal-vector-side"],
+            sourceFoldDigestSeeds: [
+                "SuperNeoNumiSeal.vector.two-lane.source.0.v1",
+                "SuperNeoNumiSeal.vector.two-lane.source.1.v1",
+            ],
+            ceRandomSeeds: [
+                "SuperNeoNumiSeal.vector.two-lane.ce.0.v1",
+                "SuperNeoNumiSeal.vector.two-lane.ce.1.v1",
+            ],
+            publicInputCount: publicInputCount,
+            privateWitnessCount: privateWitnessCount,
+            maximumObligationsPerAggregate: 1,
+            maximumLaneCount: 2,
+            maximumAggregatesPerLane: 1
+        ),
+    ]
 }
 
 private let manifestTopLevelKeys: Set<String> = [
@@ -167,6 +238,8 @@ private func usage() -> String {
       superneo-numiseal-vectors generate [repository-root]
       superneo-numiseal-vectors validate [repository-root]
       superneo-numiseal-vectors validate TestVectors/numiseal-terminal-single-aggregate-v1.json [repository-root]
+      superneo-numiseal-vectors validate TestVectors/numiseal-terminal-two-aggregate-v1.json [repository-root]
+      superneo-numiseal-vectors validate TestVectors/numiseal-terminal-two-lane-v1.json [repository-root]
 
     The generator emits deterministic NumiSeal test-vector artifacts only. It is
     not a production proving interface.
@@ -228,24 +301,22 @@ private func validate(arguments: [String]) throws {
 
 private func generate(root: URL) throws {
     let vectorsDirectory = root.appendingPathComponent("TestVectors", isDirectory: true)
-    let artifact = try makeArtifact()
-    let artifactData = try encodeJSON(artifact)
-    let artifactURL = vectorsDirectory.appendingPathComponent(Defaults.artifactFile)
-    try artifactData.write(to: artifactURL, options: .atomic)
-
-    let manifest = NumiSealVectorManifest(
-        manifestVersion: 1,
-        profile: Defaults.profile,
-        schema: Defaults.schemaFile,
-        vectors: [
+    var manifestVectors: [NumiSealManifestVector] = []
+    manifestVectors.reserveCapacity(Defaults.specs.count)
+    for spec in Defaults.specs {
+        let artifact = try makeArtifact(spec: spec)
+        let artifactData = try encodeJSON(artifact)
+        let artifactURL = vectorsDirectory.appendingPathComponent(spec.artifactFile)
+        try artifactData.write(to: artifactURL, options: .atomic)
+        manifestVectors.append(
             NumiSealManifestVector(
-                file: Defaults.artifactFile,
+                file: spec.artifactFile,
                 sha256: sha256Hex(artifactData),
                 byteCount: artifactData.count,
                 workload: artifact.workload,
                 proofKind: artifact.proofKind,
                 residualMode: artifact.residualMode,
-                publicClaim: Defaults.publicClaim,
+                publicClaim: spec.publicClaim,
                 expectedKeySeedUTF8: artifact.keySeedUTF8,
                 expectedShapeDigestHex: artifact.shapeDigestHex,
                 expectedStatementDigestHex: artifact.statementDigestHex,
@@ -255,9 +326,17 @@ private func generate(root: URL) throws {
                 expectedAggregateDigestsHex: artifact.aggregateDigestsHex,
                 expectedComponentDigestRootHex: artifact.componentDigestRootHex,
                 expectedProofTranscriptDigestHex: artifact.proofTranscriptDigestHex,
-                verifyCommand: strictVerifyCommand(file: Defaults.artifactFile)
+                verifyCommand: strictVerifyCommand(file: spec.artifactFile)
             )
-        ]
+        )
+        print("wrote TestVectors/\(spec.artifactFile)")
+    }
+
+    let manifest = NumiSealVectorManifest(
+        manifestVersion: 1,
+        profile: Defaults.profile,
+        schema: Defaults.schemaFile,
+        vectors: manifestVectors
     )
     let manifestData = try encodeJSON(manifest)
     try manifestData.write(
@@ -265,7 +344,6 @@ private func generate(root: URL) throws {
         options: .atomic
     )
 
-    print("wrote TestVectors/\(Defaults.artifactFile)")
     print("wrote TestVectors/\(Defaults.manifestFile)")
 }
 
@@ -290,13 +368,15 @@ private func validateManifest(root: URL) throws {
     var verifyCommands = Set<String>()
     for vector in manifest.vectors {
         let file = try validatedVectorFileName(vector.file)
+        let spec = try vectorSpec(file: file)
         try require(manifestedFiles.insert(file).inserted, "\(vector.file) appears more than once in NumiSeal manifest")
         try require(verifyCommands.insert(vector.verifyCommand).inserted, "\(vector.file) verify command duplicates another vector")
-        coverage.insert("\(vector.workload):\(vector.proofKind):\(vector.residualMode)")
-        try require(vector.workload == Defaults.workload, "\(vector.file) unsupported NumiSeal workload")
+        coverage.insert(file)
+        try require(vector.workload == spec.workload, "\(vector.file) unsupported NumiSeal workload")
         try require(vector.proofKind == Defaults.proofKind, "\(vector.file) unsupported NumiSeal proof kind")
         try require(vector.residualMode == Defaults.residualMode, "\(vector.file) unsupported NumiSeal residual mode")
-        try require(vector.expectedKeySeedUTF8 == Defaults.keySeed, "\(vector.file) key seed mismatch")
+        try require(vector.publicClaim == spec.publicClaim, "\(vector.file) public claim mismatch")
+        try require(vector.expectedKeySeedUTF8 == spec.keySeed, "\(vector.file) key seed mismatch")
         try validateHexDigest(vector.expectedShapeDigestHex, name: "\(vector.file) expected shape digest")
         try validateHexDigest(vector.expectedStatementDigestHex, name: "\(vector.file) expected statement digest")
         try validateHexDigest(vector.expectedVerifierKeyDigestHex, name: "\(vector.file) expected verifier-key digest")
@@ -322,9 +402,7 @@ private func validateManifest(root: URL) throws {
         try require(artifact.proofTranscriptDigestHex == vector.expectedProofTranscriptDigestHex, "\(vector.file) proof transcript digest mismatch")
     }
 
-    let requiredCoverage: Set<String> = [
-        "\(Defaults.workload):\(Defaults.proofKind):\(Defaults.residualMode)"
-    ]
+    let requiredCoverage = Set(Defaults.specs.map(\.artifactFile))
     let missingCoverage = requiredCoverage.subtracting(coverage).sorted()
     try require(
         missingCoverage.isEmpty,
@@ -345,7 +423,8 @@ private func validateSingleVector(
     try validateNoDuplicateJSONKeys(data, file: file)
     try validateKnownArtifactKeys(data, file: file)
     let artifact = try JSONDecoder().decode(NumiSealVectorArtifact.self, from: data)
-    try validateArtifactMetadata(artifact, file: file)
+    let spec = try vectorSpec(file: file, artifact: artifact, expected: expected)
+    try validateArtifactMetadata(artifact, file: file, spec: spec)
 
     if let expected {
         try require(artifact.workload == expected.workload, "\(file) workload mismatch")
@@ -387,28 +466,32 @@ private func validateSingleVector(
     return artifact
 }
 
-private func validateArtifactMetadata(_ artifact: NumiSealVectorArtifact, file: String) throws {
+private func validateArtifactMetadata(
+    _ artifact: NumiSealVectorArtifact,
+    file: String,
+    spec: NumiSealVectorSpec
+) throws {
     try require(artifact.artifactVersion == 1, "\(file) artifact version mismatch")
-    try require(artifact.workload == Defaults.workload, "\(file) unsupported workload")
+    try require(artifact.workload == spec.workload, "\(file) unsupported workload")
     try require(artifact.profile == Defaults.profile, "\(file) unsupported profile")
     try require(artifact.proofKind == Defaults.proofKind, "\(file) unsupported proof kind")
     try require(artifact.residualMode == Defaults.residualMode, "\(file) unsupported residual mode")
-    try require(artifact.keySeedUTF8 == Defaults.keySeed, "\(file) key seed mismatch")
-    try require(artifact.foldTranscriptSeedUTF8 == Defaults.foldTranscriptSeed, "\(file) fold transcript seed mismatch")
-    try require(artifact.laneIDsUTF8 == [Defaults.laneID], "\(file) lane IDs mismatch")
-    try require(artifact.sourceFoldDigestSeedsUTF8 == [Defaults.sourceFoldDigestSeed], "\(file) source digest seeds mismatch")
-    try require(artifact.ceRandomSeedsUTF8 == [Defaults.ceRandomSeed], "\(file) CE random seeds mismatch")
+    try require(artifact.keySeedUTF8 == spec.keySeed, "\(file) key seed mismatch")
+    try require(artifact.foldTranscriptSeedUTF8 == spec.foldTranscriptSeed, "\(file) fold transcript seed mismatch")
+    try require(artifact.laneIDsUTF8 == spec.laneIDs, "\(file) lane IDs mismatch")
+    try require(artifact.sourceFoldDigestSeedsUTF8 == spec.sourceFoldDigestSeeds, "\(file) source digest seeds mismatch")
+    try require(artifact.ceRandomSeedsUTF8 == spec.ceRandomSeeds, "\(file) CE random seeds mismatch")
     try require(
-        artifact.maximumObligationsPerAggregate == Defaults.maximumObligationsPerAggregate,
+        artifact.maximumObligationsPerAggregate == spec.maximumObligationsPerAggregate,
         "\(file) aggregate limit mismatch"
     )
-    try require(artifact.maximumLaneCount == Defaults.maximumLaneCount, "\(file) lane limit mismatch")
-    try require(artifact.maximumAggregatesPerLane == Defaults.maximumAggregatesPerLane, "\(file) aggregate policy limit mismatch")
-    try require(artifact.publicInputCount == Defaults.publicInputCount, "\(file) public input count mismatch")
-    try require(artifact.privateWitnessCount == Defaults.privateWitnessCount, "\(file) private witness count mismatch")
-    try require(artifact.publicInputs == Array(repeating: 0, count: Defaults.publicInputCount), "\(file) public inputs mismatch")
+    try require(artifact.maximumLaneCount == spec.maximumLaneCount, "\(file) lane limit mismatch")
+    try require(artifact.maximumAggregatesPerLane == spec.maximumAggregatesPerLane, "\(file) aggregate policy limit mismatch")
+    try require(artifact.publicInputCount == spec.publicInputCount, "\(file) public input count mismatch")
+    try require(artifact.privateWitnessCount == spec.privateWitnessCount, "\(file) private witness count mismatch")
+    try require(artifact.publicInputs == Array(repeating: 0, count: spec.publicInputCount), "\(file) public inputs mismatch")
     try require(artifact.keyColumnCount == expectedKeyColumnCount(artifact), "\(file) key column count mismatch")
-    try require(artifact.aggregateDigestsHex.count == 1, "\(file) aggregate digest count mismatch")
+    try require(artifact.aggregateDigestsHex.count == spec.ceRandomSeeds.count, "\(file) aggregate digest count mismatch")
     for (name, digest) in [
         ("shapeDigestHex", artifact.shapeDigestHex),
         ("statementDigestHex", artifact.statementDigestHex),
@@ -446,41 +529,38 @@ private func validateParsedEnvelope(
     try require(envelope.proof.transcriptDigest.hexString == artifact.proofTranscriptDigestHex, "\(file) proof transcript digest mismatch")
 }
 
-private func makeArtifact() throws -> NumiSealVectorArtifact {
+private func makeArtifact(spec: NumiSealVectorSpec) throws -> NumiSealVectorArtifact {
     let material = try makeMaterial(
-        keySeed: Defaults.keySeed,
-        keyColumnCount: expectedKeyColumnCount(
-            publicInputCount: Defaults.publicInputCount,
-            privateWitnessCount: Defaults.privateWitnessCount
-        ),
-        foldTranscriptSeed: Defaults.foldTranscriptSeed,
-        laneIDs: [Defaults.laneID],
-        sourceFoldDigestSeeds: [Defaults.sourceFoldDigestSeed],
-        ceRandomSeeds: [Defaults.ceRandomSeed],
-        publicInputCount: Defaults.publicInputCount,
-        privateWitnessCount: Defaults.privateWitnessCount,
-        maximumObligationsPerAggregate: Defaults.maximumObligationsPerAggregate,
-        maximumLaneCount: Defaults.maximumLaneCount,
-        maximumAggregatesPerLane: Defaults.maximumAggregatesPerLane
+        keySeed: spec.keySeed,
+        keyColumnCount: spec.keyColumnCount,
+        foldTranscriptSeed: spec.foldTranscriptSeed,
+        laneIDs: spec.laneIDs,
+        sourceFoldDigestSeeds: spec.sourceFoldDigestSeeds,
+        ceRandomSeeds: spec.ceRandomSeeds,
+        publicInputCount: spec.publicInputCount,
+        privateWitnessCount: spec.privateWitnessCount,
+        maximumObligationsPerAggregate: spec.maximumObligationsPerAggregate,
+        maximumLaneCount: spec.maximumLaneCount,
+        maximumAggregatesPerLane: spec.maximumAggregatesPerLane
     )
     return NumiSealVectorArtifact(
         artifactVersion: 1,
-        workload: Defaults.workload,
+        workload: spec.workload,
         profile: Defaults.profile,
         proofKind: Defaults.proofKind,
         residualMode: Defaults.residualMode,
-        keySeedUTF8: Defaults.keySeed,
+        keySeedUTF8: spec.keySeed,
         keyColumnCount: material.key.matrix.columns,
-        foldTranscriptSeedUTF8: Defaults.foldTranscriptSeed,
-        laneIDsUTF8: [Defaults.laneID],
-        sourceFoldDigestSeedsUTF8: [Defaults.sourceFoldDigestSeed],
-        ceRandomSeedsUTF8: [Defaults.ceRandomSeed],
-        maximumObligationsPerAggregate: Defaults.maximumObligationsPerAggregate,
-        maximumLaneCount: Defaults.maximumLaneCount,
-        maximumAggregatesPerLane: Defaults.maximumAggregatesPerLane,
-        publicInputCount: Defaults.publicInputCount,
-        privateWitnessCount: Defaults.privateWitnessCount,
-        publicInputs: Array(repeating: 0, count: Defaults.publicInputCount),
+        foldTranscriptSeedUTF8: spec.foldTranscriptSeed,
+        laneIDsUTF8: spec.laneIDs,
+        sourceFoldDigestSeedsUTF8: spec.sourceFoldDigestSeeds,
+        ceRandomSeedsUTF8: spec.ceRandomSeeds,
+        maximumObligationsPerAggregate: spec.maximumObligationsPerAggregate,
+        maximumLaneCount: spec.maximumLaneCount,
+        maximumAggregatesPerLane: spec.maximumAggregatesPerLane,
+        publicInputCount: spec.publicInputCount,
+        privateWitnessCount: spec.privateWitnessCount,
+        publicInputs: Array(repeating: 0, count: spec.publicInputCount),
         shapeDigestHex: material.policy.shapeDigest.hexString,
         statementDigestHex: material.policy.statementDigest.hexString,
         verifierKeyDigestHex: material.policy.verifierKeyDigest.hexString,
@@ -682,6 +762,34 @@ private func validatedVectorFileName(_ file: String) throws -> String {
         throw VectorCLIError.invalid("unsafe NumiSeal vector file path in manifest: \(file)")
     }
     return file
+}
+
+private func vectorSpec(file: String) throws -> NumiSealVectorSpec {
+    guard let spec = Defaults.specs.first(where: { $0.artifactFile == file }) else {
+        throw VectorCLIError.invalid("unsupported NumiSeal vector file: \(file)")
+    }
+    return spec
+}
+
+private func vectorSpec(workload: String) throws -> NumiSealVectorSpec {
+    guard let spec = Defaults.specs.first(where: { $0.workload == workload }) else {
+        throw VectorCLIError.invalid("unsupported NumiSeal workload: \(workload)")
+    }
+    return spec
+}
+
+private func vectorSpec(
+    file: String,
+    artifact: NumiSealVectorArtifact,
+    expected: NumiSealManifestVector?
+) throws -> NumiSealVectorSpec {
+    if let expected {
+        return try vectorSpec(file: expected.file)
+    }
+    if let spec = Defaults.specs.first(where: { $0.artifactFile == file }) {
+        return spec
+    }
+    return try vectorSpec(workload: artifact.workload)
 }
 
 private func strictVerifyCommand(file: String) -> String {

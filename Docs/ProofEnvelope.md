@@ -33,9 +33,11 @@ The current `NumiSealProver`/`NumiSealVerifier` assembly API targets the
 multi-lane/multi-aggregate immediate-residual path and uses this same kind `4`
 envelope. `NumiSealProvingPlan` exposes the deterministic aggregate order that
 callers must follow when supplying per-aggregate digit-tensor inputs.
-`TestVectors/numiseal-terminal-single-aggregate-v1.json` is the first checked
-kind `4` vector for this immediate-residual path. Final production
-terminal-seal exposure remains a roadmap gate.
+`TestVectors/numiseal-terminal-single-aggregate-v1.json`,
+`TestVectors/numiseal-terminal-two-aggregate-v1.json`, and
+`TestVectors/numiseal-terminal-two-lane-v1.json` are the checked kind `4`
+vectors for this immediate-residual path. Final production terminal-seal
+exposure remains a roadmap gate.
 
 ## Header Layout
 
@@ -370,7 +372,7 @@ object is not serialized into the proof envelope.
 
 ### NumiSeal Sum-Check Handoff
 
-`NumiSealSumcheckOracle` is the current bounded reference handoff for the
+`NumiSealSumcheckOracle` is the dense folded prover/verifier handoff for the
 `framed(SumcheckProof)` component carried by `NumiSealLaneProof`. It binds the
 sum-check transcript to:
 
@@ -385,7 +387,7 @@ variableCount ||
 sumcheckWeightDigest
 ```
 
-The reference polynomial is degree-4-compatible and checks:
+The polynomial is degree-4-compatible and checks:
 
 ```text
 residualValue * eq_0(X)
@@ -398,9 +400,9 @@ residualValue * eq_0(X)
 weights. For a valid ternary, zero-padded tensor, the Boolean-hypercube sum is
 the scalar residual value, so `proof.claimedSum == residualValue`.
 
-This reference oracle caps the variable count for exhaustive interpolation and
-exists to bind proof-body bytes to the digit language and residual. It is not
-the final optimized NumiSeal prover/verifier.
+The prover folds dense digit and padding layers as transcript challenges arrive,
+so it supports the full bounded digit-tensor wire size without the old reference
+variable cap.
 
 ### NumiSeal Residual Opening Handoff
 

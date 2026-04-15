@@ -106,12 +106,16 @@ public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodabl
             maximum: NumiSealWireLimits.maximumDigitTensorColumnCount * CyclotomicRing54.degree,
             name: "NumiSeal residual CE digit slot"
         )
+        let maximumPaddedSlotCount = Self.nextPowerOfTwo(
+            NumiSealWireLimits.maximumDigitTensorColumnCount * CyclotomicRing54.degree
+        )
         let paddedSlotCount = try reader.readCount(
-            maximum: 1 << NumiSealSumcheckOracle.maximumReferenceVariableCount,
+            maximum: maximumPaddedSlotCount,
             name: "NumiSeal residual CE padded digit slot"
         )
+        let maximumVariableCount = try Self.log2Exact(maximumPaddedSlotCount)
         let variableCount = try reader.readCount(
-            maximum: NumiSealSumcheckOracle.maximumReferenceVariableCount,
+            maximum: maximumVariableCount,
             name: "NumiSeal residual CE variable"
         )
         let sumcheckFinalPointDigest = try Digest256(reader.readData(count: Digest256.byteCount))
@@ -235,9 +239,6 @@ public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodabl
         let expectedVariableCount = try log2Exact(paddedSlotCount)
         guard variableCount == expectedVariableCount else {
             throw SuperNeoError.invalidEncoding("NumiSeal residual CE variable count mismatch")
-        }
-        guard variableCount <= NumiSealSumcheckOracle.maximumReferenceVariableCount else {
-            throw SuperNeoError.invalidEncoding("NumiSeal residual CE variable count is too large")
         }
         let expectedShapeDigest = try digitOpeningShape(
             columnCount: columnCount,

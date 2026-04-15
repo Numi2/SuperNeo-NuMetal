@@ -3394,6 +3394,13 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         ]
     }
 
+    private func makeNumiSealTernaryMessage(columnCount: Int) -> [CyclotomicRing54] {
+        precondition(columnCount > 0)
+        var message = makeNumiSealTernaryMessage()
+        message.append(contentsOf: repeatElement(CyclotomicRing54.zero, count: columnCount - message.count))
+        return message
+    }
+
     private func makeNumiSealDigitOpeningPayload(
         profileID: UInt16,
         decomposition: NumiSealDecompositionCommitment,
@@ -3441,6 +3448,16 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             ),
             claimedDigitEvaluation
         )
+    }
+
+    private func numiSealDigitEvaluation(
+        digitTensor: NumiSealDigitTensor,
+        point: [GoldilocksExt2]
+    ) throws -> GoldilocksExt2 {
+        let paddedSlotCount = NumiSealResidualCEShape.nextPowerOfTwo(digitTensor.digits.count)
+        var digitValues = digitTensor.digits.map(\.fieldElement)
+        digitValues += Array(repeating: .zero, count: paddedSlotCount - digitValues.count)
+        return try MultilinearEvaluation.evaluate(digitValues, at: point)
     }
 
     func testNumiSealDecompositionKeyDerivationIsDeterministicAndPubliclyBound() throws {
@@ -3862,6 +3879,72 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             ),
             .invalidParameter("NumiSeal sum-check digit tensor lane mismatch")
         )
+    }
+
+    func testNumiSealSumcheckOracleProvesLargeDigitTensorBeyondReferenceCap() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let largeMessage = makeNumiSealTernaryMessage(columnCount: 80)
+        let largeTensor = try NumiSealDigitTensor(
+            laneKey: fixture.aggregate.laneKey,
+            aggregateIndex: fixture.aggregate.aggregateIndex,
+            message: largeMessage
+        )
+        let decompositionKey = try NumiSealDecompositionKeyDerivation(
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            laneKey: fixture.aggregate.laneKey,
+            aggregateIndex: fixture.aggregate.aggregateIndex,
+            requiredColumnCount: largeTensor.columnCount
+        )
+        let decomposition = try NumiSealDecompositionCommitment(
+            keyDerivation: decompositionKey,
+            digitTensor: largeTensor
+        )
+        let residual = try NumiSealLinearResidual(
+            publicStatement: fixture.publicStatement,
+            aggregate: fixture.aggregate,
+            decomposition: decomposition
+        )
+        let proof = try NumiSealSumcheckOracle.prove(
+            linearResidual: residual,
+            digitTensor: largeTensor
+        )
+
+        XCTAssertGreaterThan(proof.rounds.count, NumiSealSumcheckOracle.maximumReferenceVariableCount)
+        XCTAssertEqual(proof.rounds.count, 13)
+        XCTAssertTrue(
+            try NumiSealSumcheckOracle.verify(
+                proof: proof,
+                linearResidual: residual,
+                digitTensor: largeTensor
+            )
+        )
+
+        let claimedDigitEvaluation = try numiSealDigitEvaluation(
+            digitTensor: largeTensor,
+            point: proof.finalPoint
+        )
+        XCTAssertTrue(
+            try NumiSealSumcheckOracle.verifyFinalOpening(
+                proof: proof,
+                linearResidualDigest: residual.residualDigest,
+                scalarizationStatementDigest: residual.statement.statementDigest,
+                digitTensorDigest: largeTensor.digest,
+                laneKey: largeTensor.laneKey,
+                aggregateIndex: largeTensor.aggregateIndex,
+                columnCount: largeTensor.columnCount,
+                activeDigitCount: largeTensor.activeDigitCount,
+                claimedDigitEvaluation: claimedDigitEvaluation
+            )
+        )
+
+        let residualShape = try NumiSealResidualCEShape(
+            laneKey: largeTensor.laneKey,
+            aggregateIndex: largeTensor.aggregateIndex,
+            digitTensor: largeTensor,
+            sumcheckFinalPoint: proof.finalPoint
+        )
+        XCTAssertEqual(residualShape.variableCount, proof.rounds.count)
+        XCTAssertEqual(try NumiSealResidualCEShape(bytes: residualShape.superNeoBytes), residualShape)
     }
 
     func testNumiSealResidualOpeningBindsImmediateCEPayload() throws {

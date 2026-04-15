@@ -269,14 +269,14 @@ Remaining boundary:
 
 Status: design refreshed; Phase 0 public statement wiring, Phase 1 lane
 aggregation, Phase 2 proof-body policy separation, Phase 3 decomposition
-handoff, Phase 4 public scalarization, the bounded Phase 5 sum-check handoff,
-and Phase 6 direct digit-commitment residual-opening verification with typed
-residual CE shape/statement metadata, builder-side witness validation, and the
-first Phase 7 multi-lane/multi-aggregate prover/verifier assembly API plus a
-public proving-plan surface are present. The first checked NumiSeal vector,
+handoff, Phase 4 public scalarization, the optimized dense Phase 5 sum-check
+handoff, and Phase 6 direct digit-commitment residual-opening verification with
+typed residual CE shape/statement metadata, builder-side witness validation, and
+the first Phase 7 multi-lane/multi-aggregate prover/verifier assembly API plus a
+public proving-plan surface are present. The checked NumiSeal vector matrix,
 dedicated NumiSeal vector generator/validator, manifest, schema, and
 production-gate validation path are also present for the current
-immediate-residual single-aggregate fixture.
+immediate-residual fixtures.
 
 NumiSeal is the planned native terminal-seal layer for the SNARK product track.
 It should compress many terminal CE obligations into lane-local aggregates while
@@ -328,8 +328,9 @@ Artifacts:
   linear residuals, and stale-statement rejection before the degree-4
   sum-check phase.
 - `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealSumcheck.swift` defines the
-  bounded reference sum-check handoff over the scalar residual and digit-tensor
-  ternary/padding language, using the existing sum-check prover/verifier.
+  optimized dense folded sum-check handoff over the scalar residual and
+  digit-tensor ternary/padding language, using the existing transcript and
+  verifier while removing the old reference variable cap.
 - `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift` and
   `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealResidualCE.swift` define the
   typed immediate residual-opening body, stable residual CE shape/statement
@@ -360,9 +361,11 @@ Artifacts:
   SHA-256, regenerates exact envelope bytes, parses the kind `4` envelope, and
   verifies through `NumiSealVerifier`.
 - `TestVectors/numiseal-terminal-single-aggregate-v1.json`,
+  `TestVectors/numiseal-terminal-two-aggregate-v1.json`,
+  `TestVectors/numiseal-terminal-two-lane-v1.json`,
   `TestVectors/numiseal-manifest.json`, and
-  `TestVectors/numiseal-artifact.schema.json` provide the first checked
-  immediate-residual NumiSeal terminal vector and its strict expected context.
+  `TestVectors/numiseal-artifact.schema.json` provide checked immediate-residual
+  NumiSeal terminal vectors and their strict expected context.
 - `NumiSealCanonicalizationTests` cover deterministic sorting independent of
   input order, lane separation by evaluation point, fail-closed policy mismatch
   rejection, public-statement serialization, deterministic aggregate chunking,
@@ -411,20 +414,20 @@ Implementation gates:
   mutation/stale-statement tests are present. Multi-lane/prior-claim vectors
   remain.
 - Phase 5: degree-4 sum-check prover/verifier with invalid digit, padding, and
-  scalarization tamper tests. A bounded reference sum-check handoff is present;
-  the optimized large-tensor prover/verifier remains.
+  scalarization tamper tests. The dense folded large-tensor prover/verifier is
+  present beyond the old reference variable cap.
 - Phase 6: typed immediate residual-opening parsing, stable residual CE
   shape/statement digests, preflight digest/scope binding, public final
   sum-check equation replay, builder-side aggregate-witness validation, direct
   digit-commitment opening at the sum-check final point, and full verification
   of supplied residual CE opening proofs through the existing CE relation are
-  present. Optimized large-tensor proving and broader audit coverage remain.
+  present. Broader audit coverage remains.
 - Phase 7: the first multi-lane/multi-aggregate `NumiSealProvingPlan`,
   `NumiSealProver`, and `NumiSealVerifier` API is present for immediate
   residual envelopes.
-- Phase 8: the first checked NumiSeal vector is present with a deterministic
-  generator/validator and production-gate coverage. Full CLI exposure, broader
-  vector matrix, formal hooks, and security audit artifacts remain.
+- Phase 8: the checked NumiSeal vector matrix is present with deterministic
+  generator/validator and production-gate coverage. Full CLI exposure, formal
+  hooks, and security audit artifacts remain.
 
 Remaining boundary:
 

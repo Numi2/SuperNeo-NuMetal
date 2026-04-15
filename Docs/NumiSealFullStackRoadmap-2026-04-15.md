@@ -31,8 +31,9 @@ Already present:
 - NumiSeal has an initial aggregate evaluation oracle that rebuilds witnessed
   lane aggregates and checks sparse CCS transformed evaluations against the
   existing Ajtai/CCS machinery.
-- NumiSeal has a bounded reference sum-check handoff that binds proof-body
-  sum-check bytes to the scalar residual and digit-tensor language.
+- NumiSeal has an optimized dense folded sum-check handoff that binds proof-body
+  sum-check bytes to the scalar residual and digit-tensor language while
+  supporting large bounded digit tensors.
 - NumiSeal has a typed immediate residual-opening handoff that binds lane scope,
   scalarization digest, sum-check proof digest, a stable residual CE
   shape/statement digest, derived decomposition key, decomposition commitment,
@@ -47,18 +48,17 @@ Already present:
   caller supplies per-aggregate digit-tensor inputs. The prover builds
   multi-lane/multi-aggregate envelopes from witnessed obligations, and the
   verifier recomputes public statement and aggregates before CE verification.
-- NumiSeal has its first checked terminal vector and release-gate validation
-  path: `superneo-numiseal-vectors` regenerates a deterministic immediate
-  residual vector byte-for-byte using SPI-only deterministic CE randomness,
-  validates `numiseal-manifest.json`, parses the kind `4` envelope, and verifies
+- NumiSeal has a checked terminal vector matrix and release-gate validation
+  path: `superneo-numiseal-vectors` regenerates deterministic immediate
+  residual vectors byte-for-byte using SPI-only deterministic CE randomness,
+  validates `numiseal-manifest.json`, parses kind `4` envelopes, and verifies
   through `NumiSealVerifier`.
 
 Not yet present:
 
 - Production NumiSeal CLI/product exposure for the current direct
   digit-commitment residual verifier.
-- Optimized large-tensor NumiSeal degree-4 sum-check integration.
-- Broader vector matrix, formal hooks, and security audit artifacts.
+- Formal hooks and security audit artifacts.
 - Zero-knowledge layer.
 - Recursive/aggregate sealing product.
 - General program frontend.
@@ -302,14 +302,15 @@ Artifacts:
 - `NumiSealSumcheckProof`
 - verifier integration with existing `SumcheckVerifier`
 
-Initial implementation status: `NumiSealSumcheckOracle` is present as a bounded
-reference handoff. It uses the existing `SumcheckProver`/`SumcheckVerifier`,
-binds the transcript to scalarization and digit-tensor digests, proves
+Initial implementation status: `NumiSealSumcheckOracle` is present as an
+optimized dense folded handoff. It uses the existing
+`SumcheckProver`/`SumcheckVerifier`, binds the transcript to scalarization and
+digit-tensor digests, proves
 `claimedSum == residualValue` for valid ternary/zero-padded tensors, and
 replaces the toy proof in the NumiSeal proof-body fixture. The typed immediate
 residual-opening handoff now binds this sum-check proof digest into the residual
-payload. The optimized degree-4 prover/verifier and large tensor path remain
-future work.
+payload. A large-tensor regression covers proof generation and verification
+beyond the old reference variable cap.
 
 Polynomial components:
 
@@ -419,7 +420,7 @@ count, and aggregate digests before proving. The prover supports the current
 multi-lane/multi-aggregate immediate-residual path: it canonicalizes witnessed
 obligations, builds the public statement, aggregates deterministic lane chunks,
 consumes one digit-tensor input per aggregate, derives each decomposition
-commitment, proves the bounded reference sum-check, constructs immediate
+commitment, proves the dense folded sum-check, constructs immediate
 residual CE openings, and wraps a kind `4` envelope. The verifier parses bytes,
 applies NumiSeal terminal policy preflight, recomputes the public statement and
 aggregates from caller-supplied public obligations, checks lane and residual CE
@@ -506,19 +507,22 @@ Artifacts:
 - production-gate coverage.
 
 Initial implementation status: `superneo-numiseal-vectors` now generates and
-validates `TestVectors/numiseal-terminal-single-aggregate-v1.json` under
+validates `TestVectors/numiseal-terminal-single-aggregate-v1.json`,
+`TestVectors/numiseal-terminal-two-aggregate-v1.json`, and
+`TestVectors/numiseal-terminal-two-lane-v1.json` under
 `TestVectors/numiseal-manifest.json` and
 `TestVectors/numiseal-artifact.schema.json`. Validation rejects duplicate and
-unknown JSON keys, checks byte count and SHA-256, regenerates the deterministic
-envelope from the checked fixture, compares public statement, aggregate,
-component-root, and proof-transcript digests, parses the kind `4` envelope, and
+unknown JSON keys, checks byte count and SHA-256, regenerates deterministic
+envelopes from checked fixtures, compares public statement, aggregate,
+component-root, and proof-transcript digests, parses kind `4` envelopes, and
 verifies through `NumiSealVerifier`. `Scripts/production-gate.sh` runs this
 validator and includes a wrong-proof-kind negative fixture.
 
 Acceptance gates:
 
 - vector validator rejects unknown fields and duplicate keys;
-- release gate verifies at least one small checked NumiSeal vector;
+- release gate verifies the single-aggregate, same-lane two-aggregate, and
+  two-lane checked NumiSeal vectors;
 - negative fixtures cover wrong digest, wrong lane, wrong proof kind, wrong
   byte count, wrong manifest hash, and missing `--require-numiseal`;
 - production gate runs parser-only tests before expensive algebraic tests.

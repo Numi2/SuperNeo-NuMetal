@@ -39,7 +39,11 @@
       "const": 1
     },
     "workload": {
-      "const": "numiseal-terminal-single-aggregate-v1"
+      "enum": [
+        "numiseal-terminal-single-aggregate-v1",
+        "numiseal-terminal-two-aggregate-v1",
+        "numiseal-terminal-two-lane-v1"
+      ]
     },
     "profile": {
       "const": "Goldilocks/Phi81(d=54)"
@@ -51,49 +55,72 @@
       "const": "immediate"
     },
     "keySeedUTF8": {
-      "const": "SuperNeoNumiSeal.vector.single-aggregate.key.v1"
+      "enum": [
+        "SuperNeoNumiSeal.vector.single-aggregate.key.v1",
+        "SuperNeoNumiSeal.vector.two-aggregate.key.v1",
+        "SuperNeoNumiSeal.vector.two-lane.key.v1"
+      ]
     },
     "keyColumnCount": {
       "const": 2
     },
     "foldTranscriptSeedUTF8": {
-      "const": "SuperNeoNumiSeal.vector.single-aggregate.fold.v1"
+      "enum": [
+        "SuperNeoNumiSeal.vector.single-aggregate.fold.v1",
+        "SuperNeoNumiSeal.vector.two-aggregate.fold.v1",
+        "SuperNeoNumiSeal.vector.two-lane.fold.v1"
+      ]
     },
     "laneIDsUTF8": {
-      "prefixItems": [
-        {
-          "const": "numiseal-vector-main"
-        }
-      ],
       "minItems": 1,
-      "maxItems": 1
+      "maxItems": 2,
+      "items": {
+        "enum": [
+          "numiseal-vector-main",
+          "numiseal-vector-side"
+        ]
+      }
     },
     "sourceFoldDigestSeedsUTF8": {
-      "prefixItems": [
-        {
-          "const": "SuperNeoNumiSeal.vector.single-aggregate.source.0.v1"
-        }
-      ],
       "minItems": 1,
-      "maxItems": 1
+      "maxItems": 2,
+      "items": {
+        "enum": [
+          "SuperNeoNumiSeal.vector.single-aggregate.source.0.v1",
+          "SuperNeoNumiSeal.vector.two-aggregate.source.0.v1",
+          "SuperNeoNumiSeal.vector.two-aggregate.source.1.v1",
+          "SuperNeoNumiSeal.vector.two-lane.source.0.v1",
+          "SuperNeoNumiSeal.vector.two-lane.source.1.v1"
+        ]
+      }
     },
     "ceRandomSeedsUTF8": {
-      "prefixItems": [
-        {
-          "const": "SuperNeoNumiSeal.vector.single-aggregate.ce.0.v1"
-        }
-      ],
       "minItems": 1,
-      "maxItems": 1
+      "maxItems": 2,
+      "items": {
+        "enum": [
+          "SuperNeoNumiSeal.vector.single-aggregate.ce.0.v1",
+          "SuperNeoNumiSeal.vector.two-aggregate.ce.0.v1",
+          "SuperNeoNumiSeal.vector.two-aggregate.ce.1.v1",
+          "SuperNeoNumiSeal.vector.two-lane.ce.0.v1",
+          "SuperNeoNumiSeal.vector.two-lane.ce.1.v1"
+        ]
+      }
     },
     "maximumObligationsPerAggregate": {
       "const": 1
     },
     "maximumLaneCount": {
-      "const": 1
+      "enum": [
+        1,
+        2
+      ]
     },
     "maximumAggregatesPerLane": {
-      "const": 1
+      "enum": [
+        1,
+        2
+      ]
     },
     "publicInputCount": {
       "const": 54
@@ -140,7 +167,7 @@
     "aggregateDigestsHex": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 1,
+      "maxItems": 2,
       "items": {
         "type": "string",
         "pattern": "^[0-9a-f]{64}$"
