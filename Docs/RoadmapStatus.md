@@ -303,10 +303,16 @@ Artifacts:
   canonical lane spans under profile limits, derives deterministic lane-local
   RLC challenges from the public-statement digest, computes public aggregate CE
   instances, and gives every aggregate a parse-checked digest.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift` defines the
+  versioned NumiSeal proof-body grammar, lane-proof parser, typed component
+  digest leaves, absent carry leaf, `numiSealTerminal` envelope, and
+  NumiSeal-only terminal preflight policy.
 - `NumiSealCanonicalizationTests` cover deterministic sorting independent of
   input order, lane separation by evaluation point, fail-closed policy mismatch
   rejection, public-statement serialization, deterministic aggregate chunking,
-  aggregate byte tamper rejection, and incompatible public-input rejection.
+  aggregate byte tamper rejection, incompatible public-input rejection,
+  proof-body mutation rejection, lane-proof ordering, absent carry digest
+  binding, envelope-kind separation, and NumiSeal policy preflight rejection.
 - The design explicitly separates the shipped prover track from the planned
   SNARK product track.
 - The design requires lane-key canonicalization, typed digest roots,
@@ -321,11 +327,10 @@ Implementation gates:
 
 - Phase 0: NumiSeal public types, canonicalization, lane-key derivation, policy
   rejection, digest-root fixtures, public-statement serialization, and aggregate
-  serialization. Basic implementation is present; final proof-body envelope
-  serialization remains.
+  serialization. Basic implementation is present.
 - Phase 1: lane-local RLC and deterministic lane chunking under profile limits.
-  Initial implementation is present for public aggregates; decomposition
-  handoff fixtures remain.
+  Initial implementation is present for public aggregates and proof-body
+  serialization; decomposition handoff fixtures remain.
 - Phase 2: deterministic decomposition-key derivation and one Ajtai digit-tensor
   commitment per lane aggregate.
 - Phase 3: scalarization fixtures for commitment, CCS evaluation, and public
@@ -334,8 +339,9 @@ Implementation gates:
   scalarization tamper tests.
 - Phase 5: residual CE opening through the existing CE relation with stable
   internal residual shape digest.
-- Phase 6: `ProofEnvelopeKind.numiSealTerminal = 4`, NumiSeal prover/verifier
-  API, terminal acceptance policy, vectors, and production-gate coverage.
+- Phase 6: `ProofEnvelopeKind.numiSealTerminal = 4` and NumiSeal terminal
+  preflight policy are present. NumiSeal prover/verifier API, full algebraic
+  verification, vectors, and production-gate coverage remain.
 
 Remaining boundary:
 

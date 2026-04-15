@@ -2486,6 +2486,8 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 )
             case .foldReduction:
                 return .invalid("terminal proof required")
+            case .numiSealTerminal:
+                return .invalid("proof kind not accepted by policy")
             }
         } catch {
             return .invalid("\(error)")

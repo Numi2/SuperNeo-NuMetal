@@ -33,6 +33,7 @@ public enum ProofEnvelopeKind: UInt8, Equatable, Sendable {
     case foldReduction = 1
     case terminalLocal = 2
     case compressedPublic = 3
+    case numiSealTerminal = 4
 }
 
 public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
@@ -160,9 +161,12 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
                  (.compressedOnly, .compressedPublic):
                 return true
             case (.terminalOrCompressed, .foldReduction),
+                 (.terminalOrCompressed, .numiSealTerminal),
                  (.terminalOnly, .foldReduction),
+                 (.terminalOnly, .numiSealTerminal),
                  (.terminalOnly, .compressedPublic),
                  (.compressedOnly, .foldReduction),
+                 (.compressedOnly, .numiSealTerminal),
                  (.compressedOnly, .terminalLocal):
                 return false
             }
@@ -261,8 +265,11 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
         guard header.transcriptDomain == transcriptDomain else {
             throw SuperNeoError.verificationFailed("transcript domain mismatch")
         }
-        guard header.kind == .terminalLocal || header.kind == .compressedPublic else {
+        guard header.kind != .foldReduction else {
             throw SuperNeoError.verificationFailed("terminal proof required")
+        }
+        guard header.kind == .terminalLocal || header.kind == .compressedPublic else {
+            throw SuperNeoError.verificationFailed("proof kind not accepted by policy")
         }
         guard proofKindPolicy.accepts(header.kind) else {
             throw SuperNeoError.verificationFailed("proof kind not accepted by policy")

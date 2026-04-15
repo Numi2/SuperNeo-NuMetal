@@ -13,6 +13,7 @@ This document describes `ProofEnvelopeHeader.version == 4`.
 | `foldReduction` | `1` | `FoldProof` | Verifies PiCCS, PiRLC, and PiDEC and returns output CE claims. It is not terminal acceptance. |
 | `terminalLocal` | `2` | `TerminalFoldProof` | Verifies the fold proof plus local terminal CE opening proof for the output claims. |
 | `compressedPublic` | `3` | `CompressedTerminalProof` | Verifies a public compressed terminal envelope by digest-binding the fold proof and CE opening proof, then reconstructing terminal verification. |
+| `numiSealTerminal` | `4` | `NumiSealProof` | NumiSeal terminal-seal container. It is accepted only by NumiSeal-specific terminal policy and preflight. |
 
 Do not treat kind `1` as a complete proof of an application statement. It is a
 fold reduction whose output claims must still be checked.
@@ -23,6 +24,11 @@ Application integrations that need terminal acceptance should use
 validates trusted profile, shape, statement, verifier-key, transcript-domain,
 accepted terminal envelope form, and optional proof byte limit before dispatching
 to terminal verification.
+
+NumiSeal terminal envelopes deliberately use a separate policy surface:
+`NumiSealTerminalProofAcceptancePolicy`. Existing terminal-local and compressed
+terminal policy rejects kind `4`, and NumiSeal policy rejects kinds `1`, `2`,
+and `3` before proof-body parsing advances to algebraic verification.
 
 ## Header Layout
 
@@ -161,6 +167,62 @@ FoldProof || CEOpeningProof
 
 The parser recomputes `foldProofDigest`, `ceOpeningProofDigest`, and
 `compressionDigest` before verification accepts.
+
+`NumiSealProof` is:
+
+```text
+bodyVersion ||
+framed(NumiSealPublicStatement) ||
+aggregateCount ||
+laneProofCount ||
+framed(NumiSealLaneProof)... ||
+componentDigestRoot ||
+transcriptDigest
+```
+
+`bodyVersion` is UInt16 little-endian value `10`. `aggregateCount` and
+`laneProofCount` are UInt64 little-endian counts and must match exactly.
+Each framed object is `byteCount || bytes` where `byteCount` is UInt64
+little-endian and the parser enforces context-specific maximums before reading
+the payload. Trailing bytes fail.
+
+`NumiSealLaneProof` is:
+
+```text
+laneKey ||
+aggregateIndex ||
+aggregateDigest ||
+decompositionKeyDigest ||
+decompositionCommitment ||
+scalarizationDigest ||
+framed(SumcheckProof) ||
+framed(residualOpening) ||
+carryTag ||
+optional framed(carryClaim)
+```
+
+`carryTag == 0` means the carry component is absent. `carryTag == 1` means a
+carry claim is present and framed immediately after the tag. Other tag values
+fail. Absent carry is still bound into `componentDigestRoot` with a typed
+`numiseal.absent-component.v1` leaf, never a zero digest.
+
+NumiSeal component leaves use these labels:
+
+| Component | Label |
+| --- | --- |
+| Public statement | `numiseal.public-statement.v1` |
+| Lane aggregate | `numiseal.lane-aggregate.v1` |
+| Decomposition metadata | `numiseal.decomposition.v1` |
+| Scalarization | `numiseal.scalarization.v1` |
+| Sum-check | `numiseal.sumcheck.v1` |
+| Residual opening | `numiseal.residual-opening.v1` |
+| Carry claim | `numiseal.carry.v1` |
+| Absent optional component | `numiseal.absent-component.v1` |
+
+`componentDigestRoot` is `numiseal.component-digest-root.v1` over typed component
+leaf digests in public-statement then lane-major, aggregate-index order.
+`transcriptDigest` is `numiseal.proof-transcript.v1` over body version, public
+statement digest, aggregate counts, lane-proof digests, and the component root.
 
 ## Versioning Policy
 

@@ -140,6 +140,8 @@ public enum SuperNeoR1CSProvingStack {
             proofBytes = try prover.terminalFoldEnvelope(prepared.foldInput, context: context).superNeoBytes
         case .compressedPublic:
             proofBytes = try prover.compressedTerminalFoldEnvelope(prepared.foldInput, context: context).superNeoBytes
+        case .numiSealTerminal:
+            throw SuperNeoError.invalidParameter("R1CS frontend does not support NumiSeal terminal proofs yet")
         }
         return SuperNeoR1CSProvingOutput(
             proofKind: proofKind,

@@ -2898,6 +2898,15 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 }
 
 final class NumiSealCanonicalizationTests: SuperNeoTestCase {
+    private struct NumiSealProofBodyFixture {
+        let publicStatement: NumiSealPublicStatement
+        let policy: NumiSealAcceptancePolicy
+        let terminalPolicy: NumiSealTerminalProofAcceptancePolicy
+        let laneProof: NumiSealLaneProof
+        let proof: NumiSealProof
+        let envelope: NumiSealProofEnvelope
+    }
+
     private func makeNumiSealCanonicalFixture(
         claimCount: Int,
         laneID: NumiSealLaneID? = nil
@@ -3039,6 +3048,97 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertNotEqual(
             canonical.laneSummaries[0].laneKey.evalPointDigest,
             canonical.laneSummaries[1].laneKey.evalPointDigest
+        )
+    }
+
+    private func makeNumiSealProofBodyFixture(
+        laneLabel: String = "phase1",
+        carryBytes: [UInt8]? = nil
+    ) throws -> NumiSealProofBodyFixture {
+        let laneID = try NumiSealLaneID(laneLabel)
+        let shapeDigest = Digest256.hash("numiseal-proof-body-shape")
+        let statementDigest = Digest256.hash("numiseal-proof-body-statement")
+        let verifierKeyDigest = Digest256.hash("numiseal-proof-body-verifier-key")
+        let evalPoint = [GoldilocksExt2(GoldilocksField(UInt64(laneLabel.utf8.count + 7)))]
+        let obligation = NumiSealObligation(
+            laneID: laneID,
+            profileID: SuperNeoParameterProfile.goldilocksPhi81.profileID,
+            shapeDigest: shapeDigest,
+            statementDigest: statementDigest,
+            verifierKeyDigest: verifierKeyDigest,
+            commitment: AjtaiCommitment(
+                Array(repeating: CyclotomicRing54.zero, count: SuperNeoParameters.goldilocks.kappa)
+            ),
+            publicInputEncoding: PublicInputEncoding(field: [GoldilocksField(3), GoldilocksField(5)]),
+            evalPoint: evalPoint,
+            matrixEvaluations: [CyclotomicExt2Ring54([GoldilocksExt2(GoldilocksField(11))])],
+            sourceFoldDigest: Digest256.hash("numiseal-proof-body-source-\(laneLabel)")
+        )
+        let policy = NumiSealAcceptancePolicy(
+            profileID: SuperNeoParameterProfile.goldilocksPhi81.profileID,
+            shapeDigest: shapeDigest,
+            statementDigest: statementDigest,
+            verifierKeyDigest: verifierKeyDigest,
+            acceptedLaneIDs: [laneID]
+        )
+        let canonicalization = try NumiSealCanonicalization.canonicalize(
+            obligations: [obligation],
+            policy: policy
+        )
+        let publicStatement = try NumiSealPublicStatement(
+            canonicalization: canonicalization,
+            policy: policy
+        )
+        let aggregate = try XCTUnwrap(
+            NumiSealLaneAggregation.aggregate(
+                canonicalization: canonicalization,
+                policy: policy,
+                limits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 1)
+            ).first
+        )
+        let laneProof = try NumiSealLaneProof(
+            laneKey: aggregate.laneKey,
+            aggregateIndex: aggregate.aggregateIndex,
+            aggregateDigest: aggregate.aggregateDigest,
+            decompositionKeyDigest: Digest256.hash("numiseal-proof-body-decomposition-key-\(laneLabel)"),
+            decompositionCommitment: AjtaiCommitment(
+                Array(repeating: CyclotomicRing54.one, count: SuperNeoParameters.goldilocks.kappa)
+            ),
+            scalarizationDigest: Digest256.hash("numiseal-proof-body-scalarization-\(laneLabel)"),
+            sumcheckProof: makeToySumcheckProof(),
+            residualOpening: try NumiSealResidualOpening(Array("residual-\(laneLabel)".utf8)),
+            optionalCarryClaim: try carryBytes.map(NumiSealCarryClaim.init)
+        )
+        let proof = try NumiSealProof(publicStatement: publicStatement, laneProofs: [laneProof])
+        let terminalPolicy = NumiSealTerminalProofAcceptancePolicy(
+            profileID: policy.profileID,
+            shapeDigest: policy.shapeDigest,
+            statementDigest: policy.statementDigest,
+            verifierKeyDigest: policy.verifierKeyDigest,
+            transcriptDomain: policy.transcriptDomain,
+            acceptedLaneIDs: policy.acceptedLaneIDs,
+            maximumProofByteCount: nil,
+            maximumLaneCount: 1,
+            maximumAggregatesPerLane: 1,
+            acceptedResidualMode: .immediate,
+            acceptedCarryMode: carryBytes == nil ? .none : .optional
+        )
+        let context = ProofEnvelopeContext(
+            profileID: policy.profileID,
+            kind: .numiSealTerminal,
+            shapeDigest: policy.shapeDigest,
+            statementDigest: policy.statementDigest,
+            verifierKeyDigest: policy.verifierKeyDigest,
+            transcriptDomain: policy.transcriptDomain
+        )
+        let envelope = try NumiSealProofEnvelope(context: context, proof: proof)
+        return NumiSealProofBodyFixture(
+            publicStatement: publicStatement,
+            policy: policy,
+            terminalPolicy: terminalPolicy,
+            laneProof: laneProof,
+            proof: proof,
+            envelope: envelope
         )
     }
 
@@ -3214,6 +3314,283 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 policy: policy
             ),
             .invalidParameter("NumiSeal lane aggregate public input lengths must match")
+        )
+    }
+
+    func testNumiSealProofBodyRoundTripsAndUsesTypedAbsentCarryDigest() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let reparsed = try NumiSealProof(bytes: fixture.proof.superNeoBytes)
+        let envelope = try NumiSealProofEnvelope(bytes: fixture.envelope.superNeoBytes)
+        let preflight = try fixture.terminalPolicy.preflight(proofBytes: fixture.envelope.superNeoBytes)
+
+        XCTAssertEqual(reparsed, fixture.proof)
+        XCTAssertEqual(envelope, fixture.envelope)
+        XCTAssertEqual(preflight, fixture.envelope)
+        XCTAssertEqual(fixture.proof.aggregateCount, 1)
+        XCTAssertEqual(fixture.proof.laneProofs.count, 1)
+
+        let carryComponent = try XCTUnwrap(
+            fixture.proof.componentDigests.first { $0.kind == .carry }
+        )
+        XCTAssertTrue(carryComponent.isAbsent)
+        XCTAssertEqual(
+            carryComponent.leafDigest,
+            NumiSealComponentDigest.absent(
+                kind: .carry,
+                laneKey: fixture.laneProof.laneKey,
+                aggregateIndex: fixture.laneProof.aggregateIndex
+            ).leafDigest
+        )
+        XCTAssertNotEqual(carryComponent.payloadDigest, Digest256.hash([]))
+    }
+
+    func testNumiSealProofBodyRejectsMalformedPublicFields() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let proofBytes = fixture.proof.superNeoBytes
+        let publicStatementLength = fixture.publicStatement.superNeoBytes.count
+        let aggregateCountOffset = 2 + encodedCountByteWidth + publicStatementLength
+        let laneProofCountOffset = aggregateCountOffset + encodedCountByteWidth
+        let componentRootOffset = proofBytes.count - (2 * Digest256.byteCount)
+        let transcriptDigestOffset = proofBytes.count - Digest256.byteCount
+
+        var wrongVersion = proofBytes
+        wrongVersion[0] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProof(bytes: wrongVersion),
+            .invalidEncoding("unsupported NumiSeal proof body version")
+        )
+
+        var wrongAggregateCount = proofBytes
+        writeUInt64(2, into: &wrongAggregateCount, at: aggregateCountOffset)
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProof(bytes: wrongAggregateCount),
+            .invalidEncoding("NumiSeal aggregate count must match lane proof count")
+        )
+
+        var wrongLaneProofCount = proofBytes
+        writeUInt64(2, into: &wrongLaneProofCount, at: laneProofCountOffset)
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProof(bytes: wrongLaneProofCount),
+            .invalidEncoding("NumiSeal aggregate count must match lane proof count")
+        )
+
+        var wrongComponentRoot = proofBytes
+        wrongComponentRoot[componentRootOffset] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProof(bytes: wrongComponentRoot),
+            .invalidEncoding("NumiSeal component digest root mismatch")
+        )
+
+        var wrongTranscriptDigest = proofBytes
+        wrongTranscriptDigest[transcriptDigestOffset] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProof(bytes: wrongTranscriptDigest),
+            .invalidEncoding("NumiSeal transcript digest mismatch")
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProof(bytes: proofBytes + [0]),
+            .invalidEncoding("trailing proof bytes")
+        )
+    }
+
+    func testNumiSealProofBodyMutationsCoverLaneProofPublicFields() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let proofBytes = fixture.proof.superNeoBytes
+        let publicStatementLength = fixture.publicStatement.superNeoBytes.count
+        let firstLaneFrameOffset = 2
+            + encodedCountByteWidth
+            + publicStatementLength
+            + encodedCountByteWidth
+            + encodedCountByteWidth
+        let lanePayloadOffset = firstLaneFrameOffset + encodedCountByteWidth
+        let laneProof = fixture.laneProof
+        let aggregateIndexOffset = laneProof.laneKey.superNeoBytes.count
+        let aggregateDigestOffset = aggregateIndexOffset + encodedCountByteWidth
+        let decompositionKeyDigestOffset = aggregateDigestOffset + Digest256.byteCount
+        let decompositionCommitmentOffset = decompositionKeyDigestOffset + Digest256.byteCount
+        let scalarizationDigestOffset = decompositionCommitmentOffset + laneProof.decompositionCommitment.superNeoBytes.count
+        let sumcheckFrameOffset = scalarizationDigestOffset + Digest256.byteCount
+        let sumcheckPayloadOffset = sumcheckFrameOffset + encodedCountByteWidth
+        let residualFrameOffset = sumcheckPayloadOffset + laneProof.sumcheckProof.superNeoBytes.count
+        let residualPayloadOffset = residualFrameOffset + encodedCountByteWidth
+        let carryTagOffset = residualPayloadOffset + laneProof.residualOpening.superNeoBytes.count
+
+        let mutationOffsets = [
+            lanePayloadOffset,
+            lanePayloadOffset + aggregateIndexOffset,
+            lanePayloadOffset + aggregateDigestOffset,
+            lanePayloadOffset + decompositionKeyDigestOffset,
+            lanePayloadOffset + decompositionCommitmentOffset,
+            lanePayloadOffset + scalarizationDigestOffset,
+            lanePayloadOffset + sumcheckPayloadOffset,
+            lanePayloadOffset + residualPayloadOffset,
+            lanePayloadOffset + carryTagOffset
+        ]
+
+        for offset in mutationOffsets {
+            var mutated = proofBytes
+            mutated[offset] ^= 1
+            XCTAssertThrowsError(try NumiSealProof(bytes: mutated)) { error in
+                XCTAssertNotNil(error as? SuperNeoError)
+            }
+        }
+    }
+
+    func testNumiSealProofBodyEnforcesLaneMajorAggregateOrdering() throws {
+        let first = try makeNumiSealProofBodyFixture(laneLabel: "a")
+        let second = try makeNumiSealProofBodyFixture(laneLabel: "b")
+
+        XCTAssertNoThrow(
+            try NumiSealProof(
+                publicStatement: first.publicStatement,
+                laneProofs: [first.laneProof, second.laneProof]
+            )
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProof(
+                publicStatement: first.publicStatement,
+                laneProofs: [second.laneProof, first.laneProof]
+            ),
+            .invalidEncoding("NumiSeal lane proofs must be lane-major and aggregate-index sorted")
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProof(
+                publicStatement: first.publicStatement,
+                laneProofs: [first.laneProof, first.laneProof]
+            ),
+            .invalidEncoding("NumiSeal lane proofs must be lane-major and aggregate-index sorted")
+        )
+    }
+
+    func testNumiSealEnvelopeKindAndTerminalPolicyAreSeparated() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        XCTAssertEqual(fixture.envelope.header.kind, .numiSealTerminal)
+        XCTAssertEqual(try NumiSealProofEnvelope(bytes: fixture.envelope.superNeoBytes), fixture.envelope)
+
+        let legacyTerminalPolicy = SuperNeoTerminalProofAcceptancePolicy(
+            profileID: fixture.policy.profileID,
+            shapeDigest: fixture.policy.shapeDigest,
+            statementDigest: fixture.policy.statementDigest,
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            transcriptDomain: fixture.policy.transcriptDomain
+        )
+        XCTAssertThrowsSuperNeoError(
+            try legacyTerminalPolicy.context(
+                for: fixture.envelope.header,
+                totalByteCount: fixture.envelope.superNeoBytes.count
+            ),
+            .verificationFailed("proof kind not accepted by policy")
+        )
+
+        let foldHeader = ProofEnvelopeHeader(
+            profileID: fixture.policy.profileID,
+            kind: .foldReduction,
+            shapeDigest: fixture.policy.shapeDigest,
+            statementDigest: fixture.policy.statementDigest,
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            transcriptDomain: fixture.policy.transcriptDomain,
+            bodyLength: 0
+        )
+        XCTAssertThrowsSuperNeoError(
+            try fixture.terminalPolicy.context(
+                for: foldHeader,
+                totalByteCount: ProofEnvelopeHeader.byteCount
+            ),
+            .verificationFailed("NumiSeal terminal proof required")
+        )
+
+        var wrongKindEnvelope = fixture.envelope.superNeoBytes
+        wrongKindEnvelope[8] = ProofEnvelopeKind.terminalLocal.rawValue
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProofEnvelope(bytes: wrongKindEnvelope),
+            .invalidEncoding("NumiSeal proof envelope kind mismatch")
+        )
+    }
+
+    func testNumiSealTerminalPolicyRejectsWrongLaneCarryModeAndProofSize() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let wrongLanePolicy = NumiSealTerminalProofAcceptancePolicy(
+            profileID: fixture.policy.profileID,
+            shapeDigest: fixture.policy.shapeDigest,
+            statementDigest: fixture.policy.statementDigest,
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            transcriptDomain: fixture.policy.transcriptDomain,
+            acceptedLaneIDs: [try NumiSealLaneID("other")]
+        )
+        XCTAssertThrowsSuperNeoError(
+            try wrongLanePolicy.preflight(proofBytes: fixture.envelope.superNeoBytes),
+            .verificationFailed("NumiSeal public statement lane is not accepted by policy")
+        )
+
+        let uncoveredLane = try makeNumiSealProofBodyFixture(laneLabel: "uncovered")
+        let uncoveredProof = try NumiSealProof(
+            publicStatement: fixture.publicStatement,
+            laneProofs: [uncoveredLane.laneProof]
+        )
+        let uncoveredContext = ProofEnvelopeContext(
+            profileID: fixture.policy.profileID,
+            kind: .numiSealTerminal,
+            shapeDigest: fixture.policy.shapeDigest,
+            statementDigest: fixture.policy.statementDigest,
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            transcriptDomain: fixture.policy.transcriptDomain
+        )
+        let uncoveredEnvelope = try NumiSealProofEnvelope(context: uncoveredContext, proof: uncoveredProof)
+        let uncoveredPolicy = NumiSealTerminalProofAcceptancePolicy(
+            profileID: fixture.policy.profileID,
+            shapeDigest: fixture.policy.shapeDigest,
+            statementDigest: fixture.policy.statementDigest,
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            transcriptDomain: fixture.policy.transcriptDomain,
+            acceptedLaneIDs: fixture.policy.acceptedLaneIDs.union([uncoveredLane.laneProof.laneKey.laneID])
+        )
+        XCTAssertThrowsSuperNeoError(
+            try uncoveredPolicy.preflight(proofBytes: uncoveredEnvelope.superNeoBytes),
+            .verificationFailed("NumiSeal lane proof is not covered by public statement")
+        )
+
+        let cappedPolicy = NumiSealTerminalProofAcceptancePolicy(
+            profileID: fixture.policy.profileID,
+            shapeDigest: fixture.policy.shapeDigest,
+            statementDigest: fixture.policy.statementDigest,
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            transcriptDomain: fixture.policy.transcriptDomain,
+            acceptedLaneIDs: fixture.policy.acceptedLaneIDs,
+            maximumProofByteCount: fixture.envelope.superNeoBytes.count - 1
+        )
+        XCTAssertThrowsSuperNeoError(
+            try cappedPolicy.preflight(proofBytes: fixture.envelope.superNeoBytes),
+            .verificationFailed("NumiSeal proof byte count exceeds policy maximum")
+        )
+
+        let carryFixture = try makeNumiSealProofBodyFixture(carryBytes: Array("carry".utf8))
+        let noCarryPolicy = NumiSealTerminalProofAcceptancePolicy(
+            profileID: carryFixture.policy.profileID,
+            shapeDigest: carryFixture.policy.shapeDigest,
+            statementDigest: carryFixture.policy.statementDigest,
+            verifierKeyDigest: carryFixture.policy.verifierKeyDigest,
+            transcriptDomain: carryFixture.policy.transcriptDomain,
+            acceptedLaneIDs: carryFixture.policy.acceptedLaneIDs,
+            acceptedCarryMode: .none
+        )
+        XCTAssertThrowsSuperNeoError(
+            try noCarryPolicy.preflight(proofBytes: carryFixture.envelope.superNeoBytes),
+            .verificationFailed("NumiSeal carry claims are not accepted by policy")
+        )
+
+        let requiredCarryPolicy = NumiSealTerminalProofAcceptancePolicy(
+            profileID: fixture.policy.profileID,
+            shapeDigest: fixture.policy.shapeDigest,
+            statementDigest: fixture.policy.statementDigest,
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            transcriptDomain: fixture.policy.transcriptDomain,
+            acceptedLaneIDs: fixture.policy.acceptedLaneIDs,
+            acceptedCarryMode: .required
+        )
+        XCTAssertThrowsSuperNeoError(
+            try requiredCarryPolicy.preflight(proofBytes: fixture.envelope.superNeoBytes),
+            .verificationFailed("NumiSeal carry claim required by policy")
         )
     }
 }
