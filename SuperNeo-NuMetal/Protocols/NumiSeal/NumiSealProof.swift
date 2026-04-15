@@ -163,6 +163,8 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
     public let aggregateIndex: Int
     public let linearResidualDigest: Digest256
     public let sumcheckProofDigest: Digest256
+    public let residualStatement: NumiSealResidualCEStatement
+    public let residualStatementDigest: Digest256
     public let terminalStatement: TerminalCEStatement
     public let terminalStatementDigest: Digest256
     public let ceOpeningProof: CEOpeningProof
@@ -189,6 +191,12 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
         try Self.validateTerminalStatement(terminalStatement, laneKey: laneKey)
         try Self.validateCEProof(ceOpeningProof, terminalStatement: terminalStatement)
 
+        let residualStatement = try NumiSealResidualCEStatement(
+            linearResidual: linearResidual,
+            sumcheckProof: sumcheckProof,
+            terminalStatement: terminalStatement
+        )
+        let residualStatementDigest = residualStatement.statementDigest
         let terminalStatementDigest = terminalStatement.statementDigest
         let sumcheckProofDigest = Self.sumcheckProofDigest(sumcheckProof)
         let ceOpeningProofDigest = Self.ceOpeningProofDigest(ceOpeningProof)
@@ -197,6 +205,8 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
         self.aggregateIndex = aggregateIndex
         self.linearResidualDigest = linearResidual.residualDigest
         self.sumcheckProofDigest = sumcheckProofDigest
+        self.residualStatement = residualStatement
+        self.residualStatementDigest = residualStatementDigest
         self.terminalStatement = terminalStatement
         self.terminalStatementDigest = terminalStatementDigest
         self.ceOpeningProof = ceOpeningProof
@@ -206,8 +216,10 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
             aggregateIndex: aggregateIndex,
             linearResidualDigest: linearResidual.residualDigest,
             sumcheckProofDigest: sumcheckProofDigest,
+            residualStatementDigest: residualStatementDigest,
             terminalStatementDigest: terminalStatementDigest,
             ceOpeningProofDigest: ceOpeningProofDigest,
+            residualStatementBytes: residualStatement.superNeoBytes,
             terminalStatementBytes: terminalStatement.superNeoBytes,
             ceOpeningProofBytes: ceOpeningProof.superNeoBytes
         )
@@ -234,8 +246,12 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
         )
         let linearResidualDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         let sumcheckProofDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let residualStatementDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         let terminalStatementDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         let ceOpeningProofDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let residualStatementBytes = try reader.readNumiSealProofComponentBytes(
+            name: "NumiSeal residual CE statement"
+        )
         let terminalStatementBytes = try reader.readNumiSealProofComponentBytes(
             name: "NumiSeal residual terminal CE statement"
         )
@@ -245,10 +261,30 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
         let openingDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         try reader.finish()
 
+        let residualStatement = try NumiSealResidualCEStatement(bytes: residualStatementBytes)
         let terminalStatement = try TerminalCEStatement(bytes: terminalStatementBytes, parameters: parameters)
         let ceOpeningProof = try CEOpeningProof(bytes: ceOpeningProofBytes, parameters: parameters)
         try Self.validateTerminalStatement(terminalStatement, laneKey: laneKey)
         try Self.validateCEProof(ceOpeningProof, terminalStatement: terminalStatement)
+        try residualStatement.validate(terminalStatement: terminalStatement)
+        guard residualStatementDigest == residualStatement.statementDigest else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE statement digest mismatch")
+        }
+        guard residualStatement.residualShape.laneKey == laneKey else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE statement lane mismatch")
+        }
+        guard residualStatement.residualShape.aggregateIndex == aggregateIndex else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE statement aggregate mismatch")
+        }
+        guard residualStatement.linearResidualDigest == linearResidualDigest else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE statement linear residual mismatch")
+        }
+        guard residualStatement.sumcheckProofDigest == sumcheckProofDigest else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE statement sum-check mismatch")
+        }
+        guard residualStatement.terminalStatementDigest == terminalStatementDigest else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE statement terminal mismatch")
+        }
         guard terminalStatementDigest == terminalStatement.statementDigest else {
             throw SuperNeoError.invalidEncoding("NumiSeal residual terminal statement digest mismatch")
         }
@@ -260,8 +296,10 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
             aggregateIndex: aggregateIndex,
             linearResidualDigest: linearResidualDigest,
             sumcheckProofDigest: sumcheckProofDigest,
+            residualStatementDigest: residualStatementDigest,
             terminalStatementDigest: terminalStatementDigest,
             ceOpeningProofDigest: ceOpeningProofDigest,
+            residualStatementBytes: residualStatementBytes,
             terminalStatementBytes: terminalStatementBytes,
             ceOpeningProofBytes: ceOpeningProofBytes
         )
@@ -274,6 +312,8 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
         self.aggregateIndex = aggregateIndex
         self.linearResidualDigest = linearResidualDigest
         self.sumcheckProofDigest = sumcheckProofDigest
+        self.residualStatement = residualStatement
+        self.residualStatementDigest = residualStatementDigest
         self.terminalStatement = terminalStatement
         self.terminalStatementDigest = terminalStatementDigest
         self.ceOpeningProof = ceOpeningProof
@@ -300,6 +340,11 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
         guard sumcheckProofDigest == Self.sumcheckProofDigest(sumcheckProof) else {
             throw SuperNeoError.verificationFailed("NumiSeal residual opening sum-check proof digest mismatch")
         }
+        try residualStatement.validate(
+            linearResidual: linearResidual,
+            sumcheckProof: sumcheckProof,
+            terminalStatement: terminalStatement
+        )
     }
 
     public func validate(laneProof: NumiSealLaneProof) throws {
@@ -315,6 +360,25 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
         guard sumcheckProofDigest == Self.sumcheckProofDigest(laneProof.sumcheckProof) else {
             throw SuperNeoError.verificationFailed("NumiSeal residual opening sum-check proof digest mismatch")
         }
+        guard residualStatement.residualShape.laneKey == laneProof.laneKey else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE statement lane mismatch")
+        }
+        guard residualStatement.residualShape.aggregateIndex == laneProof.aggregateIndex else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE statement aggregate mismatch")
+        }
+        guard residualStatement.aggregateDigest == laneProof.aggregateDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE statement aggregate digest mismatch")
+        }
+        guard residualStatement.decompositionKeyDigest == laneProof.decompositionKeyDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE statement decomposition key mismatch")
+        }
+        guard residualStatement.linearResidualDigest == laneProof.scalarizationDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE statement scalarization digest mismatch")
+        }
+        guard residualStatement.sumcheckProofDigest == Self.sumcheckProofDigest(laneProof.sumcheckProof) else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE statement sum-check digest mismatch")
+        }
+        try residualStatement.validate(terminalStatement: terminalStatement)
     }
 
     public func verifyCEOpening(
@@ -326,6 +390,10 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
     ) throws -> Bool {
         try Self.validateTerminalStatement(terminalStatement, laneKey: laneKey)
         try Self.validateCEProof(ceOpeningProof, terminalStatement: terminalStatement)
+        try residualStatement.validate(terminalStatement: terminalStatement)
+        guard residualStatementDigest == residualStatement.statementDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE statement digest mismatch")
+        }
         guard terminalStatementDigest == terminalStatement.statementDigest else {
             throw SuperNeoError.verificationFailed("NumiSeal residual terminal statement digest mismatch")
         }
@@ -344,6 +412,7 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
     }
 
     public var superNeoBytes: [UInt8] {
+        let residualStatementBytes = residualStatement.superNeoBytes
         let terminalStatementBytes = terminalStatement.superNeoBytes
         let ceOpeningProofBytes = ceOpeningProof.superNeoBytes
         return Self.domain.superNeoBytes
@@ -352,8 +421,10 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
             + numiSealEncodeCount(aggregateIndex)
             + linearResidualDigest.superNeoBytes
             + sumcheckProofDigest.superNeoBytes
+            + residualStatementDigest.superNeoBytes
             + terminalStatementDigest.superNeoBytes
             + ceOpeningProofDigest.superNeoBytes
+            + numiSealFrame(residualStatementBytes)
             + numiSealFrame(terminalStatementBytes)
             + numiSealFrame(ceOpeningProofBytes)
             + openingDigest.superNeoBytes
@@ -411,8 +482,10 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
         aggregateIndex: Int,
         linearResidualDigest: Digest256,
         sumcheckProofDigest: Digest256,
+        residualStatementDigest: Digest256,
         terminalStatementDigest: Digest256,
         ceOpeningProofDigest: Digest256,
+        residualStatementBytes: [UInt8],
         terminalStatementBytes: [UInt8],
         ceOpeningProofBytes: [UInt8]
     ) -> Digest256 {
@@ -423,8 +496,10 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
                 + numiSealEncodeCount(aggregateIndex)
                 + linearResidualDigest.superNeoBytes
                 + sumcheckProofDigest.superNeoBytes
+                + residualStatementDigest.superNeoBytes
                 + terminalStatementDigest.superNeoBytes
                 + ceOpeningProofDigest.superNeoBytes
+                + numiSealFrame(residualStatementBytes)
                 + numiSealFrame(terminalStatementBytes)
                 + numiSealFrame(ceOpeningProofBytes)
         )

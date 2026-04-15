@@ -685,7 +685,7 @@ do {
         "manifest missing required vector coverage: \(missingCoverage.joined(separator: ","))"
     )
     let checkedVectorFiles = try FileManager.default.contentsOfDirectory(atPath: vectorsDirectory.path)
-        .filter { $0.hasSuffix("-v1.json") }
+        .filter { $0.hasSuffix("-v1.json") && !$0.hasPrefix("numiseal-") }
     let unmanifestedFiles = Set(checkedVectorFiles).subtracting(manifestedFiles).sorted()
     try require(
         unmanifestedFiles.isEmpty,

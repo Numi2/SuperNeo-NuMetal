@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://superneo-numetal.local/schemas/numiseal-test-vector-artifact-v1.json",
+  "title": "SuperNeo NuMetal NumiSeal Test Vector Artifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "aggregateDigestsHex",
+    "artifactVersion",
+    "ceRandomSeedsUTF8",
+    "componentDigestRootHex",
+    "foldTranscriptSeedUTF8",
+    "keyColumnCount",
+    "keySeedUTF8",
+    "laneIDsUTF8",
+    "laneSummaryRootHex",
+    "maximumAggregatesPerLane",
+    "maximumLaneCount",
+    "maximumObligationsPerAggregate",
+    "obligationRootHex",
+    "privateWitnessCount",
+    "profile",
+    "proofEnvelopeBase64",
+    "proofKind",
+    "proofTranscriptDigestHex",
+    "publicInputCount",
+    "publicInputs",
+    "publicStatementDigestHex",
+    "residualMode",
+    "shapeDigestHex",
+    "sourceFoldDigestSeedsUTF8",
+    "statementDigestHex",
+    "transcriptDomainHex",
+    "verifierKeyDigestHex",
+    "workload"
+  ],
+  "properties": {
+    "artifactVersion": {
+      "const": 1
+    },
+    "workload": {
+      "const": "numiseal-terminal-single-aggregate-v1"
+    },
+    "profile": {
+      "const": "Goldilocks/Phi81(d=54)"
+    },
+    "proofKind": {
+      "const": "numiseal-terminal"
+    },
+    "residualMode": {
+      "const": "immediate"
+    },
+    "keySeedUTF8": {
+      "const": "SuperNeoNumiSeal.vector.single-aggregate.key.v1"
+    },
+    "keyColumnCount": {
+      "const": 2
+    },
+    "foldTranscriptSeedUTF8": {
+      "const": "SuperNeoNumiSeal.vector.single-aggregate.fold.v1"
+    },
+    "laneIDsUTF8": {
+      "prefixItems": [
+        {
+          "const": "numiseal-vector-main"
+        }
+      ],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "sourceFoldDigestSeedsUTF8": {
+      "prefixItems": [
+        {
+          "const": "SuperNeoNumiSeal.vector.single-aggregate.source.0.v1"
+        }
+      ],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "ceRandomSeedsUTF8": {
+      "prefixItems": [
+        {
+          "const": "SuperNeoNumiSeal.vector.single-aggregate.ce.0.v1"
+        }
+      ],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "maximumObligationsPerAggregate": {
+      "const": 1
+    },
+    "maximumLaneCount": {
+      "const": 1
+    },
+    "maximumAggregatesPerLane": {
+      "const": 1
+    },
+    "publicInputCount": {
+      "const": 54
+    },
+    "privateWitnessCount": {
+      "const": 10
+    },
+    "publicInputs": {
+      "type": "array",
+      "minItems": 54,
+      "maxItems": 54,
+      "items": {
+        "const": 0
+      }
+    },
+    "shapeDigestHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "statementDigestHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "verifierKeyDigestHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "transcriptDomainHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "publicStatementDigestHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "obligationRootHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "laneSummaryRootHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "aggregateDigestsHex": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "componentDigestRootHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "proofTranscriptDigestHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "proofEnvelopeBase64": {
+      "type": "string",
+      "contentEncoding": "base64"
+    }
+  }
+}

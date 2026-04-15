@@ -34,18 +34,31 @@ Already present:
 - NumiSeal has a bounded reference sum-check handoff that binds proof-body
   sum-check bytes to the scalar residual and digit-tensor language.
 - NumiSeal has a typed immediate residual-opening handoff that binds lane scope,
-  scalarization digest, sum-check proof digest, canonical terminal CE statement
-  bytes, and canonical CE opening proof bytes. The explicit full-verification
-  path now calls the existing terminal CE opening verifier for that supplied
-  residual opening.
+  scalarization digest, sum-check proof digest, a stable residual CE
+  shape/statement digest, canonical terminal CE statement bytes, and canonical
+  CE opening proof bytes. The explicit full-verification path now calls the
+  existing terminal CE opening verifier for that supplied residual opening, and
+  the builder constructs the CE statement/proof from typed NumiSeal aggregate,
+  decomposition, sum-check, and aggregate-witness inputs.
+- NumiSeal has a first `NumiSealProvingPlan`/`NumiSealProver`/`NumiSealVerifier`
+  assembly API for the current immediate-residual aggregate-sequence path. The
+  plan exposes deterministic public statement and aggregate order before the
+  caller supplies per-aggregate digit-tensor inputs. The prover builds
+  multi-lane/multi-aggregate envelopes from witnessed obligations, and the
+  verifier recomputes public statement and aggregates before CE verification.
+- NumiSeal has its first checked terminal vector and release-gate validation
+  path: `superneo-numiseal-vectors` regenerates a deterministic immediate
+  residual vector byte-for-byte using SPI-only deterministic CE randomness,
+  validates `numiseal-manifest.json`, parses the kind `4` envelope, and verifies
+  through `NumiSealVerifier`.
 
 Not yet present:
 
-- NumiSeal prover/verifier APIs.
-- Optimized NumiSeal degree-4 sum-check integration, residual CE relation
-  verification, and complete algebraic terminal acceptance.
-- NumiSeal vectors, CLI exposure, production gate, formal hooks, and security
-  audit artifacts.
+- Production NumiSeal prover/verifier exposure over the final residual object
+  and CLI integration.
+- Optimized NumiSeal degree-4 sum-check integration, the final
+  digit-commitment residual object, and complete algebraic terminal acceptance.
+- Full NumiSeal CLI exposure, formal hooks, and security audit artifacts.
 - Zero-knowledge layer.
 - Recursive/aggregate sealing product.
 - General program frontend.
@@ -328,23 +341,30 @@ opening relation.
 
 Artifacts:
 
-- `NumiSealResidualShape`
-- `NumiSealResidualStatement`
+- `NumiSealResidualCEShape`
+- `NumiSealResidualCEStatement`
 - `NumiSealResidualOpening`
 - `NumiSealCarryClaim`
 - residual CE witness builder
 
 Initial implementation status: `NumiSealResidualOpening` is now a typed
-immediate handoff object. It parses canonical terminal CE statement bytes and
-canonical CE opening proof bytes, binds them to lane/aggregate scope,
-`linearResidualDigest`, `sumcheckProofDigest`, `terminalStatementDigest`,
-`ceOpeningProofDigest`, and an `openingDigest`, and the NumiSeal terminal policy
-checks those cheap bindings during preflight. The explicit full-verification
-path accepts the public shape and verifier key, validates the actual key/shape
-material against policy digests, and calls `CEOpeningRelation.verify` for the
-supplied immediate residual opening. The remaining Phase 6 work is the stable
-internal residual shape and witness builder that will replace the current
-terminal-CE-statement handoff.
+immediate handoff object. It parses canonical residual CE statement bytes,
+canonical terminal CE statement bytes, and canonical CE opening proof bytes,
+binding them to lane/aggregate scope, `linearResidualDigest`,
+`sumcheckProofDigest`, `residualStatementDigest`, `terminalStatementDigest`,
+`ceOpeningProofDigest`, and an `openingDigest`. `NumiSealResidualCEShape` and
+`NumiSealResidualCEStatement` add stable residual metadata for the current
+immediate CE handoff, including the decomposition digests, sum-check final
+point, claimed digit evaluation, and terminal CE statement digest. The explicit
+full-verification path accepts the public shape and verifier key, validates the
+actual key/shape material against policy digests, and calls
+`CEOpeningRelation.verify` for the supplied immediate residual opening.
+`NumiSealResidualCEBuilder` now constructs that immediate opening from typed
+public statement, aggregate, decomposition, digit tensor, scalar residual,
+sum-check proof, and aggregate-witness inputs. The remaining Phase 6 work is
+the final residual object that opens the digit commitment directly at the
+sum-check final point instead of using the current aggregate terminal-CE
+handoff.
 
 Target residual object after full CE integration:
 
@@ -387,6 +407,24 @@ World-class bar:
 
 Goal: assemble the complete terminal seal.
 
+Initial implementation status: `NumiSealWitnessedObligation`, `NumiSealProver`,
+`NumiSealVerifier`, `NumiSealVerificationResult`, and
+`NumiSealAggregateDigitTensorInput` are present, with `NumiSealProvingPlan`
+exposing the deterministic public statement, aggregate sequence, aggregate
+count, and aggregate digests before proving. The prover supports the current
+multi-lane/multi-aggregate immediate-residual path: it canonicalizes witnessed
+obligations, builds the public statement, aggregates deterministic lane chunks,
+consumes one digit-tensor input per aggregate, derives each decomposition
+commitment, proves the bounded reference sum-check, constructs immediate
+residual CE openings, and wraps a kind `4` envelope. The verifier parses bytes,
+applies NumiSeal terminal policy preflight, recomputes the public statement and
+aggregates from caller-supplied public obligations, checks lane and residual CE
+bindings, and only then calls the existing full residual-opening verification
+path. An SPI-only deterministic proving path exists for reproducible checked
+vectors and benchmark-style tooling; production proving remains on randomized
+CE opening generation. CLI exposure and the final algebraic digit-commitment
+residual verifier remain future work.
+
 Prover pipeline:
 
 ```text
@@ -423,6 +461,8 @@ proof bytes + obligations + shape + key + policy
 APIs:
 
 ```swift
+public struct NumiSealProvingPlan { ... }
+public struct NumiSealAggregateDigitTensorInput { ... }
 public final class NumiSealProver { ... }
 public final class NumiSealVerifier { ... }
 public struct NumiSealVerificationResult { ... }
@@ -454,18 +494,29 @@ Artifacts:
 
 - checked-in NumiSeal terminal vectors;
 - vector manifest entries with byte count, hash, shape digest, statement digest,
-  verifier-key digest, proof kind, lane IDs, and strict command;
+  verifier-key digest, transcript-domain digest, public-statement digest,
+  aggregate digest, proof kind, lane IDs, and strict command;
 - `superneo inspect` support for NumiSeal headers and public statement;
 - opt-in `superneo prove --seal numiseal`;
 - opt-in `superneo verify --require-numiseal`;
 - production-gate coverage.
 
+Initial implementation status: `superneo-numiseal-vectors` now generates and
+validates `TestVectors/numiseal-terminal-single-aggregate-v1.json` under
+`TestVectors/numiseal-manifest.json` and
+`TestVectors/numiseal-artifact.schema.json`. Validation rejects duplicate and
+unknown JSON keys, checks byte count and SHA-256, regenerates the deterministic
+envelope from the checked fixture, compares public statement, aggregate,
+component-root, and proof-transcript digests, parses the kind `4` envelope, and
+verifies through `NumiSealVerifier`. `Scripts/production-gate.sh` runs this
+validator and includes a wrong-proof-kind negative fixture.
+
 Acceptance gates:
 
 - vector validator rejects unknown fields and duplicate keys;
-- release CLI proves and verifies at least one small NumiSeal vector;
-- negative CLI fixtures cover wrong digest, wrong lane, wrong proof kind,
-  wrong byte count, wrong manifest hash, and missing `--require-numiseal`;
+- release gate verifies at least one small checked NumiSeal vector;
+- negative fixtures cover wrong digest, wrong lane, wrong proof kind, wrong
+  byte count, wrong manifest hash, and missing `--require-numiseal`;
 - production gate runs parser-only tests before expensive algebraic tests.
 
 World-class bar:

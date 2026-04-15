@@ -29,6 +29,13 @@ NumiSeal terminal envelopes deliberately use a separate policy surface:
 `NumiSealTerminalProofAcceptancePolicy`. Existing terminal-local and compressed
 terminal policy rejects kind `4`, and NumiSeal policy rejects kinds `1`, `2`,
 and `3` before proof-body parsing advances to algebraic verification.
+The current `NumiSealProver`/`NumiSealVerifier` assembly API targets the
+multi-lane/multi-aggregate immediate-residual path and uses this same kind `4`
+envelope. `NumiSealProvingPlan` exposes the deterministic aggregate order that
+callers must follow when supplying per-aggregate digit-tensor inputs.
+`TestVectors/numiseal-terminal-single-aggregate-v1.json` is the first checked
+kind `4` vector for this immediate-residual path. Final production
+terminal-seal exposure remains a roadmap gate.
 
 ## Header Layout
 
@@ -407,8 +414,10 @@ laneKey ||
 aggregateIndex ||
 linearResidualDigest ||
 sumcheckProofDigest ||
+residualStatementDigest ||
 terminalStatementDigest ||
 ceOpeningProofDigest ||
+framed(NumiSealResidualCEStatement) ||
 framed(TerminalCEStatement) ||
 framed(CEOpeningProof) ||
 openingDigest
@@ -418,23 +427,52 @@ openingDigest
 `version` is UInt16 little-endian value `10`. `linearResidualDigest` must match
 the lane proof's `scalarizationDigest`. `sumcheckProofDigest` is
 `H_numiseal("numiseal.sumcheck.v1", SumcheckProof)`.
+`residualStatementDigest` is the canonical `NumiSealResidualCEStatement` digest.
 `terminalStatementDigest` is the canonical `TerminalCEStatement` digest.
 `ceOpeningProofDigest` is
 `H_numiseal("numiseal.residual-opening.ce-proof.v1", CEOpeningProof)`.
+
+`NumiSealResidualCEStatement` is a typed public metadata object for the current
+immediate residual CE handoff:
+
+```text
+domain ||
+version ||
+framed(NumiSealResidualCEShape) ||
+publicStatementDigest ||
+aggregateDigest ||
+decompositionKeyDigest ||
+decompositionCommitmentDigest ||
+linearResidualDigest ||
+sumcheckProofDigest ||
+sumcheckFinalPoint ||
+claimedDigitEvaluation ||
+terminalStatementDigest ||
+statementDigest
+```
+
+`NumiSealResidualCEShape` binds the profile, lane key, aggregate index, opening
+count, public-input arity, matrix-evaluation arity, and evaluation-point digest.
+Its `residualShapeDigest` uses label `numiseal.residual-ce-shape.v1`; the
+statement digest uses label `numiseal.residual-ce-statement.v1`.
+
 `openingDigest` is
 
 ```text
 H_numiseal("numiseal.residual-opening.v1",
   version || laneKey || aggregateIndex || linearResidualDigest ||
-  sumcheckProofDigest || terminalStatementDigest || ceOpeningProofDigest ||
+  sumcheckProofDigest || residualStatementDigest || terminalStatementDigest ||
+  ceOpeningProofDigest || framed(NumiSealResidualCEStatement) ||
   framed(TerminalCEStatement) || framed(CEOpeningProof))
 ```
 
 The immediate residual preflight checks lane/aggregate scope, scalarization
-digest binding, sum-check proof digest binding, terminal CE statement
-profile/shape/verifier/evaluation-point scope, and per-round CE opening-count
-agreement. This still does not run the full residual CE relation verifier; that
-remains the Phase 6 algebraic verification boundary.
+digest binding, sum-check proof digest binding, residual CE statement binding,
+terminal CE statement profile/shape/verifier/evaluation-point scope, and
+per-round CE opening-count agreement. Preflight remains cheap. The explicit
+NumiSeal terminal `verify` path additionally accepts public shape/key material
+and calls `CEOpeningRelation.verify` for supplied immediate residual CE opening
+proofs.
 
 ## Versioning Policy
 

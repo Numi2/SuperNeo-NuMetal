@@ -15,6 +15,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - Lean formal build, executable gates, and formal-status validation
   - Lean/Swift profile-constant conformance validation
   - checked-in test vector validation
+  - checked-in NumiSeal vector validation
   - release CLI fold, terminal, and compressed-terminal prove/verify smoke
 
 Pass --with-benchmarks to include Scripts/run-benchmarks.sh quick.
@@ -92,6 +93,7 @@ ERROR
 cd "${ROOT_DIR}"
 
 SUPERNEO_CLI="${ROOT_DIR}/.build/release/superneo"
+NUMISEAL_VECTOR_CLI="${ROOT_DIR}/.build/release/superneo-numiseal-vectors"
 
 ONE_HOT_KEY_SEED="SuperNeoCLI.one-hot-vector.v1"
 ONE_HOT_SHAPE_DIGEST="84d903373ff54785a9b7d99bd048e1527deedd1173309c272992a8a87b61a765"
@@ -111,6 +113,7 @@ run_step Scripts/validate-artifact-schema.py
 run_step Scripts/test-artifact-schema-validation.py
 run_step Scripts/test-benchmark-tooling-validation.py
 run_step swift Scripts/validate-test-vectors.swift
+run_step "${NUMISEAL_VECTOR_CLI}" validate
 run_step Scripts/test-vector-manifest-validation.py
 
 lattice_path="$(make_temp_json)"
@@ -128,11 +131,23 @@ binary_add_missing_sum_path="$(make_temp_json)"
 binary_add_noncanonical_sum_path="$(make_temp_json)"
 binary_add_bad_left_bit_count_path="$(make_temp_json)"
 binary_add_duplicate_workload_key_path="$(make_temp_json)"
-cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_duplicate_top_level_key_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${one_hot_compressed_terminal_path}" "${one_hot_compressed_terminal_as_terminal_path}" "${one_hot_compressed_terminal_as_fold_path}" "${binary_add_path}" "${binary_add_terminal_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}" "${binary_add_duplicate_workload_key_path}")
+numiseal_wrong_kind_path="$(make_temp_json)"
+cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_duplicate_top_level_key_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${one_hot_compressed_terminal_path}" "${one_hot_compressed_terminal_as_terminal_path}" "${one_hot_compressed_terminal_as_fold_path}" "${binary_add_path}" "${binary_add_terminal_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}" "${binary_add_duplicate_workload_key_path}" "${numiseal_wrong_kind_path}")
 
 run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
 run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent "${lattice_path}"
 run_step Scripts/test-lattice-estimator-artifact-validation.py
+run_step python3 - "TestVectors/numiseal-terminal-single-aggregate-v1.json" "${numiseal_wrong_kind_path}" <<'PY'
+import json
+import sys
+source, destination = sys.argv[1], sys.argv[2]
+with open(source, "r", encoding="utf-8") as handle:
+    artifact = json.load(handle)
+artifact["proofKind"] = "terminal"
+with open(destination, "w", encoding="utf-8") as handle:
+    json.dump(artifact, handle, indent=2, sort_keys=True)
+PY
+run_expect_failure "${NUMISEAL_VECTOR_CLI}" validate "${numiseal_wrong_kind_path}" "${ROOT_DIR}"
 if [[ "${RUN_FORMAL}" -eq 1 ]]; then
   require_lake
   run_step_in_dir Formal lake build
