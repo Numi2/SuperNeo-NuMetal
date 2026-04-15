@@ -64,6 +64,10 @@ manifest by certified-key or finite bad-challenge/bad-seed theorem groups.
   mismatches. If two low-degree polynomials differ, the challenge values where
   they agree are degree-bounded, and a large enough support contains a
   disagreeing challenge.
+- Sum-check now also has a prefix bad-challenge aggregation layer: per-round
+  agreement sets are tagged by round and composed into a finite
+  `(round, challenge)` event set with a `rounds * degreeBound` cardinality
+  budget.
 - CE local and terminal-batch algebra now prove that two distinct witnesses for
   the same statement yield an explicit nonzero bounded-difference kernel
   vector.

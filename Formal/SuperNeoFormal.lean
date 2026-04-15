@@ -12,6 +12,7 @@ import SuperNeoFormal.PiDECSoundness
 import SuperNeoFormal.Sumcheck
 import SuperNeoFormal.Multilinear
 import SuperNeoFormal.SumcheckSoundness
+import SuperNeoFormal.SumcheckPrefixSoundness
 import SuperNeoFormal.ChallengeSampling
 import SuperNeoFormal.PiRLC
 import SuperNeoFormal.PiRLCSoundness
@@ -31,3 +32,4 @@ import SuperNeoFormal.Transcript
 import SuperNeoFormal.TranscriptChallenge
 import SuperNeoFormal.Composition
 import SuperNeoFormal.ProbabilityComposition
+import SuperNeoFormal.ErrorLedger

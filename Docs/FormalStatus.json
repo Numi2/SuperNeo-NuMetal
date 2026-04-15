@@ -45,6 +45,7 @@
         "multilinear-extension-semantics",
         "sumcheck-exact-oracle-soundness",
         "sumcheck-low-degree-root-count-core",
+        "sumcheck-prefix-bad-challenge-composition",
         "piccs-acceptance-core",
         "piccs-deterministic-sumcheck-bridge",
         "goldilocks-ext2-wire-model",
@@ -63,7 +64,8 @@
         "transcript-absorption",
         "superneo-deterministic-composition",
         "superneo-finite-bad-seed-composition",
-        "superneo-tagged-bad-event-composition"
+        "superneo-tagged-bad-event-composition",
+        "superneo-error-ledger-composition"
       ],
       "accepted_statuses": [
         "closed",
@@ -102,6 +104,7 @@
         "multilinear-extension-semantics",
         "sumcheck-exact-oracle-soundness",
         "sumcheck-low-degree-root-count-core",
+        "sumcheck-prefix-bad-challenge-composition",
         "piccs-acceptance-core",
         "piccs-deterministic-sumcheck-bridge",
         "goldilocks-ext2-wire-model",
@@ -121,6 +124,7 @@
         "superneo-deterministic-composition",
         "superneo-finite-bad-seed-composition",
         "superneo-tagged-bad-event-composition",
+        "superneo-error-ledger-composition",
         "superneo-full-probability-composition",
         "goldilocks-ext2-field-instance",
         "swift-goldilocks-ext2-serialization-equivalence",
@@ -576,6 +580,24 @@
         "SuperNeoFormal.sumcheckPolynomialAgreementInSupport_card_le_degreeBound",
         "SuperNeoFormal.sumcheck_challenge_in_polynomial_agreement",
         "SuperNeoFormal.sumcheck_exists_disagreeing_challenge_of_support_card_gt_degreeBound"
+      ]
+    },
+    {
+      "id": "sumcheck-prefix-bad-challenge-composition",
+      "lean_module": "SuperNeoFormal.SumcheckPrefixSoundness",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.sumcheckPrefixRoundBadChallenges",
+        "SuperNeoFormal.sumcheckPrefixRoundBadChallenges_mem_iff",
+        "SuperNeoFormal.sumcheckPrefixRoundBadChallenges_card_le_degreeBound",
+        "SuperNeoFormal.sumcheckPrefixBadChallenges",
+        "SuperNeoFormal.sumcheckPrefixBadChallenges_mem_iff",
+        "SuperNeoFormal.sumcheckPrefixBadChallenges_member_agrees",
+        "SuperNeoFormal.sumcheckPrefixBadChallenges_contains_round_agreement",
+        "SuperNeoFormal.sumcheckPrefixBadChallenges_card_le_of_round_bounds",
+        "SuperNeoFormal.sumcheckPrefixBadChallenges_card_le_degreeBound",
+        "SuperNeoFormal.sumcheckPrefixBadChallengeBudget",
+        "SuperNeoFormal.sumcheckPrefixBadChallengeBudget_card_le"
       ]
     },
     {
@@ -1256,6 +1278,28 @@
         "SuperNeoFormal.SuperNeoStageSoundnessTargets",
         "SuperNeoFormal.superNeoStageSoundnessTargetsAll",
         "SuperNeoFormal.superneo_stage_soundness_from_outsideAggregate"
+      ]
+    },
+    {
+      "id": "superneo-error-ledger-composition",
+      "lean_module": "SuperNeoFormal.ErrorLedger",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.AbstractProbabilityModel",
+        "SuperNeoFormal.SuperNeoErrorEvents",
+        "SuperNeoFormal.superNeoErrorEventsAny",
+        "SuperNeoFormal.SuperNeoErrorBudget",
+        "SuperNeoFormal.superNeoErrorBudgetTotal",
+        "SuperNeoFormal.superNeoErrorBudgetNonnegative",
+        "SuperNeoFormal.SuperNeoComponentErrorBounds",
+        "SuperNeoFormal.superneo_errorBudget_union_bound",
+        "SuperNeoFormal.SuperNeoErrorFunction",
+        "SuperNeoFormal.ErrorFunctionClass",
+        "SuperNeoFormal.SuperNeoErrorFunctions",
+        "SuperNeoFormal.superNeoErrorFunctionsTotal",
+        "SuperNeoFormal.superneo_errorFunctions_total_negligible",
+        "SuperNeoFormal.superNeoStageErrorEvents",
+        "SuperNeoFormal.superneo_no_stageErrorEvent_of_outsideAggregate"
       ]
     },
     {

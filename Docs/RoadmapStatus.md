@@ -208,7 +208,8 @@ Artifacts:
   operations, Phi81 splitting, field-to-ring packing, concrete Ajtai
   instantiation, PiDEC recomposition, PiRLC weighted-claim recomposition,
   transcript-bound challenge scheduling, public-Q reduction, low-degree
-  root-counting, terminal CE local algebra, and verifier composition.
+  root-counting, sum-check prefix bad-challenge aggregation, terminal CE local
+  algebra, finite error-ledger bookkeeping, and verifier composition.
 - `Docs/FormalStatus.json` and `Scripts/validate-formal-status.py` gate
   documentation labels against named theorem groups and verify that closed
   groups reference declarations present in the claimed Lean module without

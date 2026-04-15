@@ -86,6 +86,21 @@ formal constants.
   - Mutation-tests missing labels, duplicate labels, unexpected labels, and
     byte drift in the CE vector comparator.
 
+- `Formal/ProofImportWall.lean`
+  - Scans theorem-facing Lean modules and fails if they import generated,
+    golden, regression, or executable vector-check evidence modules.
+
+- `Formal/SuperNeoFormalVectorCheck.lean`
+  - Runs executable Lean predicates over representative GoldilocksExt2,
+    sum-check caller-surface, CE response, CE round, and parser-rejection
+    fixtures.
+
+- `Formal/lakefile.lean`
+  - Exposes `proof_import_wall` and `vector_check` build targets. The
+    `vector_check` target runs the Lean predicate runner through the
+    interpreter to avoid a native-link dependency on the full transitive theorem
+    graph.
+
 - `Scripts/validate-formal-status.py`
   - Declaration scanning now includes Lean names ending in `?`, so parser
     declarations such as `proofEnvelopeTranscriptBindingDecode?` are checked
@@ -95,11 +110,12 @@ formal constants.
 
 `Scripts/production-gate.sh` now runs both the profile-constant validator and
 its mutation tests after the Lean build and formal-status validation. It also
-runs the Ext2 serialization conformance validator, the CE opening byte
-serialization validator, the Swift/Lean Ext2 and CE vector comparators, and all
-associated mutation tests, so byte-order, parser-width, round-count,
-response-tag, or executable/vector drift fails the release gate before public
-claims can move forward.
+runs the proof import wall, executable Lean vector predicates, Ext2
+serialization conformance validator, the CE opening byte serialization
+validator, the Swift/Lean Ext2 and CE vector comparators, and all associated
+mutation tests, so byte-order, parser-width, proof-module dependency,
+round-count, response-tag, or executable/vector drift fails the release gate
+before public claims can move forward.
 
 ## What remains open
 

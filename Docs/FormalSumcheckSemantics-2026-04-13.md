@@ -42,6 +42,14 @@ conditional formal status.
     both satisfy a degree bound, the support values where they evaluate equally
     are degree-bounded; a larger support contains a disagreeing challenge.
 
+- `SuperNeoFormal.SumcheckPrefixSoundness`
+  - Tags per-round prover/exact agreement sets as finite prefix bad-challenge
+    events.
+  - Proves membership carries the round bound, polynomial mismatch, challenge
+    support membership, and equality-at-challenge fact.
+  - Proves the aggregate finite cardinality budget
+    `rounds * degreeBound` from per-round low-degree bounds.
+
 - `SuperNeoFormal.PiCCSSoundness`
   - Defines when a PiCCS public-Q state matches an exact public-Q oracle.
   - Proves that an accepted PiCCS trace whose sum-check rounds match the exact
@@ -53,6 +61,7 @@ conditional formal status.
 
 The verifier-side sum-check track now has the deterministic exact-oracle
 theorem, finite-field root-count lemma, and degree-bounded agreement-set lemma,
-plus `PiCCSFiniteBadChallengeCertificate`. The completed model states PiCCS
+the prefix bad-challenge aggregation layer, plus
+`PiCCSFiniteBadChallengeCertificate`. The completed model states PiCCS
 soundness outside an explicit finite bad-challenge set rather than as a
 deterministic zero-error theorem for every accepted trace.

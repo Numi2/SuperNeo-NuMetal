@@ -51,6 +51,13 @@ jobs:
           cd Formal
           lake build
 
+      - name: Run formal executable gates
+        run: |
+          cd Formal
+          lake build SuperNeoFormal.VectorChecks
+          lake env lean --run ProofImportWall.lean
+          lake env lean --run SuperNeoFormalVectorCheck.lean
+
       - name: Validate formal status manifest
         run: Scripts/validate-formal-status.py
 

@@ -22,13 +22,16 @@ concrete and certified Ajtai instantiation, PiDEC
 recomposition, PiRLC weighted-claim recomposition, finite-support counting,
 scalar and quotient-ring-safe collision facts, transcript-bound finite challenge
 scheduling, PiCCS acceptance projections, the PiCCS exact public-Q bridge,
-finite-field low-degree root counting, finite bad-challenge PiCCS soundness,
-terminal CE statement and local batch algebra, finite bad-seed terminal CE proof
-soundness, distinct-witness-to-short-kernel reductions, and end-to-end verifier
-composition outside the CE bad-seed set. It also includes the conservative
+finite-field low-degree root counting, sum-check prefix bad-challenge
+aggregation, finite bad-challenge PiCCS soundness, terminal CE statement and
+local batch algebra, finite bad-seed terminal CE proof soundness,
+distinct-witness-to-short-kernel reductions, and end-to-end verifier composition
+outside the CE bad-seed set. It also includes the conservative
 `SuperNeoFormal.ProbabilityComposition` tagged finite bad-event aggregation
-layer, which is finite bookkeeping only and does not yet claim a transcript
-distribution or end-to-end probability bound.
+layer and the `SuperNeoFormal.ErrorLedger` abstract union-bound/error-budget
+layer. These are still finite and model-conditional bookkeeping only: they do
+not yet construct the transcript distribution or claim an end-to-end probability
+bound.
 
 The full theorem label is intentionally blocked by planned theorem groups for
 full cryptographic probability composition, complete Swift serialization

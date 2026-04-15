@@ -316,6 +316,9 @@ The repo now has finite bad-event surfaces for each protocol layer:
 - PiCCS/sum-check: `PiCCSFiniteBadChallengeCertificate` and
   `piccs_traceSound_of_seed_not_bad` in
   `Formal/SuperNeoFormal/PiCCSFiniteSoundness.lean`
+- Sum-check prefix events: `sumcheckPrefixBadChallenges` and
+  `sumcheckPrefixBadChallengeBudget_card_le` in
+  `Formal/SuperNeoFormal/SumcheckPrefixSoundness.lean`
 - Terminal CE: `TerminalCEFiniteBadSeedCertificate` and
   `terminal_ce_relation_from_verified_proof_outside_badSeeds` in
   `Formal/SuperNeoFormal/TerminalCEFiniteSoundness.lean`
@@ -326,6 +329,10 @@ The repo now has finite bad-event surfaces for each protocol layer:
   `superneo_aggregateBadEvents_card_le`, and
   `superneo_outsideAggregate_stage_not_bad` in
   `Formal/SuperNeoFormal/ProbabilityComposition.lean`
+- Abstract error ledger:
+  `SuperNeoErrorBudget`, `SuperNeoComponentErrorBounds`, and
+  `superneo_errorBudget_union_bound` in
+  `Formal/SuperNeoFormal/ErrorLedger.lean`
 
 ### Progress after the tagged bad-event pass
 
@@ -337,10 +344,14 @@ and proves that being outside the aggregate tagged set implies being outside
 each contributing stage set.
 
 The manifest tracks this as the closed supporting group
-`superneo-tagged-bad-event-composition`. The true blocker
-`superneo-full-probability-composition` remains planned because this pass does
-not formalize transcript-seed sampling, Fiat-Shamir projection maps, support
-membership, fiber bounds, or any rational end-to-end soundness probability.
+`superneo-tagged-bad-event-composition`. The supporting
+`sumcheck-prefix-bad-challenge-composition` and
+`superneo-error-ledger-composition` groups are also closed: they provide the
+finite per-round sum-check bad-challenge aggregate and the abstract union-bound
+ledger. The true blocker `superneo-full-probability-composition` remains
+planned because these layers do not formalize transcript-seed sampling,
+Fiat-Shamir projection maps, support membership, fiber bounds, or any rational
+end-to-end soundness probability.
 
 ### Why it remains blocked
 
@@ -411,22 +422,27 @@ sizes and fiber bounds, not inserted as a paper claim.
 1. Closed supporting layer: `SuperNeoFormal.ProbabilityComposition` defines
    tagged aggregate bad-event sets for PiRLC, PiCCS, terminal CE, and transcript
    failure events.
-2. Closed supporting layer: Lean proves the aggregate `Finset` cardinality bound
+2. Closed supporting layer: `SuperNeoFormal.SumcheckPrefixSoundness` composes
+   per-round low-degree agreement sets into a finite prefix bad-challenge set.
+3. Closed supporting layer: Lean proves the aggregate `Finset` cardinality bound
    using only finite union/cardinality facts. It does not require independence.
-3. Next: prove an end-to-end "outside all tagged bad events" theorem that
+4. Closed supporting layer: `SuperNeoFormal.ErrorLedger` proves that component
+   probability bounds imply a summed aggregate budget under an abstract
+   probability model with union bounds.
+5. Next: prove an end-to-end "outside all tagged bad events" theorem that
    combines:
    - `pirlc_allInputsSound_of_seed_not_bad`
    - `piccs_traceSound_of_seed_not_bad`
    - `terminal_ce_relation_from_verified_proof_outside_badSeeds`
    - the deterministic composition theorem
-4. Define the common transcript seed domain and projection maps used by the
+6. Define the common transcript seed domain and projection maps used by the
    implemented Fiat-Shamir schedule.
-5. Prove support membership and preimage/fiber bounds for each projection.
+7. Prove support membership and preimage/fiber bounds for each projection.
    If a projection is not injective, carry its exact fiber multiplier into the
    final bound.
-6. Convert the finite bad-event count into a rational probability bound over
+8. Convert the finite bad-event count into a rational probability bound over
    the uniform transcript seed distribution.
-7. Add manifest declarations only when the final theorem states the actual
+9. Add manifest declarations only when the final theorem states the actual
    denominator, numerator, and all transcript/projection side conditions.
 
 ### Acceptance criteria

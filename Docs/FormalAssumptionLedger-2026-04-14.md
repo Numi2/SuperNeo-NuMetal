@@ -37,7 +37,10 @@ conditional path depends only on mechanized closed groups.
   The scalar collision core also includes a quotient-ring-safe unit-pivot
   version over any commutative ring and its Phi81 specialization under an
   explicit `IsUnit` pivot premise; it does not assert that every nonzero Phi81
-  element is invertible.
+  element is invertible. The April 15 invertibility audit found no
+  `normBound`-style statement that promotes boundedness alone into
+  invertibility; the mechanized PiRLC path still requires either a scalar
+  nonzero pivot or an explicit quotient-ring unit pivot.
   Concrete acceptance predicate shape is tracked as the closed
   `pirlc-concrete-acceptance-core`.
   `phi81-split-semantics` records the concrete factorization of Phi81 over
@@ -50,6 +53,9 @@ conditional path depends only on mechanized closed groups.
   `sumcheck-low-degree-root-count-core`; that core now also tracks polynomial
   agreement sets for prover/exact round-polynomial mismatches and proves that
   low-degree mismatches can agree only on a degree-bounded support subset.
+  `sumcheck-prefix-bad-challenge-composition` aggregates those per-round
+  agreement sets into a finite set of `(round, challenge)` events and proves the
+  `rounds * degreeBound` cardinality budget from the same low-degree premises.
   `goldilocks-ext2-wire-model` tracks the extension-field wire operations and
   inverse-data correctness. `piccs-finite-bad-challenge-soundness` tracks the
   public-Q oracle semantics, round-polynomial degree witnesses, and finite
@@ -80,6 +86,12 @@ conditional path depends only on mechanized closed groups.
   union/cardinality layer for PiRLC, PiCCS/sum-check, terminal CE, and
   transcript bad-event sets. It is not a probability theorem and does not
   replace the planned full probability-composition blocker.
+  `SuperNeoFormal.ErrorLedger` adds the abstract probability/error-budget layer:
+  assuming component probability bounds and an abstract union-bound model, the
+  aggregate event is bounded by the sum of component budgets; assuming an
+  abstract negligible class closed under addition, the four-component total is
+  negligible. It still does not construct the Fiat-Shamir transcript
+  distribution.
 - The formal-status validator now rejects duplicate declaration entries across
   theorem groups, preventing deterministic cores and assumption boundaries from
   double-counting the same Lean declaration.

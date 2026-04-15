@@ -12,7 +12,7 @@ Usage: Scripts/production-gate.sh [--with-benchmarks] [--skip-formal]
 Runs the release-readiness gate for SuperNeo NuMetal:
   - release build
   - debug and release XCTest suites
-  - Lean formal build and formal-status validation
+  - Lean formal build, executable gates, and formal-status validation
   - Lean/Swift profile-constant conformance validation
   - checked-in test vector validation
   - release CLI fold, terminal, and compressed-terminal prove/verify smoke
@@ -136,6 +136,9 @@ run_step Scripts/test-lattice-estimator-artifact-validation.py
 if [[ "${RUN_FORMAL}" -eq 1 ]]; then
   require_lake
   run_step_in_dir Formal lake build
+  run_step_in_dir Formal lake build SuperNeoFormal.VectorChecks
+  run_step_in_dir Formal lake env lean --run ProofImportWall.lean
+  run_step_in_dir Formal lake env lean --run SuperNeoFormalVectorCheck.lean
   run_step Scripts/validate-formal-status.py
   run_step Scripts/test-formal-status-validation.py
   run_step Scripts/validate-formal-profile-constants.py
