@@ -18,6 +18,7 @@ let package = Package(
             name: "SuperNeo_NuMetal",
             path: "SuperNeo-NuMetal",
             exclude: [
+                "NumiSeal-v10-design.md",
                 "SuperNeo_NuMetal.docc"
             ],
             resources: [

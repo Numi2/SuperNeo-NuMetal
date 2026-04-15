@@ -327,19 +327,23 @@ Artifacts:
 - `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift` also defines the
   typed immediate residual-opening body, binding lane scope, scalarization
   digest, sum-check proof digest, canonical terminal CE statement bytes,
-  canonical CE opening proof bytes, and a recomputed residual-opening digest
-  before full CE relation verification.
+  canonical CE opening proof bytes, and a recomputed residual-opening digest.
+  Its full-verification path now accepts public shape/key material and calls
+  `CEOpeningRelation.verify` for supplied immediate residual CE openings after
+  the cheap preflight bindings pass.
 - `NumiSealCanonicalizationTests` cover deterministic sorting independent of
   input order, lane separation by evaluation point, fail-closed policy mismatch
   rejection, public-statement serialization, deterministic aggregate chunking,
-  aggregate byte tamper rejection, incompatible public-input rejection,
+  lane-scoped aggregate indexing, aggregate byte tamper rejection,
+  incompatible public-input rejection,
   proof-body mutation rejection, lane-proof ordering, absent carry digest
   binding, envelope-kind separation, decomposition-key public binding,
   digit-tensor mutation/padding rejection, CPU decomposition commitment opening,
   witnessed aggregate sparse CCS reconstruction, scalarization residual
   mutation/stale-statement rejection, sum-check residual/digit-tensor binding,
-  residual-opening digest/scope/count binding, and NumiSeal policy preflight
-  rejection.
+  residual-opening digest/scope/count binding, residual CE opening proof
+  verification, complete lane-summary coverage, contiguous aggregate-index
+  coverage, and NumiSeal policy preflight rejection.
 - The design explicitly separates the shipped prover track from the planned
   SNARK product track.
 - The design requires lane-key canonicalization, typed digest roots,
@@ -357,8 +361,8 @@ Implementation gates:
   serialization. Lane-local RLC and deterministic lane chunking under profile
   limits are present for public aggregates.
 - Phase 1: proof-body grammar, bounded parsers, typed component leaves, absent
-  carry binding, lane-proof ordering, transcript digest recomputation, and
-  parser/mutation tests are present.
+  carry binding, lane-proof ordering, lane-summary coverage checks, transcript
+  digest recomputation, and parser/mutation tests are present.
 - Phase 2: `ProofEnvelopeKind.numiSealTerminal = 4`, NumiSeal proof envelopes,
   and NumiSeal-only terminal preflight policy are present.
 - Phase 3: deterministic decomposition-key derivation, bounded digit-tensor
@@ -372,9 +376,10 @@ Implementation gates:
 - Phase 5: degree-4 sum-check prover/verifier with invalid digit, padding, and
   scalarization tamper tests. A bounded reference sum-check handoff is present;
   the optimized large-tensor prover/verifier remains.
-- Phase 6: typed immediate residual-opening parsing and preflight digest/scope
-  binding are present. Residual CE opening through the existing CE relation with
-  stable internal residual shape digest remains.
+- Phase 6: typed immediate residual-opening parsing, preflight digest/scope
+  binding, and full verification of supplied immediate residual CE opening
+  proofs through the existing CE relation are present. The stable internal
+  residual shape digest and residual witness builder remain.
 - Phase 7: NumiSeal prover/verifier API, full algebraic verification, vectors,
   and production-gate coverage remain.
 

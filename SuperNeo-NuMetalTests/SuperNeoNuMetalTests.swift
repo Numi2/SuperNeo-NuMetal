@@ -2899,6 +2899,25 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
 final class NumiSealCanonicalizationTests: SuperNeoTestCase {
     private struct NumiSealProofBodyFixture {
+        let obligation: NumiSealObligation
+        let publicStatement: NumiSealPublicStatement
+        let policy: NumiSealAcceptancePolicy
+        let terminalPolicy: NumiSealTerminalProofAcceptancePolicy
+        let aggregate: NumiSealLaneAggregate
+        let digitTensor: NumiSealDigitTensor
+        let decomposition: NumiSealDecompositionCommitment
+        let scalarization: NumiSealLinearResidual
+        let terminalStatement: TerminalCEStatement
+        let residualOpening: NumiSealResidualOpening
+        let laneProof: NumiSealLaneProof
+        let proof: NumiSealProof
+        let envelope: NumiSealProofEnvelope
+    }
+
+    private struct NumiSealResidualCEFixture {
+        let shape: CCSShape
+        let key: AjtaiCommitmentKey
+        let context: ProofEnvelopeContext
         let publicStatement: NumiSealPublicStatement
         let policy: NumiSealAcceptancePolicy
         let terminalPolicy: NumiSealTerminalProofAcceptancePolicy
@@ -3055,11 +3074,21 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             canonical.laneSummaries[0].laneKey.evalPointDigest,
             canonical.laneSummaries[1].laneKey.evalPointDigest
         )
+
+        let aggregates = try NumiSealLaneAggregation.aggregate(
+            canonicalization: canonical,
+            policy: policy,
+            limits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 1)
+        )
+        XCTAssertEqual(aggregates.count, 2)
+        XCTAssertEqual(aggregates.map(\.aggregateIndex), [0, 0])
+        XCTAssertNotEqual(aggregates[0].laneKey, aggregates[1].laneKey)
     }
 
     private func makeNumiSealProofBodyFixture(
         laneLabel: String = "phase1",
-        carryBytes: [UInt8]? = nil
+        carryBytes: [UInt8]? = nil,
+        aggregateIndexOverride: Int? = nil
     ) throws -> NumiSealProofBodyFixture {
         let laneID = try NumiSealLaneID(laneLabel)
         let shapeDigest = Digest256.hash("numiseal-proof-body-shape")
@@ -3095,13 +3124,28 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             canonicalization: canonicalization,
             policy: policy
         )
-        let aggregate = try XCTUnwrap(
+        let generatedAggregate = try XCTUnwrap(
             NumiSealLaneAggregation.aggregate(
                 canonicalization: canonicalization,
                 policy: policy,
                 limits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 1)
             ).first
         )
+        let aggregate: NumiSealLaneAggregate
+        if let aggregateIndexOverride {
+            aggregate = try NumiSealLaneAggregate(
+                laneKey: generatedAggregate.laneKey,
+                aggregateIndex: aggregateIndexOverride,
+                obligationDigests: generatedAggregate.obligationDigests,
+                challenges: generatedAggregate.challenges,
+                aggregateCommitment: generatedAggregate.aggregateCommitment,
+                aggregatePublicInputEncoding: generatedAggregate.aggregatePublicInputEncoding,
+                evalPoint: generatedAggregate.evalPoint,
+                aggregateMatrixEvaluations: generatedAggregate.aggregateMatrixEvaluations
+            )
+        } else {
+            aggregate = generatedAggregate
+        }
         let digitTensor = try NumiSealDigitTensor(
             laneKey: aggregate.laneKey,
             aggregateIndex: aggregate.aggregateIndex,
@@ -3182,6 +3226,150 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
         let envelope = try NumiSealProofEnvelope(context: context, proof: proof)
         return NumiSealProofBodyFixture(
+            obligation: obligation,
+            publicStatement: publicStatement,
+            policy: policy,
+            terminalPolicy: terminalPolicy,
+            aggregate: aggregate,
+            digitTensor: digitTensor,
+            decomposition: decomposition,
+            scalarization: scalarization,
+            terminalStatement: terminalStatement,
+            residualOpening: residualOpening,
+            laneProof: laneProof,
+            proof: proof,
+            envelope: envelope
+        )
+    }
+
+    private func makeNumiSealResidualCEFixture() throws -> NumiSealResidualCEFixture {
+        let foldFixture = try makeFoldFixture()
+        let fold = try foldFixture.backend.makeProver(key: foldFixture.key).foldWithOutput(
+            foldFixture.input,
+            transcriptSeed: foldFixture.seed
+        )
+        let publicInput = SuperNeoPublicFoldInput(foldFixture.input)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        let laneID = try NumiSealLaneID("residual-ce")
+        let claim = try XCTUnwrap(fold.outputClaims.first)
+        let obligation = NumiSealObligation(
+            laneID: laneID,
+            profileID: foldFixture.key.parameters.profileID,
+            statement: statement,
+            verifierKeyDigest: foldFixture.key.verifierKeyDigest,
+            instance: CEInstance(claim),
+            sourceFoldDigest: Digest256.hash("numiseal-residual-ce-source")
+        )
+        let policy = NumiSealAcceptancePolicy(
+            statement: statement,
+            verifierKeyDigest: foldFixture.key.verifierKeyDigest,
+            acceptedLaneIDs: [laneID]
+        )
+        let canonicalization = try NumiSealCanonicalization.canonicalize(
+            obligations: [obligation],
+            policy: policy
+        )
+        let publicStatement = try NumiSealPublicStatement(
+            canonicalization: canonicalization,
+            policy: policy
+        )
+        let aggregate = try XCTUnwrap(
+            NumiSealLaneAggregation.aggregate(
+                canonicalization: canonicalization,
+                policy: policy,
+                limits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 1)
+            ).first
+        )
+        let witnessedAggregate = try NumiSealAggregateEvaluationOracle.witnessedAggregateClaim(
+            aggregate: aggregate,
+            claims: [claim],
+            shape: foldFixture.input.shape,
+            executionPolicy: .highAssurance
+        )
+        let aggregateWitness = try XCTUnwrap(CEOpeningWitness(claim: witnessedAggregate))
+        let digitTensor = try NumiSealDigitTensor(
+            laneKey: aggregate.laneKey,
+            aggregateIndex: aggregate.aggregateIndex,
+            message: makeNumiSealTernaryMessage()
+        )
+        let decompositionKey = try NumiSealDecompositionKeyDerivation(
+            verifierKeyDigest: policy.verifierKeyDigest,
+            laneKey: aggregate.laneKey,
+            aggregateIndex: aggregate.aggregateIndex,
+            requiredColumnCount: digitTensor.columnCount
+        )
+        let decomposition = try NumiSealDecompositionCommitment(
+            keyDerivation: decompositionKey,
+            digitTensor: digitTensor
+        )
+        let scalarization = try NumiSealLinearResidual(
+            publicStatement: publicStatement,
+            aggregate: aggregate,
+            decomposition: decomposition
+        )
+        let sumcheckProof = try NumiSealSumcheckOracle.prove(
+            linearResidual: scalarization,
+            digitTensor: digitTensor
+        )
+        let terminalStatement = try TerminalCEStatement(
+            profileID: policy.profileID,
+            shape: foldFixture.input.shape,
+            key: foldFixture.key,
+            claims: [witnessedAggregate]
+        )
+        let ceOpeningProof = try CEOpeningRelation.proveLocalBatchForTesting(
+            statement: terminalStatement,
+            witnesses: [aggregateWitness],
+            shape: foldFixture.input.shape,
+            key: foldFixture.key,
+            randomSeed: Array("numiseal-residual-ce-opening".utf8),
+            executionPolicy: .highAssurance
+        )
+        let residualOpening = try NumiSealResidualOpening(
+            laneKey: aggregate.laneKey,
+            aggregateIndex: aggregate.aggregateIndex,
+            linearResidual: scalarization,
+            sumcheckProof: sumcheckProof,
+            terminalStatement: terminalStatement,
+            ceOpeningProof: ceOpeningProof
+        )
+        let laneProof = try NumiSealLaneProof(
+            laneKey: aggregate.laneKey,
+            aggregateIndex: aggregate.aggregateIndex,
+            aggregateDigest: aggregate.aggregateDigest,
+            decompositionKeyDigest: decomposition.decompositionKeyDigest,
+            decompositionCommitment: decomposition.commitment,
+            scalarizationDigest: scalarization.residualDigest,
+            sumcheckProof: sumcheckProof,
+            residualOpening: residualOpening
+        )
+        let proof = try NumiSealProof(publicStatement: publicStatement, laneProofs: [laneProof])
+        let terminalPolicy = NumiSealTerminalProofAcceptancePolicy(
+            profileID: policy.profileID,
+            shapeDigest: policy.shapeDigest,
+            statementDigest: policy.statementDigest,
+            verifierKeyDigest: policy.verifierKeyDigest,
+            transcriptDomain: policy.transcriptDomain,
+            acceptedLaneIDs: policy.acceptedLaneIDs,
+            maximumLaneCount: 1,
+            maximumAggregatesPerLane: 1
+        )
+        let context = ProofEnvelopeContext(
+            profileID: policy.profileID,
+            kind: .numiSealTerminal,
+            shapeDigest: policy.shapeDigest,
+            statementDigest: policy.statementDigest,
+            verifierKeyDigest: policy.verifierKeyDigest,
+            transcriptDomain: policy.transcriptDomain
+        )
+        let envelope = try NumiSealProofEnvelope(context: context, proof: proof)
+        return NumiSealResidualCEFixture(
+            shape: foldFixture.input.shape,
+            key: foldFixture.key,
+            context: context,
             publicStatement: publicStatement,
             policy: policy,
             terminalPolicy: terminalPolicy,
@@ -3761,6 +3949,85 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
     }
 
+    func testNumiSealResidualOpeningVerifiesCEOpeningRelation() throws {
+        let fixture = try makeNumiSealResidualCEFixture()
+
+        XCTAssertTrue(
+            try fixture.residualOpening.verifyCEOpening(
+                shape: fixture.shape,
+                key: fixture.key,
+                executionPolicy: .highAssurance
+            )
+        )
+        XCTAssertEqual(
+            try fixture.terminalPolicy.verify(
+                proofBytes: fixture.envelope.superNeoBytes,
+                shape: fixture.shape,
+                key: fixture.key,
+                executionPolicy: .highAssurance
+            ),
+            fixture.envelope
+        )
+
+        XCTAssertNoThrow(
+            try fixture.terminalPolicy.preflight(proofBytes: fixture.envelope.superNeoBytes)
+        )
+
+        let invalidResidualOpening = try NumiSealResidualOpening(
+            laneKey: fixture.laneProof.laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            linearResidual: fixture.scalarization,
+            sumcheckProof: fixture.laneProof.sumcheckProof,
+            terminalStatement: fixture.terminalStatement,
+            ceOpeningProof: try invalidCEOpeningProof(openingCount: fixture.terminalStatement.openings.count)
+        )
+        let invalidLaneProof = try NumiSealLaneProof(
+            laneKey: fixture.laneProof.laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            aggregateDigest: fixture.laneProof.aggregateDigest,
+            decompositionKeyDigest: fixture.laneProof.decompositionKeyDigest,
+            decompositionCommitment: fixture.laneProof.decompositionCommitment,
+            scalarizationDigest: fixture.laneProof.scalarizationDigest,
+            sumcheckProof: fixture.laneProof.sumcheckProof,
+            residualOpening: invalidResidualOpening
+        )
+        let invalidProof = try NumiSealProof(
+            publicStatement: fixture.publicStatement,
+            laneProofs: [invalidLaneProof]
+        )
+        let invalidEnvelope = try NumiSealProofEnvelope(
+            context: fixture.context,
+            proof: invalidProof
+        )
+
+        XCTAssertNoThrow(
+            try fixture.terminalPolicy.preflight(proofBytes: invalidEnvelope.superNeoBytes)
+        )
+        XCTAssertThrowsSuperNeoError(
+            try fixture.terminalPolicy.verify(
+                proofBytes: invalidEnvelope.superNeoBytes,
+                shape: fixture.shape,
+                key: fixture.key,
+                executionPolicy: .highAssurance
+            ),
+            .verificationFailed("NumiSeal residual CE opening proof verification failed")
+        )
+
+        let wrongKey = try AjtaiCommitmentKey(
+            columns: fixture.key.matrix.columns,
+            seed: Array("numiseal-wrong-ce-key".utf8)
+        )
+        XCTAssertThrowsSuperNeoError(
+            try fixture.terminalPolicy.verify(
+                proofBytes: fixture.envelope.superNeoBytes,
+                shape: fixture.shape,
+                key: wrongKey,
+                executionPolicy: .highAssurance
+            ),
+            .verificationFailed("NumiSeal verification verifier key mismatch")
+        )
+    }
+
     private func replacingNumiSealAggregate(
         _ aggregate: NumiSealLaneAggregate,
         aggregateCommitment: AjtaiCommitment? = nil,
@@ -3879,6 +4146,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
 
         XCTAssertEqual(aggregates.count, 2)
+        XCTAssertEqual(aggregates.map(\.aggregateIndex), [0, 1])
         XCTAssertEqual(aggregates.map(\.obligationDigests.count), [2, 1])
         XCTAssertEqual(
             aggregates.map(\.aggregateDigest),
@@ -4310,6 +4578,64 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertThrowsSuperNeoError(
             try uncoveredPolicy.preflight(proofBytes: uncoveredEnvelope.superNeoBytes),
             .verificationFailed("NumiSeal lane proof is not covered by public statement")
+        )
+
+        let secondLane = try makeNumiSealProofBodyFixture(laneLabel: "second-lane")
+        let twoLanePolicy = NumiSealAcceptancePolicy(
+            profileID: fixture.policy.profileID,
+            shapeDigest: fixture.policy.shapeDigest,
+            statementDigest: fixture.policy.statementDigest,
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            transcriptDomain: fixture.policy.transcriptDomain,
+            acceptedLaneIDs: fixture.policy.acceptedLaneIDs.union(secondLane.policy.acceptedLaneIDs)
+        )
+        let twoLaneCanonicalization = try NumiSealCanonicalization.canonicalize(
+            obligations: [fixture.obligation, secondLane.obligation],
+            policy: twoLanePolicy
+        )
+        let twoLanePublicStatement = try NumiSealPublicStatement(
+            canonicalization: twoLaneCanonicalization,
+            policy: twoLanePolicy
+        )
+        let missingLaneProof = try NumiSealProof(
+            publicStatement: twoLanePublicStatement,
+            laneProofs: [fixture.laneProof]
+        )
+        let missingLaneEnvelope = try NumiSealProofEnvelope(
+            context: uncoveredContext,
+            proof: missingLaneProof
+        )
+        let twoLaneTerminalPolicy = NumiSealTerminalProofAcceptancePolicy(
+            profileID: twoLanePolicy.profileID,
+            shapeDigest: twoLanePolicy.shapeDigest,
+            statementDigest: twoLanePolicy.statementDigest,
+            verifierKeyDigest: twoLanePolicy.verifierKeyDigest,
+            transcriptDomain: twoLanePolicy.transcriptDomain,
+            acceptedLaneIDs: twoLanePolicy.acceptedLaneIDs,
+            maximumLaneCount: 2
+        )
+        XCTAssertThrowsSuperNeoError(
+            try twoLaneTerminalPolicy.preflight(proofBytes: missingLaneEnvelope.superNeoBytes),
+            .verificationFailed("NumiSeal lane summary has no lane proof")
+        )
+
+        let skippedIndexFixture = try makeNumiSealProofBodyFixture(aggregateIndexOverride: 1)
+        XCTAssertThrowsSuperNeoError(
+            try skippedIndexFixture.terminalPolicy.preflight(proofBytes: skippedIndexFixture.envelope.superNeoBytes),
+            .verificationFailed("NumiSeal lane proof aggregate indices must be contiguous")
+        )
+
+        let overCoveredProof = try NumiSealProof(
+            publicStatement: fixture.publicStatement,
+            laneProofs: [fixture.laneProof, skippedIndexFixture.laneProof]
+        )
+        let overCoveredEnvelope = try NumiSealProofEnvelope(
+            context: uncoveredContext,
+            proof: overCoveredProof
+        )
+        XCTAssertThrowsSuperNeoError(
+            try fixture.terminalPolicy.preflight(proofBytes: overCoveredEnvelope.superNeoBytes),
+            .verificationFailed("NumiSeal aggregate count exceeds lane obligation count")
         )
 
         let cappedPolicy = NumiSealTerminalProofAcceptancePolicy(

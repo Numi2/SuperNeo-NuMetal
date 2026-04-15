@@ -271,11 +271,11 @@ public enum NumiSealLaneAggregation {
                 throw SuperNeoError.invalidParameter("NumiSeal lane summary does not match canonical obligations")
             }
 
+            var aggregateIndex = 0
             var chunkStart = 0
             while chunkStart < laneObligations.count {
                 let chunkEnd = min(chunkStart + limits.maximumObligationsPerAggregate, laneObligations.count)
                 let chunk = Array(laneObligations[chunkStart..<chunkEnd])
-                let aggregateIndex = aggregates.count
                 let obligationDigests = chunk.map(\.obligationDigest)
                 let challenges = challengesForAggregate(
                     publicStatement: publicStatement,
@@ -293,6 +293,7 @@ public enum NumiSealLaneAggregation {
                     executionPolicy: executionPolicy
                 ))
                 chunkStart = chunkEnd
+                aggregateIndex += 1
             }
             obligationOffset = laneEnd
         }

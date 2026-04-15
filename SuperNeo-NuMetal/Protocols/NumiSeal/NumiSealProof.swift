@@ -317,6 +317,32 @@ public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodabl
         }
     }
 
+    public func verifyCEOpening(
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters = .goldilocks,
+        metalWorkspace: SuperNeoMetalWorkspace? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) throws -> Bool {
+        try Self.validateTerminalStatement(terminalStatement, laneKey: laneKey)
+        try Self.validateCEProof(ceOpeningProof, terminalStatement: terminalStatement)
+        guard terminalStatementDigest == terminalStatement.statementDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual terminal statement digest mismatch")
+        }
+        guard ceOpeningProofDigest == Self.ceOpeningProofDigest(ceOpeningProof) else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE proof digest mismatch")
+        }
+        return try CEOpeningRelation.verify(
+            proof: ceOpeningProof,
+            statement: terminalStatement,
+            shape: shape,
+            key: key,
+            parameters: parameters,
+            metalWorkspace: metalWorkspace,
+            executionPolicy: executionPolicy
+        )
+    }
+
     public var superNeoBytes: [UInt8] {
         let terminalStatementBytes = terminalStatement.superNeoBytes
         let ceOpeningProofBytes = ceOpeningProof.superNeoBytes
@@ -804,6 +830,63 @@ public struct NumiSealTerminalProofAcceptancePolicy: Equatable, Sendable {
         return envelope
     }
 
+    public func verify(
+        proofBytes: [UInt8],
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters = .goldilocks,
+        metalWorkspace: SuperNeoMetalWorkspace? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) throws -> NumiSealProofEnvelope {
+        let envelope = try preflight(proofBytes: proofBytes, parameters: parameters)
+        try verify(
+            proof: envelope.proof,
+            shape: shape,
+            key: key,
+            parameters: parameters,
+            metalWorkspace: metalWorkspace,
+            executionPolicy: executionPolicy
+        )
+        return envelope
+    }
+
+    public func verify(
+        proof: NumiSealProof,
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters = .goldilocks,
+        metalWorkspace: SuperNeoMetalWorkspace? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) throws {
+        try validate(proof: proof)
+        guard shape.shapeDigest == shapeDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal verification shape mismatch")
+        }
+        guard key.verifierKeyDigest == verifierKeyDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal verification verifier key mismatch")
+        }
+        guard key.parameters == parameters else {
+            throw SuperNeoError.verificationFailed("NumiSeal verification key parameters mismatch")
+        }
+        guard key.matrix.columns == shape.nRing else {
+            throw SuperNeoError.verificationFailed("NumiSeal verification key shape mismatch")
+        }
+        for laneProof in proof.laneProofs {
+            switch acceptedResidualMode {
+            case .immediate:
+                guard try laneProof.residualOpening.verifyCEOpening(
+                    shape: shape,
+                    key: key,
+                    parameters: parameters,
+                    metalWorkspace: metalWorkspace,
+                    executionPolicy: executionPolicy
+                ) else {
+                    throw SuperNeoError.verificationFailed("NumiSeal residual CE opening proof verification failed")
+                }
+            }
+        }
+    }
+
     public func context(for header: ProofEnvelopeHeader, totalByteCount: Int) throws -> ProofEnvelopeContext {
         try validateLimits(totalByteCount: totalByteCount)
         try header.validateEnvelopeLength(totalByteCount: totalByteCount)
@@ -865,11 +948,15 @@ public struct NumiSealTerminalProofAcceptancePolicy: Equatable, Sendable {
             guard publicStatementLaneKeys.contains(laneProof.laneKey) else {
                 throw SuperNeoError.verificationFailed("NumiSeal lane proof is not covered by public statement")
             }
+            let expectedAggregateIndex = aggregatesByLane[laneProof.laneKey, default: 0]
+            guard laneProof.aggregateIndex == expectedAggregateIndex else {
+                throw SuperNeoError.verificationFailed("NumiSeal lane proof aggregate indices must be contiguous")
+            }
             switch acceptedResidualMode {
             case .immediate:
                 try laneProof.residualOpening.validate(laneProof: laneProof)
             }
-            aggregatesByLane[laneProof.laneKey, default: 0] += 1
+            aggregatesByLane[laneProof.laneKey] = expectedAggregateIndex + 1
             switch acceptedCarryMode {
             case .none:
                 guard laneProof.optionalCarryClaim == nil else {
@@ -881,6 +968,14 @@ public struct NumiSealTerminalProofAcceptancePolicy: Equatable, Sendable {
                 guard laneProof.optionalCarryClaim != nil else {
                     throw SuperNeoError.verificationFailed("NumiSeal carry claim required by policy")
                 }
+            }
+        }
+        for summary in proof.publicStatement.laneSummaries {
+            guard let aggregateCount = aggregatesByLane[summary.laneKey] else {
+                throw SuperNeoError.verificationFailed("NumiSeal lane summary has no lane proof")
+            }
+            guard aggregateCount <= summary.obligationCount else {
+                throw SuperNeoError.verificationFailed("NumiSeal aggregate count exceeds lane obligation count")
             }
         }
         if let maximumAggregatesPerLane {

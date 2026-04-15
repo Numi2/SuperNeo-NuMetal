@@ -35,8 +35,9 @@ Already present:
   sum-check bytes to the scalar residual and digit-tensor language.
 - NumiSeal has a typed immediate residual-opening handoff that binds lane scope,
   scalarization digest, sum-check proof digest, canonical terminal CE statement
-  bytes, and canonical CE opening proof bytes before full CE relation
-  verification.
+  bytes, and canonical CE opening proof bytes. The explicit full-verification
+  path now calls the existing terminal CE opening verifier for that supplied
+  residual opening.
 
 Not yet present:
 
@@ -126,6 +127,8 @@ Acceptance gates:
 - malformed body version is rejected;
 - aggregate count must match lane proof count;
 - lane proofs are lane-major and aggregate-index sorted;
+- every public-statement lane summary must have lane proof coverage, with
+  lane-scoped aggregate indices starting at zero and without gaps;
 - component root recomputes exactly;
 - transcript digest recomputes exactly;
 - absent optional carry uses a typed absent-component digest;
@@ -336,9 +339,12 @@ immediate handoff object. It parses canonical terminal CE statement bytes and
 canonical CE opening proof bytes, binds them to lane/aggregate scope,
 `linearResidualDigest`, `sumcheckProofDigest`, `terminalStatementDigest`,
 `ceOpeningProofDigest`, and an `openingDigest`, and the NumiSeal terminal policy
-checks those cheap bindings during preflight. The object is intentionally still
-a handoff: it does not yet build the residual CE witness or call
-`CEOpeningRelation.verify` as part of NumiSeal terminal acceptance.
+checks those cheap bindings during preflight. The explicit full-verification
+path accepts the public shape and verifier key, validates the actual key/shape
+material against policy digests, and calls `CEOpeningRelation.verify` for the
+supplied immediate residual opening. The remaining Phase 6 work is the stable
+internal residual shape and witness builder that will replace the current
+terminal-CE-statement handoff.
 
 Target residual object after full CE integration:
 
