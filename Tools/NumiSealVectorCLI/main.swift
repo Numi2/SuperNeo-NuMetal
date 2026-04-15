@@ -89,7 +89,7 @@ private enum Defaults {
     static let workload = "numiseal-terminal-single-aggregate-v1"
     static let proofKind = "numiseal-terminal"
     static let residualMode = "immediate"
-    static let publicClaim = "single immediate-residual NumiSeal aggregate over a fold output claim"
+    static let publicClaim = "single direct digit-commitment immediate-residual NumiSeal aggregate over a fold output claim"
     static let profile = SuperNeoParameterProfile.goldilocksPhi81.name
     static let keySeed = "SuperNeoNumiSeal.vector.single-aggregate.key.v1"
     static let foldTranscriptSeed = "SuperNeoNumiSeal.vector.single-aggregate.fold.v1"

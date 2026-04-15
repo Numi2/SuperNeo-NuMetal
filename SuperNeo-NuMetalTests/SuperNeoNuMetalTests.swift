@@ -2907,7 +2907,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         let digitTensor: NumiSealDigitTensor
         let decomposition: NumiSealDecompositionCommitment
         let scalarization: NumiSealLinearResidual
-        let terminalStatement: TerminalCEStatement
+        let digitOpeningStatement: TerminalCEStatement
         let residualStatement: NumiSealResidualCEStatement
         let residualOpening: NumiSealResidualOpening
         let laneProof: NumiSealLaneProof
@@ -2929,7 +2929,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         let digitTensor: NumiSealDigitTensor
         let decomposition: NumiSealDecompositionCommitment
         let scalarization: NumiSealLinearResidual
-        let terminalStatement: TerminalCEStatement
+        let digitOpeningStatement: TerminalCEStatement
         let residualStatement: NumiSealResidualCEStatement
         let residualOpening: NumiSealResidualOpening
         let laneProof: NumiSealLaneProof
@@ -3175,26 +3175,22 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             linearResidual: scalarization,
             digitTensor: digitTensor
         )
-        let terminalStatement = try TerminalCEStatement(
+        let digitOpening = try makeNumiSealDigitOpeningPayload(
             profileID: policy.profileID,
-            shapeDigest: policy.shapeDigest,
-            verifierKeyDigest: policy.verifierKeyDigest,
-            claims: [
-                CCSEvaluationClaim(
-                    commitment: aggregate.aggregateCommitment,
-                    publicInput: aggregate.aggregatePublicInputEncoding.field,
-                    point: aggregate.evalPoint,
-                    evaluations: aggregate.aggregateMatrixEvaluations
-                )
-            ]
+            decomposition: decomposition,
+            digitTensor: digitTensor,
+            point: sumcheckProof.finalPoint
         )
         let residualOpening = try NumiSealResidualOpening(
             laneKey: aggregate.laneKey,
             aggregateIndex: aggregate.aggregateIndex,
             linearResidual: scalarization,
             sumcheckProof: sumcheckProof,
-            terminalStatement: terminalStatement,
-            ceOpeningProof: try invalidCEOpeningProof(openingCount: terminalStatement.openings.count)
+            decomposition: decomposition,
+            digitTensor: digitTensor,
+            claimedDigitEvaluation: digitOpening.claimedDigitEvaluation,
+            digitOpeningStatement: digitOpening.statement,
+            ceOpeningProof: try invalidCEOpeningProof(openingCount: digitOpening.statement.openings.count)
         )
         let laneProof = try NumiSealLaneProof(
             laneKey: aggregate.laneKey,
@@ -3239,7 +3235,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             digitTensor: digitTensor,
             decomposition: decomposition,
             scalarization: scalarization,
-            terminalStatement: terminalStatement,
+            digitOpeningStatement: digitOpening.statement,
             residualStatement: residualOpening.residualStatement,
             residualOpening: residualOpening,
             laneProof: laneProof,
@@ -3376,7 +3372,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             digitTensor: digitTensor,
             decomposition: decomposition,
             scalarization: scalarization,
-            terminalStatement: residualCE.terminalStatement,
+            digitOpeningStatement: residualCE.digitOpeningStatement,
             residualStatement: residualCE.residualOpening.residualStatement,
             residualOpening: residualCE.residualOpening,
             laneProof: laneProof,
@@ -3396,6 +3392,55 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 -GoldilocksField.one
             ])
         ]
+    }
+
+    private func makeNumiSealDigitOpeningPayload(
+        profileID: UInt16,
+        decomposition: NumiSealDecompositionCommitment,
+        digitTensor: NumiSealDigitTensor,
+        point: [GoldilocksExt2],
+        executionPolicy: SuperNeoExecutionPolicy = .highAssurance
+    ) throws -> (statement: TerminalCEStatement, claimedDigitEvaluation: GoldilocksExt2) {
+        let paddedSlotCount = NumiSealResidualCEShape.nextPowerOfTwo(digitTensor.digits.count)
+        let openingShape = try NumiSealResidualCEShape.digitOpeningShape(
+            columnCount: digitTensor.columnCount,
+            paddedSlotCount: paddedSlotCount
+        )
+        let openingKey = try decomposition.keyDerivation.deriveKey(parameters: .goldilocks)
+        var digitValues = digitTensor.digits.map(\.fieldElement)
+        digitValues += Array(repeating: .zero, count: paddedSlotCount - digitValues.count)
+        let claimedDigitEvaluation = try MultilinearEvaluation.evaluate(digitValues, at: point)
+        let transformed = try openingShape.compiledSparseForSuperNeo().transformedSparseMatrices[0]
+        let basis = try MultilinearEvaluation.checkedBasis(at: point)
+        let matrixEvaluation: CyclotomicExt2Ring54
+        if executionPolicy.usesConstantWorkCPU {
+            matrixEvaluation = try transformed.evaluatedProductConstantWork(
+                by: digitTensor.message,
+                rHat: basis
+            )
+        } else {
+            matrixEvaluation = try transformed.evaluatedProduct(
+                by: digitTensor.message,
+                rHat: basis
+            )
+        }
+        XCTAssertEqual(matrixEvaluation.constantTerm, claimedDigitEvaluation)
+        let claim = CCSEvaluationClaim(
+            commitment: decomposition.commitment,
+            publicInput: [],
+            point: point,
+            evaluations: [matrixEvaluation],
+            witness: digitTensor.digits.map(\.fieldElement)
+        )
+        return try (
+            TerminalCEStatement(
+                profileID: profileID,
+                shape: openingShape,
+                key: openingKey,
+                claims: [claim]
+            ),
+            claimedDigitEvaluation
+        )
     }
 
     func testNumiSealDecompositionKeyDerivationIsDeterministicAndPubliclyBound() throws {
@@ -3836,7 +3881,11 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             residualOpening.residualStatement.residualShape.residualShapeDigest,
             fixture.residualStatement.residualShape.residualShapeDigest
         )
-        XCTAssertEqual(residualOpening.terminalStatementDigest, fixture.terminalStatement.statementDigest)
+        XCTAssertEqual(residualOpening.decompositionKeyDigest, fixture.decomposition.decompositionKeyDigest)
+        XCTAssertEqual(residualOpening.decompositionCommitmentDigest, fixture.decomposition.commitmentDigest)
+        XCTAssertEqual(residualOpening.digitTensorDigest, fixture.digitTensor.digest)
+        XCTAssertEqual(residualOpening.scalarizationStatementDigest, fixture.scalarization.statement.statementDigest)
+        XCTAssertEqual(residualOpening.digitOpeningStatementDigest, fixture.digitOpeningStatement.statementDigest)
         XCTAssertEqual(
             try NumiSealResidualCEStatement(bytes: fixture.residualStatement.superNeoBytes),
             fixture.residualStatement
@@ -3848,7 +3897,10 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertNoThrow(
             try residualOpening.validate(
                 linearResidual: fixture.scalarization,
-                sumcheckProof: fixture.laneProof.sumcheckProof
+                sumcheckProof: fixture.laneProof.sumcheckProof,
+                decomposition: fixture.decomposition,
+                digitTensor: fixture.digitTensor,
+                claimedDigitEvaluation: fixture.residualStatement.claimedDigitEvaluation
             )
         )
         XCTAssertNoThrow(try fixture.terminalPolicy.validate(proof: fixture.proof))
@@ -3872,7 +3924,10 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertThrowsSuperNeoError(
             try residualOpening.validate(
                 linearResidual: changedResidual,
-                sumcheckProof: fixture.laneProof.sumcheckProof
+                sumcheckProof: fixture.laneProof.sumcheckProof,
+                decomposition: fixture.decomposition,
+                digitTensor: fixture.digitTensor,
+                claimedDigitEvaluation: fixture.residualStatement.claimedDigitEvaluation
             ),
             .verificationFailed("NumiSeal residual opening linear residual digest mismatch")
         )
@@ -3889,7 +3944,10 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 aggregateIndex: fixture.laneProof.aggregateIndex,
                 linearResidual: fixture.scalarization,
                 sumcheckProof: wrongClaimedSumProof,
-                terminalStatement: fixture.terminalStatement,
+                decomposition: fixture.decomposition,
+                digitTensor: fixture.digitTensor,
+                claimedDigitEvaluation: fixture.residualStatement.claimedDigitEvaluation,
+                digitOpeningStatement: fixture.digitOpeningStatement,
                 ceOpeningProof: fixture.residualOpening.ceOpeningProof
             ),
             .invalidParameter("NumiSeal residual opening sum-check claimed sum mismatch")
@@ -3897,9 +3955,9 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
 
         let wrongProfileStatement = try TerminalCEStatement(
             profileID: fixture.policy.profileID + 1,
-            shapeDigest: fixture.policy.shapeDigest,
-            verifierKeyDigest: fixture.policy.verifierKeyDigest,
-            claims: fixture.terminalStatement.outputClaims
+            shapeDigest: fixture.digitOpeningStatement.shapeDigest,
+            verifierKeyDigest: fixture.digitOpeningStatement.verifierKeyDigest,
+            claims: fixture.digitOpeningStatement.outputClaims
         )
         XCTAssertThrowsSuperNeoError(
             try NumiSealResidualOpening(
@@ -3907,14 +3965,17 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 aggregateIndex: fixture.laneProof.aggregateIndex,
                 linearResidual: fixture.scalarization,
                 sumcheckProof: fixture.laneProof.sumcheckProof,
-                terminalStatement: wrongProfileStatement,
+                decomposition: fixture.decomposition,
+                digitTensor: fixture.digitTensor,
+                claimedDigitEvaluation: fixture.residualStatement.claimedDigitEvaluation,
+                digitOpeningStatement: wrongProfileStatement,
                 ceOpeningProof: fixture.residualOpening.ceOpeningProof
             ),
-            .invalidParameter("NumiSeal residual terminal statement profile mismatch")
+            .verificationFailed("NumiSeal residual CE digit statement profile mismatch")
         )
 
         let wrongOpeningCountProof = try invalidCEOpeningProof(
-            openingCount: fixture.terminalStatement.openings.count + 1
+            openingCount: fixture.digitOpeningStatement.openings.count + 1
         )
         XCTAssertThrowsSuperNeoError(
             try NumiSealResidualOpening(
@@ -3922,7 +3983,10 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 aggregateIndex: fixture.laneProof.aggregateIndex,
                 linearResidual: fixture.scalarization,
                 sumcheckProof: fixture.laneProof.sumcheckProof,
-                terminalStatement: fixture.terminalStatement,
+                decomposition: fixture.decomposition,
+                digitTensor: fixture.digitTensor,
+                claimedDigitEvaluation: fixture.residualStatement.claimedDigitEvaluation,
+                digitOpeningStatement: fixture.digitOpeningStatement,
                 ceOpeningProof: wrongOpeningCountProof
             ),
             .invalidParameter("NumiSeal residual CE proof opening count mismatch")
@@ -3934,32 +3998,19 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             finalPoint: fixture.laneProof.sumcheckProof.finalPoint,
             finalValue: fixture.laneProof.sumcheckProof.finalValue + .one
         )
-        let mismatchedResidualOpening = try NumiSealResidualOpening(
-            laneKey: fixture.laneProof.laneKey,
-            aggregateIndex: fixture.laneProof.aggregateIndex,
-            linearResidual: fixture.scalarization,
-            sumcheckProof: sameClaimDifferentProof,
-            terminalStatement: fixture.terminalStatement,
-            ceOpeningProof: fixture.residualOpening.ceOpeningProof
-        )
-        let mismatchedLaneProof = try NumiSealLaneProof(
-            laneKey: fixture.laneProof.laneKey,
-            aggregateIndex: fixture.laneProof.aggregateIndex,
-            aggregateDigest: fixture.laneProof.aggregateDigest,
-            decompositionKeyDigest: fixture.laneProof.decompositionKeyDigest,
-            decompositionCommitment: fixture.laneProof.decompositionCommitment,
-            scalarizationDigest: fixture.laneProof.scalarizationDigest,
-            sumcheckProof: fixture.laneProof.sumcheckProof,
-            residualOpening: mismatchedResidualOpening
-        )
         XCTAssertThrowsSuperNeoError(
-            try fixture.terminalPolicy.validate(
-                proof: NumiSealProof(
-                    publicStatement: fixture.publicStatement,
-                    laneProofs: [mismatchedLaneProof]
-                )
+            try NumiSealResidualOpening(
+                laneKey: fixture.laneProof.laneKey,
+                aggregateIndex: fixture.laneProof.aggregateIndex,
+                linearResidual: fixture.scalarization,
+                sumcheckProof: sameClaimDifferentProof,
+                decomposition: fixture.decomposition,
+                digitTensor: fixture.digitTensor,
+                claimedDigitEvaluation: fixture.residualStatement.claimedDigitEvaluation,
+                digitOpeningStatement: fixture.digitOpeningStatement,
+                ceOpeningProof: fixture.residualOpening.ceOpeningProof
             ),
-            .verificationFailed("NumiSeal residual opening sum-check proof digest mismatch")
+            .verificationFailed("NumiSeal residual sum-check final opening failed")
         )
     }
 
@@ -3992,8 +4043,11 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             aggregateIndex: fixture.laneProof.aggregateIndex,
             linearResidual: fixture.scalarization,
             sumcheckProof: fixture.laneProof.sumcheckProof,
-            terminalStatement: fixture.terminalStatement,
-            ceOpeningProof: try invalidCEOpeningProof(openingCount: fixture.terminalStatement.openings.count)
+            decomposition: fixture.decomposition,
+            digitTensor: fixture.digitTensor,
+            claimedDigitEvaluation: fixture.residualStatement.claimedDigitEvaluation,
+            digitOpeningStatement: fixture.digitOpeningStatement,
+            ceOpeningProof: try invalidCEOpeningProof(openingCount: fixture.digitOpeningStatement.openings.count)
         )
         let invalidLaneProof = try NumiSealLaneProof(
             laneKey: fixture.laneProof.laneKey,
@@ -4032,6 +4086,14 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             seed: Array("numiseal-wrong-ce-key".utf8)
         )
         XCTAssertThrowsSuperNeoError(
+            try fixture.residualOpening.verifyCEOpening(
+                shape: fixture.shape,
+                key: wrongKey,
+                executionPolicy: .highAssurance
+            ),
+            .verificationFailed("NumiSeal residual CE opening verifier key mismatch")
+        )
+        XCTAssertThrowsSuperNeoError(
             try fixture.terminalPolicy.verify(
                 proofBytes: fixture.envelope.superNeoBytes,
                 shape: fixture.shape,
@@ -4051,24 +4113,41 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertEqual(residualStatement.aggregateDigest, fixture.aggregate.aggregateDigest)
         XCTAssertEqual(residualStatement.decompositionKeyDigest, fixture.decomposition.decompositionKeyDigest)
         XCTAssertEqual(residualStatement.decompositionCommitmentDigest, fixture.decomposition.commitmentDigest)
+        XCTAssertEqual(residualStatement.digitTensorDigest, fixture.digitTensor.digest)
+        XCTAssertEqual(residualStatement.scalarizationStatementDigest, fixture.scalarization.statement.statementDigest)
         XCTAssertEqual(residualStatement.linearResidualDigest, fixture.scalarization.residualDigest)
         XCTAssertEqual(
             residualStatement.sumcheckProofDigest,
             NumiSealResidualOpening.sumcheckProofDigest(fixture.laneProof.sumcheckProof)
         )
         XCTAssertEqual(residualStatement.sumcheckFinalPoint, fixture.laneProof.sumcheckProof.finalPoint)
-        XCTAssertEqual(residualStatement.claimedDigitEvaluation, fixture.laneProof.sumcheckProof.finalValue)
-        XCTAssertEqual(residualStatement.terminalStatementDigest, fixture.terminalStatement.statementDigest)
+        XCTAssertEqual(
+            residualStatement.claimedDigitEvaluation,
+            fixture.digitOpeningStatement.openings[0].instance.matrixEvals[0].constantTerm
+        )
+        XCTAssertEqual(residualStatement.digitOpeningStatementDigest, fixture.digitOpeningStatement.statementDigest)
         XCTAssertEqual(residualStatement.residualShape.laneKey, fixture.aggregate.laneKey)
         XCTAssertEqual(residualStatement.residualShape.aggregateIndex, fixture.aggregate.aggregateIndex)
-        XCTAssertEqual(residualStatement.residualShape.openingCount, fixture.terminalStatement.openings.count)
-        XCTAssertEqual(residualStatement.residualShape.publicInputCount, fixture.shape.nPublicField)
-        XCTAssertEqual(residualStatement.residualShape.matrixEvaluationCount, fixture.shape.numMatrices)
+        XCTAssertEqual(residualStatement.residualShape.columnCount, fixture.digitTensor.columnCount)
+        XCTAssertEqual(residualStatement.residualShape.activeDigitCount, fixture.digitTensor.activeDigitCount)
+        XCTAssertEqual(residualStatement.residualShape.slotCount, fixture.digitTensor.digits.count)
+        XCTAssertEqual(
+            residualStatement.residualShape.paddedSlotCount,
+            NumiSealResidualCEShape.nextPowerOfTwo(fixture.digitTensor.digits.count)
+        )
+        XCTAssertEqual(
+            residualStatement.residualShape.variableCount,
+            try NumiSealResidualCEShape.log2Exact(residualStatement.residualShape.paddedSlotCount)
+        )
+        XCTAssertEqual(residualStatement.residualShape.digitOpeningShapeDigest, fixture.digitOpeningStatement.shapeDigest)
         XCTAssertNoThrow(
             try residualStatement.validate(
                 linearResidual: fixture.scalarization,
                 sumcheckProof: fixture.laneProof.sumcheckProof,
-                terminalStatement: fixture.terminalStatement
+                decomposition: fixture.decomposition,
+                digitTensor: fixture.digitTensor,
+                claimedDigitEvaluation: residualStatement.claimedDigitEvaluation,
+                digitOpeningStatement: fixture.digitOpeningStatement
             )
         )
 

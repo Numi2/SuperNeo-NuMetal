@@ -187,7 +187,7 @@ componentDigestRoot ||
 transcriptDigest
 ```
 
-`bodyVersion` is UInt16 little-endian value `10`. `aggregateCount` and
+`bodyVersion` is UInt16 little-endian value `11`. `aggregateCount` and
 `laneProofCount` are UInt64 little-endian counts and must match exactly.
 Each framed object is `byteCount || bytes` where `byteCount` is UInt64
 little-endian and the parser enforces context-specific maximums before reading
@@ -412,11 +412,17 @@ domain ||
 version ||
 laneKey ||
 aggregateIndex ||
+residualShapeDigest ||
+decompositionKeyDigest ||
+decompositionCommitmentDigest ||
+digitTensorDigest ||
+scalarizationStatementDigest ||
 linearResidualDigest ||
 sumcheckProofDigest ||
 residualStatementDigest ||
-terminalStatementDigest ||
+digitOpeningStatementDigest ||
 ceOpeningProofDigest ||
+framed(NumiSealDecompositionKeyDerivation) ||
 framed(NumiSealResidualCEStatement) ||
 framed(TerminalCEStatement) ||
 framed(CEOpeningProof) ||
@@ -424,11 +430,16 @@ openingDigest
 ```
 
 `domain` is `SHA256("SuperNeo-NuMetal.numiseal.residual-opening.v1")`.
-`version` is UInt16 little-endian value `10`. `linearResidualDigest` must match
-the lane proof's `scalarizationDigest`. `sumcheckProofDigest` is
+`version` is UInt16 little-endian value `11`. `linearResidualDigest` must match
+the lane proof's `scalarizationDigest`. `decompositionKeyDigest`,
+`decompositionCommitmentDigest`, `digitTensorDigest`, and
+`scalarizationStatementDigest` bind the public decomposition handoff, derived
+digit commitment, digit tensor, and scalarization statement used by the
+sum-check transcript. `sumcheckProofDigest` is
 `H_numiseal("numiseal.sumcheck.v1", SumcheckProof)`.
 `residualStatementDigest` is the canonical `NumiSealResidualCEStatement` digest.
-`terminalStatementDigest` is the canonical `TerminalCEStatement` digest.
+`digitOpeningStatementDigest` is the canonical `TerminalCEStatement` digest for
+the synthetic digit-opening CCS statement.
 `ceOpeningProofDigest` is
 `H_numiseal("numiseal.residual-opening.ce-proof.v1", CEOpeningProof)`.
 
@@ -443,36 +454,56 @@ publicStatementDigest ||
 aggregateDigest ||
 decompositionKeyDigest ||
 decompositionCommitmentDigest ||
+digitTensorDigest ||
+scalarizationStatementDigest ||
 linearResidualDigest ||
 sumcheckProofDigest ||
 sumcheckFinalPoint ||
 claimedDigitEvaluation ||
-terminalStatementDigest ||
+digitOpeningStatementDigest ||
 statementDigest
 ```
 
-`NumiSealResidualCEShape` binds the profile, lane key, aggregate index, opening
-count, public-input arity, matrix-evaluation arity, and evaluation-point digest.
-Its `residualShapeDigest` uses label `numiseal.residual-ce-shape.v1`; the
-statement digest uses label `numiseal.residual-ce-statement.v1`.
+`NumiSealResidualCEShape` binds the profile, lane key, aggregate index,
+digit-column count, active digit count, total digit slot count, padded
+power-of-two slot count, sum-check variable count, final-point digest, and
+synthetic digit-opening shape digest. The digit-opening shape is a one-matrix
+identity-prefix CCS shape with no public input: it opens the decomposition
+commitment directly at the sum-check final point. Its `residualShapeDigest` uses
+label `numiseal.residual-ce-shape.v1`; the statement digest uses label
+`numiseal.residual-ce-statement.v1`.
+
+`claimedDigitEvaluation` is `D(r)`, the multilinear evaluation of the ternary
+digit tensor at the sum-check final point. The parser checks that the
+digit-opening terminal statement opens the same value as the constant term of
+its single matrix evaluation. Preflight also reruns the public final sum-check
+equation from the scalar residual digest, scalarization statement digest, digit
+tensor digest, lane key, aggregate index, digit dimensions, and
+`claimedDigitEvaluation`.
 
 `openingDigest` is
 
 ```text
 H_numiseal("numiseal.residual-opening.v1",
-  version || laneKey || aggregateIndex || linearResidualDigest ||
-  sumcheckProofDigest || residualStatementDigest || terminalStatementDigest ||
-  ceOpeningProofDigest || framed(NumiSealResidualCEStatement) ||
+  version || laneKey || aggregateIndex || residualShapeDigest ||
+  decompositionKeyDigest || decompositionCommitmentDigest || digitTensorDigest ||
+  scalarizationStatementDigest || linearResidualDigest || sumcheckProofDigest ||
+  residualStatementDigest || digitOpeningStatementDigest ||
+  ceOpeningProofDigest || framed(NumiSealDecompositionKeyDerivation) ||
+  framed(NumiSealResidualCEStatement) ||
   framed(TerminalCEStatement) || framed(CEOpeningProof))
 ```
 
 The immediate residual preflight checks lane/aggregate scope, scalarization
-digest binding, sum-check proof digest binding, residual CE statement binding,
-terminal CE statement profile/shape/verifier/evaluation-point scope, and
-per-round CE opening-count agreement. Preflight remains cheap. The explicit
-NumiSeal terminal `verify` path additionally accepts public shape/key material
-and calls `CEOpeningRelation.verify` for supplied immediate residual CE opening
-proofs.
+statement and linear-residual digest binding, sum-check proof digest binding,
+derived decomposition-key binding, reconstructed decomposition-commitment digest
+binding, residual CE statement binding, digit-opening statement
+profile/shape/verifier/final-point scope, and per-round CE opening-count
+agreement. Preflight remains cheap. The explicit NumiSeal terminal `verify` path
+additionally accepts the application's public shape/key material for policy
+binding, derives the digit-opening key from `NumiSealDecompositionKeyDerivation`,
+and calls `CEOpeningRelation.verify` for the supplied direct digit-commitment
+residual CE opening proof.
 
 ## Versioning Policy
 

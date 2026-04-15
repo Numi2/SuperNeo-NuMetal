@@ -2,59 +2,79 @@ import Foundation
 
 public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodable {
     public static let domain = Digest256.hash("SuperNeo-NuMetal.numiseal.residual-ce-shape.v1")
-    public static let version: UInt16 = 10
+    public static let version: UInt16 = 11
 
     public let version: UInt16
     public let profileID: UInt16
     public let laneKey: NumiSealLaneKey
     public let aggregateIndex: Int
-    public let openingCount: Int
-    public let publicInputCount: Int
-    public let matrixEvaluationCount: Int
-    public let evalPointDigest: Digest256
+    public let columnCount: Int
+    public let activeDigitCount: Int
+    public let slotCount: Int
+    public let paddedSlotCount: Int
+    public let variableCount: Int
+    public let sumcheckFinalPointDigest: Digest256
+    public let digitOpeningShapeDigest: Digest256
     public let residualShapeDigest: Digest256
 
     public init(
         laneKey: NumiSealLaneKey,
         aggregateIndex: Int,
-        terminalStatement: TerminalCEStatement
+        digitTensor: NumiSealDigitTensor,
+        sumcheckFinalPoint: [GoldilocksExt2]
     ) throws {
-        try Self.validateScope(
-            laneKey: laneKey,
-            aggregateIndex: aggregateIndex,
-            terminalStatement: terminalStatement
-        )
-        let firstInstance = terminalStatement.openings[0].instance
-        let openingCount = terminalStatement.openings.count
-        let publicInputCount = firstInstance.publicInput.count
-        let matrixEvaluationCount = firstInstance.matrixEvals.count
-        let evalPointDigest = NumiSealCanonicalization.evalPointDigest(firstInstance.evalPoint)
+        guard digitTensor.laneKey == laneKey else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE shape digit tensor lane mismatch")
+        }
+        guard digitTensor.aggregateIndex == aggregateIndex else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE shape digit tensor aggregate mismatch")
+        }
+        let slotCount = try Self.checkedSlotCount(columnCount: digitTensor.columnCount)
+        let paddedSlotCount = Self.nextPowerOfTwo(slotCount)
+        let variableCount = try Self.log2Exact(paddedSlotCount)
+        let sumcheckFinalPointDigest = NumiSealCanonicalization.evalPointDigest(sumcheckFinalPoint)
+        let digitOpeningShapeDigest = try Self.digitOpeningShape(
+            columnCount: digitTensor.columnCount,
+            paddedSlotCount: paddedSlotCount
+        ).shapeDigest
         try Self.validate(
-            profileID: terminalStatement.profileID,
+            profileID: laneKey.profileID,
             laneKey: laneKey,
             aggregateIndex: aggregateIndex,
-            openingCount: openingCount,
-            publicInputCount: publicInputCount,
-            matrixEvaluationCount: matrixEvaluationCount,
-            evalPointDigest: evalPointDigest
+            columnCount: digitTensor.columnCount,
+            activeDigitCount: digitTensor.activeDigitCount,
+            slotCount: slotCount,
+            paddedSlotCount: paddedSlotCount,
+            variableCount: variableCount,
+            sumcheckFinalPointDigest: sumcheckFinalPointDigest,
+            digitOpeningShapeDigest: digitOpeningShapeDigest
         )
+        guard sumcheckFinalPoint.count == variableCount else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE shape final point length mismatch")
+        }
 
         self.version = Self.version
-        self.profileID = terminalStatement.profileID
+        self.profileID = laneKey.profileID
         self.laneKey = laneKey
         self.aggregateIndex = aggregateIndex
-        self.openingCount = openingCount
-        self.publicInputCount = publicInputCount
-        self.matrixEvaluationCount = matrixEvaluationCount
-        self.evalPointDigest = evalPointDigest
+        self.columnCount = digitTensor.columnCount
+        self.activeDigitCount = digitTensor.activeDigitCount
+        self.slotCount = slotCount
+        self.paddedSlotCount = paddedSlotCount
+        self.variableCount = variableCount
+        self.sumcheckFinalPointDigest = sumcheckFinalPointDigest
+        self.digitOpeningShapeDigest = digitOpeningShapeDigest
         self.residualShapeDigest = Self.computeResidualShapeDigest(
-            profileID: terminalStatement.profileID,
+            profileID: laneKey.profileID,
             laneKey: laneKey,
             aggregateIndex: aggregateIndex,
-            openingCount: openingCount,
-            publicInputCount: publicInputCount,
-            matrixEvaluationCount: matrixEvaluationCount,
-            evalPointDigest: evalPointDigest
+            columnCount: digitTensor.columnCount,
+            activeDigitCount: digitTensor.activeDigitCount,
+            slotCount: slotCount,
+            paddedSlotCount: paddedSlotCount,
+            variableCount: variableCount,
+            sumcheckFinalPointDigest: sumcheckFinalPointDigest,
+            digitOpeningShapeDigest: digitOpeningShapeDigest
         )
     }
 
@@ -74,19 +94,28 @@ public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodabl
             maximum: NumiSealWireLimits.maximumAggregateCount,
             name: "NumiSeal residual CE shape aggregate index"
         )
-        let openingCount = try reader.readCount(
-            maximum: NumiSealWireLimits.maximumObligationCount,
-            name: "NumiSeal residual CE opening"
+        let columnCount = try reader.readCount(
+            maximum: NumiSealWireLimits.maximumDigitTensorColumnCount,
+            name: "NumiSeal residual CE digit column"
         )
-        let publicInputCount = try reader.readCount(
-            maximum: NumiSealWireLimits.maximumProofComponentByteCount,
-            name: "NumiSeal residual CE public input"
+        let activeDigitCount = try reader.readCount(
+            maximum: try Self.checkedSlotCount(columnCount: columnCount),
+            name: "NumiSeal residual CE active digit"
         )
-        let matrixEvaluationCount = try reader.readCount(
-            maximum: NumiSealWireLimits.maximumProofComponentByteCount,
-            name: "NumiSeal residual CE matrix evaluation"
+        let slotCount = try reader.readCount(
+            maximum: NumiSealWireLimits.maximumDigitTensorColumnCount * CyclotomicRing54.degree,
+            name: "NumiSeal residual CE digit slot"
         )
-        let evalPointDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let paddedSlotCount = try reader.readCount(
+            maximum: 1 << NumiSealSumcheckOracle.maximumReferenceVariableCount,
+            name: "NumiSeal residual CE padded digit slot"
+        )
+        let variableCount = try reader.readCount(
+            maximum: NumiSealSumcheckOracle.maximumReferenceVariableCount,
+            name: "NumiSeal residual CE variable"
+        )
+        let sumcheckFinalPointDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let digitOpeningShapeDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         let residualShapeDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         try reader.finish()
 
@@ -94,19 +123,25 @@ public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodabl
             profileID: profileID,
             laneKey: laneKey,
             aggregateIndex: aggregateIndex,
-            openingCount: openingCount,
-            publicInputCount: publicInputCount,
-            matrixEvaluationCount: matrixEvaluationCount,
-            evalPointDigest: evalPointDigest
+            columnCount: columnCount,
+            activeDigitCount: activeDigitCount,
+            slotCount: slotCount,
+            paddedSlotCount: paddedSlotCount,
+            variableCount: variableCount,
+            sumcheckFinalPointDigest: sumcheckFinalPointDigest,
+            digitOpeningShapeDigest: digitOpeningShapeDigest
         )
         let expectedDigest = Self.computeResidualShapeDigest(
             profileID: profileID,
             laneKey: laneKey,
             aggregateIndex: aggregateIndex,
-            openingCount: openingCount,
-            publicInputCount: publicInputCount,
-            matrixEvaluationCount: matrixEvaluationCount,
-            evalPointDigest: evalPointDigest
+            columnCount: columnCount,
+            activeDigitCount: activeDigitCount,
+            slotCount: slotCount,
+            paddedSlotCount: paddedSlotCount,
+            variableCount: variableCount,
+            sumcheckFinalPointDigest: sumcheckFinalPointDigest,
+            digitOpeningShapeDigest: digitOpeningShapeDigest
         )
         guard residualShapeDigest == expectedDigest else {
             throw SuperNeoError.invalidEncoding("NumiSeal residual CE shape digest mismatch")
@@ -116,21 +151,38 @@ public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodabl
         self.profileID = profileID
         self.laneKey = laneKey
         self.aggregateIndex = aggregateIndex
-        self.openingCount = openingCount
-        self.publicInputCount = publicInputCount
-        self.matrixEvaluationCount = matrixEvaluationCount
-        self.evalPointDigest = evalPointDigest
+        self.columnCount = columnCount
+        self.activeDigitCount = activeDigitCount
+        self.slotCount = slotCount
+        self.paddedSlotCount = paddedSlotCount
+        self.variableCount = variableCount
+        self.sumcheckFinalPointDigest = sumcheckFinalPointDigest
+        self.digitOpeningShapeDigest = digitOpeningShapeDigest
         self.residualShapeDigest = residualShapeDigest
     }
 
-    public func validate(terminalStatement: TerminalCEStatement) throws {
-        let expected = try Self(
-            laneKey: laneKey,
-            aggregateIndex: aggregateIndex,
-            terminalStatement: terminalStatement
-        )
-        guard self == expected else {
-            throw SuperNeoError.verificationFailed("NumiSeal residual CE shape mismatch")
+    public func validate(digitOpeningStatement: TerminalCEStatement) throws {
+        guard digitOpeningStatement.profileID == profileID else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE digit statement profile mismatch")
+        }
+        guard digitOpeningStatement.shapeDigest == digitOpeningShapeDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE digit statement shape mismatch")
+        }
+        guard digitOpeningStatement.openings.count == 1 else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE digit statement opening count mismatch")
+        }
+        let opening = digitOpeningStatement.openings[0]
+        guard opening.instance.publicInput.isEmpty else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE digit statement public input mismatch")
+        }
+        guard opening.instance.evalPoint.count == variableCount else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE digit statement final point mismatch")
+        }
+        guard NumiSealCanonicalization.evalPointDigest(opening.instance.evalPoint) == sumcheckFinalPointDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE digit statement final point digest mismatch")
+        }
+        guard opening.instance.matrixEvals.count == 1 else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE digit statement matrix arity mismatch")
         }
     }
 
@@ -140,63 +192,28 @@ public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodabl
                 profileID: profileID,
                 laneKey: laneKey,
                 aggregateIndex: aggregateIndex,
-                openingCount: openingCount,
-                publicInputCount: publicInputCount,
-                matrixEvaluationCount: matrixEvaluationCount,
-                evalPointDigest: evalPointDigest
+                columnCount: columnCount,
+                activeDigitCount: activeDigitCount,
+                slotCount: slotCount,
+                paddedSlotCount: paddedSlotCount,
+                variableCount: variableCount,
+                sumcheckFinalPointDigest: sumcheckFinalPointDigest,
+                digitOpeningShapeDigest: digitOpeningShapeDigest
             )
             + residualShapeDigest.superNeoBytes
-    }
-
-    private static func validateScope(
-        laneKey: NumiSealLaneKey,
-        aggregateIndex: Int,
-        terminalStatement: TerminalCEStatement
-    ) throws {
-        guard terminalStatement.profileID == laneKey.profileID else {
-            throw SuperNeoError.invalidParameter("NumiSeal residual CE shape profile mismatch")
-        }
-        guard terminalStatement.shapeDigest == laneKey.shapeDigest else {
-            throw SuperNeoError.invalidParameter("NumiSeal residual CE shape CCS shape mismatch")
-        }
-        guard terminalStatement.verifierKeyDigest == laneKey.verifierKeyDigest else {
-            throw SuperNeoError.invalidParameter("NumiSeal residual CE shape verifier key mismatch")
-        }
-        guard aggregateIndex >= 0 else {
-            throw SuperNeoError.invalidParameter("NumiSeal residual CE shape aggregate index must be non-negative")
-        }
-        guard !terminalStatement.openings.isEmpty else {
-            throw SuperNeoError.invalidParameter("NumiSeal residual CE shape cannot be empty")
-        }
-
-        let firstInstance = terminalStatement.openings[0].instance
-        let publicInputCount = firstInstance.publicInput.count
-        let matrixEvaluationCount = firstInstance.matrixEvals.count
-        let evalPointDigest = NumiSealCanonicalization.evalPointDigest(firstInstance.evalPoint)
-        guard evalPointDigest == laneKey.evalPointDigest else {
-            throw SuperNeoError.invalidParameter("NumiSeal residual CE shape evaluation point mismatch")
-        }
-        for opening in terminalStatement.openings {
-            guard opening.instance.publicInput.count == publicInputCount else {
-                throw SuperNeoError.invalidParameter("NumiSeal residual CE shape public input arity mismatch")
-            }
-            guard opening.instance.matrixEvals.count == matrixEvaluationCount else {
-                throw SuperNeoError.invalidParameter("NumiSeal residual CE shape matrix arity mismatch")
-            }
-            guard NumiSealCanonicalization.evalPointDigest(opening.instance.evalPoint) == evalPointDigest else {
-                throw SuperNeoError.invalidParameter("NumiSeal residual CE shape evaluation point mismatch")
-            }
-        }
     }
 
     private static func validate(
         profileID: UInt16,
         laneKey: NumiSealLaneKey,
         aggregateIndex: Int,
-        openingCount: Int,
-        publicInputCount: Int,
-        matrixEvaluationCount: Int,
-        evalPointDigest: Digest256
+        columnCount: Int,
+        activeDigitCount: Int,
+        slotCount: Int,
+        paddedSlotCount: Int,
+        variableCount: Int,
+        sumcheckFinalPointDigest: Digest256,
+        digitOpeningShapeDigest: Digest256
     ) throws {
         guard profileID == laneKey.profileID else {
             throw SuperNeoError.invalidEncoding("NumiSeal residual CE shape profile mismatch")
@@ -204,17 +221,30 @@ public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodabl
         guard aggregateIndex >= 0 else {
             throw SuperNeoError.invalidEncoding("NumiSeal residual CE shape aggregate index must be non-negative")
         }
-        guard openingCount > 0 else {
-            throw SuperNeoError.invalidEncoding("NumiSeal residual CE shape cannot be empty")
+        let expectedSlotCount = try checkedSlotCount(columnCount: columnCount)
+        guard slotCount == expectedSlotCount else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE shape slot count mismatch")
         }
-        guard publicInputCount >= 0 else {
-            throw SuperNeoError.invalidEncoding("NumiSeal residual CE shape public input count must be non-negative")
+        guard activeDigitCount >= 0, activeDigitCount <= slotCount else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE active digit count exceeds tensor size")
         }
-        guard matrixEvaluationCount > 0 else {
-            throw SuperNeoError.invalidEncoding("NumiSeal residual CE shape matrix evaluation count must be positive")
+        let expectedPaddedSlotCount = nextPowerOfTwo(slotCount)
+        guard paddedSlotCount == expectedPaddedSlotCount else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE padded slot count mismatch")
         }
-        guard evalPointDigest == laneKey.evalPointDigest else {
-            throw SuperNeoError.invalidEncoding("NumiSeal residual CE shape evaluation point mismatch")
+        let expectedVariableCount = try log2Exact(paddedSlotCount)
+        guard variableCount == expectedVariableCount else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE variable count mismatch")
+        }
+        guard variableCount <= NumiSealSumcheckOracle.maximumReferenceVariableCount else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE variable count is too large")
+        }
+        let expectedShapeDigest = try digitOpeningShape(
+            columnCount: columnCount,
+            paddedSlotCount: paddedSlotCount
+        ).shapeDigest
+        guard digitOpeningShapeDigest == expectedShapeDigest else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE digit opening shape mismatch")
         }
     }
 
@@ -222,10 +252,13 @@ public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodabl
         profileID: UInt16,
         laneKey: NumiSealLaneKey,
         aggregateIndex: Int,
-        openingCount: Int,
-        publicInputCount: Int,
-        matrixEvaluationCount: Int,
-        evalPointDigest: Digest256
+        columnCount: Int,
+        activeDigitCount: Int,
+        slotCount: Int,
+        paddedSlotCount: Int,
+        variableCount: Int,
+        sumcheckFinalPointDigest: Digest256,
+        digitOpeningShapeDigest: Digest256
     ) -> Digest256 {
         NumiSealEncoding.digest(
             label: "numiseal.residual-ce-shape.v1",
@@ -233,10 +266,13 @@ public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodabl
                 profileID: profileID,
                 laneKey: laneKey,
                 aggregateIndex: aggregateIndex,
-                openingCount: openingCount,
-                publicInputCount: publicInputCount,
-                matrixEvaluationCount: matrixEvaluationCount,
-                evalPointDigest: evalPointDigest
+                columnCount: columnCount,
+                activeDigitCount: activeDigitCount,
+                slotCount: slotCount,
+                paddedSlotCount: paddedSlotCount,
+                variableCount: variableCount,
+                sumcheckFinalPointDigest: sumcheckFinalPointDigest,
+                digitOpeningShapeDigest: digitOpeningShapeDigest
             )
         )
     }
@@ -245,25 +281,93 @@ public struct NumiSealResidualCEShape: Equatable, Sendable, SuperNeoByteEncodabl
         profileID: UInt16,
         laneKey: NumiSealLaneKey,
         aggregateIndex: Int,
-        openingCount: Int,
-        publicInputCount: Int,
-        matrixEvaluationCount: Int,
-        evalPointDigest: Digest256
+        columnCount: Int,
+        activeDigitCount: Int,
+        slotCount: Int,
+        paddedSlotCount: Int,
+        variableCount: Int,
+        sumcheckFinalPointDigest: Digest256,
+        digitOpeningShapeDigest: Digest256
     ) -> [UInt8] {
         numiSealEncodeUInt16(Self.version)
             + numiSealEncodeUInt16(profileID)
             + laneKey.superNeoBytes
             + numiSealEncodeCount(aggregateIndex)
-            + numiSealEncodeCount(openingCount)
-            + numiSealEncodeCount(publicInputCount)
-            + numiSealEncodeCount(matrixEvaluationCount)
-            + evalPointDigest.superNeoBytes
+            + numiSealEncodeCount(columnCount)
+            + numiSealEncodeCount(activeDigitCount)
+            + numiSealEncodeCount(slotCount)
+            + numiSealEncodeCount(paddedSlotCount)
+            + numiSealEncodeCount(variableCount)
+            + sumcheckFinalPointDigest.superNeoBytes
+            + digitOpeningShapeDigest.superNeoBytes
+    }
+
+    public static func digitOpeningShape(
+        columnCount: Int,
+        paddedSlotCount: Int
+    ) throws -> CCSShape {
+        let slotCount = try checkedSlotCount(columnCount: columnCount)
+        guard paddedSlotCount >= slotCount, (paddedSlotCount & (paddedSlotCount - 1)) == 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE padded slot count mismatch")
+        }
+        let entries = (0..<slotCount).map {
+            SparseFieldMatrix.Entry(row: $0, column: $0, value: .one)
+        }
+        let matrix = try SparseFieldMatrix(
+            rows: paddedSlotCount,
+            columns: slotCount,
+            entries: entries
+        )
+        return try CCSShape(
+            m: paddedSlotCount,
+            nField: slotCount,
+            nRing: columnCount,
+            nPublicField: 0,
+            matrices: [try SparseMatrixCSR(matrix)],
+            relationPolynomial: try RelationPolynomial.hadamardProduct(variableCount: 1),
+            hasIdentityFirstMatrix: false
+        )
+    }
+
+    static func checkedSlotCount(columnCount: Int) throws -> Int {
+        guard columnCount > 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal digit tensor column count must be positive")
+        }
+        guard columnCount <= NumiSealWireLimits.maximumDigitTensorColumnCount else {
+            throw SuperNeoError.invalidParameter("NumiSeal digit tensor column count is too large")
+        }
+        let product = columnCount.multipliedReportingOverflow(by: CyclotomicRing54.degree)
+        guard !product.overflow else {
+            throw SuperNeoError.invalidParameter("NumiSeal digit tensor dimensions overflow")
+        }
+        return product.partialValue
+    }
+
+    static func nextPowerOfTwo(_ value: Int) -> Int {
+        var power = 1
+        while power < value {
+            power <<= 1
+        }
+        return power
+    }
+
+    static func log2Exact(_ value: Int) throws -> Int {
+        guard value > 0, (value & (value - 1)) == 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE slot count must be a positive power of two")
+        }
+        var exponent = 0
+        var remaining = value
+        while remaining > 1 {
+            remaining >>= 1
+            exponent += 1
+        }
+        return exponent
     }
 }
 
 public struct NumiSealResidualCEStatement: Equatable, Sendable, SuperNeoByteEncodable {
     public static let domain = Digest256.hash("SuperNeo-NuMetal.numiseal.residual-ce-statement.v1")
-    public static let version: UInt16 = 10
+    public static let version: UInt16 = 11
 
     public let version: UInt16
     public let residualShape: NumiSealResidualCEShape
@@ -271,51 +375,93 @@ public struct NumiSealResidualCEStatement: Equatable, Sendable, SuperNeoByteEnco
     public let aggregateDigest: Digest256
     public let decompositionKeyDigest: Digest256
     public let decompositionCommitmentDigest: Digest256
+    public let digitTensorDigest: Digest256
+    public let scalarizationStatementDigest: Digest256
     public let linearResidualDigest: Digest256
     public let sumcheckProofDigest: Digest256
     public let sumcheckFinalPoint: [GoldilocksExt2]
     public let claimedDigitEvaluation: GoldilocksExt2
-    public let terminalStatementDigest: Digest256
+    public let digitOpeningStatementDigest: Digest256
     public let statementDigest: Digest256
 
     public init(
         linearResidual: NumiSealLinearResidual,
         sumcheckProof: SumcheckProof,
-        terminalStatement: TerminalCEStatement
+        decomposition: NumiSealDecompositionCommitment,
+        digitTensor: NumiSealDigitTensor,
+        claimedDigitEvaluation: GoldilocksExt2,
+        digitOpeningStatement: TerminalCEStatement
     ) throws {
         guard sumcheckProof.claimedSum == linearResidual.residualValue else {
             throw SuperNeoError.invalidParameter("NumiSeal residual CE statement sum-check claimed sum mismatch")
         }
         let scalarizationStatement = linearResidual.statement
+        guard digitTensor.laneKey == scalarizationStatement.laneKey else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE statement digit tensor lane mismatch")
+        }
+        guard digitTensor.aggregateIndex == scalarizationStatement.aggregateIndex else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE statement digit tensor aggregate mismatch")
+        }
+        guard decomposition.keyDerivation.laneKey == scalarizationStatement.laneKey else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE statement decomposition lane mismatch")
+        }
+        guard decomposition.keyDerivation.aggregateIndex == scalarizationStatement.aggregateIndex else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE statement decomposition aggregate mismatch")
+        }
+        guard decomposition.digitTensorDigest == digitTensor.digest else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE statement digit tensor digest mismatch")
+        }
         let residualShape = try NumiSealResidualCEShape(
             laneKey: scalarizationStatement.laneKey,
             aggregateIndex: scalarizationStatement.aggregateIndex,
-            terminalStatement: terminalStatement
+            digitTensor: digitTensor,
+            sumcheckFinalPoint: sumcheckProof.finalPoint
         )
         let sumcheckProofDigest = NumiSealResidualOpening.sumcheckProofDigest(sumcheckProof)
-        let terminalStatementDigest = terminalStatement.statementDigest
+        try residualShape.validate(digitOpeningStatement: digitOpeningStatement)
+        guard digitOpeningStatement.openings[0].instance.matrixEvals[0].constantTerm == claimedDigitEvaluation else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE statement digit evaluation mismatch")
+        }
+        guard try NumiSealSumcheckOracle.verifyFinalOpening(
+            proof: sumcheckProof,
+            linearResidualDigest: linearResidual.residualDigest,
+            scalarizationStatementDigest: scalarizationStatement.statementDigest,
+            digitTensorDigest: digitTensor.digest,
+            laneKey: scalarizationStatement.laneKey,
+            aggregateIndex: scalarizationStatement.aggregateIndex,
+            columnCount: digitTensor.columnCount,
+            activeDigitCount: digitTensor.activeDigitCount,
+            claimedDigitEvaluation: claimedDigitEvaluation
+        ) else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual sum-check final opening failed")
+        }
+        let digitOpeningStatementDigest = digitOpeningStatement.statementDigest
         self.version = Self.version
         self.residualShape = residualShape
         self.publicStatementDigest = scalarizationStatement.publicStatementDigest
         self.aggregateDigest = scalarizationStatement.aggregateDigest
         self.decompositionKeyDigest = scalarizationStatement.decompositionKeyDigest
         self.decompositionCommitmentDigest = scalarizationStatement.decompositionCommitmentDigest
+        self.digitTensorDigest = digitTensor.digest
+        self.scalarizationStatementDigest = scalarizationStatement.statementDigest
         self.linearResidualDigest = linearResidual.residualDigest
         self.sumcheckProofDigest = sumcheckProofDigest
         self.sumcheckFinalPoint = sumcheckProof.finalPoint
-        self.claimedDigitEvaluation = sumcheckProof.finalValue
-        self.terminalStatementDigest = terminalStatementDigest
+        self.claimedDigitEvaluation = claimedDigitEvaluation
+        self.digitOpeningStatementDigest = digitOpeningStatementDigest
         self.statementDigest = Self.computeStatementDigest(
             residualShape: residualShape,
             publicStatementDigest: publicStatementDigest,
             aggregateDigest: aggregateDigest,
             decompositionKeyDigest: decompositionKeyDigest,
             decompositionCommitmentDigest: decompositionCommitmentDigest,
+            digitTensorDigest: digitTensor.digest,
+            scalarizationStatementDigest: scalarizationStatement.statementDigest,
             linearResidualDigest: linearResidualDigest,
             sumcheckProofDigest: sumcheckProofDigest,
             sumcheckFinalPoint: sumcheckProof.finalPoint,
-            claimedDigitEvaluation: sumcheckProof.finalValue,
-            terminalStatementDigest: terminalStatementDigest
+            claimedDigitEvaluation: claimedDigitEvaluation,
+            digitOpeningStatementDigest: digitOpeningStatementDigest
         )
     }
 
@@ -344,11 +490,13 @@ public struct NumiSealResidualCEStatement: Equatable, Sendable, SuperNeoByteEnco
         let aggregateDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         let decompositionKeyDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         let decompositionCommitmentDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let digitTensorDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let scalarizationStatementDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         let linearResidualDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         let sumcheckProofDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         let sumcheckFinalPoint = try reader.readNumiSealEvaluationPoint()
         let claimedDigitEvaluation = try reader.readNumiSealExt2()
-        let terminalStatementDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let digitOpeningStatementDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         let statementDigest = try Digest256(reader.readData(count: Digest256.byteCount))
         try reader.finish()
 
@@ -358,11 +506,13 @@ public struct NumiSealResidualCEStatement: Equatable, Sendable, SuperNeoByteEnco
             aggregateDigest: aggregateDigest,
             decompositionKeyDigest: decompositionKeyDigest,
             decompositionCommitmentDigest: decompositionCommitmentDigest,
+            digitTensorDigest: digitTensorDigest,
+            scalarizationStatementDigest: scalarizationStatementDigest,
             linearResidualDigest: linearResidualDigest,
             sumcheckProofDigest: sumcheckProofDigest,
             sumcheckFinalPoint: sumcheckFinalPoint,
             claimedDigitEvaluation: claimedDigitEvaluation,
-            terminalStatementDigest: terminalStatementDigest
+            digitOpeningStatementDigest: digitOpeningStatementDigest
         )
         guard statementDigest == expectedDigest else {
             throw SuperNeoError.invalidEncoding("NumiSeal residual CE statement digest mismatch")
@@ -374,33 +524,41 @@ public struct NumiSealResidualCEStatement: Equatable, Sendable, SuperNeoByteEnco
         self.aggregateDigest = aggregateDigest
         self.decompositionKeyDigest = decompositionKeyDigest
         self.decompositionCommitmentDigest = decompositionCommitmentDigest
+        self.digitTensorDigest = digitTensorDigest
+        self.scalarizationStatementDigest = scalarizationStatementDigest
         self.linearResidualDigest = linearResidualDigest
         self.sumcheckProofDigest = sumcheckProofDigest
         self.sumcheckFinalPoint = sumcheckFinalPoint
         self.claimedDigitEvaluation = claimedDigitEvaluation
-        self.terminalStatementDigest = terminalStatementDigest
+        self.digitOpeningStatementDigest = digitOpeningStatementDigest
         self.statementDigest = statementDigest
     }
 
     public func validate(
         linearResidual: NumiSealLinearResidual,
         sumcheckProof: SumcheckProof,
-        terminalStatement: TerminalCEStatement
+        decomposition: NumiSealDecompositionCommitment,
+        digitTensor: NumiSealDigitTensor,
+        claimedDigitEvaluation: GoldilocksExt2,
+        digitOpeningStatement: TerminalCEStatement
     ) throws {
         let expected = try Self(
             linearResidual: linearResidual,
             sumcheckProof: sumcheckProof,
-            terminalStatement: terminalStatement
+            decomposition: decomposition,
+            digitTensor: digitTensor,
+            claimedDigitEvaluation: claimedDigitEvaluation,
+            digitOpeningStatement: digitOpeningStatement
         )
         guard self == expected else {
             throw SuperNeoError.verificationFailed("NumiSeal residual CE statement mismatch")
         }
     }
 
-    public func validate(terminalStatement: TerminalCEStatement) throws {
-        try residualShape.validate(terminalStatement: terminalStatement)
-        guard terminalStatementDigest == terminalStatement.statementDigest else {
-            throw SuperNeoError.verificationFailed("NumiSeal residual CE statement terminal digest mismatch")
+    public func validate(digitOpeningStatement: TerminalCEStatement) throws {
+        try residualShape.validate(digitOpeningStatement: digitOpeningStatement)
+        guard digitOpeningStatementDigest == digitOpeningStatement.statementDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual CE statement digit opening digest mismatch")
         }
     }
 
@@ -413,12 +571,14 @@ public struct NumiSealResidualCEStatement: Equatable, Sendable, SuperNeoByteEnco
         bytes += aggregateDigest.superNeoBytes
         bytes += decompositionKeyDigest.superNeoBytes
         bytes += decompositionCommitmentDigest.superNeoBytes
+        bytes += digitTensorDigest.superNeoBytes
+        bytes += scalarizationStatementDigest.superNeoBytes
         bytes += linearResidualDigest.superNeoBytes
         bytes += sumcheckProofDigest.superNeoBytes
         bytes += numiSealEncodeCount(sumcheckFinalPoint.count)
         bytes += sumcheckFinalPoint.flatMap(\.superNeoBytes)
         bytes += claimedDigitEvaluation.superNeoBytes
-        bytes += terminalStatementDigest.superNeoBytes
+        bytes += digitOpeningStatementDigest.superNeoBytes
         bytes += statementDigest.superNeoBytes
         return bytes
     }
@@ -429,11 +589,13 @@ public struct NumiSealResidualCEStatement: Equatable, Sendable, SuperNeoByteEnco
         aggregateDigest: Digest256,
         decompositionKeyDigest: Digest256,
         decompositionCommitmentDigest: Digest256,
+        digitTensorDigest: Digest256,
+        scalarizationStatementDigest: Digest256,
         linearResidualDigest: Digest256,
         sumcheckProofDigest: Digest256,
         sumcheckFinalPoint: [GoldilocksExt2],
         claimedDigitEvaluation: GoldilocksExt2,
-        terminalStatementDigest: Digest256
+        digitOpeningStatementDigest: Digest256
     ) -> Digest256 {
         NumiSealEncoding.digest(
             label: "numiseal.residual-ce-statement.v1",
@@ -443,27 +605,29 @@ public struct NumiSealResidualCEStatement: Equatable, Sendable, SuperNeoByteEnco
                 + aggregateDigest.superNeoBytes
                 + decompositionKeyDigest.superNeoBytes
                 + decompositionCommitmentDigest.superNeoBytes
+                + digitTensorDigest.superNeoBytes
+                + scalarizationStatementDigest.superNeoBytes
                 + linearResidualDigest.superNeoBytes
                 + sumcheckProofDigest.superNeoBytes
                 + numiSealEncodeCount(sumcheckFinalPoint.count)
                 + sumcheckFinalPoint.flatMap(\.superNeoBytes)
                 + claimedDigitEvaluation.superNeoBytes
-                + terminalStatementDigest.superNeoBytes
+                + digitOpeningStatementDigest.superNeoBytes
         )
     }
 }
 
 public struct NumiSealResidualCEBuildResult: Equatable, Sendable {
-    public let terminalStatement: TerminalCEStatement
+    public let digitOpeningStatement: TerminalCEStatement
     public let ceOpeningProof: CEOpeningProof
     public let residualOpening: NumiSealResidualOpening
 
     public init(
-        terminalStatement: TerminalCEStatement,
+        digitOpeningStatement: TerminalCEStatement,
         ceOpeningProof: CEOpeningProof,
         residualOpening: NumiSealResidualOpening
     ) {
-        self.terminalStatement = terminalStatement
+        self.digitOpeningStatement = digitOpeningStatement
         self.ceOpeningProof = ceOpeningProof
         self.residualOpening = residualOpening
     }
@@ -498,20 +662,23 @@ public enum NumiSealResidualCEBuilder {
             executionPolicy: executionPolicy
         )
         let proof = try CEOpeningRelation.proveLocalBatch(
-            statement: material.terminalStatement,
+            statement: material.digitOpeningStatement,
             witnesses: [material.witness],
-            shape: shape,
-            key: key,
+            shape: material.digitOpeningShape,
+            key: material.digitOpeningKey,
             parameters: parameters,
             metalWorkspace: metalWorkspace,
             executionPolicy: executionPolicy
         )
         return try buildResult(
-            terminalStatement: material.terminalStatement,
+            digitOpeningStatement: material.digitOpeningStatement,
             ceOpeningProof: proof,
             aggregate: aggregate,
+            decomposition: decomposition,
+            digitTensor: digitTensor,
             linearResidual: linearResidual,
-            sumcheckProof: sumcheckProof
+            sumcheckProof: sumcheckProof,
+            claimedDigitEvaluation: material.claimedDigitEvaluation
         )
     }
 
@@ -544,21 +711,24 @@ public enum NumiSealResidualCEBuilder {
             executionPolicy: executionPolicy
         )
         let proof = try CEOpeningRelation.proveLocalBatchDeterministic(
-            statement: material.terminalStatement,
+            statement: material.digitOpeningStatement,
             witnesses: [material.witness],
-            shape: shape,
-            key: key,
+            shape: material.digitOpeningShape,
+            key: material.digitOpeningKey,
             parameters: parameters,
             randomSeed: randomSeed,
             metalWorkspace: metalWorkspace,
             executionPolicy: executionPolicy
         )
         return try buildResult(
-            terminalStatement: material.terminalStatement,
+            digitOpeningStatement: material.digitOpeningStatement,
             ceOpeningProof: proof,
             aggregate: aggregate,
+            decomposition: decomposition,
+            digitTensor: digitTensor,
             linearResidual: linearResidual,
-            sumcheckProof: sumcheckProof
+            sumcheckProof: sumcheckProof,
+            claimedDigitEvaluation: material.claimedDigitEvaluation
         )
     }
 
@@ -595,8 +765,11 @@ public enum NumiSealResidualCEBuilder {
     }
 
     private struct BuildMaterial {
-        let terminalStatement: TerminalCEStatement
+        let digitOpeningShape: CCSShape
+        let digitOpeningKey: AjtaiCommitmentKey
+        let digitOpeningStatement: TerminalCEStatement
         let witness: CEOpeningWitness
+        let claimedDigitEvaluation: GoldilocksExt2
     }
 
     private static func buildMaterial(
@@ -654,34 +827,125 @@ public enum NumiSealResidualCEBuilder {
         ) else {
             throw SuperNeoError.verificationFailed("NumiSeal residual aggregate witness opening failed")
         }
-        let terminalStatement = try TerminalCEStatement(
-            profileID: publicStatement.profileID,
-            shape: shape,
-            key: key,
-            claims: [aggregateClaim]
+        let claimedDigitEvaluation = try digitEvaluation(
+            digitTensor: digitTensor,
+            at: sumcheckProof.finalPoint
         )
-        return BuildMaterial(terminalStatement: terminalStatement, witness: witness)
+        guard try NumiSealSumcheckOracle.verifyFinalOpening(
+            proof: sumcheckProof,
+            linearResidualDigest: linearResidual.residualDigest,
+            scalarizationStatementDigest: linearResidual.statement.statementDigest,
+            digitTensorDigest: digitTensor.digest,
+            laneKey: digitTensor.laneKey,
+            aggregateIndex: digitTensor.aggregateIndex,
+            columnCount: digitTensor.columnCount,
+            activeDigitCount: digitTensor.activeDigitCount,
+            claimedDigitEvaluation: claimedDigitEvaluation
+        ) else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual sum-check final opening failed")
+        }
+        let digitOpeningShape = try NumiSealResidualCEShape.digitOpeningShape(
+            columnCount: digitTensor.columnCount,
+            paddedSlotCount: NumiSealResidualCEShape.nextPowerOfTwo(digitTensor.digits.count)
+        )
+        let digitOpeningKey = try decomposition.keyDerivation.deriveKey(parameters: parameters)
+        let digitOpeningEvaluation = try digitCommitmentEvaluation(
+            digitTensor: digitTensor,
+            point: sumcheckProof.finalPoint,
+            shape: digitOpeningShape,
+            executionPolicy: executionPolicy
+        )
+        guard digitOpeningEvaluation.constantTerm == claimedDigitEvaluation else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual digit opening evaluation mismatch")
+        }
+        let digitOpeningClaim = CCSEvaluationClaim(
+            commitment: decomposition.commitment,
+            publicInput: [],
+            point: sumcheckProof.finalPoint,
+            evaluations: [digitOpeningEvaluation],
+            witness: digitTensor.digits.map(\.fieldElement)
+        )
+        let digitOpeningStatement = try TerminalCEStatement(
+            profileID: publicStatement.profileID,
+            shape: digitOpeningShape,
+            key: digitOpeningKey,
+            claims: [digitOpeningClaim]
+        )
+        guard let digitOpeningWitness = CEOpeningWitness(claim: digitOpeningClaim) else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual digit opening claim is missing witness")
+        }
+        return BuildMaterial(
+            digitOpeningShape: digitOpeningShape,
+            digitOpeningKey: digitOpeningKey,
+            digitOpeningStatement: digitOpeningStatement,
+            witness: digitOpeningWitness,
+            claimedDigitEvaluation: claimedDigitEvaluation
+        )
     }
 
     private static func buildResult(
-        terminalStatement: TerminalCEStatement,
+        digitOpeningStatement: TerminalCEStatement,
         ceOpeningProof: CEOpeningProof,
         aggregate: NumiSealLaneAggregate,
+        decomposition: NumiSealDecompositionCommitment,
+        digitTensor: NumiSealDigitTensor,
         linearResidual: NumiSealLinearResidual,
-        sumcheckProof: SumcheckProof
+        sumcheckProof: SumcheckProof,
+        claimedDigitEvaluation: GoldilocksExt2
     ) throws -> NumiSealResidualCEBuildResult {
         let residualOpening = try NumiSealResidualOpening(
             laneKey: aggregate.laneKey,
             aggregateIndex: aggregate.aggregateIndex,
             linearResidual: linearResidual,
             sumcheckProof: sumcheckProof,
-            terminalStatement: terminalStatement,
+            decomposition: decomposition,
+            digitTensor: digitTensor,
+            claimedDigitEvaluation: claimedDigitEvaluation,
+            digitOpeningStatement: digitOpeningStatement,
             ceOpeningProof: ceOpeningProof
         )
         return NumiSealResidualCEBuildResult(
-            terminalStatement: terminalStatement,
+            digitOpeningStatement: digitOpeningStatement,
             ceOpeningProof: ceOpeningProof,
             residualOpening: residualOpening
+        )
+    }
+
+    private static func digitEvaluation(
+        digitTensor: NumiSealDigitTensor,
+        at point: [GoldilocksExt2]
+    ) throws -> GoldilocksExt2 {
+        let paddedSlotCount = NumiSealResidualCEShape.nextPowerOfTwo(digitTensor.digits.count)
+        guard point.count == (try NumiSealResidualCEShape.log2Exact(paddedSlotCount)) else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual digit evaluation point length mismatch")
+        }
+        var digits = digitTensor.digits.map(\.fieldElement)
+        digits += Array(repeating: .zero, count: paddedSlotCount - digits.count)
+        return try MultilinearEvaluation.evaluate(digits, at: point)
+    }
+
+    private static func digitCommitmentEvaluation(
+        digitTensor: NumiSealDigitTensor,
+        point: [GoldilocksExt2],
+        shape: CCSShape,
+        executionPolicy: SuperNeoExecutionPolicy
+    ) throws -> CyclotomicExt2Ring54 {
+        guard shape.nRing == digitTensor.columnCount else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual digit opening shape column mismatch")
+        }
+        guard shape.numMatrices == 1 else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual digit opening shape matrix mismatch")
+        }
+        let transformed = try shape.compiledSparseForSuperNeo().transformedSparseMatrices[0]
+        if executionPolicy.usesConstantWorkCPU {
+            return try transformed.evaluatedProductConstantWork(
+                by: digitTensor.message,
+                rHat: MultilinearEvaluation.checkedBasis(at: point)
+            )
+        }
+        return try transformed.evaluatedProduct(
+            by: digitTensor.message,
+            rHat: MultilinearEvaluation.checkedBasis(at: point)
         )
     }
 

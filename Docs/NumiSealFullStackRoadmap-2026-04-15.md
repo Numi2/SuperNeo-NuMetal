@@ -35,11 +35,12 @@ Already present:
   sum-check bytes to the scalar residual and digit-tensor language.
 - NumiSeal has a typed immediate residual-opening handoff that binds lane scope,
   scalarization digest, sum-check proof digest, a stable residual CE
-  shape/statement digest, canonical terminal CE statement bytes, and canonical
-  CE opening proof bytes. The explicit full-verification path now calls the
-  existing terminal CE opening verifier for that supplied residual opening, and
-  the builder constructs the CE statement/proof from typed NumiSeal aggregate,
-  decomposition, sum-check, and aggregate-witness inputs.
+  shape/statement digest, derived decomposition key, decomposition commitment,
+  digit-tensor digest, synthetic digit-opening terminal statement bytes, and
+  canonical CE opening proof bytes. Preflight reruns the public final sum-check
+  equation against the claimed digit evaluation, and full verification derives
+  the digit-opening key and calls the existing CE opening verifier for the direct
+  digit-commitment opening.
 - NumiSeal has a first `NumiSealProvingPlan`/`NumiSealProver`/`NumiSealVerifier`
   assembly API for the current immediate-residual aggregate-sequence path. The
   plan exposes deterministic public statement and aggregate order before the
@@ -54,11 +55,10 @@ Already present:
 
 Not yet present:
 
-- Production NumiSeal prover/verifier exposure over the final residual object
-  and CLI integration.
-- Optimized NumiSeal degree-4 sum-check integration, the final
-  digit-commitment residual object, and complete algebraic terminal acceptance.
-- Full NumiSeal CLI exposure, formal hooks, and security audit artifacts.
+- Production NumiSeal CLI/product exposure for the current direct
+  digit-commitment residual verifier.
+- Optimized large-tensor NumiSeal degree-4 sum-check integration.
+- Broader vector matrix, formal hooks, and security audit artifacts.
 - Zero-knowledge layer.
 - Recursive/aggregate sealing product.
 - General program frontend.
@@ -66,8 +66,8 @@ Not yet present:
 ## Non-Negotiable Boundaries
 
 - A fold reduction is never application acceptance.
-- NumiSeal must not be advertised as a verifier mode until full terminal
-  verification accepts or rejects complete envelopes.
+- NumiSeal must not be advertised as a production verifier mode until CLI,
+  vector-matrix, formal-hook, and security-audit gates pass.
 - NumiSeal is not zero knowledge by default.
 - CE opening masking is not a blanket zero-knowledge layer.
 - No external PCS is imported for v10.
@@ -114,7 +114,7 @@ Proof body:
 
 ```text
 NumiSealProof {
-  bodyVersion = 10
+  bodyVersion = 11
   publicStatement
   aggregateCount
   laneProofs
@@ -347,36 +347,40 @@ Artifacts:
 - `NumiSealCarryClaim`
 - residual CE witness builder
 
-Initial implementation status: `NumiSealResidualOpening` is now a typed
-immediate handoff object. It parses canonical residual CE statement bytes,
-canonical terminal CE statement bytes, and canonical CE opening proof bytes,
-binding them to lane/aggregate scope, `linearResidualDigest`,
-`sumcheckProofDigest`, `residualStatementDigest`, `terminalStatementDigest`,
+Implementation status: `NumiSealResidualOpening` is now the typed immediate
+residual object for the current prover track. It parses canonical decomposition
+key derivation bytes, residual CE statement bytes, synthetic digit-opening
+terminal statement bytes, and CE opening proof bytes, binding them to
+lane/aggregate scope, `residualShapeDigest`, `decompositionKeyDigest`,
+`decompositionCommitmentDigest`, `digitTensorDigest`,
+`scalarizationStatementDigest`, `linearResidualDigest`, `sumcheckProofDigest`,
+`residualStatementDigest`, `digitOpeningStatementDigest`,
 `ceOpeningProofDigest`, and an `openingDigest`. `NumiSealResidualCEShape` and
-`NumiSealResidualCEStatement` add stable residual metadata for the current
-immediate CE handoff, including the decomposition digests, sum-check final
-point, claimed digit evaluation, and terminal CE statement digest. The explicit
-full-verification path accepts the public shape and verifier key, validates the
-actual key/shape material against policy digests, and calls
-`CEOpeningRelation.verify` for the supplied immediate residual opening.
-`NumiSealResidualCEBuilder` now constructs that immediate opening from typed
-public statement, aggregate, decomposition, digit tensor, scalar residual,
-sum-check proof, and aggregate-witness inputs. The remaining Phase 6 work is
-the final residual object that opens the digit commitment directly at the
-sum-check final point instead of using the current aggregate terminal-CE
-handoff.
+`NumiSealResidualCEStatement` bind digit dimensions, the sum-check final-point
+digest, the synthetic digit-opening shape digest, decomposition digests, the
+claimed digit evaluation, and the digit-opening statement digest. Preflight
+reruns the public final sum-check equation, and full verification derives the
+digit-opening key from public data before calling `CEOpeningRelation.verify`.
+`NumiSealResidualCEBuilder` constructs that direct digit-commitment opening from
+typed public statement, aggregate, decomposition, digit tensor, scalar residual,
+sum-check proof, and aggregate-witness inputs.
 
-Target residual object after full CE integration:
+Current residual object:
 
 ```text
 NumiSealResidualOpening {
   laneKey
   aggregateIndex
   residualShapeDigest
+  decompositionKeyDerivation
   decompositionKeyDigest
   decompositionCommitmentDigest
-  sumcheckFinalPoint
-  claimedDigitEvaluation
+  digitTensorDigest
+  scalarizationStatementDigest
+  linearResidualDigest
+  sumcheckProofDigest
+  residualStatement
+  digitOpeningStatement
   ceOpeningProof
 }
 ```

@@ -135,7 +135,7 @@ Statement:
 - the claim is canonicalized as one NumiSeal obligation in lane
   `numiseal-vector-main`,
 - the lane has one aggregate,
-- the aggregate uses the immediate residual CE path, and
+- the aggregate uses the direct digit-commitment immediate residual CE path, and
 - the checked envelope is proof kind `numiseal-terminal`.
 
 Profile: `Goldilocks/Phi81(d=54)`

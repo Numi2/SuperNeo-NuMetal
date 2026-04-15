@@ -38,6 +38,69 @@ public enum NumiSealSumcheckOracle {
         }
     }
 
+    public static func verifyFinalOpening(
+        proof: SumcheckProof,
+        linearResidualDigest: Digest256,
+        scalarizationStatementDigest: Digest256,
+        digitTensorDigest: Digest256,
+        laneKey: NumiSealLaneKey,
+        aggregateIndex: Int,
+        columnCount: Int,
+        activeDigitCount: Int,
+        claimedDigitEvaluation: GoldilocksExt2
+    ) throws -> Bool {
+        let slotCount = try checkedSlotCount(columnCount: columnCount)
+        let paddedSlotCount = nextPowerOfTwo(slotCount)
+        let variableCount = try log2Exact(paddedSlotCount)
+        guard variableCount <= maximumReferenceVariableCount else {
+            throw SuperNeoError.invalidParameter("NumiSeal reference sum-check variable count is too large")
+        }
+        guard activeDigitCount >= 0, activeDigitCount <= slotCount else {
+            throw SuperNeoError.invalidParameter("NumiSeal active digit count exceeds tensor size")
+        }
+        guard proof.finalPoint.count == variableCount else { return false }
+        let weights = deriveWeights(
+            linearResidualDigest: linearResidualDigest,
+            scalarizationStatementDigest: scalarizationStatementDigest,
+            digitTensorDigest: digitTensorDigest,
+            laneKey: laneKey,
+            aggregateIndex: aggregateIndex,
+            columnCount: columnCount,
+            activeDigitCount: activeDigitCount,
+            paddedSlotCount: paddedSlotCount,
+            variableCount: variableCount
+        )
+        var transcript = makeTranscript(
+            linearResidualDigest: linearResidualDigest,
+            scalarizationStatementDigest: scalarizationStatementDigest,
+            digitTensorDigest: digitTensorDigest,
+            laneKey: laneKey,
+            aggregateIndex: aggregateIndex,
+            paddedSlotCount: paddedSlotCount,
+            variableCount: variableCount,
+            weightDigest: weights.digest
+        )
+        return try SumcheckVerifier.verify(
+            proof: proof,
+            transcript: &transcript,
+            expectedDegree: maxDegreePerRound,
+            expectedRoundCount: variableCount
+        ) { point, value in
+            let padding = try paddingEvaluation(
+                activeDigitCount: activeDigitCount,
+                paddedSlotCount: paddedSlotCount,
+                at: point
+            )
+            let language = claimedDigitEvaluation
+                * (claimedDigitEvaluation - .one)
+                * (claimedDigitEvaluation + .one)
+            let paddingTerm = padding * claimedDigitEvaluation
+            let residualTerm = proof.claimedSum * eqZero(at: point)
+            let expected = residualTerm + weights.language * language + weights.padding * paddingTerm
+            return value == expected
+        }
+    }
+
     private static func validateBindings(
         linearResidual: NumiSealLinearResidual,
         digitTensor: NumiSealDigitTensor
@@ -81,8 +144,13 @@ public enum NumiSealSumcheckOracle {
             }
         }
         let weights = deriveWeights(
-            linearResidual: linearResidual,
-            digitTensor: digitTensor,
+            linearResidualDigest: linearResidual.residualDigest,
+            scalarizationStatementDigest: linearResidual.statement.statementDigest,
+            digitTensorDigest: digitTensor.digest,
+            laneKey: digitTensor.laneKey,
+            aggregateIndex: digitTensor.aggregateIndex,
+            columnCount: digitTensor.columnCount,
+            activeDigitCount: digitTensor.activeDigitCount,
             paddedSlotCount: paddedSlotCount,
             variableCount: variableCount
         )
@@ -100,15 +168,37 @@ public enum NumiSealSumcheckOracle {
     }
 
     private static func makeTranscript(context: Context) -> SumCheckTranscript {
+        makeTranscript(
+            linearResidualDigest: context.linearResidual.residualDigest,
+            scalarizationStatementDigest: context.linearResidual.statement.statementDigest,
+            digitTensorDigest: context.digitTensorDigest,
+            laneKey: context.linearResidual.statement.laneKey,
+            aggregateIndex: context.linearResidual.statement.aggregateIndex,
+            paddedSlotCount: context.paddedSlotCount,
+            variableCount: context.variableCount,
+            weightDigest: context.weightDigest
+        )
+    }
+
+    private static func makeTranscript(
+        linearResidualDigest: Digest256,
+        scalarizationStatementDigest: Digest256,
+        digitTensorDigest: Digest256,
+        laneKey: NumiSealLaneKey,
+        aggregateIndex: Int,
+        paddedSlotCount: Int,
+        variableCount: Int,
+        weightDigest: Digest256
+    ) -> SumCheckTranscript {
         var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.numiseal.sumcheck.v1")
-        transcript.absorb(context.linearResidual.residualDigest.superNeoBytes)
-        transcript.absorb(context.linearResidual.statement.statementDigest.superNeoBytes)
-        transcript.absorb(context.digitTensorDigest.superNeoBytes)
-        transcript.absorb(context.linearResidual.statement.laneKey.superNeoBytes)
-        transcript.absorb(numiSealEncodeCount(context.linearResidual.statement.aggregateIndex))
-        transcript.absorb(numiSealEncodeCount(context.paddedSlotCount))
-        transcript.absorb(numiSealEncodeCount(context.variableCount))
-        transcript.absorb(context.weightDigest.superNeoBytes)
+        transcript.absorb(linearResidualDigest.superNeoBytes)
+        transcript.absorb(scalarizationStatementDigest.superNeoBytes)
+        transcript.absorb(digitTensorDigest.superNeoBytes)
+        transcript.absorb(laneKey.superNeoBytes)
+        transcript.absorb(numiSealEncodeCount(aggregateIndex))
+        transcript.absorb(numiSealEncodeCount(paddedSlotCount))
+        transcript.absorb(numiSealEncodeCount(variableCount))
+        transcript.absorb(weightDigest.superNeoBytes)
         return transcript
     }
 
@@ -128,27 +218,32 @@ public enum NumiSealSumcheckOracle {
     }
 
     private static func deriveWeights(
-        linearResidual: NumiSealLinearResidual,
-        digitTensor: NumiSealDigitTensor,
+        linearResidualDigest: Digest256,
+        scalarizationStatementDigest: Digest256,
+        digitTensorDigest: Digest256,
+        laneKey: NumiSealLaneKey,
+        aggregateIndex: Int,
+        columnCount: Int,
+        activeDigitCount: Int,
         paddedSlotCount: Int,
         variableCount: Int
     ) -> (language: GoldilocksExt2, padding: GoldilocksExt2, digest: Digest256) {
         var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.numiseal.sumcheck-weights.v1")
-        transcript.absorb(linearResidual.residualDigest.superNeoBytes)
-        transcript.absorb(linearResidual.statement.statementDigest.superNeoBytes)
-        transcript.absorb(digitTensor.digest.superNeoBytes)
-        transcript.absorb(digitTensor.laneKey.superNeoBytes)
-        transcript.absorb(numiSealEncodeCount(digitTensor.aggregateIndex))
-        transcript.absorb(numiSealEncodeCount(digitTensor.columnCount))
-        transcript.absorb(numiSealEncodeCount(digitTensor.activeDigitCount))
+        transcript.absorb(linearResidualDigest.superNeoBytes)
+        transcript.absorb(scalarizationStatementDigest.superNeoBytes)
+        transcript.absorb(digitTensorDigest.superNeoBytes)
+        transcript.absorb(laneKey.superNeoBytes)
+        transcript.absorb(numiSealEncodeCount(aggregateIndex))
+        transcript.absorb(numiSealEncodeCount(columnCount))
+        transcript.absorb(numiSealEncodeCount(activeDigitCount))
         transcript.absorb(numiSealEncodeCount(paddedSlotCount))
         transcript.absorb(numiSealEncodeCount(variableCount))
         let language = transcript.challengeExt2()
         let padding = transcript.challengeExt2()
         let digest = NumiSealEncoding.digest(
             label: "numiseal.sumcheck-weights.v1",
-            bytes: linearResidual.residualDigest.superNeoBytes
-                + digitTensor.digest.superNeoBytes
+            bytes: linearResidualDigest.superNeoBytes
+                + digitTensorDigest.superNeoBytes
                 + numiSealEncodeCount(paddedSlotCount)
                 + numiSealEncodeCount(variableCount)
                 + language.superNeoBytes
@@ -169,6 +264,31 @@ public enum NumiSealSumcheckOracle {
             power <<= 1
         }
         return power
+    }
+
+    private static func checkedSlotCount(columnCount: Int) throws -> Int {
+        guard columnCount > 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal digit tensor column count must be positive")
+        }
+        let product = columnCount.multipliedReportingOverflow(by: CyclotomicRing54.degree)
+        guard !product.overflow else {
+            throw SuperNeoError.invalidParameter("NumiSeal digit tensor dimensions overflow")
+        }
+        return product.partialValue
+    }
+
+    private static func paddingEvaluation(
+        activeDigitCount: Int,
+        paddedSlotCount: Int,
+        at point: [GoldilocksExt2]
+    ) throws -> GoldilocksExt2 {
+        var selector = Array(repeating: GoldilocksField.zero, count: paddedSlotCount)
+        if activeDigitCount < paddedSlotCount {
+            for index in activeDigitCount..<paddedSlotCount {
+                selector[index] = .one
+            }
+        }
+        return try MultilinearEvaluation.evaluate(selector, at: point)
     }
 
     private static func log2Exact(_ value: Int) throws -> Int {

@@ -270,13 +270,13 @@ Remaining boundary:
 Status: design refreshed; Phase 0 public statement wiring, Phase 1 lane
 aggregation, Phase 2 proof-body policy separation, Phase 3 decomposition
 handoff, Phase 4 public scalarization, the bounded Phase 5 sum-check handoff,
-and Phase 6 immediate residual-opening verification with typed residual CE
-shape/statement metadata, builder-side witness validation, and the first
-Phase 7 multi-lane/multi-aggregate prover/verifier assembly API plus a public
-proving-plan surface are present. The first checked NumiSeal vector, dedicated
-NumiSeal vector generator/validator, manifest, schema, and production-gate
-validation path are also present for the current immediate-residual
-single-aggregate fixture.
+and Phase 6 direct digit-commitment residual-opening verification with typed
+residual CE shape/statement metadata, builder-side witness validation, and the
+first Phase 7 multi-lane/multi-aggregate prover/verifier assembly API plus a
+public proving-plan surface are present. The first checked NumiSeal vector,
+dedicated NumiSeal vector generator/validator, manifest, schema, and
+production-gate validation path are also present for the current
+immediate-residual single-aggregate fixture.
 
 NumiSeal is the planned native terminal-seal layer for the SNARK product track.
 It should compress many terminal CE obligations into lane-local aggregates while
@@ -334,12 +334,16 @@ Artifacts:
   `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealResidualCE.swift` define the
   typed immediate residual-opening body, stable residual CE shape/statement
   metadata, lane scope binding, scalarization digest binding, sum-check proof
-  digest binding, canonical terminal CE statement bytes, canonical CE opening
-  proof bytes, and a recomputed residual-opening digest. The full-verification
-  path accepts public shape/key material and calls `CEOpeningRelation.verify`
-  for supplied immediate residual CE openings after cheap preflight bindings
-  pass; the builder constructs those openings from typed NumiSeal aggregate,
-  decomposition, digit-tensor, sum-check, and aggregate-witness inputs.
+  digest binding, derived decomposition-key binding, decomposition-commitment
+  binding, canonical synthetic digit-opening terminal statement bytes,
+  canonical CE opening proof bytes, and a recomputed residual-opening digest.
+  Preflight reruns the public final sum-check equation against the claimed digit
+  evaluation. The full-verification path accepts public shape/key material for
+  policy binding, derives the digit-opening key from public residual metadata,
+  and calls `CEOpeningRelation.verify` for supplied direct digit-commitment
+  residual CE openings after cheap preflight bindings pass; the builder
+  constructs those openings from typed NumiSeal aggregate, decomposition,
+  digit-tensor, sum-check, and aggregate-witness inputs.
 - `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTerminalSeal.swift` defines
   `NumiSealWitnessedObligation`, `NumiSealAggregateDigitTensorInput`,
   `NumiSealProvingPlan`, `NumiSealProver`, `NumiSealVerifier`, and
@@ -369,9 +373,9 @@ Artifacts:
   digit-tensor mutation/padding rejection, CPU decomposition commitment opening,
   witnessed aggregate sparse CCS reconstruction, scalarization residual
   mutation/stale-statement rejection, sum-check residual/digit-tensor binding,
-  residual-opening digest/scope/count binding, residual CE shape/statement
-  binding, residual CE builder witness rejection, residual CE opening proof
-  verification, `NumiSealProver`/`NumiSealVerifier` single- and
+  residual-opening digest/scope/direct digit-opening binding, residual CE
+  shape/statement binding, residual CE builder witness rejection, residual CE
+  opening proof verification, `NumiSealProver`/`NumiSealVerifier` single- and
   multi-aggregate envelope assembly, `NumiSealProvingPlan` aggregate-order
   binding, multi-lane/multi-aggregate envelope assembly, stale public
   obligation rejection, per-aggregate digit-tensor input-count rejection,
@@ -401,8 +405,7 @@ Implementation gates:
   and NumiSeal-only terminal preflight policy are present.
 - Phase 3: deterministic decomposition-key derivation, bounded digit-tensor
   grammar, one CPU reference Ajtai digit-tensor commitment per lane aggregate,
-  and parser/mutation tests are present. Full aggregate witness decomposition
-  and verifier handoff remain.
+  aggregate witness reconstruction, and parser/mutation tests are present.
 - Phase 4: public scalarization statements, transcript-derived weights, linear
   residual digests, witnessed aggregate sparse CCS reconstruction, and
   mutation/stale-statement tests are present. Multi-lane/prior-claim vectors
@@ -411,22 +414,23 @@ Implementation gates:
   scalarization tamper tests. A bounded reference sum-check handoff is present;
   the optimized large-tensor prover/verifier remains.
 - Phase 6: typed immediate residual-opening parsing, stable residual CE
-  shape/statement digests, preflight digest/scope binding, builder-side
-  aggregate-witness validation, and full verification of supplied immediate
-  residual CE opening proofs through the existing CE relation are present. The
-  final digit-commitment residual object remains.
+  shape/statement digests, preflight digest/scope binding, public final
+  sum-check equation replay, builder-side aggregate-witness validation, direct
+  digit-commitment opening at the sum-check final point, and full verification
+  of supplied residual CE opening proofs through the existing CE relation are
+  present. Optimized large-tensor proving and broader audit coverage remain.
 - Phase 7: the first multi-lane/multi-aggregate `NumiSealProvingPlan`,
   `NumiSealProver`, and `NumiSealVerifier` API is present for immediate
+  residual envelopes.
 - Phase 8: the first checked NumiSeal vector is present with a deterministic
-  generator/validator and production-gate coverage. Final algebraic
-  verification over the digit-commitment residual object, full CLI exposure,
-  broader vector matrix, formal hooks, and security audit artifacts remain.
+  generator/validator and production-gate coverage. Full CLI exposure, broader
+  vector matrix, formal hooks, and security audit artifacts remain.
 
 Remaining boundary:
 
-- NumiSeal is not a complete terminal proof mode yet. The current complete
-  terminal proof remains `terminalLocal` or `compressedPublic`; NumiSeal must
-  not be advertised as a production verifier mode until the remaining Phase 7
-  algebraic, vector, CLI, and production-gate work is complete.
+- NumiSeal is not a production terminal proof mode yet. The current broadly
+  productized terminal proof remains `terminalLocal` or `compressedPublic`;
+  NumiSeal must not be advertised as production-ready until the remaining vector
+  matrix, CLI, formal-hook, security-audit, and production-gate work is complete.
 - The zero-knowledge product track still needs a separate `NumiSealZK` design
   and proof story.
