@@ -171,7 +171,8 @@ public struct SuperNeoR1CSBuilder: Sendable {
         publicInput: [GoldilocksField],
         privateWitness: [GoldilocksField],
         keySeed: [UInt8],
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> SuperNeoPreparedR1CS {
         guard publicInput.first == .one else {
             throw SuperNeoError.invalidParameter("R1CS public input 0 must be the constant one")
@@ -185,7 +186,8 @@ public struct SuperNeoR1CSBuilder: Sendable {
             publicInputs: [publicInput],
             privateWitnesses: [privateWitness],
             keySeed: keySeed,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
         return SuperNeoPreparedR1CS(structure: structure, preparedFoldInput: prepared)
     }
@@ -308,13 +310,15 @@ public struct SuperNeoOneHotVectorWorkload: Sendable {
     public func prepareForFolding(
         bits: [Bool],
         keySeed: [UInt8],
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> SuperNeoPreparedR1CS {
         try builder.prepareForFolding(
             publicInput: publicInput,
             privateWitness: privateWitness(bits: bits),
             keySeed: keySeed,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -418,7 +422,8 @@ public struct SuperNeoBinaryAdditionWorkload: Sendable {
         left: UInt64,
         right: UInt64,
         keySeed: [UInt8],
-        parameters: SuperNeoParameters = .goldilocks
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> SuperNeoPreparedR1CS {
         let addition = left.addingReportingOverflow(right)
         guard !addition.overflow else {
@@ -428,7 +433,8 @@ public struct SuperNeoBinaryAdditionWorkload: Sendable {
             publicInput: publicInput(sum: addition.partialValue),
             privateWitness: privateWitness(left: left, right: right),
             keySeed: keySeed,
-            parameters: parameters
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
     }
 

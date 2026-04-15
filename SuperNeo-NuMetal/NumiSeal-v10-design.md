@@ -2,78 +2,102 @@
 
 ## Status
 
-This document is an implementation-grade protocol design for a **native terminal seal** for the SuperNeo-NuMetal stack described in the request. I could not patch the repository directly in this environment because the repository itself is not mounted here, so the output below is a protocol and integration spec rather than an applied source-tree modification.
+NumiSeal v10 is the planned native terminal-seal layer for this repository. It
+is not a replacement for SuperNeo folding, Ajtai commitments, or the existing
+terminal CE opening relation. It is a compression and aggregation layer that
+turns many terminal CE obligations into a small number of lane-local terminal
+checks while staying inside the repo's active profile:
 
-The design is intentionally **not** a generic PCS retrofit. It is a terminal proof system specialized to the exact objects already emitted by the repo:
+- Goldilocks base field.
+- GoldilocksExt2 transcript and sum-check arithmetic.
+- `Phi_81(d=54)` ring arithmetic.
+- Ajtai commitments with `kappa = 18`, norm bound `2`, and decomposition length
+  `14`.
+- CCS as the internal arithmetization IR.
+- Terminal acceptance through `ProofEnvelopeHeader` plus trusted verifier policy.
 
-- Goldilocks base field and GoldilocksExt2 transcript arithmetic.
-- `Phi_81` ring arithmetic at degree 54.
-- Ajtai commitments under the repo’s verifier key.
-- transcript-bound SuperNeo folding outputs.
-- PiRLC / PiDEC style bounded batching.
-- existing terminal CE opening verifier as the residual/base opening relation.
+The current repository already has:
 
-The result is a new terminal layer that reduces many CE obligations to:
+- hand-authored R1CS -> CCS preparation through `SuperNeoR1CSBuilder`,
+  `SuperNeoR1CSProgram`, and `SuperNeoR1CSProvingStack`;
+- shape normalization through `SuperNeoCCSNormalizer`;
+- a commitment backend boundary through `CommitmentScheme` and
+  `AjtaiSuperNeoCommitment`;
+- SuperNeo fold, terminal, and compressed-terminal envelopes;
+- public terminal acceptance policy that rejects fold reductions before
+  verification;
+- CE opening proofs used as the terminal base relation;
+- high-assurance CPU and CPU-redundant Metal execution policies.
 
-1. one **lane-local accumulated claim** per compatible lane,
-2. one **decomposition witness commitment** per lane aggregate,
-3. one **degree-4 index-domain sum-check** per lane aggregate,
-4. a **constant number of residual CE openings** per lane aggregate.
+NumiSeal v10 starts from that shipped stack. Phase 0 type and canonicalization
+scaffolding is now present under `Protocols/NumiSeal/`; the full prover,
+verifier, decomposition, scalarization, sum-check, residual opening, and
+envelope kind are still implementation targets.
 
-That is the architecture that gives realistic proof-size and verifier-cost wins while staying inside the repo’s mathematics.
+## Product Split
 
----
+The repo should keep two tracks explicit.
 
-## 1. Design decision summary
+### Prover Track
 
-### 1.1 What NumiSeal is
+Purpose: prove hand-authored CCS/R1CS statements and verify them locally or in
+CLI/test-vector contexts.
 
-NumiSeal is a **native CE-obligation proof system** for the terminal boundary of SuperNeo.
+Shipped path:
 
-It proves that the public terminal CE obligations emitted by the fold engine are all simultaneously valid with respect to:
+```text
+R1CS assignment -> CCS -> Ajtai commitments -> SuperNeo fold
+-> terminal CE opening -> terminal/compressed envelope -> verifier policy
+```
 
-- the pinned CCS shape,
-- the pinned Ajtai verifier key,
-- the pinned statement digest,
-- the exact lane/evaluation-point separation already required by Neo/SuperNeo,
-- bounded witness language constraints.
+This track remains the correctness and integration baseline. Fold reductions are
+useful for debugging and benchmarks but are never application acceptance.
 
-### 1.2 What NumiSeal is not
+### SNARK Product Track
 
-NumiSeal is **not**:
+Purpose: move toward smaller terminal proof objects, recursive/aggregate
+sealing, and eventually zero-knowledge.
 
-- a replacement of the internal SuperNeo folding commitment machinery,
-- a second polynomial-commitment stack living beside Ajtai,
-- a new field/ring profile,
-- a default zero-knowledge layer.
+Planned path:
 
-### 1.3 Main idea
+```text
+frontend -> robust witness generation -> CCS -> Ajtai commitments
+-> SuperNeo folding -> NumiSeal terminal seal
+-> verifier/API -> security story -> optional ZK layer
+```
 
-The core move is:
+NumiSeal belongs here. It is the native terminal seal for aggregation and
+recursion. It is not the zero-knowledge layer by itself.
 
-- batch compatible obligations only **within the same lane**,
-- rebuild a single bounded **digit witness tensor** for the lane-local aggregate,
-- commit once to that digit tensor using an **Ajtai-derived decomposition commitment**,
-- scalarize all remaining public terminal equalities into one extension-field linear identity,
-- combine that linear identity with the bounded-language check into one degree-4 polynomial over the witness index hypercube,
-- prove that identity by sum-check,
-- discharge the final oracle query using the repo’s own **CE opening relation** as the residual/base case.
+## Design Goals
 
-This makes the terminal seal “native”: the final object is still an Ajtai/CE statement in GoldilocksExt2 / `Phi_81`, just much smaller and easier to recurse over.
+NumiSeal v10 must:
 
----
+- bind profile, shape, statement, verifier key, transcript domain, proof kind,
+  and lane summaries;
+- canonicalize every terminal CE obligation before sampling challenges;
+- batch only obligations that share an identical lane key;
+- use the repo's small challenge discipline for lane-local RLC;
+- restore bounded language through a single digit-tensor commitment per lane
+  aggregate;
+- reduce public terminal equalities to one extension-field linear residual;
+- combine residual, digit-language, and padding checks into one degree-4
+  sum-check per lane aggregate;
+- close each lane with the existing CE opening relation as the residual base
+  case;
+- expose carry claims for recursive sealing without forcing recursion into the
+  base verifier.
 
-## 2. Why not Hachi as the terminal seal
+NumiSeal v10 must not:
 
-Hachi is attractive because it is a lattice-based multilinear PCS over extension fields, and recent public materials around it position it as the first lattice PCS with extension-field evaluation support and asymptotically improved verification relative to Greyhound. Greyhound itself gets compact proofs by combining a polynomial-evaluation protocol with LaBRADOR-style recursion, and public summaries report around 53 KB evaluation proofs at large degree. The publicly visible Hachi prototype is also very early-stage: the GitHub repo currently shows only a few commits and a benchmark-style prototype README. This is useful research input, but it is not enough to justify importing Hachi as the repo’s production terminal boundary. citeturn600580search0turn600580search11turn489332search1turn489332search4turn225342view0
+- import a second polynomial commitment stack;
+- change the active Goldilocks/Phi81/Ajtai profile;
+- batch across evaluation points or verifier keys;
+- claim zero knowledge;
+- treat a fold reduction as a terminal proof;
+- use zero digests for absent components.
 
-For this repo specifically, a Hachi-style outer PCS would also have to bridge from SuperNeo’s exact Ajtai/CCS/CE obligations into a different outer polynomial-commitment statement. Public Hachi materials emphasize power-of-two cyclotomic rings, while your active repo profile is explicitly `Phi_81(d=54)` and the Goldilocks modulus `2^64 - 2^32 + 1`. That mismatch is enough to make “drop in Hachi” the wrong direction for v10. citeturn256258search1turn194436search0
-
-NumiSeal avoids that detour. It keeps the terminal object inside the same field/ring/key/transcript family and uses the already-implemented CE opening relation as the last residual step rather than replacing it with an external PCS.
-
----
-
-## 3. Public API
+## Public API Target
 
 ```swift
 public struct NumiSealAcceptancePolicy {
@@ -81,9 +105,9 @@ public struct NumiSealAcceptancePolicy {
     public let shapeDigest: Digest256
     public let statementDigest: Digest256
     public let verifierKeyDigest: Digest256
-    public let acceptedLaneIDs: Set<NumiSealLaneID>
-    public let maximumProofByteCount: Int
     public let transcriptDomain: Digest256
+    public let acceptedLaneIDs: Set<NumiSealLaneID>
+    public let maximumProofByteCount: Int?
 }
 
 public final class NumiSealProver {
@@ -92,6 +116,7 @@ public final class NumiSealProver {
         witnesses: [CEOpeningWitness],
         shape: CCSShape,
         key: AjtaiCommitmentKey,
+        policy: NumiSealAcceptancePolicy,
         executionPolicy: SuperNeoExecutionPolicy
     ) throws -> NumiSealProofEnvelope
 }
@@ -102,7 +127,8 @@ public final class NumiSealVerifier {
         obligations: [NumiSealObligation],
         shape: CCSShape,
         key: AjtaiCommitmentKey,
-        policy: NumiSealAcceptancePolicy
+        policy: NumiSealAcceptancePolicy,
+        executionPolicy: SuperNeoExecutionPolicy
     ) throws -> VerificationResult
 }
 ```
@@ -110,12 +136,14 @@ public final class NumiSealVerifier {
 New envelope kind:
 
 ```swift
-ProofEnvelopeKind.numiSealTerminal = 4
+case numiSealTerminal = 4
 ```
 
----
+The verifier API should mirror `verifyTerminalProofEnvelope`: it must reject
+wrong kind, wrong profile, wrong shape, wrong statement, wrong key, wrong
+transcript domain, and over-large proof bytes before expensive verification.
 
-## 4. Public statement object
+## Public Statement Objects
 
 ```text
 NumiSealObligation {
@@ -132,374 +160,306 @@ NumiSealObligation {
 }
 ```
 
-A **lane** is exactly:
+The lane key is:
 
 ```text
-(profileID, shapeDigest, verifierKeyDigest, evalPointDigest, laneID)
-```
-
-Never batch across distinct lane tuples.
-
-This matches the Neo/SuperNeo “two-lane” warning from Nightstream: obligations at different evaluation points cannot be merged into the same single-point terminal check. citeturn164464search0
-
----
-
-## 5. Canonicalization and transcript binding
-
-### 5.1 Canonical order
-
-For a fixed verification call:
-
-1. reject any obligation whose profile/shape/key/statement digest disagrees with policy,
-2. compute `evalPointDigest = H("numiseal.eval-point.v1" || canonical(evalPoint))`,
-3. compute lane tuple,
-4. sort lexicographically by:
-   - lane tuple,
-   - commitment digest,
-   - public-input digest,
-   - matrix-evaluation digest,
-   - sourceFoldDigest.
-
-### 5.2 Obligation leaf
-
-```text
-obligationLeaf_i = H(
-  "numiseal.obligations.v1" ||
-  canonicalEncode(obligation_i)
+(
+  profileID,
+  shapeDigest,
+  verifierKeyDigest,
+  evalPointDigest,
+  laneID
 )
 ```
 
-### 5.3 Lane summary
-
-For each lane:
+`evalPointDigest` is:
 
 ```text
-laneSummaryLeaf = H(
+H("numiseal.eval-point.v1" || length(evalPoint) || canonical(evalPoint))
+```
+
+Never batch across different lane keys. Different evaluation points are
+different lanes even when every other digest matches.
+
+## Canonicalization
+
+For each verification call:
+
+1. Reject empty obligation lists.
+2. Reject obligations whose profile, shape, statement, or verifier-key digest
+   disagrees with policy.
+3. Reject obligations whose `laneID` is not accepted by policy.
+4. Compute `evalPointDigest`.
+5. Compute the lane key.
+6. Sort obligations lexicographically by:
+   - lane key bytes,
+   - commitment digest,
+   - public input digest,
+   - matrix evaluation digest,
+   - source fold digest.
+7. Group adjacent obligations by lane key.
+
+The obligation leaf is:
+
+```text
+H(
+  "numiseal.obligation.v1" ||
+  canonicalEncode(obligation)
+)
+```
+
+The lane summary leaf is:
+
+```text
+H(
   "numiseal.lane-summary.v1" ||
-  laneID ||
-  profileID ||
-  shapeDigest ||
-  verifierKeyDigest ||
-  evalPointDigest ||
+  laneKey ||
   obligationCount ||
   laneObligationRoot
 )
 ```
 
-### 5.4 Transcript schedule
-
-Transcript absorb order:
-
-1. envelope kind/version,
-2. `policy.transcriptDomain`,
-3. profile parameters hash,
-4. `shapeDigest`, `statementDigest`, `verifierKeyDigest`,
-5. lane summary leaves in canonical order,
-6. obligation leaves in canonical order,
-7. component digests as they are fixed.
-
-All absorbs use the repo’s existing length-framed transcript discipline.
-
-No empty components get zero digests. Use:
+Roots use deterministic length-framed digest lists:
 
 ```text
-absentComponentDigest(label, context) =
-  H("numiseal.absent-component.v1" || label || context)
+root(label, leaves) =
+  H(label || count(leaves) || leaf_0 || ... || leaf_n)
 ```
 
----
+This is not a Merkle authentication tree. It is a compact transcript-binding
+root. If later proof streaming needs inclusion proofs, add a separate Merkle
+root with a new label.
 
-## 6. Lane-local RLC accumulation
-
-For each lane with obligations `O_1, ..., O_m`, sample transcript challenges
+Absent components use:
 
 ```text
-ρ_i ∈ {-2, -1, 0, 1, 2}
+H("numiseal.absent-component.v1" || componentLabel || laneKey)
 ```
 
-using the same challenge discipline as PiRLC.
+Zero digests are invalid.
 
-Then define lane-local aggregates:
+## Transcript Schedule
+
+All challenge derivation must follow one public schedule:
+
+1. envelope version and kind,
+2. policy transcript domain,
+3. profile ID and profile parameter digest,
+4. shape digest,
+5. statement digest,
+6. verifier-key digest,
+7. canonical obligation root,
+8. lane summary root,
+9. per-lane component digests as they become fixed.
+
+The transcript schedule is part of the proof kind. Any change requires a new
+NumiSeal proof version.
+
+## Lane-Local RLC
+
+For each lane with obligations `O_0 ... O_{m-1}`, sample small challenges:
 
 ```text
-C*   = Σ_i ρ_i C_i
-Y*   = Σ_i ρ_i Y_i
-x*   = Σ_i ρ_i x_i
-z*   = Σ_i ρ_i z_i
+rho_i in {-2, -1, 0, 1, 2}
 ```
 
-where `Y_i` is the vector of claimed matrix evaluations and `x_i` is the public-input encoding.
+using the same profile challenge set as PiRLC.
 
-### 6.1 Why reuse the PiRLC challenge set
-
-Ajtai commitments are only binding for low-norm witnesses, so uncontrolled linear batching is unsafe. Public discussions of lattice folding highlight that norm growth is the central difficulty when using Ajtai commitments, and that folding must be engineered to stay inside the binding range. NumiSeal inherits the repo’s existing solution strategy: small batching coefficients followed by decomposition. citeturn293242search0turn293242search2turn293242search3
-
-### 6.2 Batch limits
-
-NumiSeal should enforce the same profile-safe limits the repo already advertises:
-
-- max fresh batch count = 61,
-- max prior CE claim count = 14,
-- decomposition length = 14.
-
-If a lane exceeds safe batch limits, split it into multiple lane aggregates and prove each aggregate independently inside the same envelope.
-
----
-
-## 7. Bound-restoring decomposition
-
-### 7.1 Preferred v10 representation
-
-This is the critical design choice.
-
-Do **not** send 14 separate decomposition commitments unless the current key code absolutely forces it.
-
-Preferred v10 path:
-
-- represent the aggregate witness `z*` as a **digit witness tensor**
+Aggregate public objects:
 
 ```text
-d : [0..n-1] × [0..15] -> F_q
+C* = sum_i rho_i C_i
+Y* = sum_i rho_i Y_i
+x* = sum_i rho_i x_i
 ```
 
-where only digits `0..13` are active, digits `14,15` are padding, and
+Aggregate private witnesses on the prover side:
 
 ```text
-z*(t) = Σ_{k=0}^{13} 2^k · d(t, k)
+z* = sum_i rho_i z_i
 ```
 
-with each active digit in the bounded language.
+Limits:
 
-### 7.2 One decomposition commitment per lane aggregate
+- obligation count per lane aggregate must not exceed
+  `SuperNeoParameters.maxFreshBatchCount`;
+- carry/prior-like obligations must not exceed
+  `SuperNeoParameters.maxPriorClaimCount`;
+- when a lane exceeds a limit, split into deterministic lane aggregate chunks
+  and prove each chunk independently in the same envelope.
 
-Commit **once** to the flattened digit tensor using a key derived from the pinned Ajtai key:
+## Bound-Restoring Decomposition
+
+The v10 representation is one digit witness tensor per lane aggregate:
 
 ```text
-A_dec(lane) = DeriveAjtaiKey(
-  baseKey = A,
-  domain = "numiseal.decomposition-key.v1",
-  laneID,
-  requiredColumnCount
+d : [0 .. paddedWitnessLength - 1] x [0 .. 15] -> Goldilocks
+```
+
+Active digits are `0 .. 13`; digit slots `14` and `15` are padding.
+
+Reconstruction:
+
+```text
+z*(t) = sum_{k=0}^{13} 2^k d(t, k)
+```
+
+The active digit language for v10 is ternary:
+
+```text
+d(t,k) in {-1, 0, 1}
+```
+
+with language polynomial:
+
+```text
+N(u) = u(u - 1)(u + 1)
+```
+
+### Decomposition Key
+
+Derive one Ajtai decomposition key per lane aggregate:
+
+```text
+A_dec = AjtaiCommitmentKey(
+  columns: ceil((paddedWitnessLength * 16) / 54),
+  seed: H(
+    "numiseal.decomposition-key.v1" ||
+    verifierKeyDigest ||
+    laneKey ||
+    aggregateIndex ||
+    requiredColumnCount
+  )
 )
 ```
 
-and
+This is public deterministic key derivation. Both prover and verifier can
+rebuild `A_dec` from public data.
+
+Commit once:
 
 ```text
-D_lane = A_dec(lane) · pack(d_flat)
+D_lane = A_dec * pack(d_flat)
 ```
 
-This keeps proof size on target. Fourteen full Ajtai commitments would usually miss the 10–30 KB goal.
+Do not send 14 limb commitments. Fourteen limb commitments are correct but fail
+the v10 size target and should be kept out of the primary design.
 
-### 7.3 Fallback only if key derivation is impossible
+## Public Residual Scalarization
 
-If the existing `AjtaiCommitmentKey` cannot deterministically derive a widened key from the pinned verifier-key seed, the fallback is 14 limb commitments. That fallback is correct but it is **not** the preferred v10 design and likely fails the stated proof-size target.
+Each lane aggregate must prove:
 
-### 7.4 Language polynomial
+1. Ajtai commitment consistency:
 
-For the current ternary digit language:
+   ```text
+   A_orig * z* = C*
+   ```
+
+2. CCS matrix evaluation consistency:
+
+   ```text
+   MLE_r(M_j z*) = Y*_j
+   ```
+
+3. public-slot consistency:
+
+   ```text
+   z*[0 .. publicInputCount) = x*
+   ```
+
+All three are linear in `z*`, hence linear in the digit tensor after applying
+the reconstruction map.
+
+Sample transcript weights for commitment rows/ring coefficients, matrix
+indices/ring coefficients, and public slots. Collapse the checks into:
 
 ```text
-N(t) = t(t - 1)(t + 1)
+R_lin(d) = sum_{t,k} lambda_lin(t) * 2^k * d(t,k) - c_lin
 ```
 
-For future decomposition alphabets, define a profile-level `LanguagePolynomial` that vanishes exactly on the allowed alphabet.
+where `lambda_lin` and `c_lin` are fully public after transcript challenge
+sampling.
 
----
+## Sum-Check Polynomial
 
-## 8. Scalarizing the public terminal equalities
-
-Each lane aggregate needs to prove three classes of equalities:
-
-1. original Ajtai commitment consistency,
-2. original matrix-evaluation consistency,
-3. public-slot consistency.
-
-These are all **linear** in the witness.
-
-### 8.1 Commitment residual
-
-Expand the ring/vector commitment equation
-
-```text
-A_orig · reconstruct(d) = C*
-```
-
-into base coefficients and sample transcript weights
-
-```text
-ψ_{row, coeff} ∈ F_q^2
-```
-
-Then obtain one extension-field scalar residual:
-
-```text
-R_commit(d) = Σ_t λ_commit(t) · z*(t) - c_commit
-```
-
-where `λ_commit` and `c_commit` are public and derived from:
-
-- `A_orig`,
-- the packing map,
-- the random weights `ψ`,
-- the public aggregate commitment `C*`.
-
-### 8.2 Evaluation residual
-
-For each claimed matrix evaluation equality
-
-```text
-MLE_r(M_j z*) = y*_j
-```
-
-choose transcript weights over matrix index and ring coefficients, and collapse all of them into:
-
-```text
-R_eval(d) = Σ_t λ_eval(t) · z*(t) - c_eval
-```
-
-The coefficient vector `λ_eval` is public and computed from the sparse CCS matrices and the lane evaluation point.
-
-### 8.3 Public-slot residual
-
-Similarly encode public-input slot matching as:
-
-```text
-R_pub(d) = Σ_t λ_pub(t) · z*(t) - c_pub
-```
-
-### 8.4 Combined linear residual
-
-After sampling `α_commit, α_eval, α_pub ∈ F_q^2`, define
-
-```text
-R_lin(d) = Σ_t λ_lin(t) · z*(t) - c_lin
-```
-
-where
-
-```text
-λ_lin = α_commit λ_commit + α_eval λ_eval + α_pub λ_pub
-c_lin = α_commit c_commit + α_eval c_eval + α_pub c_pub
-```
-
-Because
-
-```text
-z*(t) = Σ_k 2^k d(t, k)
-```
-
-this becomes
-
-```text
-R_lin(d) = Σ_{t,k} λ_lin(t) 2^k d(t, k) - c_lin
-```
-
-Everything is now a linear identity in the digit witness tensor.
-
----
-
-## 9. The NumiSeal sum-check polynomial
-
-Let the digit tensor be viewed as a multilinear extension
+View `d` as a multilinear extension:
 
 ```text
 D(X, K)
 ```
 
-over a Boolean cube of dimension
+over:
 
 ```text
-ℓ = log2(paddedWitnessLength) + 4
+ell = log2(paddedWitnessLength) + 4
 ```
 
-where `X` indexes witness position and `K` indexes the 16 digit slots.
+The extra four variables index the 16 digit slots.
 
-Define public tables / multilinear extensions:
-
-- `pow2(K)` = `[1, 2, 4, ..., 2^13, 0, 0]`,
-- `active(K)` = `[1 x 14, 0, 0]`,
-- `inactive(K) = 1 - active(K)`,
-- `λ_lin(X)` = combined public linear coefficient table,
-- `η_lang(X, K) = eq(τ_lang, (X,K))` for a transcript-random point `τ_lang`,
-- `η_pad(X, K) = eq(τ_pad, (X,K))` for a transcript-random point `τ_pad`.
-
-Then define
+Public tables:
 
 ```text
-G_lin(X, K)  = λ_lin(X) · pow2(K) · D(X, K)
-G_lang(X, K) = η_lang(X, K) · active(K) · N(D(X, K))
-G_pad(X, K)  = η_pad(X, K) · inactive(K) · D(X, K)
+pow2(K)    = [1, 2, ..., 2^13, 0, 0]
+active(K)  = [1 x 14, 0, 0]
+padding(K) = 1 - active(K)
+lambda(X)  = lambda_lin(X)
 ```
 
-and after sampling `β_lin, β_lang, β_pad ∈ F_q^2` define
+Sample `tau_lang` and `tau_pad` and define equality-weight tables:
 
 ```text
-G(X, K) =
-    β_lin  · G_lin(X, K)
-  + β_lang · G_lang(X, K)
-  + β_pad  · G_pad(X, K)
+eta_lang(X,K) = eq(tau_lang, (X,K))
+eta_pad(X,K)  = eq(tau_pad,  (X,K))
 ```
 
-Claimed total:
+Define:
 
 ```text
-T = β_lin · c_lin
+G_lin(X,K)  = lambda(X) * pow2(K) * D(X,K)
+G_lang(X,K) = eta_lang(X,K) * active(K)  * N(D(X,K))
+G_pad(X,K)  = eta_pad(X,K)  * padding(K) * D(X,K)
 ```
 
-because the language and padding sums should be zero.
+After sampling `beta_lin`, `beta_lang`, and `beta_pad`:
 
-### 9.1 Degree bound
+```text
+G = beta_lin * G_lin + beta_lang * G_lang + beta_pad * G_pad
+```
 
-- `G_lin` is degree 2 per variable,
-- `G_pad` is degree 2 per variable,
-- `G_lang` is degree 4 per variable because `N` is cubic and `η_lang` is multilinear.
+Claimed sum:
 
-So the whole combined polynomial has degree at most 4 in each variable.
+```text
+sum_{Boolean cube} G = beta_lin * c_lin
+```
 
-This fits the standard sum-check setting used by Spartan/HyperNova-style CCS reductions. HyperNova’s preliminaries explicitly rely on sum-check over low-degree polynomials on the Boolean hypercube and define CCS as sparse multilinear relations over that cube. citeturn325281view3
+Degree per variable:
 
-### 9.2 Why the language check works
+- `G_lin`: at most 2;
+- `G_pad`: at most 2;
+- `G_lang`: at most 4 because `N` is cubic and `eta_lang` is multilinear.
 
-`N(D(X,K))` is zero on every Boolean-cube point for an honest ternary digit table. If it is non-zero anywhere, then its multilinear extension is a non-zero low-degree polynomial, so evaluating the `eq(τ_lang, ·)` weighted sum at a random transcript point catches the violation with standard Schwartz–Zippel / sum-check soundness.
+The verifier uses the existing sum-check verifier with expected degree `4`.
 
----
+## Residual Opening
 
-## 10. Residual opening: native base case
-
-After the sum-check, the verifier is left with a single evaluation claim of the form
+After sum-check, the verifier has one digit-witness evaluation claim:
 
 ```text
 D(r_sc) = v_sc
 ```
 
-for a transcript-derived extension-field point `r_sc`.
-
-This is the **only** oracle value that the verifier needs from the witness for the combined lane check.
-
-### 10.1 Do not invent a second opening primitive
-
-The residual opening should be handled by the repo’s existing CE opening relation, not by a new PCS.
-
-Encode the claim as an internal CE statement for the digit witness commitment `D_lane` using a fixed identity/selection shape:
+Do not add a new PCS. Encode this as a CE opening over a fixed internal
+identity/selection CCS shape for the flattened digit witness:
 
 ```text
-MLE_{r_sc}(I · d_flat) = v_sc
+MLE_{r_sc}(I * d_flat) = v_sc
 ```
 
-where `I` is a canonical sparse identity selector over the flattened digit witness.
-
-This satisfies the requirement:
-
-- exact Ajtai linear relation,
-- exact transformed sparse-matrix evaluation relation,
-- no generic PCS.
-
-### 10.2 Residual proof object
+The residual proof object:
 
 ```text
 NumiSealResidualOpening {
-  laneID
+  laneKey
   decompositionKeyDigest
   decompositionCommitmentDigest
   evalPointDigest
@@ -508,18 +468,19 @@ NumiSealResidualOpening {
 }
 ```
 
-### 10.3 Recursive carry
+This is the terminal base case. A NumiSeal verifier accepts only if every lane
+aggregate has a valid residual CE opening.
 
-The residual claim can also be exported as a new NumiSeal carry obligation:
+## Recursive Carry
+
+A recursive prover may export a carry claim instead of exposing the full
+residual witness:
 
 ```text
 NumiSealCarryClaim {
   carryKind = digitWitnessMLE
-  laneID
-  profileID
-  parentShapeDigest
+  laneKey
   parentStatementDigest
-  parentVerifierKeyDigest
   decompositionKeyDigest
   commitment = D_lane
   evalPoint = r_sc
@@ -527,499 +488,383 @@ NumiSealCarryClaim {
 }
 ```
 
-This is how recursive sealing / checkpointing works. The number of such carry claims is constant per lane aggregate.
+Application verification should verify residual openings immediately.
+Recursive/aggregate proving may carry them into the next NumiSeal instance.
 
----
-
-## 11. Full proof object
+## Proof Object
 
 ```text
 NumiSealProof {
   version
   profileID
-  laneSummaries
   obligationRoot
+  laneSummaryRoot
   componentDigestRoot
-  accumulatorTranscriptDigest
-  decompositionCommitments
-  sumcheckProofs
-  terminalResidualOpenings
-  recursionCarryClaims
+  transcriptDigest
+  laneProofs
+}
+
+NumiSealLaneProof {
+  laneKey
+  aggregateIndex
+  obligationDigests
+  rlcChallenges
+  aggregateDigest
+  decompositionKeyDigest
+  decompositionCommitment
+  scalarizationDigest
+  sumcheckProof
+  residualOpening
+  optionalCarryClaim
 }
 ```
 
-Typed component leaves:
+Typed component labels:
 
 ```text
-numiseal.obligations.v1
+numiseal.obligation.v1
 numiseal.lane-summary.v1
-numiseal.accumulator.v1
+numiseal.public-statement.v1
+numiseal.lane-aggregate.v1
 numiseal.decomposition.v1
+numiseal.scalarization.v1
 numiseal.sumcheck.v1
 numiseal.residual-opening.v1
+numiseal.carry.v1
 numiseal.absent-component.v1
 ```
 
-Recommended component leaf commitments:
+`componentDigestRoot` is a deterministic digest-list root of all present or
+absent component leaves in lane-major order.
+
+## Verifier Algorithm
+
+1. Parse the envelope header.
+2. Reject unless `kind == .numiSealTerminal`.
+3. Apply `NumiSealAcceptancePolicy`.
+4. Recompute canonical obligation order.
+5. Recompute obligation and lane roots.
+6. Rebuild the transcript schedule.
+7. For every lane aggregate:
+   - recompute RLC challenges;
+   - recompute public aggregates;
+   - derive `A_dec`;
+   - recompute decomposition key digest;
+   - recompute scalarization coefficients and `c_lin`;
+   - verify the degree-4 sum-check;
+   - verify the residual CE opening.
+8. Recompute component root and final transcript digest.
+9. Accept only if every lane aggregate accepts.
+
+## Security Claims
+
+NumiSeal v10 may claim:
+
+- completeness for valid terminal CE obligations and correct witnesses;
+- binding to profile, shape, statement, verifier key, transcript domain, proof
+  kind, lane summaries, and component roots;
+- lane-local accumulation soundness under the same small-challenge and
+  bounded-decomposition discipline used by PiRLC/PiDEC;
+- terminal relation soundness conditioned on Ajtai binding in the stated norm
+  regime, soundness of sum-check, and soundness of the residual CE opening
+  relation;
+- recursive carry soundness conditioned on correct carry encoding and soundness
+  of the next verifier layer.
+
+NumiSeal v10 may not claim:
+
+- zero knowledge;
+- QROM soundness;
+- arbitrary-Ajtai-matrix binding beyond the repo's stated conditional model;
+- security for cross-lane batching;
+- production certification.
+
+## Zero-Knowledge Track
+
+Default NumiSeal is a correctness/knowledge terminal seal.
+
+`NumiSealZK` is a later layer and needs its own design:
+
+- digit-tensor masking;
+- simulator strategy;
+- transcript-safe randomness derivation;
+- proof that masking composes with residual CE opening;
+- randomness-reuse protection across recursive levels;
+- side-channel analysis for witness-dependent branches and memory access.
+
+Do not treat the current CE opening masking as a blanket ZK layer.
+
+## Execution Policies
+
+### `.highAssurance`
+
+- CPU-only for secret-bearing work.
+- Constant-work CPU paths where already implemented.
+- Deterministic loop order and transcript schedule.
+- No Metal acceleration for witness-bearing stages.
+
+### `.default`
+
+- Optimized CPU.
+- Deterministic serialization.
+- Existing automatic Metal routing only where the policy permits it.
+
+### `.cpuRedundantMetal`
+
+- Metal may accelerate array-heavy work.
+- Every Metal result used in a soundness-critical path must be checked against
+  the CPU oracle before use.
+
+Verifier logic should remain CPU-first until benchmarks show a real verifier
+benefit and CPU-redundant checks exist.
+
+## Implementation Plan
+
+### Phase 0: Types And Canonicalization
+
+Files:
 
 ```text
-accumulatorLeaf = H(
-  "numiseal.accumulator.v1" ||
-  laneID ||
-  aggregateCommitmentDigest ||
-  aggregateEvaluationDigest ||
-  aggregatePublicInputDigest ||
-  aggregateSourceFoldDigest
-)
-
-compositionLeaf = H(
-  "numiseal.decomposition.v1" ||
-  laneID ||
-  decompositionKeyDigest ||
-  decompositionCommitmentDigest
-)
-
-sumcheckLeaf = H(
-  "numiseal.sumcheck.v1" ||
-  laneID ||
-  claimedTotal ||
-  roundDigestRoot ||
-  finalPointDigest ||
-  finalClaimedValue
-)
-
-residualOpeningLeaf = H(
-  "numiseal.residual-opening.v1" ||
-  laneID ||
-  residualOpeningDigest
-)
+SuperNeo-NuMetal/Protocols/NumiSeal/
+  NumiSealTypes.swift
+  NumiSealCanonicalization.swift
+  NumiSealWire.swift
+  NumiSealPublicStatement.swift
+  NumiSealLaneAggregation.swift
 ```
 
-`componentDigestRoot` is the Merkle root of all present or absent component leaves in a fixed lane-major order.
-
----
-
-## 12. Prover algorithm
-
-For each verification call:
-
-### Step A. Canonicalize
-
-- canonicalize obligations,
-- group by lane,
-- absorb into transcript.
-
-### Step B. Lane accumulation
-
-For each lane:
-
-- sample `ρ_i`,
-- compute public aggregates `C*`, `Y*`, `x*`,
-- compute private aggregate witness `z*`.
-
-### Step C. Digit decomposition
-
-- form ternary digit tensor `d`,
-- derive `A_dec(lane)`,
-- commit once to `d_flat` obtaining `D_lane`.
-
-### Step D. Public coefficient generation
-
-- sample residual-combination challenges,
-- compute `λ_commit`, `λ_eval`, `λ_pub`,
-- combine into `λ_lin`,
-- compute `c_lin`.
-
-### Step E. Sum-check
-
-- define `G(X,K)` as above,
-- run non-interactive sum-check over `GoldilocksExt2`,
-- obtain final point `r_sc` and claimed value `v_sc = D(r_sc)`.
-
-### Step F. Residual CE opening
-
-- generate CE opening proof for `D_lane` at `r_sc` with claimed value `v_sc`.
-
-### Step G. Envelope binding
-
-- compute all component leaves,
-- compute `componentDigestRoot`,
-- finalize transcript digest,
-- serialize proof body and envelope.
-
----
-
-## 13. Verifier algorithm
-
-### Step 1. Policy checks
-
-Reject unless:
-
-- envelope kind is `numiSealTerminal`,
-- proof bytes are within policy bound,
-- profile/shape/statement/key digests match,
-- all lane IDs are policy-accepted.
-
-### Step 2. Re-canonicalize obligations
-
-- rebuild canonical order,
-- rebuild obligation root,
-- rebuild lane summaries.
-
-### Step 3. Transcript reconstruction
-
-- absorb the same public objects in the same order,
-- re-derive all Fiat–Shamir challenges.
-
-### Step 4. Per-lane public recomputation
-
-For each lane:
-
-- recompute `ρ_i` and public aggregates,
-- verify the decomposition commitment digest entry,
-- derive the same decomposition key digest,
-- recompute `λ_lin` and `c_lin`,
-- verify sum-check rounds,
-- recover final `r_sc` and claimed `v_sc`,
-- verify residual CE opening on `D_lane` at `r_sc`.
-
-### Step 5. Component root and final digest
-
-- recompute `componentDigestRoot`,
-- recompute `accumulatorTranscriptDigest`,
-- verify envelope binding.
-
-Return `accepted` only if all lanes accept.
-
----
-
-## 14. Security claims and proof story
-
-NumiSeal v10 should claim the following and no more.
-
-### 14.1 Completeness
-
-If all supplied obligations are valid and the prover supplies the correct witnesses, the verifier accepts.
-
-Reason:
-
-- lane-local RLC is exact linear aggregation,
-- ternary digit decomposition reconstructs the aggregate witness exactly,
-- linear residual scalarization preserves equality,
-- sum-check is complete,
-- residual CE opening verifier is complete.
-
-### 14.2 Binding to exact shape / statement / verifier key
-
-The envelope and transcript bind:
-
-- `shapeDigest`,
-- `statementDigest`,
-- `verifierKeyDigest`,
-- lane summaries,
-- obligation root,
-- component digest root.
-
-An accepted proof is therefore statement-specific and key-specific.
-
-### 14.3 Lane-local accumulation soundness
-
-This is inherited from the same bounded small-challenge accumulation discipline already used by PiRLC/PiDEC, provided NumiSeal enforces the same safe profile limits.
-
-### 14.4 Bounded-witness knowledge soundness
-
-Conditioned on:
-
-1. binding of the Ajtai commitment for the claimed norm range,
-2. correctness of the decomposition reconstruction identity,
-3. soundness of the residual CE opening relation,
-
-an accepting proof implies knowledge of a digit witness tensor whose reconstruction satisfies the aggregated linear obligations.
-
-### 14.5 Terminal CE relation soundness
-
-The sum-check plus residual opening implies the lane aggregate satisfies the exact scalarized terminal equalities derived from:
-
-- the Ajtai commitment relation,
-- the sparse-matrix evaluation relation,
-- the public-slot relation.
-
-By random scalarization over ring coefficients / matrix indices, failure of any constituent equality survives into the scalarized relation except with negligible probability.
-
-### 14.6 Fiat–Shamir model
-
-For v10, the conservative claim should be:
-
-- **Fiat–Shamir soundness in the classical random-oracle model**.
-
-Do **not** claim a QROM proof unless one is written specifically for this transcript schedule and residual-opening composition.
-
-### 14.7 Recursive composition soundness
-
-Recursive soundness reduces to:
-
-1. correctness of carry-claim encoding,
-2. soundness of the higher-level NumiSeal instance on those carry claims,
-3. collision resistance / binding of the component digests.
-
-### 14.8 Zero knowledge
-
-Do **not** claim zero knowledge by default.
-
-Default NumiSeal is a **knowledge / correctness** terminal seal only.
-
-A future `NumiSealZK` must add:
-
-- masking of the digit witness tensor,
-- a simulator argument,
-- transcript-safe randomness derivation,
-- randomness-reuse prevention across recursive levels.
-
----
-
-## 15. Performance expectations
-
-### 15.1 Proof size
-
-For one lane aggregate:
-
-- one decomposition commitment dominates,
-- one degree-4 sum-check contributes `O(log n)` extension-field elements,
-- one residual CE opening contributes a constant-size object.
-
-With raw Ajtai commitments of roughly `κ * 54` base-field coefficients, one decomposition commitment is on the order of single-digit KB, so one or two lanes plus logarithmic sum-check overhead is consistent with the 10–30 KB target for common cases.
-
-### 15.2 Verifier time
-
-The verifier does **not** touch the full witness.
-
-It performs:
-
-- canonicalization and digesting over public obligations,
-- sparse public coefficient generation,
-- `O(log n)` sum-check verification,
-- constant-number residual CE openings.
-
-That is sublinear in witness length, assuming the existing CE opening verifier is already sublinear in the opened witness length.
-
-### 15.3 Prover time
-
-Near-linear in witness length for each lane aggregate:
-
-- digit decomposition is linear,
-- decomposition commitment is linear and already has CPU/Metal paths,
-- each sum-check round is a streaming reduction over the digit tensor,
-- residual CE opening count is constant per lane aggregate.
-
----
-
-## 16. Execution policy mapping
-
-### `highAssurance`
-
-- CPU only.
-- fixed-order reductions,
-- no nondeterministic parallel sums,
-- no Metal,
-- deterministic challenge expansion.
-
-### `cpu`
-
-- multithreaded scalar/vectorized implementation,
-- cache sparse coefficient tables per shape + eval point digest,
-- deterministic serialization.
-
-### `metal`
-
-Accelerate only the heavy array work:
-
-1. lane-local witness accumulation,
-2. digit decomposition packing,
-3. decomposition commitment computation,
-4. round-wise sum-check reductions.
-
-Verifier stays CPU.
-
----
-
-## 17. Concrete source-tree plan
-
-Suggested new files:
+Current status:
+
+- `NumiSealTypes.swift` defines lane IDs, lane keys, acceptance policy,
+  obligations, canonical obligations, lane summaries, and digest-list roots.
+- `NumiSealCanonicalization.swift` validates policy bindings, derives
+  evaluation-point digests, sorts obligations deterministically, groups them by
+  lane key, and produces obligation/lane summary roots.
+- `NumiSealWire.swift` adds bounded readers for lane IDs, lane keys, summaries,
+  commitments, public-input encodings, evaluation points, and matrix
+  evaluations.
+- `NumiSealPublicStatement.swift` defines a versioned, parseable public
+  statement that binds profile, shape, statement, verifier key, transcript
+  domain, obligation root, lane summary root, and sorted lane summaries.
+- `NumiSealLaneAggregation.swift` starts Phase 1 by chunking each lane under
+  profile limits, deriving deterministic lane-local RLC challenges, computing
+  public aggregates, and giving each aggregate a parse-checked digest.
+- Phase 6 still owns the final `ProofEnvelopeKind.numiSealTerminal` body and
+  verifier API.
+
+Acceptance:
+
+- deterministic obligation sorting;
+- lane-key derivation;
+- policy rejection tests;
+- digest root fixtures;
+- public-statement byte round trips;
+- aggregate byte round trips;
+- no zero digest placeholders.
+
+### Phase 1: Lane Accumulation
+
+Files:
 
 ```text
-SuperNeo-NuMetal/
-  Protocols/
-    NumiSeal/
-      NumiSealTypes.swift
-      NumiSealCanonicalization.swift
-      NumiSealLaneAccumulator.swift
-      NumiSealDecomposition.swift
-      NumiSealScalarization.swift
-      NumiSealSumCheck.swift
-      NumiSealResidualOpening.swift
-      NumiSealProver.swift
-      NumiSealVerifier.swift
-      NumiSealSerialization.swift
-  Docs/
-    NumiSeal-v10.md
-    NumiSeal-Security.md
-    NumiSeal-Recursion.md
-  Tests/
-    NumiSealTests/
-      NumiSealCanonicalizationTests.swift
-      NumiSealLaneBatchingTests.swift
-      NumiSealDecompositionTests.swift
-      NumiSealSumCheckTests.swift
-      NumiSealResidualOpeningTests.swift
-      NumiSealEndToEndTests.swift
-      NumiSealAdversarialTests.swift
+NumiSealLaneAggregation.swift
 ```
 
-### 17.1 Serialization changes
+Acceptance:
 
-Extend `ProofEnvelopeKind` with:
+- small challenge sampling is bound to the NumiSeal public-statement digest,
+  lane key, aggregate index, and canonical obligation digests;
+- lane-local public aggregates match direct recomputation;
+- cross-lane batching is impossible by construction because chunks are cut only
+  inside sorted lane-summary spans;
+- lane chunking respects profile limits;
+- aggregate bytes reject digest tampering.
 
-```swift
-case numiSealTerminal = 4
+### Phase 2: Decomposition Commitment
+
+Files:
+
+```text
+NumiSealDecomposition.swift
 ```
 
-Add versioned serialization labels for every new component. Reuse the repo’s digest framing and “trusted context” acceptance rules.
+Acceptance:
 
-### 17.2 Reuse points in existing code
+- deterministic `A_dec` derivation from verifier-key digest and lane key;
+- one commitment per lane aggregate;
+- digit reconstruction test vectors;
+- bad digit and nonzero padding rejection;
+- CPU and accelerated commitment outputs match when acceleration is enabled.
 
-- `AjtaiCommitment.swift`
-  - reuse commit / linear-combine paths,
-  - add deterministic `deriveSubkey(...)` if current key material is seed-based.
-- `SumCheckTranscript.swift`
-  - add domain labels for NumiSeal challenge sampling.
-- `SuperNeoProtocols.swift`
-  - expose a residual CE-opening verification entrypoint usable by NumiSeal.
-- `SuperNeoSerialization.swift`
-  - add envelope kind, component leaves, absent-component digests.
+### Phase 3: Scalarization
 
----
+Files:
 
-## 18. Test plan
+```text
+NumiSealScalarization.swift
+```
 
-### 18.1 Deterministic test vectors
+Acceptance:
 
-Need versioned golden vectors for:
+- commitment residual fixtures;
+- evaluation residual fixtures over sparse CCS matrices;
+- public-slot residual fixtures;
+- tampering any public terminal equality changes `R_lin`.
 
-1. canonical obligation sorting,
-2. lane summary root,
-3. RLC coefficient sampling,
-4. digit decomposition,
-5. decomposition commitment digest,
-6. scalarization coefficients and `c_lin`,
-7. one-lane sum-check transcript,
-8. final residual CE opening claim,
-9. full envelope digest.
+### Phase 4: Degree-4 Sum-Check
 
-### 18.2 Adversarial tests
+Files:
 
-Must include:
+```text
+NumiSealSumCheck.swift
+```
 
-- same lane ID but different eval point → reject,
-- same eval point but different verifier key digest → reject,
-- valid obligations but wrong canonical ordering in proof → reject,
-- invalid digit in decomposition tensor → reject,
-- padding digit non-zero → reject,
-- wrong `c_lin` scalarization constant → reject,
-- malformed residual opening → reject,
-- proof accepted under one transcript domain but replayed under another → reject,
-- envelope missing a component but using zero digest placeholder → reject.
+Acceptance:
 
-### 18.3 Performance tests
+- expected degree fixed at 4;
+- honest proof verifies;
+- invalid digit, invalid padding, and wrong `c_lin` reject;
+- transcript-domain replay rejects.
 
-Benchmark by lane count, witness size, and execution policy:
+### Phase 5: Residual CE Opening
 
-- 1 main lane,
-- main + value lane,
-- worst-case allowed lane batch size,
-- CPU vs highAssurance vs Metal.
+Files:
 
----
+```text
+NumiSealResidualOpening.swift
+```
 
-## 19. Formalization scaffolding
+Acceptance:
 
-Suggested theorem decomposition:
+- fixed internal residual shape has a stable digest;
+- residual CE opening verifies through existing CE relation;
+- malformed residual opening rejects;
+- carry claim encoding is deterministic.
 
-### Core definitions
+### Phase 6: Envelope And Verifier API
 
-- `LaneKey`
-- `CanonicalObligationOrder`
-- `DigitTensor`
-- `Reconstruct`
-- `LanguagePolynomial`
-- `ScalarizedLinearResidual`
-- `NumiSealPolynomial`
+Files:
 
-### Theorems to state first
+```text
+NumiSealProver.swift
+NumiSealVerifier.swift
+```
 
-1. `canonicalization_deterministic`
-2. `reconstruct_correct`
-3. `language_zero_on_allowed_digits`
-4. `scalarization_preserves_truth`
-5. `sumcheck_sound_for_numiseal_polynomial`
-6. `residual_opening_implies_terminal_value`
-7. `lane_acceptance_implies_aggregate_valid`
-8. `all_lane_acceptance_implies_all_obligations_valid`
+Acceptance:
 
-### Trusted-boundary statement
+- `ProofEnvelopeKind.numiSealTerminal = 4`;
+- terminal policy rejects fold, terminal-local, and compressed-public envelopes
+  when a NumiSeal proof is required;
+- NumiSeal policy rejects wrong profile, shape, statement, key, domain, lane,
+  byte limit, and component root;
+- full one-lane and two-lane vectors verify.
 
-NumiSeal’s trusted reductions should be written explicitly as:
+## Test Matrix
 
-- hash / random oracle,
-- Ajtai commitment binding in the stated norm regime,
-- soundness of the existing CE residual opener,
-- correctness of the sparse matrix / ring arithmetic implementation.
+Deterministic vectors:
 
-This makes it much easier to integrate into the existing formal track.
+- obligation encoding;
+- eval-point digest;
+- lane key;
+- canonical sorting;
+- obligation root;
+- lane summary root;
+- RLC challenges;
+- aggregate commitment/evaluation/public input digests;
+- decomposition key digest;
+- decomposition commitment;
+- scalarization coefficients;
+- degree-4 sum-check transcript;
+- residual opening statement;
+- final envelope digest.
 
----
+Adversarial tests:
 
-## 20. Open items that still need a code-level decision
+- different evaluation points with same lane ID reject;
+- different verifier key digest rejects;
+- proof with noncanonical obligation order rejects;
+- invalid digit rejects;
+- nonzero padding digit rejects;
+- wrong scalarization constant rejects;
+- wrong decomposition key digest rejects;
+- missing component with zero digest rejects;
+- residual opening tamper rejects;
+- transcript-domain replay rejects;
+- proof-kind confusion rejects.
 
-These are the only three points I would still treat as implementation decisions rather than protocol uncertainty.
+Performance tests:
 
-### A. How `AjtaiCommitmentKey` derives `A_dec`
+- one lane;
+- two lanes;
+- maximum allowed lane aggregate;
+- split aggregate over batch limit;
+- default CPU;
+- high-assurance CPU;
+- CPU-redundant Metal for decomposition commitment.
 
-Preferred:
+## Formalization Plan
 
-- deterministic subkey expansion from the pinned verifier-key seed and lane ID.
+Lean-side definitions:
 
-Fallback:
+- `LaneKey`;
+- `CanonicalObligationOrder`;
+- `DigitTensor`;
+- `Reconstruct`;
+- `LanguagePolynomial`;
+- `ScalarizedLinearResidual`;
+- `NumiSealPolynomial`;
+- `ResidualCEClaim`;
+- `CarryClaim`.
 
-- 14 limb commitments, knowing it will likely miss size targets.
+First theorem targets:
 
-### B. Exact internal CE residual shape
+1. canonicalization is deterministic;
+2. lane grouping never mixes distinct lane keys;
+3. digit reconstruction is linear;
+4. ternary language polynomial vanishes exactly on allowed digits;
+5. scalarization preserves terminal equality except at bad challenges;
+6. degree-4 NumiSeal polynomial has the claimed bound;
+7. sum-check acceptance plus residual opening implies lane aggregate validity;
+8. all lane aggregates valid implies all accepted obligations are valid under
+   the lane-local RLC soundness lemma.
 
-Preferred:
+Trusted boundaries:
 
-- a fixed identity/selection shape for flattened digit witnesses.
+- random-oracle transcript model;
+- certified Ajtai binding assumptions already tracked by the repo;
+- residual CE opening soundness;
+- Swift/Lean serialization equivalence for new NumiSeal wire objects.
 
-This should be domain-separated and serialized as an internal shape digest.
+## World-Class Acceptance Bar
 
-### C. Whether to verify carry claims immediately or export them
+NumiSeal is not ready until all of the following are true:
 
-I recommend both modes:
+- every public byte in the proof is covered by a typed digest leaf;
+- every absent optional component is covered by an absent-component digest;
+- every challenge has a single documented transcript predecessor;
+- no verifier path accepts a fold reduction as terminal proof;
+- every profile parameter change requires a new profile ID or a new proof
+  version;
+- every performance claim has a checked benchmark report;
+- every security claim has a named assumption ledger entry or formal theorem
+  target;
+- every test vector is reproducible from scripts.
 
-- application verifier: full verification now,
-- recursive prover: export carry claims to the next NumiSeal instance.
+## Bottom Line
 
----
+Ship NumiSeal v10 as a native terminal seal:
 
-## 21. Bottom line
+1. canonicalize obligations by lane;
+2. perform lane-local RLC with small challenges;
+3. restore bounds with one committed ternary digit tensor per lane aggregate;
+4. scalarize all public terminal equalities into one extension-field residual;
+5. combine residual, digit-language, and padding checks into one degree-4
+   sum-check;
+6. discharge the final digit-witness evaluation through the existing CE opening
+   relation;
+7. bind the result in a typed proof envelope with explicit recursive carry
+   claims.
 
-The protocol I recommend shipping as **NumiSeal v10** is:
-
-1. canonicalize obligations by lane,
-2. lane-local RLC with the repo’s existing small-challenge discipline,
-3. decompose each lane aggregate into a **single committed ternary digit tensor**,
-4. scalarize all public terminal equalities into one extension-field linear identity,
-5. combine that identity with digit-language and padding checks into one degree-4 polynomial,
-6. prove its cube-sum claim with sum-check,
-7. discharge the final evaluation by the repo’s own CE opening relation,
-8. package the result in a typed digest-bound proof envelope with recursive carry claims.
-
-That is smaller than the current heavy terminal layer, fits the existing math, respects lane separation, reuses the repo’s Ajtai/CE machinery, and has a clean formal proof boundary.
+That path is smaller and cleaner than the current heavy terminal layer, stays
+inside the repository's implemented mathematics, respects lane separation, and
+creates a precise boundary for future recursion and zero knowledge.

@@ -514,6 +514,129 @@ final class CommitmentCoreTests: SuperNeoTestCase {
         )
     }
 
+    func testAjtaiCommitmentSchemeBoundaryVerifiesAndRejectsBadOpenings() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 8)
+        let prepared = try workload.prepareForFolding(
+            bits: [false, false, true, false, false, false, false, false],
+            keySeed: Array("commitment-scheme-source".utf8)
+        )
+        let shape = prepared.publicFoldInput.shape
+        let keyPair = try AjtaiSuperNeoCommitment.setup(
+            shape: shape,
+            seed: Array("commitment-scheme-key".utf8)
+        )
+        XCTAssertEqual(keyPair.proverKey, keyPair.verifierKey)
+        XCTAssertEqual(AjtaiSuperNeoCommitment.digest(keyPair.verifierKey), keyPair.verifierKey.verifierKeyDigest)
+
+        let instance = prepared.foldInput.instances[0]
+        let witness = prepared.foldInput.witnesses[0].fullZ(for: instance)
+        let commitment = try AjtaiSuperNeoCommitment.commit(
+            proverKey: keyPair.proverKey,
+            shape: shape,
+            message: witness,
+            executionPolicy: .highAssurance
+        )
+        XCTAssertTrue(try AjtaiSuperNeoCommitment.verifyOpening(
+            verifierKey: keyPair.verifierKey,
+            shape: shape,
+            message: witness,
+            commitment: commitment,
+            executionPolicy: .highAssurance
+        ))
+
+        var badWitness = witness
+        badWitness[0] = badWitness[0] + .one
+        XCTAssertFalse(try AjtaiSuperNeoCommitment.verifyOpening(
+            verifierKey: keyPair.verifierKey,
+            shape: shape,
+            message: badWitness,
+            commitment: commitment,
+            executionPolicy: .highAssurance
+        ))
+
+        let wrongShapeKey = try AjtaiCommitmentKey(
+            columns: shape.nRing + 1,
+            seed: Array("wrong-shape-key".utf8)
+        )
+        XCTAssertThrowsSuperNeoError(
+            try AjtaiSuperNeoCommitment.commit(
+                proverKey: wrongShapeKey,
+                shape: shape,
+                message: witness
+            ),
+            .invalidParameter("Ajtai prover key column count must match shape.nRing")
+        )
+    }
+
+    func testAjtaiCommitmentSchemeBatchMatchesSingleCommitments() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 4)
+        let preparedA = try workload.prepareForFolding(
+            bits: [true, false, false, false],
+            keySeed: Array("batch-a-source".utf8)
+        )
+        let preparedB = try workload.prepareForFolding(
+            bits: [false, false, true, false],
+            keySeed: Array("batch-b-source".utf8)
+        )
+        let shape = preparedA.publicFoldInput.shape
+        let keyPair = try AjtaiSuperNeoCommitment.setup(
+            shape: shape,
+            seed: Array("batch-commitment-key".utf8)
+        )
+        let messages = [
+            preparedA.foldInput.witnesses[0].fullZ(for: preparedA.foldInput.instances[0]),
+            preparedB.foldInput.witnesses[0].fullZ(for: preparedB.foldInput.instances[0])
+        ]
+        let batch = try AjtaiSuperNeoCommitment.batchCommit(
+            proverKey: keyPair.proverKey,
+            shape: shape,
+            messages: messages,
+            executionPolicy: .highAssurance
+        )
+        let singles = try messages.map {
+            try AjtaiSuperNeoCommitment.commit(
+                proverKey: keyPair.proverKey,
+                shape: shape,
+                message: $0,
+                executionPolicy: .highAssurance
+            )
+        }
+        XCTAssertEqual(batch, singles)
+    }
+
+    func testAjtaiCommitmentKeySerializationRoundTripsAndRejectsProfileMutation() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 4)
+        let prepared = try workload.prepareForFolding(
+            bits: [false, true, false, false],
+            keySeed: Array("key-wire-source".utf8)
+        )
+        let keyPair = try AjtaiSuperNeoCommitment.setup(
+            shape: prepared.publicFoldInput.shape,
+            seed: Array("key-wire-key".utf8)
+        )
+        let randomKeyPair = try AjtaiSuperNeoCommitment.setup(shape: prepared.publicFoldInput.shape)
+        XCTAssertEqual(randomKeyPair.proverKey.matrix.columns, prepared.publicFoldInput.shape.nRing)
+        XCTAssertEqual(
+            AjtaiSuperNeoCommitment.digest(randomKeyPair.verifierKey),
+            randomKeyPair.verifierKey.verifierKeyDigest
+        )
+
+        let encoded = keyPair.verifierKey.superNeoBytes
+        XCTAssertEqual(try AjtaiCommitmentKey(bytes: encoded), keyPair.verifierKey)
+
+        var wrongProfile = encoded
+        wrongProfile[6] = 2
+        XCTAssertThrowsSuperNeoError(
+            try AjtaiCommitmentKey(bytes: wrongProfile),
+            .invalidEncoding("unsupported Ajtai key profile")
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try AjtaiCommitmentKey(bytes: Array(encoded.dropLast())),
+            .invalidEncoding("Ajtai key element count exceeds remaining byte capacity")
+        )
+    }
+
 }
 
 final class EvaluationCoreTests: SuperNeoTestCase {
@@ -2774,7 +2897,410 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
 }
 
+final class NumiSealCanonicalizationTests: SuperNeoTestCase {
+    private func makeNumiSealCanonicalFixture(
+        claimCount: Int,
+        laneID: NumiSealLaneID? = nil
+    ) throws -> (
+        canonicalization: NumiSealCanonicalizationResult,
+        policy: NumiSealAcceptancePolicy,
+        obligations: [NumiSealObligation]
+    ) {
+        let fixture = try makeFoldFixture()
+        let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
+        let publicInput = SuperNeoPublicFoldInput(fixture.input)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        let laneID = try laneID ?? NumiSealLaneID("main")
+        let obligations = fold.outputClaims.prefix(claimCount).enumerated().map { index, claim in
+            NumiSealObligation(
+                laneID: laneID,
+                profileID: fixture.key.parameters.profileID,
+                statement: statement,
+                verifierKeyDigest: fixture.key.verifierKeyDigest,
+                instance: CEInstance(claim),
+                sourceFoldDigest: Digest256.hash("numiseal-source-\(index)")
+            )
+        }
+        let policy = NumiSealAcceptancePolicy(
+            statement: statement,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            acceptedLaneIDs: [laneID]
+        )
+        let canonicalization = try NumiSealCanonicalization.canonicalize(
+            obligations: obligations,
+            policy: policy
+        )
+        return (canonicalization, policy, obligations)
+    }
+
+    func testNumiSealCanonicalizationIsDeterministicAcrossInputOrder() throws {
+        let fixture = try makeFoldFixture()
+        let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
+        let publicInput = SuperNeoPublicFoldInput(fixture.input)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        let laneID = try NumiSealLaneID("main")
+        let obligations = fold.outputClaims.prefix(2).enumerated().map { index, claim in
+            NumiSealObligation(
+                laneID: laneID,
+                profileID: fixture.key.parameters.profileID,
+                statement: statement,
+                verifierKeyDigest: fixture.key.verifierKeyDigest,
+                instance: CEInstance(claim),
+                sourceFoldDigest: Digest256.hash("numiseal-source-\(index)")
+            )
+        }
+        let policy = NumiSealAcceptancePolicy(
+            shapeDigest: statement.shapeDigest,
+            statementDigest: statement.statementDigest,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            acceptedLaneIDs: [laneID]
+        )
+
+        let canonical = try NumiSealCanonicalization.canonicalize(
+            obligations: obligations,
+            policy: policy
+        )
+        let canonicalFromReversed = try NumiSealCanonicalization.canonicalize(
+            obligations: obligations.reversed(),
+            policy: policy
+        )
+
+        XCTAssertEqual(canonical.obligationRoot, canonicalFromReversed.obligationRoot)
+        XCTAssertEqual(canonical.laneSummaryRoot, canonicalFromReversed.laneSummaryRoot)
+        XCTAssertEqual(
+            canonical.obligations.map(\.obligationDigest),
+            canonicalFromReversed.obligations.map(\.obligationDigest)
+        )
+        XCTAssertEqual(canonical.laneSummaries.count, 1)
+        XCTAssertEqual(canonical.laneSummaries[0].obligationCount, obligations.count)
+        XCTAssertEqual(canonical.laneSummaries[0].laneKey.laneID, laneID)
+    }
+
+    func testNumiSealCanonicalizationKeepsDistinctEvaluationPointsInSeparateLanes() throws {
+        let fixture = try makeFoldFixture()
+        let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
+        let publicInput = SuperNeoPublicFoldInput(fixture.input)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        let laneID = try NumiSealLaneID("main")
+        let claim = fold.outputClaims[0]
+        let base = NumiSealObligation(
+            laneID: laneID,
+            profileID: fixture.key.parameters.profileID,
+            statement: statement,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            instance: CEInstance(claim),
+            sourceFoldDigest: Digest256.hash("numiseal-source-base")
+        )
+        var shiftedPoint = claim.point
+        shiftedPoint[0] = shiftedPoint[0] + .one
+        let shifted = NumiSealObligation(
+            laneID: laneID,
+            profileID: fixture.key.parameters.profileID,
+            shapeDigest: statement.shapeDigest,
+            statementDigest: statement.statementDigest,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            commitment: claim.commitment,
+            publicInputEncoding: PublicInputEncoding(field: claim.publicInput),
+            evalPoint: shiftedPoint,
+            matrixEvaluations: claim.evaluations,
+            sourceFoldDigest: Digest256.hash("numiseal-source-shifted")
+        )
+        let policy = NumiSealAcceptancePolicy(
+            shapeDigest: statement.shapeDigest,
+            statementDigest: statement.statementDigest,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            acceptedLaneIDs: [laneID]
+        )
+
+        let canonical = try NumiSealCanonicalization.canonicalize(
+            obligations: [shifted, base],
+            policy: policy
+        )
+
+        XCTAssertEqual(canonical.laneSummaries.count, 2)
+        XCTAssertNotEqual(
+            canonical.laneSummaries[0].laneKey.evalPointDigest,
+            canonical.laneSummaries[1].laneKey.evalPointDigest
+        )
+    }
+
+    func testNumiSealCanonicalizationRejectsPolicyMismatches() throws {
+        let fixture = try makeFoldFixture()
+        let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
+        let publicInput = SuperNeoPublicFoldInput(fixture.input)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        let laneID = try NumiSealLaneID("main")
+        let obligation = NumiSealObligation(
+            laneID: laneID,
+            profileID: fixture.key.parameters.profileID,
+            statement: statement,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            instance: CEInstance(fold.outputClaims[0]),
+            sourceFoldDigest: Digest256.hash("numiseal-source-policy")
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealCanonicalization.canonicalize(
+                obligations: [obligation],
+                policy: NumiSealAcceptancePolicy(
+                    shapeDigest: statement.shapeDigest,
+                    statementDigest: statement.statementDigest,
+                    verifierKeyDigest: fixture.key.verifierKeyDigest,
+                    acceptedLaneIDs: [try NumiSealLaneID("other")]
+                )
+            ),
+            .verificationFailed("NumiSeal obligation lane is not accepted by policy")
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealCanonicalization.canonicalize(
+                obligations: [obligation],
+                policy: NumiSealAcceptancePolicy(
+                    shapeDigest: statement.shapeDigest,
+                    statementDigest: Digest256.hash("wrong statement"),
+                    verifierKeyDigest: fixture.key.verifierKeyDigest,
+                    acceptedLaneIDs: [laneID]
+                )
+            ),
+            .verificationFailed("NumiSeal obligation statement mismatch")
+        )
+    }
+
+    func testNumiSealPublicStatementSerializationRoundTripsAndBindsPolicy() throws {
+        let fixture = try makeNumiSealCanonicalFixture(claimCount: 2)
+        let statement = try NumiSealPublicStatement(
+            canonicalization: fixture.canonicalization,
+            policy: fixture.policy
+        )
+        let reparsed = try NumiSealPublicStatement(bytes: statement.superNeoBytes)
+
+        XCTAssertEqual(reparsed, statement)
+        XCTAssertEqual(reparsed.digest, statement.digest)
+        XCTAssertNoThrow(try reparsed.validate(against: fixture.policy))
+
+        let wrongPolicy = NumiSealAcceptancePolicy(
+            profileID: fixture.policy.profileID,
+            shapeDigest: fixture.policy.shapeDigest,
+            statementDigest: fixture.policy.statementDigest,
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            transcriptDomain: Digest256.hash("wrong-numiseal-domain"),
+            acceptedLaneIDs: fixture.policy.acceptedLaneIDs
+        )
+        XCTAssertThrowsSuperNeoError(
+            try reparsed.validate(against: wrongPolicy),
+            .verificationFailed("NumiSeal public statement transcript domain mismatch")
+        )
+
+        var tampered = statement.superNeoBytes
+        tampered[tampered.count - 1] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealPublicStatement(bytes: tampered),
+            .invalidEncoding("NumiSeal lane summary digest mismatch")
+        )
+    }
+
+    func testNumiSealLaneAggregationChunksDeterministicallyAndRoundTrips() throws {
+        let fixture = try makeNumiSealCanonicalFixture(claimCount: 3)
+        let limits = try NumiSealAggregationLimits(maximumObligationsPerAggregate: 2)
+        let aggregates = try NumiSealLaneAggregation.aggregate(
+            canonicalization: fixture.canonicalization,
+            policy: fixture.policy,
+            limits: limits
+        )
+        let canonicalFromReversed = try NumiSealCanonicalization.canonicalize(
+            obligations: fixture.obligations.reversed(),
+            policy: fixture.policy
+        )
+        let aggregatesFromReversed = try NumiSealLaneAggregation.aggregate(
+            canonicalization: canonicalFromReversed,
+            policy: fixture.policy,
+            limits: limits
+        )
+
+        XCTAssertEqual(aggregates.count, 2)
+        XCTAssertEqual(aggregates.map(\.obligationDigests.count), [2, 1])
+        XCTAssertEqual(
+            aggregates.map(\.aggregateDigest),
+            aggregatesFromReversed.map(\.aggregateDigest)
+        )
+        XCTAssertEqual(
+            aggregates.map(\.challenges),
+            aggregatesFromReversed.map(\.challenges)
+        )
+
+        for aggregate in aggregates {
+            XCTAssertEqual(try NumiSealLaneAggregate(bytes: aggregate.superNeoBytes), aggregate)
+        }
+
+        var tampered = aggregates[0].superNeoBytes
+        tampered[tampered.count - 1] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealLaneAggregate(bytes: tampered),
+            .invalidEncoding("NumiSeal aggregate digest mismatch")
+        )
+    }
+
+    func testNumiSealLaneAggregationRejectsMismatchedPublicInputLengths() throws {
+        let fixture = try makeFoldFixture()
+        let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
+        let publicInput = SuperNeoPublicFoldInput(fixture.input)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        let laneID = try NumiSealLaneID("main")
+        let claim = fold.outputClaims[0]
+        let base = NumiSealObligation(
+            laneID: laneID,
+            profileID: fixture.key.parameters.profileID,
+            statement: statement,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            instance: CEInstance(claim),
+            sourceFoldDigest: Digest256.hash("numiseal-source-base")
+        )
+        let widerPublicInput = PublicInputEncoding(field: claim.publicInput + [.one])
+        let wider = NumiSealObligation(
+            laneID: laneID,
+            profileID: fixture.key.parameters.profileID,
+            shapeDigest: statement.shapeDigest,
+            statementDigest: statement.statementDigest,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            commitment: claim.commitment,
+            publicInputEncoding: widerPublicInput,
+            evalPoint: claim.point,
+            matrixEvaluations: claim.evaluations,
+            sourceFoldDigest: Digest256.hash("numiseal-source-wider-public")
+        )
+        let policy = NumiSealAcceptancePolicy(
+            statement: statement,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            acceptedLaneIDs: [laneID]
+        )
+        let canonical = try NumiSealCanonicalization.canonicalize(
+            obligations: [base, wider],
+            policy: policy
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealLaneAggregation.aggregate(
+                canonicalization: canonical,
+                policy: policy
+            ),
+            .invalidParameter("NumiSeal lane aggregate public input lengths must match")
+        )
+    }
+}
+
 final class UsabilitySurfaceTests: SuperNeoTestCase {
+    func testR1CSProgramGeneratesTerminalProofAndVerifiesUnderPolicy() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        let program = SuperNeoR1CSProgram(
+            builder: workload.builder,
+            witnessGenerator: SuperNeoR1CSWitnessGenerator<[Bool]>(
+                publicInput: { _ in workload.publicInput },
+                privateWitness: { try workload.privateWitness(bits: $0) }
+            )
+        )
+
+        let output = try program.prove(
+            input: [false, true],
+            keySeed: Array("r1cs-terminal-stack-key".utf8),
+            proofKind: .terminalLocal,
+            executionPolicy: .default
+        )
+
+        XCTAssertEqual(output.proofKind, .terminalLocal)
+        XCTAssertTrue(output.requiresNormalization)
+        XCTAssertEqual(output.statement.statementDigest, output.context.statementDigest)
+        XCTAssertEqual(output.verifierKeyDigest, output.context.verifierKeyDigest)
+
+        let result = SuperNeoR1CSProvingStack.verifyTerminalProof(
+            publicInput: output.publicFoldInput,
+            proofBytes: output.proofBytes,
+            verifierKey: output.verifierKey,
+            policy: output.terminalAcceptancePolicy,
+            executionPolicy: .default
+        )
+        XCTAssertTrue(result.isValid, result.reason ?? "")
+    }
+
+    func testR1CSProgramKeepsFoldReductionSeparateFromTerminalAcceptance() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        let output = try SuperNeoR1CSProvingStack.prove(
+            builder: workload.builder,
+            assignment: SuperNeoR1CSAssignment(
+                publicInput: workload.publicInput,
+                privateWitness: try workload.privateWitness(bits: [true, false])
+            ),
+            keySeed: Array("r1cs-fold-stack-key".utf8),
+            proofKind: .foldReduction,
+            executionPolicy: .highAssurance
+        )
+
+        let reduction = SuperNeoR1CSProvingStack.reduceFoldProof(
+            publicInput: output.publicFoldInput,
+            proofBytes: output.proofBytes,
+            context: output.context,
+            verifierKey: output.verifierKey,
+            executionPolicy: .highAssurance
+        )
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertTrue(reduction.requiresTerminalRelationCheck)
+
+        let terminalResult = SuperNeoR1CSProvingStack.verifyTerminalProof(
+            publicInput: output.publicFoldInput,
+            proofBytes: output.proofBytes,
+            verifierKey: output.verifierKey,
+            policy: output.terminalAcceptancePolicy,
+            executionPolicy: .highAssurance
+        )
+        XCTAssertInvalid(terminalResult)
+        XCTAssertTrue(terminalResult.reason?.contains("terminal proof required") ?? false)
+    }
+
+    func testR1CSProvingStackRejectsUnsatisfiedGeneratedWitness() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoR1CSProvingStack.prove(
+                builder: workload.builder,
+                assignment: SuperNeoR1CSAssignment(
+                    publicInput: workload.publicInput,
+                    privateWitness: [.one, .one]
+                ),
+                keySeed: Array("r1cs-bad-witness-key".utf8),
+                proofKind: .terminalLocal
+            ),
+            .invalidParameter("R1CS witness does not satisfy all constraints")
+        )
+    }
+
     func testOneHotR1CSBuilderPreparesVerifiableFoldEnvelope() throws {
         let workload = try SuperNeoOneHotVectorWorkload(bitCount: 8)
         let prepared = try workload.prepareForFolding(

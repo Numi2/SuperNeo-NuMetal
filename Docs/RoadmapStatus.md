@@ -1,14 +1,14 @@
 # Roadmap Status
 
-This document maps the best-in-class roadmap to concrete repository artifacts.
-It is intentionally conservative: passing items are implementation claims, not
-production security certifications.
+This document maps the repository roadmap to concrete artifacts and remaining
+boundaries. It is intentionally conservative: passing items are implementation
+claims, not production security certifications.
 
 Formal status: conditional protocol formalization.
 
 ## First Priority: Legibility
 
-Status: implemented.
+Status: implemented for the current prover track.
 
 Artifacts:
 
@@ -31,12 +31,18 @@ Remaining boundary:
 
 ## Second Priority: Usability
 
-Status: implemented.
+Status: implemented for hand-authored CCS/R1CS statements.
 
 Artifacts:
 
 - `SuperNeoR1CSBuilder` encodes R1CS relations as CCS through
   `A(z) * B(z) - C(z) = 0`.
+- `SuperNeoR1CSAssignment`, `SuperNeoR1CSWitnessGenerator`,
+  `SuperNeoR1CSProgram`, and `SuperNeoR1CSProvingStack` provide a public
+  hand-authored R1CS frontend path from generated witness assignment to
+  fold/terminal/compressed proof envelope and terminal verifier policy.
+- `Docs/R1CSFrontendAPI-2026-04-15.md` records the frontend API boundary,
+  validation path, and non-claims.
 - `SuperNeoCCSNormalizer` prepares arbitrary serializable CCS inputs for the
   paper-normalized SuperNeo shape.
 - `SuperNeoOneHotVectorWorkload` provides a minimal private-vector workload.
@@ -58,9 +64,12 @@ Artifacts:
 
 Remaining boundary:
 
-- The CLI and terminal acceptance policy are integration surfaces, not a full
-  application frontend, persistence layer, replay-protection system, or compiler
-  from general programs to CCS.
+- `SuperNeoR1CSProgram` is a hand-authored R1CS frontend and witness-generation
+  boundary. It is not a compiler from general programs to CCS, a persistence
+  layer, a replay-protection system, or an application identity/key-distribution
+  system.
+- The CLI is still a demo/integration surface, not a production verifier
+  service.
 
 ## Third Priority: Credibility
 
@@ -96,6 +105,12 @@ Artifacts:
   Metal commitment and transformed-evaluation outputs.
 - `SuperNeoMetalWorkspace` direct methods accept execution policies for
   CPU-redundant or CPU-only behavior at the workspace boundary.
+- `CommitmentScheme` and `AjtaiSuperNeoCommitment` expose a concrete commitment
+  backend boundary with seeded/system-random setup, local opening verification,
+  batch commits, verifier-key digesting, shape-bound fail-closed checks, and
+  profile-tagged key serialization.
+- `Docs/AjtaiCommitmentBackend-2026-04-15.md` records the implemented backend
+  boundary, non-claims, and targeted validation.
 - `SuperNeoPreparedFoldContext` is available to the benchmarking SPI so repeated
   proof measurements can reuse the transformed sparse CCS shape and bound Metal
   workspace while rejecting profile, shape, key, execution-policy, and Metal
@@ -249,3 +264,83 @@ Remaining boundary:
   been fully composed, that Swift Ext2 serialization has been proved equivalent
   for every caller, or that the Swift CE verifier has been proved byte-for-byte
   equivalent.
+
+## Fifth Priority: NumiSeal Terminal Seal
+
+Status: design refreshed; Phase 0 public statement wiring is present; Phase 1
+lane aggregation has started.
+
+NumiSeal is the planned native terminal-seal layer for the SNARK product track.
+It should compress many terminal CE obligations into lane-local aggregates while
+staying inside the active Goldilocks/Phi81/Ajtai profile and using the existing
+CE opening relation as the residual base case.
+
+Artifacts:
+
+- `SuperNeo-NuMetal/NumiSeal-v10-design.md` is now a repository-grounded v10
+  implementation plan. It removes stale external-drafting context, removes
+  non-actionable citation artifacts, and defines the current target in terms of
+  shipped repository APIs.
+- `Docs/NumiSealFullStackRoadmap-2026-04-15.md` maps the remaining execution
+  path from proof body grammar, envelope policy, decomposition, scalarization,
+  degree-4 sum-check, residual opening, prover/verifier assembly, and vectors
+  through recursion, zero knowledge, frontend expansion, verifier/API product
+  surface, and research-governance work.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypes.swift` defines lane IDs,
+  lane keys, acceptance policy, terminal obligations, canonical obligations,
+  lane summaries, and digest-list roots.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealCanonicalization.swift` validates
+  policy bindings, derives evaluation-point digests, sorts obligations
+  deterministically, groups by lane key, and emits obligation/lane summary
+  roots.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealWire.swift` provides bounded
+  readers for the NumiSeal wire objects introduced so far.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealPublicStatement.swift` defines a
+  versioned, parseable public statement that binds policy context, obligation
+  root, lane summary root, and sorted lane summaries before later proof-body
+  work.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealLaneAggregation.swift` chunks
+  canonical lane spans under profile limits, derives deterministic lane-local
+  RLC challenges from the public-statement digest, computes public aggregate CE
+  instances, and gives every aggregate a parse-checked digest.
+- `NumiSealCanonicalizationTests` cover deterministic sorting independent of
+  input order, lane separation by evaluation point, fail-closed policy mismatch
+  rejection, public-statement serialization, deterministic aggregate chunking,
+  aggregate byte tamper rejection, and incompatible public-input rejection.
+- The design explicitly separates the shipped prover track from the planned
+  SNARK product track.
+- The design requires lane-key canonicalization, typed digest roots,
+  no zero-digest placeholders, one decomposition commitment per lane aggregate,
+  degree-4 sum-checks, residual CE opening, recursive carry encoding, and
+  terminal-only verifier policy.
+- The design states non-claims: no default zero knowledge, no external PCS
+  import, no QROM proof claim, no cross-lane batching, and no production
+  certification.
+
+Implementation gates:
+
+- Phase 0: NumiSeal public types, canonicalization, lane-key derivation, policy
+  rejection, digest-root fixtures, public-statement serialization, and aggregate
+  serialization. Basic implementation is present; final proof-body envelope
+  serialization remains.
+- Phase 1: lane-local RLC and deterministic lane chunking under profile limits.
+  Initial implementation is present for public aggregates; decomposition
+  handoff fixtures remain.
+- Phase 2: deterministic decomposition-key derivation and one Ajtai digit-tensor
+  commitment per lane aggregate.
+- Phase 3: scalarization fixtures for commitment, CCS evaluation, and public
+  slot residuals.
+- Phase 4: degree-4 sum-check prover/verifier with invalid digit, padding, and
+  scalarization tamper tests.
+- Phase 5: residual CE opening through the existing CE relation with stable
+  internal residual shape digest.
+- Phase 6: `ProofEnvelopeKind.numiSealTerminal = 4`, NumiSeal prover/verifier
+  API, terminal acceptance policy, vectors, and production-gate coverage.
+
+Remaining boundary:
+
+- NumiSeal is not a complete terminal proof mode yet. The current complete
+  terminal proof remains `terminalLocal` or `compressedPublic`; NumiSeal must
+  not be advertised as an available verifier mode until Phase 6 passes.
+- The zero-knowledge product track still needs a separate `NumiSealZK` design
+  and proof story.

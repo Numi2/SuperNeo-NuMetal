@@ -105,8 +105,8 @@ public struct SumCheckTranscript: Sendable {
         rng.nextExt2()
     }
 
-    public mutating func challengeRing() -> CyclotomicRing54 {
-        rng.nextChallengeRing()
+    public mutating func challengeRing(parameters: SuperNeoParameters = .goldilocks) -> CyclotomicRing54 {
+        rng.nextChallengeRing(parameters: parameters)
     }
 
     private static func frameLength(_ value: Int) -> [UInt8] {
