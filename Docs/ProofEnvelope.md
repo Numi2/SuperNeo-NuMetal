@@ -224,6 +224,218 @@ leaf digests in public-statement then lane-major, aggregate-index order.
 `transcriptDigest` is `numiseal.proof-transcript.v1` over body version, public
 statement digest, aggregate counts, lane-proof digests, and the component root.
 
+### NumiSeal Decomposition Handoff
+
+The decomposition key digest carried by `NumiSealLaneProof` is now derived from
+public data, not an arbitrary placeholder. `NumiSealDecompositionKeyDerivation`
+is:
+
+```text
+domain ||
+version ||
+verifierKeyDigest ||
+laneKey ||
+aggregateIndex ||
+requiredColumnCount ||
+derivationDigest
+```
+
+`domain` is `SHA256("SuperNeo-NuMetal.numiseal.decomposition-key.v1")`.
+`version` is UInt16 little-endian value `10`. `aggregateIndex` and
+`requiredColumnCount` are UInt64 little-endian counts. `derivationDigest` is:
+
+```text
+H_numiseal("numiseal.decomposition-key.v1",
+  version || verifierKeyDigest || laneKey || aggregateIndex ||
+  requiredColumnCount)
+```
+
+That digest is used as the deterministic seed for the derived Ajtai
+decomposition key `A_dec`. Changing verifier key digest, lane key, aggregate
+index, or required column count changes the key digest.
+
+`NumiSealDigitTensor` is the bounded private witness-side byte grammar used by
+the CPU reference decomposition commitment tests:
+
+```text
+domain ||
+version ||
+laneKey ||
+aggregateIndex ||
+columnCount ||
+activeDigitCount ||
+digit...
+```
+
+`domain` is `SHA256("SuperNeo-NuMetal.numiseal.digit-tensor.v1")`.
+Digits are one byte: `0x00` for `0`, `0x01` for `1`, and `0xFF` for `-1`.
+Every other byte fails. The number of digit bytes must be
+`columnCount * 54`, and all positions at or beyond `activeDigitCount` must be
+zero. The current bounded parser caps `columnCount` at `4096`.
+
+`NumiSealDecompositionCommitment` binds:
+
+```text
+domain ||
+version ||
+framed(NumiSealDecompositionKeyDerivation) ||
+digitTensorDigest ||
+decompositionCommitment ||
+commitmentDigest
+```
+
+The commitment is the CPU reference Ajtai commitment of the reconstructed
+ternary digit-tensor message under the derived key. This is a decomposition
+handoff fixture and pre-sum-check binding point; it is not yet a complete
+NumiSeal verifier.
+
+### NumiSeal Scalarization Handoff
+
+The scalarization digest carried by `NumiSealLaneProof` is now produced by a
+public, transcript-bound linear residual object. `NumiSealScalarizationStatement`
+is:
+
+```text
+domain ||
+version ||
+publicStatementDigest ||
+laneKey ||
+aggregateIndex ||
+aggregateDigest ||
+decompositionKeyDigest ||
+decompositionCommitmentDigest ||
+aggregateCommitmentDigest ||
+aggregatePublicInputDigest ||
+aggregateMatrixEvaluationDigest ||
+statementDigest
+```
+
+`domain` is `SHA256("SuperNeo-NuMetal.numiseal.scalarization-statement.v1")`.
+`version` is UInt16 little-endian value `10`. The statement validates that the
+aggregate lane is covered by the public statement, that profile/shape/verifier
+context agrees, and that the decomposition commitment belongs to the same lane
+aggregate.
+
+`NumiSealScalarizationWeights` are derived from
+`"SuperNeo-NuMetal.numiseal.scalarization.v1"` by absorbing the scalarization
+statement digest, public-statement digest, aggregate digest, decomposition
+commitment digest, lane key, aggregate index, and the public vector lengths.
+The deterministic weight digest binds the generated weights for:
+
+```text
+aggregate commitment coefficients ||
+decomposition commitment coefficients ||
+public input slots ||
+aggregate matrix-evaluation coefficients
+```
+
+`NumiSealLinearResidual` is:
+
+```text
+domain ||
+version ||
+framed(NumiSealScalarizationStatement) ||
+weightsDigest ||
+residualValue ||
+residualDigest
+```
+
+`domain` is `SHA256("SuperNeo-NuMetal.numiseal.linear-residual.v1")`.
+`residualValue` is the extension-field linear combination of the aggregate
+commitment, decomposition commitment, public input field elements, and aggregate
+matrix evaluations under the derived weights. `residualDigest` is:
+
+```text
+H_numiseal("numiseal.linear-residual.v1",
+  version || statementDigest || weightsDigest || residualValue)
+```
+
+This is the public scalarization oracle and proof-body binding point for the
+sum-check and residual-opening handoffs. It does not yet prove the full residual
+CE relation by itself.
+
+`NumiSealAggregateEvaluationOracle` is the non-proof handoff checker for this
+phase. Given witnessed claims in canonical aggregate order, it rebuilds the
+lane-local RLC witness, checks that the public aggregate commitment/public
+input/matrix-evaluation surface matches those claims, and recomputes sparse
+transformed CCS evaluations from the existing `CCSShape` and Ajtai key. This
+object is not serialized into the proof envelope.
+
+### NumiSeal Sum-Check Handoff
+
+`NumiSealSumcheckOracle` is the current bounded reference handoff for the
+`framed(SumcheckProof)` component carried by `NumiSealLaneProof`. It binds the
+sum-check transcript to:
+
+```text
+linearResidualDigest ||
+scalarizationStatementDigest ||
+digitTensorDigest ||
+laneKey ||
+aggregateIndex ||
+paddedSlotCount ||
+variableCount ||
+sumcheckWeightDigest
+```
+
+The reference polynomial is degree-4-compatible and checks:
+
+```text
+residualValue * eq_0(X)
++ eta_lang * D(X)(D(X)-1)(D(X)+1)
++ eta_pad * P(X)D(X)
+```
+
+`D` is the multilinear extension of the digit tensor, padded to a power of two.
+`P` is the padding selector. `eta_lang` and `eta_pad` are transcript-derived
+weights. For a valid ternary, zero-padded tensor, the Boolean-hypercube sum is
+the scalar residual value, so `proof.claimedSum == residualValue`.
+
+This reference oracle caps the variable count for exhaustive interpolation and
+exists to bind proof-body bytes to the digit language and residual. It is not
+the final optimized NumiSeal prover/verifier.
+
+### NumiSeal Residual Opening Handoff
+
+`framed(residualOpening)` now contains a typed immediate residual-opening
+object, not arbitrary bytes:
+
+```text
+domain ||
+version ||
+laneKey ||
+aggregateIndex ||
+linearResidualDigest ||
+sumcheckProofDigest ||
+terminalStatementDigest ||
+ceOpeningProofDigest ||
+framed(TerminalCEStatement) ||
+framed(CEOpeningProof) ||
+openingDigest
+```
+
+`domain` is `SHA256("SuperNeo-NuMetal.numiseal.residual-opening.v1")`.
+`version` is UInt16 little-endian value `10`. `linearResidualDigest` must match
+the lane proof's `scalarizationDigest`. `sumcheckProofDigest` is
+`H_numiseal("numiseal.sumcheck.v1", SumcheckProof)`.
+`terminalStatementDigest` is the canonical `TerminalCEStatement` digest.
+`ceOpeningProofDigest` is
+`H_numiseal("numiseal.residual-opening.ce-proof.v1", CEOpeningProof)`.
+`openingDigest` is
+
+```text
+H_numiseal("numiseal.residual-opening.v1",
+  version || laneKey || aggregateIndex || linearResidualDigest ||
+  sumcheckProofDigest || terminalStatementDigest || ceOpeningProofDigest ||
+  framed(TerminalCEStatement) || framed(CEOpeningProof))
+```
+
+The immediate residual preflight checks lane/aggregate scope, scalarization
+digest binding, sum-check proof digest binding, terminal CE statement
+profile/shape/verifier/evaluation-point scope, and per-round CE opening-count
+agreement. This still does not run the full residual CE relation verifier; that
+remains the Phase 6 algebraic verification boundary.
+
 ## Versioning Policy
 
 Any incompatible change to field encodings, count encodings, proof body order,

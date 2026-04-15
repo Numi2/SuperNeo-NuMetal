@@ -23,13 +23,26 @@ Already present:
 - NumiSeal Phase 0 has lane IDs, lane keys, obligations, canonical ordering,
   lane summary roots, a versioned public statement, bounded wire readers, and
   initial lane-local public aggregation.
+- NumiSeal has a versioned proof-body grammar, kind `4` envelope, dedicated
+  terminal preflight policy, typed component digest leaves, typed absent carry
+  binding, deterministic decomposition-key derivation, a bounded ternary
+  digit-tensor grammar, CPU reference decomposition commitment checks, and a
+  public scalarization residual oracle bound into lane-proof digests.
+- NumiSeal has an initial aggregate evaluation oracle that rebuilds witnessed
+  lane aggregates and checks sparse CCS transformed evaluations against the
+  existing Ajtai/CCS machinery.
+- NumiSeal has a bounded reference sum-check handoff that binds proof-body
+  sum-check bytes to the scalar residual and digit-tensor language.
+- NumiSeal has a typed immediate residual-opening handoff that binds lane scope,
+  scalarization digest, sum-check proof digest, canonical terminal CE statement
+  bytes, and canonical CE opening proof bytes before full CE relation
+  verification.
 
 Not yet present:
 
-- NumiSeal proof body.
-- NumiSeal residual opening object.
-- NumiSeal envelope kind and terminal acceptance policy.
 - NumiSeal prover/verifier APIs.
+- Optimized NumiSeal degree-4 sum-check integration, residual CE relation
+  verification, and complete algebraic terminal acceptance.
 - NumiSeal vectors, CLI exposure, production gate, formal hooks, and security
   audit artifacts.
 - Zero-knowledge layer.
@@ -183,6 +196,12 @@ Artifacts:
 - CPU reference implementation
 - optional Metal path behind CPU-redundant policy only
 
+Initial implementation status: deterministic key derivation, bounded
+`NumiSealDigitTensor` parsing, ternary reconstruction, zero-padding checks, and
+CPU reference decomposition commitment/opening checks are present. The actual
+aggregate witness decomposition pipeline and algebraic verifier handoff remain
+future work.
+
 Rules:
 
 - derive `A_dec` from public data:
@@ -233,6 +252,14 @@ Artifacts:
 - `NumiSealLinearResidual`
 - direct recomputation oracle
 
+Initial implementation status: scalarization statements, transcript-derived
+weights, and parse-checked linear residuals are present. The proof-body fixture
+now binds `scalarizationDigest` to the recomputed residual digest. An aggregate
+evaluation oracle rebuilds witnessed lane aggregates in canonical order and
+checks sparse transformed CCS evaluations against the existing commitment/key
+machinery. Full transformed-matrix fixture coverage across multi-lane,
+prior-claim, and sum-check handoff cases remains future work.
+
 Acceptance gates:
 
 - tampering commitment, public input, matrix evaluation, lane key, or aggregate
@@ -258,6 +285,15 @@ Artifacts:
 - `NumiSealSumcheckOracle`
 - `NumiSealSumcheckProof`
 - verifier integration with existing `SumcheckVerifier`
+
+Initial implementation status: `NumiSealSumcheckOracle` is present as a bounded
+reference handoff. It uses the existing `SumcheckProver`/`SumcheckVerifier`,
+binds the transcript to scalarization and digit-tensor digests, proves
+`claimedSum == residualValue` for valid ternary/zero-padded tensors, and
+replaces the toy proof in the NumiSeal proof-body fixture. The typed immediate
+residual-opening handoff now binds this sum-check proof digest into the residual
+payload. The optimized degree-4 prover/verifier and large tensor path remain
+future work.
 
 Polynomial components:
 
@@ -295,7 +331,16 @@ Artifacts:
 - `NumiSealCarryClaim`
 - residual CE witness builder
 
-Residual object:
+Initial implementation status: `NumiSealResidualOpening` is now a typed
+immediate handoff object. It parses canonical terminal CE statement bytes and
+canonical CE opening proof bytes, binds them to lane/aggregate scope,
+`linearResidualDigest`, `sumcheckProofDigest`, `terminalStatementDigest`,
+`ceOpeningProofDigest`, and an `openingDigest`, and the NumiSeal terminal policy
+checks those cheap bindings during preflight. The object is intentionally still
+a handoff: it does not yet build the residual CE witness or call
+`CEOpeningRelation.verify` as part of NumiSeal terminal acceptance.
+
+Target residual object after full CE integration:
 
 ```text
 NumiSealResidualOpening {
@@ -689,4 +734,3 @@ Do not advance to the next phase when:
 - docs claim zero knowledge before the ZK layer exists;
 - benchmark output lacks reproduction metadata;
 - formal docs imply closed soundness while assumptions remain open.
-

@@ -2902,6 +2902,12 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         let publicStatement: NumiSealPublicStatement
         let policy: NumiSealAcceptancePolicy
         let terminalPolicy: NumiSealTerminalProofAcceptancePolicy
+        let aggregate: NumiSealLaneAggregate
+        let digitTensor: NumiSealDigitTensor
+        let decomposition: NumiSealDecompositionCommitment
+        let scalarization: NumiSealLinearResidual
+        let terminalStatement: TerminalCEStatement
+        let residualOpening: NumiSealResidualOpening
         let laneProof: NumiSealLaneProof
         let proof: NumiSealProof
         let envelope: NumiSealProofEnvelope
@@ -3096,17 +3102,60 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 limits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 1)
             ).first
         )
+        let digitTensor = try NumiSealDigitTensor(
+            laneKey: aggregate.laneKey,
+            aggregateIndex: aggregate.aggregateIndex,
+            message: makeNumiSealTernaryMessage()
+        )
+        let decompositionKey = try NumiSealDecompositionKeyDerivation(
+            verifierKeyDigest: policy.verifierKeyDigest,
+            laneKey: aggregate.laneKey,
+            aggregateIndex: aggregate.aggregateIndex,
+            requiredColumnCount: digitTensor.columnCount
+        )
+        let decomposition = try NumiSealDecompositionCommitment(
+            keyDerivation: decompositionKey,
+            digitTensor: digitTensor
+        )
+        let scalarization = try NumiSealLinearResidual(
+            publicStatement: publicStatement,
+            aggregate: aggregate,
+            decomposition: decomposition
+        )
+        let sumcheckProof = try NumiSealSumcheckOracle.prove(
+            linearResidual: scalarization,
+            digitTensor: digitTensor
+        )
+        let terminalStatement = try TerminalCEStatement(
+            profileID: policy.profileID,
+            shapeDigest: policy.shapeDigest,
+            verifierKeyDigest: policy.verifierKeyDigest,
+            claims: [
+                CCSEvaluationClaim(
+                    commitment: aggregate.aggregateCommitment,
+                    publicInput: aggregate.aggregatePublicInputEncoding.field,
+                    point: aggregate.evalPoint,
+                    evaluations: aggregate.aggregateMatrixEvaluations
+                )
+            ]
+        )
+        let residualOpening = try NumiSealResidualOpening(
+            laneKey: aggregate.laneKey,
+            aggregateIndex: aggregate.aggregateIndex,
+            linearResidual: scalarization,
+            sumcheckProof: sumcheckProof,
+            terminalStatement: terminalStatement,
+            ceOpeningProof: try invalidCEOpeningProof(openingCount: terminalStatement.openings.count)
+        )
         let laneProof = try NumiSealLaneProof(
             laneKey: aggregate.laneKey,
             aggregateIndex: aggregate.aggregateIndex,
             aggregateDigest: aggregate.aggregateDigest,
-            decompositionKeyDigest: Digest256.hash("numiseal-proof-body-decomposition-key-\(laneLabel)"),
-            decompositionCommitment: AjtaiCommitment(
-                Array(repeating: CyclotomicRing54.one, count: SuperNeoParameters.goldilocks.kappa)
-            ),
-            scalarizationDigest: Digest256.hash("numiseal-proof-body-scalarization-\(laneLabel)"),
-            sumcheckProof: makeToySumcheckProof(),
-            residualOpening: try NumiSealResidualOpening(Array("residual-\(laneLabel)".utf8)),
+            decompositionKeyDigest: decomposition.decompositionKeyDigest,
+            decompositionCommitment: decomposition.commitment,
+            scalarizationDigest: scalarization.residualDigest,
+            sumcheckProof: sumcheckProof,
+            residualOpening: residualOpening,
             optionalCarryClaim: try carryBytes.map(NumiSealCarryClaim.init)
         )
         let proof = try NumiSealProof(publicStatement: publicStatement, laneProofs: [laneProof])
@@ -3136,9 +3185,597 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             publicStatement: publicStatement,
             policy: policy,
             terminalPolicy: terminalPolicy,
+            aggregate: aggregate,
+            digitTensor: digitTensor,
+            decomposition: decomposition,
+            scalarization: scalarization,
+            terminalStatement: terminalStatement,
+            residualOpening: residualOpening,
             laneProof: laneProof,
             proof: proof,
             envelope: envelope
+        )
+    }
+
+    private func makeNumiSealTernaryMessage() -> [CyclotomicRing54] {
+        [
+            CyclotomicRing54([
+                .one,
+                -GoldilocksField.one,
+                .zero,
+                .one,
+                .zero,
+                -GoldilocksField.one
+            ])
+        ]
+    }
+
+    func testNumiSealDecompositionKeyDerivationIsDeterministicAndPubliclyBound() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let laneKey = fixture.laneProof.laneKey
+        let derivation = try NumiSealDecompositionKeyDerivation(
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            laneKey: laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            requiredColumnCount: 1
+        )
+        let reparsed = try NumiSealDecompositionKeyDerivation(bytes: derivation.superNeoBytes)
+
+        XCTAssertEqual(reparsed, derivation)
+        XCTAssertEqual(try reparsed.deriveKey(), try derivation.deriveKey())
+        XCTAssertEqual(derivation.derivationDigest, fixture.laneProof.decompositionKeyDigest)
+
+        let changedVerifierKey = try NumiSealDecompositionKeyDerivation(
+            verifierKeyDigest: Digest256.hash("numiseal-other-verifier-key"),
+            laneKey: laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            requiredColumnCount: 1
+        )
+        let changedAggregate = try NumiSealDecompositionKeyDerivation(
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            laneKey: laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex + 1,
+            requiredColumnCount: 1
+        )
+        let changedColumnCount = try NumiSealDecompositionKeyDerivation(
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            laneKey: laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            requiredColumnCount: 2
+        )
+
+        XCTAssertNotEqual(derivation.derivationDigest, changedVerifierKey.derivationDigest)
+        XCTAssertNotEqual(derivation.derivationDigest, changedAggregate.derivationDigest)
+        XCTAssertNotEqual(derivation.derivationDigest, changedColumnCount.derivationDigest)
+
+        var tampered = derivation.superNeoBytes
+        tampered[tampered.count - Digest256.byteCount] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealDecompositionKeyDerivation(bytes: tampered),
+            .invalidEncoding("NumiSeal decomposition key digest mismatch")
+        )
+    }
+
+    func testNumiSealDigitTensorRoundTripsReconstructsAndRejectsMalformedDigits() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let tensor = try NumiSealDigitTensor(
+            laneKey: fixture.laneProof.laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            message: makeNumiSealTernaryMessage()
+        )
+        let reparsed = try NumiSealDigitTensor(bytes: tensor.superNeoBytes)
+
+        XCTAssertEqual(reparsed, tensor)
+        XCTAssertEqual(reparsed.message, makeNumiSealTernaryMessage())
+        XCTAssertEqual(tensor.columnCount, 1)
+        XCTAssertEqual(tensor.activeDigitCount, 6)
+
+        var invalidDigit = tensor.superNeoBytes
+        let digitOffset = Digest256.byteCount
+            + 2
+            + tensor.laneKey.superNeoBytes.count
+            + encodedCountByteWidth
+            + encodedCountByteWidth
+            + encodedCountByteWidth
+        invalidDigit[digitOffset] = 2
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealDigitTensor(bytes: invalidDigit),
+            .invalidEncoding("NumiSeal digit tensor contains non-ternary digit")
+        )
+
+        var nonzeroPadding = Array(repeating: NumiSealTernaryDigit.zero, count: CyclotomicRing54.degree)
+        nonzeroPadding[0] = .one
+        nonzeroPadding[3] = .one
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealDigitTensor(
+                laneKey: fixture.laneProof.laneKey,
+                aggregateIndex: fixture.laneProof.aggregateIndex,
+                columnCount: 1,
+                activeDigitCount: 2,
+                digits: nonzeroPadding
+            ),
+            .invalidParameter("NumiSeal digit tensor padding must be zero")
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealDigitTensor(
+                laneKey: fixture.laneProof.laneKey,
+                aggregateIndex: fixture.laneProof.aggregateIndex,
+                message: [CyclotomicRing54([GoldilocksField(2)])]
+            ),
+            .invalidParameter("NumiSeal digit tensor contains a non-ternary coefficient")
+        )
+    }
+
+    func testNumiSealDecompositionCommitmentUsesDerivedKeyAndVerifiesTensor() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let tensor = try NumiSealDigitTensor(
+            laneKey: fixture.laneProof.laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            message: makeNumiSealTernaryMessage()
+        )
+        let derivation = try NumiSealDecompositionKeyDerivation(
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            laneKey: fixture.laneProof.laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            requiredColumnCount: tensor.columnCount
+        )
+        let decomposition = try NumiSealDecompositionCommitment(
+            keyDerivation: derivation,
+            digitTensor: tensor,
+            executionPolicy: .highAssurance
+        )
+        let key = try derivation.deriveKey()
+        let expectedCommitment = try AjtaiCommitter.commitConstantWorkReference(
+            key: key,
+            message: tensor.message
+        )
+        let publicCommitment = try NumiSealDecompositionCommitment(
+            keyDerivation: derivation,
+            digitTensorDigest: tensor.digest,
+            commitment: decomposition.commitment
+        )
+        let reparsed = try NumiSealDecompositionCommitment(bytes: decomposition.superNeoBytes)
+
+        XCTAssertEqual(decomposition.decompositionKeyDigest, derivation.derivationDigest)
+        XCTAssertEqual(decomposition.commitment, expectedCommitment)
+        XCTAssertEqual(decomposition.commitmentDigest, publicCommitment.commitmentDigest)
+        XCTAssertEqual(decomposition, reparsed)
+        XCTAssertTrue(
+            try decomposition.verifiesOpening(
+                digitTensor: tensor,
+                executionPolicy: .highAssurance
+            )
+        )
+
+        let otherTensor = try NumiSealDigitTensor(
+            laneKey: fixture.laneProof.laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            message: [CyclotomicRing54([.one, .zero, .one])]
+        )
+        XCTAssertFalse(
+            try decomposition.verifiesOpening(
+                digitTensor: otherTensor,
+                executionPolicy: .highAssurance
+            )
+        )
+
+        let mismatchedDerivation = try NumiSealDecompositionKeyDerivation(
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            laneKey: fixture.laneProof.laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex + 1,
+            requiredColumnCount: tensor.columnCount
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealDecompositionCommitment(
+                keyDerivation: mismatchedDerivation,
+                digitTensor: tensor
+            ),
+            .invalidParameter("NumiSeal decomposition aggregate index mismatch")
+        )
+
+        var tampered = decomposition.superNeoBytes
+        tampered[tampered.count - Digest256.byteCount] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealDecompositionCommitment(bytes: tampered),
+            .invalidEncoding("NumiSeal decomposition commitment digest mismatch")
+        )
+    }
+
+    func testNumiSealScalarizationResidualBindsAggregateAndDecomposition() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let reparsed = try NumiSealLinearResidual(bytes: fixture.scalarization.superNeoBytes)
+        let weights = try NumiSealScalarizationWeights(
+            statement: fixture.scalarization.statement,
+            aggregate: fixture.aggregate,
+            decomposition: fixture.decomposition
+        )
+        let weightsAgain = try NumiSealScalarizationWeights(
+            statement: fixture.scalarization.statement,
+            aggregate: fixture.aggregate,
+            decomposition: fixture.decomposition
+        )
+
+        XCTAssertEqual(reparsed, fixture.scalarization)
+        XCTAssertEqual(fixture.laneProof.scalarizationDigest, fixture.scalarization.residualDigest)
+        XCTAssertEqual(weights, weightsAgain)
+        XCTAssertNoThrow(
+            try fixture.scalarization.validate(
+                publicStatement: fixture.publicStatement,
+                aggregate: fixture.aggregate,
+                decomposition: fixture.decomposition
+            )
+        )
+
+        var changedCommitmentElements = fixture.aggregate.aggregateCommitment.elements
+        changedCommitmentElements[0] = changedCommitmentElements[0] + .one
+        let changedCommitmentAggregate = try replacingNumiSealAggregate(
+            fixture.aggregate,
+            aggregateCommitment: AjtaiCommitment(changedCommitmentElements)
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealScalarizationWeights(
+                statement: fixture.scalarization.statement,
+                aggregate: changedCommitmentAggregate,
+                decomposition: fixture.decomposition
+            ),
+            .invalidParameter("NumiSeal scalarization aggregate digest mismatch")
+        )
+        let changedCommitmentResidual = try NumiSealLinearResidual(
+            publicStatement: fixture.publicStatement,
+            aggregate: changedCommitmentAggregate,
+            decomposition: fixture.decomposition
+        )
+        XCTAssertThrowsSuperNeoError(
+            try fixture.scalarization.validate(
+                publicStatement: fixture.publicStatement,
+                aggregate: changedCommitmentAggregate,
+                decomposition: fixture.decomposition
+            ),
+            .verificationFailed("NumiSeal linear residual mismatch")
+        )
+
+        let changedPublicInputAggregate = try replacingNumiSealAggregate(
+            fixture.aggregate,
+            aggregatePublicInputEncoding: PublicInputEncoding(field: [GoldilocksField(7), GoldilocksField(5)])
+        )
+        let changedPublicInputResidual = try NumiSealLinearResidual(
+            publicStatement: fixture.publicStatement,
+            aggregate: changedPublicInputAggregate,
+            decomposition: fixture.decomposition
+        )
+
+        let changedMatrixAggregate = try replacingNumiSealAggregate(
+            fixture.aggregate,
+            aggregateMatrixEvaluations: [CyclotomicExt2Ring54([GoldilocksExt2(GoldilocksField(13))])]
+        )
+        let changedMatrixResidual = try NumiSealLinearResidual(
+            publicStatement: fixture.publicStatement,
+            aggregate: changedMatrixAggregate,
+            decomposition: fixture.decomposition
+        )
+
+        let changedTensor = try NumiSealDigitTensor(
+            laneKey: fixture.aggregate.laneKey,
+            aggregateIndex: fixture.aggregate.aggregateIndex,
+            message: [CyclotomicRing54([.zero, .one, -GoldilocksField.one])]
+        )
+        let changedDerivation = try NumiSealDecompositionKeyDerivation(
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            laneKey: fixture.aggregate.laneKey,
+            aggregateIndex: fixture.aggregate.aggregateIndex,
+            requiredColumnCount: changedTensor.columnCount
+        )
+        let changedDecomposition = try NumiSealDecompositionCommitment(
+            keyDerivation: changedDerivation,
+            digitTensor: changedTensor
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealScalarizationWeights(
+                statement: fixture.scalarization.statement,
+                aggregate: fixture.aggregate,
+                decomposition: changedDecomposition
+            ),
+            .invalidParameter("NumiSeal scalarization decomposition digest mismatch")
+        )
+        let changedDecompositionResidual = try NumiSealLinearResidual(
+            publicStatement: fixture.publicStatement,
+            aggregate: fixture.aggregate,
+            decomposition: changedDecomposition
+        )
+
+        XCTAssertNotEqual(changedCommitmentResidual.residualDigest, fixture.scalarization.residualDigest)
+        XCTAssertNotEqual(changedPublicInputResidual.residualDigest, fixture.scalarization.residualDigest)
+        XCTAssertNotEqual(changedMatrixResidual.residualDigest, fixture.scalarization.residualDigest)
+        XCTAssertNotEqual(changedDecompositionResidual.residualDigest, fixture.scalarization.residualDigest)
+    }
+
+    func testNumiSealScalarizationRejectsWrongLaneAndDigestMutations() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let wrongLaneKey = NumiSealLaneKey(
+            profileID: fixture.aggregate.laneKey.profileID,
+            shapeDigest: fixture.aggregate.laneKey.shapeDigest,
+            verifierKeyDigest: fixture.aggregate.laneKey.verifierKeyDigest,
+            evalPointDigest: fixture.aggregate.laneKey.evalPointDigest,
+            laneID: try NumiSealLaneID("scalar-other")
+        )
+        let wrongLaneAggregate = try NumiSealLaneAggregate(
+            laneKey: wrongLaneKey,
+            aggregateIndex: fixture.aggregate.aggregateIndex,
+            obligationDigests: fixture.aggregate.obligationDigests,
+            challenges: fixture.aggregate.challenges,
+            aggregateCommitment: fixture.aggregate.aggregateCommitment,
+            aggregatePublicInputEncoding: fixture.aggregate.aggregatePublicInputEncoding,
+            evalPoint: fixture.aggregate.evalPoint,
+            aggregateMatrixEvaluations: fixture.aggregate.aggregateMatrixEvaluations
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealScalarizationStatement(
+                publicStatement: fixture.publicStatement,
+                aggregate: wrongLaneAggregate,
+                decomposition: fixture.decomposition
+            ),
+            .invalidParameter("NumiSeal scalarization aggregate lane is not covered by public statement")
+        )
+
+        var tamperedStatement = fixture.scalarization.statement.superNeoBytes
+        tamperedStatement[tamperedStatement.count - 1] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealScalarizationStatement(bytes: tamperedStatement),
+            .invalidEncoding("NumiSeal scalarization statement digest mismatch")
+        )
+
+        var tamperedResidual = fixture.scalarization.superNeoBytes
+        tamperedResidual[tamperedResidual.count - 1] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealLinearResidual(bytes: tamperedResidual),
+            .invalidEncoding("NumiSeal linear residual digest mismatch")
+        )
+    }
+
+    func testNumiSealSumcheckOracleBindsResidualAndDigitTensor() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let proof = fixture.laneProof.sumcheckProof
+
+        XCTAssertEqual(proof.claimedSum, fixture.scalarization.residualValue)
+        XCTAssertEqual(proof.rounds.count, 6)
+        XCTAssertTrue(
+            try NumiSealSumcheckOracle.verify(
+                proof: proof,
+                linearResidual: fixture.scalarization,
+                digitTensor: fixture.digitTensor
+            )
+        )
+
+        var tamperedRounds = proof.rounds
+        tamperedRounds[0] = SumcheckRound(
+            coeffs: [tamperedRounds[0].coeffs[0] + .one] + Array(tamperedRounds[0].coeffs.dropFirst())
+        )
+        let tamperedRoundProof = SumcheckProof(
+            claimedSum: proof.claimedSum,
+            rounds: tamperedRounds,
+            finalPoint: proof.finalPoint,
+            finalValue: proof.finalValue
+        )
+        XCTAssertFalse(
+            try NumiSealSumcheckOracle.verify(
+                proof: tamperedRoundProof,
+                linearResidual: fixture.scalarization,
+                digitTensor: fixture.digitTensor
+            )
+        )
+
+        var tooHighDegreeRounds = proof.rounds
+        tooHighDegreeRounds[0] = SumcheckRound(coeffs: proof.rounds[0].coeffs + [.zero])
+        let tooHighDegreeProof = SumcheckProof(
+            claimedSum: proof.claimedSum,
+            rounds: tooHighDegreeRounds,
+            finalPoint: proof.finalPoint,
+            finalValue: proof.finalValue
+        )
+        XCTAssertFalse(
+            try NumiSealSumcheckOracle.verify(
+                proof: tooHighDegreeProof,
+                linearResidual: fixture.scalarization,
+                digitTensor: fixture.digitTensor
+            )
+        )
+
+        let otherTensor = try NumiSealDigitTensor(
+            laneKey: fixture.digitTensor.laneKey,
+            aggregateIndex: fixture.digitTensor.aggregateIndex,
+            message: [CyclotomicRing54([.one, .zero, .one])]
+        )
+        XCTAssertFalse(
+            try NumiSealSumcheckOracle.verify(
+                proof: proof,
+                linearResidual: fixture.scalarization,
+                digitTensor: otherTensor
+            )
+        )
+
+        let changedPublicInputAggregate = try replacingNumiSealAggregate(
+            fixture.aggregate,
+            aggregatePublicInputEncoding: PublicInputEncoding(field: [GoldilocksField(7), GoldilocksField(5)])
+        )
+        let changedResidual = try NumiSealLinearResidual(
+            publicStatement: fixture.publicStatement,
+            aggregate: changedPublicInputAggregate,
+            decomposition: fixture.decomposition
+        )
+        XCTAssertFalse(
+            try NumiSealSumcheckOracle.verify(
+                proof: proof,
+                linearResidual: changedResidual,
+                digitTensor: fixture.digitTensor
+            )
+        )
+
+        let wrongLaneTensor = try NumiSealDigitTensor(
+            laneKey: NumiSealLaneKey(
+                profileID: fixture.digitTensor.laneKey.profileID,
+                shapeDigest: fixture.digitTensor.laneKey.shapeDigest,
+                verifierKeyDigest: fixture.digitTensor.laneKey.verifierKeyDigest,
+                evalPointDigest: fixture.digitTensor.laneKey.evalPointDigest,
+                laneID: try NumiSealLaneID("wrong-sumcheck-lane")
+            ),
+            aggregateIndex: fixture.digitTensor.aggregateIndex,
+            message: makeNumiSealTernaryMessage()
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealSumcheckOracle.prove(
+                linearResidual: fixture.scalarization,
+                digitTensor: wrongLaneTensor
+            ),
+            .invalidParameter("NumiSeal sum-check digit tensor lane mismatch")
+        )
+    }
+
+    func testNumiSealResidualOpeningBindsImmediateCEPayload() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let residualOpening = fixture.residualOpening
+        let reparsed = try NumiSealResidualOpening(residualOpening.superNeoBytes)
+
+        XCTAssertEqual(reparsed, residualOpening)
+        XCTAssertEqual(residualOpening.linearResidualDigest, fixture.scalarization.residualDigest)
+        XCTAssertEqual(
+            residualOpening.sumcheckProofDigest,
+            NumiSealResidualOpening.sumcheckProofDigest(fixture.laneProof.sumcheckProof)
+        )
+        XCTAssertEqual(residualOpening.terminalStatementDigest, fixture.terminalStatement.statementDigest)
+        XCTAssertNoThrow(
+            try residualOpening.validate(
+                linearResidual: fixture.scalarization,
+                sumcheckProof: fixture.laneProof.sumcheckProof
+            )
+        )
+        XCTAssertNoThrow(try fixture.terminalPolicy.validate(proof: fixture.proof))
+
+        var tamperedOpening = residualOpening.superNeoBytes
+        tamperedOpening[tamperedOpening.count - 1] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealResidualOpening(tamperedOpening),
+            .invalidEncoding("NumiSeal residual opening digest mismatch")
+        )
+
+        let changedPublicInputAggregate = try replacingNumiSealAggregate(
+            fixture.aggregate,
+            aggregatePublicInputEncoding: PublicInputEncoding(field: [GoldilocksField(7), GoldilocksField(5)])
+        )
+        let changedResidual = try NumiSealLinearResidual(
+            publicStatement: fixture.publicStatement,
+            aggregate: changedPublicInputAggregate,
+            decomposition: fixture.decomposition
+        )
+        XCTAssertThrowsSuperNeoError(
+            try residualOpening.validate(
+                linearResidual: changedResidual,
+                sumcheckProof: fixture.laneProof.sumcheckProof
+            ),
+            .verificationFailed("NumiSeal residual opening linear residual digest mismatch")
+        )
+
+        let wrongClaimedSumProof = SumcheckProof(
+            claimedSum: fixture.laneProof.sumcheckProof.claimedSum + .one,
+            rounds: fixture.laneProof.sumcheckProof.rounds,
+            finalPoint: fixture.laneProof.sumcheckProof.finalPoint,
+            finalValue: fixture.laneProof.sumcheckProof.finalValue
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealResidualOpening(
+                laneKey: fixture.laneProof.laneKey,
+                aggregateIndex: fixture.laneProof.aggregateIndex,
+                linearResidual: fixture.scalarization,
+                sumcheckProof: wrongClaimedSumProof,
+                terminalStatement: fixture.terminalStatement,
+                ceOpeningProof: fixture.residualOpening.ceOpeningProof
+            ),
+            .invalidParameter("NumiSeal residual opening sum-check claimed sum mismatch")
+        )
+
+        let wrongProfileStatement = try TerminalCEStatement(
+            profileID: fixture.policy.profileID + 1,
+            shapeDigest: fixture.policy.shapeDigest,
+            verifierKeyDigest: fixture.policy.verifierKeyDigest,
+            claims: fixture.terminalStatement.outputClaims
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealResidualOpening(
+                laneKey: fixture.laneProof.laneKey,
+                aggregateIndex: fixture.laneProof.aggregateIndex,
+                linearResidual: fixture.scalarization,
+                sumcheckProof: fixture.laneProof.sumcheckProof,
+                terminalStatement: wrongProfileStatement,
+                ceOpeningProof: fixture.residualOpening.ceOpeningProof
+            ),
+            .invalidParameter("NumiSeal residual terminal statement profile mismatch")
+        )
+
+        let wrongOpeningCountProof = try invalidCEOpeningProof(
+            openingCount: fixture.terminalStatement.openings.count + 1
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealResidualOpening(
+                laneKey: fixture.laneProof.laneKey,
+                aggregateIndex: fixture.laneProof.aggregateIndex,
+                linearResidual: fixture.scalarization,
+                sumcheckProof: fixture.laneProof.sumcheckProof,
+                terminalStatement: fixture.terminalStatement,
+                ceOpeningProof: wrongOpeningCountProof
+            ),
+            .invalidParameter("NumiSeal residual CE proof opening count mismatch")
+        )
+
+        let sameClaimDifferentProof = SumcheckProof(
+            claimedSum: fixture.laneProof.sumcheckProof.claimedSum,
+            rounds: fixture.laneProof.sumcheckProof.rounds,
+            finalPoint: fixture.laneProof.sumcheckProof.finalPoint,
+            finalValue: fixture.laneProof.sumcheckProof.finalValue + .one
+        )
+        let mismatchedResidualOpening = try NumiSealResidualOpening(
+            laneKey: fixture.laneProof.laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            linearResidual: fixture.scalarization,
+            sumcheckProof: sameClaimDifferentProof,
+            terminalStatement: fixture.terminalStatement,
+            ceOpeningProof: fixture.residualOpening.ceOpeningProof
+        )
+        let mismatchedLaneProof = try NumiSealLaneProof(
+            laneKey: fixture.laneProof.laneKey,
+            aggregateIndex: fixture.laneProof.aggregateIndex,
+            aggregateDigest: fixture.laneProof.aggregateDigest,
+            decompositionKeyDigest: fixture.laneProof.decompositionKeyDigest,
+            decompositionCommitment: fixture.laneProof.decompositionCommitment,
+            scalarizationDigest: fixture.laneProof.scalarizationDigest,
+            sumcheckProof: fixture.laneProof.sumcheckProof,
+            residualOpening: mismatchedResidualOpening
+        )
+        XCTAssertThrowsSuperNeoError(
+            try fixture.terminalPolicy.validate(
+                proof: NumiSealProof(
+                    publicStatement: fixture.publicStatement,
+                    laneProofs: [mismatchedLaneProof]
+                )
+            ),
+            .verificationFailed("NumiSeal residual opening sum-check proof digest mismatch")
+        )
+    }
+
+    private func replacingNumiSealAggregate(
+        _ aggregate: NumiSealLaneAggregate,
+        aggregateCommitment: AjtaiCommitment? = nil,
+        aggregatePublicInputEncoding: PublicInputEncoding? = nil,
+        aggregateMatrixEvaluations: [CyclotomicExt2Ring54]? = nil
+    ) throws -> NumiSealLaneAggregate {
+        try NumiSealLaneAggregate(
+            laneKey: aggregate.laneKey,
+            aggregateIndex: aggregate.aggregateIndex,
+            obligationDigests: aggregate.obligationDigests,
+            challenges: aggregate.challenges,
+            aggregateCommitment: aggregateCommitment ?? aggregate.aggregateCommitment,
+            aggregatePublicInputEncoding: aggregatePublicInputEncoding ?? aggregate.aggregatePublicInputEncoding,
+            evalPoint: aggregate.evalPoint,
+            aggregateMatrixEvaluations: aggregateMatrixEvaluations ?? aggregate.aggregateMatrixEvaluations
         )
     }
 
@@ -3261,6 +3898,131 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertThrowsSuperNeoError(
             try NumiSealLaneAggregate(bytes: tampered),
             .invalidEncoding("NumiSeal aggregate digest mismatch")
+        )
+    }
+
+    func testNumiSealAggregateEvaluationOracleReconstructsSparseCCSOpening() throws {
+        let fixture = try makeFoldFixture()
+        let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
+        let publicInput = SuperNeoPublicFoldInput(fixture.input)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances
+        )
+        let laneID = try NumiSealLaneID("oracle")
+        let claims = Array(fold.outputClaims.prefix(2))
+        let obligations = claims.enumerated().map { index, claim in
+            NumiSealObligation(
+                laneID: laneID,
+                profileID: fixture.key.parameters.profileID,
+                statement: statement,
+                verifierKeyDigest: fixture.key.verifierKeyDigest,
+                instance: CEInstance(claim),
+                sourceFoldDigest: Digest256.hash("numiseal-oracle-source-\(index)")
+            )
+        }
+        let policy = NumiSealAcceptancePolicy(
+            statement: statement,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            acceptedLaneIDs: [laneID]
+        )
+        let canonicalization = try NumiSealCanonicalization.canonicalize(
+            obligations: obligations,
+            policy: policy
+        )
+        let aggregate = try XCTUnwrap(
+            NumiSealLaneAggregation.aggregate(
+                canonicalization: canonicalization,
+                policy: policy,
+                limits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 2)
+            ).first
+        )
+        let claimByDigest = Dictionary(
+            uniqueKeysWithValues: zip(
+                obligations.map { NumiSealCanonicalization.obligationDigest($0) },
+                claims
+            )
+        )
+        let orderedClaims = try aggregate.obligationDigests.map { digest in
+            try XCTUnwrap(claimByDigest[digest])
+        }
+        let witnessedClaim = try NumiSealAggregateEvaluationOracle.witnessedAggregateClaim(
+            aggregate: aggregate,
+            claims: orderedClaims,
+            shape: fixture.input.shape,
+            executionPolicy: .highAssurance
+        )
+        let witness = try XCTUnwrap(witnessedClaim.witness)
+        let transformedMatrices = try fixture.input.shape.compiledSparseForSuperNeo().transformedSparseMatrices
+
+        XCTAssertEqual(witnessedClaim.commitment, aggregate.aggregateCommitment)
+        XCTAssertEqual(witnessedClaim.publicInput, aggregate.aggregatePublicInputEncoding.field)
+        XCTAssertEqual(witnessedClaim.evaluations, aggregate.aggregateMatrixEvaluations)
+        XCTAssertTrue(
+            try NumiSealAggregateEvaluationOracle.verifyAggregateOpening(
+                aggregate: aggregate,
+                witness: witness,
+                shape: fixture.input.shape,
+                key: fixture.key,
+                transformedMatrices: transformedMatrices,
+                executionPolicy: .highAssurance
+            )
+        )
+
+        var tamperedWitness = witness
+        tamperedWitness[0] = tamperedWitness[0] + .one
+        XCTAssertFalse(
+            try NumiSealAggregateEvaluationOracle.verifyAggregateOpening(
+                aggregate: aggregate,
+                witness: tamperedWitness,
+                shape: fixture.input.shape,
+                key: fixture.key,
+                transformedMatrices: transformedMatrices,
+                executionPolicy: .highAssurance
+            )
+        )
+
+        var tamperedEvaluations = aggregate.aggregateMatrixEvaluations
+        tamperedEvaluations[0] = tamperedEvaluations[0] + CyclotomicExt2Ring54([GoldilocksExt2(.one)])
+        let tamperedAggregate = try NumiSealLaneAggregate(
+            laneKey: aggregate.laneKey,
+            aggregateIndex: aggregate.aggregateIndex,
+            obligationDigests: aggregate.obligationDigests,
+            challenges: aggregate.challenges,
+            aggregateCommitment: aggregate.aggregateCommitment,
+            aggregatePublicInputEncoding: aggregate.aggregatePublicInputEncoding,
+            evalPoint: aggregate.evalPoint,
+            aggregateMatrixEvaluations: tamperedEvaluations
+        )
+        XCTAssertFalse(
+            try NumiSealAggregateEvaluationOracle.verifyAggregateOpening(
+                aggregate: tamperedAggregate,
+                witness: witness,
+                shape: fixture.input.shape,
+                key: fixture.key,
+                transformedMatrices: transformedMatrices,
+                executionPolicy: .highAssurance
+            )
+        )
+
+        var missingWitnessClaims = orderedClaims
+        missingWitnessClaims[0] = CCSEvaluationClaim(
+            commitment: missingWitnessClaims[0].commitment,
+            publicInput: missingWitnessClaims[0].publicInput,
+            point: missingWitnessClaims[0].point,
+            evaluations: missingWitnessClaims[0].evaluations
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealAggregateEvaluationOracle.witnessedAggregateClaim(
+                aggregate: aggregate,
+                claims: missingWitnessClaims,
+                shape: fixture.input.shape,
+                executionPolicy: .highAssurance
+            ),
+            .invalidParameter("NumiSeal aggregate claim is missing witness")
         )
     }
 

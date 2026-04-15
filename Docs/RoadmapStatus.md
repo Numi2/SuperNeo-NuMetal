@@ -267,8 +267,10 @@ Remaining boundary:
 
 ## Fifth Priority: NumiSeal Terminal Seal
 
-Status: design refreshed; Phase 0 public statement wiring is present; Phase 1
-lane aggregation has started.
+Status: design refreshed; Phase 0 public statement wiring, Phase 1 lane
+aggregation, Phase 2 proof-body policy separation, Phase 3 decomposition
+handoff, Phase 4 public scalarization, the bounded Phase 5 sum-check handoff,
+and the first typed Phase 6 residual-opening handoff are present.
 
 NumiSeal is the planned native terminal-seal layer for the SNARK product track.
 It should compress many terminal CE obligations into lane-local aggregates while
@@ -303,16 +305,41 @@ Artifacts:
   canonical lane spans under profile limits, derives deterministic lane-local
   RLC challenges from the public-statement digest, computes public aggregate CE
   instances, and gives every aggregate a parse-checked digest.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealAggregateEvaluation.swift`
+  rebuilds witnessed aggregate claims from canonical RLC challenges and checks
+  aggregate commitments plus sparse transformed CCS evaluations against the
+  existing shape/key machinery.
 - `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift` defines the
   versioned NumiSeal proof-body grammar, lane-proof parser, typed component
   digest leaves, absent carry leaf, `numiSealTerminal` envelope, and
   NumiSeal-only terminal preflight policy.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealDecomposition.swift` defines
+  deterministic decomposition-key derivation, a bounded ternary digit-tensor
+  grammar, zero-padding enforcement, CPU reference decomposition commitments,
+  and opening checks for the next NumiSeal algebraic phase.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealScalarization.swift` defines
+  scalarization statements, transcript-derived public weights, parse-checked
+  linear residuals, and stale-statement rejection before the degree-4
+  sum-check phase.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealSumcheck.swift` defines the
+  bounded reference sum-check handoff over the scalar residual and digit-tensor
+  ternary/padding language, using the existing sum-check prover/verifier.
+- `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift` also defines the
+  typed immediate residual-opening body, binding lane scope, scalarization
+  digest, sum-check proof digest, canonical terminal CE statement bytes,
+  canonical CE opening proof bytes, and a recomputed residual-opening digest
+  before full CE relation verification.
 - `NumiSealCanonicalizationTests` cover deterministic sorting independent of
   input order, lane separation by evaluation point, fail-closed policy mismatch
   rejection, public-statement serialization, deterministic aggregate chunking,
   aggregate byte tamper rejection, incompatible public-input rejection,
   proof-body mutation rejection, lane-proof ordering, absent carry digest
-  binding, envelope-kind separation, and NumiSeal policy preflight rejection.
+  binding, envelope-kind separation, decomposition-key public binding,
+  digit-tensor mutation/padding rejection, CPU decomposition commitment opening,
+  witnessed aggregate sparse CCS reconstruction, scalarization residual
+  mutation/stale-statement rejection, sum-check residual/digit-tensor binding,
+  residual-opening digest/scope/count binding, and NumiSeal policy preflight
+  rejection.
 - The design explicitly separates the shipped prover track from the planned
   SNARK product track.
 - The design requires lane-key canonicalization, typed digest roots,
@@ -327,21 +354,29 @@ Implementation gates:
 
 - Phase 0: NumiSeal public types, canonicalization, lane-key derivation, policy
   rejection, digest-root fixtures, public-statement serialization, and aggregate
-  serialization. Basic implementation is present.
-- Phase 1: lane-local RLC and deterministic lane chunking under profile limits.
-  Initial implementation is present for public aggregates and proof-body
-  serialization; decomposition handoff fixtures remain.
-- Phase 2: deterministic decomposition-key derivation and one Ajtai digit-tensor
-  commitment per lane aggregate.
-- Phase 3: scalarization fixtures for commitment, CCS evaluation, and public
-  slot residuals.
-- Phase 4: degree-4 sum-check prover/verifier with invalid digit, padding, and
-  scalarization tamper tests.
-- Phase 5: residual CE opening through the existing CE relation with stable
-  internal residual shape digest.
-- Phase 6: `ProofEnvelopeKind.numiSealTerminal = 4` and NumiSeal terminal
-  preflight policy are present. NumiSeal prover/verifier API, full algebraic
-  verification, vectors, and production-gate coverage remain.
+  serialization. Lane-local RLC and deterministic lane chunking under profile
+  limits are present for public aggregates.
+- Phase 1: proof-body grammar, bounded parsers, typed component leaves, absent
+  carry binding, lane-proof ordering, transcript digest recomputation, and
+  parser/mutation tests are present.
+- Phase 2: `ProofEnvelopeKind.numiSealTerminal = 4`, NumiSeal proof envelopes,
+  and NumiSeal-only terminal preflight policy are present.
+- Phase 3: deterministic decomposition-key derivation, bounded digit-tensor
+  grammar, one CPU reference Ajtai digit-tensor commitment per lane aggregate,
+  and parser/mutation tests are present. Full aggregate witness decomposition
+  and verifier handoff remain.
+- Phase 4: public scalarization statements, transcript-derived weights, linear
+  residual digests, witnessed aggregate sparse CCS reconstruction, and
+  mutation/stale-statement tests are present. Multi-lane/prior-claim vectors
+  remain.
+- Phase 5: degree-4 sum-check prover/verifier with invalid digit, padding, and
+  scalarization tamper tests. A bounded reference sum-check handoff is present;
+  the optimized large-tensor prover/verifier remains.
+- Phase 6: typed immediate residual-opening parsing and preflight digest/scope
+  binding are present. Residual CE opening through the existing CE relation with
+  stable internal residual shape digest remains.
+- Phase 7: NumiSeal prover/verifier API, full algebraic verification, vectors,
+  and production-gate coverage remain.
 
 Remaining boundary:
 

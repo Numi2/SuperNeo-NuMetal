@@ -641,6 +641,12 @@ extension CCSEvaluationClaim: SuperNeoByteEncodable {
 }
 
 extension CEOpeningStatement: SuperNeoByteEncodable {
+    public init(bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
+        var reader = ByteReader(bytes)
+        self = try reader.readCEOpeningStatement(parameters: parameters)
+        try reader.finish()
+    }
+
     public var superNeoBytes: [UInt8] {
         var bytes = encodeUInt16(profileID)
         bytes.append(contentsOf: shapeDigest.superNeoBytes)
@@ -655,6 +661,12 @@ extension CEOpeningStatement: SuperNeoByteEncodable {
 }
 
 extension TerminalCEStatement: SuperNeoByteEncodable {
+    public init(bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
+        var reader = ByteReader(bytes)
+        self = try reader.readTerminalCEStatement(parameters: parameters)
+        try reader.finish()
+    }
+
     public var superNeoBytes: [UInt8] {
         var bytes = encodeUInt16(profileID)
         bytes.append(contentsOf: shapeDigest.superNeoBytes)

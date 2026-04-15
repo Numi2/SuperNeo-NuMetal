@@ -4,6 +4,7 @@ enum NumiSealWireLimits {
     static let maximumObligationCount = 1 << 20
     static let maximumLaneCount = 1 << 16
     static let maximumAggregateCount = 1 << 20
+    static let maximumDigitTensorColumnCount = 4096
     static let maximumPublicInputCount = 1 << 20
     static let maximumEvaluationPointCount = 64
     static let maximumMatrixEvaluationCount = 1024

@@ -155,19 +155,254 @@ public enum NumiSealComponentDigestTree {
 }
 
 public struct NumiSealResidualOpening: Equatable, Sendable, SuperNeoByteEncodable {
-    public let bytes: [UInt8]
+    public static let domain = Digest256.hash("SuperNeo-NuMetal.numiseal.residual-opening.v1")
+    public static let version: UInt16 = 10
 
-    public init(_ bytes: [UInt8]) throws {
-        guard !bytes.isEmpty else {
-            throw SuperNeoError.invalidParameter("NumiSeal residual opening cannot be empty")
+    public let version: UInt16
+    public let laneKey: NumiSealLaneKey
+    public let aggregateIndex: Int
+    public let linearResidualDigest: Digest256
+    public let sumcheckProofDigest: Digest256
+    public let terminalStatement: TerminalCEStatement
+    public let terminalStatementDigest: Digest256
+    public let ceOpeningProof: CEOpeningProof
+    public let ceOpeningProofDigest: Digest256
+    public let openingDigest: Digest256
+
+    public init(
+        laneKey: NumiSealLaneKey,
+        aggregateIndex: Int,
+        linearResidual: NumiSealLinearResidual,
+        sumcheckProof: SumcheckProof,
+        terminalStatement: TerminalCEStatement,
+        ceOpeningProof: CEOpeningProof
+    ) throws {
+        guard linearResidual.statement.laneKey == laneKey else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual opening linear residual lane mismatch")
         }
-        guard bytes.count <= NumiSealWireLimits.maximumProofComponentByteCount else {
-            throw SuperNeoError.invalidParameter("NumiSeal residual opening is too large")
+        guard linearResidual.statement.aggregateIndex == aggregateIndex else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual opening linear residual aggregate mismatch")
         }
-        self.bytes = bytes
+        guard sumcheckProof.claimedSum == linearResidual.residualValue else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual opening sum-check claimed sum mismatch")
+        }
+        try Self.validateTerminalStatement(terminalStatement, laneKey: laneKey)
+        try Self.validateCEProof(ceOpeningProof, terminalStatement: terminalStatement)
+
+        let terminalStatementDigest = terminalStatement.statementDigest
+        let sumcheckProofDigest = Self.sumcheckProofDigest(sumcheckProof)
+        let ceOpeningProofDigest = Self.ceOpeningProofDigest(ceOpeningProof)
+        self.version = Self.version
+        self.laneKey = laneKey
+        self.aggregateIndex = aggregateIndex
+        self.linearResidualDigest = linearResidual.residualDigest
+        self.sumcheckProofDigest = sumcheckProofDigest
+        self.terminalStatement = terminalStatement
+        self.terminalStatementDigest = terminalStatementDigest
+        self.ceOpeningProof = ceOpeningProof
+        self.ceOpeningProofDigest = ceOpeningProofDigest
+        self.openingDigest = Self.computeOpeningDigest(
+            laneKey: laneKey,
+            aggregateIndex: aggregateIndex,
+            linearResidualDigest: linearResidual.residualDigest,
+            sumcheckProofDigest: sumcheckProofDigest,
+            terminalStatementDigest: terminalStatementDigest,
+            ceOpeningProofDigest: ceOpeningProofDigest,
+            terminalStatementBytes: terminalStatement.superNeoBytes,
+            ceOpeningProofBytes: ceOpeningProof.superNeoBytes
+        )
     }
 
-    public var superNeoBytes: [UInt8] { bytes }
+    public init(_ bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
+        try self.init(bytes: bytes, parameters: parameters)
+    }
+
+    public init(bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
+        var reader = ByteReader(bytes)
+        let domain = try Digest256(reader.readData(count: Digest256.byteCount))
+        guard domain == Self.domain else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual opening domain mismatch")
+        }
+        let version = try reader.readUInt16()
+        guard version == Self.version else {
+            throw SuperNeoError.invalidEncoding("unsupported NumiSeal residual opening version")
+        }
+        let laneKey = try reader.readNumiSealLaneKey()
+        let aggregateIndex = try reader.readCount(
+            maximum: NumiSealWireLimits.maximumAggregateCount,
+            name: "NumiSeal residual opening aggregate index"
+        )
+        let linearResidualDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let sumcheckProofDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let terminalStatementDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let ceOpeningProofDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        let terminalStatementBytes = try reader.readNumiSealProofComponentBytes(
+            name: "NumiSeal residual terminal CE statement"
+        )
+        let ceOpeningProofBytes = try reader.readNumiSealProofComponentBytes(
+            name: "NumiSeal residual CE opening proof"
+        )
+        let openingDigest = try Digest256(reader.readData(count: Digest256.byteCount))
+        try reader.finish()
+
+        let terminalStatement = try TerminalCEStatement(bytes: terminalStatementBytes, parameters: parameters)
+        let ceOpeningProof = try CEOpeningProof(bytes: ceOpeningProofBytes, parameters: parameters)
+        try Self.validateTerminalStatement(terminalStatement, laneKey: laneKey)
+        try Self.validateCEProof(ceOpeningProof, terminalStatement: terminalStatement)
+        guard terminalStatementDigest == terminalStatement.statementDigest else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual terminal statement digest mismatch")
+        }
+        guard ceOpeningProofDigest == Self.ceOpeningProofDigest(ceOpeningProof) else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual CE proof digest mismatch")
+        }
+        let expectedDigest = Self.computeOpeningDigest(
+            laneKey: laneKey,
+            aggregateIndex: aggregateIndex,
+            linearResidualDigest: linearResidualDigest,
+            sumcheckProofDigest: sumcheckProofDigest,
+            terminalStatementDigest: terminalStatementDigest,
+            ceOpeningProofDigest: ceOpeningProofDigest,
+            terminalStatementBytes: terminalStatementBytes,
+            ceOpeningProofBytes: ceOpeningProofBytes
+        )
+        guard openingDigest == expectedDigest else {
+            throw SuperNeoError.invalidEncoding("NumiSeal residual opening digest mismatch")
+        }
+
+        self.version = version
+        self.laneKey = laneKey
+        self.aggregateIndex = aggregateIndex
+        self.linearResidualDigest = linearResidualDigest
+        self.sumcheckProofDigest = sumcheckProofDigest
+        self.terminalStatement = terminalStatement
+        self.terminalStatementDigest = terminalStatementDigest
+        self.ceOpeningProof = ceOpeningProof
+        self.ceOpeningProofDigest = ceOpeningProofDigest
+        self.openingDigest = openingDigest
+    }
+
+    public func validate(
+        linearResidual: NumiSealLinearResidual,
+        sumcheckProof: SumcheckProof
+    ) throws {
+        guard laneKey == linearResidual.statement.laneKey else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual opening linear residual lane mismatch")
+        }
+        guard aggregateIndex == linearResidual.statement.aggregateIndex else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual opening linear residual aggregate mismatch")
+        }
+        guard linearResidualDigest == linearResidual.residualDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual opening linear residual digest mismatch")
+        }
+        guard sumcheckProof.claimedSum == linearResidual.residualValue else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual opening sum-check claimed sum mismatch")
+        }
+        guard sumcheckProofDigest == Self.sumcheckProofDigest(sumcheckProof) else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual opening sum-check proof digest mismatch")
+        }
+    }
+
+    public func validate(laneProof: NumiSealLaneProof) throws {
+        guard laneKey == laneProof.laneKey else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual opening lane mismatch")
+        }
+        guard aggregateIndex == laneProof.aggregateIndex else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual opening aggregate mismatch")
+        }
+        guard linearResidualDigest == laneProof.scalarizationDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual opening scalarization digest mismatch")
+        }
+        guard sumcheckProofDigest == Self.sumcheckProofDigest(laneProof.sumcheckProof) else {
+            throw SuperNeoError.verificationFailed("NumiSeal residual opening sum-check proof digest mismatch")
+        }
+    }
+
+    public var superNeoBytes: [UInt8] {
+        let terminalStatementBytes = terminalStatement.superNeoBytes
+        let ceOpeningProofBytes = ceOpeningProof.superNeoBytes
+        return Self.domain.superNeoBytes
+            + numiSealEncodeUInt16(version)
+            + laneKey.superNeoBytes
+            + numiSealEncodeCount(aggregateIndex)
+            + linearResidualDigest.superNeoBytes
+            + sumcheckProofDigest.superNeoBytes
+            + terminalStatementDigest.superNeoBytes
+            + ceOpeningProofDigest.superNeoBytes
+            + numiSealFrame(terminalStatementBytes)
+            + numiSealFrame(ceOpeningProofBytes)
+            + openingDigest.superNeoBytes
+    }
+
+    public static func sumcheckProofDigest(_ proof: SumcheckProof) -> Digest256 {
+        NumiSealEncoding.digest(
+            label: NumiSealComponentDigestKind.sumcheck.label,
+            bytes: proof.superNeoBytes
+        )
+    }
+
+    public static func ceOpeningProofDigest(_ proof: CEOpeningProof) -> Digest256 {
+        NumiSealEncoding.digest(
+            label: "numiseal.residual-opening.ce-proof.v1",
+            bytes: proof.superNeoBytes
+        )
+    }
+
+    private static func validateTerminalStatement(
+        _ terminalStatement: TerminalCEStatement,
+        laneKey: NumiSealLaneKey
+    ) throws {
+        guard terminalStatement.profileID == laneKey.profileID else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual terminal statement profile mismatch")
+        }
+        guard terminalStatement.shapeDigest == laneKey.shapeDigest else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual terminal statement shape mismatch")
+        }
+        guard terminalStatement.verifierKeyDigest == laneKey.verifierKeyDigest else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual terminal statement verifier key mismatch")
+        }
+        guard !terminalStatement.openings.isEmpty else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual terminal statement cannot be empty")
+        }
+        for opening in terminalStatement.openings {
+            guard NumiSealCanonicalization.evalPointDigest(opening.instance.evalPoint) == laneKey.evalPointDigest else {
+                throw SuperNeoError.invalidParameter("NumiSeal residual terminal statement evaluation point mismatch")
+            }
+        }
+    }
+
+    private static func validateCEProof(
+        _ proof: CEOpeningProof,
+        terminalStatement: TerminalCEStatement
+    ) throws {
+        let openingCount = terminalStatement.openings.count
+        guard proof.rounds.allSatisfy({ $0.commitments.count == openingCount }) else {
+            throw SuperNeoError.invalidParameter("NumiSeal residual CE proof opening count mismatch")
+        }
+    }
+
+    private static func computeOpeningDigest(
+        laneKey: NumiSealLaneKey,
+        aggregateIndex: Int,
+        linearResidualDigest: Digest256,
+        sumcheckProofDigest: Digest256,
+        terminalStatementDigest: Digest256,
+        ceOpeningProofDigest: Digest256,
+        terminalStatementBytes: [UInt8],
+        ceOpeningProofBytes: [UInt8]
+    ) -> Digest256 {
+        NumiSealEncoding.digest(
+            label: "numiseal.residual-opening.v1",
+            bytes: numiSealEncodeUInt16(Self.version)
+                + laneKey.superNeoBytes
+                + numiSealEncodeCount(aggregateIndex)
+                + linearResidualDigest.superNeoBytes
+                + sumcheckProofDigest.superNeoBytes
+                + terminalStatementDigest.superNeoBytes
+                + ceOpeningProofDigest.superNeoBytes
+                + numiSealFrame(terminalStatementBytes)
+                + numiSealFrame(ceOpeningProofBytes)
+        )
+    }
 }
 
 public struct NumiSealCarryClaim: Equatable, Sendable, SuperNeoByteEncodable {
@@ -246,7 +481,8 @@ public struct NumiSealLaneProof: Equatable, Sendable, SuperNeoByteEncodable {
         let sumcheckBytes = try reader.readNumiSealProofComponentBytes(name: "NumiSeal sum-check proof")
         let sumcheckProof = try NumiSealProofReaders.readSumcheckProof(from: sumcheckBytes)
         let residualOpening = try NumiSealResidualOpening(
-            reader.readNumiSealProofComponentBytes(name: "NumiSeal residual opening")
+            reader.readNumiSealProofComponentBytes(name: "NumiSeal residual opening"),
+            parameters: parameters
         )
         let carryTag = try reader.readUInt8()
         let optionalCarryClaim: NumiSealCarryClaim?
@@ -628,6 +864,10 @@ public struct NumiSealTerminalProofAcceptancePolicy: Equatable, Sendable {
             }
             guard publicStatementLaneKeys.contains(laneProof.laneKey) else {
                 throw SuperNeoError.verificationFailed("NumiSeal lane proof is not covered by public statement")
+            }
+            switch acceptedResidualMode {
+            case .immediate:
+                try laneProof.residualOpening.validate(laneProof: laneProof)
             }
             aggregatesByLane[laneProof.laneKey, default: 0] += 1
             switch acceptedCarryMode {
