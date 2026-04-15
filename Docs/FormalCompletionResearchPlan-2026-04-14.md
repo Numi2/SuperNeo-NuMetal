@@ -348,20 +348,37 @@ The manifest tracks this as the closed supporting group
 `sumcheck-prefix-bad-challenge-composition` and
 `superneo-error-ledger-composition` groups are also closed: they provide the
 finite per-round sum-check bad-challenge aggregate and the abstract union-bound
-ledger. The true blocker `superneo-full-probability-composition` remains
-planned because these layers do not formalize transcript-seed sampling,
-Fiat-Shamir projection maps, support membership, fiber bounds, or any rational
-end-to-end soundness probability.
+ledger.
+
+Lean now also has `SuperNeoFormal.TranscriptProbability`, tracked as the closed
+supporting group `superneo-fiat-shamir-finite-seed-accounting`. This defines a
+finite transcript-seed product for the PiRLC, PiCCS, terminal-CE, and
+transcript-byte components, exposes the stage projection maps, proves
+projection-support membership, proves generic fiber-preimage cardinality
+bounds, and records rational probability numerator/denominator definitions,
+including a profile-factor denominator formula.
+
+The same module also closes the supporting group
+`superneo-fiat-shamir-stage-event-bridge`: outside the finite
+Fiat-Shamir-preimage bad-seed union, every projected stage seed is outside its
+stage bad set, and the existing `superneoOutsideAggregate` predicate follows for
+the projected stage-seed tuple.
+
+The true blocker `superneo-full-probability-composition` remains planned because
+this is still finite accounting below the executable transcript schedule. It
+does not mechanize SHA-256 as a random oracle, prove Swift transcript bytes
+project to these stage seeds, or connect the rational budget into the abstract
+error ledger.
 
 ### Why it remains blocked
 
 The current composition theorem consumes the terminal CE bad-seed certificate
 but does not yet aggregate all PiRLC, PiCCS, transcript, and terminal CE finite
-bad events into one end-to-end soundness theorem. The tagged aggregate closes
-only the finite-union bookkeeping. The bad-event sets still do not all live in
-the same sampled transcript seed space. Some are challenge seeds, some are trace
-seeds, and some are proof seeds. Collapsing them into one denominator without
-modeling the Fiat-Shamir derivation maps and their fibers would overclaim.
+bad events into one end-to-end soundness theorem. The tagged aggregate and
+finite seed product close only the finite-union and projection bookkeeping. The
+checked seed product is not yet proved to be the implemented sampled transcript
+schedule. Collapsing it into an end-to-end denominator without modeling the
+Swift Fiat-Shamir derivation behavior and exact fibers would overclaim.
 
 ### Closure target
 
@@ -435,14 +452,22 @@ sizes and fiber bounds, not inserted as a paper claim.
    - `piccs_traceSound_of_seed_not_bad`
    - `terminal_ce_relation_from_verified_proof_outside_badSeeds`
    - the deterministic composition theorem
-6. Define the common transcript seed domain and projection maps used by the
-   implemented Fiat-Shamir schedule.
-7. Prove support membership and preimage/fiber bounds for each projection.
-   If a projection is not injective, carry its exact fiber multiplier into the
-   final bound.
-8. Convert the finite bad-event count into a rational probability bound over
-   the uniform transcript seed distribution.
-9. Add manifest declarations only when the final theorem states the actual
+6. Closed supporting layer: `SuperNeoFormal.TranscriptProbability` defines a
+   finite transcript-seed product, projection maps, projection supports, generic
+   preimage/fiber bounds, and rational numerator/denominator accounting.
+7. Closed supporting layer: the finite bad transcript-seed preimage union now
+   implies the existing tagged outside-aggregate predicate for projected stage
+   seeds.
+8. Next: connect the finite seed product to the implemented Fiat-Shamir
+   transcript schedule, including the exact Swift transcript bytes and the
+   transcript-to-stage projection behavior.
+9. Next: prove support membership and exact preimage/fiber bounds for those
+   implemented projections. If a projection is not injective, carry its exact
+   fiber multiplier into the final bound.
+10. Next: convert the finite bad-event count into a rational probability bound
+   over the checked transcript seed distribution and feed that into the error
+   ledger.
+11. Add manifest declarations only when the final theorem states the actual
    denominator, numerator, and all transcript/projection side conditions.
 
 ### Acceptance criteria

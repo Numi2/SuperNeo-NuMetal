@@ -33,3 +33,4 @@ import SuperNeoFormal.TranscriptChallenge
 import SuperNeoFormal.Composition
 import SuperNeoFormal.ProbabilityComposition
 import SuperNeoFormal.ErrorLedger
+import SuperNeoFormal.TranscriptProbability

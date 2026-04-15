@@ -16,7 +16,7 @@ namespace SuperNeoFormal
 structure GoldilocksExt2 where
   c0 : Goldilocks
   c1 : Goldilocks
-  deriving DecidableEq
+  deriving DecidableEq, Fintype
 
 def goldilocksExt2NonResidue : Goldilocks :=
   7

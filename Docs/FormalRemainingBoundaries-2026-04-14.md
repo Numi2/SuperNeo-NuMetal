@@ -122,9 +122,17 @@ behavior equivalence is still not mechanized.
 The tagged bad-event composition itself has moved forward:
 `superneo-tagged-bad-event-composition` is closed as finite bookkeeping for the
 PiRLC, PiCCS/sum-check, terminal CE, and transcript event sets. This does not
-discharge `superneo-full-probability-composition` because no transcript-seed
-distribution, Fiat-Shamir projection map, fiber bound, or rational probability
-denominator is mechanized yet.
+discharge `superneo-full-probability-composition`. Lean now also has the closed
+supporting group `superneo-fiat-shamir-finite-seed-accounting`, which defines a
+finite transcript-seed product, stage projection maps, projection supports,
+fiber-preimage bounds, and rational numerator/denominator accounting with a
+profile-factor denominator formula. The closed supporting group
+`superneo-fiat-shamir-stage-event-bridge` now connects a seed outside that
+finite preimage union to the existing tagged outside-aggregate predicate. The
+full probability blocker remains planned because this finite accounting is not
+yet the executable transcript schedule: SHA-256/random-oracle behavior,
+concrete Swift transcript-to-stage projection equivalence, and the final
+connection into the error ledger are still not mechanized.
 
 The Lean `goldilocks-ext2-field-instance` group is now closed by transferring
 mathlib's root-free quadratic-algebra field instance onto the existing

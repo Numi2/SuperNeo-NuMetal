@@ -65,7 +65,9 @@
         "superneo-deterministic-composition",
         "superneo-finite-bad-seed-composition",
         "superneo-tagged-bad-event-composition",
-        "superneo-error-ledger-composition"
+        "superneo-error-ledger-composition",
+        "superneo-fiat-shamir-finite-seed-accounting",
+        "superneo-fiat-shamir-stage-event-bridge"
       ],
       "accepted_statuses": [
         "closed",
@@ -125,6 +127,8 @@
         "superneo-finite-bad-seed-composition",
         "superneo-tagged-bad-event-composition",
         "superneo-error-ledger-composition",
+        "superneo-fiat-shamir-finite-seed-accounting",
+        "superneo-fiat-shamir-stage-event-bridge",
         "superneo-full-probability-composition",
         "goldilocks-ext2-field-instance",
         "swift-goldilocks-ext2-serialization-equivalence",
@@ -1300,6 +1304,57 @@
         "SuperNeoFormal.superneo_errorFunctions_total_negligible",
         "SuperNeoFormal.superNeoStageErrorEvents",
         "SuperNeoFormal.superneo_no_stageErrorEvent_of_outsideAggregate"
+      ]
+    },
+    {
+      "id": "superneo-fiat-shamir-finite-seed-accounting",
+      "lean_module": "SuperNeoFormal.TranscriptProbability",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.TranscriptSeedDomain",
+        "SuperNeoFormal.transcriptSeedDomainSupport",
+        "SuperNeoFormal.transcriptSeedDomainSupport_card",
+        "SuperNeoFormal.transcriptSeedDomainZero",
+        "SuperNeoFormal.goldilocksExt2EquivBaseProduct",
+        "SuperNeoFormal.goldilocksExt2_fintype_card",
+        "SuperNeoFormal.SuperNeoFiatShamirSeed",
+        "SuperNeoFormal.superNeoFiatShamirSeedZero",
+        "SuperNeoFormal.superNeoFiatShamirSeedDomain",
+        "SuperNeoFormal.superNeoFiatShamirSeedEquivProduct",
+        "SuperNeoFormal.superNeoFiatShamirPirlcSeed",
+        "SuperNeoFormal.superNeoFiatShamirPiccsSeed",
+        "SuperNeoFormal.superNeoFiatShamirTerminalCESeed",
+        "SuperNeoFormal.superNeoFiatShamirTranscriptSeed",
+        "SuperNeoFormal.superNeoFiatShamirStageSeeds",
+        "SuperNeoFormal.fiatShamirProjectionSupport",
+        "SuperNeoFormal.fiatShamirProjection_mem_support",
+        "SuperNeoFormal.fiatShamirProjectionFiber",
+        "SuperNeoFormal.fiatShamirProjectionFiber_mem_iff",
+        "SuperNeoFormal.fiatShamirProjectionPreimage",
+        "SuperNeoFormal.fiatShamirProjectionPreimage_mem_iff",
+        "SuperNeoFormal.fiatShamirProjectionPreimage_card_le_of_fiber_bound",
+        "SuperNeoFormal.SuperNeoFiatShamirFiberBudget",
+        "SuperNeoFormal.superNeoFiatShamirFiberBudgetTotal",
+        "SuperNeoFormal.superNeoFiatShamirBadTranscriptSeeds",
+        "SuperNeoFormal.superNeoFiatShamirBadTranscriptSeeds_card_le_of_fiberBudget",
+        "SuperNeoFormal.superNeoFiatShamirProbabilityDenominator",
+        "SuperNeoFormal.superNeoFiatShamirSeedDomain_card",
+        "SuperNeoFormal.superNeoFiatShamirProbabilityDenominator_factors",
+        "SuperNeoFormal.superNeoFiatShamirProbabilityDenominator_profile_factors",
+        "SuperNeoFormal.superNeoFiatShamirProbabilityDenominator_pos",
+        "SuperNeoFormal.superNeoFiatShamirProbabilityNumerator",
+        "SuperNeoFormal.superNeoFiatShamirProbability",
+        "SuperNeoFormal.superNeoFiatShamirProbabilityBudgetNumerator",
+        "SuperNeoFormal.superNeoFiatShamirProbabilityNumerator_le_budget"
+      ]
+    },
+    {
+      "id": "superneo-fiat-shamir-stage-event-bridge",
+      "lean_module": "SuperNeoFormal.TranscriptProbability",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.superNeoFiatShamirStageSeeds_not_bad_of_not_badTranscriptSeed",
+        "SuperNeoFormal.superNeoFiatShamirOutsideAggregate_of_not_badTranscriptSeed"
       ]
     },
     {
