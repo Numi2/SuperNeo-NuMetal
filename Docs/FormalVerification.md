@@ -85,6 +85,9 @@ Recent formal pass:
 - [Formal Assumption Ledger Split, 2026-04-14](FormalAssumptionLedger-2026-04-14.md)
 - [Formal Remaining Boundaries, 2026-04-14](FormalRemainingBoundaries-2026-04-14.md)
 - [Formal Completion Research Plan, 2026-04-14](FormalCompletionResearchPlan-2026-04-14.md)
+- `Formal/SuperNeoFormal/NumiSealSumcheckTranscript.lean` now names the dense
+  NumiSeal sum-check transcript domain and absorb-frame order used by the Swift
+  prover/verifier.
 
 ## Build
 

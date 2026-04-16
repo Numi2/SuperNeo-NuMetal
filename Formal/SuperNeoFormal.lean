@@ -29,6 +29,7 @@ import SuperNeoFormal.Serialization
 import SuperNeoFormal.CEByteSerialization
 import SuperNeoFormal.Ext2CallerSerialization
 import SuperNeoFormal.Transcript
+import SuperNeoFormal.NumiSealSumcheckTranscript
 import SuperNeoFormal.TranscriptChallenge
 import SuperNeoFormal.Composition
 import SuperNeoFormal.ProbabilityComposition

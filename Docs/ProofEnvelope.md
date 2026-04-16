@@ -402,7 +402,10 @@ the scalar residual value, so `proof.claimedSum == residualValue`.
 
 The prover folds dense digit and padding layers as transcript challenges arrive,
 so it supports the full bounded digit-tensor wire size without the old reference
-variable cap.
+variable cap. The Lean hook
+`Formal/SuperNeoFormal/NumiSealSumcheckTranscript.lean` names this dense
+sum-check transcript frame order and domain separator for later protocol
+soundness work.
 
 ### NumiSeal Residual Opening Handoff
 

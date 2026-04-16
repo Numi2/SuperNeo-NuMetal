@@ -46,6 +46,7 @@
         "sumcheck-exact-oracle-soundness",
         "sumcheck-low-degree-root-count-core",
         "sumcheck-prefix-bad-challenge-composition",
+        "numiseal-dense-sumcheck-transcript-hook",
         "piccs-acceptance-core",
         "piccs-deterministic-sumcheck-bridge",
         "goldilocks-ext2-wire-model",
@@ -107,6 +108,7 @@
         "sumcheck-exact-oracle-soundness",
         "sumcheck-low-degree-root-count-core",
         "sumcheck-prefix-bad-challenge-composition",
+        "numiseal-dense-sumcheck-transcript-hook",
         "piccs-acceptance-core",
         "piccs-deterministic-sumcheck-bridge",
         "goldilocks-ext2-wire-model",
@@ -602,6 +604,30 @@
         "SuperNeoFormal.sumcheckPrefixBadChallenges_card_le_degreeBound",
         "SuperNeoFormal.sumcheckPrefixBadChallengeBudget",
         "SuperNeoFormal.sumcheckPrefixBadChallengeBudget_card_le"
+      ]
+    },
+    {
+      "id": "numiseal-dense-sumcheck-transcript-hook",
+      "lean_module": "SuperNeoFormal.NumiSealSumcheckTranscript",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.NumiSealLaneIDWire",
+        "SuperNeoFormal.numiSealLaneIDWireEncode",
+        "SuperNeoFormal.numiSealLaneIDWireEncode_length",
+        "SuperNeoFormal.NumiSealLaneKeyWire",
+        "SuperNeoFormal.numiSealLaneKeyWireEncode",
+        "SuperNeoFormal.numiSealLaneKeyWireEncode_length",
+        "SuperNeoFormal.numiSealSumcheckDomainSeparator",
+        "SuperNeoFormal.numiSealSumcheckDomainCount",
+        "SuperNeoFormal.numiSealDigestFrame",
+        "SuperNeoFormal.numiSealUInt64Frame",
+        "SuperNeoFormal.NumiSealSumcheckTranscriptContextWire",
+        "SuperNeoFormal.NumiSealSumcheckTranscriptFrameCounts",
+        "SuperNeoFormal.numiSealSumcheckTranscriptAbsorbFrames",
+        "SuperNeoFormal.numiSealSumcheckTranscript_absorb_frame_count",
+        "SuperNeoFormal.numiSealSumcheckTranscript_payload_order",
+        "SuperNeoFormal.numiSealDenseSumcheckTranscript",
+        "SuperNeoFormal.numiSealDenseSumcheckTranscript_frames"
       ]
     },
     {

@@ -276,7 +276,9 @@ the first Phase 7 multi-lane/multi-aggregate prover/verifier assembly API plus a
 public proving-plan surface are present. The checked NumiSeal vector matrix,
 dedicated NumiSeal vector generator/validator, manifest, schema, and
 production-gate validation path are also present for the current
-immediate-residual fixtures.
+immediate-residual fixtures. The adversarial audit path now covers malformed
+large-tensor proof-body sum-check frames, per-shape NumiSeal vector manifest and
+artifact negatives, and a Lean dense sum-check transcript hook.
 
 NumiSeal is the planned native terminal-seal layer for the SNARK product track.
 It should compress many terminal CE obligations into lane-local aggregates while
@@ -331,6 +333,10 @@ Artifacts:
   optimized dense folded sum-check handoff over the scalar residual and
   digit-tensor ternary/padding language, using the existing transcript and
   verifier while removing the old reference variable cap.
+- `Formal/SuperNeoFormal/NumiSealSumcheckTranscript.lean` names the dense
+  NumiSeal sum-check transcript domain and public absorb-frame order in Lean,
+  and `Docs/FormalStatus.json` requires that hook for the current formal status
+  labels.
 - `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift` and
   `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealResidualCE.swift` define the
   typed immediate residual-opening body, stable residual CE shape/statement
@@ -360,6 +366,9 @@ Artifacts:
   rejects duplicate and unknown JSON keys, checks manifest byte count and
   SHA-256, regenerates exact envelope bytes, parses the kind `4` envelope, and
   verifies through `NumiSealVerifier`.
+- `Scripts/test-numiseal-vector-validation.py` mutation-tests fail-closed
+  NumiSeal vector validation for each checked shape by corrupting manifest
+  workload metadata and artifact proof-kind metadata.
 - `TestVectors/numiseal-terminal-single-aggregate-v1.json`,
   `TestVectors/numiseal-terminal-two-aggregate-v1.json`,
   `TestVectors/numiseal-terminal-two-lane-v1.json`,
@@ -371,8 +380,9 @@ Artifacts:
   rejection, public-statement serialization, deterministic aggregate chunking,
   lane-scoped aggregate indexing, aggregate byte tamper rejection,
   incompatible public-input rejection,
-  proof-body mutation rejection, lane-proof ordering, absent carry digest
-  binding, envelope-kind separation, decomposition-key public binding,
+  proof-body mutation rejection, malformed large-tensor sum-check proof-body
+  rejection, lane-proof ordering, absent carry digest binding,
+  envelope-kind separation, decomposition-key public binding,
   digit-tensor mutation/padding rejection, CPU decomposition commitment opening,
   witnessed aggregate sparse CCS reconstruction, scalarization residual
   mutation/stale-statement rejection, sum-check residual/digit-tensor binding,
@@ -415,7 +425,8 @@ Implementation gates:
   remain.
 - Phase 5: degree-4 sum-check prover/verifier with invalid digit, padding, and
   scalarization tamper tests. The dense folded large-tensor prover/verifier is
-  present beyond the old reference variable cap.
+  present beyond the old reference variable cap, with malformed proof-body
+  mutation coverage for 13-round large-tensor transcripts.
 - Phase 6: typed immediate residual-opening parsing, stable residual CE
   shape/statement digests, preflight digest/scope binding, public final
   sum-check equation replay, builder-side aggregate-witness validation, direct
@@ -426,14 +437,14 @@ Implementation gates:
   `NumiSealProver`, and `NumiSealVerifier` API is present for immediate
   residual envelopes.
 - Phase 8: the checked NumiSeal vector matrix is present with deterministic
-  generator/validator and production-gate coverage. Full CLI exposure, formal
-  hooks, and security audit artifacts remain.
+  generator/validator, per-shape negative validation, and production-gate
+  coverage. Full CLI exposure and security audit artifacts remain.
 
 Remaining boundary:
 
 - NumiSeal is not a production terminal proof mode yet. The current broadly
   productized terminal proof remains `terminalLocal` or `compressedPublic`;
-  NumiSeal must not be advertised as production-ready until the remaining vector
-  matrix, CLI, formal-hook, security-audit, and production-gate work is complete.
+  NumiSeal must not be advertised as production-ready until the remaining CLI,
+  formal completion, security-audit, and production-gate work is complete.
 - The zero-knowledge product track still needs a separate `NumiSealZK` design
   and proof story.

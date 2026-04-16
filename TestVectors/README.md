@@ -224,12 +224,14 @@ it records the expected shape, statement, verifier-key, transcript-domain,
 public-statement, aggregate, component-root, and proof-transcript digests.
 Consumers should rebuild the deterministic fixture, compare all manifest
 digests, parse the proof envelope as kind `4`, and verify with
-`NumiSealVerifier`.
+`NumiSealVerifier`. `Scripts/test-numiseal-vector-validation.py` mutation-tests
+that every checked NumiSeal shape fails closed when its trusted manifest
+workload metadata or artifact proof-kind metadata is corrupted.
 
-For checked-in vectors, treat `manifest.json` as the trusted expected context.
-The artifact still stores its own seed, public inputs, and digests so it is
-self-describing, but production verification must compare those fields against
-the manifest or another trusted caller-owned source.
+For checked-in NumiSeal vectors, treat `numiseal-manifest.json` as the trusted
+expected context. The artifact still stores its own seed, public inputs, and
+digests so it is self-describing, but production verification must compare those
+fields against the manifest or another trusted caller-owned source.
 
 External implementations should:
 

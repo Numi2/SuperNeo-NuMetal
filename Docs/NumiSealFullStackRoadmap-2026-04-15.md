@@ -53,12 +53,16 @@ Already present:
   residual vectors byte-for-byte using SPI-only deterministic CE randomness,
   validates `numiseal-manifest.json`, parses kind `4` envelopes, and verifies
   through `NumiSealVerifier`.
+- NumiSeal now has adversarial audit coverage for malformed 13-round
+  large-tensor sum-check proof-body frames, per-shape vector manifest negatives,
+  per-shape vector artifact proof-kind negatives, and a Lean dense sum-check
+  transcript hook.
 
 Not yet present:
 
 - Production NumiSeal CLI/product exposure for the current direct
   digit-commitment residual verifier.
-- Formal hooks and security audit artifacts.
+- Formal completion and security audit artifacts.
 - Zero-knowledge layer.
 - Recursive/aggregate sealing product.
 - General program frontend.
@@ -516,7 +520,9 @@ unknown JSON keys, checks byte count and SHA-256, regenerates deterministic
 envelopes from checked fixtures, compares public statement, aggregate,
 component-root, and proof-transcript digests, parses kind `4` envelopes, and
 verifies through `NumiSealVerifier`. `Scripts/production-gate.sh` runs this
-validator and includes a wrong-proof-kind negative fixture.
+validator and runs `Scripts/test-numiseal-vector-validation.py`, which mutates
+the manifest workload metadata and artifact proof-kind metadata for every
+checked NumiSeal vector shape.
 
 Acceptance gates:
 
@@ -524,7 +530,8 @@ Acceptance gates:
 - release gate verifies the single-aggregate, same-lane two-aggregate, and
   two-lane checked NumiSeal vectors;
 - negative fixtures cover wrong digest, wrong lane, wrong proof kind, wrong
-  byte count, wrong manifest hash, and missing `--require-numiseal`;
+  byte count, wrong manifest hash, per-shape NumiSeal manifest and artifact
+  metadata, and missing `--require-numiseal`;
 - production gate runs parser-only tests before expensive algebraic tests.
 
 World-class bar:
@@ -575,13 +582,16 @@ Goal: make the implementation easy to connect to Lean and external review.
 Artifacts:
 
 - typed byte grammar for NumiSeal public statement and proof body;
-- Lean declarations for lane keys, roots, aggregate challenge schedule,
-  scalarization, digit language, and residual opening;
+- Lean declarations for lane keys, dense sum-check transcript frame order,
+  roots, aggregate challenge schedule, scalarization, digit language, and
+  residual opening;
 - conformance script comparing Swift encodings to formal grammar fixtures.
 
 Acceptance gates:
 
 - Swift fixtures are imported by formal conformance tooling;
+- `Formal/SuperNeoFormal/NumiSealSumcheckTranscript.lean` is imported by the
+  top-level formal target and listed in the formal-status manifest;
 - byte-level grammar rejects malformed lengths and wrong domains;
 - formal status manifest distinguishes closed deterministic cores from
   assumptions;

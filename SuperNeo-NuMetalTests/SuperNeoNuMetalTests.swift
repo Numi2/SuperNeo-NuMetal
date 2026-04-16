@@ -3092,6 +3092,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
 
     private func makeNumiSealProofBodyFixture(
         laneLabel: String = "phase1",
+        digitTensorColumnCount: Int = 1,
         carryBytes: [UInt8]? = nil,
         aggregateIndexOverride: Int? = nil
     ) throws -> NumiSealProofBodyFixture {
@@ -3154,7 +3155,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         let digitTensor = try NumiSealDigitTensor(
             laneKey: aggregate.laneKey,
             aggregateIndex: aggregate.aggregateIndex,
-            message: makeNumiSealTernaryMessage()
+            message: makeNumiSealTernaryMessage(columnCount: digitTensorColumnCount)
         )
         let decompositionKey = try NumiSealDecompositionKeyDerivation(
             verifierKeyDigest: policy.verifierKeyDigest,
@@ -3458,6 +3459,96 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         var digitValues = digitTensor.digits.map(\.fieldElement)
         digitValues += Array(repeating: .zero, count: paddedSlotCount - digitValues.count)
         return try MultilinearEvaluation.evaluate(digitValues, at: point)
+    }
+
+    private struct NumiSealProofBodyOffsetMap {
+        let sumcheckRoundCountOffset: Int
+        let firstRoundCoefficientCountOffset: Int
+        let firstRoundFirstCoefficientOffset: Int
+        let finalPointCountOffset: Int
+        let finalValueOffset: Int
+        let residualOpeningSumcheckDigestOffset: Int
+    }
+
+    private func numiSealProofBodyOffsets(
+        fixture: NumiSealProofBodyFixture
+    ) -> NumiSealProofBodyOffsetMap {
+        let proofBytes = fixture.proof.superNeoBytes
+        let publicStatementLength = fixture.publicStatement.superNeoBytes.count
+        let firstLaneFrameOffset = 2
+            + encodedCountByteWidth
+            + publicStatementLength
+            + encodedCountByteWidth
+            + encodedCountByteWidth
+        let lanePayloadOffset = firstLaneFrameOffset + encodedCountByteWidth
+        let laneProof = fixture.laneProof
+        let aggregateIndexOffset = laneProof.laneKey.superNeoBytes.count
+        let aggregateDigestOffset = aggregateIndexOffset + encodedCountByteWidth
+        let decompositionKeyDigestOffset = aggregateDigestOffset + Digest256.byteCount
+        let decompositionCommitmentOffset = decompositionKeyDigestOffset + Digest256.byteCount
+        let scalarizationDigestOffset = decompositionCommitmentOffset + laneProof.decompositionCommitment.superNeoBytes.count
+        let sumcheckFrameOffset = scalarizationDigestOffset + Digest256.byteCount
+        let sumcheckPayloadOffset = lanePayloadOffset + sumcheckFrameOffset + encodedCountByteWidth
+        let sumcheckProof = laneProof.sumcheckProof
+        let sumcheckRoundCountOffset = sumcheckPayloadOffset + sumcheckProof.claimedSum.superNeoBytes.count
+        let firstRoundCoefficientCountOffset = sumcheckRoundCountOffset + encodedCountByteWidth
+        let firstRoundFirstCoefficientOffset = firstRoundCoefficientCountOffset + encodedCountByteWidth
+        let finalPointCountOffset = sumcheckRoundCountOffset
+            + encodedCountByteWidth
+            + sumcheckProof.rounds.reduce(0) { $0 + $1.superNeoBytes.count }
+        let finalValueOffset = finalPointCountOffset
+            + encodedCountByteWidth
+            + sumcheckProof.finalPoint.count * 16
+        let residualFrameOffset = sumcheckPayloadOffset + sumcheckProof.superNeoBytes.count
+        let residualPayloadOffset = residualFrameOffset + encodedCountByteWidth
+        let residualOpeningSumcheckDigestOffset = residualPayloadOffset
+            + Digest256.byteCount
+            + 2
+            + laneProof.laneKey.superNeoBytes.count
+            + encodedCountByteWidth
+            + 6 * Digest256.byteCount
+
+        XCTAssertLessThan(finalValueOffset, proofBytes.count)
+        XCTAssertLessThan(residualOpeningSumcheckDigestOffset, proofBytes.count)
+        return NumiSealProofBodyOffsetMap(
+            sumcheckRoundCountOffset: sumcheckRoundCountOffset,
+            firstRoundCoefficientCountOffset: firstRoundCoefficientCountOffset,
+            firstRoundFirstCoefficientOffset: firstRoundFirstCoefficientOffset,
+            finalPointCountOffset: finalPointCountOffset,
+            finalValueOffset: finalValueOffset,
+            residualOpeningSumcheckDigestOffset: residualOpeningSumcheckDigestOffset
+        )
+    }
+
+    private func assertNumiSealProofBodyMutationRejected(
+        fixture: NumiSealProofBodyFixture,
+        label: String,
+        mutateBody: (inout [UInt8]) -> Void,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        var body = fixture.proof.superNeoBytes
+        mutateBody(&body)
+        XCTAssertThrowsError(
+            try NumiSealProof(bytes: body),
+            "body mutation should be rejected: \(label)",
+            file: file,
+            line: line
+        ) { error in
+            XCTAssertNotNil(error as? SuperNeoError, file: file, line: line)
+        }
+
+        var envelope = fixture.envelope.superNeoBytes
+        let bodyRange = ProofEnvelopeHeader.byteCount..<envelope.count
+        envelope.replaceSubrange(bodyRange, with: body)
+        XCTAssertThrowsError(
+            try fixture.terminalPolicy.preflight(proofBytes: envelope),
+            "envelope mutation should be rejected: \(label)",
+            file: file,
+            line: line
+        ) { error in
+            XCTAssertNotNil(error as? SuperNeoError, file: file, line: line)
+        }
     }
 
     func testNumiSealDecompositionKeyDerivationIsDeterministicAndPubliclyBound() throws {
@@ -3945,6 +4036,58 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
         XCTAssertEqual(residualShape.variableCount, proof.rounds.count)
         XCTAssertEqual(try NumiSealResidualCEShape(bytes: residualShape.superNeoBytes), residualShape)
+    }
+
+    func testNumiSealLargeTensorProofBodyRejectsMalformedSumcheckFrames() throws {
+        let fixture = try makeNumiSealProofBodyFixture(digitTensorColumnCount: 80)
+        let proof = fixture.laneProof.sumcheckProof
+        let offsets = numiSealProofBodyOffsets(fixture: fixture)
+
+        XCTAssertEqual(proof.rounds.count, 13)
+        XCTAssertGreaterThan(proof.rounds.count, NumiSealSumcheckOracle.maximumReferenceVariableCount)
+        XCTAssertNoThrow(try fixture.terminalPolicy.preflight(proofBytes: fixture.envelope.superNeoBytes))
+
+        assertNumiSealProofBodyMutationRejected(
+            fixture: fixture,
+            label: "large sum-check round count does not match final point count"
+        ) { body in
+            writeUInt64(UInt64(proof.rounds.count - 1), into: &body, at: offsets.sumcheckRoundCountOffset)
+        }
+
+        assertNumiSealProofBodyMutationRejected(
+            fixture: fixture,
+            label: "large sum-check round polynomial is empty"
+        ) { body in
+            writeUInt64(0, into: &body, at: offsets.firstRoundCoefficientCountOffset)
+        }
+
+        assertNumiSealProofBodyMutationRejected(
+            fixture: fixture,
+            label: "large sum-check coefficient byte mutation"
+        ) { body in
+            body[offsets.firstRoundFirstCoefficientOffset] ^= 1
+        }
+
+        assertNumiSealProofBodyMutationRejected(
+            fixture: fixture,
+            label: "large sum-check final point count does not match round count"
+        ) { body in
+            writeUInt64(UInt64(proof.finalPoint.count - 1), into: &body, at: offsets.finalPointCountOffset)
+        }
+
+        assertNumiSealProofBodyMutationRejected(
+            fixture: fixture,
+            label: "large sum-check final value byte mutation"
+        ) { body in
+            body[offsets.finalValueOffset] ^= 1
+        }
+
+        assertNumiSealProofBodyMutationRejected(
+            fixture: fixture,
+            label: "large residual opening mirrored sum-check digest mutation"
+        ) { body in
+            body[offsets.residualOpeningSumcheckDigestOffset] ^= 1
+        }
     }
 
     func testNumiSealResidualOpeningBindsImmediateCEPayload() throws {
