@@ -87,6 +87,11 @@ def require_const(schema: dict[str, Any], key: str, expected: Any) -> None:
     expect(actual == expected, f"NumiSeal product {key} const must be {expected}")
 
 
+def require_enum(schema: dict[str, Any], key: str, expected: list[str]) -> None:
+    actual = properties(schema).get(key, {}).get("enum")
+    expect(actual == expected, f"NumiSeal product {key} enum must be {expected}")
+
+
 def require_digest_property(schema: dict[str, Any], key: str) -> None:
     field = properties(schema).get(key, {})
     expect(field.get("type") == "string", f"NumiSeal product {key} must be a string")
@@ -115,8 +120,8 @@ def main() -> None:
     )
     require_const(schema, "artifactVersion", 2)
     require_const(schema, "profile", "Goldilocks/Phi81(d=54)")
-    require_const(schema, "proofKind", "numiseal-terminal")
-    require_const(schema, "sealMode", "numiseal-terminal-v2")
+    require_enum(schema, "proofKind", ["numiseal-terminal", "numiseal-zk"])
+    require_enum(schema, "sealMode", ["numiseal-terminal-v2", "numiseal-zk-v1"])
     for key in sorted(DIGEST_KEYS):
         require_digest_property(schema, key)
     source_claims = root_properties.get("sourceFoldOutputClaimDigestsHex", {})

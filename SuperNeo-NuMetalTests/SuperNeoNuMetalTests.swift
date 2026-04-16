@@ -5149,6 +5149,201 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
     }
 
+    func testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let prover = NumiSealZKProver()
+        let sessionMaterial = Array("numiseal-zk-test-session".utf8)
+        let envelope = try prover.prove(
+            terminalEnvelope: fixture.envelope,
+            digitTensors: [fixture.digitTensor],
+            randomnessSessionMaterial: sessionMaterial,
+            randomnessSessionLabel: "unit-test"
+        )
+        let reparsed = try NumiSealZKProofEnvelope(bytes: envelope.superNeoBytes)
+
+        XCTAssertEqual(envelope.header.kind, .numiSealZK)
+        XCTAssertEqual(reparsed, envelope)
+        XCTAssertEqual(envelope.proof.zkMode, NumiSealZK.maskedDigitTensorMode)
+        XCTAssertEqual(envelope.proof.baseProof, fixture.proof)
+        XCTAssertEqual(envelope.proof.maskStatements.count, 1)
+        XCTAssertEqual(envelope.proof.maskStatements[0].laneKey, fixture.laneProof.laneKey)
+        XCTAssertEqual(envelope.proof.maskStatements[0].aggregateIndex, fixture.laneProof.aggregateIndex)
+        XCTAssertEqual(envelope.proof.maskStatements[0].digitTensorDigest, fixture.digitTensor.digest)
+        XCTAssertEqual(envelope.proof.maskedResidualStatements.count, 1)
+        let maskedResidual = envelope.proof.maskedResidualStatements[0]
+        XCTAssertEqual(maskedResidual.laneKey, fixture.laneProof.laneKey)
+        XCTAssertEqual(maskedResidual.aggregateIndex, fixture.laneProof.aggregateIndex)
+        XCTAssertEqual(maskedResidual.residualOpeningDigest, fixture.residualOpening.openingDigest)
+        XCTAssertEqual(maskedResidual.digitTensorDigest, fixture.digitTensor.digest)
+        XCTAssertEqual(
+            maskedResidual.maskedDigitEvaluation,
+            maskedResidual.claimedDigitEvaluation + maskedResidual.maskEvaluation
+        )
+        XCTAssertEqual(maskedResidual.version, NumiSealZKMaskedResidualStatement.version)
+        XCTAssertEqual(envelope.proof.bodyVersion, NumiSealZKProof.bodyVersion)
+        try maskedResidual.validate(
+            laneProof: fixture.laneProof,
+            maskStatement: envelope.proof.maskStatements[0]
+        )
+
+        let wrongMaskedResidual = try NumiSealZKMaskedResidualStatement(
+            laneKey: maskedResidual.laneKey,
+            aggregateIndex: maskedResidual.aggregateIndex,
+            residualOpeningDigest: Digest256.hash("wrong-opening"),
+            linearResidualDigest: maskedResidual.linearResidualDigest,
+            sumcheckProofDigest: maskedResidual.sumcheckProofDigest,
+            finalPointDigest: maskedResidual.finalPointDigest,
+            digitTensorDigest: maskedResidual.digitTensorDigest,
+            maskDigest: maskedResidual.maskDigest,
+            maskedTensorDigest: maskedResidual.maskedTensorDigest,
+            decompositionCommitmentDigest: maskedResidual.decompositionCommitmentDigest,
+            claimedDigitEvaluation: maskedResidual.claimedDigitEvaluation,
+            maskEvaluation: maskedResidual.maskEvaluation,
+            maskedDigitEvaluation: maskedResidual.maskedDigitEvaluation,
+            accumulationChallengeDigest: maskedResidual.accumulationChallengeDigest,
+            denseFoldDigest: maskedResidual.denseFoldDigest,
+            equalityWeightDigest: maskedResidual.equalityWeightDigest,
+            sumcheckAccumulationDigest: maskedResidual.sumcheckAccumulationDigest
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealZKProof(
+                randomnessSessionDigest: envelope.proof.randomnessSessionDigest,
+                baseProof: fixture.proof,
+                maskStatements: envelope.proof.maskStatements,
+                maskedResidualStatements: [wrongMaskedResidual]
+            ),
+            .verificationFailed("NumiSealZK masked residual opening digest mismatch")
+        )
+
+        let wrongAccumulationChallenge = try NumiSealZKMaskedResidualStatement(
+            laneKey: maskedResidual.laneKey,
+            aggregateIndex: maskedResidual.aggregateIndex,
+            residualOpeningDigest: maskedResidual.residualOpeningDigest,
+            linearResidualDigest: maskedResidual.linearResidualDigest,
+            sumcheckProofDigest: maskedResidual.sumcheckProofDigest,
+            finalPointDigest: maskedResidual.finalPointDigest,
+            digitTensorDigest: maskedResidual.digitTensorDigest,
+            maskDigest: maskedResidual.maskDigest,
+            maskedTensorDigest: maskedResidual.maskedTensorDigest,
+            decompositionCommitmentDigest: maskedResidual.decompositionCommitmentDigest,
+            claimedDigitEvaluation: maskedResidual.claimedDigitEvaluation,
+            maskEvaluation: maskedResidual.maskEvaluation,
+            maskedDigitEvaluation: maskedResidual.maskedDigitEvaluation,
+            accumulationChallengeDigest: Digest256.hash("wrong-accumulation-challenge"),
+            denseFoldDigest: maskedResidual.denseFoldDigest,
+            equalityWeightDigest: maskedResidual.equalityWeightDigest,
+            sumcheckAccumulationDigest: maskedResidual.sumcheckAccumulationDigest
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealZKProof(
+                randomnessSessionDigest: envelope.proof.randomnessSessionDigest,
+                baseProof: fixture.proof,
+                maskStatements: envelope.proof.maskStatements,
+                maskedResidualStatements: [wrongAccumulationChallenge]
+            ),
+            .verificationFailed("NumiSealZK masked residual accumulation challenge mismatch")
+        )
+
+        let wrongEqualityWeightDigest = try NumiSealZKMaskedResidualStatement(
+            laneKey: maskedResidual.laneKey,
+            aggregateIndex: maskedResidual.aggregateIndex,
+            residualOpeningDigest: maskedResidual.residualOpeningDigest,
+            linearResidualDigest: maskedResidual.linearResidualDigest,
+            sumcheckProofDigest: maskedResidual.sumcheckProofDigest,
+            finalPointDigest: maskedResidual.finalPointDigest,
+            digitTensorDigest: maskedResidual.digitTensorDigest,
+            maskDigest: maskedResidual.maskDigest,
+            maskedTensorDigest: maskedResidual.maskedTensorDigest,
+            decompositionCommitmentDigest: maskedResidual.decompositionCommitmentDigest,
+            claimedDigitEvaluation: maskedResidual.claimedDigitEvaluation,
+            maskEvaluation: maskedResidual.maskEvaluation,
+            maskedDigitEvaluation: maskedResidual.maskedDigitEvaluation,
+            accumulationChallengeDigest: maskedResidual.accumulationChallengeDigest,
+            denseFoldDigest: maskedResidual.denseFoldDigest,
+            equalityWeightDigest: Digest256.hash("wrong-equality-weight-digest"),
+            sumcheckAccumulationDigest: maskedResidual.sumcheckAccumulationDigest
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealZKProof(
+                randomnessSessionDigest: envelope.proof.randomnessSessionDigest,
+                baseProof: fixture.proof,
+                maskStatements: envelope.proof.maskStatements,
+                maskedResidualStatements: [wrongEqualityWeightDigest]
+            ),
+            .verificationFailed("NumiSealZK masked residual equality weight digest mismatch")
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try prover.prove(
+                terminalEnvelope: fixture.envelope,
+                digitTensors: [fixture.digitTensor],
+                randomnessSessionMaterial: sessionMaterial,
+                randomnessSessionLabel: "unit-test"
+            ),
+            .verificationFailed("NumiSealZK randomness session reuse detected")
+        )
+
+        var wrongTranscript = envelope.superNeoBytes
+        wrongTranscript[wrongTranscript.count - 1] ^= 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealZKProofEnvelope(bytes: wrongTranscript),
+            .invalidEncoding("NumiSealZK transcript digest mismatch")
+        )
+
+        let secondSession = Array("numiseal-zk-test-session-2".utf8)
+        let secondEnvelope = try NumiSealZKProver().prove(
+            terminalEnvelope: fixture.envelope,
+            digitTensors: [fixture.digitTensor],
+            randomnessSessionMaterial: secondSession,
+            randomnessSessionLabel: "unit-test"
+        )
+        XCTAssertNotEqual(
+            secondEnvelope.proof.maskStatements[0].maskDigest,
+            envelope.proof.maskStatements[0].maskDigest
+        )
+    }
+
+    func testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let device = try requireMetalDevice()
+        let context = try MetalExecutionContext(device: device)
+        let foldFixture = try makeFoldFixture()
+        let baseWorkspace = try SuperNeoMetalWorkspace(
+            context: context,
+            key: foldFixture.key,
+            compiledShape: foldFixture.input.shape.compiledSparseForSuperNeo()
+        )
+        let provingWorkspace = NumiSealMetalProvingWorkspace(
+            baseWorkspace: baseWorkspace,
+            provingPolicy: .zkRedundantMetal
+        )
+        let sessionMaterial = Array("numiseal-zk-fixed-metal-equivalence".utf8)
+        let cpuEnvelope = try NumiSealZKProver().prove(
+            terminalEnvelope: fixture.envelope,
+            digitTensors: [fixture.digitTensor],
+            randomnessSessionMaterial: sessionMaterial,
+            randomnessSessionLabel: "fixed-equivalence"
+        )
+        let metalEnvelope = try NumiSealZKProver().prove(
+            terminalEnvelope: fixture.envelope,
+            digitTensors: [fixture.digitTensor],
+            randomnessSessionMaterial: sessionMaterial,
+            randomnessSessionLabel: "fixed-equivalence",
+            provingWorkspace: provingWorkspace
+        )
+
+        XCTAssertEqual(metalEnvelope, cpuEnvelope)
+        XCTAssertEqual(metalEnvelope.superNeoBytes, cpuEnvelope.superNeoBytes)
+        XCTAssertEqual(
+            metalEnvelope.proof.maskedResidualStatements[0].denseFoldDigest,
+            cpuEnvelope.proof.maskedResidualStatements[0].denseFoldDigest
+        )
+        XCTAssertEqual(
+            metalEnvelope.proof.maskedResidualStatements[0].sumcheckAccumulationDigest,
+            cpuEnvelope.proof.maskedResidualStatements[0].sumcheckAccumulationDigest
+        )
+    }
+
     func testNumiSealProofBodyMutationsCoverLaneProofPublicFields() throws {
         let fixture = try makeNumiSealProofBodyFixture()
         let proofBytes = fixture.proof.superNeoBytes
@@ -5895,6 +6090,186 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertEqual(auditStatus.lastSequence, 1)
     }
 
+    func testNumiSealZKSideChannelCertificateGatesTrustedContext() throws {
+        let signingKey = Curve25519.Signing.PrivateKey()
+        let publicKeyDigest = Digest256.hash([UInt8](signingKey.publicKey.rawRepresentation)).hexString
+        let releaseBuildDigest = Digest256.hash("numiseal-zk-release-build").hexString
+        let now = try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
+
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        let prepared = try workload.prepareForFolding(
+            bits: [false, true],
+            keySeed: Array("numiseal-zk-side-channel-key".utf8)
+        )
+        let artifact = try NumiSealProductProver().prove(
+            NumiSealProvingRequest(
+                preparedR1CS: prepared,
+                workload: "one-hot-vector-v1",
+                bitCount: 2,
+                publicInputs: [1],
+                keySeedUTF8: "numiseal-zk-side-channel-key",
+                workloadParameters: ["selectedCount": "1"],
+                laneID: try NumiSealLaneID("product"),
+                executionPolicy: .zkHighAssuranceCPU,
+                zkMode: NumiSealZK.maskedDigitTensorMode,
+                aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
+            )
+        )
+
+        let contextWithoutZKPolicy = SuperNeoTrustedContextPayload(
+            contextID: "ctx-numiseal-zk",
+            issuer: "SuperNeo Release",
+            validFromUTC: "2026-01-01T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z",
+            expectedKeySeedUTF8: "numiseal-zk-side-channel-key",
+            expectedVerifierKeyDigestHex: artifact.verifierKeyDigestHex,
+            expectedShapeDigestHex: artifact.shapeDigestHex,
+            expectedStatementDigestHex: artifact.statementDigestHex,
+            expectedTranscriptDomainDigestHex: artifact.transcriptDomainHex,
+            acceptedProofKinds: [.numiSealZK],
+            maximumArtifactByteCount: 1_000_000,
+            maximumProofEnvelopeByteCount: 1_000_000,
+            allowedWorkloads: [artifact.workload],
+            publicInputs: artifact.publicInputs,
+            releaseBuildDigestHex: releaseBuildDigest,
+            numiSeal: SuperNeoTrustedNumiSealContext(
+                publicStatementDigestHex: artifact.publicStatementDigestHex,
+                obligationRootHex: artifact.obligationRootHex,
+                laneSummaryRootHex: artifact.laneSummaryRootHex,
+                aggregateDigestsHex: artifact.aggregateDigestsHex,
+                componentDigestRootHex: artifact.componentDigestRootHex,
+                proofTranscriptDigestHex: artifact.proofTranscriptDigestHex
+            ),
+            keyRotation: SuperNeoTrustedContextKeyRotation(currentIssuerKeyDigestHex: publicKeyDigest)
+        )
+        XCTAssertThrowsProductIntegrationError(
+            try contextWithoutZKPolicy.validate(now: now, issuerKeyDigestHex: publicKeyDigest),
+            containing: "must include NumiSealZK policy"
+        )
+
+        let certificatePayload = NumiSealZKSideChannelCertificationPayload(
+            certificateID: "numiseal-zk-side-channel-cpu-reference-v1",
+            issuer: "SuperNeo Release",
+            contextID: "ctx-numiseal-zk",
+            releaseBuildDigestHex: releaseBuildDigest,
+            certifiedLevel: .productionSideChannelCleared,
+            metalMode: artifact.metalMode,
+            executionPolicy: artifact.executionPolicy,
+            leakageDigestHex: try artifact.requiredExecutionMetadata("zkLeakageDigest"),
+            metalWorkspaceFeatureDigestHex: try artifact.requiredExecutionMetadata("metalWorkspaceFeatureDigest"),
+            reviewedKernelNames: [
+                "numiseal_apply_mask_kernel",
+                "numiseal_dense_fold_kernel",
+                "numiseal_eq_weight_kernel",
+                "numiseal_sumcheck_accumulate_kernel",
+                "numiseal_mask_accumulate_kernel"
+            ],
+            reviewedStageNames: [
+                "mask-expansion",
+                "masked-digit-tensor-application",
+                "dense-layer-folding",
+                "sumcheck-polynomial-accumulation"
+            ],
+            evidenceDigestsHex: [
+                Digest256.hash("constant-trace-review").hexString,
+                Digest256.hash("fixed-randomness-proof-equivalence").hexString
+            ],
+            benchmarkReportDigestHex: Digest256.hash("benchmark-report").hexString,
+            issuedAtUTC: "2026-04-16T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z"
+        )
+        let signedCertificate = SuperNeoSignedNumiSealZKSideChannelCertificate(
+            payload: certificatePayload,
+            signature: try productSignature(for: certificatePayload, signingKey: signingKey)
+        )
+        let verifiedCertificate = try signedCertificate.verified(
+            trustedIssuerKeyDigestsHex: [publicKeyDigest],
+            now: now
+        )
+        let zkPolicy = SuperNeoTrustedNumiSealZKContext(
+            acceptedMetalModes: [artifact.metalMode],
+            acceptedExecutionPolicies: [artifact.executionPolicy],
+            allowedLeakageDigestsHex: [try artifact.requiredExecutionMetadata("zkLeakageDigest")],
+            requiredSideChannelLevel: .productionSideChannelCleared,
+            requiredSideChannelCertificateDigestHex: verifiedCertificate.certificateDigest.hexString
+        )
+        let context = SuperNeoTrustedContextPayload(
+            contextID: "ctx-numiseal-zk",
+            issuer: "SuperNeo Release",
+            validFromUTC: "2026-01-01T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z",
+            expectedKeySeedUTF8: "numiseal-zk-side-channel-key",
+            expectedVerifierKeyDigestHex: artifact.verifierKeyDigestHex,
+            expectedShapeDigestHex: artifact.shapeDigestHex,
+            expectedStatementDigestHex: artifact.statementDigestHex,
+            expectedTranscriptDomainDigestHex: artifact.transcriptDomainHex,
+            acceptedProofKinds: [.numiSealZK],
+            maximumArtifactByteCount: 1_000_000,
+            maximumProofEnvelopeByteCount: 1_000_000,
+            allowedWorkloads: [artifact.workload],
+            publicInputs: artifact.publicInputs,
+            releaseBuildDigestHex: releaseBuildDigest,
+            numiSeal: SuperNeoTrustedNumiSealContext(
+                publicStatementDigestHex: artifact.publicStatementDigestHex,
+                obligationRootHex: artifact.obligationRootHex,
+                laneSummaryRootHex: artifact.laneSummaryRootHex,
+                aggregateDigestsHex: artifact.aggregateDigestsHex,
+                componentDigestRootHex: artifact.componentDigestRootHex,
+                proofTranscriptDigestHex: artifact.proofTranscriptDigestHex
+            ),
+            numiSealZK: zkPolicy,
+            keyRotation: SuperNeoTrustedContextKeyRotation(currentIssuerKeyDigestHex: publicKeyDigest)
+        )
+        try context.validate(now: now, issuerKeyDigestHex: publicKeyDigest)
+
+        XCTAssertThrowsProductIntegrationError(
+            try zkPolicy.validate(
+                artifact: artifact,
+                contextID: context.contextID,
+                releaseBuildDigest: try context.releaseBuildDigest,
+                certificate: nil
+            ),
+            containing: "side-channel certificate is required"
+        )
+        try zkPolicy.validate(
+            artifact: artifact,
+            contextID: context.contextID,
+            releaseBuildDigest: try context.releaseBuildDigest,
+            certificate: verifiedCertificate
+        )
+
+        let wrongCertificatePayload = NumiSealZKSideChannelCertificationPayload(
+            certificateID: certificatePayload.certificateID,
+            issuer: certificatePayload.issuer,
+            contextID: certificatePayload.contextID,
+            releaseBuildDigestHex: certificatePayload.releaseBuildDigestHex,
+            certifiedLevel: certificatePayload.certifiedLevel,
+            metalMode: certificatePayload.metalMode,
+            executionPolicy: certificatePayload.executionPolicy,
+            leakageDigestHex: Digest256.hash("wrong-leakage").hexString,
+            metalWorkspaceFeatureDigestHex: certificatePayload.metalWorkspaceFeatureDigestHex,
+            reviewedKernelNames: certificatePayload.reviewedKernelNames,
+            reviewedStageNames: certificatePayload.reviewedStageNames,
+            evidenceDigestsHex: certificatePayload.evidenceDigestsHex,
+            benchmarkReportDigestHex: certificatePayload.benchmarkReportDigestHex,
+            issuedAtUTC: certificatePayload.issuedAtUTC,
+            validUntilUTC: certificatePayload.validUntilUTC
+        )
+        let wrongCertificate = try SuperNeoSignedNumiSealZKSideChannelCertificate(
+            payload: wrongCertificatePayload,
+            signature: productSignature(for: wrongCertificatePayload, signingKey: signingKey)
+        ).verified(trustedIssuerKeyDigestsHex: [publicKeyDigest], now: now)
+        XCTAssertThrowsProductIntegrationError(
+            try zkPolicy.validate(
+                artifact: artifact,
+                contextID: context.contextID,
+                releaseBuildDigest: try context.releaseBuildDigest,
+                certificate: wrongCertificate
+            ),
+            containing: "certificate digest does not match"
+        )
+    }
+
     func testLocalProductControlsRejectGroupWritableTrustedContextPack() throws {
         let directory = try temporaryDirectory()
         let signingKey = Curve25519.Signing.PrivateKey()
@@ -6178,6 +6553,75 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 executionPolicy: .highAssurance
             ),
             .verificationFailed("NumiSeal product source fold digest mismatch")
+        )
+    }
+
+    func testNumiSealProductProverEmitsVerifiableZKV2Artifact() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        let prepared = try workload.prepareForFolding(
+            bits: [false, true],
+            keySeed: Array("numiseal-product-zk-key".utf8)
+        )
+        let artifact = try NumiSealProductProver().prove(
+            NumiSealProvingRequest(
+                preparedR1CS: prepared,
+                workload: "one-hot-vector-v1",
+                bitCount: 2,
+                publicInputs: [1],
+                keySeedUTF8: "numiseal-product-zk-key",
+                workloadParameters: ["selectedCount": "1"],
+                laneID: try NumiSealLaneID("product"),
+                executionPolicy: .zkHighAssuranceCPU,
+                zkMode: NumiSealZK.maskedDigitTensorMode,
+                aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
+            )
+        )
+
+        XCTAssertEqual(artifact.artifactVersion, NumiSealProductArtifact.artifactVersion)
+        XCTAssertEqual(artifact.proofKind, NumiSealProductArtifact.zkProofKind)
+        XCTAssertEqual(artifact.sealMode, NumiSealZK.sealMode)
+        XCTAssertEqual(artifact.zkMode, NumiSealZK.maskedDigitTensorMode)
+        XCTAssertEqual(artifact.sourceFoldOutputClaimCount, 14)
+        XCTAssertEqual(artifact.aggregateDigestsHex.count, 1)
+        XCTAssertEqual(artifact.executionPolicyMetadata["numiSealProofKind"], NumiSealProductArtifact.zkProofKind)
+        XCTAssertEqual(artifact.executionPolicyMetadata["zkProofBodyVersion"], "\(NumiSealZKProof.bodyVersion)")
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["zkMaskedResidualStatementVersion"],
+            "\(NumiSealZKMaskedResidualStatement.version)"
+        )
+        XCTAssertEqual(artifact.executionPolicyMetadata["zkMaskedResidualStatementCount"], "1")
+        XCTAssertNotNil(artifact.executionPolicyMetadata["zkRandomnessSessionDigest"])
+        XCTAssertNotNil(artifact.executionPolicyMetadata["zkLeakageDigest"])
+
+        let proofBytes = try artifact.proofEnvelopeBytes()
+        let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
+        XCTAssertEqual(header.kind, .numiSealZK)
+        let zkEnvelope = try NumiSealZKProofEnvelope(bytes: proofBytes)
+        XCTAssertEqual(zkEnvelope.proof.maskStatements.count, 1)
+        XCTAssertEqual(zkEnvelope.proof.maskedResidualStatements.count, 1)
+        XCTAssertEqual(zkEnvelope.proof.baseProof.publicStatement.digest.hexString, artifact.publicStatementDigestHex)
+        XCTAssertEqual(zkEnvelope.proof.componentDigestRoot.hexString, artifact.componentDigestRootHex)
+        XCTAssertEqual(zkEnvelope.proof.transcriptDigest.hexString, artifact.proofTranscriptDigestHex)
+
+        let result = try NumiSealProductVerifier().verify(
+            artifact: artifact,
+            sourcePublicInput: prepared.publicFoldInput,
+            key: prepared.key,
+            executionPolicy: .highAssurance
+        )
+        XCTAssertTrue(result.sourceFoldResult.isReductionAccepted, result.sourceFoldResult.reason ?? "")
+        XCTAssertTrue(result.numiSealResult.isValid, result.numiSealResult.reason ?? "")
+
+        var tampered = artifact
+        tampered.zkMode = NumiSealZK.nonZKMode
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tampered,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product proof kind, seal mode, and ZK mode are inconsistent")
         )
     }
 
@@ -7139,6 +7583,96 @@ final class MetalDifferentialTests: SuperNeoTestCase {
                 )
             }
         }
+    }
+
+    func testTier0NumiSealMetalProvingKernelsMatchCPUOracles() throws {
+        let device = try requireMetalDevice()
+        let context = try MetalExecutionContext(device: device)
+        let backend = SuperNeoMetalBackend(context: context)
+        var generator = SeededTestGenerator(seed: 0x4E55_4D49_5A4B_4D54)
+
+        let digitTensor = (0..<4).map { _ in generator.ring() }
+        let mask = (0..<4).map { _ in generator.ring() }
+        XCTAssertEqual(
+            try backend.numiSealApplyMask(digitTensor: digitTensor, mask: mask),
+            try SuperNeoMetalBackend.numiSealApplyMaskReference(digitTensor: digitTensor, mask: mask)
+        )
+
+        let lhs = (0..<128).map { _ in generator.field() }
+        let rhs = (0..<128).map { _ in generator.field() }
+        let challenge = generator.field()
+        XCTAssertEqual(
+            try backend.numiSealDenseFold(lhs: lhs, rhs: rhs, challenge: challenge),
+            try SuperNeoMetalBackend.numiSealDenseFoldReference(lhs: lhs, rhs: rhs, challenge: challenge)
+        )
+
+        let equalityPoint = (0..<6).map { _ in generator.field() }
+        XCTAssertEqual(
+            try backend.numiSealEqualityWeights(point: equalityPoint),
+            try SuperNeoMetalBackend.numiSealEqualityWeightsReference(point: equalityPoint)
+        )
+
+        let terms = (0..<5).map { _ in (0..<64).map { _ in generator.field() } }
+        let weights = (0..<5).map { _ in generator.field() }
+        XCTAssertEqual(
+            try backend.numiSealSumcheckAccumulate(terms: terms, weights: weights),
+            try SuperNeoMetalBackend.numiSealSumcheckAccumulateReference(terms: terms, weights: weights)
+        )
+
+        let fusedWeights = Array(weights.prefix(3))
+        XCTAssertEqual(
+            try backend.numiSealApplyMaskAndAccumulate(
+                digitTensor: digitTensor,
+                mask: mask,
+                weights: fusedWeights
+            ),
+            try SuperNeoMetalBackend.numiSealApplyMaskAndAccumulateReference(
+                digitTensor: digitTensor,
+                mask: mask,
+                weights: fusedWeights
+            )
+        )
+
+        let fixture = try makeFoldFixture()
+        let baseWorkspace = try SuperNeoMetalWorkspace(
+            context: context,
+            key: fixture.key,
+            compiledShape: fixture.input.shape.compiledSparseForSuperNeo()
+        )
+        let provingWorkspace = NumiSealMetalProvingWorkspace(
+            baseWorkspace: baseWorkspace,
+            provingPolicy: .zkRedundantMetal
+        )
+        XCTAssertTrue(provingWorkspace.supportedStages.contains("sumcheck-polynomial-accumulation"))
+        XCTAssertTrue(provingWorkspace.supportedStages.contains("fused-mask-sumcheck-accumulation"))
+        XCTAssertEqual(
+            try provingWorkspace.applyMask(digitTensor: digitTensor, mask: mask),
+            try SuperNeoMetalBackend.numiSealApplyMaskReference(digitTensor: digitTensor, mask: mask)
+        )
+        XCTAssertEqual(
+            try provingWorkspace.denseFold(lhs: lhs, rhs: rhs, challenge: challenge),
+            try SuperNeoMetalBackend.numiSealDenseFoldReference(lhs: lhs, rhs: rhs, challenge: challenge)
+        )
+        XCTAssertEqual(
+            try provingWorkspace.equalityWeights(point: equalityPoint),
+            try SuperNeoMetalBackend.numiSealEqualityWeightsReference(point: equalityPoint)
+        )
+        XCTAssertEqual(
+            try provingWorkspace.sumcheckAccumulate(terms: terms, weights: weights),
+            try SuperNeoMetalBackend.numiSealSumcheckAccumulateReference(terms: terms, weights: weights)
+        )
+        XCTAssertEqual(
+            try provingWorkspace.applyMaskAndAccumulate(
+                digitTensor: digitTensor,
+                mask: mask,
+                weights: fusedWeights
+            ),
+            try SuperNeoMetalBackend.numiSealApplyMaskAndAccumulateReference(
+                digitTensor: digitTensor,
+                mask: mask,
+                weights: fusedWeights
+            )
+        )
     }
 
 }

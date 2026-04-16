@@ -6,7 +6,8 @@ This note records the first executable product-integration boundary around the
 checked NumiSeal verification surface. A later April 16 pass added local
 CLI/offline product controls documented in
 `Docs/LocalProductControls-2026-04-16.md`: signed context packs, signed
-provenance manifests, SQLite replay storage, and hash-chained JSONL audit logs.
+provenance manifests, signed NumiSealZK side-channel certificates, SQLite
+replay storage, and hash-chained JSONL audit logs.
 Neither pass is a hosted verifier service or a complete production
 certification.
 
@@ -70,8 +71,11 @@ superneo verify --product --operator-profile profile.json proof.json
 This path verifies the signed trusted context before artifact parsing, verifies
 signed provenance before algebraic acceptance, rejects replay through a durable
 SQLite ledger, and appends accepted/rejected decisions to a hash-chained JSONL
-audit log. It covers terminal, compressed-terminal, and NumiSeal terminal
-surfaces.
+audit log. It covers terminal, compressed-terminal, NumiSeal terminal, and
+NumiSealZK product surfaces. For `numiseal-zk`, the trusted context must include
+NumiSealZK policy and can require a signed side-channel certificate that binds
+release, context, leakage, proof policy, Metal workspace, reviewed kernels, and
+evidence digests.
 
 ## Remaining Product Responsibilities
 
@@ -85,6 +89,8 @@ controls, but production deployment still requires product-owned completion for:
   model,
 - audit-log retention and export,
 - user-facing error and retry policy, and
+- side-channel certificate evidence generation for each production
+  hardware/profile lane, and
 - external audit completion.
 
 The product integration blocker is therefore narrowed: the local repository no

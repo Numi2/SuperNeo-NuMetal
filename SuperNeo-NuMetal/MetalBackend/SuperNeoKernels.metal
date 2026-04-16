@@ -183,6 +183,88 @@ kernel void ring_mul_kernel(
     out[base + coeff] = acc;
 }
 
+kernel void numiseal_apply_mask_kernel(
+    device const ulong *digitTensor [[buffer(0)]],
+    device const ulong *mask [[buffer(1)]],
+    device ulong *maskedTensor [[buffer(2)]],
+    constant uint &count [[buffer(3)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id >= count) { return; }
+    maskedTensor[id] = goldilocks_add(digitTensor[id], mask[id]);
+}
+
+kernel void numiseal_dense_fold_kernel(
+    device const ulong *lhs [[buffer(0)]],
+    device const ulong *rhs [[buffer(1)]],
+    device ulong *out [[buffer(2)]],
+    device const uint *params [[buffer(3)]],
+    constant uint &count [[buffer(4)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id >= count) { return; }
+    ulong challenge = (ulong(params[1]) << 32) | ulong(params[0]);
+    out[id] = goldilocks_add(lhs[id], goldilocks_mul(rhs[id], challenge));
+}
+
+kernel void numiseal_eq_weight_kernel(
+    device const ulong *point [[buffer(0)]],
+    device ulong *out [[buffer(1)]],
+    device const uint *params [[buffer(2)]],
+    constant uint &count [[buffer(3)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id >= count) { return; }
+    uint variableCount = params[0];
+    ulong acc = 1;
+    for (uint variable = 0; variable < variableCount; variable++) {
+        ulong coordinate = point[variable];
+        bool bit = ((id >> variable) & 1u) != 0;
+        ulong term = bit ? coordinate : goldilocks_sub(1, coordinate);
+        acc = goldilocks_mul(acc, term);
+    }
+    out[id] = acc;
+}
+
+kernel void numiseal_sumcheck_accumulate_kernel(
+    device const ulong *terms [[buffer(0)]],
+    device const ulong *weights [[buffer(1)]],
+    device ulong *out [[buffer(2)]],
+    device const uint *params [[buffer(3)]],
+    constant uint &count [[buffer(4)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id >= count) { return; }
+    uint termCount = params[0];
+    ulong acc = 0;
+    for (uint termIndex = 0; termIndex < termCount; termIndex++) {
+        ulong term = terms[termIndex * count + id];
+        ulong weight = weights[termIndex];
+        acc = goldilocks_add(acc, goldilocks_mul(term, weight));
+    }
+    out[id] = acc;
+}
+
+kernel void numiseal_mask_accumulate_kernel(
+    device const ulong *digitTensor [[buffer(0)]],
+    device const ulong *mask [[buffer(1)]],
+    device ulong *maskedTensor [[buffer(2)]],
+    device ulong *accumulation [[buffer(3)]],
+    device const ulong *weights [[buffer(4)]],
+    constant uint &count [[buffer(5)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id >= count) { return; }
+    ulong digit = digitTensor[id];
+    ulong maskValue = mask[id];
+    ulong masked = goldilocks_add(digit, maskValue);
+    maskedTensor[id] = masked;
+    ulong acc = goldilocks_mul(digit, weights[0]);
+    acc = goldilocks_add(acc, goldilocks_mul(maskValue, weights[1]));
+    acc = goldilocks_add(acc, goldilocks_mul(masked, weights[2]));
+    accumulation[id] = acc;
+}
+
 inline void ring_mul_local(
     device const ulong *lhs,
     device const ulong *rhs,

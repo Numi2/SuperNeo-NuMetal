@@ -34,6 +34,7 @@ public enum ProofEnvelopeKind: UInt8, Equatable, Sendable {
     case terminalLocal = 2
     case compressedPublic = 3
     case numiSealTerminal = 4
+    case numiSealZK = 5
 }
 
 public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
@@ -162,11 +163,14 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
                 return true
             case (.terminalOrCompressed, .foldReduction),
                  (.terminalOrCompressed, .numiSealTerminal),
+                 (.terminalOrCompressed, .numiSealZK),
                  (.terminalOnly, .foldReduction),
                  (.terminalOnly, .numiSealTerminal),
+                 (.terminalOnly, .numiSealZK),
                  (.terminalOnly, .compressedPublic),
                  (.compressedOnly, .foldReduction),
                  (.compressedOnly, .numiSealTerminal),
+                 (.compressedOnly, .numiSealZK),
                  (.compressedOnly, .terminalLocal):
                 return false
             }

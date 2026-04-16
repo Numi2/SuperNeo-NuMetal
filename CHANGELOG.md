@@ -34,5 +34,7 @@ claims remain blocked by the audit packet no-go items.
 - Side-channel review and constant-time certification scope.
 - Product integration for provenance, replay protection, trusted context, access
   control, persistence, logging, and user-facing policy.
-- Formal-claim promotion or explicit narrowing for remaining blocker groups.
+- Formal-claim hygiene for production-security wording; the completed formal
+  protocol theorem label is validator-gated, while production claims still
+  require the audit and operational controls above.
 - Signed artifacts and repository branch-protection enforcement.

@@ -105,7 +105,10 @@
       "type": "string"
     },
     "proofKind": {
-      "const": "numiseal-terminal",
+      "enum": [
+        "numiseal-terminal",
+        "numiseal-zk"
+      ],
       "type": "string"
     },
     "proofTranscriptDigestHex": {
@@ -124,7 +127,10 @@
       "type": "string"
     },
     "sealMode": {
-      "const": "numiseal-terminal-v2",
+      "enum": [
+        "numiseal-terminal-v2",
+        "numiseal-zk-v1"
+      ],
       "type": "string"
     },
     "shapeDigestHex": {

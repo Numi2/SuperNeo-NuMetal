@@ -94,6 +94,7 @@ private struct ProveOptions {
     var proofKind: DemoProofKind = .fold
     var sealMode: ProveSealMode?
     var numiSealExecutionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct
+    var numiSealZKMode: String = NumiSealZK.nonZKMode
     var maximumObligationsPerAggregate: Int?
     var sourceApplicationPath: String?
 }
@@ -117,17 +118,20 @@ private struct VerifyOptions {
     var operatorProfilePath: String?
     var contextPackPath: String?
     var artifactProvenancePath: String?
+    var sideChannelCertificatePath: String?
     var useProductControls = false
 }
 
 private struct ProductControlOptions {
     var operatorProfilePath: String?
     var contextPackPath: String?
+    var sideChannelCertificatePath: String?
 }
 
 private struct LoadedProductControls {
     let profile: SuperNeoLocalOperatorProfile
     let context: SuperNeoVerifiedTrustedContextPack
+    let sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?
     let replayLedger: SuperNeoSQLiteReplayLedger
     let auditLog: SuperNeoJSONLAuditLog
 }
@@ -147,13 +151,13 @@ private func usage() -> String {
     """
     Usage:
       superneo prove [--workload one-hot] [--bits 0,0,1,0] [--kind fold|terminal|compressed-terminal] [--key-seed text] [--output proof.json]
-      superneo prove --seal numiseal [--workload one-hot] [--bits 0,0,1,0] [--numiseal-execution-policy default-product|zk-redundant-metal|zk-metal-accelerated|zk-high-assurance-cpu] [--max-obligations-per-aggregate n] [--output proof.json]
+      superneo prove --seal numiseal [--workload one-hot] [--bits 0,0,1,0] [--numiseal-zk-mode none|masked-digit-tensor-v1] [--numiseal-execution-policy default-product|zk-redundant-metal|zk-metal-accelerated|zk-high-assurance-cpu] [--max-obligations-per-aggregate n] [--output proof.json]
       superneo prove --workload binary-add [--operand-bits 8] [--lhs 13] [--rhs 29] [--kind fold|terminal|compressed-terminal] [--output proof.json]
       superneo verify [--key-seed text] [--expected-verifier-key-digest hex] [--expected-shape-digest hex] [--expected-statement-digest hex] [--expected-public-inputs values] [--require-terminal|--require-numiseal] proof.json
-      superneo verify --product --operator-profile profile.json [--context-pack context.json] [--artifact-provenance provenance.json] proof.json
+      superneo verify --product --operator-profile profile.json [--context-pack context.json] [--artifact-provenance provenance.json] [--side-channel-certificate certificate.json] proof.json
       superneo inspect proof.json
       superneo product-init-storage --operator-profile profile.json
-      superneo product-status --operator-profile profile.json [--context-pack context.json]
+      superneo product-status --operator-profile profile.json [--context-pack context.json] [--side-channel-certificate certificate.json]
 
     Workloads:
       one-hot: proves a committed private bit vector has exactly one selected bit.
@@ -168,7 +172,8 @@ private func usage() -> String {
     accepts --expected-transcript-domain-digest, --expected-public-statement-digest,
     --expected-obligation-root, --expected-lane-summary-root,
     --expected-aggregate-digests, --expected-component-digest-root, and
-    --expected-proof-transcript-digest.
+    --expected-proof-transcript-digest. Pass --numiseal-zk-mode masked-digit-tensor-v1
+    to emit a kind-5 masked NumiSealZK product artifact.
     """
 }
 
@@ -255,6 +260,12 @@ private func parseProveOptions(_ arguments: [String]) throws -> ProveOptions {
                 )
             }
             options.numiSealExecutionPolicy = policy
+        case "--numiseal-zk-mode", "--zk-mode":
+            let raw = try requireValue()
+            guard raw == NumiSealZK.nonZKMode || raw == NumiSealZK.maskedDigitTensorMode else {
+                throw CLIError.invalidArgument("\(argument) must be none or masked-digit-tensor-v1")
+            }
+            options.numiSealZKMode = raw
         case "--max-obligations-per-aggregate":
             options.maximumObligationsPerAggregate = try parsePositiveInt(
                 try requireValue(),
@@ -295,6 +306,7 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
     var operatorProfilePath: String?
     var contextPackPath: String?
     var artifactProvenancePath: String?
+    var sideChannelCertificatePath: String?
     var useProductControls = false
     var index = 0
     while index < arguments.count {
@@ -346,6 +358,9 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
         case "--artifact-provenance":
             artifactProvenancePath = try requireValue()
             useProductControls = true
+        case "--side-channel-certificate":
+            sideChannelCertificatePath = try requireValue()
+            useProductControls = true
         default:
             guard !argument.hasPrefix("-") else {
                 throw CLIError.invalidArgument("unknown verify option: \(argument)")
@@ -382,6 +397,7 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
         operatorProfilePath: operatorProfilePath,
         contextPackPath: contextPackPath,
         artifactProvenancePath: artifactProvenancePath,
+        sideChannelCertificatePath: sideChannelCertificatePath,
         useProductControls: useProductControls
     )
 }
@@ -403,6 +419,8 @@ private func parseProductControlOptions(_ arguments: [String]) throws -> Product
             options.operatorProfilePath = try requireValue()
         case "--context-pack":
             options.contextPackPath = try requireValue()
+        case "--side-channel-certificate":
+            options.sideChannelCertificatePath = try requireValue()
         default:
             throw CLIError.invalidArgument("unknown product option: \(argument)")
         }
@@ -541,6 +559,7 @@ private func proveNumiSealProduct(
             sourceApplicationPathUTF8: options.sourceApplicationPath ?? FileManager.default.currentDirectoryPath,
             laneID: try NumiSealLaneID("product"),
             executionPolicy: options.numiSealExecutionPolicy,
+            zkMode: options.numiSealZKMode,
             aggregationLimits: aggregationLimits,
             metalContext: metalContext
         )
@@ -598,7 +617,8 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
     try rejectLegacyVerifierOptionsInProductMode(options)
     let controls = try loadProductControls(
         operatorProfilePath: options.operatorProfilePath,
-        contextPackPath: options.contextPackPath
+        contextPackPath: options.contextPackPath,
+        sideChannelCertificatePath: options.sideChannelCertificatePath
     )
     let context = controls.context.payload
     var artifactDigest: Digest256?
@@ -619,7 +639,11 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             provenanceDigest: nil
         )
         let artifact = try readProofArtifact(data: artifactData)
-        let material = try makeProductArtifactMaterial(artifact, context: context)
+        let material = try makeProductArtifactMaterial(
+            artifact,
+            context: context,
+            sideChannelCertificate: controls.sideChannelCertificate
+        )
         proofEnvelopeDigest = material.proofEnvelopeDigest
         proofKind = material.proofKind
         statementDigest = material.statementDigest
@@ -669,6 +693,7 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             artifactDigest: artifactDigest,
             proofEnvelopeDigest: proofEnvelopeDigest,
             provenanceDigest: provenanceDigest,
+            sideChannelCertificateDigest: controls.sideChannelCertificate?.certificateDigest,
             proofKind: proofKind,
             statementDigest: statementDigest,
             error: nil
@@ -688,6 +713,7 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             artifactDigest: artifactDigest,
             proofEnvelopeDigest: proofEnvelopeDigest,
             provenanceDigest: provenanceDigest,
+            sideChannelCertificateDigest: controls.sideChannelCertificate?.certificateDigest,
             proofKind: proofKind,
             statementDigest: statementDigest,
             error: error
@@ -983,6 +1009,11 @@ private func inspectNumiSealProductArtifact(_ artifact: NumiSealProductArtifact)
     print("numiseal envelope transcript domain: \(proofHeader.transcriptDomainHex)")
     print("numiseal envelope body bytes: \(proofHeader.bodyLength)")
     print("numiseal envelope total bytes: \(proofBytes.count)")
+    if !artifact.executionPolicyMetadata.isEmpty {
+        for key in artifact.executionPolicyMetadata.keys.sorted() {
+            print("\(key): \(artifact.executionPolicyMetadata[key] ?? "")")
+        }
+    }
 }
 
 private func productInitStorage(_ options: ProductControlOptions) throws {
@@ -999,7 +1030,8 @@ private func productInitStorage(_ options: ProductControlOptions) throws {
 private func productStatus(_ options: ProductControlOptions) throws {
     let controls = try loadProductControls(
         operatorProfilePath: options.operatorProfilePath,
-        contextPackPath: options.contextPackPath
+        contextPackPath: options.contextPackPath,
+        sideChannelCertificatePath: options.sideChannelCertificatePath
     )
     let context = controls.context.payload
     let auditStatus = try controls.auditLog.validateChain()
@@ -1008,6 +1040,20 @@ private func productStatus(_ options: ProductControlOptions) throws {
     print("valid from: \(context.validFromUTC)")
     print("valid until: \(context.validUntilUTC)")
     print("accepted proof kinds: \(context.acceptedProofKinds.map(\.rawValue).joined(separator: ","))")
+    if let numiSealZK = context.numiSealZK {
+        print("numiseal zk required side-channel level: \(numiSealZK.requiredSideChannelLevel.rawValue)")
+        print("numiseal zk accepted metal modes: \(numiSealZK.acceptedMetalModes.joined(separator: ","))")
+        print("numiseal zk allowed leakage digests: \(numiSealZK.allowedLeakageDigestsHex.joined(separator: ","))")
+        print("numiseal zk required certificate digest: \(numiSealZK.requiredSideChannelCertificateDigestHex ?? "none")")
+    }
+    if let certificate = controls.sideChannelCertificate {
+        print("side-channel certificate digest: \(certificate.certificateDigest.hexString)")
+        print("side-channel certificate level: \(certificate.payload.certifiedLevel.rawValue)")
+        print("side-channel certificate issuer: \(certificate.payload.issuer)")
+        print("side-channel certificate valid until: \(certificate.payload.validUntilUTC)")
+    } else {
+        print("side-channel certificate: none")
+    }
     print("allowed workloads: \(context.allowedWorkloads.joined(separator: ","))")
     print("context payload digest: \(controls.context.payloadDigest.hexString)")
     print("issuer key digest: \(controls.context.issuerKeyDigest.hexString)")
@@ -1027,7 +1073,8 @@ private func productStatus(_ options: ProductControlOptions) throws {
 
 private func loadProductControls(
     operatorProfilePath: String?,
-    contextPackPath: String?
+    contextPackPath: String?,
+    sideChannelCertificatePath: String?
 ) throws -> LoadedProductControls {
     guard let operatorProfilePath else {
         throw CLIError.invalidArgument("--operator-profile is required for product controls")
@@ -1041,6 +1088,13 @@ private func loadProductControls(
     guard context.payload.releaseBuildDigestHex == profile.releaseBuildDigestHex else {
         throw SuperNeoProductIntegrationError.unauthorized("operator profile release build digest does not match trusted context")
     }
+    let certificatePath = sideChannelCertificatePath ?? profile.sideChannelCertificatePath
+    let sideChannelCertificate = try certificatePath.map {
+        try SuperNeoSignedNumiSealZKSideChannelCertificate.loadVerified(
+            from: URL(fileURLWithPath: $0),
+            trustedIssuerKeyDigestsHex: try profile.trustedSideChannelIssuerKeyDigestSet()
+        )
+    }
     let replayLedger = try SuperNeoSQLiteReplayLedger(
         databaseURL: URL(fileURLWithPath: profile.replayDatabasePath)
     )
@@ -1048,6 +1102,7 @@ private func loadProductControls(
     return LoadedProductControls(
         profile: profile,
         context: context,
+        sideChannelCertificate: sideChannelCertificate,
         replayLedger: replayLedger,
         auditLog: auditLog
     )
@@ -1100,7 +1155,8 @@ private func rejectLegacyVerifierOptionsInProductMode(_ options: VerifyOptions) 
 
 private func makeProductArtifactMaterial(
     _ artifact: ProofArtifact,
-    context: SuperNeoTrustedContextPayload
+    context: SuperNeoTrustedContextPayload,
+    sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?
 ) throws -> ProductArtifactMaterial {
     switch artifact {
     case .demo(let artifact):
@@ -1108,7 +1164,11 @@ private func makeProductArtifactMaterial(
     case .numiSeal(let artifact):
         return try makeProductNumiSealArtifactMaterial(artifact, context: context)
     case .numiSealProduct(let artifact):
-        return try makeProductNumiSealProductArtifactMaterial(artifact, context: context)
+        return try makeProductNumiSealProductArtifactMaterial(
+            artifact,
+            context: context,
+            sideChannelCertificate: sideChannelCertificate
+        )
     }
 }
 
@@ -1253,11 +1313,36 @@ private func makeProductNumiSealArtifactMaterial(
 
 private func makeProductNumiSealProductArtifactMaterial(
     _ artifact: NumiSealProductArtifact,
-    context: SuperNeoTrustedContextPayload
+    context: SuperNeoTrustedContextPayload,
+    sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?
 ) throws -> ProductArtifactMaterial {
-    let productKind = SuperNeoProductProofKind.numiSealTerminal
+    let productKind: SuperNeoProductProofKind
+    let expectedEnvelopeKind: ProofEnvelopeKind
+    switch artifact.proofKind {
+    case NumiSealProductArtifact.proofKind:
+        productKind = .numiSealTerminal
+        expectedEnvelopeKind = .numiSealTerminal
+    case NumiSealProductArtifact.zkProofKind:
+        productKind = .numiSealZK
+        expectedEnvelopeKind = .numiSealZK
+    default:
+        throw SuperNeoProductIntegrationError.invalidRequest("unsupported NumiSeal product proof kind")
+    }
     guard context.accepts(productKind) else {
         throw SuperNeoProductIntegrationError.missingExpectedContext("trusted context does not accept \(productKind.rawValue)")
+    }
+    if productKind == .numiSealZK {
+        guard let zkPolicy = context.numiSealZK else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext(
+                "trusted context does not include NumiSealZK policy"
+            )
+        }
+        try zkPolicy.validate(
+            artifact: artifact,
+            contextID: context.contextID,
+            releaseBuildDigest: try context.releaseBuildDigest,
+            certificate: sideChannelCertificate
+        )
     }
     guard context.allowedWorkloads.contains(artifact.workload) else {
         throw SuperNeoProductIntegrationError.missingExpectedContext("artifact workload is not allowed by trusted context")
@@ -1273,10 +1358,29 @@ private func makeProductNumiSealProductArtifactMaterial(
             throw SuperNeoProductIntegrationError.invalidRequest("proof envelope byte count exceeds trusted context maximum")
         }
     }
+    let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
+    try header.validateEnvelopeLength(totalByteCount: proofBytes.count)
+    guard header.kind == expectedEnvelopeKind else {
+        throw SuperNeoProductIntegrationError.invalidRequest(
+            "NumiSeal product artifact expected \(expectedEnvelopeKind) envelope, got \(header.kind)"
+        )
+    }
     let expectedShapeDigest = try context.expectedShapeDigest
     let expectedStatementDigest = try context.expectedStatementDigest
     let expectedVerifierKeyDigest = try context.expectedVerifierKeyDigest
     let expectedTranscriptDomainDigest = try context.expectedTranscriptDomainDigest
+    guard header.shapeDigest == expectedShapeDigest else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product envelope shape digest does not match trusted context")
+    }
+    guard header.statementDigest == expectedStatementDigest else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product envelope statement digest does not match trusted context")
+    }
+    guard header.verifierKeyDigest == expectedVerifierKeyDigest else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product envelope verifier key digest does not match trusted context")
+    }
+    guard header.transcriptDomain == expectedTranscriptDomainDigest else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product envelope transcript domain does not match trusted context")
+    }
     guard artifact.shapeDigestHex == expectedShapeDigest.hexString else {
         throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product shape digest does not match trusted context")
     }
@@ -1289,6 +1393,10 @@ private func makeProductNumiSealProductArtifactMaterial(
     guard artifact.transcriptDomainHex == expectedTranscriptDomainDigest.hexString else {
         throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product transcript domain does not match trusted context")
     }
+    try validateNumiSealProductArtifactPins(
+        artifact: artifact,
+        expectedContext: try context.numiSealExpectedContext()
+    )
     let publicInput = try makePublicInput(from: artifact)
     let keySeed = context.expectedKeySeedUTF8 ?? artifact.keySeedUTF8
     guard let keySeed else {
@@ -1315,6 +1423,54 @@ private func makeProductNumiSealProductArtifactMaterial(
     )
 }
 
+private func validateNumiSealProductArtifactPins(
+    artifact: NumiSealProductArtifact,
+    expectedContext: NumiSealArtifactExpectedContext
+) throws {
+    if let publicStatementDigest = expectedContext.publicStatementDigest {
+        guard artifact.publicStatementDigestHex == publicStatementDigest.hexString else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext(
+                "NumiSeal product public statement digest does not match trusted context"
+            )
+        }
+    }
+    if let obligationRoot = expectedContext.obligationRoot {
+        guard artifact.obligationRootHex == obligationRoot.hexString else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext(
+                "NumiSeal product obligation root does not match trusted context"
+            )
+        }
+    }
+    if let laneSummaryRoot = expectedContext.laneSummaryRoot {
+        guard artifact.laneSummaryRootHex == laneSummaryRoot.hexString else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext(
+                "NumiSeal product lane summary root does not match trusted context"
+            )
+        }
+    }
+    if let aggregateDigests = expectedContext.aggregateDigests {
+        guard artifact.aggregateDigestsHex == aggregateDigests.map(\.hexString) else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext(
+                "NumiSeal product aggregate digests do not match trusted context"
+            )
+        }
+    }
+    if let componentDigestRoot = expectedContext.componentDigestRoot {
+        guard artifact.componentDigestRootHex == componentDigestRoot.hexString else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext(
+                "NumiSeal product component digest root does not match trusted context"
+            )
+        }
+    }
+    if let proofTranscriptDigest = expectedContext.proofTranscriptDigest {
+        guard artifact.proofTranscriptDigestHex == proofTranscriptDigest.hexString else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext(
+                "NumiSeal product proof transcript digest does not match trusted context"
+            )
+        }
+    }
+}
+
 private func appendProductAudit(
     auditLog: SuperNeoJSONLAuditLog,
     profile: SuperNeoLocalOperatorProfile,
@@ -1323,6 +1479,7 @@ private func appendProductAudit(
     artifactDigest: Digest256?,
     proofEnvelopeDigest: Digest256?,
     provenanceDigest: Digest256?,
+    sideChannelCertificateDigest: Digest256?,
     proofKind: SuperNeoProductProofKind?,
     statementDigest: Digest256?,
     error: Error?
@@ -1335,6 +1492,7 @@ private func appendProductAudit(
             artifactDigestHex: artifactDigest?.hexString,
             proofEnvelopeDigestHex: proofEnvelopeDigest?.hexString,
             provenanceDigestHex: provenanceDigest?.hexString,
+            sideChannelCertificateDigestHex: sideChannelCertificateDigest?.hexString,
             proofKind: proofKind?.rawValue,
             contextID: context.contextID,
             statementDigestHex: statementDigest?.hexString,
@@ -1621,7 +1779,7 @@ private func readProofArtifact(data: Data) throws -> ProofArtifact {
     guard let proofKind = object["proofKind"] as? String else {
         throw CLIError.invalidArgument("proof artifact must include proofKind")
     }
-    if proofKind == NumiSealArtifact.proofKind {
+    if proofKind == NumiSealArtifact.proofKind || proofKind == NumiSealProductArtifact.zkProofKind {
         if let artifactVersion = object["artifactVersion"] as? NSNumber,
            artifactVersion.uint32Value == NumiSealProductArtifact.artifactVersion {
             try validateKnownArtifactTopLevelKeys(
@@ -1630,6 +1788,9 @@ private func readProofArtifact(data: Data) throws -> ProofArtifact {
                 artifactName: "NumiSeal product proof artifact"
             )
             return .numiSealProduct(try JSONDecoder().decode(NumiSealProductArtifact.self, from: data))
+        }
+        guard proofKind == NumiSealArtifact.proofKind else {
+            throw CLIError.invalidArgument("NumiSealZK product artifacts require artifactVersion \(NumiSealProductArtifact.artifactVersion)")
         }
         try validateKnownArtifactTopLevelKeys(
             object: object,

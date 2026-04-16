@@ -14,6 +14,7 @@ This document describes `ProofEnvelopeHeader.version == 4`.
 | `terminalLocal` | `2` | `TerminalFoldProof` | Verifies the fold proof plus local terminal CE opening proof for the output claims. |
 | `compressedPublic` | `3` | `CompressedTerminalProof` | Verifies a public compressed terminal envelope by digest-binding the fold proof and CE opening proof, then reconstructing terminal verification. |
 | `numiSealTerminal` | `4` | `NumiSealProof` | NumiSeal terminal-seal container. It is accepted only by NumiSeal-specific terminal policy and preflight. |
+| `numiSealZK` | `5` | `NumiSealZKProof` | Masked NumiSealZK container. It wraps a kind `4` base proof with ZK mode, randomness-session binding, mask statements, declared-leakage digest, component root, and transcript digest. |
 
 Do not treat kind `1` as a complete proof of an application statement. It is a
 fold reduction whose output claims must still be checked.
@@ -25,10 +26,13 @@ validates trusted profile, shape, statement, verifier-key, transcript-domain,
 accepted terminal envelope form, and optional proof byte limit before dispatching
 to terminal verification.
 
-NumiSeal terminal envelopes deliberately use a separate policy surface:
+NumiSeal terminal and ZK envelopes deliberately use a separate policy surface:
 `NumiSealTerminalProofAcceptancePolicy`. Existing terminal-local and compressed
-terminal policy rejects kind `4`, and NumiSeal policy rejects kinds `1`, `2`,
-and `3` before proof-body parsing advances to algebraic verification.
+terminal policy rejects kinds `4` and `5`, and NumiSeal terminal policy rejects
+kinds `1`, `2`, `3`, and `5` before proof-body parsing advances to algebraic
+verification. Kind `5` is parsed and verified through `NumiSealZKProofEnvelope`
+and `NumiSealZKVerifier`; its embedded base proof is re-enveloped as kind `4`
+before terminal acceptance is replayed.
 The current `NumiSealProver`/`NumiSealVerifier` assembly API targets the
 multi-lane/multi-aggregate immediate-residual path and uses this same kind `4`
 envelope. `NumiSealProvingPlan` exposes the deterministic aggregate order that
@@ -271,6 +275,94 @@ NumiSeal component leaves use these labels:
 leaf digests in public-statement then lane-major, aggregate-index order.
 `transcriptDigest` is `numiseal.proof-transcript.v1` over body version, public
 statement digest, aggregate counts, lane-proof digests, and the component root.
+
+`NumiSealZKProof` is:
+
+```text
+bodyVersion ||
+framed(zkMode) ||
+randomnessSessionDigest ||
+leakageDigest ||
+framed(NumiSealProof) ||
+maskStatementCount ||
+framed(NumiSealZKMaskStatement)... ||
+maskedResidualStatementCount ||
+framed(NumiSealZKMaskedResidualStatement)... ||
+componentDigestRoot ||
+transcriptDigest
+```
+
+`bodyVersion` is UInt16 little-endian value `13`. The initial ZK mode is
+`masked-digit-tensor-v1`. Every mask statement must bind to the corresponding
+base lane proof by lane key, aggregate index, digit-tensor digest, and the same
+randomness-session digest carried by the proof body. Every masked residual
+statement must bind to the same lane proof and mask statement by residual
+opening digest, scalarization digest, sum-check digest, final-point digest,
+digit/mask/masked tensor digests, decomposition commitment digest, and the
+masked evaluation equation. It also carries a transcript-derived accumulation
+challenge digest, computed from the lane proof, mask statement, and the three
+field weights used by the masked residual accumulation layer. The ZK component root is
+`numiseal.zk.component-root.v1` over the embedded base proof transcript digest,
+declared-leakage digest, mask-statement digests, and masked-residual statement
+digests. The ZK transcript digest is `numiseal.zk.proof-transcript.v1`.
+
+`NumiSealZKMaskStatement` is:
+
+```text
+domain ||
+version ||
+zkMode ||
+laneKey ||
+aggregateIndex ||
+columnCount ||
+activeDigitCount ||
+digitTensorDigest ||
+maskDigest ||
+maskedTensorDigest ||
+randomnessSessionDigest ||
+statementDigest
+```
+
+The mask statement digest is recomputed over the public binding fields. The
+masked tensor is produced by `NumiSealMetalProvingWorkspace.applyMask(...)`
+under Metal-enabled ZK policies and by CPU reference code under
+`.zkHighAssuranceCPU`; `.zkRedundantMetal` checks GPU output against the CPU
+oracle.
+
+`NumiSealZKMaskedResidualStatement` is:
+
+```text
+domain ||
+version ||
+zkMode ||
+laneKey ||
+aggregateIndex ||
+residualOpeningDigest ||
+linearResidualDigest ||
+sumcheckProofDigest ||
+finalPointDigest ||
+digitTensorDigest ||
+maskDigest ||
+maskedTensorDigest ||
+decompositionCommitmentDigest ||
+claimedDigitEvaluation ||
+maskEvaluation ||
+maskedDigitEvaluation ||
+accumulationChallengeDigest ||
+denseFoldDigest ||
+equalityWeightDigest ||
+sumcheckAccumulationDigest ||
+statementDigest
+```
+
+The masked residual statement digest is recomputed over all typed fields. The
+statement binds CPU/Metal prover-heavy artifacts for dense folding, equality
+weights, and sum-check accumulation while keeping Fiat-Shamir transcript hashing
+on CPU. Verification recomputes the public equality-weight digest from the
+embedded lane proof final point and rejects any mismatch. Metal-enabled proving may use the fused
+`numiseal_mask_accumulate_kernel` / `applyMaskAndAccumulate(...)` path to apply
+the mask and compute the weighted accumulation in one pass; redundant mode checks
+that result against the CPU oracle.
 
 ### NumiSeal Decomposition Handoff
 

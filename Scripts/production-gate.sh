@@ -17,6 +17,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - checked-in test vector validation
   - checked-in NumiSeal schema and vector validation
   - production NumiSeal CLI adversarial matrix
+  - signed NumiSealZK side-channel certificate policy tests
   - release policy, schema compatibility, and CI gate drift validation
   - release-candidate evidence tooling validation
   - release CLI fold, terminal, compressed-terminal, and NumiSeal prove/verify smoke
@@ -177,13 +178,14 @@ one_hot_compressed_terminal_path="$(make_temp_json)"
 one_hot_compressed_terminal_as_terminal_path="$(make_temp_json)"
 one_hot_compressed_terminal_as_fold_path="$(make_temp_json)"
 numiseal_product_path="$(make_temp_json)"
+numiseal_zk_product_path="$(make_temp_json)"
 binary_add_path="$(make_temp_json)"
 binary_add_terminal_path="$(make_temp_json)"
 binary_add_missing_sum_path="$(make_temp_json)"
 binary_add_noncanonical_sum_path="$(make_temp_json)"
 binary_add_bad_left_bit_count_path="$(make_temp_json)"
 binary_add_duplicate_workload_key_path="$(make_temp_json)"
-cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_duplicate_top_level_key_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${one_hot_compressed_terminal_path}" "${one_hot_compressed_terminal_as_terminal_path}" "${one_hot_compressed_terminal_as_fold_path}" "${numiseal_product_path}" "${binary_add_path}" "${binary_add_terminal_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}" "${binary_add_duplicate_workload_key_path}")
+cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_duplicate_top_level_key_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${one_hot_compressed_terminal_path}" "${one_hot_compressed_terminal_as_terminal_path}" "${one_hot_compressed_terminal_as_fold_path}" "${numiseal_product_path}" "${numiseal_zk_product_path}" "${binary_add_path}" "${binary_add_terminal_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}" "${binary_add_duplicate_workload_key_path}")
 
 run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
 run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent "${lattice_path}"
@@ -364,6 +366,40 @@ run_expect_failure "${SUPERNEO_CLI}" verify \
   --require-numiseal \
   --expected-public-inputs 0 \
   "${numiseal_product_path}"
+
+run_step "${SUPERNEO_CLI}" prove \
+  --seal numiseal \
+  --numiseal-zk-mode masked-digit-tensor-v1 \
+  --numiseal-execution-policy zk-high-assurance-cpu \
+  --bits 0,1 \
+  --max-obligations-per-aggregate 32 \
+  --output "${numiseal_zk_product_path}"
+run_step "${SUPERNEO_CLI}" inspect "${numiseal_zk_product_path}"
+run_step python3 - "${numiseal_zk_product_path}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    artifact = json.load(handle)
+
+assert artifact["proofKind"] == "numiseal-zk"
+assert artifact["sealMode"] == "numiseal-zk-v1"
+assert artifact["zkMode"] == "masked-digit-tensor-v1"
+metadata = artifact["executionPolicyMetadata"]
+assert metadata["numiSealProofKind"] == "numiseal-zk"
+assert metadata["zkProofBodyVersion"] == "13"
+assert metadata["zkMaskedResidualStatementVersion"] == "2"
+assert metadata["zkMaskedResidualStatementCount"] == "1"
+assert len(metadata["zkRandomnessSessionDigest"]) == 64
+assert len(metadata["zkLeakageDigest"]) == 64
+PY
+run_expect_failure "${SUPERNEO_CLI}" verify "${numiseal_zk_product_path}"
+run_expect_failure "${SUPERNEO_CLI}" verify --require-terminal "${numiseal_zk_product_path}"
+run_step "${SUPERNEO_CLI}" verify --require-numiseal "${numiseal_zk_product_path}"
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --require-numiseal \
+  --expected-public-inputs 0 \
+  "${numiseal_zk_product_path}"
 
 run_step "${SUPERNEO_CLI}" prove \
   --workload binary-add \

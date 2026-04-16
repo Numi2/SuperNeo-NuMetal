@@ -72,10 +72,12 @@ envelope checks, expected-context checks, and verifier dispatch.
 
 Version `2` is the public NumiSeal product wrapper. It accepts only:
 
-- `proofKind = "numiseal-terminal"`,
-- `sealMode = "numiseal-terminal-v2"`,
+- `proofKind = "numiseal-terminal"` with `sealMode = "numiseal-terminal-v2"`
+  and `zkMode = "none"`, or
+- `proofKind = "numiseal-zk"` with `sealMode = "numiseal-zk-v1"` and
+  `zkMode = "masked-digit-tensor-v1"`,
 - a source fold-reduction envelope,
-- a NumiSeal terminal envelope,
+- a NumiSeal terminal or NumiSealZK envelope,
 - source fold output-claim digests,
 - NumiSeal public statement roots and aggregate digests,
 - explicit `carryMode`, `zkMode`, `metalMode`, and `executionPolicy` metadata.
@@ -83,8 +85,33 @@ Version `2` is the public NumiSeal product wrapper. It accepts only:
 Version `2` must not accept caller-supplied digit tensors. The product prover
 derives NumiSeal digit tensors internally from aggregate witness material. The
 artifact is verified by reducing the source fold envelope first, rebuilding
-output-claim digests, rebuilding NumiSeal obligations, then verifying the
-NumiSeal terminal envelope.
+output-claim digests, rebuilding NumiSeal obligations, then verifying either the
+NumiSeal terminal envelope or the outer NumiSealZK envelope with embedded base
+terminal proof acceptance.
+
+`NumiSealZK` uses proof-envelope kind `5` and body version `13`, not product
+artifact version `2` by default. The kind `5` body carries
+`zkMode = "masked-digit-tensor-v1"`, a randomness-session digest,
+declared-leakage digest, embedded kind `4` base proof body, mask statements,
+masked residual statements, component root, and transcript digest. Masked
+residual statement version `2` adds an accumulation-challenge digest derived
+from the lane proof, mask statement, and accumulation weights. Kind `5`
+verification parses `NumiSealZKProofEnvelope`, checks mask-statement/session
+binding and masked residual bindings, recomputes the accumulation-challenge
+binding and public equality-weight digest, then re-envelopes the embedded base
+proof as kind `4` for existing NumiSeal terminal acceptance. Public product
+artifacts default to `zkMode = "none"`; explicit product proving may request
+`zkMode = "masked-digit-tensor-v1"` while side-channel privacy claims remain
+blocked unless product verification runs under a signed trusted context that
+pins NumiSealZK policy and, for secret-bearing Metal modes, a signed
+side-channel certificate digest.
+
+The side-channel certificate is not part of artifact schema v2. It is separate
+signed product-control evidence so artifact bytes, provenance bytes, and
+certificate bytes can be revoked and rotated independently. The certificate
+binds context ID, release build digest, proof kind, seal mode, ZK mode, Metal
+mode, execution policy, declared leakage digest, ZK body versions, Metal
+workspace feature digest, reviewed kernels/stages, and evidence digests.
 
 Typed carry is a policy refinement over the existing carry slot. Legacy raw carry
 fixtures remain under `.optional`/`.required`; product recursive carry must use

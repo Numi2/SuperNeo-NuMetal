@@ -2,8 +2,8 @@
 
 `NumiSealZK` is the ZK product track for NumiSeal. It is not a marketing flag on
 kind `4`; non-ZK immediate-residual NumiSeal remains kind `4` body version `11`.
-The target ZK mode is `masked-digit-tensor-v1`, with a new body mode or proof
-kind once the masked language is fully implemented.
+The initial ZK mode is `masked-digit-tensor-v1` and uses proof-envelope kind
+`5` with body version `13`.
 
 The recursive proof posture follows folding/IVC ideas from Nova, SuperNova,
 HyperNova, and Protostar, while keeping the implementation native to
@@ -19,8 +19,10 @@ validity, but not the unmasked aggregate witness or raw digit tensor. The
 simulator target is a verifier view generated from public roots, aggregate
 metadata, transcript challenges, declared leakage, and sampled masks.
 
-This document does not certify GPU side-channel privacy. It separates correctness
-of Metal output from privacy of Metal execution.
+This document does not by itself certify GPU side-channel privacy. It separates
+correctness of Metal output from privacy of Metal execution, and the product
+control layer now has a signed certificate gate for promoting reviewed
+side-channel evidence into trusted contexts.
 
 ## Declared Leakage
 
@@ -36,9 +38,10 @@ The first ZK artifact must snapshot and expose:
 - execution policy and Metal mode,
 - hardware/tuning metadata for accelerated proving runs.
 
-No production wording may claim side-channel privacy until a GPU leakage review
-covers memory access, command scheduling, cache behavior, timing, and error
-paths.
+No production wording may claim side-channel privacy unless a trusted context
+pins the declared leakage digest and, for secret-bearing Metal modes, a signed
+NumiSealZK side-channel certificate covering memory access, command scheduling,
+cache behavior, timing, error paths, kernel/stage review, and benchmark evidence.
 
 ## Masking Algebra
 
@@ -67,11 +70,20 @@ GPU acceleration is part of the target design. The execution policies are:
 - `.defaultProduct`: CPU-redundant Metal when available, otherwise CPU.
 
 `NumiSealMetalProvingWorkspace` sits above `SuperNeoMetalWorkspace`. It reuses
-existing Ajtai batch commitment and transformed-evaluation kernels and defines
-the boundary for digit-tensor derivation, mask application, dense layer folding,
-equality-weight evaluation, and batched sum-check accumulation kernels. Fiat
-Shamir transcript hashing remains CPU-side until a typed GPU hash path exists
-and is cross-checked.
+existing Ajtai batch commitment and transformed-evaluation kernels. The first
+implemented ZK kernels are:
+
+- `numiseal_apply_mask_kernel`,
+- `numiseal_dense_fold_kernel`,
+- `numiseal_eq_weight_kernel`,
+- `numiseal_sumcheck_accumulate_kernel`,
+- `numiseal_mask_accumulate_kernel`.
+
+`NumiSealMetalProvingWorkspace` exposes these as mask application, dense layer
+folding, equality-weight evaluation, and sum-check polynomial accumulation. In
+`.zkRedundantMetal`, each output is checked against a CPU oracle before the
+caller can use it. Fiat-Shamir transcript hashing remains CPU-side until a typed
+GPU hash path exists and is cross-checked.
 
 ## Correctness Gates
 
@@ -89,10 +101,47 @@ Benchmark gates must report one-lane NumiSeal, two-lane NumiSeal, max aggregate,
 recursive carry aggregate, ZK masked aggregate, hardware identity, kernel
 tuning, and proof-byte/digest equivalence status.
 
-## Non-Goals For The Current Slice
+## Current Implementation Status
 
-The current implementation exposes public NumiSeal product proving, typed carry
-wire format, carry consumer replay checks, and Metal/ZK execution-policy
-surfaces. It does not yet implement the full masked ZK proof body. Non-ZK product
-artifacts therefore use `zkMode = "none"` and keep side-channel claims out of
-the user-facing product surface.
+Implemented:
+
+- kind `5` `NumiSealZKProofEnvelope` and body version `13`,
+- `NumiSealZKProof` with `zkMode`, randomness-session digest,
+  declared-leakage digest, embedded base `NumiSealProof`, mask statements,
+  masked residual statements, component root, and transcript digest,
+- CPU-expanded mask material and fail-closed randomness-session reuse guard,
+- Metal-backed mask application through `NumiSealMetalProvingWorkspace` with
+  CPU oracle checks in `.zkRedundantMetal`,
+- transcript-derived masked residual accumulation challenges bound to each base
+  lane proof, mask statement, and three accumulation weights,
+- verifier-side recomputation of the public equality-weight digest,
+- Metal kernels for dense folding, equality weights, sum-check accumulation, and
+  fused mask-plus-accumulation,
+- public product proving through explicit
+  `--numiseal-zk-mode masked-digit-tensor-v1` / `NumiSealProvingRequest.zkMode`,
+- focused tests for ZK body round-trip, randomness reuse rejection, fresh mask
+  divergence, masked residual binding, product ZK artifact verification, and
+  CPU/Metal oracle equality,
+- fixed-randomness CPU and Metal proof-byte equality for the masked
+  `NumiSealZKProofEnvelope`,
+- signed `NumiSealZK` side-channel certificate payloads with context, release,
+  proof-policy, leakage, Metal workspace, reviewed kernel/stage, evidence, and
+  expiry bindings,
+- product-control fail-closed validation for `numiseal-zk` trusted contexts
+  that omit ZK policy, require a missing certificate, pin a different
+  certificate digest, or present a certificate whose bindings differ from the
+  artifact.
+
+Still not certified as production privacy:
+
+- the simulator proof for the full masked residual language,
+- benchmark-report promotion of proof-byte equivalence across product-sized
+  hardware profiles,
+- generating and signing side-channel certificate evidence for each production
+  hardware/profile lane,
+- public product artifact defaulting to `zkMode = "masked-digit-tensor-v1"`.
+
+Until those gates land, product artifacts continue to default to
+`zkMode = "none"`. Explicit masked product artifacts are correctness-checked and
+verifiable. Secret-bearing Metal privacy claims require a trusted context with
+NumiSealZK policy and a matching signed side-channel certificate.

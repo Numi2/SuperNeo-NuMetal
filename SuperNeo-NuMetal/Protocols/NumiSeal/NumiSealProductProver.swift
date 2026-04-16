@@ -37,6 +37,7 @@ public enum NumiSealZK {
     public static let maskedDigitTensorMode = "masked-digit-tensor-v1"
     public static let nonZKMode = "none"
     public static let proofKind = "numiseal-zk"
+    public static let sealMode = "numiseal-zk-v1"
 }
 
 public extension NumiSealLaneID {
@@ -73,9 +74,135 @@ public final class NumiSealMetalProvingWorkspace: @unchecked Sendable {
             "transformed-evaluation",
             "decomposition-commitment",
             "residual-ce-opening",
-            "masked-digit-tensor-buffer-boundary",
-            "sumcheck-polynomial-accumulation-boundary"
+            "masked-digit-tensor-application",
+            "dense-layer-folding",
+            "equality-weight-evaluation",
+            "sumcheck-polynomial-accumulation",
+            "fused-mask-sumcheck-accumulation"
         ]
+    }
+
+    public func applyMask(
+        digitTensor: [CyclotomicRing54],
+        mask: [CyclotomicRing54]
+    ) throws -> [CyclotomicRing54] {
+        if usesCPUReferenceOnly {
+            return try SuperNeoMetalBackend.numiSealApplyMaskReference(
+                digitTensor: digitTensor,
+                mask: mask
+            )
+        }
+        let backend = SuperNeoMetalBackend(context: baseWorkspace.context)
+        let output = try backend.numiSealApplyMask(digitTensor: digitTensor, mask: mask)
+        if requiresCPUOracle {
+            let reference = try SuperNeoMetalBackend.numiSealApplyMaskReference(
+                digitTensor: digitTensor,
+                mask: mask
+            )
+            guard output == reference else {
+                throw SuperNeoError.metalFailure("NumiSeal Metal mask application diverged from CPU oracle")
+            }
+        }
+        return output
+    }
+
+    public func denseFold(
+        lhs: [GoldilocksField],
+        rhs: [GoldilocksField],
+        challenge: GoldilocksField
+    ) throws -> [GoldilocksField] {
+        if usesCPUReferenceOnly {
+            return try SuperNeoMetalBackend.numiSealDenseFoldReference(
+                lhs: lhs,
+                rhs: rhs,
+                challenge: challenge
+            )
+        }
+        let backend = SuperNeoMetalBackend(context: baseWorkspace.context)
+        let output = try backend.numiSealDenseFold(lhs: lhs, rhs: rhs, challenge: challenge)
+        if requiresCPUOracle {
+            let reference = try SuperNeoMetalBackend.numiSealDenseFoldReference(
+                lhs: lhs,
+                rhs: rhs,
+                challenge: challenge
+            )
+            guard output == reference else {
+                throw SuperNeoError.metalFailure("NumiSeal Metal dense fold diverged from CPU oracle")
+            }
+        }
+        return output
+    }
+
+    public func equalityWeights(point: [GoldilocksField]) throws -> [GoldilocksField] {
+        if usesCPUReferenceOnly {
+            return try SuperNeoMetalBackend.numiSealEqualityWeightsReference(point: point)
+        }
+        let backend = SuperNeoMetalBackend(context: baseWorkspace.context)
+        let output = try backend.numiSealEqualityWeights(point: point)
+        if requiresCPUOracle {
+            let reference = try SuperNeoMetalBackend.numiSealEqualityWeightsReference(point: point)
+            guard output == reference else {
+                throw SuperNeoError.metalFailure("NumiSeal Metal equality weights diverged from CPU oracle")
+            }
+        }
+        return output
+    }
+
+    public func sumcheckAccumulate(
+        terms: [[GoldilocksField]],
+        weights: [GoldilocksField]
+    ) throws -> [GoldilocksField] {
+        if usesCPUReferenceOnly {
+            return try SuperNeoMetalBackend.numiSealSumcheckAccumulateReference(terms: terms, weights: weights)
+        }
+        let backend = SuperNeoMetalBackend(context: baseWorkspace.context)
+        let output = try backend.numiSealSumcheckAccumulate(terms: terms, weights: weights)
+        if requiresCPUOracle {
+            let reference = try SuperNeoMetalBackend.numiSealSumcheckAccumulateReference(terms: terms, weights: weights)
+            guard output == reference else {
+                throw SuperNeoError.metalFailure("NumiSeal Metal sum-check accumulation diverged from CPU oracle")
+            }
+        }
+        return output
+    }
+
+    public func applyMaskAndAccumulate(
+        digitTensor: [CyclotomicRing54],
+        mask: [CyclotomicRing54],
+        weights: [GoldilocksField]
+    ) throws -> NumiSealMaskedAccumulationResult {
+        if usesCPUReferenceOnly {
+            return try SuperNeoMetalBackend.numiSealApplyMaskAndAccumulateReference(
+                digitTensor: digitTensor,
+                mask: mask,
+                weights: weights
+            )
+        }
+        let backend = SuperNeoMetalBackend(context: baseWorkspace.context)
+        let output = try backend.numiSealApplyMaskAndAccumulate(
+            digitTensor: digitTensor,
+            mask: mask,
+            weights: weights
+        )
+        if requiresCPUOracle {
+            let reference = try SuperNeoMetalBackend.numiSealApplyMaskAndAccumulateReference(
+                digitTensor: digitTensor,
+                mask: mask,
+                weights: weights
+            )
+            guard output == reference else {
+                throw SuperNeoError.metalFailure("NumiSeal Metal fused mask accumulation diverged from CPU oracle")
+            }
+        }
+        return output
+    }
+
+    private var usesCPUReferenceOnly: Bool {
+        provingPolicy == .zkHighAssuranceCPU
+    }
+
+    private var requiresCPUOracle: Bool {
+        provingPolicy == .zkRedundantMetal || provingPolicy == .defaultProduct
     }
 }
 
@@ -89,6 +216,7 @@ public struct NumiSealProvingRequest: Sendable {
     public let sourceApplicationPathUTF8: String?
     public let laneID: NumiSealLaneID
     public let executionPolicy: NumiSealProvingExecutionPolicy
+    public let zkMode: String
     public let aggregationLimits: NumiSealAggregationLimits
     public let parameters: SuperNeoParameters
     public let metalContext: MetalExecutionContext?
@@ -103,6 +231,7 @@ public struct NumiSealProvingRequest: Sendable {
         sourceApplicationPathUTF8: String? = nil,
         laneID: NumiSealLaneID = .product,
         executionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct,
+        zkMode: String = NumiSealZK.nonZKMode,
         aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
         parameters: SuperNeoParameters = .goldilocks,
         metalContext: MetalExecutionContext? = nil
@@ -116,6 +245,7 @@ public struct NumiSealProvingRequest: Sendable {
         self.sourceApplicationPathUTF8 = sourceApplicationPathUTF8
         self.laneID = laneID
         self.executionPolicy = executionPolicy
+        self.zkMode = zkMode
         self.aggregationLimits = aggregationLimits
         self.parameters = parameters
         self.metalContext = metalContext
@@ -125,6 +255,7 @@ public struct NumiSealProvingRequest: Sendable {
 public struct NumiSealProductArtifact: Codable, Equatable, Sendable {
     public static let artifactVersion: UInt32 = 2
     public static let proofKind = "numiseal-terminal"
+    public static let zkProofKind = NumiSealZK.proofKind
     public static let topLevelKeys: Set<String> = [
         "artifactVersion",
         "workload",
@@ -318,6 +449,9 @@ public final class NumiSealProductProver: @unchecked Sendable {
         guard prepared.key.parameters == parameters else {
             throw SuperNeoError.invalidParameter("NumiSeal product request key parameter mismatch")
         }
+        guard request.zkMode == NumiSealZK.nonZKMode || request.zkMode == NumiSealZK.maskedDigitTensorMode else {
+            throw SuperNeoError.invalidParameter("unsupported NumiSeal product ZK mode")
+        }
         let publicInput = prepared.publicFoldInput
         let sourceStatement = CCSStatement(
             shapeDigest: publicInput.shape.shapeDigest,
@@ -396,8 +530,72 @@ public final class NumiSealProductProver: @unchecked Sendable {
             digitTensorInputs: tensorInputs,
             aggregationLimits: request.aggregationLimits
         )
-        let proofEnvelopeBytes = numiSealEnvelope.superNeoBytes
-        let proofEnvelopeDigest = Digest256.hash(proofEnvelopeBytes)
+        let digitTensors = try zip(plan.aggregates, tensorInputs).map { aggregate, tensorInput in
+            try NumiSealDigitTensor(
+                laneKey: aggregate.laneKey,
+                aggregateIndex: aggregate.aggregateIndex,
+                message: tensorInput.message,
+                activeDigitCount: tensorInput.activeDigitCount
+            )
+        }
+        let numiSealProductProof: (
+            proofKind: String,
+            sealMode: String,
+            zkMode: String,
+            envelopeBytes: [UInt8],
+            envelopeDigest: Digest256,
+            componentDigestRoot: Digest256,
+            transcriptDigest: Digest256,
+            extraMetadata: [String: String]
+        )
+        switch request.zkMode {
+        case NumiSealZK.nonZKMode:
+            let bytes = numiSealEnvelope.superNeoBytes
+            numiSealProductProof = (
+                proofKind: NumiSealProductArtifact.proofKind,
+                sealMode: "numiseal-terminal-v2",
+                zkMode: NumiSealZK.nonZKMode,
+                envelopeBytes: bytes,
+                envelopeDigest: Digest256.hash(bytes),
+                componentDigestRoot: numiSealEnvelope.proof.componentDigestRoot,
+                transcriptDigest: numiSealEnvelope.proof.transcriptDigest,
+                extraMetadata: [:]
+            )
+        case NumiSealZK.maskedDigitTensorMode:
+            let provingWorkspace = metalWorkspace.map {
+                NumiSealMetalProvingWorkspace(
+                    baseWorkspace: $0,
+                    provingPolicy: request.executionPolicy
+                )
+            }
+            let freshSession = try NumiSealZKRandomnessSession.fresh(label: "product")
+            let zkEnvelope = try NumiSealZKProver().prove(
+                terminalEnvelope: numiSealEnvelope,
+                digitTensors: digitTensors,
+                randomnessSessionMaterial: freshSession.material,
+                randomnessSessionLabel: "product",
+                provingWorkspace: provingWorkspace
+            )
+            let bytes = zkEnvelope.superNeoBytes
+            numiSealProductProof = (
+                proofKind: NumiSealProductArtifact.zkProofKind,
+                sealMode: NumiSealZK.sealMode,
+                zkMode: NumiSealZK.maskedDigitTensorMode,
+                envelopeBytes: bytes,
+                envelopeDigest: Digest256.hash(bytes),
+                componentDigestRoot: zkEnvelope.proof.componentDigestRoot,
+                transcriptDigest: zkEnvelope.proof.transcriptDigest,
+                extraMetadata: [
+                    "zkProofBodyVersion": "\(zkEnvelope.proof.bodyVersion)",
+                    "zkMaskedResidualStatementVersion": "\(NumiSealZKMaskedResidualStatement.version)",
+                    "zkRandomnessSessionDigest": zkEnvelope.proof.randomnessSessionDigest.hexString,
+                    "zkLeakageDigest": zkEnvelope.proof.leakageDigest.hexString,
+                    "zkMaskedResidualStatementCount": "\(zkEnvelope.proof.maskedResidualStatements.count)"
+                ]
+            )
+        default:
+            throw SuperNeoError.invalidParameter("unsupported NumiSeal product ZK mode")
+        }
         let terminalPolicy = NumiSealTerminalProofAcceptancePolicy(
             profileID: parameters.profileID,
             shapeDigest: sourceStatement.shapeDigest,
@@ -410,9 +608,9 @@ public final class NumiSealProductProver: @unchecked Sendable {
             acceptedResidualMode: .immediate,
             acceptedCarryMode: .none
         )
-        let policyMetadata = [
+        var policyMetadata = [
             "sourceFoldKind": "fold-reduction",
-            "numiSealProofKind": NumiSealProductArtifact.proofKind,
+            "numiSealProofKind": numiSealProductProof.proofKind,
             "digitTensorDerivation": "aggregate-witness-digest-ternary-v1",
             "terminalCarryPolicy": "\(terminalPolicy.acceptedCarryMode)",
             "metalWorkspaceFeatureDigest": metalWorkspace.map { workspace in
@@ -422,12 +620,16 @@ public final class NumiSealProductProver: @unchecked Sendable {
                 ).featureDigest.hexString
             } ?? "none"
         ]
+        for (key, value) in numiSealProductProof.extraMetadata {
+            policyMetadata[key] = value
+        }
         return NumiSealProductArtifact(
             workload: request.workload,
             profile: SuperNeoParameterProfile.goldilocksPhi81.name,
-            sealMode: "numiseal-terminal-v2",
+            proofKind: numiSealProductProof.proofKind,
+            sealMode: numiSealProductProof.sealMode,
             carryMode: "none",
-            zkMode: NumiSealZK.nonZKMode,
+            zkMode: numiSealProductProof.zkMode,
             metalMode: request.executionPolicy.resolvedMetalMode(metalContext: request.metalContext),
             executionPolicy: request.executionPolicy.rawValue,
             bitCount: request.bitCount,
@@ -437,7 +639,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
             publicInputs: request.publicInputs,
             commitmentBase64: Data(publicInput.instances[0].commitment.littleEndianBytes).base64EncodedString(),
             sourceFoldEnvelopeBase64: Data(sourceEnvelopeBytes).base64EncodedString(),
-            numiSealProofEnvelopeBase64: Data(proofEnvelopeBytes).base64EncodedString(),
+            numiSealProofEnvelopeBase64: Data(numiSealProductProof.envelopeBytes).base64EncodedString(),
             sourceFoldEnvelopeDigestHex: sourceEnvelopeDigest.hexString,
             sourceFoldOutputClaimDigestsHex: outputClaimDigests.map(\.hexString),
             sourceFoldOutputClaimCount: outputClaimDigests.count,
@@ -450,13 +652,13 @@ public final class NumiSealProductProver: @unchecked Sendable {
             obligationRootHex: numiSealEnvelope.proof.publicStatement.obligationRoot.hexString,
             laneSummaryRootHex: numiSealEnvelope.proof.publicStatement.laneSummaryRoot.hexString,
             aggregateDigestsHex: numiSealEnvelope.proof.laneProofs.map(\.aggregateDigest.hexString),
-            componentDigestRootHex: numiSealEnvelope.proof.componentDigestRoot.hexString,
-            proofTranscriptDigestHex: numiSealEnvelope.proof.transcriptDigest.hexString,
+            componentDigestRootHex: numiSealProductProof.componentDigestRoot.hexString,
+            proofTranscriptDigestHex: numiSealProductProof.transcriptDigest.hexString,
             laneIDsUTF8: [request.laneID.utf8String],
             maximumObligationsPerAggregate: request.aggregationLimits.maximumObligationsPerAggregate,
             maximumLaneCount: numiSealEnvelope.proof.publicStatement.laneSummaries.count,
             maximumAggregatesPerLane: numiSealEnvelope.proof.laneProofs.count,
-            proofEnvelopeDigestHex: proofEnvelopeDigest.hexString,
+            proofEnvelopeDigestHex: numiSealProductProof.envelopeDigest.hexString,
             executionPolicyMetadata: policyMetadata
         )
     }
@@ -720,35 +922,68 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             metalWorkspace: metalWorkspace,
             executionPolicy: executionPolicy
         )
-        let numiSealResult = numiSealVerifier.verify(
-            proofBytes: numiSealBytes,
-            obligations: obligations,
-            policy: acceptancePolicy,
-            aggregationLimits: try NumiSealAggregationLimits(
-                maximumObligationsPerAggregate: artifact.maximumObligationsPerAggregate
-            )
+        let aggregationLimits = try NumiSealAggregationLimits(
+            maximumObligationsPerAggregate: artifact.maximumObligationsPerAggregate
         )
-        guard numiSealResult.isValid, let envelope = numiSealResult.envelope else {
-            throw SuperNeoError.verificationFailed(
-                "NumiSeal product proof rejected: \(numiSealResult.reason ?? "unknown reason")"
+        let numiSealResult: NumiSealVerificationResult
+        let publicProof: NumiSealProof
+        let componentDigestRoot: Digest256
+        let proofTranscriptDigest: Digest256
+        switch artifact.zkMode {
+        case NumiSealZK.nonZKMode:
+            numiSealResult = numiSealVerifier.verify(
+                proofBytes: numiSealBytes,
+                obligations: obligations,
+                policy: acceptancePolicy,
+                aggregationLimits: aggregationLimits
             )
+            guard numiSealResult.isValid, let envelope = numiSealResult.envelope else {
+                throw SuperNeoError.verificationFailed(
+                    "NumiSeal product proof rejected: \(numiSealResult.reason ?? "unknown reason")"
+                )
+            }
+            publicProof = envelope.proof
+            componentDigestRoot = envelope.proof.componentDigestRoot
+            proofTranscriptDigest = envelope.proof.transcriptDigest
+        case NumiSealZK.maskedDigitTensorMode:
+            let zkResult = NumiSealZKVerifier(terminalVerifier: numiSealVerifier).verify(
+                proofBytes: numiSealBytes,
+                obligations: obligations,
+                policy: acceptancePolicy,
+                aggregationLimits: aggregationLimits,
+                parameters: parameters
+            )
+            guard zkResult.isValid,
+                  let zkEnvelope = zkResult.envelope,
+                  let baseResult = zkResult.baseResult,
+                  let baseEnvelope = baseResult.envelope else {
+                throw SuperNeoError.verificationFailed(
+                    "NumiSeal product ZK proof rejected: \(zkResult.reason ?? "unknown reason")"
+                )
+            }
+            numiSealResult = baseResult
+            publicProof = baseEnvelope.proof
+            componentDigestRoot = zkEnvelope.proof.componentDigestRoot
+            proofTranscriptDigest = zkEnvelope.proof.transcriptDigest
+        default:
+            throw SuperNeoError.invalidEncoding("unsupported NumiSeal product ZK mode")
         }
-        guard envelope.proof.publicStatement.digest.hexString == artifact.publicStatementDigestHex else {
+        guard publicProof.publicStatement.digest.hexString == artifact.publicStatementDigestHex else {
             throw SuperNeoError.verificationFailed("NumiSeal product public statement digest mismatch")
         }
-        guard envelope.proof.publicStatement.obligationRoot.hexString == artifact.obligationRootHex else {
+        guard publicProof.publicStatement.obligationRoot.hexString == artifact.obligationRootHex else {
             throw SuperNeoError.verificationFailed("NumiSeal product obligation root mismatch")
         }
-        guard envelope.proof.publicStatement.laneSummaryRoot.hexString == artifact.laneSummaryRootHex else {
+        guard publicProof.publicStatement.laneSummaryRoot.hexString == artifact.laneSummaryRootHex else {
             throw SuperNeoError.verificationFailed("NumiSeal product lane summary root mismatch")
         }
-        guard envelope.proof.laneProofs.map(\.aggregateDigest.hexString) == artifact.aggregateDigestsHex else {
+        guard publicProof.laneProofs.map(\.aggregateDigest.hexString) == artifact.aggregateDigestsHex else {
             throw SuperNeoError.verificationFailed("NumiSeal product aggregate digest mismatch")
         }
-        guard envelope.proof.componentDigestRoot.hexString == artifact.componentDigestRootHex else {
+        guard componentDigestRoot.hexString == artifact.componentDigestRootHex else {
             throw SuperNeoError.verificationFailed("NumiSeal product component root mismatch")
         }
-        guard envelope.proof.transcriptDigest.hexString == artifact.proofTranscriptDigestHex else {
+        guard proofTranscriptDigest.hexString == artifact.proofTranscriptDigestHex else {
             throw SuperNeoError.verificationFailed("NumiSeal product transcript digest mismatch")
         }
         return NumiSealProductVerificationResult(
@@ -761,10 +996,11 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         guard artifact.artifactVersion == NumiSealProductArtifact.artifactVersion else {
             throw SuperNeoError.invalidEncoding("unsupported NumiSeal product artifact version")
         }
-        guard artifact.proofKind == NumiSealProductArtifact.proofKind else {
+        guard artifact.proofKind == NumiSealProductArtifact.proofKind
+                || artifact.proofKind == NumiSealProductArtifact.zkProofKind else {
             throw SuperNeoError.invalidEncoding("unsupported NumiSeal product proof kind")
         }
-        guard artifact.sealMode == "numiseal-terminal-v2" else {
+        guard artifact.sealMode == "numiseal-terminal-v2" || artifact.sealMode == NumiSealZK.sealMode else {
             throw SuperNeoError.invalidEncoding("unsupported NumiSeal product seal mode")
         }
         guard artifact.carryMode == "none" || artifact.carryMode == "typed-optional" || artifact.carryMode == "typed-required" else {
@@ -772,6 +1008,13 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         }
         guard artifact.zkMode == NumiSealZK.nonZKMode || artifact.zkMode == NumiSealZK.maskedDigitTensorMode else {
             throw SuperNeoError.invalidEncoding("unsupported NumiSeal product ZK mode")
+        }
+        switch (artifact.proofKind, artifact.sealMode, artifact.zkMode) {
+        case (NumiSealProductArtifact.proofKind, "numiseal-terminal-v2", NumiSealZK.nonZKMode),
+             (NumiSealProductArtifact.zkProofKind, NumiSealZK.sealMode, NumiSealZK.maskedDigitTensorMode):
+            break
+        default:
+            throw SuperNeoError.invalidEncoding("NumiSeal product proof kind, seal mode, and ZK mode are inconsistent")
         }
         guard artifact.sourceFoldOutputClaimCount == artifact.sourceFoldOutputClaimDigestsHex.count else {
             throw SuperNeoError.invalidEncoding("NumiSeal product source claim count mismatch")

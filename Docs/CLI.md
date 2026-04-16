@@ -132,6 +132,7 @@ Generate a public NumiSeal product artifact:
 swift run superneo prove \
   --seal numiseal \
   --bits 0,0,1,0 \
+  --numiseal-zk-mode none \
   --numiseal-execution-policy default-product \
   --max-obligations-per-aggregate 32 \
   --output /tmp/one-hot-numiseal.json
@@ -150,6 +151,46 @@ reconstructs NumiSeal obligations and verifies the terminal seal. The public API
 is `NumiSealProductProver`, `NumiSealProvingRequest`,
 `NumiSealProductArtifact`, `NumiSealProductVerifier`, and
 `SuperNeoR1CSProgram.proveNumiSeal(...)`.
+
+To emit a masked NumiSealZK product artifact, request the ZK mode explicitly:
+
+```sh
+swift run superneo prove \
+  --seal numiseal \
+  --bits 0,0,1,0 \
+  --numiseal-zk-mode masked-digit-tensor-v1 \
+  --numiseal-execution-policy zk-high-assurance-cpu \
+  --output /tmp/one-hot-numiseal-zk.json
+
+swift run superneo verify \
+  --require-numiseal \
+  /tmp/one-hot-numiseal-zk.json
+```
+
+The ZK product artifact uses `proofKind = "numiseal-zk"`,
+`sealMode = "numiseal-zk-v1"`, and proof-envelope kind `5`. Its embedded base
+NumiSeal terminal proof is still verified under the same public-statement and
+obligation checks; the outer ZK body binds mask statements and masked residual
+statements into the component root and proof transcript.
+
+For product-controlled NumiSealZK acceptance, use signed context/provenance
+material and a side-channel certificate pinned by the trusted context:
+
+```sh
+swift run superneo verify \
+  --product \
+  --operator-profile profile.json \
+  --context-pack context.json \
+  --artifact-provenance provenance.json \
+  --side-channel-certificate numiseal-zk-side-channel.json \
+  /tmp/one-hot-numiseal-zk.json
+```
+
+The side-channel certificate binds the release build, context ID, ZK mode,
+Metal mode, execution policy, leakage digest, proof body versions, reviewed
+kernels/stages, and evidence digests. Product verification rejects `numiseal-zk`
+trusted contexts that omit ZK policy, require a certificate that is missing, or
+present a certificate whose digest or bindings differ from the artifact.
 
 Available NumiSeal execution policies are:
 
@@ -220,6 +261,14 @@ component root, proof transcript digest, aggregate limits, and execution-policy
 metadata. Public product proving derives its NumiSeal digit tensor internally
 from aggregate witness material; caller-supplied digit tensors remain SPI and
 test-vector-only.
+
+The initial `NumiSealZK` proof body is envelope kind `5`, body version `13`,
+and `zkMode = "masked-digit-tensor-v1"`. It is available through the library
+surface (`NumiSealZKProver`, `NumiSealZKProofEnvelope`, and
+`NumiSealZKVerifier`) and through explicit CLI product proving via
+`--numiseal-zk-mode masked-digit-tensor-v1`. The CLI default remains
+`zkMode = "none"` until product contexts pin a leakage digest and, for
+secret-bearing Metal modes, a signed side-channel certificate.
 
 NumiSeal vector artifacts additionally store residual mode, lane IDs,
 fold/source/CE deterministic vector seeds, aggregate limits, transcript-domain

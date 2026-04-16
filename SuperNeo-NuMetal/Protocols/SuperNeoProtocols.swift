@@ -2488,6 +2488,8 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 return .invalid("terminal proof required")
             case .numiSealTerminal:
                 return .invalid("proof kind not accepted by policy")
+            case .numiSealZK:
+                return .invalid("proof kind not accepted by policy")
             }
         } catch {
             return .invalid("\(error)")

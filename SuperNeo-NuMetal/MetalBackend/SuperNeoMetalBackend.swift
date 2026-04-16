@@ -26,6 +26,16 @@ fileprivate enum SparseEvaluationDispatchPlan {
     case fused
 }
 
+public struct NumiSealMaskedAccumulationResult: Equatable, Sendable {
+    public let maskedTensor: [CyclotomicRing54]
+    public let accumulation: [GoldilocksField]
+
+    public init(maskedTensor: [CyclotomicRing54], accumulation: [GoldilocksField]) {
+        self.maskedTensor = maskedTensor
+        self.accumulation = accumulation
+    }
+}
+
 public final class SuperNeoMetalWorkspace: @unchecked Sendable {
     public let context: MetalExecutionContext
     public let key: AjtaiCommitmentKey
@@ -359,6 +369,204 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             elementCount: coefficientCount
         )
         return try inflateRings(outputBuffer.array(of: UInt64.self, count: coefficientCount))
+    }
+
+    public func numiSealApplyMask(
+        digitTensor: [CyclotomicRing54],
+        mask: [CyclotomicRing54]
+    ) throws -> [CyclotomicRing54] {
+        guard digitTensor.count == mask.count else {
+            throw SuperNeoError.invalidParameter("NumiSeal mask tensor length mismatch")
+        }
+        let output = try binaryRawOperation(
+            flatten(digitTensor),
+            flatten(mask),
+            pipelineName: "numiseal_apply_mask_kernel"
+        )
+        return try inflateRings(output)
+    }
+
+    public static func numiSealApplyMaskReference(
+        digitTensor: [CyclotomicRing54],
+        mask: [CyclotomicRing54]
+    ) throws -> [CyclotomicRing54] {
+        guard digitTensor.count == mask.count else {
+            throw SuperNeoError.invalidParameter("NumiSeal mask tensor length mismatch")
+        }
+        return zip(digitTensor, mask).map(+)
+    }
+
+    public func numiSealDenseFold(
+        lhs: [GoldilocksField],
+        rhs: [GoldilocksField],
+        challenge: GoldilocksField
+    ) throws -> [GoldilocksField] {
+        guard lhs.count == rhs.count else {
+            throw SuperNeoError.invalidParameter("NumiSeal dense fold vector length mismatch")
+        }
+        guard !lhs.isEmpty else { return [] }
+        let lhsBuffer = try context.makeBuffer(lhs.map(\.rawValue))
+        let rhsBuffer = try context.makeBuffer(rhs.map(\.rawValue))
+        let outputBuffer = try context.makeEmptyBuffer(count: lhs.count, as: UInt64.self)
+        let params = [
+            UInt32(truncatingIfNeeded: challenge.rawValue),
+            UInt32(truncatingIfNeeded: challenge.rawValue >> 32)
+        ]
+        try context.dispatch1D(
+            pipelineName: "numiseal_dense_fold_kernel",
+            buffers: [lhsBuffer, rhsBuffer, outputBuffer],
+            inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 3, values: params)],
+            countBufferIndex: 4,
+            elementCount: lhs.count
+        )
+        return outputBuffer.array(of: UInt64.self, count: lhs.count).map { GoldilocksField($0) }
+    }
+
+    public static func numiSealDenseFoldReference(
+        lhs: [GoldilocksField],
+        rhs: [GoldilocksField],
+        challenge: GoldilocksField
+    ) throws -> [GoldilocksField] {
+        guard lhs.count == rhs.count else {
+            throw SuperNeoError.invalidParameter("NumiSeal dense fold vector length mismatch")
+        }
+        return zip(lhs, rhs).map { $0 + ($1 * challenge) }
+    }
+
+    public func numiSealEqualityWeights(point: [GoldilocksField]) throws -> [GoldilocksField] {
+        guard point.count <= 24 else {
+            throw SuperNeoError.invalidParameter("NumiSeal equality point has too many variables for Metal materialization")
+        }
+        let outputCount = 1 << point.count
+        let pointBuffer = try context.makeBuffer(point.map(\.rawValue))
+        let outputBuffer = try context.makeEmptyBuffer(count: outputCount, as: UInt64.self)
+        let params = try [checkedUInt32(point.count, name: "NumiSeal equality variable count")]
+        try context.dispatch1D(
+            pipelineName: "numiseal_eq_weight_kernel",
+            buffers: [pointBuffer, outputBuffer],
+            inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 2, values: params)],
+            countBufferIndex: 3,
+            elementCount: outputCount
+        )
+        return outputBuffer.array(of: UInt64.self, count: outputCount).map { GoldilocksField($0) }
+    }
+
+    public static func numiSealEqualityWeightsReference(point: [GoldilocksField]) throws -> [GoldilocksField] {
+        guard point.count <= 24 else {
+            throw SuperNeoError.invalidParameter("NumiSeal equality point has too many variables for materialization")
+        }
+        let outputCount = 1 << point.count
+        return (0..<outputCount).map { index in
+            point.enumerated().reduce(GoldilocksField.one) { partial, entry in
+                let bitIsSet = ((index >> entry.offset) & 1) != 0
+                let term = bitIsSet ? entry.element : (.one - entry.element)
+                return partial * term
+            }
+        }
+    }
+
+    public func numiSealSumcheckAccumulate(
+        terms: [[GoldilocksField]],
+        weights: [GoldilocksField]
+    ) throws -> [GoldilocksField] {
+        guard !terms.isEmpty else { return [] }
+        guard terms.count == weights.count else {
+            throw SuperNeoError.invalidParameter("NumiSeal sum-check term/weight count mismatch")
+        }
+        let slotCount = terms[0].count
+        guard terms.allSatisfy({ $0.count == slotCount }) else {
+            throw SuperNeoError.invalidParameter("NumiSeal sum-check term vector length mismatch")
+        }
+        guard slotCount > 0 else { return [] }
+        let termWords = terms.flatMap { $0.map(\.rawValue) }
+        let termsBuffer = try context.makeBuffer(termWords)
+        let weightsBuffer = try context.makeBuffer(weights.map(\.rawValue))
+        let outputBuffer = try context.makeEmptyBuffer(count: slotCount, as: UInt64.self)
+        let params = try [checkedUInt32(terms.count, name: "NumiSeal sum-check term count")]
+        try context.dispatch1D(
+            pipelineName: "numiseal_sumcheck_accumulate_kernel",
+            buffers: [termsBuffer, weightsBuffer, outputBuffer],
+            inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 3, values: params)],
+            countBufferIndex: 4,
+            elementCount: slotCount
+        )
+        return outputBuffer.array(of: UInt64.self, count: slotCount).map { GoldilocksField($0) }
+    }
+
+    public static func numiSealSumcheckAccumulateReference(
+        terms: [[GoldilocksField]],
+        weights: [GoldilocksField]
+    ) throws -> [GoldilocksField] {
+        guard !terms.isEmpty else { return [] }
+        guard terms.count == weights.count else {
+            throw SuperNeoError.invalidParameter("NumiSeal sum-check term/weight count mismatch")
+        }
+        let slotCount = terms[0].count
+        guard terms.allSatisfy({ $0.count == slotCount }) else {
+            throw SuperNeoError.invalidParameter("NumiSeal sum-check term vector length mismatch")
+        }
+        return (0..<slotCount).map { slot in
+            zip(terms, weights).reduce(GoldilocksField.zero) { partial, entry in
+                partial + entry.0[slot] * entry.1
+            }
+        }
+    }
+
+    public func numiSealApplyMaskAndAccumulate(
+        digitTensor: [CyclotomicRing54],
+        mask: [CyclotomicRing54],
+        weights: [GoldilocksField]
+    ) throws -> NumiSealMaskedAccumulationResult {
+        guard digitTensor.count == mask.count else {
+            throw SuperNeoError.invalidParameter("NumiSeal mask tensor length mismatch")
+        }
+        guard weights.count == 3 else {
+            throw SuperNeoError.invalidParameter("NumiSeal fused mask accumulation requires three weights")
+        }
+        guard !digitTensor.isEmpty else {
+            return NumiSealMaskedAccumulationResult(maskedTensor: [], accumulation: [])
+        }
+        let digitWords = flatten(digitTensor)
+        let maskWords = flatten(mask)
+        let coefficientCount = digitWords.count
+        let digitBuffer = try context.makeBuffer(digitWords)
+        let maskBuffer = try context.makeBuffer(maskWords)
+        let maskedBuffer = try context.makeEmptyBuffer(count: coefficientCount, as: UInt64.self)
+        let accumulationBuffer = try context.makeEmptyBuffer(count: coefficientCount, as: UInt64.self)
+        let weightsBuffer = try context.makeBuffer(weights.map(\.rawValue))
+        try context.dispatch1D(
+            pipelineName: "numiseal_mask_accumulate_kernel",
+            buffers: [digitBuffer, maskBuffer, maskedBuffer, accumulationBuffer, weightsBuffer],
+            countBufferIndex: 5,
+            elementCount: coefficientCount
+        )
+        return NumiSealMaskedAccumulationResult(
+            maskedTensor: try inflateRings(maskedBuffer.array(of: UInt64.self, count: coefficientCount)),
+            accumulation: accumulationBuffer.array(of: UInt64.self, count: coefficientCount).map { GoldilocksField($0) }
+        )
+    }
+
+    public static func numiSealApplyMaskAndAccumulateReference(
+        digitTensor: [CyclotomicRing54],
+        mask: [CyclotomicRing54],
+        weights: [GoldilocksField]
+    ) throws -> NumiSealMaskedAccumulationResult {
+        guard digitTensor.count == mask.count else {
+            throw SuperNeoError.invalidParameter("NumiSeal mask tensor length mismatch")
+        }
+        guard weights.count == 3 else {
+            throw SuperNeoError.invalidParameter("NumiSeal fused mask accumulation requires three weights")
+        }
+        let maskedTensor = try numiSealApplyMaskReference(digitTensor: digitTensor, mask: mask)
+        let accumulation = try numiSealSumcheckAccumulateReference(
+            terms: [
+                digitTensor.flatMap(\.coefficients),
+                mask.flatMap(\.coefficients),
+                maskedTensor.flatMap(\.coefficients)
+            ],
+            weights: weights
+        )
+        return NumiSealMaskedAccumulationResult(maskedTensor: maskedTensor, accumulation: accumulation)
     }
 
     public func ajtaiCommitment(

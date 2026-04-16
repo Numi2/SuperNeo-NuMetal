@@ -7,6 +7,7 @@ public enum SuperNeoProductProofKind: String, Codable, Equatable, Sendable {
     case terminal
     case compressedTerminal = "compressed-terminal"
     case numiSealTerminal = "numiseal-terminal"
+    case numiSealZK = "numiseal-zk"
 
     public init(envelopeKind: ProofEnvelopeKind) throws {
         switch envelopeKind {
@@ -16,6 +17,8 @@ public enum SuperNeoProductProofKind: String, Codable, Equatable, Sendable {
             self = .compressedTerminal
         case .numiSealTerminal:
             self = .numiSealTerminal
+        case .numiSealZK:
+            self = .numiSealZK
         case .foldReduction:
             throw SuperNeoProductIntegrationError.invalidRequest("fold reductions are not product-accepted proofs")
         }
@@ -125,6 +128,7 @@ public struct SuperNeoTrustedContextPayload: Codable, Equatable, Sendable {
     public let publicInputs: [UInt64]?
     public let releaseBuildDigestHex: String
     public let numiSeal: SuperNeoTrustedNumiSealContext?
+    public let numiSealZK: SuperNeoTrustedNumiSealZKContext?
     public let keyRotation: SuperNeoTrustedContextKeyRotation
     public let revocation: SuperNeoTrustedContextRevocation
 
@@ -146,6 +150,7 @@ public struct SuperNeoTrustedContextPayload: Codable, Equatable, Sendable {
         publicInputs: [UInt64]? = nil,
         releaseBuildDigestHex: String,
         numiSeal: SuperNeoTrustedNumiSealContext? = nil,
+        numiSealZK: SuperNeoTrustedNumiSealZKContext? = nil,
         keyRotation: SuperNeoTrustedContextKeyRotation,
         revocation: SuperNeoTrustedContextRevocation = SuperNeoTrustedContextRevocation()
     ) {
@@ -166,6 +171,7 @@ public struct SuperNeoTrustedContextPayload: Codable, Equatable, Sendable {
         self.publicInputs = publicInputs
         self.releaseBuildDigestHex = releaseBuildDigestHex
         self.numiSeal = numiSeal
+        self.numiSealZK = numiSealZK
         self.keyRotation = keyRotation
         self.revocation = revocation
     }
@@ -343,10 +349,12 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
     public let callerID: String
     public let contextPackPath: String?
     public let artifactProvenancePath: String?
+    public let sideChannelCertificatePath: String?
     public let replayDatabasePath: String
     public let auditLogPath: String
     public let trustedContextIssuerKeyDigestsHex: [String]
     public let trustedProvenanceIssuerKeyDigestsHex: [String]?
+    public let trustedSideChannelIssuerKeyDigestsHex: [String]?
     public let releaseBuildDigestHex: String
 
     public init(
@@ -354,20 +362,24 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
         callerID: String,
         contextPackPath: String? = nil,
         artifactProvenancePath: String? = nil,
+        sideChannelCertificatePath: String? = nil,
         replayDatabasePath: String,
         auditLogPath: String,
         trustedContextIssuerKeyDigestsHex: [String],
         trustedProvenanceIssuerKeyDigestsHex: [String]? = nil,
+        trustedSideChannelIssuerKeyDigestsHex: [String]? = nil,
         releaseBuildDigestHex: String
     ) {
         self.formatVersion = formatVersion
         self.callerID = callerID
         self.contextPackPath = contextPackPath
         self.artifactProvenancePath = artifactProvenancePath
+        self.sideChannelCertificatePath = sideChannelCertificatePath
         self.replayDatabasePath = replayDatabasePath
         self.auditLogPath = auditLogPath
         self.trustedContextIssuerKeyDigestsHex = trustedContextIssuerKeyDigestsHex
         self.trustedProvenanceIssuerKeyDigestsHex = trustedProvenanceIssuerKeyDigestsHex
+        self.trustedSideChannelIssuerKeyDigestsHex = trustedSideChannelIssuerKeyDigestsHex
         self.releaseBuildDigestHex = releaseBuildDigestHex
     }
 
@@ -388,6 +400,15 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
         try validateDigestList(
             trustedProvenanceIssuerKeyDigestsHex ?? trustedContextIssuerKeyDigestsHex,
             name: "trusted provenance issuer key digest"
+        )
+    }
+
+    public func trustedSideChannelIssuerKeyDigestSet() throws -> Set<String> {
+        try validateDigestList(
+            trustedSideChannelIssuerKeyDigestsHex
+                ?? trustedProvenanceIssuerKeyDigestsHex
+                ?? trustedContextIssuerKeyDigestsHex,
+            name: "trusted side-channel issuer key digest"
         )
     }
 
@@ -412,6 +433,7 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
         }
         _ = try trustedContextIssuerKeyDigestSet()
         _ = try trustedProvenanceIssuerKeyDigestSet()
+        _ = try trustedSideChannelIssuerKeyDigestSet()
         _ = try releaseBuildDigest
     }
 }
@@ -620,6 +642,7 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
     public let artifactDigestHex: String?
     public let proofEnvelopeDigestHex: String?
     public let provenanceDigestHex: String?
+    public let sideChannelCertificateDigestHex: String?
     public let proofKind: String?
     public let contextID: String
     public let statementDigestHex: String?
@@ -633,6 +656,7 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
         artifactDigestHex: String? = nil,
         proofEnvelopeDigestHex: String? = nil,
         provenanceDigestHex: String? = nil,
+        sideChannelCertificateDigestHex: String? = nil,
         proofKind: String? = nil,
         contextID: String,
         statementDigestHex: String? = nil,
@@ -645,6 +669,7 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
         self.artifactDigestHex = artifactDigestHex
         self.proofEnvelopeDigestHex = proofEnvelopeDigestHex
         self.provenanceDigestHex = provenanceDigestHex
+        self.sideChannelCertificateDigestHex = sideChannelCertificateDigestHex
         self.proofKind = proofKind
         self.contextID = contextID
         self.statementDigestHex = statementDigestHex
@@ -943,6 +968,26 @@ public extension SuperNeoTrustedContextPayload {
         _ = try expectedStatementDigest
         _ = try expectedTranscriptDomainDigest
         _ = try releaseBuildDigest
+        if acceptedProofKinds.contains(.numiSealTerminal) || acceptedProofKinds.contains(.numiSealZK) {
+            guard numiSeal != nil else {
+                throw SuperNeoProductIntegrationError.invalidRequest(
+                    "trusted context accepting NumiSeal proofs must include NumiSeal public-root policy"
+                )
+            }
+            _ = try numiSealExpectedContext()
+        } else if numiSeal != nil {
+            _ = try numiSealExpectedContext()
+        }
+        if acceptedProofKinds.contains(.numiSealZK) {
+            guard let numiSealZK else {
+                throw SuperNeoProductIntegrationError.invalidRequest(
+                    "trusted context accepting numiseal-zk must include NumiSealZK policy"
+                )
+            }
+            try numiSealZK.validate()
+        } else if let numiSealZK {
+            try numiSealZK.validate()
+        }
         _ = try Digest256(hexDigest: keyRotation.currentIssuerKeyDigestHex, name: "current issuer key digest")
         guard keyRotation.currentIssuerKeyDigestHex == issuerKeyDigestHex
                 || keyRotation.previousIssuerKeyDigestsHex.contains(issuerKeyDigestHex) else {
