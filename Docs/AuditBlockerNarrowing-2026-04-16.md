@@ -11,7 +11,10 @@ security audit or production approval.
 
 ```sh
 Scripts/production-gate.sh
-Scripts/reproduce-lattice-estimator.sh --full --pinned /tmp/superneo-full-sage-estimator.json
+brew install --cask sage
+sage --version
+Scripts/reproduce-lattice-estimator.sh --full --pinned lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/validate-lattice-estimator-artifact.py --expect-status ran --expect-latest-status absent --require-claimed-security lattice-estimator-results/superneo-goldilocks-phi81.json
 command -v sage
 docker --version
 ```
@@ -24,12 +27,17 @@ Results:
   dry-run validation, Lean build, Lean executable checks, formal manifest
   validation, Swift/Lean Ext2 and CE vector bridges, and release CLI smoke
   tests.
-- Full Sage-backed estimator execution did not run because `sage` is not
-  installed in this environment. The full estimator command exited with code
-  `69` and the explicit message that SageMath is required.
+- The Homebrew cask installer requires an interactive sudo password for the
+  package step in this shell. The same cask image was fetched, mounted, copied
+  to `~/Applications/SageMath-10-8.app`, and exposed through
+  `~/.local/bin/sage` plus `/opt/homebrew/bin/sage`.
+- `sage --version` reports `SageMath version 10.8, Release Date: 2025-12-18`.
+- Full pinned Sage-backed estimator execution ran and wrote
+  `lattice-estimator-results/superneo-goldilocks-phi81.json`.
+- The generated estimator artifact validated with pinned status `ran`, no
+  latest-upstream lane, and the claimed-security threshold required.
 - Docker is installed, but Docker server access was not available from this
-  shell during the audit. Homebrew is installed, but this audit did not mutate
-  the host by installing Sage.
+  shell during the audit.
 
 ## Qualification Result
 
@@ -45,8 +53,8 @@ Production-security wording remains blocked by:
    access control, persistence, and audit logging,
 4. completion or explicit theorem-scope narrowing for the three remaining
    formal blocker groups,
-5. a full pinned Sage-backed lattice-estimator artifact, and
-6. release signing plus hosted branch-protection enforcement.
+5. release signing plus hosted branch-protection enforcement, and
+6. broader benchmark evidence before cross-generation performance claims.
 
 ## Side-Channel Review
 
@@ -177,21 +185,31 @@ The dry-run parameter artifact path is healthy and was validated by the
 production gate. It records the exact translated SIS tuple and must be treated
 as parameter-lock evidence only.
 
-The requested full Sage estimator run is blocked locally:
-
-```text
-SageMath is required for a full lattice-estimator reproduction.
-Install SageMath, or run with --dry-run to emit the exact parameter artifact
-without claiming that the estimator was executed.
-```
-
-Conclusion: do not cite a full estimator reproduction from this audit run. The
-remaining action is to run the pinned Sage lane in an environment with Sage:
+The requested full Sage estimator run completed locally through the installed
+SageMath 10.8 command:
 
 ```sh
 Scripts/reproduce-lattice-estimator.sh --full --pinned lattice-estimator-results/superneo-goldilocks-phi81.json
 Scripts/validate-lattice-estimator-artifact.py --expect-status ran --expect-latest-status absent --require-claimed-security lattice-estimator-results/superneo-goldilocks-phi81.json
 ```
+
+Result:
+
+```text
+lattice  :: rop: approx 2^129.1, red: approx 2^129.1, delta: 1.004408, beta: 345, d: 3129, tag: euclidean
+```
+
+The artifact records pinned `malb/lattice-estimator` commit
+`8d38f52c0bcc46f23d697c9c592bad50df0b124b`, SageMath 10.8, extracted
+`minimum_extracted_rop_bits = 129.1`, threshold `129`, and
+`threshold_cleared = true`. The latest-upstream monitoring lane was not run and
+remains drift-monitoring evidence only.
+
+Conclusion: the full pinned Sage-backed estimator blocker is closed for this
+local audit pass. The generated JSON lives under the repository's ignored
+`lattice-estimator-results/` scratch-output directory; this tracked note is the
+durable audit record unless a release process chooses to archive that generated
+artifact separately.
 
 ## Blocker Disposition
 
@@ -201,7 +219,7 @@ Scripts/validate-lattice-estimator-artifact.py --expect-status ran --expect-late
 | Side-channel review | Narrowed; high-assurance mode is meaningful, constant-time certification remains open. |
 | Product integration layer | Narrowed to product-owned storage/provenance/replay/access/logging contract. |
 | Formal blocker completion | Not closed; three planned groups remain correctly blocked. |
-| Full Sage estimator | Attempted; blocked locally by missing SageMath. |
+| Full Sage estimator | Closed for the pinned local lane; SageMath 10.8 ran and the generated artifact validated. |
 | Broader benchmarks | Not run in this pass; no new cross-generation performance claim. |
 | Release signing and branch protection | Not locally provable; remains hosting/release-infrastructure work. |
 

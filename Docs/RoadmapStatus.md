@@ -23,10 +23,12 @@ Artifacts:
 - `SuperNeo_NuMetal.docc/SuperNeo_NuMetal.md` now has a real DocC landing page
   and symbol topics.
 
-Remaining boundary:
+Estimator boundary:
 
 - Full Module-SIS estimator reproduction requires SageMath and the canonical
-  pinned upstream lattice-estimator lane. Latest-upstream runs are drift
+  pinned upstream lattice-estimator lane. The 2026-04-16 audit pass ran that
+  pinned lane under SageMath 10.8 and recorded the disposition in
+  `Docs/AuditBlockerNarrowing-2026-04-16.md`. Latest-upstream runs are drift
   monitoring only and must not replace pinned evidence.
 
 ## Second Priority: Usability

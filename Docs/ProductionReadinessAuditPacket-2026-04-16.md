@@ -42,6 +42,18 @@ This is a strong release gate for the implemented repository scope. It is not
 an external cryptographic audit, side-channel certification, or product
 deployment approval.
 
+Additional local estimator command:
+
+```sh
+Scripts/reproduce-lattice-estimator.sh --full --pinned lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/validate-lattice-estimator-artifact.py --expect-status ran --expect-latest-status absent --require-claimed-security lattice-estimator-results/superneo-goldilocks-phi81.json
+```
+
+Result: passed under SageMath 10.8. The pinned lane records
+`minimum_extracted_rop_bits = 129.1` against the 129-bit threshold. The
+generated JSON is local scratch output under `lattice-estimator-results/`; the
+tracked audit disposition is in `Docs/AuditBlockerNarrowing-2026-04-16.md`.
+
 ## CI Policy
 
 `.github/workflows/production-gate.yml` runs the full macOS production gate on
@@ -114,6 +126,7 @@ Benchmark and estimator evidence:
 - `Docs/BenchmarkReports/`
 - `Scripts/reproduce-lattice-estimator.sh`
 - `Scripts/validate-lattice-estimator-artifact.py`
+- `Docs/AuditBlockerNarrowing-2026-04-16.md`
 
 ## Production-Ready For
 
@@ -161,11 +174,9 @@ These are the remaining blockers before using production-security language:
    `superneo-full-probability-composition`,
    `swift-goldilocks-ext2-serialization-equivalence`, and
    `swift-ce-verifier-byte-equivalence`.
-5. Full pinned lattice-estimator execution under SageMath for release evidence,
-   not only dry-run derivation.
-6. Broader hardware benchmark reports before making cross-generation
+5. Broader hardware benchmark reports before making cross-generation
    performance claims.
-7. Release engineering execution: signed artifacts and hosted branch-protection
+6. Release engineering execution: signed artifacts and hosted branch-protection
    enforcement requiring the full production gate. The changelog, reproducible
    release instructions, release evidence tooling, and schema compatibility
    policies now exist and are checked by

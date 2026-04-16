@@ -9,8 +9,8 @@ claims remain blocked by the audit packet no-go items.
 ### Production Readiness
 
 - Added an audit/blocker-narrowing packet covering side-channel posture,
-  product integration requirements, formal blocker status, and the local Sage
-  estimator blocker.
+  product integration requirements, formal blocker status, and the successful
+  pinned Sage estimator run.
 - Added a shared NumiSeal artifact verifier boundary and reused it from the
   production `superneo verify --require-numiseal` path and vector tooling.
 - Added production `superneo verify --require-numiseal` adversarial validation
@@ -35,5 +35,4 @@ claims remain blocked by the audit packet no-go items.
 - Product integration for provenance, replay protection, trusted context, access
   control, persistence, logging, and user-facing policy.
 - Formal-claim promotion or explicit narrowing for remaining blocker groups.
-- Full Sage-backed lattice-estimator execution for release evidence.
 - Signed artifacts and repository branch-protection enforcement.
