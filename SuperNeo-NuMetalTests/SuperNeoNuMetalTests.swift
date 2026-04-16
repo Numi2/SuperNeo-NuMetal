@@ -5656,6 +5656,191 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertNil(auditSink.events.last?.proofEnvelopeDigest)
     }
 
+    func testLocalProductControlsVerifySignedContextProvenanceReplayAndAudit() throws {
+        let directory = try temporaryDirectory()
+        let signingKey = Curve25519.Signing.PrivateKey()
+        let publicKeyDigest = Digest256.hash([UInt8](signingKey.publicKey.rawRepresentation)).hexString
+        let releaseBuildDigest = Digest256.hash("release-build").hexString
+        let artifactDigest = Digest256.hash("artifact").hexString
+        let proofEnvelopeDigest = Digest256.hash("proof-envelope").hexString
+        let statementDigest = Digest256.hash("statement").hexString
+        let shapeDigest = Digest256.hash("shape").hexString
+        let verifierKeyDigest = Digest256.hash("verifier-key").hexString
+        let transcriptDomainDigest = Digest256.hash("transcript-domain").hexString
+        let contextPayload = SuperNeoTrustedContextPayload(
+            contextID: "ctx-terminal",
+            issuer: "SuperNeo Release",
+            validFromUTC: "2026-01-01T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z",
+            expectedVerifierKeyDigestHex: verifierKeyDigest,
+            expectedShapeDigestHex: shapeDigest,
+            expectedStatementDigestHex: statementDigest,
+            expectedTranscriptDomainDigestHex: transcriptDomainDigest,
+            acceptedProofKinds: [.terminal, .compressedTerminal],
+            maximumArtifactByteCount: 1_000_000,
+            maximumProofEnvelopeByteCount: 100_000,
+            allowedWorkloads: ["one-hot-vector-v1"],
+            publicInputs: [1],
+            releaseBuildDigestHex: releaseBuildDigest,
+            keyRotation: SuperNeoTrustedContextKeyRotation(currentIssuerKeyDigestHex: publicKeyDigest)
+        )
+        let contextPack = SuperNeoSignedTrustedContextPack(
+            payload: contextPayload,
+            signature: try productSignature(for: contextPayload, signingKey: signingKey)
+        )
+        let contextURL = directory.appendingPathComponent("context.json")
+        try writeSecureJSON(contextPack, to: contextURL)
+
+        let provenancePayload = SuperNeoArtifactProvenancePayload(
+            issuer: "SuperNeo Release",
+            contextID: "ctx-terminal",
+            artifactDigestHex: artifactDigest,
+            proofEnvelopeDigestHex: proofEnvelopeDigest,
+            statementDigestHex: statementDigest,
+            releaseBuildDigestHex: releaseBuildDigest,
+            issuedAtUTC: "2026-04-16T00:00:00Z"
+        )
+        let provenanceManifest = SuperNeoSignedArtifactProvenanceManifest(
+            payload: provenancePayload,
+            signature: try productSignature(for: provenancePayload, signingKey: signingKey)
+        )
+        let provenanceURL = directory.appendingPathComponent("provenance.json")
+        try writeSecureJSON(provenanceManifest, to: provenanceURL)
+
+        let databaseURL = directory.appendingPathComponent("replay.sqlite")
+        let auditURL = directory.appendingPathComponent("audit.jsonl")
+        let profile = SuperNeoLocalOperatorProfile(
+            callerID: "local-operator",
+            contextPackPath: contextURL.path,
+            artifactProvenancePath: provenanceURL.path,
+            replayDatabasePath: databaseURL.path,
+            auditLogPath: auditURL.path,
+            trustedContextIssuerKeyDigestsHex: [publicKeyDigest],
+            releaseBuildDigestHex: releaseBuildDigest
+        )
+        let profileURL = directory.appendingPathComponent("profile.json")
+        try writeSecureJSON(profile, to: profileURL)
+        try SuperNeoSQLiteReplayLedger.bootstrap(databaseURL: databaseURL)
+        try SuperNeoJSONLAuditLog.bootstrap(url: auditURL)
+
+        let loadedProfile = try SuperNeoLocalOperatorProfile.load(from: profileURL)
+        let verifiedContext = try SuperNeoSignedTrustedContextPack.loadVerified(
+            from: contextURL,
+            trustedIssuerKeyDigestsHex: try loadedProfile.trustedContextIssuerKeyDigestSet(),
+            now: try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
+        )
+        XCTAssertEqual(verifiedContext.payload.contextID, "ctx-terminal")
+
+        let verifiedProvenance = try SuperNeoSignedArtifactProvenanceManifest.loadVerified(
+            from: provenanceURL,
+            trustedIssuerKeyDigestsHex: try loadedProfile.trustedProvenanceIssuerKeyDigestSet()
+        )
+        try verifiedProvenance.validateBinding(
+            artifactDigest: try Digest256(hexDigest: artifactDigest),
+            proofEnvelopeDigest: try Digest256(hexDigest: proofEnvelopeDigest),
+            contextID: contextPayload.contextID,
+            statementDigest: try Digest256(hexDigest: statementDigest),
+            releaseBuildDigest: try Digest256(hexDigest: releaseBuildDigest)
+        )
+
+        let identity = SuperNeoProductProofIdentity(
+            expectedContextID: contextPayload.contextID,
+            statementDigest: try Digest256(hexDigest: statementDigest),
+            proofEnvelopeDigest: try Digest256(hexDigest: proofEnvelopeDigest),
+            artifactDigest: try Digest256(hexDigest: artifactDigest),
+            provenanceDigest: verifiedProvenance.provenanceDigest
+        )
+        let ledger = try SuperNeoSQLiteReplayLedger(databaseURL: databaseURL)
+        XCTAssertFalse(try ledger.hasAccepted(identity))
+        try ledger.recordAccepted(identity)
+        XCTAssertTrue(try ledger.hasAccepted(identity))
+        XCTAssertThrowsProductIntegrationError(
+            try ledger.recordAccepted(identity),
+            containing: "already been accepted"
+        )
+
+        let auditLog = try SuperNeoJSONLAuditLog(url: auditURL)
+        try auditLog.append(
+            SuperNeoAuditLogEvent(
+                decision: "accepted",
+                artifactDigestHex: artifactDigest,
+                proofEnvelopeDigestHex: proofEnvelopeDigest,
+                provenanceDigestHex: verifiedProvenance.provenanceDigest.hexString,
+                proofKind: SuperNeoProductProofKind.terminal.rawValue,
+                contextID: contextPayload.contextID,
+                statementDigestHex: statementDigest,
+                toolVersion: "test-tool",
+                releaseBuildDigestHex: releaseBuildDigest
+            )
+        )
+        let auditStatus = try auditLog.validateChain()
+        XCTAssertTrue(auditStatus.isValid)
+        XCTAssertEqual(auditStatus.recordCount, 1)
+        XCTAssertEqual(auditStatus.lastSequence, 1)
+    }
+
+    func testLocalProductControlsRejectGroupWritableTrustedContextPack() throws {
+        let directory = try temporaryDirectory()
+        let signingKey = Curve25519.Signing.PrivateKey()
+        let publicKeyDigest = Digest256.hash([UInt8](signingKey.publicKey.rawRepresentation)).hexString
+        let payload = SuperNeoTrustedContextPayload(
+            contextID: "ctx-terminal",
+            issuer: "SuperNeo Release",
+            validFromUTC: "2026-01-01T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z",
+            expectedVerifierKeyDigestHex: Digest256.hash("verifier").hexString,
+            expectedShapeDigestHex: Digest256.hash("shape").hexString,
+            expectedStatementDigestHex: Digest256.hash("statement").hexString,
+            expectedTranscriptDomainDigestHex: Digest256.hash("domain").hexString,
+            acceptedProofKinds: [.terminal],
+            maximumArtifactByteCount: 1024,
+            allowedWorkloads: ["one-hot-vector-v1"],
+            releaseBuildDigestHex: Digest256.hash("release").hexString,
+            keyRotation: SuperNeoTrustedContextKeyRotation(currentIssuerKeyDigestHex: publicKeyDigest)
+        )
+        let pack = SuperNeoSignedTrustedContextPack(
+            payload: payload,
+            signature: try productSignature(for: payload, signingKey: signingKey)
+        )
+        let url = directory.appendingPathComponent("context.json")
+        try writeSecureJSON(pack, to: url)
+        try FileManager.default.setAttributes([.posixPermissions: 0o660], ofItemAtPath: url.path)
+
+        XCTAssertThrowsProductIntegrationError(
+            try SuperNeoSignedTrustedContextPack.loadVerified(
+                from: url,
+                trustedIssuerKeyDigestsHex: [publicKeyDigest],
+                now: try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
+            ),
+            containing: "must not be group- or world-writable"
+        )
+    }
+
+    func testLocalProductAuditLogDetectsHashChainTampering() throws {
+        let directory = try temporaryDirectory()
+        let auditURL = directory.appendingPathComponent("audit.jsonl")
+        try SuperNeoJSONLAuditLog.bootstrap(url: auditURL)
+        let auditLog = try SuperNeoJSONLAuditLog(url: auditURL)
+        try auditLog.append(
+            SuperNeoAuditLogEvent(
+                decision: "accepted",
+                artifactDigestHex: Digest256.hash("artifact").hexString,
+                proofKind: SuperNeoProductProofKind.terminal.rawValue,
+                contextID: "ctx-terminal",
+                toolVersion: "test-tool",
+                releaseBuildDigestHex: Digest256.hash("release").hexString
+            )
+        )
+        var text = try String(contentsOf: auditURL, encoding: .utf8)
+        text = text.replacingOccurrences(of: "\"decision\":\"accepted\"", with: "\"decision\":\"rejected\"")
+        try text.write(to: auditURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: auditURL.path)
+
+        let tamperedStatus = try auditLog.validateChain()
+        XCTAssertFalse(tamperedStatus.isValid)
+        XCTAssertEqual(tamperedStatus.reason, "audit log record digest mismatch")
+    }
+
     private func loadNumiSealArtifact(named name: String) throws -> NumiSealArtifact {
         try JSONDecoder().decode(NumiSealArtifact.self, from: loadNumiSealArtifactData(named: name))
     }
@@ -5726,6 +5911,33 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 line: line
             )
         }
+    }
+
+    private func temporaryDirectory() throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("superneo-product-tests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    private func writeSecureJSON<T: Encodable>(_ value: T, to url: URL) throws {
+        let data = try SuperNeoCanonicalJSON.encode(value)
+        XCTAssertTrue(FileManager.default.createFile(atPath: url.path, contents: data))
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
+    private func productSignature<T: Encodable>(
+        for payload: T,
+        signingKey: Curve25519.Signing.PrivateKey
+    ) throws -> SuperNeoProductSignature {
+        let payloadData = try SuperNeoCanonicalJSON.encode(payload)
+        let signature = try signingKey.signature(for: payloadData)
+        let publicKey = signingKey.publicKey.rawRepresentation
+        return SuperNeoProductSignature(
+            publicKeyBase64: publicKey.base64EncodedString(),
+            publicKeyDigestHex: Digest256.hash([UInt8](publicKey)).hexString,
+            signatureBase64: signature.base64EncodedString()
+        )
     }
 }
 

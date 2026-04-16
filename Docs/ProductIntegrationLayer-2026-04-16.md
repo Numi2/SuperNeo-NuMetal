@@ -3,9 +3,12 @@
 Formal status: conditional protocol formalization.
 
 This note records the first executable product-integration boundary around the
-checked NumiSeal verification surface. It is a library contract for product
-services; it is not durable storage, a hosted verifier, a signing system, or a
-production deployment.
+checked NumiSeal verification surface. A later April 16 pass added local
+CLI/offline product controls documented in
+`Docs/LocalProductControls-2026-04-16.md`: signed context packs, signed
+provenance manifests, SQLite replay storage, and hash-chained JSONL audit logs.
+Neither pass is a hosted verifier service or a complete production
+certification.
 
 ## Implemented Boundary
 
@@ -56,21 +59,35 @@ swift test --filter NumiSealCanonicalizationTests/testNumiSealProductVerifier
 
 Result: passed locally.
 
+## Local CLI Product Controls
+
+The CLI now has a product-control mode:
+
+```sh
+superneo verify --product --operator-profile profile.json proof.json
+```
+
+This path verifies the signed trusted context before artifact parsing, verifies
+signed provenance before algebraic acceptance, rejects replay through a durable
+SQLite ledger, and appends accepted/rejected decisions to a hash-chained JSONL
+audit log. It covers terminal, compressed-terminal, and NumiSeal terminal
+surfaces.
+
 ## Remaining Product Responsibilities
 
-The repository now has an executable integration contract, but production
-deployment still requires product-owned implementations for:
+The repository now has an executable integration contract and local CLI product
+controls, but production deployment still requires product-owned completion for:
 
-- durable expected-context storage,
-- trusted key distribution and rotation,
-- artifact signing and provenance roots,
-- race-safe replay ledger semantics,
-- authentication, authorization, and tenant isolation,
-- persistent verification records,
-- structured audit-log transport and retention,
+- Apple code signing, notarization, and release artifact publication,
+- trusted key ceremony and distribution,
+- operator-profile provisioning and revocation distribution,
+- authentication, authorization, and tenant isolation beyond the local OS-user
+  model,
+- audit-log retention and export,
 - user-facing error and retry policy, and
-- incident response, revocation, and provenance rollback hooks.
+- external audit completion.
 
 The product integration blocker is therefore narrowed: the local repository no
-longer lacks an integration-layer contract, but production-security language
-still requires deployed, reviewed implementations of those protocols.
+longer lacks an integration-layer contract or local CLI control substrate, but
+production-security language still requires deployed, reviewed release
+operations and the remaining formal and side-channel blockers.
