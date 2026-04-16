@@ -1102,6 +1102,8 @@ public enum NumiSealCarryMode: UInt8, Equatable, Sendable {
     case none = 0
     case optional = 1
     case required = 2
+    case typedOptional = 3
+    case typedRequired = 4
 }
 
 public struct NumiSealTerminalProofAcceptancePolicy: Equatable, Sendable {
@@ -1291,6 +1293,19 @@ public struct NumiSealTerminalProofAcceptancePolicy: Equatable, Sendable {
             case .required:
                 guard laneProof.optionalCarryClaim != nil else {
                     throw SuperNeoError.verificationFailed("NumiSeal carry claim required by policy")
+                }
+            case .typedOptional:
+                if let claim = laneProof.optionalCarryClaim {
+                    guard claim.typedStatement != nil else {
+                        throw SuperNeoError.verificationFailed("NumiSeal typed carry claim is malformed")
+                    }
+                }
+            case .typedRequired:
+                guard let claim = laneProof.optionalCarryClaim else {
+                    throw SuperNeoError.verificationFailed("NumiSeal typed carry claim required by policy")
+                }
+                guard claim.typedStatement != nil else {
+                    throw SuperNeoError.verificationFailed("NumiSeal typed carry claim is malformed")
                 }
             }
         }

@@ -19,7 +19,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - production NumiSeal CLI adversarial matrix
   - release policy, schema compatibility, and CI gate drift validation
   - release-candidate evidence tooling validation
-  - release CLI fold, terminal, compressed-terminal, and NumiSeal verify smoke
+  - release CLI fold, terminal, compressed-terminal, and NumiSeal prove/verify smoke
 
 Pass --with-benchmarks to include Scripts/run-benchmarks.sh quick.
 Pass --skip-formal when a separate CI job is already running the Lean/formal gate.
@@ -132,6 +132,7 @@ run_step swift test -c release --disable-swift-testing
 run_step Scripts/validate-artifact-schema.py
 run_step Scripts/test-artifact-schema-validation.py
 run_step Scripts/validate-numiseal-artifact-schema.py
+run_step Scripts/validate-numiseal-product-artifact-schema.py
 run_step Scripts/test-numiseal-artifact-schema-validation.py
 run_step Scripts/validate-release-readiness-policy.py
 run_step Scripts/test-release-candidate-evidence-validation.py
@@ -175,13 +176,14 @@ one_hot_terminal_path="$(make_temp_json)"
 one_hot_compressed_terminal_path="$(make_temp_json)"
 one_hot_compressed_terminal_as_terminal_path="$(make_temp_json)"
 one_hot_compressed_terminal_as_fold_path="$(make_temp_json)"
+numiseal_product_path="$(make_temp_json)"
 binary_add_path="$(make_temp_json)"
 binary_add_terminal_path="$(make_temp_json)"
 binary_add_missing_sum_path="$(make_temp_json)"
 binary_add_noncanonical_sum_path="$(make_temp_json)"
 binary_add_bad_left_bit_count_path="$(make_temp_json)"
 binary_add_duplicate_workload_key_path="$(make_temp_json)"
-cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_duplicate_top_level_key_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${one_hot_compressed_terminal_path}" "${one_hot_compressed_terminal_as_terminal_path}" "${one_hot_compressed_terminal_as_fold_path}" "${binary_add_path}" "${binary_add_terminal_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}" "${binary_add_duplicate_workload_key_path}")
+cleanup_paths+=("${lattice_path}" "${one_hot_path}" "${one_hot_unknown_field_path}" "${one_hot_duplicate_top_level_key_path}" "${one_hot_missing_selected_count_path}" "${one_hot_terminal_path}" "${one_hot_compressed_terminal_path}" "${one_hot_compressed_terminal_as_terminal_path}" "${one_hot_compressed_terminal_as_fold_path}" "${numiseal_product_path}" "${binary_add_path}" "${binary_add_terminal_path}" "${binary_add_missing_sum_path}" "${binary_add_noncanonical_sum_path}" "${binary_add_bad_left_bit_count_path}" "${binary_add_duplicate_workload_key_path}")
 
 run_step Scripts/reproduce-lattice-estimator.sh --dry-run "${lattice_path}"
 run_step Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent "${lattice_path}"
@@ -347,6 +349,21 @@ run_expect_failure "${SUPERNEO_CLI}" verify \
   --expected-public-inputs 1 \
   --require-terminal \
   "${one_hot_compressed_terminal_as_fold_path}"
+
+run_step "${SUPERNEO_CLI}" prove \
+  --seal numiseal \
+  --numiseal-execution-policy zk-high-assurance-cpu \
+  --bits 0,1 \
+  --max-obligations-per-aggregate 32 \
+  --output "${numiseal_product_path}"
+run_step "${SUPERNEO_CLI}" inspect "${numiseal_product_path}"
+run_expect_failure "${SUPERNEO_CLI}" verify "${numiseal_product_path}"
+run_expect_failure "${SUPERNEO_CLI}" verify --require-terminal "${numiseal_product_path}"
+run_step "${SUPERNEO_CLI}" verify --require-numiseal "${numiseal_product_path}"
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --require-numiseal \
+  --expected-public-inputs 0 \
+  "${numiseal_product_path}"
 
 run_step "${SUPERNEO_CLI}" prove \
   --workload binary-add \

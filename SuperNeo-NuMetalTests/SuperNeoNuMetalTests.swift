@@ -5407,6 +5407,122 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
     }
 
+    func testNumiSealTypedCarryStatementRoundTripsAndPolicyRejectsMalformedCarry() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let consumerContextDigest = Digest256.hash("typed-carry-consumer-context")
+        let statement = try NumiSealCarryStatement(
+            carryKind: .residualOpening,
+            recursionLevel: 1,
+            producerProofEnvelopeDigest: Digest256.hash(fixture.envelope.superNeoBytes),
+            producerProofTranscriptDigest: fixture.proof.transcriptDigest,
+            parentStatementDigest: fixture.policy.statementDigest,
+            parentPublicStatementDigest: fixture.publicStatement.digest,
+            laneKey: fixture.aggregate.laneKey,
+            aggregateIndex: fixture.aggregate.aggregateIndex,
+            residualOpeningDigest: fixture.residualOpening.openingDigest,
+            decompositionKeyDigest: fixture.decomposition.decompositionKeyDigest,
+            decompositionCommitmentDigest: fixture.decomposition.commitmentDigest,
+            finalPointDigest: NumiSealCarryStatement.finalPointDigest(fixture.laneProof.sumcheckProof.finalPoint),
+            claimedDigitEvaluation: fixture.residualStatement.claimedDigitEvaluation,
+            consumerContextDigest: consumerContextDigest
+        )
+        let claim = try NumiSealCarryClaim(statement.superNeoBytes)
+
+        XCTAssertEqual(claim.typedStatement, statement)
+        XCTAssertEqual(try NumiSealCarryStatement(bytes: statement.superNeoBytes), statement)
+
+        let typedCarryFixture = try makeNumiSealProofBodyFixture(carryBytes: statement.superNeoBytes)
+        let typedRequiredPolicy = NumiSealTerminalProofAcceptancePolicy(
+            profileID: typedCarryFixture.policy.profileID,
+            shapeDigest: typedCarryFixture.policy.shapeDigest,
+            statementDigest: typedCarryFixture.policy.statementDigest,
+            verifierKeyDigest: typedCarryFixture.policy.verifierKeyDigest,
+            transcriptDomain: typedCarryFixture.policy.transcriptDomain,
+            acceptedLaneIDs: typedCarryFixture.policy.acceptedLaneIDs,
+            acceptedCarryMode: .typedRequired
+        )
+        XCTAssertNoThrow(try typedRequiredPolicy.preflight(proofBytes: typedCarryFixture.envelope.superNeoBytes))
+
+        let rawCarryFixture = try makeNumiSealProofBodyFixture(carryBytes: Array("carry".utf8))
+        let rawTypedPolicy = NumiSealTerminalProofAcceptancePolicy(
+            profileID: rawCarryFixture.policy.profileID,
+            shapeDigest: rawCarryFixture.policy.shapeDigest,
+            statementDigest: rawCarryFixture.policy.statementDigest,
+            verifierKeyDigest: rawCarryFixture.policy.verifierKeyDigest,
+            transcriptDomain: rawCarryFixture.policy.transcriptDomain,
+            acceptedLaneIDs: rawCarryFixture.policy.acceptedLaneIDs,
+            acceptedCarryMode: .typedRequired
+        )
+        XCTAssertThrowsSuperNeoError(
+            try rawTypedPolicy.preflight(proofBytes: rawCarryFixture.envelope.superNeoBytes),
+            .verificationFailed("NumiSeal typed carry claim is malformed")
+        )
+    }
+
+    func testNumiSealCarryConsumerBindsContextAndRejectsReplay() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let consumerContextDigest = Digest256.hash("typed-carry-consumer-context")
+        let producerProofEnvelopeDigest = Digest256.hash(fixture.envelope.superNeoBytes)
+        let statement = try NumiSealCarryStatement(
+            carryKind: .residualOpening,
+            recursionLevel: 2,
+            producerProofEnvelopeDigest: producerProofEnvelopeDigest,
+            producerProofTranscriptDigest: fixture.proof.transcriptDigest,
+            parentStatementDigest: fixture.policy.statementDigest,
+            parentPublicStatementDigest: fixture.publicStatement.digest,
+            laneKey: fixture.aggregate.laneKey,
+            aggregateIndex: fixture.aggregate.aggregateIndex,
+            residualOpeningDigest: fixture.residualOpening.openingDigest,
+            decompositionKeyDigest: fixture.decomposition.decompositionKeyDigest,
+            decompositionCommitmentDigest: fixture.decomposition.commitmentDigest,
+            finalPointDigest: NumiSealCarryStatement.finalPointDigest(fixture.laneProof.sumcheckProof.finalPoint),
+            claimedDigitEvaluation: fixture.residualStatement.claimedDigitEvaluation,
+            consumerContextDigest: consumerContextDigest
+        )
+
+        var consumer = NumiSealCarryConsumer()
+        let accepted = try consumer.consume(
+            statement,
+            parentProofAccepted: true,
+            expectedProducerProofEnvelopeDigest: producerProofEnvelopeDigest,
+            expectedProducerProofTranscriptDigest: fixture.proof.transcriptDigest,
+            expectedParentStatementDigest: fixture.policy.statementDigest,
+            expectedParentPublicStatementDigest: fixture.publicStatement.digest,
+            expectedConsumerContextDigest: consumerContextDigest,
+            minimumNextRecursionLevel: 2
+        )
+        XCTAssertEqual(accepted.statement, statement)
+
+        XCTAssertThrowsSuperNeoError(
+            try consumer.consume(
+                statement,
+                parentProofAccepted: true,
+                expectedProducerProofEnvelopeDigest: producerProofEnvelopeDigest,
+                expectedProducerProofTranscriptDigest: fixture.proof.transcriptDigest,
+                expectedParentStatementDigest: fixture.policy.statementDigest,
+                expectedParentPublicStatementDigest: fixture.publicStatement.digest,
+                expectedConsumerContextDigest: consumerContextDigest,
+                minimumNextRecursionLevel: 2
+            ),
+            .verificationFailed("NumiSeal carry replay detected")
+        )
+
+        var freshConsumer = NumiSealCarryConsumer()
+        XCTAssertThrowsSuperNeoError(
+            try freshConsumer.consume(
+                statement,
+                parentProofAccepted: true,
+                expectedProducerProofEnvelopeDigest: producerProofEnvelopeDigest,
+                expectedProducerProofTranscriptDigest: fixture.proof.transcriptDigest,
+                expectedParentStatementDigest: fixture.policy.statementDigest,
+                expectedParentPublicStatementDigest: fixture.publicStatement.digest,
+                expectedConsumerContextDigest: Digest256.hash("wrong-consumer-context"),
+                minimumNextRecursionLevel: 2
+            ),
+            .verificationFailed("NumiSeal carry consumer context digest mismatch")
+        )
+    }
+
     func testNumiSealArtifactVerifierValidatesCheckedVectorWithStrictPins() throws {
         let artifact = try loadNumiSealArtifact(named: "numiseal-terminal-single-aggregate-v1.json")
         let expectedContext = try strictExpectedContext(for: artifact)
@@ -6016,6 +6132,55 @@ private final class ProductAuditSink: SuperNeoVerificationAuditSink {
 }
 
 final class UsabilitySurfaceTests: SuperNeoTestCase {
+    func testNumiSealProductProverEmitsVerifiableV2Artifact() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        let prepared = try workload.prepareForFolding(
+            bits: [false, true],
+            keySeed: Array("numiseal-product-key".utf8)
+        )
+        let artifact = try NumiSealProductProver().prove(
+            NumiSealProvingRequest(
+                preparedR1CS: prepared,
+                workload: "one-hot-vector-v1",
+                bitCount: 2,
+                publicInputs: [1],
+                keySeedUTF8: "numiseal-product-key",
+                workloadParameters: ["selectedCount": "1"],
+                laneID: try NumiSealLaneID("product"),
+                executionPolicy: .zkHighAssuranceCPU,
+                aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
+            )
+        )
+
+        XCTAssertEqual(artifact.artifactVersion, NumiSealProductArtifact.artifactVersion)
+        XCTAssertEqual(artifact.proofKind, NumiSealProductArtifact.proofKind)
+        XCTAssertEqual(artifact.sealMode, "numiseal-terminal-v2")
+        XCTAssertEqual(artifact.zkMode, NumiSealZK.nonZKMode)
+        XCTAssertEqual(artifact.sourceFoldOutputClaimCount, 14)
+        XCTAssertEqual(artifact.aggregateDigestsHex.count, 1)
+
+        let result = try NumiSealProductVerifier().verify(
+            artifact: artifact,
+            sourcePublicInput: prepared.publicFoldInput,
+            key: prepared.key,
+            executionPolicy: .highAssurance
+        )
+        XCTAssertTrue(result.sourceFoldResult.isReductionAccepted, result.sourceFoldResult.reason ?? "")
+        XCTAssertTrue(result.numiSealResult.isValid, result.numiSealResult.reason ?? "")
+
+        var tampered = artifact
+        tampered.sourceFoldEnvelopeDigestHex = String(repeating: "0", count: 64)
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tampered,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            ),
+            .verificationFailed("NumiSeal product source fold digest mismatch")
+        )
+    }
+
     func testR1CSProgramGeneratesTerminalProofAndVerifiesUnderPolicy() throws {
         let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
         let program = SuperNeoR1CSProgram(

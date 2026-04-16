@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "aggregateDigestsHex": {
+      "items": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "artifactVersion": {
+      "const": 2,
+      "type": "integer"
+    },
+    "bitCount": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "carryMode": {
+      "enum": [
+        "none",
+        "typed-optional",
+        "typed-required"
+      ],
+      "type": "string"
+    },
+    "commitmentBase64": {
+      "contentEncoding": "base64",
+      "type": "string"
+    },
+    "componentDigestRootHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "executionPolicy": {
+      "enum": [
+        "default-product",
+        "zk-redundant-metal",
+        "zk-metal-accelerated",
+        "zk-high-assurance-cpu"
+      ],
+      "type": "string"
+    },
+    "executionPolicyMetadata": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "keySeedUTF8": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "laneIDsUTF8": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "laneSummaryRootHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "maximumAggregatesPerLane": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "maximumLaneCount": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "maximumObligationsPerAggregate": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "metalMode": {
+      "enum": [
+        "cpu-reference",
+        "unavailable",
+        "secret-bearing-metal-accelerated",
+        "secret-bearing-metal-cpu-redundant"
+      ],
+      "type": "string"
+    },
+    "numiSealProofEnvelopeBase64": {
+      "contentEncoding": "base64",
+      "type": "string"
+    },
+    "obligationRootHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "profile": {
+      "const": "Goldilocks/Phi81(d=54)",
+      "type": "string"
+    },
+    "proofEnvelopeDigestHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "proofKind": {
+      "const": "numiseal-terminal",
+      "type": "string"
+    },
+    "proofTranscriptDigestHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "publicInputs": {
+      "items": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "publicStatementDigestHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "sealMode": {
+      "const": "numiseal-terminal-v2",
+      "type": "string"
+    },
+    "shapeDigestHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "sourceApplicationPathUTF8": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sourceFoldEnvelopeBase64": {
+      "contentEncoding": "base64",
+      "type": "string"
+    },
+    "sourceFoldEnvelopeDigestHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "sourceFoldOutputClaimCount": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "sourceFoldOutputClaimDigestsHex": {
+      "items": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "sourceStatementDigestHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "statementDigestHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "transcriptDomainHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "verifierKeyDigestHex": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "workload": {
+      "enum": [
+        "one-hot-vector-v1",
+        "binary-addition-v1"
+      ],
+      "type": "string"
+    },
+    "workloadParameters": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "zkMode": {
+      "enum": [
+        "none",
+        "masked-digit-tensor-v1"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifactVersion",
+    "workload",
+    "profile",
+    "proofKind",
+    "sealMode",
+    "carryMode",
+    "zkMode",
+    "metalMode",
+    "executionPolicy",
+    "bitCount",
+    "workloadParameters",
+    "sourceApplicationPathUTF8",
+    "publicInputs",
+    "commitmentBase64",
+    "sourceFoldEnvelopeBase64",
+    "numiSealProofEnvelopeBase64",
+    "sourceFoldEnvelopeDigestHex",
+    "sourceFoldOutputClaimDigestsHex",
+    "sourceFoldOutputClaimCount",
+    "shapeDigestHex",
+    "sourceStatementDigestHex",
+    "statementDigestHex",
+    "verifierKeyDigestHex",
+    "transcriptDomainHex",
+    "publicStatementDigestHex",
+    "obligationRootHex",
+    "laneSummaryRootHex",
+    "aggregateDigestsHex",
+    "componentDigestRootHex",
+    "proofTranscriptDigestHex",
+    "laneIDsUTF8",
+    "maximumObligationsPerAggregate",
+    "maximumLaneCount",
+    "maximumAggregatesPerLane",
+    "proofEnvelopeDigestHex",
+    "executionPolicyMetadata"
+  ],
+  "type": "object"
+}

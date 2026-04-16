@@ -1,12 +1,13 @@
 # CLI Demo And Golden Vector
 
-The `superneo` executable is a narrow integration demo for the library. It is
-not a product frontend. It exists to show the full path from a real CCS workload
-to a versioned proof envelope and verifier result.
+The `superneo` executable is a narrow integration and product-smoke frontend for
+the library. It exists to show the full path from a real CCS workload to
+versioned proof artifacts and verifier results.
 
-Proof generation uses the repository's `.highAssurance` execution policy: CPU
-reference paths are selected for covered secret-bearing prover work, and the CLI
-does not use prover-side Metal acceleration.
+Legacy fold, terminal, and compressed-terminal proof generation uses the
+repository's `.highAssurance` execution policy. NumiSeal product proving is
+exposed separately through `--seal numiseal` and accepts explicit NumiSeal
+execution policies, including CPU-redundant Metal.
 
 ## Workloads
 
@@ -125,6 +126,41 @@ swift run superneo verify \
   /tmp/one-hot-compressed-terminal-proof.json
 ```
 
+Generate a public NumiSeal product artifact:
+
+```sh
+swift run superneo prove \
+  --seal numiseal \
+  --bits 0,0,1,0 \
+  --numiseal-execution-policy default-product \
+  --max-obligations-per-aggregate 32 \
+  --output /tmp/one-hot-numiseal.json
+
+swift run superneo inspect /tmp/one-hot-numiseal.json
+
+swift run superneo verify \
+  --require-numiseal \
+  /tmp/one-hot-numiseal.json
+```
+
+`--seal numiseal` emits `artifactVersion = 2`. The artifact contains both the
+source fold envelope and the NumiSeal kind `4` terminal seal. Verification first
+reduces the source fold envelope, reconstructs source output-claim digests, then
+reconstructs NumiSeal obligations and verifies the terminal seal. The public API
+is `NumiSealProductProver`, `NumiSealProvingRequest`,
+`NumiSealProductArtifact`, `NumiSealProductVerifier`, and
+`SuperNeoR1CSProgram.proveNumiSeal(...)`.
+
+Available NumiSeal execution policies are:
+
+- `default-product`: uses CPU-redundant Metal when a Metal context is available,
+  otherwise CPU reference.
+- `zk-redundant-metal`: requires Metal and cross-checks covered Metal outputs
+  against CPU.
+- `zk-metal-accelerated`: requires Metal and treats it as the primary prover
+  accelerator.
+- `zk-high-assurance-cpu`: CPU-only reference/certification mode.
+
 Inspect and verify a checked NumiSeal terminal vector:
 
 ```sh
@@ -147,9 +183,10 @@ swift run superneo verify \
   TestVectors/numiseal-terminal-single-aggregate-v1.json
 ```
 
-NumiSeal kind `4` artifacts fail closed unless `--require-numiseal` is present.
-They are not accepted by `--require-terminal`, which remains the policy gate for
-legacy terminal-local and compressed-public envelopes.
+NumiSeal kind `4` artifacts and NumiSeal product artifacts fail closed unless
+`--require-numiseal` is present. They are not accepted by `--require-terminal`,
+which remains the policy gate for legacy terminal-local and compressed-public
+envelopes.
 
 Terminal mode is complete but intentionally not the default. In local Debug
 runs, even a small terminal proof is much larger and slower because it includes
@@ -175,6 +212,14 @@ The JSON artifact stores:
 - shape digest,
 - statement digest, and
 - verifier-key digest.
+
+NumiSeal product artifacts additionally store `sealMode`, `carryMode`, `zkMode`,
+`metalMode`, source fold envelope bytes, source fold output-claim digests,
+NumiSeal proof envelope bytes, public statement roots, aggregate digests,
+component root, proof transcript digest, aggregate limits, and execution-policy
+metadata. Public product proving derives its NumiSeal digit tensor internally
+from aggregate witness material; caller-supplied digit tensors remain SPI and
+test-vector-only.
 
 NumiSeal vector artifacts additionally store residual mode, lane IDs,
 fold/source/CE deterministic vector seeds, aggregate limits, transcript-domain

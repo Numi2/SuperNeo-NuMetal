@@ -33,6 +33,7 @@ private struct DemoProofArtifact: Codable {
 private enum ProofArtifact {
     case demo(DemoProofArtifact)
     case numiSeal(NumiSealArtifact)
+    case numiSealProduct(NumiSealProductArtifact)
 }
 
 private let demoProofArtifactTopLevelKeys: Set<String> = [
@@ -78,6 +79,10 @@ private enum DemoWorkload: String {
     case binaryAdd = "binary-add"
 }
 
+private enum ProveSealMode: String {
+    case numiSeal = "numiseal"
+}
+
 private struct ProveOptions {
     var outputPath = "superneo-one-hot-proof.json"
     var workload: DemoWorkload = .oneHot
@@ -87,6 +92,10 @@ private struct ProveOptions {
     var rightOperand: UInt64 = 29
     var keySeed: String?
     var proofKind: DemoProofKind = .fold
+    var sealMode: ProveSealMode?
+    var numiSealExecutionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct
+    var maximumObligationsPerAggregate: Int?
+    var sourceApplicationPath: String?
 }
 
 private struct VerifyOptions {
@@ -138,6 +147,7 @@ private func usage() -> String {
     """
     Usage:
       superneo prove [--workload one-hot] [--bits 0,0,1,0] [--kind fold|terminal|compressed-terminal] [--key-seed text] [--output proof.json]
+      superneo prove --seal numiseal [--workload one-hot] [--bits 0,0,1,0] [--numiseal-execution-policy default-product|zk-redundant-metal|zk-metal-accelerated|zk-high-assurance-cpu] [--max-obligations-per-aggregate n] [--output proof.json]
       superneo prove --workload binary-add [--operand-bits 8] [--lhs 13] [--rhs 29] [--kind fold|terminal|compressed-terminal] [--output proof.json]
       superneo verify [--key-seed text] [--expected-verifier-key-digest hex] [--expected-shape-digest hex] [--expected-statement-digest hex] [--expected-public-inputs values] [--require-terminal|--require-numiseal] proof.json
       superneo verify --product --operator-profile profile.json [--context-pack context.json] [--artifact-provenance provenance.json] proof.json
@@ -153,8 +163,8 @@ private func usage() -> String {
     much larger and slower because they include the public CE opening proof.
     compressed-terminal proofs keep terminal acceptance while compressing public
     terminal statement material behind digest bindings.
-    NumiSeal terminal artifacts are verifier-only in this CLI and require the
-    explicit --require-numiseal policy gate. Strict NumiSeal verification also
+    NumiSeal product artifacts are emitted with --seal numiseal and require the
+    explicit --require-numiseal policy gate during verification. Strict NumiSeal verification also
     accepts --expected-transcript-domain-digest, --expected-public-statement-digest,
     --expected-obligation-root, --expected-lane-summary-root,
     --expected-aggregate-digests, --expected-component-digest-root, and
@@ -231,6 +241,27 @@ private func parseProveOptions(_ arguments: [String]) throws -> ProveOptions {
                 throw CLIError.invalidArgument("--kind must be fold, terminal, or compressed-terminal")
             }
             options.proofKind = kind
+        case "--seal":
+            let raw = try requireValue()
+            guard let sealMode = ProveSealMode(rawValue: raw) else {
+                throw CLIError.invalidArgument("--seal must be numiseal")
+            }
+            options.sealMode = sealMode
+        case "--numiseal-execution-policy", "--zk-policy":
+            let raw = try requireValue()
+            guard let policy = NumiSealProvingExecutionPolicy(rawValue: raw) else {
+                throw CLIError.invalidArgument(
+                    "\(argument) must be default-product, zk-redundant-metal, zk-metal-accelerated, or zk-high-assurance-cpu"
+                )
+            }
+            options.numiSealExecutionPolicy = policy
+        case "--max-obligations-per-aggregate":
+            options.maximumObligationsPerAggregate = try parsePositiveInt(
+                try requireValue(),
+                name: "--max-obligations-per-aggregate"
+            )
+        case "--source-app":
+            options.sourceApplicationPath = try requireValue()
         default:
             throw CLIError.invalidArgument("unknown prove option: \(argument)")
         }
@@ -420,6 +451,19 @@ private func prove(_ options: ProveOptions) throws {
             "publicSum": "\(sum)"
         ]
     }
+    if options.sealMode == .numiSeal {
+        try proveNumiSealProduct(
+            options: options,
+            prepared: prepared,
+            keySeed: keySeed,
+            workload: artifactWorkload,
+            bitCount: artifactBitCount,
+            publicInputs: artifactPublicInputs,
+            workloadParameters: artifactParameters,
+            started: started
+        )
+        return
+    }
     let publicInput = prepared.publicFoldInput
     let statement = CCSStatement(
         shapeDigest: publicInput.shape.shapeDigest,
@@ -471,6 +515,70 @@ private func prove(_ options: ProveOptions) throws {
     print(String(format: "prove time: %.3f s", elapsed))
 }
 
+private func proveNumiSealProduct(
+    options: ProveOptions,
+    prepared: SuperNeoPreparedR1CS,
+    keySeed: String,
+    workload: String,
+    bitCount: Int,
+    publicInputs: [UInt64],
+    workloadParameters: [String: String],
+    started: Date
+) throws {
+    let metalContext = try makeNumiSealMetalContext(policy: options.numiSealExecutionPolicy)
+    let aggregationLimits = try NumiSealAggregationLimits(
+        maximumObligationsPerAggregate: options.maximumObligationsPerAggregate
+            ?? NumiSealAggregationLimits.defaultLimits().maximumObligationsPerAggregate
+    )
+    let artifact = try NumiSealProductProver().prove(
+        NumiSealProvingRequest(
+            preparedR1CS: prepared,
+            workload: workload,
+            bitCount: bitCount,
+            publicInputs: publicInputs,
+            keySeedUTF8: keySeed,
+            workloadParameters: workloadParameters,
+            sourceApplicationPathUTF8: options.sourceApplicationPath ?? FileManager.default.currentDirectoryPath,
+            laneID: try NumiSealLaneID("product"),
+            executionPolicy: options.numiSealExecutionPolicy,
+            aggregationLimits: aggregationLimits,
+            metalContext: metalContext
+        )
+    )
+    let envelopeBytes = try artifact.proofEnvelopeBytes()
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    let data = try encoder.encode(artifact)
+    try data.write(to: URL(fileURLWithPath: options.outputPath), options: Data.WritingOptions.atomic)
+    print("wrote \(options.outputPath)")
+    print("workload: \(artifact.workload)")
+    print("profile: \(artifact.profile)")
+    print("proof kind: \(artifact.proofKind)")
+    print("seal mode: \(artifact.sealMode)")
+    print("carry mode: \(artifact.carryMode)")
+    print("zk mode: \(artifact.zkMode)")
+    print("metal mode: \(artifact.metalMode)")
+    print("source fold output claims: \(artifact.sourceFoldOutputClaimCount)")
+    print("aggregates: \(artifact.aggregateDigestsHex.count)")
+    print("proof envelope bytes: \(envelopeBytes.count)")
+    print(String(format: "prove time: %.3f s", Date().timeIntervalSince(started)))
+}
+
+private func makeNumiSealMetalContext(policy: NumiSealProvingExecutionPolicy) throws -> MetalExecutionContext? {
+    switch policy {
+    case .zkHighAssuranceCPU:
+        return nil
+    case .defaultProduct:
+        return try? MetalExecutionContext()
+    case .zkMetalAccelerated, .zkRedundantMetal:
+        do {
+            return try MetalExecutionContext()
+        } catch {
+            throw CLIError.invalidArgument("\(policy.rawValue) requires an available Metal device: \(error)")
+        }
+    }
+}
+
 private func verify(options: VerifyOptions) throws {
     if options.useProductControls {
         try verifyWithProductControls(options: options)
@@ -481,6 +589,8 @@ private func verify(options: VerifyOptions) throws {
         try verifyDemoArtifact(artifact, options: options)
     case .numiSeal(let artifact):
         try verifyNumiSealArtifact(artifact, options: options)
+    case .numiSealProduct(let artifact):
+        try verifyNumiSealProductArtifact(artifact, options: options)
     }
 }
 
@@ -684,6 +794,8 @@ private func inspect(path: String) throws {
         try inspectDemoArtifact(artifact)
     case .numiSeal(let artifact):
         try inspectNumiSealArtifact(artifact)
+    case .numiSealProduct(let artifact):
+        try inspectNumiSealProductArtifact(artifact)
     }
 }
 
@@ -776,6 +888,101 @@ private func inspectNumiSealArtifact(_ artifact: NumiSealArtifact) throws {
     print("envelope transcript domain: \(header.transcriptDomainHex)")
     print("envelope body bytes: \(header.bodyLength)")
     print("envelope total bytes: \(proofBytes.count)")
+}
+
+private func verifyNumiSealProductArtifact(_ artifact: NumiSealProductArtifact, options: VerifyOptions) throws {
+    if options.requireTerminalProof {
+        throw CLIError.invalidArgument("legacy terminal proof required, but artifact contains a NumiSeal product proof")
+    }
+    guard options.requireNumiSealProof else {
+        throw CLIError.invalidArgument("NumiSeal product proof requires --require-numiseal")
+    }
+    try validateNumiSealProductExpectedOptions(artifact: artifact, options: options)
+    let publicInput = try makePublicInput(from: artifact)
+    let keySeed: String
+    if let trustedKeySeed = options.trustedKeySeed {
+        keySeed = trustedKeySeed
+    } else if let artifactKeySeed = artifact.keySeedUTF8 {
+        keySeed = artifactKeySeed
+    } else {
+        throw CLIError.invalidArgument("NumiSeal product verification requires --key-seed when artifact omits keySeedUTF8")
+    }
+    let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(keySeed.utf8))
+    let started = Date()
+    let result = try NumiSealProductVerifier().verify(
+        artifact: artifact,
+        sourcePublicInput: publicInput,
+        key: key,
+        executionPolicy: .highAssurance
+    )
+    print("valid NumiSeal product proof")
+    print("source output CE claims: \(result.sourceFoldResult.outputClaims.count)")
+    print("aggregates: \(artifact.aggregateDigestsHex.count)")
+    print("seal mode: \(artifact.sealMode)")
+    print("carry mode: \(artifact.carryMode)")
+    print("zk mode: \(artifact.zkMode)")
+    print("metal mode: \(artifact.metalMode)")
+    print(String(format: "verify time: %.3f s", Date().timeIntervalSince(started)))
+}
+
+private func inspectNumiSealProductArtifact(_ artifact: NumiSealProductArtifact) throws {
+    try NumiSealProductVerifier.validateMetadata(artifact)
+    let sourceBytes = try artifact.sourceFoldEnvelopeBytes()
+    let proofBytes = try artifact.proofEnvelopeBytes()
+    let sourceHeader = try parseEnvelopeHeader(sourceBytes)
+    let proofHeader = try parseEnvelopeHeader(proofBytes)
+
+    print("artifact version: \(artifact.artifactVersion)")
+    print("workload: \(artifact.workload)")
+    print("profile: \(artifact.profile)")
+    print("proof kind: \(artifact.proofKind)")
+    print("seal mode: \(artifact.sealMode)")
+    print("carry mode: \(artifact.carryMode)")
+    print("zk mode: \(artifact.zkMode)")
+    print("metal mode: \(artifact.metalMode)")
+    print("execution policy: \(artifact.executionPolicy)")
+    print("bit count: \(artifact.bitCount)")
+    if let sourceApplicationPath = artifact.sourceApplicationPathUTF8 {
+        print("source application path: \(sourceApplicationPath)")
+    }
+    if !artifact.workloadParameters.isEmpty {
+        for key in artifact.workloadParameters.keys.sorted() {
+            print("\(key): \(artifact.workloadParameters[key] ?? "")")
+        }
+    }
+    print("public inputs: \(artifact.publicInputs.map(String.init).joined(separator: ","))")
+    print("shape digest: \(artifact.shapeDigestHex)")
+    print("source statement digest: \(artifact.sourceStatementDigestHex)")
+    print("statement digest: \(artifact.statementDigestHex)")
+    print("verifier key digest: \(artifact.verifierKeyDigestHex)")
+    print("transcript domain: \(artifact.transcriptDomainHex)")
+    print("public statement digest: \(artifact.publicStatementDigestHex)")
+    print("obligation root: \(artifact.obligationRootHex)")
+    print("lane summary root: \(artifact.laneSummaryRootHex)")
+    print("lane ids: \(artifact.laneIDsUTF8.joined(separator: ","))")
+    print("maximum obligations per aggregate: \(artifact.maximumObligationsPerAggregate)")
+    print("maximum lane count: \(artifact.maximumLaneCount)")
+    print("maximum aggregates per lane: \(artifact.maximumAggregatesPerLane)")
+    print("source fold digest: \(artifact.sourceFoldEnvelopeDigestHex)")
+    print("source fold output claim count: \(artifact.sourceFoldOutputClaimCount)")
+    for (index, digest) in artifact.sourceFoldOutputClaimDigestsHex.enumerated() {
+        print("source output claim digest \(index): \(digest)")
+    }
+    print("aggregate count: \(artifact.aggregateDigestsHex.count)")
+    for (index, digest) in artifact.aggregateDigestsHex.enumerated() {
+        print("aggregate digest \(index): \(digest)")
+    }
+    print("component digest root: \(artifact.componentDigestRootHex)")
+    print("proof transcript digest: \(artifact.proofTranscriptDigestHex)")
+    print("proof envelope digest: \(artifact.proofEnvelopeDigestHex)")
+    print("source envelope kind raw: \(sourceHeader.kind)")
+    print("source envelope transcript domain: \(sourceHeader.transcriptDomainHex)")
+    print("source envelope body bytes: \(sourceHeader.bodyLength)")
+    print("source envelope total bytes: \(sourceBytes.count)")
+    print("numiseal envelope kind raw: \(proofHeader.kind)")
+    print("numiseal envelope transcript domain: \(proofHeader.transcriptDomainHex)")
+    print("numiseal envelope body bytes: \(proofHeader.bodyLength)")
+    print("numiseal envelope total bytes: \(proofBytes.count)")
 }
 
 private func productInitStorage(_ options: ProductControlOptions) throws {
@@ -900,6 +1107,8 @@ private func makeProductArtifactMaterial(
         return try makeProductDemoArtifactMaterial(artifact, context: context)
     case .numiSeal(let artifact):
         return try makeProductNumiSealArtifactMaterial(artifact, context: context)
+    case .numiSealProduct(let artifact):
+        return try makeProductNumiSealProductArtifactMaterial(artifact, context: context)
     }
 }
 
@@ -1042,6 +1251,70 @@ private func makeProductNumiSealArtifactMaterial(
     )
 }
 
+private func makeProductNumiSealProductArtifactMaterial(
+    _ artifact: NumiSealProductArtifact,
+    context: SuperNeoTrustedContextPayload
+) throws -> ProductArtifactMaterial {
+    let productKind = SuperNeoProductProofKind.numiSealTerminal
+    guard context.accepts(productKind) else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("trusted context does not accept \(productKind.rawValue)")
+    }
+    guard context.allowedWorkloads.contains(artifact.workload) else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("artifact workload is not allowed by trusted context")
+    }
+    if let expectedPublicInputs = context.publicInputs {
+        guard artifact.publicInputs == expectedPublicInputs else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext("artifact public inputs do not match trusted context")
+        }
+    }
+    let proofBytes = try artifact.proofEnvelopeBytes()
+    if let maximumProofEnvelopeByteCount = context.maximumProofEnvelopeByteCount {
+        guard proofBytes.count <= maximumProofEnvelopeByteCount else {
+            throw SuperNeoProductIntegrationError.invalidRequest("proof envelope byte count exceeds trusted context maximum")
+        }
+    }
+    let expectedShapeDigest = try context.expectedShapeDigest
+    let expectedStatementDigest = try context.expectedStatementDigest
+    let expectedVerifierKeyDigest = try context.expectedVerifierKeyDigest
+    let expectedTranscriptDomainDigest = try context.expectedTranscriptDomainDigest
+    guard artifact.shapeDigestHex == expectedShapeDigest.hexString else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product shape digest does not match trusted context")
+    }
+    guard artifact.statementDigestHex == expectedStatementDigest.hexString else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product statement digest does not match trusted context")
+    }
+    guard artifact.verifierKeyDigestHex == expectedVerifierKeyDigest.hexString else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product verifier key digest does not match trusted context")
+    }
+    guard artifact.transcriptDomainHex == expectedTranscriptDomainDigest.hexString else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product transcript domain does not match trusted context")
+    }
+    let publicInput = try makePublicInput(from: artifact)
+    let keySeed = context.expectedKeySeedUTF8 ?? artifact.keySeedUTF8
+    guard let keySeed else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product verification requires key seed from context or artifact")
+    }
+    let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(keySeed.utf8))
+    guard key.verifierKeyDigest == expectedVerifierKeyDigest else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext("regenerated verifier key digest does not match trusted context")
+    }
+    return ProductArtifactMaterial(
+        proofKind: productKind,
+        workload: artifact.workload,
+        proofEnvelopeBytes: proofBytes,
+        proofEnvelopeDigest: Digest256.hash(proofBytes),
+        statementDigest: try Digest256(hexDigest: artifact.statementDigestHex, name: "NumiSeal product statement digest"),
+        verify: {
+            _ = try NumiSealProductVerifier().verify(
+                artifact: artifact,
+                sourcePublicInput: publicInput,
+                key: key,
+                executionPolicy: .highAssurance
+            )
+        }
+    )
+}
+
 private func appendProductAudit(
     auditLog: SuperNeoJSONLAuditLog,
     profile: SuperNeoLocalOperatorProfile,
@@ -1156,6 +1429,67 @@ private func makePublicInput(from artifact: DemoProofArtifact) throws -> SuperNe
     return publicInput
 }
 
+private func makePublicInput(from artifact: NumiSealProductArtifact) throws -> SuperNeoPublicFoldInput {
+    guard artifact.artifactVersion == NumiSealProductArtifact.artifactVersion else {
+        throw CLIError.invalidArgument("unsupported NumiSeal product artifact version")
+    }
+    guard artifact.profile == SuperNeoParameterProfile.goldilocksPhi81.name else {
+        throw CLIError.invalidArgument("unsupported profile: \(artifact.profile)")
+    }
+    guard artifact.bitCount > 0 else {
+        throw CLIError.invalidArgument("NumiSeal product bit count must be positive")
+    }
+    let commitment = try parseCommitment(
+        Data(base64Encoded: artifact.commitmentBase64),
+        parameters: .goldilocks
+    )
+    let publicInput: SuperNeoPublicFoldInput
+    switch artifact.workload {
+    case "one-hot-vector-v1":
+        guard artifact.publicInputs == [1] else {
+            throw CLIError.invalidArgument("one-hot NumiSeal product public inputs must be [1]")
+        }
+        let parameters = try requireWorkloadParameters(
+            artifact.workloadParameters,
+            allowedKeys: ["selectedCount"],
+            workload: "one-hot"
+        )
+        guard parseCanonicalUInt64Decimal(parameters["selectedCount"] ?? "") == 1 else {
+            throw CLIError.invalidArgument("one-hot NumiSeal product must include canonical selectedCount parameter")
+        }
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: artifact.bitCount)
+        publicInput = try workload.publicFoldInput(commitment: commitment)
+    case "binary-addition-v1":
+        let parameters = try requireWorkloadParameters(
+            artifact.workloadParameters,
+            allowedKeys: ["leftBitCount", "publicSum"],
+            workload: "binary-addition"
+        )
+        let workload = try SuperNeoBinaryAdditionWorkload(bitCount: artifact.bitCount)
+        let publicFields = try parsePublicFields(artifact.publicInputs)
+        publicInput = try workload.publicFoldInput(
+            commitment: commitment,
+            publicInput: publicFields
+        )
+        guard let leftBitCount = parseCanonicalUInt64Decimal(parameters["leftBitCount"] ?? ""),
+              leftBitCount == UInt64(artifact.bitCount) else {
+            throw CLIError.invalidArgument("binary-addition NumiSeal product must include canonical leftBitCount parameter")
+        }
+        guard let publicSum = parseCanonicalUInt64Decimal(parameters["publicSum"] ?? "") else {
+            throw CLIError.invalidArgument("binary-addition NumiSeal product must include canonical publicSum parameter")
+        }
+        guard try workload.publicInput(sum: publicSum).map(\.rawValue) == artifact.publicInputs else {
+            throw CLIError.invalidArgument("binary-addition NumiSeal product public sum parameter does not match public input bits")
+        }
+    default:
+        throw CLIError.invalidArgument("unsupported workload: \(artifact.workload)")
+    }
+    guard publicInput.shape.shapeDigest.hexString == artifact.shapeDigestHex else {
+        throw CLIError.invalidArgument("NumiSeal product shape digest does not match reconstructed workload")
+    }
+    return publicInput
+}
+
 private func requireWorkloadParameters(
     _ parameters: [String: String]?,
     allowedKeys: Set<String>,
@@ -1215,6 +1549,67 @@ private func makeNumiSealExpectedContext(options: VerifyOptions) throws -> NumiS
     )
 }
 
+private func validateNumiSealProductExpectedOptions(
+    artifact: NumiSealProductArtifact,
+    options: VerifyOptions
+) throws {
+    if let expectedVerifierKeyDigestHex = options.expectedVerifierKeyDigestHex {
+        guard artifact.verifierKeyDigestHex == expectedVerifierKeyDigestHex else {
+            throw CLIError.invalidArgument("NumiSeal product verifier key digest does not match expected digest")
+        }
+    }
+    if let expectedShapeDigestHex = options.expectedShapeDigestHex {
+        guard artifact.shapeDigestHex == expectedShapeDigestHex else {
+            throw CLIError.invalidArgument("NumiSeal product shape digest does not match expected digest")
+        }
+    }
+    if let expectedStatementDigestHex = options.expectedStatementDigestHex {
+        guard artifact.statementDigestHex == expectedStatementDigestHex else {
+            throw CLIError.invalidArgument("NumiSeal product statement digest does not match expected digest")
+        }
+    }
+    if let expectedTranscriptDomainDigestHex = options.expectedTranscriptDomainDigestHex {
+        guard artifact.transcriptDomainHex == expectedTranscriptDomainDigestHex else {
+            throw CLIError.invalidArgument("NumiSeal product transcript domain does not match expected digest")
+        }
+    }
+    if let expectedPublicStatementDigestHex = options.expectedPublicStatementDigestHex {
+        guard artifact.publicStatementDigestHex == expectedPublicStatementDigestHex else {
+            throw CLIError.invalidArgument("NumiSeal product public statement digest does not match expected digest")
+        }
+    }
+    if let expectedObligationRootHex = options.expectedObligationRootHex {
+        guard artifact.obligationRootHex == expectedObligationRootHex else {
+            throw CLIError.invalidArgument("NumiSeal product obligation root does not match expected digest")
+        }
+    }
+    if let expectedLaneSummaryRootHex = options.expectedLaneSummaryRootHex {
+        guard artifact.laneSummaryRootHex == expectedLaneSummaryRootHex else {
+            throw CLIError.invalidArgument("NumiSeal product lane summary root does not match expected digest")
+        }
+    }
+    if let expectedAggregateDigestsHex = options.expectedAggregateDigestsHex {
+        guard artifact.aggregateDigestsHex == expectedAggregateDigestsHex else {
+            throw CLIError.invalidArgument("NumiSeal product aggregate digests do not match expected digests")
+        }
+    }
+    if let expectedComponentDigestRootHex = options.expectedComponentDigestRootHex {
+        guard artifact.componentDigestRootHex == expectedComponentDigestRootHex else {
+            throw CLIError.invalidArgument("NumiSeal product component root does not match expected digest")
+        }
+    }
+    if let expectedProofTranscriptDigestHex = options.expectedProofTranscriptDigestHex {
+        guard artifact.proofTranscriptDigestHex == expectedProofTranscriptDigestHex else {
+            throw CLIError.invalidArgument("NumiSeal product transcript digest does not match expected digest")
+        }
+    }
+    if let expectedPublicInputs = options.expectedPublicInputs {
+        guard artifact.publicInputs == expectedPublicInputs else {
+            throw CLIError.invalidArgument("NumiSeal product public inputs do not match expected public inputs")
+        }
+    }
+}
+
 private func readProofArtifact(path: String) throws -> ProofArtifact {
     let data = try Data(contentsOf: URL(fileURLWithPath: path))
     return try readProofArtifact(data: data)
@@ -1227,6 +1622,15 @@ private func readProofArtifact(data: Data) throws -> ProofArtifact {
         throw CLIError.invalidArgument("proof artifact must include proofKind")
     }
     if proofKind == NumiSealArtifact.proofKind {
+        if let artifactVersion = object["artifactVersion"] as? NSNumber,
+           artifactVersion.uint32Value == NumiSealProductArtifact.artifactVersion {
+            try validateKnownArtifactTopLevelKeys(
+                object: object,
+                allowedKeys: NumiSealProductArtifact.topLevelKeys,
+                artifactName: "NumiSeal product proof artifact"
+            )
+            return .numiSealProduct(try JSONDecoder().decode(NumiSealProductArtifact.self, from: data))
+        }
         try validateKnownArtifactTopLevelKeys(
             object: object,
             allowedKeys: NumiSealArtifact.topLevelKeys,

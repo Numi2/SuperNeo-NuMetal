@@ -13,6 +13,8 @@ manifests, and binary proof envelopes.
 | R1CS/vector manifest | `manifestVersion = 1` |
 | NumiSeal JSON artifact | `artifactVersion = 1` |
 | NumiSeal JSON Schema | `numiseal-test-vector-artifact-v1.json` |
+| NumiSeal product JSON artifact | `artifactVersion = 2` |
+| NumiSeal product JSON Schema | `numiseal-product-artifact-v2.schema.json` |
 | NumiSeal manifest | `manifestVersion = 1` |
 | Proof envelope header | `ProofEnvelopeHeader.version = 4` |
 | NumiSeal proof envelope kind | `4` |
@@ -67,6 +69,26 @@ proof-transcript digest, and public inputs outside the artifact.
 The shared `NumiSealArtifactVerifier` is the compatibility boundary for
 metadata validation, public-obligation reconstruction, policy construction,
 envelope checks, expected-context checks, and verifier dispatch.
+
+Version `2` is the public NumiSeal product wrapper. It accepts only:
+
+- `proofKind = "numiseal-terminal"`,
+- `sealMode = "numiseal-terminal-v2"`,
+- a source fold-reduction envelope,
+- a NumiSeal terminal envelope,
+- source fold output-claim digests,
+- NumiSeal public statement roots and aggregate digests,
+- explicit `carryMode`, `zkMode`, `metalMode`, and `executionPolicy` metadata.
+
+Version `2` must not accept caller-supplied digit tensors. The product prover
+derives NumiSeal digit tensors internally from aggregate witness material. The
+artifact is verified by reducing the source fold envelope first, rebuilding
+output-claim digests, rebuilding NumiSeal obligations, then verifying the
+NumiSeal terminal envelope.
+
+Typed carry is a policy refinement over the existing carry slot. Legacy raw carry
+fixtures remain under `.optional`/`.required`; product recursive carry must use
+`NumiSealCarryStatement` and `.typedOptional`/`.typedRequired`.
 
 ## Version Bump Checklist
 

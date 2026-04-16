@@ -33,6 +33,12 @@ The current `NumiSealProver`/`NumiSealVerifier` assembly API targets the
 multi-lane/multi-aggregate immediate-residual path and uses this same kind `4`
 envelope. `NumiSealProvingPlan` exposes the deterministic aggregate order that
 callers must follow when supplying per-aggregate digit-tensor inputs.
+`superneo prove --seal numiseal` now emits a public product artifact that binds a
+source fold-reduction envelope to a kind `4` NumiSeal terminal envelope. The
+source fold remains kind `1`; the NumiSeal seal remains kind `4`; the JSON
+artifact version separates this product wrapper from deterministic checked
+vectors.
+
 `TestVectors/numiseal-terminal-single-aggregate-v1.json`,
 `TestVectors/numiseal-terminal-two-aggregate-v1.json`, and
 `TestVectors/numiseal-terminal-two-lane-v1.json` are the checked kind `4`
@@ -41,8 +47,6 @@ NumiSeal public statement and roots, while `superneo verify --require-numiseal`
 uses the shared `NumiSealArtifactVerifier` boundary to validate artifact
 metadata, reconstruct public obligations, build terminal policy, check envelope
 digests, compare caller-owned trust pins, and then run `NumiSealVerifier`.
-General-purpose `superneo prove --seal numiseal` remains a separate roadmap
-item.
 
 ## Header Layout
 
@@ -217,8 +221,38 @@ optional framed(carryClaim)
 
 `carryTag == 0` means the carry component is absent. `carryTag == 1` means a
 carry claim is present and framed immediately after the tag. Other tag values
-fail. Absent carry is still bound into `componentDigestRoot` with a typed
-`numiseal.absent-component.v1` leaf, never a zero digest.
+fail. Absent carry is still bound into `componentDigestRoot` with a
+`numiseal.absent-component.v1` leaf, never a zero digest. Legacy raw carry policy modes are `.optional` and
+`.required`. Typed recursive carry uses `NumiSealCarryStatement` inside the same
+framed carry claim bytes and is enforced by `.typedOptional` or
+`.typedRequired`.
+
+`NumiSealCarryStatement` is:
+
+```text
+domain ||
+version ||
+carryKind ||
+recursionLevel ||
+producerProofEnvelopeDigest ||
+producerProofTranscriptDigest ||
+parentStatementDigest ||
+parentPublicStatementDigest ||
+laneKey ||
+aggregateIndex ||
+residualOpeningDigest ||
+decompositionKeyDigest ||
+decompositionCommitmentDigest ||
+finalPointDigest ||
+claimedDigitEvaluation ||
+consumerContextDigest ||
+carryDigest
+```
+
+The carry digest is recomputed over all prior typed fields. `NumiSealCarryConsumer`
+checks parent proof acceptance, producer proof binding, recursion-level
+monotonicity, consumer-context binding, and replay identity before returning an
+accepted carry handle.
 
 NumiSeal component leaves use these labels:
 
