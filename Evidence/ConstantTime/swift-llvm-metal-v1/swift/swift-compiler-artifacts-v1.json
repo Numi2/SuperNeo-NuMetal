@@ -1,0 +1,88 @@
+{
+  "artifactID": "superneo-swift-compiler-lowering-artifacts-v1",
+  "claimStatus": "local-swift-sil-llvm-assembly-artifacts-pinned",
+  "commands": [
+    {
+      "argv": [
+        "swiftc",
+        "-swift-version",
+        "5",
+        "-O",
+        "-whole-module-optimization",
+        "-parse-as-library",
+        "-module-name",
+        "SuperNeo_NuMetal_CT",
+        "SuperNeo-NuMetal/Fields/GoldilocksField.swift",
+        "-emit-sil",
+        "-o",
+        "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.optimized.sil"
+      ],
+      "id": "emit-optimized-sil",
+      "outputPath": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.optimized.sil",
+      "outputSHA256Hex": "b256db753452f52695dfffee09882445129abfb0cb458b3ab07cebe9dd1b994b"
+    },
+    {
+      "argv": [
+        "swiftc",
+        "-swift-version",
+        "5",
+        "-O",
+        "-whole-module-optimization",
+        "-parse-as-library",
+        "-module-name",
+        "SuperNeo_NuMetal_CT",
+        "SuperNeo-NuMetal/Fields/GoldilocksField.swift",
+        "-emit-ir",
+        "-o",
+        "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.optimized.ll"
+      ],
+      "id": "emit-optimized-llvm-ir",
+      "outputPath": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.optimized.ll",
+      "outputSHA256Hex": "705e1c5db03753b9450ddd13fc3e64772343cff5ad6a40e7bd7b61036bdb191f"
+    },
+    {
+      "argv": [
+        "swiftc",
+        "-swift-version",
+        "5",
+        "-O",
+        "-whole-module-optimization",
+        "-parse-as-library",
+        "-module-name",
+        "SuperNeo_NuMetal_CT",
+        "SuperNeo-NuMetal/Fields/GoldilocksField.swift",
+        "-emit-assembly",
+        "-o",
+        "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.arm64.s"
+      ],
+      "id": "emit-target-assembly",
+      "outputPath": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.arm64.s",
+      "outputSHA256Hex": "71a16e5e66dd3177ccba618e5a73026f40ea9de55daf66118d180f45c57e221e"
+    }
+  ],
+  "coveredRegions": [
+    "swift-goldilocks-common-arithmetic",
+    "swift-goldilocks-fixed-exponentiation"
+  ],
+  "generatedAtUTC": "2026-04-16T17:45:54Z",
+  "positiveFindings": [
+    "Optimized SIL was emitted from the checked GoldilocksField.swift source with the release Swift frontend.",
+    "Optimized LLVM IR was emitted from the checked GoldilocksField.swift source with the release Swift frontend.",
+    "Target assembly was emitted from the checked GoldilocksField.swift source with the release Swift frontend."
+  ],
+  "residualBoundaries": [
+    "The emitted artifacts cover the whole GoldilocksField.swift file, including non-scoped parser and inversion code.",
+    "A scoped branch/memory-address audit over the emitted symbols remains required before production constant-time promotion.",
+    "These artifacts pin compiler output; they do not prove CPU microarchitectural constant-time behavior."
+  ],
+  "schemaVersion": 1,
+  "source": {
+    "path": "SuperNeo-NuMetal/Fields/GoldilocksField.swift",
+    "sha256Hex": "788326eb5cb3a50f55d29cd132afb15abb8338c5d1a58ff68b0f7ee134480bae"
+  },
+  "toolchain": {
+    "swiftPath": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+    "swiftVersion": "Apple Swift version 6.3 (swiftlang-6.3.0.123.5 clang-2100.0.123.102)",
+    "xcodeVersion": "Xcode 26.4\nBuild version 17E192"
+  }
+}

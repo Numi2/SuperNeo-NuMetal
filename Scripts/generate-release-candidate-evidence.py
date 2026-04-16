@@ -201,7 +201,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "signedArtifactsRequiredForProductionSecurity": True,
         },
         "productionSecurityBoundaries": [
-            "A conditional source/formal constant-time trace scope and Swift/LLVM/Metal lowering proof contract are recorded; local Metal AIR/metallib artifacts, runtime allocation/COW review, CPU/GPU smoke corpora, and compiler/hardware observation lane reports are pinned, while Swift optimized SIL/LLVM/assembly review, hardware counters, power/contention, and broader device lanes remain explicit evidence boundaries.",
+            "A conditional source/formal constant-time trace scope and Swift/LLVM/Metal lowering proof contract are recorded; local Swift SIL/LLVM/assembly artifacts, Metal AIR/metallib artifacts, runtime allocation/COW review, CPU/GPU smoke corpora, and compiler/hardware observation lane reports are pinned, while scoped emitted-code review, hardware counters, power/contention, and broader device lanes remain explicit evidence boundaries.",
             "E2E proof-size budgets are checked for deterministic vectors and local product smokes; hardware latency claims still require fresh benchmark evidence.",
             "Local product-ops readiness and signed revocation-feed verification are machine-readable and audit-exported; no hosted product replay-protection, provenance, persistence, revocation-distribution, or access-control service is recorded.",
             "NumiSeal product, carry, and ZK formalization has a checked evidence-parametric end-to-end theorem scope; extractor, recursive carry producer, ZK simulator, and QROM loss instantiations remain production-security boundaries.",

@@ -144,11 +144,12 @@ constant-time language.
 
 `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json` is the pinned local
 constant-time release evidence manifest. It is not a proof artifact schema and
-does not affect proof bytes. It pins the local Metal AIR object, linked
-metallib, Metal generation report, runtime allocation/COW static review, CPU
-observation corpus, direct GPU kernel observation corpus, compiler observation
-lane report, and hardware observation lane report used by the lowering evidence
-validator.
+does not affect proof bytes. It pins local Swift optimized SIL, Swift optimized
+LLVM IR, Swift target assembly, Swift compiler generation report, Metal AIR
+object, linked metallib, Metal generation report, runtime allocation/COW static
+review, CPU observation corpus, direct GPU kernel observation corpus, compiler
+observation lane report, and hardware observation lane report used by the
+lowering evidence validator.
 
 `TestVectors/e2e-proof-metrics-v1.json` is the checked proof-size and product
 smoke budget manifest. It is not a proof artifact schema; it pins exact checked

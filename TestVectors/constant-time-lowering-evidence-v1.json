@@ -129,7 +129,7 @@
     "productionConstantTimeClaimAllowed": false,
     "releaseEvidenceOnly": true,
     "unblockRequires": [
-      "Swift optimized SIL, LLVM IR, and target assembly lowering artifacts are recorded for the release toolchain",
+      "Swift optimized SIL, LLVM IR, and target assembly lowering artifacts receive scoped emitted-code review for the marked regions",
       "runtime allocation and copy-on-write review remains recorded for marked Swift regions",
       "CPU and GPU observation corpora are expanded beyond local smoke coverage for the accepted hardware lanes",
       "compiler and hardware observation lane reports are updated with accepted production-lane findings",

@@ -73,8 +73,8 @@ cryptographic library.
 - A checked constant-time source/formal scope for the first Swift Goldilocks and
   NumiSealZK Metal slices, plus a checked Swift/LLVM/Metal lowering evidence
   contract with explicit compiler/runtime/hardware boundaries and pinned local
-  Metal AIR/metallib, runtime allocation-review, CPU/GPU observation evidence,
-  and compiler/hardware observation lane reports.
+  Swift SIL/LLVM/assembly, Metal AIR/metallib, runtime allocation-review,
+  CPU/GPU observation evidence, and compiler/hardware observation lane reports.
 - A checked NumiSeal end-to-end theorem scope for the current product/carry/ZK
   relation, with release evidence pinned while extractor, simulator, and QROM
   instantiations remain explicit production-security boundaries.

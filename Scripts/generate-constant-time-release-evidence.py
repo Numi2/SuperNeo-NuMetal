@@ -22,6 +22,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT / "Evidence" / "ConstantTime" / "swift-llvm-metal-v1"
 SCOPE_PATH = ROOT / "TestVectors" / "constant-time-scope-v1.json"
+SWIFT_SOURCE = ROOT / "SuperNeo-NuMetal" / "Fields" / "GoldilocksField.swift"
 METAL_SOURCE = ROOT / "SuperNeo-NuMetal" / "MetalBackend" / "SuperNeoKernels.metal"
 SUPERNEO_RELEASE = ROOT / ".build" / "release" / "superneo"
 CPU_POLICY = "zk-high-assurance-cpu"
@@ -150,6 +151,82 @@ def artifact_entry(artifact_id: str, path: Path, role: str) -> dict[str, Any]:
         "byteCount": len(data),
         "sha256Hex": sha256_bytes(data),
     }
+
+
+def generate_swift_compiler_artifacts(output_dir: Path, scope: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    swift_dir = output_dir / "swift"
+    swift_dir.mkdir(parents=True, exist_ok=True)
+    sil_path = swift_dir / "GoldilocksField.optimized.sil"
+    llvm_path = swift_dir / "GoldilocksField.optimized.ll"
+    assembly_path = swift_dir / "GoldilocksField.arm64.s"
+    report_path = swift_dir / "swift-compiler-artifacts-v1.json"
+
+    base_command = [
+        "swiftc",
+        "-swift-version",
+        "5",
+        "-O",
+        "-whole-module-optimization",
+        "-parse-as-library",
+        "-module-name",
+        "SuperNeo_NuMetal_CT",
+        rel(SWIFT_SOURCE),
+    ]
+    commands = [
+        {
+            "id": "emit-optimized-sil",
+            "argv": base_command + ["-emit-sil", "-o", rel(sil_path)],
+            "outputPath": rel(sil_path),
+        },
+        {
+            "id": "emit-optimized-llvm-ir",
+            "argv": base_command + ["-emit-ir", "-o", rel(llvm_path)],
+            "outputPath": rel(llvm_path),
+        },
+        {
+            "id": "emit-target-assembly",
+            "argv": base_command + ["-emit-assembly", "-o", rel(assembly_path)],
+            "outputPath": rel(assembly_path),
+        },
+    ]
+    for command in commands:
+        run(list(command["argv"]))
+        command["outputSHA256Hex"] = sha256_file(ROOT / str(command["outputPath"]))
+
+    report = {
+        "schemaVersion": 1,
+        "artifactID": "superneo-swift-compiler-lowering-artifacts-v1",
+        "claimStatus": "local-swift-sil-llvm-assembly-artifacts-pinned",
+        "generatedAtUTC": utc_now(),
+        "source": {
+            "path": rel(SWIFT_SOURCE),
+            "sha256Hex": sha256_file(SWIFT_SOURCE),
+        },
+        "toolchain": {
+            "swiftPath": run_text(["xcrun", "--find", "swiftc"]),
+            "swiftVersion": run_text(["swiftc", "--version"]).splitlines()[0],
+            "xcodeVersion": run_text(["xcodebuild", "-version"]),
+        },
+        "commands": commands,
+        "coveredRegions": [str(region["id"]) for region in scoped_regions(scope, "swift")],
+        "positiveFindings": [
+            "Optimized SIL was emitted from the checked GoldilocksField.swift source with the release Swift frontend.",
+            "Optimized LLVM IR was emitted from the checked GoldilocksField.swift source with the release Swift frontend.",
+            "Target assembly was emitted from the checked GoldilocksField.swift source with the release Swift frontend.",
+        ],
+        "residualBoundaries": [
+            "The emitted artifacts cover the whole GoldilocksField.swift file, including non-scoped parser and inversion code.",
+            "A scoped branch/memory-address audit over the emitted symbols remains required before production constant-time promotion.",
+            "These artifacts pin compiler output; they do not prove CPU microarchitectural constant-time behavior.",
+        ],
+    }
+    write_json(report_path, report)
+    return report, [
+        artifact_entry("swift-optimized-sil", sil_path, "Swift optimized SIL emitted from GoldilocksField.swift"),
+        artifact_entry("swift-optimized-llvm-ir", llvm_path, "Swift optimized LLVM IR emitted from GoldilocksField.swift"),
+        artifact_entry("swift-target-assembly", assembly_path, "Swift target assembly emitted from GoldilocksField.swift"),
+        artifact_entry("swift-compiler-artifact-report", report_path, "Swift SIL/LLVM/assembly generation report"),
+    ]
 
 
 def generate_metal_artifacts(output_dir: Path, scope: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -471,21 +548,25 @@ def generate_compiler_observation_lanes(output_dir: Path, scope: dict[str, Any])
                 "surface": "Swift frontend through optimized SIL, LLVM IR, and target assembly for GoldilocksField arithmetic",
                 "regions": swift_regions,
                 "observedArtifacts": [
+                    "swift-optimized-sil",
+                    "swift-optimized-llvm-ir",
+                    "swift-target-assembly",
+                    "swift-compiler-artifact-report",
                     "runtime-allocation-review",
                 ],
-                "observationStatus": "source-runtime-review-pinned-lowering-artifacts-required",
+                "observationStatus": "local-sil-llvm-assembly-pinned-review-required",
                 "requiredBeforeProduction": [
-                    "optimized SIL or equivalent Swift frontend lowering for marked Swift regions",
-                    "optimized LLVM IR for marked Swift regions",
+                    "scoped review of optimized SIL for marked Swift regions",
+                    "scoped review of optimized LLVM IR for marked Swift regions",
                     "target assembly or object-code branch audit for marked Swift regions",
                 ],
                 "positiveFindings": [
                     "The release evidence pins the Swift source-scope allocation/COW review for the marked regions.",
-                    "No Swift compiler lowering artifact is promoted to a production constant-time claim in this lane.",
+                    "The release evidence pins optimized SIL, LLVM IR, and target assembly emitted from GoldilocksField.swift.",
                 ],
                 "residualBoundaries": [
-                    "Bool-to-mask and select lowering still require emitted SIL/LLVM/assembly observation.",
-                    "This lane records a compiler-observation gap, not a completed Swift compiler proof.",
+                    "Bool-to-mask and select lowering still require scoped review in the emitted artifacts.",
+                    "This lane records compiler artifacts, not a completed Swift compiler proof.",
                 ],
             },
             {
@@ -677,6 +758,8 @@ def main() -> None:
 
     scope = load_scope()
     entries: list[dict[str, Any]] = []
+    _, swift_entries = generate_swift_compiler_artifacts(output_dir, scope)
+    entries.extend(swift_entries)
     _, metal_entries = generate_metal_artifacts(output_dir, scope)
     entries.extend(metal_entries)
     _, runtime_entry = generate_runtime_review(output_dir, scope)

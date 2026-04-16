@@ -26,6 +26,10 @@ REQUIRED_STATUS = {
     "local-observation-corpus-pinned",
 }
 REQUIRED_RELEASE_EVIDENCE_IDS = {
+    "swift-optimized-sil",
+    "swift-optimized-llvm-ir",
+    "swift-target-assembly",
+    "swift-compiler-artifact-report",
     "metal-air",
     "metal-metallib",
     "metal-artifact-report",
@@ -49,6 +53,7 @@ REQUIRED_COMPILER_LANE_IDS = {
 }
 REQUIRED_COMPILER_LANE_STATUS = {
     "source-runtime-review-pinned-lowering-artifacts-required",
+    "local-sil-llvm-assembly-pinned-review-required",
     "local-air-and-metallib-pinned-disassembly-required",
 }
 REQUIRED_HARDWARE_LANE_IDS = {
@@ -296,6 +301,56 @@ def validate_metal_artifact_report(entries: dict[str, dict[str, Any]], scope: di
     require_string_list(report.get("residualBoundaries"), "metal artifact residualBoundaries")
 
 
+def validate_swift_compiler_artifact_report(entries: dict[str, dict[str, Any]], scope: dict[str, Any]) -> None:
+    report_path = require_relative_artifact_path(
+        entries["swift-compiler-artifact-report"].get("path"),
+        "swift-compiler-artifact-report.path",
+    )
+    report = read_json(report_path)
+    require(report.get("schemaVersion") == 1, "Swift compiler artifact report schemaVersion must be 1")
+    require(
+        report.get("claimStatus") == "local-swift-sil-llvm-assembly-artifacts-pinned",
+        "Swift compiler artifact report claimStatus must stay precise",
+    )
+    source = report.get("source")
+    require(isinstance(source, dict), "Swift compiler artifact report source must be an object")
+    source_path = require_relative_artifact_path(source.get("path"), "Swift compiler artifact source.path")
+    require(source.get("sha256Hex") == sha256_hex(source_path), "Swift compiler artifact source digest is stale")
+    covered = set(require_string_list(report.get("coveredRegions"), "Swift compiler artifact coveredRegions"))
+    require(covered == scope_region_ids(scope, "swift"), "Swift compiler artifact report must cover every Swift scope region")
+
+    command_by_id: dict[str, dict[str, Any]] = {}
+    commands = report.get("commands")
+    require(isinstance(commands, list), "Swift compiler artifact report commands must be a list")
+    for command in commands:
+        require(isinstance(command, dict), "Swift compiler artifact report command must be an object")
+        command_id = require_string(command.get("id"), "Swift compiler artifact command.id")
+        require(command_id not in command_by_id, f"duplicate Swift compiler artifact command id: {command_id}")
+        command_by_id[command_id] = command
+        argv = command.get("argv")
+        require(isinstance(argv, list) and argv, f"{command_id}.argv must be a non-empty list")
+        require("-O" in argv, f"{command_id}.argv must include -O")
+        require("-whole-module-optimization" in argv, f"{command_id}.argv must include -whole-module-optimization")
+        output_path = require_relative_artifact_path(command.get("outputPath"), f"{command_id}.outputPath")
+        require(command.get("outputSHA256Hex") == sha256_hex(output_path), f"{command_id}.outputSHA256Hex is stale")
+    require(
+        set(command_by_id) == {"emit-optimized-sil", "emit-optimized-llvm-ir", "emit-target-assembly"},
+        "Swift compiler artifact report must record SIL, LLVM IR, and assembly commands",
+    )
+    require(command_by_id["emit-optimized-sil"].get("outputPath") == entries["swift-optimized-sil"].get("path"), "Swift SIL report path mismatch")
+    require(command_by_id["emit-optimized-llvm-ir"].get("outputPath") == entries["swift-optimized-llvm-ir"].get("path"), "Swift LLVM IR report path mismatch")
+    require(command_by_id["emit-target-assembly"].get("outputPath") == entries["swift-target-assembly"].get("path"), "Swift assembly report path mismatch")
+    for artifact_id, marker in {
+        "swift-optimized-sil": "GoldilocksField",
+        "swift-optimized-llvm-ir": "GoldilocksField",
+        "swift-target-assembly": "GoldilocksField",
+    }.items():
+        artifact_path = require_relative_artifact_path(entries[artifact_id].get("path"), f"{artifact_id}.path")
+        require(marker in artifact_path.read_text(encoding="utf-8", errors="ignore"), f"{artifact_id} must contain {marker}")
+    require_string_list(report.get("positiveFindings"), "Swift compiler artifact positiveFindings")
+    require_string_list(report.get("residualBoundaries"), "Swift compiler artifact residualBoundaries")
+
+
 def validate_runtime_review(entries: dict[str, dict[str, Any]], scope: dict[str, Any]) -> None:
     review_path = require_relative_artifact_path(entries["runtime-allocation-review"].get("path"), "runtime-allocation-review.path")
     review = read_json(review_path)
@@ -496,6 +551,7 @@ def validate_release_evidence(manifest: dict[str, Any], scope: dict[str, Any]) -
         release_manifest.get("hardwareObservationLaneReport") == entries["hardware-observation-lanes"].get("path"),
         "release evidence hardwareObservationLaneReport must match the pinned hardware lane artifact",
     )
+    validate_swift_compiler_artifact_report(entries, scope)
     validate_metal_artifact_report(entries, scope)
     validate_runtime_review(entries, scope)
 

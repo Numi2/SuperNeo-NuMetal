@@ -27,9 +27,9 @@ Machine-readable files:
 - `constant-time-lowering-evidence-v1.json`: checked Swift/LLVM/Metal
   lowering evidence contract for the constant-time source/formal scope. It
   links to `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`, which
-  pins the local Metal AIR/metallib, runtime allocation-review, and CPU/GPU
-  observation evidence plus compiler/hardware observation lane reports outside
-  the test-vector directory.
+  pins local Swift SIL/LLVM/assembly, Metal AIR/metallib, runtime
+  allocation-review, CPU/GPU observation evidence, and compiler/hardware
+  observation lane reports outside the test-vector directory.
 - `e2e-proof-metrics-v1.json`: checked proof-envelope byte counts, artifact
   byte counts, generated product-smoke budgets, and benchmark-evidence policy.
 

@@ -96,9 +96,9 @@ source/formal scope manifest and the formal declarations recorded in
 `Scripts/validate-constant-time-lowering-evidence.py` checks the
 Swift/LLVM/Metal lowering proof contract, runtime/hardware TCB obligations, and
 promotion rule recorded in `TestVectors/constant-time-lowering-evidence-v1.json`;
-it also verifies the pinned local Metal AIR/metallib artifacts, runtime
-allocation review, CPU/GPU observation corpora, and compiler/hardware
-observation lane reports under
+it also verifies the pinned local Swift SIL/LLVM/assembly artifacts, Metal
+AIR/metallib artifacts, runtime allocation review, CPU/GPU observation corpora,
+and compiler/hardware observation lane reports under
 `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. Regenerate those
 artifacts with `Scripts/generate-constant-time-release-evidence.py` before a
 release candidate when the scoped source or toolchain changes.

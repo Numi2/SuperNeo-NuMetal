@@ -204,11 +204,11 @@ These are the remaining blockers before using production-security language:
    repository now has a checked Swift/LLVM/Metal lowering proof contract in
    `TestVectors/constant-time-lowering-evidence-v1.json` and pinned local
    release evidence in `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
-   for Metal AIR/metallib generation, runtime allocation/COW static review,
-   CPU/GPU smoke corpora, and compiler/hardware observation lane reports. Swift
-   optimized SIL/LLVM/assembly review, hardware counters, power/contention, and
-   broader device lanes still have to be recorded before production constant-time
-   language is allowed.
+   for Swift SIL/LLVM/assembly generation, Metal AIR/metallib generation,
+   runtime allocation/COW static review, CPU/GPU smoke corpora, and
+   compiler/hardware observation lane reports. Scoped Swift emitted-code review,
+   hardware counters, power/contention, and broader device lanes still have to
+   be recorded before production constant-time language is allowed.
 3. Deployed product implementations for trusted key distribution,
    expected-context storage, artifact provenance, replay protection,
    persistence, access control, hosted logging, and hosted revocation
@@ -220,8 +220,8 @@ These are the remaining blockers before using production-security language:
    surfaces and conformance vectors, and
    `TestVectors/numiseal-end-to-end-theorem-scope-v1.json` pins the checked
    NumiSeal end-to-end theorem scope. That scope now includes checked Lean
-   surfaces for recursive folding knowledge soundness, typed carry
-   producer/consumer composition, and NumiSealZK simulation/privacy under the
+   surfaces for recursive folding knowledge soundness, typed carry producer/consumer
+   composition, and NumiSealZK simulation/privacy under the
    declared public-leakage model. The current theorem is still
    evidence-parametric: accepted product gates plus named source-fold,
    terminal-seal, recursive-knowledge, typed-carry, masked-residual ZK,

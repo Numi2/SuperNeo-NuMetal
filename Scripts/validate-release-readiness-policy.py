@@ -305,8 +305,8 @@ def validate_schema_versions() -> None:
     )
     artifact_entries = release_evidence.get("artifactEntries")
     require(
-        isinstance(artifact_entries, list) and len(artifact_entries) == 8,
-        "constant-time release evidence must pin eight artifacts",
+        isinstance(artifact_entries, list) and len(artifact_entries) == 12,
+        "constant-time release evidence must pin twelve artifacts",
     )
     artifact_ids = {
         str(entry.get("id"))
@@ -314,8 +314,15 @@ def validate_schema_versions() -> None:
         if isinstance(entry, dict)
     }
     require(
-        {"compiler-observation-lanes", "hardware-observation-lanes"}.issubset(artifact_ids),
-        "constant-time release evidence must pin compiler and hardware observation lane reports",
+        {
+            "swift-optimized-sil",
+            "swift-optimized-llvm-ir",
+            "swift-target-assembly",
+            "swift-compiler-artifact-report",
+            "compiler-observation-lanes",
+            "hardware-observation-lanes",
+        }.issubset(artifact_ids),
+        "constant-time release evidence must pin Swift compiler artifacts and compiler/hardware observation lane reports",
     )
     e2e_metrics = read_json("TestVectors/e2e-proof-metrics-v1.json")
     require(isinstance(e2e_metrics, dict), "E2E proof metrics root must be an object")

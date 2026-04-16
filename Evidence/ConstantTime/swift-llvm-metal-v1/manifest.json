@@ -1,6 +1,34 @@
 {
   "artifactEntries": [
     {
+      "byteCount": 372407,
+      "id": "swift-optimized-sil",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.optimized.sil",
+      "role": "Swift optimized SIL emitted from GoldilocksField.swift",
+      "sha256Hex": "b256db753452f52695dfffee09882445129abfb0cb458b3ab07cebe9dd1b994b"
+    },
+    {
+      "byteCount": 159066,
+      "id": "swift-optimized-llvm-ir",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.optimized.ll",
+      "role": "Swift optimized LLVM IR emitted from GoldilocksField.swift",
+      "sha256Hex": "705e1c5db03753b9450ddd13fc3e64772343cff5ad6a40e7bd7b61036bdb191f"
+    },
+    {
+      "byteCount": 124209,
+      "id": "swift-target-assembly",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.arm64.s",
+      "role": "Swift target assembly emitted from GoldilocksField.swift",
+      "sha256Hex": "71a16e5e66dd3177ccba618e5a73026f40ea9de55daf66118d180f45c57e221e"
+    },
+    {
+      "byteCount": 3450,
+      "id": "swift-compiler-artifact-report",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/swift-compiler-artifacts-v1.json",
+      "role": "Swift SIL/LLVM/assembly generation report",
+      "sha256Hex": "356adcb19b83c4ff08d721754b221e9ce8c109fc27e595942c810e22f8489abb"
+    },
+    {
       "byteCount": 29248,
       "id": "metal-air",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/SuperNeoKernels.air",
@@ -19,48 +47,48 @@
       "id": "metal-artifact-report",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/metal-artifacts-v1.json",
       "role": "Metal AIR/metallib generation report",
-      "sha256Hex": "4dc0df46346fd73e23af5c65e19d7663d60e1916b47aa73083cc3377f3e27fbb"
+      "sha256Hex": "fed588d8dec8a371500a47335e51d11058063f9396750e0b54d2ed070d54bc9e"
     },
     {
       "byteCount": 1945,
       "id": "runtime-allocation-review",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/runtime/runtime-allocation-review-v1.json",
       "role": "Swift runtime allocation/COW static review",
-      "sha256Hex": "116f92419c24b1cbcfd0d4f03f445eae51f06b1c2befe6ad0d83793ac4be2154"
+      "sha256Hex": "f28318a3d38a1386b15770e0109c5bf7895841bae389e7691d75337b7df76b4f"
     },
     {
-      "byteCount": 8618,
+      "byteCount": 8619,
       "id": "cpu-observation-corpus",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/observations/cpu-observation-corpus-v1.json",
       "role": "zk-high-assurance-cpu local observation corpus",
-      "sha256Hex": "4746e4fd890fbe62159f9d23a462f879fc6c6920eb1b837f5a1f716c0950f452"
+      "sha256Hex": "d5a1bf678d5025a2aaf554402ea08b2a8daacc26a5beadb3983dc7305287826a"
     },
     {
-      "byteCount": 17285,
+      "byteCount": 17266,
       "id": "gpu-observation-corpus",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/observations/gpu-observation-corpus-v1.json",
       "role": "direct Metal secret-bearing kernel observation corpus",
-      "sha256Hex": "dcc9111fc704496b5496e78d22d9a54c8f28df93b09f94856ec70daa7809522f"
+      "sha256Hex": "bb593d150bf28581beb240e8e2f8705816b9389b472ef90af25386c6330f7bee"
     },
     {
-      "byteCount": 3923,
+      "byteCount": 4051,
       "id": "compiler-observation-lanes",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
       "role": "compiler observation lane report for Swift/LLVM/Metal constant-time evidence",
-      "sha256Hex": "dc268c29f96f84c88ad295b844e762f770dd25f6ee9d16cd205bbddbfdc13f7f"
+      "sha256Hex": "304b531ad155ec841aff62acb66478fc31924bc82976ad0ee3c342a7f331be99"
     },
     {
       "byteCount": 3215,
       "id": "hardware-observation-lanes",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
       "role": "hardware observation lane report for CPU/GPU constant-time evidence",
-      "sha256Hex": "00eb8a36462d47c681a53924a02e885a42fe2b6eb68c61904b3013ef1cd036cd"
+      "sha256Hex": "a97caaf57a7c90426fefc4a5aae043cdf3e463f66c462d1f77633a6a2f37d51f"
     }
   ],
   "claimStatus": "local-release-evidence-pinned",
   "compilerObservationLaneReport": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
   "evidenceID": "superneo-swift-llvm-metal-release-evidence-v1",
-  "generatedAtUTC": "2026-04-16T17:37:58Z",
+  "generatedAtUTC": "2026-04-16T17:45:57Z",
   "hardware": {
     "machine": "arm64e",
     "swVers": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5\nBuildVersion:\t\t25F5042g",
