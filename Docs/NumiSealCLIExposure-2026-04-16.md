@@ -1,0 +1,33 @@
+# NumiSeal CLI Exposure - 2026-04-16
+
+Scope: production `superneo` inspection and verification for checked NumiSeal
+terminal vector artifacts.
+
+## What Changed
+
+- `superneo inspect` recognizes kind `4` NumiSeal terminal vector artifacts,
+  parses the envelope, and reports the NumiSeal public statement digest,
+  obligation root, lane-summary root, aggregate digests, component digest root,
+  proof transcript digest, policy limits, and header transcript domain.
+- `superneo verify --require-numiseal` reconstructs the public obligations and
+  aggregate plan from artifact metadata, checks the NumiSeal public statement and
+  proof-body digest bindings, and dispatches through `NumiSealVerifier` with the
+  immediate residual CE opening policy.
+- `superneo verify` without `--require-numiseal` rejects NumiSeal artifacts, and
+  `--require-terminal` remains limited to legacy terminal-local and
+  compressed-public envelopes.
+- Strict NumiSeal verifier context can be pinned with transcript-domain,
+  public-statement, obligation-root, lane-summary-root, aggregate,
+  component-root, proof-transcript, public-input, shape, statement, and
+  verifier-key digest options.
+- `Scripts/production-gate.sh` now exercises `superneo inspect`, the missing
+  `--require-numiseal` failure, the legacy terminal-policy failure, strict
+  single-aggregate verification, and broad two-aggregate/two-lane verification.
+
+## Security Boundary
+
+This is verifier exposure for the checked immediate-residual artifact family. It
+does not make `superneo-numiseal-vectors` a production prover, does not add a
+general `superneo prove --seal numiseal` interface, and does not change the
+non-ZK default. External callers still need policy-owned expected context
+outside the artifact before treating CLI acceptance as an authorization decision.

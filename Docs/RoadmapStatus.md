@@ -68,8 +68,10 @@ Remaining boundary:
   boundary. It is not a compiler from general programs to CCS, a persistence
   layer, a replay-protection system, or an application identity/key-distribution
   system.
-- The CLI is still a demo/integration surface, not a production verifier
-  service.
+- The CLI is still a local integration surface, not a hosted verifier service,
+  wallet, replay-protection layer, or application policy engine. NumiSeal
+  acceptance is exposed only through the explicit `--require-numiseal` verifier
+  path for checked immediate-residual artifacts.
 
 ## Third Priority: Credibility
 
@@ -278,7 +280,10 @@ dedicated NumiSeal vector generator/validator, manifest, schema, and
 production-gate validation path are also present for the current
 immediate-residual fixtures. The adversarial audit path now covers malformed
 large-tensor proof-body sum-check frames, per-shape NumiSeal vector manifest and
-artifact negatives, and a Lean dense sum-check transcript hook.
+artifact negatives, and a Lean dense sum-check transcript hook. The production
+`superneo` CLI now exposes NumiSeal inspection and opt-in
+`verify --require-numiseal` for the checked artifact family, with strict digest
+pinning options for policy callers.
 
 NumiSeal is the planned native terminal-seal layer for the SNARK product track.
 It should compress many terminal CE obligations into lane-local aggregates while
@@ -296,6 +301,9 @@ Artifacts:
   degree-4 sum-check, residual opening, generalized prover/verifier assembly,
   and vectors through recursion, zero knowledge, frontend expansion,
   verifier/API product surface, and research-governance work.
+- `Docs/NumiSealCLIExposure-2026-04-16.md` records the production `superneo`
+  inspect/verify exposure, strict policy pins, production-gate coverage, and
+  non-goals for the checked immediate-residual artifact family.
 - `SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypes.swift` defines lane IDs,
   lane keys, acceptance policy, terminal obligations, canonical obligations,
   lane summaries, and digest-list roots.
@@ -366,6 +374,11 @@ Artifacts:
   rejects duplicate and unknown JSON keys, checks manifest byte count and
   SHA-256, regenerates exact envelope bytes, parses the kind `4` envelope, and
   verifies through `NumiSealVerifier`.
+- `SuperNeoCLI/main.swift` recognizes checked NumiSeal terminal vector artifacts
+  in `inspect` and in `verify --require-numiseal`, reconstructs public
+  obligations and aggregate policy, checks public-statement, aggregate,
+  component-root, and proof-transcript bindings, and rejects kind `4` artifacts
+  without the NumiSeal policy gate.
 - `Scripts/test-numiseal-vector-validation.py` mutation-tests fail-closed
   NumiSeal vector validation for each checked shape by corrupting manifest
   workload metadata and artifact proof-kind metadata.
@@ -437,14 +450,15 @@ Implementation gates:
   `NumiSealProver`, and `NumiSealVerifier` API is present for immediate
   residual envelopes.
 - Phase 8: the checked NumiSeal vector matrix is present with deterministic
-  generator/validator, per-shape negative validation, and production-gate
-  coverage. Full CLI exposure and security audit artifacts remain.
+  generator/validator, per-shape negative validation, production-gate coverage,
+  and production `superneo inspect` plus `verify --require-numiseal` exposure.
+  General NumiSeal proving and deeper security-audit artifacts remain.
 
 Remaining boundary:
 
-- NumiSeal is not a production terminal proof mode yet. The current broadly
-  productized terminal proof remains `terminalLocal` or `compressedPublic`;
-  NumiSeal must not be advertised as production-ready until the remaining CLI,
-  formal completion, security-audit, and production-gate work is complete.
+- NumiSeal now has a production-facing verifier/inspection surface for checked
+  immediate-residual artifacts, but it is not a complete production NumiSeal
+  product. General proving, recursive carry semantics, zero knowledge, formal
+  completion, and third-party security audit remain.
 - The zero-knowledge product track still needs a separate `NumiSealZK` design
   and proof story.

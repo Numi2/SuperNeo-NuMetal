@@ -10,7 +10,8 @@ does not use prover-side Metal acceleration.
 
 ## Workloads
 
-The CLI currently exposes two workloads.
+The `prove` command currently exposes two workloads. The `verify` and `inspect`
+commands also understand checked NumiSeal terminal vector artifacts.
 
 ### `one-hot-vector-v1`
 
@@ -124,6 +125,29 @@ swift run superneo verify \
   /tmp/one-hot-compressed-terminal-proof.json
 ```
 
+Inspect and verify a checked NumiSeal terminal vector:
+
+```sh
+swift run superneo inspect TestVectors/numiseal-terminal-single-aggregate-v1.json
+
+swift run superneo verify \
+  --require-numiseal \
+  --key-seed SuperNeoNumiSeal.vector.single-aggregate.key.v1 \
+  --expected-verifier-key-digest fd2605390a4f450fdfdcde6259aa8bb06c51bf66d1def285fbe9cabc5eb09a73 \
+  --expected-shape-digest 31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e \
+  --expected-statement-digest 9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e \
+  --expected-transcript-domain-digest 018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de \
+  --expected-public-statement-digest b38d814282d7273508a1ce56ac98bfca87018250080c26b7ad98b9fa6b8b9070 \
+  --expected-aggregate-digests 6bd43ca109ddc7578de000d6a0983a878e3a7d76df4ccb60d74b08f9fbfd25ae \
+  --expected-component-digest-root 5320b1bf387199838f8f1ebd9fbfa2efec054555af3a4d07cea001e17ec510ad \
+  --expected-proof-transcript-digest f4315994c550045181389647af20533bfee3a2383b6a23072d1715f854c8c7b4 \
+  TestVectors/numiseal-terminal-single-aggregate-v1.json
+```
+
+NumiSeal kind `4` artifacts fail closed unless `--require-numiseal` is present.
+They are not accepted by `--require-terminal`, which remains the policy gate for
+legacy terminal-local and compressed-public envelopes.
+
 Terminal mode is complete but intentionally not the default. In local Debug
 runs, even a small terminal proof is much larger and slower because it includes
 the public CE opening proof. `compressed-terminal` keeps terminal acceptance and
@@ -149,13 +173,23 @@ The JSON artifact stores:
 - statement digest, and
 - verifier-key digest.
 
+NumiSeal vector artifacts additionally store residual mode, lane IDs,
+fold/source/CE deterministic vector seeds, aggregate limits, transcript-domain
+digest, public-statement digest, obligation root, lane-summary root, aggregate
+digests, component digest root, and proof-transcript digest. `superneo verify
+--require-numiseal` reconstructs the public obligations and NumiSeal policy from
+that metadata, checks those digests against the kind `4` envelope, and then
+dispatches through `NumiSealVerifier`.
+
 The verifier reconstructs the workload shape and public input, regenerates the
 Ajtai verifier key from the seed, checks all three digests, and then verifies the
 proof envelope. Without `--key-seed` and `--expected-*` arguments, the seed and
 digests are read from the artifact, so verification is a self-consistency check
 rather than a policy decision. Production callers should store the expected
 seed, public inputs, proof kind, shape digest, statement digest, and verifier-key
-digest outside the artifact.
+digest outside the artifact. For NumiSeal, callers should also pin the
+transcript domain, public-statement digest, obligation root, lane-summary root,
+aggregate digests, component digest root, and proof-transcript digest.
 
 The CLI rejects artifacts with unknown top-level JSON fields before decoding.
 This keeps the verifier aligned with the published artifact schema and prevents
@@ -170,11 +204,17 @@ Current golden vectors:
 - `TestVectors/one-hot-vector-compressed-terminal-v1.json`
 - `TestVectors/binary-addition-u8-fold-v1.json`
 - `TestVectors/binary-addition-u8-terminal-v1.json`
+- `TestVectors/numiseal-terminal-single-aggregate-v1.json`
+- `TestVectors/numiseal-terminal-two-aggregate-v1.json`
+- `TestVectors/numiseal-terminal-two-lane-v1.json`
 
 The `UsabilitySurfaceTests` cover the checked-in fold, terminal, and
 compressed-terminal vectors. The manifest validator reconstructs trusted context
 for every checked-in vector and verifies terminal and compressed-terminal
-vectors with `--require-terminal`.
+vectors with `--require-terminal`. `superneo-numiseal-vectors` remains the
+deterministic NumiSeal generator/manifest validator, while `superneo inspect`
+and `superneo verify --require-numiseal` are the production-facing reader and
+verifier surfaces for checked NumiSeal terminal artifacts.
 
 For external implementations, `TestVectors/manifest.json` records each vector's
 SHA-256 hash, byte count, workload, proof kind, trusted expected verifier

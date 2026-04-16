@@ -78,6 +78,28 @@ An accepted compressed public envelope means:
 It does not remove the need for applications to validate they supplied the
 intended public input, intended verifier key, and intended CCS shape.
 
+## What `verify --require-numiseal` Proves
+
+`superneo verify --require-numiseal` accepts checked NumiSeal terminal artifacts
+with proof envelope kind `4`. Verification reconstructs the public NumiSeal
+obligations, accepted lane set, aggregate plan, and terminal policy from the
+artifact's public vector metadata, checks the envelope header, public statement,
+obligation root, lane-summary root, aggregate digests, component digest root, and
+proof-transcript digest, then calls `NumiSealVerifier` to verify immediate
+residual CE openings through the existing CE opening relation.
+
+An accepted NumiSeal terminal artifact means:
+
+> The supplied kind `4` envelope verified against the reconstructed public
+> NumiSeal statement, aggregate policy, shape, verifier key, transcript domain,
+> and immediate residual CE openings.
+
+This is not a zero-knowledge claim, not a recursive NumiSeal product claim, and
+not a general `superneo prove --seal numiseal` interface. The deterministic
+NumiSeal vector generator remains test-vector tooling. External callers must
+pin expected NumiSeal context outside the artifact before treating CLI
+acceptance as a policy decision.
+
 ## What The Envelope Adds
 
 A proof envelope prevents context confusion. It binds proof bytes to:

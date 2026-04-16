@@ -19,6 +19,11 @@ The implementation is designed to check the following claims:
 - A compressed public envelope is accepted only when its public statement
   digests, fold proof digest, CE opening proof digest, compression digest, and
   reconstructed terminal CE statement all verify.
+- A NumiSeal terminal envelope is accepted only by the NumiSeal-specific policy
+  path. The CLI requires `--require-numiseal`, rejects kind `4` under legacy
+  terminal policy, reconstructs public NumiSeal obligations and aggregate order
+  from checked vector metadata, checks public-statement/aggregate/component
+  digest bindings, and dispatches residual openings through `NumiSealVerifier`.
 - Public proof bytes are bound to a profile ID, proof kind, CCS shape digest,
   statement digest, verifier-key digest, and transcript domain through the
   envelope header and transcript seed.
@@ -64,12 +69,18 @@ The verifier must defend against:
 - proof-kind confusion between reduction and terminal verification,
 - profile mismatch,
 - malformed serialization that tries to trigger over-allocation or trailing-data
-  ambiguity, and
-- stale Metal workspaces tied to a different compiled shape.
+  ambiguity,
+- stale Metal workspaces tied to a different compiled shape, and
+- NumiSeal-specific proof-body mutation, including malformed dense sum-check
+  frames, lane/aggregate-policy confusion, public-statement root substitution,
+  aggregate digest substitution, component-root substitution, and accidental
+  acceptance without the `--require-numiseal` gate.
 
 The tests include adversarial envelope mutation, digest mismatch, profile
 mismatch, proof-kind mismatch, non-canonical field encoding, malformed
-decomposition output, and CPU/Metal differential checks.
+decomposition output, malformed NumiSeal large-tensor proof-body mutation,
+per-shape NumiSeal vector manifest/artifact negatives, and CPU/Metal
+differential checks.
 
 ## Explicit Non-Goals
 
@@ -95,6 +106,12 @@ construction, but this repository should not be presented as a general
 zero-knowledge system until that privacy claim is separately specified, tested,
 and reviewed.
 
+The NumiSeal CLI exposure is a verifier/inspection surface for the checked
+immediate-residual artifact family. `superneo-numiseal-vectors` remains a
+deterministic vector generator and validator, not a production proving product,
+and `superneo verify --require-numiseal` is not a claim of recursive, zero
+knowledge, or externally audited NumiSeal security.
+
 ## Randomness Notes
 
 Protocol transcript challenges are deterministic Fiat-Shamir challenges derived
@@ -106,6 +123,12 @@ CE opening proof masking uses a 32-byte system-random seed when the public API i
 called without an explicit deterministic seed. This is sufficient for research
 experiments on supported platforms, but production use should replace or wrap
 that path with an explicitly documented CSPRNG policy and seed provenance.
+
+Checked NumiSeal vectors carry deterministic fold/source/CE seed metadata for
+reproducibility. That metadata is a test-vector reproducibility mechanism. A
+deployment that accepts third-party NumiSeal artifacts must pin expected key,
+shape, statement, transcript-domain, public-statement, aggregate, component-root,
+proof-transcript, and public-input context outside the artifact.
 
 ## GPU And Metal Boundary
 

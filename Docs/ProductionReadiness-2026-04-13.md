@@ -52,8 +52,11 @@ case.
 - release binary CLI fold prove/verify smoke for one-hot and binary-addition
 - release binary CLI terminal prove/verify smoke for one-hot and
   binary-addition with `--require-terminal`
+- release binary CLI NumiSeal inspect/verify smoke for checked
+  immediate-residual vectors with explicit `--require-numiseal`
 - negative strict-verifier checks for public-input mismatch and terminal-proof
-  requirement mismatch
+  requirement mismatch, including NumiSeal missing-policy and digest-pin
+  mismatch checks
 - negative artifact-ingestion checks for unknown fields, duplicate JSON keys,
   missing workload parameters, non-canonical workload parameters, and workload
   parameter/public-input mismatches

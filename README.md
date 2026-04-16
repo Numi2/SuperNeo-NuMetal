@@ -239,6 +239,20 @@ swift run superneo prove \
 swift run superneo verify --require-terminal /tmp/one-hot-compressed-terminal-proof.json
 ```
 
+Inspect and verify a checked NumiSeal terminal vector through the main
+`superneo` verifier surface:
+
+```sh
+swift run superneo inspect TestVectors/numiseal-terminal-single-aggregate-v1.json
+swift run superneo verify \
+  --require-numiseal \
+  TestVectors/numiseal-terminal-single-aggregate-v1.json
+```
+
+NumiSeal artifacts are verifier-only in `superneo`; omitting
+`--require-numiseal` fails closed so kind `4` envelopes cannot be accepted by
+legacy terminal policy by accident.
+
 The CLI proof generator uses the repository's `.highAssurance` execution
 policy. It remains an integration demo, not a production policy engine. More
 detail is available in [Docs/CLI.md](Docs/CLI.md).
@@ -264,6 +278,10 @@ swift run superneo verify \
   --require-terminal \
   path/to/artifact.json
 ```
+
+For NumiSeal terminal artifacts, use `--require-numiseal` and additionally pin
+the transcript-domain, public-statement, aggregate, component-root, and
+proof-transcript digests when the artifact comes from another party.
 
 Without trusted context arguments, the verifier reads the seed and digests from
 the artifact itself, which is useful for demos but not a policy decision. The

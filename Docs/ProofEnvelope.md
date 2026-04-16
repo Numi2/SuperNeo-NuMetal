@@ -36,8 +36,11 @@ callers must follow when supplying per-aggregate digit-tensor inputs.
 `TestVectors/numiseal-terminal-single-aggregate-v1.json`,
 `TestVectors/numiseal-terminal-two-aggregate-v1.json`, and
 `TestVectors/numiseal-terminal-two-lane-v1.json` are the checked kind `4`
-vectors for this immediate-residual path. Final production terminal-seal
-exposure remains a roadmap gate.
+vectors for this immediate-residual path. `superneo inspect` parses their
+NumiSeal public statement and roots, while `superneo verify --require-numiseal`
+reconstructs the public obligations and terminal policy before running
+`NumiSealVerifier`. General-purpose `superneo prove --seal numiseal` remains a
+separate roadmap item.
 
 ## Header Layout
 

@@ -58,10 +58,15 @@ Already present:
   per-shape vector artifact proof-kind negatives, and a Lean dense sum-check
   transcript hook.
 
+Now present:
+
+- Production `superneo inspect` and opt-in `superneo verify --require-numiseal`
+  exposure for checked immediate-residual artifacts over the current direct
+  digit-commitment residual verifier.
+
 Not yet present:
 
-- Production NumiSeal CLI/product exposure for the current direct
-  digit-commitment residual verifier.
+- General NumiSeal proving/product exposure.
 - Formal completion and security audit artifacts.
 - Zero-knowledge layer.
 - Recursive/aggregate sealing product.
@@ -70,8 +75,9 @@ Not yet present:
 ## Non-Negotiable Boundaries
 
 - A fold reduction is never application acceptance.
-- NumiSeal must not be advertised as a production verifier mode until CLI,
-  vector-matrix, formal-hook, and security-audit gates pass.
+- NumiSeal verifier exposure is limited to checked immediate-residual artifacts
+  and must not be advertised as a complete production NumiSeal product until
+  general proving, formal completion, and security-audit gates pass.
 - NumiSeal is not zero knowledge by default.
 - CE opening masking is not a blanket zero-knowledge layer.
 - No external PCS is imported for v10.
@@ -506,8 +512,8 @@ Artifacts:
   verifier-key digest, transcript-domain digest, public-statement digest,
   aggregate digest, proof kind, lane IDs, and strict command;
 - `superneo inspect` support for NumiSeal headers and public statement;
-- opt-in `superneo prove --seal numiseal`;
 - opt-in `superneo verify --require-numiseal`;
+- future opt-in `superneo prove --seal numiseal`;
 - production-gate coverage.
 
 Initial implementation status: `superneo-numiseal-vectors` now generates and
@@ -522,13 +528,16 @@ component-root, and proof-transcript digests, parses kind `4` envelopes, and
 verifies through `NumiSealVerifier`. `Scripts/production-gate.sh` runs this
 validator and runs `Scripts/test-numiseal-vector-validation.py`, which mutates
 the manifest workload metadata and artifact proof-kind metadata for every
-checked NumiSeal vector shape.
+checked NumiSeal vector shape. The production `superneo` CLI now inspects
+NumiSeal vector artifacts and verifies them only behind `--require-numiseal`,
+with optional external pins for transcript-domain, public-statement, aggregate,
+component-root, proof-transcript, and ordinary verifier-context digests.
 
 Acceptance gates:
 
 - vector validator rejects unknown fields and duplicate keys;
 - release gate verifies the single-aggregate, same-lane two-aggregate, and
-  two-lane checked NumiSeal vectors;
+  two-lane checked NumiSeal vectors through `superneo verify --require-numiseal`;
 - negative fixtures cover wrong digest, wrong lane, wrong proof kind, wrong
   byte count, wrong manifest hash, per-shape NumiSeal manifest and artifact
   metadata, and missing `--require-numiseal`;
@@ -538,6 +547,9 @@ World-class bar:
 
 - vectors are small enough to inspect, but include at least one multi-lane
   aggregate to exercise real canonicalization.
+- `superneo` verifier exposure is explicit about being a checked
+  immediate-residual terminal verifier, not a general NumiSeal proving or
+  zero-knowledge product surface.
 
 ## Phase 9: Security Story
 
