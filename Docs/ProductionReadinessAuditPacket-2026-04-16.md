@@ -71,6 +71,7 @@ Threat model and proof semantics:
 - `Docs/WhatThisProves.md`
 - `Docs/ProofEnvelope.md`
 - `Docs/CLI.md`
+- `Docs/AuditBlockerNarrowing-2026-04-16.md`
 
 Formal status:
 

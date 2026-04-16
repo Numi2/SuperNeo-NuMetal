@@ -100,6 +100,8 @@ Artifacts:
 - `Docs/ProductionReadinessAuditPacket-2026-04-16.md` records the current full
   release-gate evidence map, passed full local gate, and remaining no-go items
   before production-security language is appropriate.
+- `Docs/AuditBlockerNarrowing-2026-04-16.md` records the latest side-channel,
+  product-integration, formal-blocker, and Sage-estimator audit disposition.
 - `ProtocolE2ETests` include malformed proof-envelope and tampering tests.
 - `Docs/GPUDeterminism.md` documents the CPU oracle policy and Metal
   determinism boundary.
