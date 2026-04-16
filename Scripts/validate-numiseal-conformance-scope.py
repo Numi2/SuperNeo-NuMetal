@@ -39,6 +39,16 @@ REQUIRED_RELATION_COMPONENTS = {
     "recursive folding knowledge relation",
     "product policy relation",
 }
+REQUIRED_SURFACE_TESTS = {
+    "numiseal-product": {
+        "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
+    },
+}
+REQUIRED_THEOREM_SURFACE_TESTS = {
+    "product-policy": {
+        "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
+    },
+}
 REQUIRED_FORMAL_DECLARATIONS = {
     "NumiSealProofMode",
     "NumiSealCarryMode",
@@ -207,6 +217,11 @@ def validate_surface(surface: Any, test_source: str) -> str:
     test_names = require_string_list(surface.get("testNames"), f"{surface_id}.testNames")
     for name in test_names:
         require(name in test_source, f"{surface_id} test not found in XCTest source: {name}")
+    required_tests = REQUIRED_SURFACE_TESTS.get(surface_id, set())
+    require(
+        required_tests.issubset(set(test_names)),
+        f"{surface_id}.testNames missing required tests {sorted(required_tests - set(test_names))}",
+    )
 
     formal_scope = require_string_list(surface.get("formalScope"), f"{surface_id}.formalScope")
     open_formal_work = require_string_list(surface.get("openFormalWork"), f"{surface_id}.openFormalWork")
@@ -228,6 +243,11 @@ def validate_theorem_surface(surface: Any, test_source: str) -> str:
         if key == "testNames":
             for name in values:
                 require(name in test_source, f"{surface_id} theorem test not found in XCTest source: {name}")
+            required_tests = REQUIRED_THEOREM_SURFACE_TESTS.get(surface_id, set())
+            require(
+                required_tests.issubset(set(values)),
+                f"{surface_id}.testNames missing required tests {sorted(required_tests - set(values))}",
+            )
     status = surface.get("status")
     require(status == "composed-under-evidence", f"{surface_id}.status must be composed-under-evidence")
     joined_text = " ".join(require_string_list(surface.get("evidenceObligations"), f"{surface_id}.evidenceObligations")).lower()

@@ -289,6 +289,13 @@ def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
     carry = require_dict(dossier.get("carryRecursionClosure"), "carryRecursionClosure")
     require("implemented" in require_string(carry.get("producerPath"), "producerPath"), "carry producer path must be recorded")
     require("implemented" in require_string(carry.get("consumerPath"), "consumerPath"), "carry consumer path must be recorded")
+    carry_binding_text = " ".join([
+        require_string(carry.get("carryVectorCommitment"), "carryVectorCommitment"),
+        require_string(carry.get("replaySemantics"), "replaySemantics"),
+        require_string(carry.get("malformedCarryNegativeVectors"), "malformedCarryNegativeVectors"),
+    ]).lower()
+    for needle in ["carry-mode policy binding", "terminalcarrypolicy", "product carry-policy"]:
+        require(needle in carry_binding_text, f"carry recursion closure must mention {needle}")
     require(carry.get("productDefaultCarryMode") == "none", "product default carry mode must remain none")
     require_false(carry.get("productionRecursiveCarryClaimAllowed"), "carryRecursionClosure.productionRecursiveCarryClaimAllowed")
     vectors = set(require_string_list(carry.get("conformanceVectors"), "carryRecursionClosure.conformanceVectors"))

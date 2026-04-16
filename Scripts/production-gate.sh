@@ -143,6 +143,7 @@ run_step Scripts/test-artifact-schema-validation.py
 run_step Scripts/validate-numiseal-artifact-schema.py
 run_step Scripts/validate-numiseal-product-artifact-schema.py
 run_step Scripts/test-numiseal-artifact-schema-validation.py
+run_step Scripts/test-numiseal-product-artifact-schema-validation.py
 run_step Scripts/validate-numiseal-conformance-scope.py
 run_step Scripts/test-numiseal-conformance-scope-validation.py
 run_step Scripts/validate-numiseal-zk-mask-distribution-evidence.py

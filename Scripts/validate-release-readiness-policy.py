@@ -457,6 +457,14 @@ def validate_production_gate_wiring() -> None:
         "production gate must run NumiSealZK mask-distribution evidence regression tests",
     )
     require(
+        "run_step Scripts/validate-numiseal-product-artifact-schema.py" in gate,
+        "production gate must run NumiSeal product artifact schema validation",
+    )
+    require(
+        "run_step Scripts/test-numiseal-product-artifact-schema-validation.py" in gate,
+        "production gate must run NumiSeal product artifact schema regression tests",
+    )
+    require(
         "run_step Scripts/validate-product-crypto-security-dossier.py" in gate,
         "production gate must run validate-product-crypto-security-dossier.py",
     )

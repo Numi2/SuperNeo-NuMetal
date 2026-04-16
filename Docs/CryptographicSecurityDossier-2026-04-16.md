@@ -123,8 +123,10 @@ The remaining privacy proof obligations are:
 
 Typed carry producer/consumer theorem surfaces exist, and the carry digest
 binds producer evidence, transcript evidence, residual opening material,
-parent acceptance evidence, context, and lane state. The product default still
-uses `carryMode = none`.
+parent acceptance evidence, context, and lane state. Product artifacts now bind
+`carryMode` to `terminalCarryPolicy` metadata and the terminal verifier carry
+acceptance mode, so a typed-required artifact cannot be accepted as a no-carry
+proof. The product default still uses `carryMode = none`.
 
 Production recursive carry promotion requires product-level carry vectors,
 malformed negative vectors for the recursive product path, replay semantics for

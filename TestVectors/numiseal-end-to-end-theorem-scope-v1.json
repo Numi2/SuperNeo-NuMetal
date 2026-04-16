@@ -262,11 +262,13 @@
       ],
       "testNames": [
         "testNumiSealProductVerifierAcceptsThroughIntegrationHooks",
+        "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
         "testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification",
         "testLocalProductControlsVerifySignedContextProvenanceReplayAndAudit"
       ],
       "evidenceObligations": [
         "expected context, provenance, replay, byte limit, and proof-kind policy gates are checked before acceptance",
+        "product carryMode is bound to terminalCarryPolicy metadata and to the terminal verifier carry acceptance mode",
         "product audit identity binds the same accepted artifact and policy context"
       ],
       "status": "composed-under-evidence"

@@ -47,6 +47,19 @@
       "additionalProperties": {
         "type": "string"
       },
+      "properties": {
+        "terminalCarryPolicy": {
+          "enum": [
+            "none",
+            "typed-optional",
+            "typed-required"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "terminalCarryPolicy"
+      ],
       "type": "object"
     },
     "keySeedUTF8": {

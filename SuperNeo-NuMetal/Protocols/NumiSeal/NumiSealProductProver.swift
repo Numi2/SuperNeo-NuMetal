@@ -596,23 +596,12 @@ public final class NumiSealProductProver: @unchecked Sendable {
         default:
             throw SuperNeoError.invalidParameter("unsupported NumiSeal product ZK mode")
         }
-        let terminalPolicy = NumiSealTerminalProofAcceptancePolicy(
-            profileID: parameters.profileID,
-            shapeDigest: sourceStatement.shapeDigest,
-            statementDigest: sourceStatement.statementDigest,
-            verifierKeyDigest: prepared.key.verifierKeyDigest,
-            transcriptDomain: acceptancePolicy.transcriptDomain,
-            acceptedLaneIDs: acceptedLaneIDs,
-            maximumLaneCount: numiSealEnvelope.proof.publicStatement.laneSummaries.count,
-            maximumAggregatesPerLane: numiSealEnvelope.proof.laneProofs.count,
-            acceptedResidualMode: .immediate,
-            acceptedCarryMode: .none
-        )
+        let productCarryMode = "none"
         var policyMetadata = [
             "sourceFoldKind": "fold-reduction",
             "numiSealProofKind": numiSealProductProof.proofKind,
             "digitTensorDerivation": "aggregate-witness-digest-ternary-v1",
-            "terminalCarryPolicy": "\(terminalPolicy.acceptedCarryMode)",
+            "terminalCarryPolicy": productCarryMode,
             "metalWorkspaceFeatureDigest": metalWorkspace.map { workspace in
                 NumiSealMetalProvingWorkspace(
                     baseWorkspace: workspace,
@@ -628,7 +617,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
             profile: SuperNeoParameterProfile.goldilocksPhi81.name,
             proofKind: numiSealProductProof.proofKind,
             sealMode: numiSealProductProof.sealMode,
-            carryMode: "none",
+            carryMode: productCarryMode,
             zkMode: numiSealProductProof.zkMode,
             metalMode: request.executionPolicy.resolvedMetalMode(metalContext: request.metalContext),
             executionPolicy: request.executionPolicy.rawValue,
@@ -817,6 +806,34 @@ public final class NumiSealProductProver: @unchecked Sendable {
 public final class NumiSealProductVerifier: @unchecked Sendable {
     public init() {}
 
+    private static let terminalCarryPolicyMetadataKey = "terminalCarryPolicy"
+
+    private static func acceptedCarryMode(for artifactCarryMode: String) throws -> NumiSealCarryMode {
+        switch artifactCarryMode {
+        case "none":
+            return .none
+        case "typed-optional":
+            return .typedOptional
+        case "typed-required":
+            return .typedRequired
+        default:
+            throw SuperNeoError.invalidEncoding("unsupported NumiSeal product carry mode")
+        }
+    }
+
+    private static func productCarryModeLabel(_ carryMode: NumiSealCarryMode) throws -> String {
+        switch carryMode {
+        case .none:
+            return "none"
+        case .typedOptional:
+            return "typed-optional"
+        case .typedRequired:
+            return "typed-required"
+        case .optional, .required:
+            throw SuperNeoError.invalidEncoding("unsupported NumiSeal product carry mode")
+        }
+    }
+
     public func verify(
         artifact: NumiSealProductArtifact,
         sourcePublicInput: SuperNeoPublicFoldInput,
@@ -891,6 +908,7 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             throw SuperNeoError.verificationFailed("NumiSeal product currently requires exactly one lane id")
         }
         let laneID = try NumiSealLaneID(laneIDValue)
+        let acceptedCarryMode = try Self.acceptedCarryMode(for: artifact.carryMode)
         let obligations = try NumiSealProductProver.makeObligations(
             claims: sourceResult.outputClaims,
             laneID: laneID,
@@ -909,7 +927,7 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             maximumLaneCount: artifact.maximumLaneCount,
             maximumAggregatesPerLane: artifact.maximumAggregatesPerLane,
             acceptedResidualMode: .immediate,
-            acceptedCarryMode: .none
+            acceptedCarryMode: acceptedCarryMode
         )
         let compiledShape = try sourcePublicInput.shape.compiledSparseForSuperNeo()
         let metalWorkspace = try metalContext.map {
@@ -1003,8 +1021,10 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         guard artifact.sealMode == "numiseal-terminal-v2" || artifact.sealMode == NumiSealZK.sealMode else {
             throw SuperNeoError.invalidEncoding("unsupported NumiSeal product seal mode")
         }
-        guard artifact.carryMode == "none" || artifact.carryMode == "typed-optional" || artifact.carryMode == "typed-required" else {
-            throw SuperNeoError.invalidEncoding("unsupported NumiSeal product carry mode")
+        let acceptedCarryMode = try acceptedCarryMode(for: artifact.carryMode)
+        let carryPolicyLabel = try productCarryModeLabel(acceptedCarryMode)
+        guard artifact.executionPolicyMetadata[terminalCarryPolicyMetadataKey] == carryPolicyLabel else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product terminal carry policy metadata mismatch")
         }
         guard artifact.zkMode == NumiSealZK.nonZKMode || artifact.zkMode == NumiSealZK.maskedDigitTensorMode else {
             throw SuperNeoError.invalidEncoding("unsupported NumiSeal product ZK mode")

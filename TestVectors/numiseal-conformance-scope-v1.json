@@ -14,7 +14,8 @@
         "canonical obligation ordering",
         "lane aggregation roots",
         "immediate residual CE opening relation",
-        "terminal proof transcript binding"
+        "terminal proof transcript binding",
+        "product carry-mode policy binding"
       ],
       "id": "numiseal-product",
       "implementationPaths": [
@@ -27,6 +28,7 @@
       ],
       "testNames": [
         "testNumiSealProductProverEmitsVerifiableV2Artifact",
+        "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
         "testNumiSealProductVerifierAcceptsThroughIntegrationHooks",
         "testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification"
       ]

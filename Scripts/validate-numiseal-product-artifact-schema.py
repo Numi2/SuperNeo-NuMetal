@@ -122,6 +122,17 @@ def main() -> None:
     require_const(schema, "profile", "Goldilocks/Phi81(d=54)")
     require_enum(schema, "proofKind", ["numiseal-terminal", "numiseal-zk"])
     require_enum(schema, "sealMode", ["numiseal-terminal-v2", "numiseal-zk-v1"])
+    metadata = root_properties.get("executionPolicyMetadata", {})
+    metadata_properties = metadata.get("properties", {})
+    expect(isinstance(metadata_properties, dict), "NumiSeal product metadata properties must be an object")
+    expect(
+        metadata.get("required") == ["terminalCarryPolicy"],
+        "NumiSeal product metadata must require terminalCarryPolicy",
+    )
+    expect(
+        metadata_properties.get("terminalCarryPolicy", {}).get("enum") == ["none", "typed-optional", "typed-required"],
+        "NumiSeal product metadata terminalCarryPolicy enum must match carryMode",
+    )
     for key in sorted(DIGEST_KEYS):
         require_digest_property(schema, key)
     source_claims = root_properties.get("sourceFoldOutputClaimDigestsHex", {})

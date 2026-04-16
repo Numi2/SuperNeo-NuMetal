@@ -6683,9 +6683,11 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(artifact.artifactVersion, NumiSealProductArtifact.artifactVersion)
         XCTAssertEqual(artifact.proofKind, NumiSealProductArtifact.proofKind)
         XCTAssertEqual(artifact.sealMode, "numiseal-terminal-v2")
+        XCTAssertEqual(artifact.carryMode, "none")
         XCTAssertEqual(artifact.zkMode, NumiSealZK.nonZKMode)
         XCTAssertEqual(artifact.sourceFoldOutputClaimCount, 14)
         XCTAssertEqual(artifact.aggregateDigestsHex.count, 1)
+        XCTAssertEqual(artifact.executionPolicyMetadata["terminalCarryPolicy"], "none")
 
         let result = try NumiSealProductVerifier().verify(
             artifact: artifact,
@@ -6707,6 +6709,71 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             ),
             .verificationFailed("NumiSeal product source fold digest mismatch")
         )
+    }
+
+    func testNumiSealProductVerifierBindsCarryModeToTerminalPolicy() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        let prepared = try workload.prepareForFolding(
+            bits: [false, true],
+            keySeed: Array("numiseal-product-carry-policy-key".utf8)
+        )
+        let artifact = try NumiSealProductProver().prove(
+            NumiSealProvingRequest(
+                preparedR1CS: prepared,
+                workload: "one-hot-vector-v1",
+                bitCount: 2,
+                publicInputs: [1],
+                keySeedUTF8: "numiseal-product-carry-policy-key",
+                workloadParameters: ["selectedCount": "1"],
+                laneID: try NumiSealLaneID("product"),
+                executionPolicy: .zkHighAssuranceCPU,
+                aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
+            )
+        )
+        let verifier = NumiSealProductVerifier()
+
+        var mismatchedMetadata = artifact
+        mismatchedMetadata.carryMode = "typed-required"
+        XCTAssertThrowsSuperNeoError(
+            try verifier.verify(
+                artifact: mismatchedMetadata,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product terminal carry policy metadata mismatch")
+        )
+
+        var typedOptional = artifact
+        typedOptional.carryMode = "typed-optional"
+        typedOptional.executionPolicyMetadata["terminalCarryPolicy"] = "typed-optional"
+        let optionalResult = try verifier.verify(
+            artifact: typedOptional,
+            sourcePublicInput: prepared.publicFoldInput,
+            key: prepared.key,
+            executionPolicy: .highAssurance
+        )
+        XCTAssertTrue(optionalResult.numiSealResult.isValid, optionalResult.numiSealResult.reason ?? "")
+
+        var typedRequired = artifact
+        typedRequired.carryMode = "typed-required"
+        typedRequired.executionPolicyMetadata["terminalCarryPolicy"] = "typed-required"
+        XCTAssertThrowsError(
+            try verifier.verify(
+                artifact: typedRequired,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            )
+        ) { error in
+            guard case SuperNeoError.verificationFailed(let message) = error else {
+                return XCTFail("expected SuperNeo verification failure, got \(error)")
+            }
+            XCTAssertTrue(
+                message.contains("NumiSeal typed carry claim required by policy"),
+                message
+            )
+        }
     }
 
     func testNumiSealProductProverEmitsVerifiableZKV2Artifact() throws {
@@ -6733,10 +6800,12 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(artifact.artifactVersion, NumiSealProductArtifact.artifactVersion)
         XCTAssertEqual(artifact.proofKind, NumiSealProductArtifact.zkProofKind)
         XCTAssertEqual(artifact.sealMode, NumiSealZK.sealMode)
+        XCTAssertEqual(artifact.carryMode, "none")
         XCTAssertEqual(artifact.zkMode, NumiSealZK.maskedDigitTensorMode)
         XCTAssertEqual(artifact.sourceFoldOutputClaimCount, 14)
         XCTAssertEqual(artifact.aggregateDigestsHex.count, 1)
         XCTAssertEqual(artifact.executionPolicyMetadata["numiSealProofKind"], NumiSealProductArtifact.zkProofKind)
+        XCTAssertEqual(artifact.executionPolicyMetadata["terminalCarryPolicy"], "none")
         XCTAssertEqual(artifact.executionPolicyMetadata["zkProofBodyVersion"], "\(NumiSealZKProof.bodyVersion)")
         XCTAssertEqual(
             artifact.executionPolicyMetadata["zkMaskedResidualStatementVersion"],

@@ -49,6 +49,9 @@ def product_fixture(path: Path, *, proof_kind: str = "numiseal-terminal") -> Non
             "numiSealProofEnvelopeBase64": base64.b64encode(proof_bytes).decode("ascii"),
             "sourceFoldEnvelopeDigestHex": hashlib.sha256(source_bytes).hexdigest(),
             "proofEnvelopeDigestHex": hashlib.sha256(proof_bytes).hexdigest(),
+            "executionPolicyMetadata": {
+                "terminalCarryPolicy": "none",
+            },
         },
     )
 
@@ -110,6 +113,13 @@ def main() -> None:
         wrong_generated_kind = tmp / "wrong-generated-kind.json"
         product_fixture(wrong_generated_kind, proof_kind="numiseal-zk")
         run_fail(str(VALIDATE), str(valid), "--generated-product-artifact", f"numiseal-product-smoke:{wrong_generated_kind}")
+
+        carry_policy_mismatch = tmp / "carry-policy-mismatch.json"
+        product_fixture(carry_policy_mismatch)
+        carry_policy_artifact = json.loads(carry_policy_mismatch.read_text(encoding="utf-8"))
+        carry_policy_artifact["executionPolicyMetadata"]["terminalCarryPolicy"] = "typed-required"
+        write_json(carry_policy_mismatch, carry_policy_artifact)
+        run_fail(str(VALIDATE), str(valid), "--generated-product-artifact", f"numiseal-product-smoke:{carry_policy_mismatch}")
 
     print("e2e proof metrics validation regression tests passed")
 

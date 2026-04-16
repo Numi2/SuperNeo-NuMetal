@@ -177,13 +177,13 @@
   "carryRecursionClosure": {
     "producerPath": "implemented and theorem-surfaced for typed carry statements",
     "consumerPath": "implemented and theorem-surfaced for typed carry acceptance",
-    "carryVectorCommitment": "typed digest binding exists; product recursive vector promotion remains open",
-    "replaySemantics": "local replay/context freshness is checked for current carry consumers",
+    "carryVectorCommitment": "typed digest binding exists; product verifier carry-mode policy binding is enforced; product recursive vector promotion remains open",
+    "replaySemantics": "local replay/context freshness is checked for current carry consumers and product carryMode cannot drift from terminalCarryPolicy metadata",
     "recursiveRelationTheorem": "evidence-parametric typed producer/consumer theorem exists",
     "conformanceVectors": [
       "TestVectors/numiseal-typed-carry-conformance-v1.json"
     ],
-    "malformedCarryNegativeVectors": "covered by typed-carry conformance and CLI/product validation tests",
+    "malformedCarryNegativeVectors": "covered by typed-carry conformance, product carry-policy binding tests, and CLI/product validation tests",
     "swapResistance": "carry digest binds producer envelope, transcript, residual opening, final point, context, lane, and parent acceptance evidence",
     "productDefaultCarryMode": "none",
     "productionRecursiveCarryClaimAllowed": false

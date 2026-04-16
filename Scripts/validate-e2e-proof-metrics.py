@@ -260,6 +260,12 @@ def validate_generated_artifact(budget: dict[str, Any], artifact_path: Path) -> 
         require_digest(artifact.get("sourceFoldEnvelopeDigestHex"), source_bytes, f"{budget_id}.sourceFoldEnvelopeDigestHex")
     if "proofEnvelopeDigestHex" in artifact:
         require_digest(artifact.get("proofEnvelopeDigestHex"), proof_bytes, f"{budget_id}.proofEnvelopeDigestHex")
+    metadata = artifact.get("executionPolicyMetadata")
+    require(isinstance(metadata, dict), f"{budget_id}.executionPolicyMetadata must be an object")
+    require(
+        metadata.get("terminalCarryPolicy") == artifact.get("carryMode"),
+        f"{budget_id} terminalCarryPolicy must match carryMode",
+    )
 
 
 def parse_generated_artifact(value: str) -> tuple[str, Path]:
