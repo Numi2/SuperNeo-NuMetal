@@ -5537,7 +5537,130 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
     }
 
+    func testNumiSealProductVerifierAcceptsThroughIntegrationHooks() throws {
+        let data = try loadNumiSealArtifactData(named: "numiseal-terminal-single-aggregate-v1.json")
+        let artifact = try JSONDecoder().decode(NumiSealArtifact.self, from: data)
+        let expectedContext = try strictExpectedContext(for: artifact)
+        let store = ProductExpectedContextStore(expectedContext: expectedContext)
+        let authorizer = ProductAuthorizer()
+        let provenanceVerifier = ProductProvenanceVerifier()
+        let replayLedger = ProductReplayLedger()
+        let auditSink = ProductAuditSink()
+        let verifier = SuperNeoNumiSealProductVerifier(
+            expectedContextStore: store,
+            authorizer: authorizer,
+            provenanceVerifier: provenanceVerifier,
+            replayLedger: replayLedger,
+            auditSink: auditSink
+        )
+
+        let request = SuperNeoNumiSealProductVerificationRequest(
+            callerID: "tenant-a",
+            expectedContextID: "ctx-numiseal-single",
+            artifact: artifact,
+            artifactBytes: [UInt8](data),
+            maximumArtifactByteCount: data.count
+        )
+        let report = try verifier.verify(request)
+
+        XCTAssertTrue(report.innerReport.verificationResult.isValid)
+        XCTAssertTrue(try replayLedger.hasAccepted(report.identity))
+        XCTAssertEqual(auditSink.events.count, 1)
+        XCTAssertEqual(auditSink.events.last?.decision, .accepted)
+        XCTAssertEqual(auditSink.events.last?.artifactDigest, Digest256.hash([UInt8](data)))
+        XCTAssertEqual(auditSink.events.last?.provenanceDigest, provenanceVerifier.provenanceDigest)
+    }
+
+    func testNumiSealProductVerifierFailsClosedOnAuthorizationRejection() throws {
+        let data = try loadNumiSealArtifactData(named: "numiseal-terminal-single-aggregate-v1.json")
+        let artifact = try JSONDecoder().decode(NumiSealArtifact.self, from: data)
+        let auditSink = ProductAuditSink()
+        let verifier = SuperNeoNumiSealProductVerifier(
+            expectedContextStore: ProductExpectedContextStore(expectedContext: try strictExpectedContext(for: artifact)),
+            authorizer: ProductAuthorizer(error: .unauthorized("caller is not authorized for expected context")),
+            provenanceVerifier: ProductProvenanceVerifier(),
+            replayLedger: ProductReplayLedger(),
+            auditSink: auditSink
+        )
+
+        XCTAssertThrowsProductIntegrationError(
+            try verifier.verify(
+                SuperNeoNumiSealProductVerificationRequest(
+                    callerID: "tenant-a",
+                    expectedContextID: "ctx-numiseal-single",
+                    artifact: artifact,
+                    artifactBytes: [UInt8](data)
+                )
+            ),
+            containing: "not authorized"
+        )
+        XCTAssertEqual(auditSink.events.count, 1)
+        XCTAssertEqual(auditSink.events.last?.decision, .rejected)
+        XCTAssertNil(auditSink.events.last?.provenanceDigest)
+    }
+
+    func testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification() throws {
+        let data = try loadNumiSealArtifactData(named: "numiseal-terminal-single-aggregate-v1.json")
+        let artifact = try JSONDecoder().decode(NumiSealArtifact.self, from: data)
+        let expectedContext = try strictExpectedContext(for: artifact)
+        let replayLedger = ProductReplayLedger()
+        let auditSink = ProductAuditSink()
+        let verifier = SuperNeoNumiSealProductVerifier(
+            expectedContextStore: ProductExpectedContextStore(expectedContext: expectedContext),
+            authorizer: ProductAuthorizer(),
+            provenanceVerifier: ProductProvenanceVerifier(),
+            replayLedger: replayLedger,
+            auditSink: auditSink
+        )
+        let request = SuperNeoNumiSealProductVerificationRequest(
+            callerID: "tenant-a",
+            expectedContextID: "ctx-numiseal-single",
+            artifact: artifact,
+            artifactBytes: [UInt8](data)
+        )
+
+        _ = try verifier.verify(request)
+        XCTAssertThrowsProductIntegrationError(
+            try verifier.verify(request),
+            containing: "already been accepted"
+        )
+        XCTAssertEqual(auditSink.events.map(\.decision), [.accepted, .rejected])
+        XCTAssertEqual(replayLedger.recordedCount, 1)
+    }
+
+    func testNumiSealProductVerifierFailsClosedOnProductByteLimit() throws {
+        let data = try loadNumiSealArtifactData(named: "numiseal-terminal-single-aggregate-v1.json")
+        let artifact = try JSONDecoder().decode(NumiSealArtifact.self, from: data)
+        let auditSink = ProductAuditSink()
+        let verifier = SuperNeoNumiSealProductVerifier(
+            expectedContextStore: ProductExpectedContextStore(expectedContext: try strictExpectedContext(for: artifact)),
+            authorizer: ProductAuthorizer(),
+            provenanceVerifier: ProductProvenanceVerifier(),
+            replayLedger: ProductReplayLedger(),
+            auditSink: auditSink
+        )
+
+        XCTAssertThrowsProductIntegrationError(
+            try verifier.verify(
+                SuperNeoNumiSealProductVerificationRequest(
+                    callerID: "tenant-a",
+                    expectedContextID: "ctx-numiseal-single",
+                    artifact: artifact,
+                    artifactBytes: [UInt8](data),
+                    maximumArtifactByteCount: data.count - 1
+                )
+            ),
+            containing: "exceeds product maximum"
+        )
+        XCTAssertEqual(auditSink.events.last?.decision, .rejected)
+        XCTAssertNil(auditSink.events.last?.proofEnvelopeDigest)
+    }
+
     private func loadNumiSealArtifact(named name: String) throws -> NumiSealArtifact {
+        try JSONDecoder().decode(NumiSealArtifact.self, from: loadNumiSealArtifactData(named: name))
+    }
+
+    private func loadNumiSealArtifactData(named name: String) throws -> Data {
         let testFile = URL(fileURLWithPath: #filePath)
         let repositoryRoot = testFile
             .deletingLastPathComponent()
@@ -5545,8 +5668,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         let url = repositoryRoot
             .appendingPathComponent("TestVectors")
             .appendingPathComponent(name)
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(NumiSealArtifact.self, from: data)
+        return try Data(contentsOf: url)
     }
 
     private func strictExpectedContext(for artifact: NumiSealArtifact) throws -> NumiSealArtifactExpectedContext {
@@ -5584,6 +5706,100 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 line: line
             )
         }
+    }
+
+    private func XCTAssertThrowsProductIntegrationError<T>(
+        _ expression: @autoclosure () throws -> T,
+        containing expectedMessage: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertThrowsError(try expression(), file: file, line: line) { error in
+            guard let productError = error as? SuperNeoProductIntegrationError else {
+                XCTFail("expected SuperNeoProductIntegrationError, got \(error)", file: file, line: line)
+                return
+            }
+            XCTAssertTrue(
+                productError.description.contains(expectedMessage),
+                "expected \(productError.description) to contain \(expectedMessage)",
+                file: file,
+                line: line
+            )
+        }
+    }
+}
+
+private final class ProductExpectedContextStore: SuperNeoNumiSealExpectedContextStore {
+    let expectedContext: NumiSealArtifactExpectedContext?
+
+    init(expectedContext: NumiSealArtifactExpectedContext?) {
+        self.expectedContext = expectedContext
+    }
+
+    func expectedContext(
+        for request: SuperNeoNumiSealProductVerificationRequest
+    ) throws -> NumiSealArtifactExpectedContext {
+        guard let expectedContext else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext(
+                "expected context not found: \(request.expectedContextID)"
+            )
+        }
+        return expectedContext
+    }
+}
+
+private final class ProductAuthorizer: SuperNeoProductAuthorizer {
+    let error: SuperNeoProductIntegrationError?
+
+    init(error: SuperNeoProductIntegrationError? = nil) {
+        self.error = error
+    }
+
+    func authorize(_ request: SuperNeoNumiSealProductVerificationRequest) throws {
+        if let error {
+            throw error
+        }
+    }
+}
+
+private final class ProductProvenanceVerifier: SuperNeoArtifactProvenanceVerifier {
+    let provenanceDigest = Digest256.hash("trusted-numiseal-artifact-provenance")
+    let error: SuperNeoProductIntegrationError?
+
+    init(error: SuperNeoProductIntegrationError? = nil) {
+        self.error = error
+    }
+
+    func verifyProvenance(
+        for request: SuperNeoNumiSealProductVerificationRequest,
+        artifactDigest: Digest256
+    ) throws -> Digest256 {
+        if let error {
+            throw error
+        }
+        return provenanceDigest
+    }
+}
+
+private final class ProductReplayLedger: SuperNeoReplayLedger {
+    private var accepted: Set<SuperNeoProductProofIdentity> = []
+
+    var recordedCount: Int { accepted.count }
+
+    func hasAccepted(_ identity: SuperNeoProductProofIdentity) throws -> Bool {
+        accepted.contains(identity)
+    }
+
+    func recordAccepted(_ identity: SuperNeoProductProofIdentity) throws {
+        accepted.insert(identity)
+    }
+}
+
+private final class ProductAuditSink: SuperNeoVerificationAuditSink {
+    private(set) var events: [SuperNeoProductVerificationAuditEvent] = []
+
+    func record(_ event: SuperNeoProductVerificationAuditEvent) {
+        events.append(event)
     }
 }
 

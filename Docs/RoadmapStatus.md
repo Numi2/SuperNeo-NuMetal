@@ -71,9 +71,11 @@ Remaining boundary:
   layer, a replay-protection system, or an application identity/key-distribution
   system.
 - The CLI is still a local integration surface, not a hosted verifier service,
-  wallet, replay-protection layer, or application policy engine. NumiSeal
-  acceptance is exposed only through the explicit `--require-numiseal` verifier
-  path for checked immediate-residual artifacts.
+  wallet, durable replay-protection layer, or application policy engine.
+  NumiSeal acceptance is exposed through the explicit `--require-numiseal`
+  verifier path for checked immediate-residual artifacts and through the
+  protocol-based `SuperNeoNumiSealProductVerifier` facade for product
+  integration experiments.
 
 ## Third Priority: Credibility
 
@@ -104,6 +106,10 @@ Artifacts:
   before production-security language is appropriate.
 - `Docs/AuditBlockerNarrowing-2026-04-16.md` records the latest side-channel,
   product-integration, formal-blocker, and Sage-estimator audit disposition.
+- `Docs/ProductIntegrationLayer-2026-04-16.md` records the first executable
+  NumiSeal product-verification facade for trusted context lookup,
+  authorization, provenance verification, replay checking, product byte limits,
+  and audit events.
 - `ProtocolE2ETests` include malformed proof-envelope and tampering tests.
 - `Docs/GPUDeterminism.md` documents the CPU oracle policy and Metal
   determinism boundary.
@@ -439,6 +445,10 @@ Artifacts:
 - The design states non-claims: no default zero knowledge, no external PCS
   import, no QROM proof claim, no cross-lane batching, and no production
   certification.
+- `SuperNeoNumiSealProductVerifier` supplies a product integration facade around
+  the checked NumiSeal verifier. It requires caller-owned expected-context
+  lookup, authorization, provenance verification, replay checking, and audit
+  recording before accepted verification is reported.
 
 Implementation gates:
 
@@ -474,7 +484,9 @@ Implementation gates:
 - Phase 8: the checked NumiSeal vector matrix is present with deterministic
   generator/validator, per-shape negative validation, production-gate coverage,
   and production `superneo inspect` plus `verify --require-numiseal` exposure.
-  General NumiSeal proving and deeper security-audit artifacts remain.
+  The first product-integration facade around checked NumiSeal verification is
+  also present. General NumiSeal proving and deeper security-audit artifacts
+  remain.
 
 Remaining boundary:
 

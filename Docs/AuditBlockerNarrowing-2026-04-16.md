@@ -7,6 +7,11 @@ integration requirements, formal blocker status, and lattice-estimator evidence.
 It is a repository-grounded engineering audit, not an independent cryptographic
 security audit or production approval.
 
+Update: the repository now includes an executable NumiSeal product-integration
+facade recorded in `Docs/ProductIntegrationLayer-2026-04-16.md`. The product
+blocker is narrowed from "no local integration contract" to "deployed durable
+implementations of the integration protocols still required."
+
 ## Commands Run
 
 ```sh
@@ -49,7 +54,7 @@ Production-security wording remains blocked by:
 
 1. independent cryptographic and implementation audit,
 2. formal constant-time or side-channel certification,
-3. deployed product integration for trusted context, provenance, replay,
+3. deployed product implementations for trusted context, provenance, replay,
    access control, persistence, and audit logging,
 4. completion or explicit theorem-scope narrowing for the three remaining
    formal blocker groups,
@@ -101,8 +106,9 @@ model that excludes local observation.
 
 ## Product Integration Layer
 
-The repository exposes useful integration primitives, but not a complete
-product layer.
+The repository exposes useful verifier primitives and now has a thin executable
+product-integration contract for checked NumiSeal verification. It is not a
+complete deployed product layer.
 
 Existing primitives:
 
@@ -118,16 +124,23 @@ Existing primitives:
 - The production gate tests wrong public inputs, wrong expected pins, proof-kind
   confusion, unknown artifact fields, duplicate JSON keys, schema drift, and
   malformed vector metadata.
+- `SuperNeoNumiSealProductVerifier` composes expected-context lookup,
+  authorization, provenance verification, replay checking, product byte limits,
+  and audit-event recording around `NumiSealArtifactVerifier.verify`.
+- The new product facade binds replay identity to expected context, statement
+  digest, proof-envelope digest, raw artifact digest, and provenance digest.
+- Focused XCTest coverage checks acceptance, audit recording, fail-closed
+  authorization, replay rejection, and product byte-limit rejection.
 
 Missing product responsibilities:
 
-- durable expected-context storage,
+- deployed durable expected-context storage,
 - trusted key distribution and rotation policy,
-- signed artifact provenance,
-- replay ledger keyed by statement/proof/provenance identity,
-- request authorization and tenant isolation,
+- signed artifact provenance roots,
+- race-safe replay ledger semantics,
+- request authentication, authorization, and tenant isolation,
 - persistent verification records,
-- structured audit logging,
+- structured audit-log transport and retention,
 - user-facing error and retry policy,
 - incident response and revocation hooks.
 
@@ -146,11 +159,10 @@ Recommended integration contract:
 7. Persist a structured audit event with decision, digest pins, proof kind,
    artifact hash, toolchain/release version, and error class.
 
-Conclusion: the product integration blocker is not closed by this repository.
-It is narrowed to a product-owned layer around the existing policy APIs. A
-future repository slice could add protocol interfaces and in-memory test
-doubles for replay/provenance/audit sinks, but production readiness still
-requires a deployed durable implementation.
+Conclusion: the product integration blocker is narrowed but not closed for
+production. The repository now supplies protocol interfaces and tested in-memory
+test doubles for replay/provenance/audit behavior, but production readiness
+still requires deployed durable implementations and operational review.
 
 ## Formal Blockers
 
@@ -217,7 +229,7 @@ artifact separately.
 | --- | --- |
 | Independent cryptographic audit | Still open; requires external review. |
 | Side-channel review | Narrowed; high-assurance mode is meaningful, constant-time certification remains open. |
-| Product integration layer | Narrowed to product-owned storage/provenance/replay/access/logging contract. |
+| Product integration layer | Executable NumiSeal integration contract added; deployed storage/provenance/replay/access/logging implementations remain open. |
 | Formal blocker completion | Not closed; three planned groups remain correctly blocked. |
 | Full Sage estimator | Closed for the pinned local lane; SageMath 10.8 ran and the generated artifact validated. |
 | Broader benchmarks | Not run in this pass; no new cross-generation performance claim. |
@@ -225,16 +237,15 @@ artifact separately.
 
 ## Next Closure Slice
 
-The next local engineering slice with the best risk reduction is to add a small
-product-integration facade around the existing policy APIs:
+The next local engineering slice with the best risk reduction is to extend the
+product-integration facade beyond checked NumiSeal fixtures:
 
-- provenance verifier protocol,
-- replay ledger protocol,
-- authorization hook,
-- audit-event sink,
-- in-memory test doubles,
-- terminal and NumiSeal examples that fail closed before algebraic verification.
+- terminal and compressed-terminal product verifier facade,
+- optional signed-artifact provenance format,
+- replay-ledger race semantics documented as a store contract, and
+- CLI or example wiring that demonstrates loading trusted context from product
+  storage rather than from artifacts.
 
-That would not make the repository production-ready by itself, but it would move
-the product integration blocker from prose requirements to executable contract
-tests.
+That still would not make the repository production-ready by itself, but it
+would reduce the amount of product-specific glue needed around the existing
+policy APIs.

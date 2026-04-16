@@ -84,6 +84,7 @@ Threat model and proof semantics:
 - `Docs/ProofEnvelope.md`
 - `Docs/CLI.md`
 - `Docs/AuditBlockerNarrowing-2026-04-16.md`
+- `Docs/ProductIntegrationLayer-2026-04-16.md`
 
 Formal status:
 
@@ -98,6 +99,7 @@ Release and validation gates:
 - `.github/workflows/production-gate.yml`
 - `Docs/ReleaseEngineering-2026-04-16.md`
 - `Docs/SchemaCompatibility-2026-04-16.md`
+- `Docs/ProductIntegrationLayer-2026-04-16.md`
 - `Docs/ReleaseCandidateRunbook-2026-04-16.md`
 - `CHANGELOG.md`
 - `Scripts/validate-release-readiness-policy.py`
@@ -137,7 +139,10 @@ Within the repository's stated scope, the code is ready for:
 - reproducibility review,
 - verifier integration experiments with caller-owned trusted context,
 - checked terminal, compressed-terminal, and NumiSeal artifact verification
-  using explicit policy gates.
+  using explicit policy gates,
+- NumiSeal product-integration experiments using protocol hooks for trusted
+  context lookup, authorization, provenance verification, replay detection, and
+  audit recording.
 
 For NumiSeal, the production-facing surface is verification and inspection of
 the checked immediate-residual artifact family. The shared
@@ -166,9 +171,11 @@ These are the remaining blockers before using production-security language:
 1. Independent cryptographic and implementation security audit.
 2. Side-channel review for Swift, LLVM, CPU microarchitecture, allocation, and
    timing behavior.
-3. Product integration layer for trusted key distribution, expected-context
-   storage, artifact provenance, replay protection, persistence, access
-   control, logging, and user-facing error policy.
+3. Deployed product implementations for trusted key distribution,
+   expected-context storage, artifact provenance, replay protection,
+   persistence, access control, logging, and user-facing error policy. The
+   local NumiSeal integration protocol facade now exists, but durable product
+   implementations remain outside the repository.
 4. Completion or explicit narrowing of formal claims around the remaining
    `Docs/FormalStatus.json` blocker groups:
    `superneo-full-probability-composition`,

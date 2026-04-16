@@ -91,6 +91,8 @@ Verifier acceptance is meaningful only relative to the supplied CCS shape,
 public inputs, proof kind, verifier key, proof envelope context, and terminal
 relation policy. Application code must own expected context, key distribution,
 artifact provenance, replay policy, and user-facing acceptance semantics.
+For checked NumiSeal artifacts, `SuperNeoNumiSealProductVerifier` provides a
+protocol-based integration facade for those product-owned hooks.
 
 A fold reduction verifies the public reduction and returns output
 commitment-evaluation claims. Callers that need terminal acceptance should
@@ -103,8 +105,8 @@ Current boundaries:
 
 - no production audit or independent security certification,
 - no general compiler from programs to CCS,
-- no persistence layer, replay-protection system, or user-facing verification
-  product,
+- no deployed persistence layer, durable replay-protection system, or
+  user-facing verification product,
 - no production zero-knowledge claim for arbitrary application statements,
 - no completed formal constant-time or side-channel proof, and
 - no completed full formal protocol theorem.
@@ -117,6 +119,8 @@ release-gate evidence and remaining production no-go items are collected in
 Release discipline and public artifact compatibility are tracked in
 [Docs/ReleaseEngineering-2026-04-16.md](Docs/ReleaseEngineering-2026-04-16.md)
 and [Docs/SchemaCompatibility-2026-04-16.md](Docs/SchemaCompatibility-2026-04-16.md).
+The NumiSeal product-integration facade is recorded in
+[Docs/ProductIntegrationLayer-2026-04-16.md](Docs/ProductIntegrationLayer-2026-04-16.md).
 Release candidates should follow
 [Docs/ReleaseCandidateRunbook-2026-04-16.md](Docs/ReleaseCandidateRunbook-2026-04-16.md)
 and record user-facing changes in [CHANGELOG.md](CHANGELOG.md).
@@ -475,6 +479,7 @@ Core references:
 - [Proof Semantics](Docs/WhatThisProves.md)
 - [Proof Envelope](Docs/ProofEnvelope.md)
 - [Application Acceptance Policy](Docs/ApplicationAcceptancePolicy-2026-04-14.md)
+- [Product Integration Layer](Docs/ProductIntegrationLayer-2026-04-16.md)
 - [CLI](Docs/CLI.md)
 - [Benchmarking](Docs/Benchmarking.md)
 - [GPU Determinism](Docs/GPUDeterminism.md)
