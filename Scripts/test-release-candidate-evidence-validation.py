@@ -66,6 +66,18 @@ def main() -> None:
         write_json(path, wrong_version)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_numiseal_scope = copy.deepcopy(evidence)
+        wrong_numiseal_scope["publicSurfaces"]["numiSealConformanceScopeVersion"] = 2
+        path = tmp / "wrong-numiseal-scope.json"
+        write_json(path, wrong_numiseal_scope)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        outsourced_review_boundary = copy.deepcopy(evidence)
+        outsourced_review_boundary["productionSecurityBoundaries"].append("External" + " audit required.")
+        path = tmp / "outsourced-review-boundary.json"
+        write_json(path, outsourced_review_boundary)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         missing_doc = copy.deepcopy(evidence)
         missing_doc["documentation"]["releaseRunbook"] = "Docs/missing-release-runbook.md"
         path = tmp / "missing-doc.json"

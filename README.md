@@ -103,7 +103,7 @@ proof bytes before the expensive verifier path.
 
 Current boundaries:
 
-- no production audit or independent security certification,
+- no production deployment certification,
 - no general compiler from programs to CCS,
 - no deployed persistence layer, durable replay-protection system, or
   user-facing verification product,

@@ -56,6 +56,7 @@ The generated evidence records:
 - Swift, Lean, and Lake toolchain versions,
 - full production-gate command and result,
 - public artifact, manifest, schema, and proof-envelope versions,
+- NumiSeal product/carry/ZK conformance-scope version and digest,
 - release-policy documentation paths,
 - formal status summary,
 - explicit unsigned research-artifact signing status,

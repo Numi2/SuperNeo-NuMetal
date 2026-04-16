@@ -73,13 +73,25 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(require_int(surfaces.get("r1csManifestVersion"), "r1csManifestVersion") == 1, "R1CS manifest version must be 1")
     require(require_int(surfaces.get("numiSealArtifactVersion"), "numiSealArtifactVersion") == 1, "NumiSeal artifact version must be 1")
     require(require_int(surfaces.get("numiSealManifestVersion"), "numiSealManifestVersion") == 1, "NumiSeal manifest version must be 1")
+    require(
+        require_int(surfaces.get("numiSealConformanceScopeVersion"), "numiSealConformanceScopeVersion") == 1,
+        "NumiSeal conformance scope version must be 1",
+    )
+    require_string(surfaces.get("numiSealConformanceScopeDigestHex"), "numiSealConformanceScopeDigestHex")
     require(require_int(surfaces.get("proofEnvelopeHeaderVersion"), "proofEnvelopeHeaderVersion") == 4, "proof envelope version must be 4")
     require(require_int(surfaces.get("numiSealProofEnvelopeKind"), "numiSealProofEnvelopeKind") == 4, "NumiSeal envelope kind must be 4")
     require_string(surfaces.get("r1csSchemaID"), "r1csSchemaID")
     require_string(surfaces.get("numiSealSchemaID"), "numiSealSchemaID")
 
     documentation = require_dict(evidence.get("documentation"), "documentation")
-    for key in ["auditPacket", "releaseEngineering", "schemaCompatibility", "releaseRunbook", "changelog"]:
+    for key in [
+        "auditPacket",
+        "releaseEngineering",
+        "schemaCompatibility",
+        "numiSealConformanceScope",
+        "releaseRunbook",
+        "changelog",
+    ]:
         relative = require_string(documentation.get(key), f"documentation.{key}")
         require((ROOT / relative).exists(), f"documentation.{key} does not exist: {relative}")
 
@@ -91,6 +103,10 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     boundaries = evidence.get("productionSecurityBoundaries")
     require(isinstance(boundaries, list) and len(boundaries) >= 3, "productionSecurityBoundaries must list residual boundaries")
+    require(
+        all("external" + " audit" not in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must not require outsourced review",
+    )
 
 
 def main() -> None:

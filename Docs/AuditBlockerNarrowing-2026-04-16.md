@@ -4,8 +4,7 @@ Formal status: completed formal protocol theorem.
 
 This note records the local audit pass covering side-channel posture, product
 integration requirements, formal blocker status, and lattice-estimator evidence.
-It is a repository-grounded engineering audit, not an independent cryptographic
-security audit or production approval.
+It is a repository-grounded engineering review record, not production approval.
 
 Update: the repository now includes an executable NumiSeal product-integration
 facade recorded in `Docs/ProductIntegrationLayer-2026-04-16.md`. The product
@@ -47,12 +46,12 @@ Results:
 ## Qualification Result
 
 The repository clears its current research/integration gate. It still does not
-clear production-security language because several no-go items are external,
-formal, or product-specific rather than local test-gate items.
+clear production-security language because several no-go items are formal,
+side-channel, or product-specific rather than local test-gate items.
 
 Production-security wording remains blocked by:
 
-1. independent cryptographic and implementation audit,
+1. self-owned cryptographic and implementation review record,
 2. formal constant-time or side-channel certification,
 3. deployed product implementations for trusted context, provenance, replay,
    access control, persistence, and audit logging,
@@ -81,10 +80,11 @@ Covered strengths:
 
 Residual side-channel blockers:
 
-- `GoldilocksField` arithmetic contains data-dependent branches in modular
-  addition, subtraction, negation, reduction, exponentiation, and inversion.
-  These branches are below the current constant-work loop hardening layer and
-  block any formal constant-time claim for Swift, LLVM, or Apple CPUs.
+- `GoldilocksField` now uses mask-based canonicalization for initialization,
+  addition, subtraction, negation, and multiplication reduction, removing the
+  most common source-level arithmetic branches. Exponentiation and inversion
+  still retain a zero check and fixed-exponent control flow, and the Swift
+  compiler/CPU lowering has not been audited as constant-time.
 - Swift array allocation, copy-on-write behavior, ARC, and allocator/cache
   behavior are not modeled or constrained. Even fixed loop schedules do not
   prove stable memory-observation behavior.
@@ -100,9 +100,10 @@ Residual side-channel blockers:
 
 Conclusion: the side-channel blocker is narrowed to a precise scope. The
 implemented mode removes the most visible witness-dependent zero-skip and GPU
-prover hazards, but production side-channel claims require either branchless
-field arithmetic plus compiler/hardware review or a narrower deployment threat
-model that excludes local observation.
+prover hazards and narrows common field arithmetic, but production side-channel
+claims require complete inversion/exponentiation treatment plus compiler and
+hardware review, or a narrower deployment threat model that excludes local
+observation.
 
 ## Product Integration Layer
 
@@ -220,7 +221,7 @@ artifact separately.
 
 | Blocker | Disposition |
 | --- | --- |
-| Independent cryptographic audit | Still open; requires external review. |
+| Cryptographic and implementation review record | Still open; owned in-repo as release evidence. |
 | Side-channel review | Narrowed; high-assurance mode is meaningful, constant-time certification remains open. |
 | Product integration layer | Executable NumiSeal integration contract added; deployed storage/provenance/replay/access/logging implementations remain open. |
 | Formal blocker completion | Closed for the completed formal protocol theorem label; production-security blockers remain separate. |

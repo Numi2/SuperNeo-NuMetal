@@ -1,7 +1,7 @@
 # Local Product Controls, 2026-04-16
 
 Formal status: product-control implementation with optional signed NumiSealZK
-side-channel certificate metadata, not a third-party production certification.
+side-channel certificate metadata, not a deployment certification.
 
 This pass adds an offline CLI product-control path for terminal,
 compressed-terminal, NumiSeal terminal, and NumiSealZK verification. It does not
@@ -21,6 +21,10 @@ superneo verify \
 
 superneo product-status \
   --operator-profile profile.json
+
+superneo product-export-audit \
+  --operator-profile profile.json \
+  --output audit-export.json
 ```
 
 `--context-pack`, `--artifact-provenance`, and
@@ -131,7 +135,10 @@ The audit log is append-only JSONL at the CLI layer. Each record has a monotonic
 sequence number, previous-record digest, decision, error class, artifact digest,
 optional side-channel certificate digest, proof kind, context ID, tool version,
 and release build digest. `product-status` validates the hash chain and reports
-the last sequence and digest.
+the last sequence and digest. `product-export-audit` validates that same chain
+before writing a sorted-key JSON snapshot with the active context digest,
+issuer-key digest, accepted replay count, audit-log digest, chain status, and
+records.
 
 ## Incident Response
 
@@ -142,7 +149,9 @@ Rollback:
 2. Distribute the context pack and stop using older operator profiles that point
    at the revoked pack.
 3. Run `product-status` to confirm the active context and audit chain.
-4. Re-run verification only with a fresh provenance manifest and non-revoked
+4. Run `product-export-audit --output audit-export.json` to preserve the
+   hash-chained local audit state before restarting acceptance.
+5. Re-run verification only with a fresh provenance manifest and non-revoked
    artifact.
 
 Key rotation:
@@ -158,5 +167,5 @@ Key rotation:
 This closes the local product-control substrate for the CLI/offline verifier
 model and keeps signed side-channel evidence available as optional release
 metadata for a reviewed NumiSealZK side-channel lane. It does not close Apple
-signing/notarization, external audits, or the remaining evidence-production
+signing/notarization or the remaining evidence-production
 work for each production hardware profile.

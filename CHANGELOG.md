@@ -2,7 +2,7 @@
 
 All notable repository-level changes are recorded here. This project currently
 uses research/integration release wording only; production-security release
-claims remain blocked by the audit packet no-go items.
+claims remain blocked by the release packet no-go items.
 
 ## Unreleased
 
@@ -20,6 +20,14 @@ claims remain blocked by the audit packet no-go items.
   in the macOS full-gate job and an Ubuntu formal cross-check.
 - Added a production-readiness audit packet, release-engineering policy, schema
   compatibility policy, release-candidate runbook, and release evidence tooling.
+- Added a machine-checked NumiSeal product/carry/ZK conformance scope manifest
+  so theorem and vector promotion work is tracked inside the repository.
+- Added local product audit export: the CLI now emits a sorted-key JSON
+  snapshot only after validating the hash-chained JSONL audit log under an
+  exclusive file lock.
+- Hardened common Goldilocks field arithmetic by moving initialization,
+  addition, subtraction, negation, and multiplication reduction to mask-based
+  canonicalization.
 
 ### Compatibility
 
@@ -30,11 +38,11 @@ claims remain blocked by the audit packet no-go items.
 
 ### Remaining Production-Security Blockers
 
-- Independent cryptographic and implementation security audit.
+- Self-owned cryptographic and implementation review record.
 - Side-channel review and constant-time certification scope.
 - Product integration for provenance, replay protection, trusted context, access
   control, persistence, logging, and user-facing policy.
-- Formal-claim hygiene for production-security wording; the completed formal
-  protocol theorem label is validator-gated, while production claims still
-  require the audit and operational controls above.
+- NumiSeal product/carry/ZK theorem and conformance-vector promotion; the
+  completed SuperNeo formal protocol theorem label is validator-gated, while
+  NumiSeal product claims still require the tracked conformance scope to close.
 - Signed artifacts and repository branch-protection enforcement.

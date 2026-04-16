@@ -113,6 +113,11 @@ binds context ID, release build digest, proof kind, seal mode, ZK mode, Metal
 mode, execution policy, declared leakage digest, ZK body versions, Metal
 workspace feature digest, reviewed kernels/stages, and evidence digests.
 
+`TestVectors/numiseal-conformance-scope-v1.json` is the checked NumiSeal
+product/carry/ZK conformance-scope manifest. It is not a proof artifact schema;
+it pins which implementation files, conformance vectors, and focused tests are
+inside the current NumiSeal theorem and vector-promotion scope.
+
 Typed carry is a policy refinement over the existing carry slot. Legacy raw carry
 fixtures remain under `.optional`/`.required`; product recursive carry must use
 `NumiSealCarryStatement` and `.typedOptional`/`.typedRequired`.

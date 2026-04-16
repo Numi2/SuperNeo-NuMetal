@@ -691,7 +691,7 @@ public struct SuperNeoAuditLogRecord: Codable, Equatable, Sendable {
     public let recordDigestHex: String
 }
 
-public struct SuperNeoAuditLogChainStatus: Equatable, Sendable {
+public struct SuperNeoAuditLogChainStatus: Codable, Equatable, Sendable {
     public let isValid: Bool
     public let recordCount: Int
     public let lastSequence: UInt64
@@ -713,6 +713,28 @@ public struct SuperNeoAuditLogChainStatus: Equatable, Sendable {
     }
 }
 
+public struct SuperNeoAuditLogExportSnapshot: Codable, Equatable, Sendable {
+    public let formatVersion: Int
+    public let exportedAtUTC: String
+    public let auditLogDigestHex: String
+    public let chainStatus: SuperNeoAuditLogChainStatus
+    public let records: [SuperNeoAuditLogRecord]
+
+    public init(
+        formatVersion: Int = 1,
+        exportedAtUTC: String,
+        auditLogDigestHex: String,
+        chainStatus: SuperNeoAuditLogChainStatus,
+        records: [SuperNeoAuditLogRecord]
+    ) {
+        self.formatVersion = formatVersion
+        self.exportedAtUTC = exportedAtUTC
+        self.auditLogDigestHex = auditLogDigestHex
+        self.chainStatus = chainStatus
+        self.records = records
+    }
+}
+
 public final class SuperNeoJSONLAuditLog {
     public static let genesisDigestHex = String(repeating: "0", count: 64)
 
@@ -728,8 +750,68 @@ public final class SuperNeoJSONLAuditLog {
     }
 
     public func append(_ event: SuperNeoAuditLogEvent) throws {
-        try SuperNeoLocalFileSecurity.requireLockableSecureRegularFile(url, description: "audit log")
-        let fd = open(url.path, O_RDWR | O_APPEND | O_CLOEXEC)
+        try withExclusiveAuditLogLock(flags: O_RDWR | O_APPEND | O_CLOEXEC) { fd in
+            let status = try validateChainUnlocked(fd: fd)
+            guard status.isValid else {
+                throw SuperNeoProductIntegrationError.verificationFailed(status.reason ?? "audit log chain is invalid")
+            }
+            let payload = SuperNeoAuditLogRecordPayload(
+                formatVersion: 1,
+                sequence: status.lastSequence + 1,
+                timestampUTC: SuperNeoProductTime.nowUTCString(),
+                previousRecordDigestHex: status.lastRecordDigestHex,
+                event: event
+            )
+            let digest = Digest256.hash([UInt8](try SuperNeoCanonicalJSON.encode(payload))).hexString
+            let record = SuperNeoAuditLogRecord(payload: payload, recordDigestHex: digest)
+            var line = try SuperNeoCanonicalJSON.encode(record)
+            line.append(UInt8(ascii: "\n"))
+            let wrote = line.withUnsafeBytes { buffer in
+                write(fd, buffer.baseAddress, buffer.count)
+            }
+            guard wrote == line.count else {
+                throw SuperNeoProductIntegrationError.invalidRequest("could not append audit log record")
+            }
+        }
+    }
+
+    public func validateChain() throws -> SuperNeoAuditLogChainStatus {
+        try withExclusiveAuditLogLock(flags: O_RDWR | O_CLOEXEC) { fd in
+            try validateChainUnlocked(fd: fd)
+        }
+    }
+
+    public func exportSnapshot(
+        exportedAtUTC: String = SuperNeoProductTime.nowUTCString()
+    ) throws -> SuperNeoAuditLogExportSnapshot {
+        try withExclusiveAuditLogLock(flags: O_RDWR | O_CLOEXEC) { fd in
+            let result = try readRecordsUnlocked(fd: fd)
+            guard result.status.isValid else {
+                throw SuperNeoProductIntegrationError.verificationFailed(result.status.reason ?? "audit log chain is invalid")
+            }
+            return SuperNeoAuditLogExportSnapshot(
+                exportedAtUTC: exportedAtUTC,
+                auditLogDigestHex: result.auditLogDigestHex,
+                chainStatus: result.status,
+                records: result.records
+            )
+        }
+    }
+
+    public func records() throws -> [SuperNeoAuditLogRecord] {
+        try exportSnapshot().records
+    }
+
+    private func validateChainUnlocked(fd: Int32) throws -> SuperNeoAuditLogChainStatus {
+        try readRecordsUnlocked(fd: fd).status
+    }
+
+    private func withExclusiveAuditLogLock<T>(
+        flags: Int32,
+        _ body: (Int32) throws -> T
+    ) throws -> T {
+        try SuperNeoLocalFileSecurity.requireSecureRegularFile(url, description: "audit log")
+        let fd = open(url.path, flags)
         guard fd >= 0 else {
             throw SuperNeoProductIntegrationError.invalidRequest("could not open audit log")
         }
@@ -738,98 +820,113 @@ public final class SuperNeoJSONLAuditLog {
             throw SuperNeoProductIntegrationError.unauthorized("audit log is not lockable")
         }
         defer { flock(fd, LOCK_UN) }
-
-        let status = try validateChainUnlocked()
-        guard status.isValid else {
-            throw SuperNeoProductIntegrationError.verificationFailed(status.reason ?? "audit log chain is invalid")
-        }
-        let payload = SuperNeoAuditLogRecordPayload(
-            formatVersion: 1,
-            sequence: status.lastSequence + 1,
-            timestampUTC: SuperNeoProductTime.nowUTCString(),
-            previousRecordDigestHex: status.lastRecordDigestHex,
-            event: event
-        )
-        let digest = Digest256.hash([UInt8](try SuperNeoCanonicalJSON.encode(payload))).hexString
-        let record = SuperNeoAuditLogRecord(payload: payload, recordDigestHex: digest)
-        var line = try SuperNeoCanonicalJSON.encode(record)
-        line.append(UInt8(ascii: "\n"))
-        let wrote = line.withUnsafeBytes { buffer in
-            write(fd, buffer.baseAddress, buffer.count)
-        }
-        guard wrote == line.count else {
-            throw SuperNeoProductIntegrationError.invalidRequest("could not append audit log record")
-        }
+        return try body(fd)
     }
 
-    public func validateChain() throws -> SuperNeoAuditLogChainStatus {
-        try SuperNeoLocalFileSecurity.requireLockableSecureRegularFile(url, description: "audit log")
-        return try validateChainUnlocked()
-    }
-
-    private func validateChainUnlocked() throws -> SuperNeoAuditLogChainStatus {
-        let data = try Data(contentsOf: url)
+    private func readRecordsUnlocked(fd: Int32) throws -> AuditLogReadResult {
+        let data = try readDataUnlocked(fd: fd)
+        let auditLogDigestHex = Digest256.hash([UInt8](data)).hexString
         guard !data.isEmpty else {
-            return SuperNeoAuditLogChainStatus(
-                isValid: true,
-                recordCount: 0,
-                lastSequence: 0,
-                lastRecordDigestHex: Self.genesisDigestHex
+            return AuditLogReadResult(
+                status: SuperNeoAuditLogChainStatus(
+                    isValid: true,
+                    recordCount: 0,
+                    lastSequence: 0,
+                    lastRecordDigestHex: Self.genesisDigestHex
+                ),
+                records: [],
+                auditLogDigestHex: auditLogDigestHex
             )
         }
         guard let text = String(data: data, encoding: .utf8) else {
-            return invalidAuditStatus("audit log is not UTF-8")
+            return invalidAuditResult("audit log is not UTF-8", auditLogDigestHex: auditLogDigestHex)
         }
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
         var expectedSequence: UInt64 = 1
         var previousDigest = Self.genesisDigestHex
         var count = 0
+        var records: [SuperNeoAuditLogRecord] = []
         for line in lines {
             guard !line.isEmpty else {
                 continue
             }
             guard let lineData = String(line).data(using: .utf8) else {
-                return invalidAuditStatus("audit log line is not UTF-8")
+                return invalidAuditResult("audit log line is not UTF-8", auditLogDigestHex: auditLogDigestHex)
             }
             let record: SuperNeoAuditLogRecord
             do {
                 record = try JSONDecoder().decode(SuperNeoAuditLogRecord.self, from: lineData)
             } catch {
-                return invalidAuditStatus("audit log line is not valid JSON")
+                return invalidAuditResult("audit log line is not valid JSON", auditLogDigestHex: auditLogDigestHex)
             }
             guard record.payload.formatVersion == 1 else {
-                return invalidAuditStatus("audit log record version is unsupported")
+                return invalidAuditResult("audit log record version is unsupported", auditLogDigestHex: auditLogDigestHex)
             }
             guard record.payload.sequence == expectedSequence else {
-                return invalidAuditStatus("audit log sequence is not monotonic")
+                return invalidAuditResult("audit log sequence is not monotonic", auditLogDigestHex: auditLogDigestHex)
             }
             guard record.payload.previousRecordDigestHex == previousDigest else {
-                return invalidAuditStatus("audit log hash chain is broken")
+                return invalidAuditResult("audit log hash chain is broken", auditLogDigestHex: auditLogDigestHex)
             }
             let digest = Digest256.hash([UInt8](try SuperNeoCanonicalJSON.encode(record.payload))).hexString
             guard record.recordDigestHex == digest else {
-                return invalidAuditStatus("audit log record digest mismatch")
+                return invalidAuditResult("audit log record digest mismatch", auditLogDigestHex: auditLogDigestHex)
             }
             previousDigest = record.recordDigestHex
             expectedSequence += 1
             count += 1
+            records.append(record)
         }
-        return SuperNeoAuditLogChainStatus(
-            isValid: true,
-            recordCount: count,
-            lastSequence: expectedSequence - 1,
-            lastRecordDigestHex: previousDigest
+        return AuditLogReadResult(
+            status: SuperNeoAuditLogChainStatus(
+                isValid: true,
+                recordCount: count,
+                lastSequence: expectedSequence - 1,
+                lastRecordDigestHex: previousDigest
+            ),
+            records: records,
+            auditLogDigestHex: auditLogDigestHex
         )
     }
 
-    private func invalidAuditStatus(_ reason: String) -> SuperNeoAuditLogChainStatus {
-        SuperNeoAuditLogChainStatus(
-            isValid: false,
-            recordCount: 0,
-            lastSequence: 0,
-            lastRecordDigestHex: Self.genesisDigestHex,
-            reason: reason
+    private func readDataUnlocked(fd: Int32) throws -> Data {
+        guard lseek(fd, 0, SEEK_SET) >= 0 else {
+            throw SuperNeoProductIntegrationError.invalidRequest("could not seek audit log")
+        }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 64 * 1024)
+        while true {
+            let byteCount = buffer.withUnsafeMutableBytes { rawBuffer in
+                read(fd, rawBuffer.baseAddress, rawBuffer.count)
+            }
+            if byteCount < 0 {
+                throw SuperNeoProductIntegrationError.invalidRequest("could not read audit log")
+            }
+            if byteCount == 0 {
+                return data
+            }
+            data.append(buffer, count: byteCount)
+        }
+    }
+
+    private func invalidAuditResult(_ reason: String, auditLogDigestHex: String) -> AuditLogReadResult {
+        AuditLogReadResult(
+            status: SuperNeoAuditLogChainStatus(
+                isValid: false,
+                recordCount: 0,
+                lastSequence: 0,
+                lastRecordDigestHex: Self.genesisDigestHex,
+                reason: reason
+            ),
+            records: [],
+            auditLogDigestHex: auditLogDigestHex
         )
+    }
+
+    private struct AuditLogReadResult {
+        let status: SuperNeoAuditLogChainStatus
+        let records: [SuperNeoAuditLogRecord]
+        let auditLogDigestHex: String
     }
 }
 

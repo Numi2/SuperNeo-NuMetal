@@ -1,0 +1,34 @@
+{
+  "caseID": "numiseal-zk-masked-residual-conformance-v1",
+  "formatVersion": 1,
+  "surface": "numiseal-zk",
+  "statement": {
+    "baseEnvelopeKind": 4,
+    "maskedResidualStatementVersion": 2,
+    "proofBodyVersion": 13,
+    "proofEnvelopeKind": 5,
+    "sealMode": "numiseal-zk-v1",
+    "zkMode": "masked-digit-tensor-v1"
+  },
+  "positiveCases": [
+    "round-trip NumiSealZK proof body and envelope bytes",
+    "bind one mask statement to one masked residual statement",
+    "validate masked digit evaluation equals claimed digit evaluation plus mask evaluation",
+    "verify fixed-randomness CPU and Metal proof bytes match",
+    "verify product artifact carrying proof kind numiseal-zk"
+  ],
+  "negativeCases": [
+    "reject randomness-session reuse",
+    "reject residual opening digest mismatch",
+    "reject digit tensor digest mismatch",
+    "reject masked residual accumulation challenge mismatch",
+    "reject product artifact whose proof kind, seal mode, and ZK mode disagree",
+    "reject supplied side-channel certificate whose artifact bindings differ"
+  ],
+  "coveredByTests": [
+    "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse",
+    "testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch",
+    "testNumiSealProductProverEmitsVerifiableZKV2Artifact",
+    "testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked"
+  ]
+}

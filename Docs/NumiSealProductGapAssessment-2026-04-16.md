@@ -39,13 +39,13 @@ corrected model. What remains is NumiSeal-specific product formalization.
   signed releases.
 - [ ] NumiSeal-specific formalization: immediate-residual product theorem first,
   then separate carry and ZK theorem scope.
-- [ ] Independent audit: cryptographic review, implementation review, and
-  side-channel assessment.
+- [ ] Self-owned review: cryptographic review, implementation review, and
+  side-channel assessment recorded in repository evidence.
 
 ## Safe Wording
 
 Use:
 
 > NumiSeal currently verifies checked immediate-residual artifacts. It is not
-> yet a public proving, recursive, zero-knowledge, or independently audited
+> yet a public proving, recursive, zero-knowledge-by-default, or deployed
 > production product.

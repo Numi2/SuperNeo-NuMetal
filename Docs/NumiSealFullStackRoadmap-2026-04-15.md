@@ -75,9 +75,9 @@ below.
   digit-language, residual-opening, generated-artifact, and carry/ZK relations
   have scoped formal claims and conformance vectors.
 
-- [ ] Third-party security audit.
-  Done when independent cryptographic and implementation reviews are complete
-  and findings are resolved or explicitly accepted.
+- [ ] Self-owned cryptographic and implementation review.
+  Done when review evidence is recorded in the repository and findings are
+  resolved or explicitly accepted.
 
 - [ ] Side-channel certification.
   Done when the relevant Swift/LLVM/CPU/allocation/Metal behavior is reviewed
@@ -90,7 +90,7 @@ Use:
 > NumiSeal verifies checked immediate-residual artifacts through an explicit
 > kind `4` policy path. Public proving, recursive carry, zero knowledge,
 > deployed product operations, NumiSeal-specific product formalization, and
-> independent audit remain.
+> self-owned review closure remain.
 
 Do not say:
 

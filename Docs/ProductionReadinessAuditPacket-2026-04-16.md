@@ -39,8 +39,7 @@ Coverage included:
 - Swift/Lean CE vector comparison.
 
 This is a strong release gate for the implemented repository scope. It is not
-an external cryptographic audit, side-channel certification, or product
-deployment approval.
+a side-channel certification or product deployment approval.
 
 Additional local estimator command:
 
@@ -101,8 +100,10 @@ Release and validation gates:
 - `Docs/SchemaCompatibility-2026-04-16.md`
 - `Docs/ProductIntegrationLayer-2026-04-16.md`
 - `Docs/ReleaseCandidateRunbook-2026-04-16.md`
+- `TestVectors/numiseal-conformance-scope-v1.json`
 - `CHANGELOG.md`
 - `Scripts/validate-release-readiness-policy.py`
+- `Scripts/validate-numiseal-conformance-scope.py`
 - `Scripts/generate-release-candidate-evidence.py`
 - `Scripts/validate-release-candidate-evidence.py`
 - `Scripts/test-release-candidate-evidence-validation.py`
@@ -154,7 +155,6 @@ trust-pin checks, and final verifier dispatch.
 
 The repository must not yet be presented as:
 
-- an independently audited cryptographic library,
 - a production-secure post-quantum SNARK,
 - a general zero-knowledge system for arbitrary application statements,
 - a hosted verifier service, wallet, replay-protection service, or policy
@@ -162,12 +162,14 @@ The repository must not yet be presented as:
 - a formally constant-time implementation,
 - a general program-to-CCS compiler,
 - a general NumiSeal production proving product.
+- a self-owned production-hardening record for all NumiSeal product, carry,
+  ZK, side-channel, and release-operation lanes.
 
 ## Remaining No-Go Items
 
 These are the remaining blockers before using production-security language:
 
-1. Independent cryptographic and implementation security audit.
+1. Self-owned cryptographic and implementation review record.
 2. Side-channel review for Swift, LLVM, CPU microarchitecture, allocation, and
    timing behavior.
 3. Deployed product implementations for trusted key distribution,
@@ -175,10 +177,9 @@ These are the remaining blockers before using production-security language:
    persistence, access control, logging, and user-facing error policy. The
    local NumiSeal integration protocol facade now exists, but durable product
    implementations remain outside the repository.
-4. Formal-claims hygiene remains a release discipline item: the completed
-   formal protocol theorem label is now validator-gated by closed Lean
-   declarations, but production-security language still requires the independent
-   audits and operational controls listed here.
+4. NumiSeal product/carry/ZK theorem scope remains release-discipline work:
+   `TestVectors/numiseal-conformance-scope-v1.json` now tracks the current
+   surfaces, conformance vectors, and open theorem work inside the repository.
 5. Broader hardware benchmark reports before making cross-generation
    performance claims.
 6. Release engineering execution: signed artifacts and hosted branch-protection

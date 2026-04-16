@@ -22,8 +22,8 @@ true:
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
 - Release notes explicitly use research/integration wording and do not claim
-  independent security audit, production-secure SNARK status, formal
-  constant-time behavior, or completed end-to-end formal theorem status.
+  production-secure SNARK status, formal constant-time behavior, or completed
+  NumiSeal product/carry/ZK theorem scope.
 
 ### Production-Security Release
 
@@ -33,11 +33,11 @@ replaced by an explicit, narrower deployment threat model.
 
 At minimum, this requires:
 
-- independent cryptographic and implementation security audit,
-- side-channel review,
+- self-owned cryptographic and implementation review,
+- side-channel review and evidence capture,
 - product integration policy for trusted context, replay protection, and
   provenance,
-- formal-claim promotion or explicit narrowing,
+- NumiSeal conformance-scope promotion or explicit narrowing,
 - pinned Sage-backed lattice-estimator evidence,
 - release signing/provenance,
 - branch protection requiring the full production gate.
@@ -54,12 +54,14 @@ Each release candidate should record:
   claims are included,
 - artifact schema versions and any compatibility changes,
 - proof envelope version,
-- known residual boundaries.
+- known residual boundaries,
+- NumiSeal conformance-scope digest.
 
 `Scripts/generate-release-candidate-evidence.py` generates this evidence in a
 machine-readable JSON packet, and `Scripts/validate-release-candidate-evidence.py`
 checks that the packet was produced from the full production gate and current
-public surface versions.
+public surface versions. `Scripts/validate-numiseal-conformance-scope.py`
+checks the NumiSeal product/carry/ZK scope manifest that release evidence pins.
 
 ## Signing And Provenance
 

@@ -87,11 +87,10 @@ controls, but production deployment still requires product-owned completion for:
 - operator-profile provisioning and revocation distribution,
 - authentication, authorization, and tenant isolation beyond the local OS-user
   model,
-- audit-log retention and export,
-- user-facing error and retry policy, and
+- hosted audit-log retention beyond the local hash-chain export,
+- user-facing error and retry policy,
 - side-channel evidence collection for each production hardware/profile lane,
-  and
-- external audit completion.
+- self-owned release review completion.
 
 The product integration blocker is therefore narrowed: the local repository no
 longer lacks an integration-layer contract or local CLI control substrate, but

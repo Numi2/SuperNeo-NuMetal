@@ -1,0 +1,85 @@
+{
+  "externalAuditRequired": false,
+  "schemaVersion": 1,
+  "scopeID": "numiseal-product-carry-zk-conformance-v1",
+  "surfaces": [
+    {
+      "conformanceVectors": [
+        "TestVectors/numiseal-terminal-single-aggregate-v1.json",
+        "TestVectors/numiseal-terminal-two-aggregate-v1.json",
+        "TestVectors/numiseal-terminal-two-lane-v1.json"
+      ],
+      "formalScope": [
+        "canonical obligation ordering",
+        "lane aggregation roots",
+        "immediate residual CE opening relation",
+        "terminal proof transcript binding"
+      ],
+      "id": "numiseal-product",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealArtifactVerifier.swift",
+        "SuperNeo-NuMetal/ProductIntegration/NumiSealProductVerifier.swift"
+      ],
+      "openFormalWork": [
+        "single end-to-end product theorem tying artifact metadata, reconstructed obligations, terminal envelope verification, and product replay identity"
+      ],
+      "testNames": [
+        "testNumiSealProductProverEmitsVerifiableV2Artifact",
+        "testNumiSealProductVerifierAcceptsThroughIntegrationHooks",
+        "testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification"
+      ]
+    },
+    {
+      "conformanceVectors": [
+        "TestVectors/numiseal-typed-carry-conformance-v1.json"
+      ],
+      "formalScope": [
+        "typed carry byte grammar",
+        "carry digest binding",
+        "consumer replay identity",
+        "producer/consumer context binding"
+      ],
+      "id": "numiseal-typed-carry",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypedCarry.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift"
+      ],
+      "openFormalWork": [
+        "recursive producer path from accepted parent proof to typed carry claim",
+        "formal relation connecting carried residual opening to the next product statement"
+      ],
+      "testNames": [
+        "testNumiSealTypedCarryStatementRoundTripsAndPolicyRejectsMalformedCarry",
+        "testNumiSealCarryConsumerBindsContextAndRejectsReplay"
+      ]
+    },
+    {
+      "conformanceVectors": [
+        "TestVectors/numiseal-zk-masked-residual-conformance-v1.json"
+      ],
+      "formalScope": [
+        "randomness session reuse rejection",
+        "masked digit tensor statement binding",
+        "masked residual accumulation binding",
+        "public leakage digest binding"
+      ],
+      "id": "numiseal-zk",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
+        "SuperNeo-NuMetal/ProductIntegration/NumiSealZKSideChannelCertification.swift"
+      ],
+      "openFormalWork": [
+        "simulator theorem for the full masked residual language",
+        "leakage model signoff for product default promotion from zkMode none to masked-digit-tensor-v1"
+      ],
+      "testNames": [
+        "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse",
+        "testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch",
+        "testNumiSealProductProverEmitsVerifiableZKV2Artifact",
+        "testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked"
+      ]
+    }
+  ]
+}

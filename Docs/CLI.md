@@ -185,6 +185,11 @@ swift run superneo verify \
   --context-pack context.json \
   --artifact-provenance provenance.json \
   /tmp/one-hot-numiseal-zk.json
+
+swift run superneo product-export-audit \
+  --operator-profile profile.json \
+  --context-pack context.json \
+  --output audit-export.json
 ```
 
 When supplied, a side-channel certificate binds the release build, context ID, ZK mode,
@@ -192,6 +197,9 @@ Metal mode, execution policy, leakage digest, proof body versions, reviewed
 kernels/stages, and evidence digests. Product verification rejects
 `numiseal-zk` trusted contexts that omit ZK policy, and rejects supplied
 certificates whose digest or bindings differ from the artifact.
+`product-export-audit` validates the local hash-chained JSONL audit log before
+writing a sorted-key JSON export that includes the active context digest,
+issuer-key digest, replay count, audit-log digest, chain status, and records.
 
 Available NumiSeal execution policies are:
 

@@ -45,6 +45,12 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         XCTAssertEqual(minusTwo + two, .zero)
         XCTAssertEqual(minusOne + minusOne, minusTwo)
         XCTAssertEqual(minusOne + two, .one)
+        XCTAssertEqual(.zero - .one, minusOne)
+        XCTAssertEqual(.one - two, minusOne)
+        XCTAssertEqual(-GoldilocksField.zero, .zero)
+        XCTAssertEqual(-minusOne, .one)
+        XCTAssertEqual(GoldilocksField(GoldilocksField.modulus), .zero)
+        XCTAssertEqual(GoldilocksField(UInt64.max), GoldilocksField((1 << 32) - 2))
 
         XCTAssertEqual(minusOne * minusOne, .one)
         XCTAssertEqual(minusOne * two, minusTwo)
@@ -6088,6 +6094,14 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertTrue(auditStatus.isValid)
         XCTAssertEqual(auditStatus.recordCount, 1)
         XCTAssertEqual(auditStatus.lastSequence, 1)
+        let auditSnapshot = try auditLog.exportSnapshot(exportedAtUTC: "2026-04-16T00:00:00Z")
+        XCTAssertEqual(auditSnapshot.formatVersion, 1)
+        XCTAssertEqual(auditSnapshot.exportedAtUTC, "2026-04-16T00:00:00Z")
+        XCTAssertEqual(auditSnapshot.chainStatus, auditStatus)
+        XCTAssertEqual(auditSnapshot.records.count, 1)
+        XCTAssertEqual(auditSnapshot.records.first?.payload.sequence, 1)
+        XCTAssertEqual(auditSnapshot.records.first?.payload.event.contextID, contextPayload.contextID)
+        XCTAssertEqual(try auditLog.records().map(\.payload.sequence), [1])
     }
 
     func testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked() throws {

@@ -11,12 +11,19 @@ Machine-readable files:
 - `numiseal-manifest.json`: NumiSeal vector list, byte count, SHA-256 hash,
   expected NumiSeal digests, and strict validation command.
 - `numiseal-artifact.schema.json`: JSON Schema for NumiSeal artifact version 1.
+- `numiseal-conformance-scope-v1.json`: checked NumiSeal product/carry/ZK
+  theorem and conformance-vector promotion scope.
+- `numiseal-typed-carry-conformance-v1.json`: typed carry positive/negative
+  conformance descriptor.
+- `numiseal-zk-masked-residual-conformance-v1.json`: masked residual ZK
+  positive/negative conformance descriptor.
 
 Validate the checked-in vectors with:
 
 ```sh
 swift Scripts/validate-test-vectors.swift
 swift run superneo-numiseal-vectors validate
+Scripts/validate-numiseal-conformance-scope.py
 ```
 
 ## Vectors

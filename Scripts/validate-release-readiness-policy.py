@@ -64,11 +64,13 @@ def validate_docs() -> None:
             "Result: passed.",
             "Not Yet Production-Ready For",
             "Remaining No-Go Items",
-            "independently audited cryptographic library",
+            "self-owned production-hardening record",
             "Docs/ReleaseEngineering-2026-04-16.md",
             "Docs/SchemaCompatibility-2026-04-16.md",
             "Docs/ReleaseCandidateRunbook-2026-04-16.md",
+            "TestVectors/numiseal-conformance-scope-v1.json",
             "Scripts/validate-release-readiness-policy.py",
+            "Scripts/validate-numiseal-conformance-scope.py",
             "Scripts/generate-release-candidate-evidence.py",
             "Scripts/validate-release-candidate-evidence.py",
         ],
@@ -80,9 +82,10 @@ def validate_docs() -> None:
             "Production-Security Release",
             "Scripts/production-gate.sh",
             "without `--skip-formal`",
-            "independent cryptographic and implementation security audit",
+            "self-owned cryptographic and implementation review",
             "signed artifacts",
             "branch protection requiring the full production gate",
+            "Scripts/validate-numiseal-conformance-scope.py",
             "Scripts/generate-release-candidate-evidence.py",
         ],
     )
@@ -94,6 +97,7 @@ def validate_docs() -> None:
             "`ProofEnvelopeHeader.version = 4`",
             "`numiseal-test-vector-artifact-v1.json`",
             "`test-vector-artifact-v1.json`",
+            "TestVectors/numiseal-conformance-scope-v1.json",
             "Version Bump Checklist",
         ],
     )
@@ -105,6 +109,7 @@ def validate_docs() -> None:
             "Scripts/validate-release-candidate-evidence.py",
             "--expect-production-gate-result passed",
             "unsigned research artifacts",
+            "NumiSeal product/carry/ZK conformance-scope version and digest",
             "Branch Protection",
         ],
     )
@@ -143,6 +148,13 @@ def validate_schema_versions() -> None:
     require_schema_version("TestVectors/numiseal-artifact.schema.json", "/numiseal-test-vector-artifact-v1.json")
     require_manifest_version("TestVectors/manifest.json")
     require_manifest_version("TestVectors/numiseal-manifest.json")
+    conformance_scope = read_json("TestVectors/numiseal-conformance-scope-v1.json")
+    require(isinstance(conformance_scope, dict), "NumiSeal conformance scope root must be an object")
+    require(conformance_scope.get("schemaVersion") == 1, "NumiSeal conformance scope schemaVersion must be 1")
+    require(
+        conformance_scope.get("externalAuditRequired") is False,
+        "NumiSeal conformance scope must not require outsourced review",
+    )
 
     serialization = read_text("SuperNeo-NuMetal/SuperNeoSerialization.swift")
     header_version = re.search(r"public\s+static\s+let\s+version:\s*UInt16\s*=\s*(\d+)", serialization)
@@ -166,6 +178,10 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/test-release-candidate-evidence-validation.py" in gate,
         "production gate must run release-candidate evidence regression tests",
+    )
+    require(
+        "run_step Scripts/validate-numiseal-conformance-scope.py" in gate,
+        "production gate must run validate-numiseal-conformance-scope.py",
     )
 
 

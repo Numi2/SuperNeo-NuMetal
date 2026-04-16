@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -58,6 +59,10 @@ def manifest_version(manifest_path: str) -> int:
     return int(read_json(manifest_path)["manifestVersion"])
 
 
+def sha256_hex(relative_path: str) -> str:
+    return hashlib.sha256((ROOT / relative_path).read_bytes()).hexdigest()
+
+
 def build_evidence(args: argparse.Namespace) -> dict:
     status_short = run_text("git", "status", "--short")
     dirty = bool(status_short)
@@ -101,6 +106,8 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "numiSealArtifactVersion": artifact_version("TestVectors/numiseal-artifact.schema.json"),
             "numiSealSchemaID": schema_id("TestVectors/numiseal-artifact.schema.json"),
             "numiSealManifestVersion": manifest_version("TestVectors/numiseal-manifest.json"),
+            "numiSealConformanceScopeVersion": int(read_json("TestVectors/numiseal-conformance-scope-v1.json")["schemaVersion"]),
+            "numiSealConformanceScopeDigestHex": sha256_hex("TestVectors/numiseal-conformance-scope-v1.json"),
             "proofEnvelopeHeaderVersion": int(
                 parse_regex(
                     "SuperNeo-NuMetal/SuperNeoSerialization.swift",
@@ -120,6 +127,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "auditPacket": "Docs/ProductionReadinessAuditPacket-2026-04-16.md",
             "releaseEngineering": "Docs/ReleaseEngineering-2026-04-16.md",
             "schemaCompatibility": "Docs/SchemaCompatibility-2026-04-16.md",
+            "numiSealConformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
             "releaseRunbook": "Docs/ReleaseCandidateRunbook-2026-04-16.md",
             "changelog": "CHANGELOG.md",
         },
@@ -132,10 +140,9 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "signedArtifactsRequiredForProductionSecurity": True,
         },
         "productionSecurityBoundaries": [
-            "No independent cryptographic and implementation security audit is recorded.",
             "No formal constant-time or side-channel certification is recorded.",
-            "No product replay-protection, provenance, persistence, or access-control layer is recorded.",
-            "No completed end-to-end formal protocol theorem is recorded.",
+            "No deployed product replay-protection, provenance, persistence, or access-control service is recorded.",
+            "NumiSeal product, carry, and ZK formalization remains tracked by the conformance scope manifest.",
         ],
     }
 

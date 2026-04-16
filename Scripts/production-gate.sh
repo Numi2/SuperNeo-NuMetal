@@ -16,6 +16,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - Lean/Swift profile-constant conformance validation
   - checked-in test vector validation
   - checked-in NumiSeal schema and vector validation
+  - NumiSeal product/carry/ZK conformance-scope validation
   - production NumiSeal CLI adversarial matrix
   - optional signed NumiSealZK side-channel certificate binding tests
   - release policy, schema compatibility, and CI gate drift validation
@@ -135,6 +136,7 @@ run_step Scripts/test-artifact-schema-validation.py
 run_step Scripts/validate-numiseal-artifact-schema.py
 run_step Scripts/validate-numiseal-product-artifact-schema.py
 run_step Scripts/test-numiseal-artifact-schema-validation.py
+run_step Scripts/validate-numiseal-conformance-scope.py
 run_step Scripts/validate-release-readiness-policy.py
 run_step Scripts/test-release-candidate-evidence-validation.py
 run_step Scripts/test-benchmark-tooling-validation.py

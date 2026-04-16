@@ -6,7 +6,7 @@ public struct GoldilocksField: Equatable, Hashable, Sendable {
     public let rawValue: UInt64
 
     public init(_ value: UInt64) {
-        self.rawValue = value >= Self.modulus ? value &- Self.modulus : value
+        self.rawValue = Self.subtractModulusIfNeeded(value)
     }
 
     private init(uncheckedRawValue: UInt64) {
@@ -22,26 +22,17 @@ public struct GoldilocksField: Equatable, Hashable, Sendable {
 
     public static func + (lhs: Self, rhs: Self) -> Self {
         let (sum, overflow) = lhs.rawValue.addingReportingOverflow(rhs.rawValue)
-        var value = sum
-        if overflow {
-            // 2^64 == 2^32 - 1 mod p for p = 2^64 - 2^32 + 1.
-            value = addFoldedCarry(value, epsilon)
-        }
-        if value >= modulus {
-            value = value &- modulus
-        }
-        return Self(uncheckedRawValue: value)
+        let value = addFoldedCarry(sum, epsilon & truthMask(overflow))
+        return Self(uncheckedRawValue: subtractModulusIfNeeded(value))
     }
 
     public static func - (lhs: Self, rhs: Self) -> Self {
-        if lhs.rawValue >= rhs.rawValue {
-            return Self(uncheckedRawValue: lhs.rawValue - rhs.rawValue)
-        }
-        return Self(uncheckedRawValue: modulus - (rhs.rawValue - lhs.rawValue))
+        let (difference, borrow) = lhs.rawValue.subtractingReportingOverflow(rhs.rawValue)
+        return Self(uncheckedRawValue: difference &+ (modulus & truthMask(borrow)))
     }
 
     public static prefix func - (value: Self) -> Self {
-        value.rawValue == 0 ? .zero : Self(uncheckedRawValue: modulus - value.rawValue)
+        .zero - value
     }
 
     public static func * (lhs: Self, rhs: Self) -> Self {
@@ -87,28 +78,28 @@ public struct GoldilocksField: Equatable, Hashable, Sendable {
         let highLow = high & epsilon
         let highHigh = high >> 32
 
-        var reduced = low &- highHigh
-        if low < highHigh {
-            reduced = reduced &- epsilon
-        }
+        let reduced = (low &- highHigh) &- (epsilon & truthMask(low < highHigh))
 
         let foldedHighLow = highLow &* epsilon
         let (sum, overflow) = reduced.addingReportingOverflow(foldedHighLow)
-        var value = sum
-        if overflow {
-            value = addFoldedCarry(value, epsilon)
-        }
-        if value >= modulus {
-            value = value &- modulus
-        }
-        return value
+        let value = addFoldedCarry(sum, epsilon & truthMask(overflow))
+        return subtractModulusIfNeeded(value)
     }
 
     private static func addFoldedCarry(_ value: UInt64, _ foldedCarry: UInt64) -> UInt64 {
         let (first, firstOverflow) = value.addingReportingOverflow(foldedCarry)
-        guard firstOverflow else { return first }
-        let (second, secondOverflow) = first.addingReportingOverflow(epsilon)
-        return secondOverflow ? second &+ epsilon : second
+        let (second, secondOverflow) = first.addingReportingOverflow(epsilon & truthMask(firstOverflow))
+        return second &+ (epsilon & truthMask(secondOverflow))
+    }
+
+    private static func subtractModulusIfNeeded(_ value: UInt64) -> UInt64 {
+        let (candidate, borrow) = value.subtractingReportingOverflow(modulus)
+        let mask = truthMask(!borrow)
+        return (candidate & mask) | (value & ~mask)
+    }
+
+    private static func truthMask(_ condition: Bool) -> UInt64 {
+        0 &- UInt64(condition ? 1 : 0)
     }
 }
 

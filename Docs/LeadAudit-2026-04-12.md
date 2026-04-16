@@ -2,7 +2,7 @@
 
 Scope: production Swift and Metal backend code, benchmark code, and regression
 coverage. This note records the findings addressed in the implementation pass;
-it is not an independent cryptographic security certification.
+it is not a production security certification.
 
 ## Findings Addressed
 

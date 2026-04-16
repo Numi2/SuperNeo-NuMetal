@@ -126,6 +126,7 @@ private struct ProductControlOptions {
     var operatorProfilePath: String?
     var contextPackPath: String?
     var sideChannelCertificatePath: String?
+    var outputPath: String?
 }
 
 private struct LoadedProductControls {
@@ -145,6 +146,21 @@ private struct ProductArtifactMaterial {
     let verify: () throws -> Void
 }
 
+private struct ProductAuditExportDocument: Codable {
+    let formatVersion: Int
+    let exportedAtUTC: String
+    let callerID: String
+    let contextID: String
+    let contextPayloadDigestHex: String
+    let issuerKeyDigestHex: String
+    let replayDatabasePath: String
+    let acceptedReplayCount: Int
+    let auditLogPath: String
+    let auditLogDigestHex: String
+    let auditStatus: SuperNeoAuditLogChainStatus
+    let records: [SuperNeoAuditLogRecord]
+}
+
 private let productToolVersion = "superneo-cli-product-controls-v1"
 
 private func usage() -> String {
@@ -158,6 +174,7 @@ private func usage() -> String {
       superneo inspect proof.json
       superneo product-init-storage --operator-profile profile.json
       superneo product-status --operator-profile profile.json [--context-pack context.json] [--side-channel-certificate certificate.json]
+      superneo product-export-audit --operator-profile profile.json [--context-pack context.json] [--output audit-export.json]
 
     Workloads:
       one-hot: proves a committed private bit vector has exactly one selected bit.
@@ -202,6 +219,8 @@ private func run(_ arguments: [String]) throws {
         try productInitStorage(parseProductControlOptions(Array(arguments.dropFirst())))
     case "product-status":
         try productStatus(parseProductControlOptions(Array(arguments.dropFirst())))
+    case "product-export-audit":
+        try productExportAudit(parseProductControlOptions(Array(arguments.dropFirst())))
     case "-h", "--help", "help":
         print(usage())
     default:
@@ -252,7 +271,7 @@ private func parseProveOptions(_ arguments: [String]) throws -> ProveOptions {
                 throw CLIError.invalidArgument("--seal must be numiseal")
             }
             options.sealMode = sealMode
-        case "--numiseal-execution-policy", "--zk-policy":
+        case "--numiseal-execution-policy":
             let raw = try requireValue()
             guard let policy = NumiSealProvingExecutionPolicy(rawValue: raw) else {
                 throw CLIError.invalidArgument(
@@ -260,7 +279,7 @@ private func parseProveOptions(_ arguments: [String]) throws -> ProveOptions {
                 )
             }
             options.numiSealExecutionPolicy = policy
-        case "--numiseal-zk-mode", "--zk-mode":
+        case "--numiseal-zk-mode":
             let raw = try requireValue()
             guard raw == NumiSealZK.nonZKMode || raw == NumiSealZK.maskedDigitTensorMode else {
                 throw CLIError.invalidArgument("\(argument) must be none or masked-digit-tensor-v1")
@@ -421,6 +440,8 @@ private func parseProductControlOptions(_ arguments: [String]) throws -> Product
             options.contextPackPath = try requireValue()
         case "--side-channel-certificate":
             options.sideChannelCertificatePath = try requireValue()
+        case "--output", "-o":
+            options.outputPath = try requireValue()
         default:
             throw CLIError.invalidArgument("unknown product option: \(argument)")
         }
@@ -1066,6 +1087,39 @@ private func productStatus(_ options: ProductControlOptions) throws {
     print("audit log last digest: \(auditStatus.lastRecordDigestHex)")
     if let reason = auditStatus.reason {
         print("audit log reason: \(reason)")
+    }
+}
+
+private func productExportAudit(_ options: ProductControlOptions) throws {
+    let controls = try loadProductControls(
+        operatorProfilePath: options.operatorProfilePath,
+        contextPackPath: options.contextPackPath,
+        sideChannelCertificatePath: options.sideChannelCertificatePath
+    )
+    let snapshot = try controls.auditLog.exportSnapshot()
+    let document = ProductAuditExportDocument(
+        formatVersion: 1,
+        exportedAtUTC: snapshot.exportedAtUTC,
+        callerID: controls.profile.callerID,
+        contextID: controls.context.payload.contextID,
+        contextPayloadDigestHex: controls.context.payloadDigest.hexString,
+        issuerKeyDigestHex: controls.context.issuerKeyDigest.hexString,
+        replayDatabasePath: controls.profile.replayDatabasePath,
+        acceptedReplayCount: try controls.replayLedger.acceptedReplayCount(),
+        auditLogPath: controls.profile.auditLogPath,
+        auditLogDigestHex: snapshot.auditLogDigestHex,
+        auditStatus: snapshot.chainStatus,
+        records: snapshot.records
+    )
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    let data = try encoder.encode(document)
+    if let outputPath = options.outputPath {
+        try data.write(to: URL(fileURLWithPath: outputPath), options: Data.WritingOptions.atomic)
+        print("wrote product audit export: \(outputPath)")
+    } else {
+        FileHandle.standardOutput.write(data)
+        FileHandle.standardOutput.write(Data([UInt8(ascii: "\n")]))
     }
 }
 

@@ -286,8 +286,8 @@ Remaining boundary:
   the corrected model: certified verifier keys, finite excluded challenge/seed
   sets, Swift/Lean byte equivalence surfaces, and the composed probability
   bound. It is not a proof that arbitrary Ajtai matrices are binding or that the
-  implementation has independent cryptographic, side-channel, or production
-  operational certification.
+  implementation has completed side-channel or production operational
+  certification.
 
 ## Fifth Priority: NumiSeal Terminal Seal
 
@@ -312,11 +312,12 @@ Remaining checklist:
 - [ ] Separate `NumiSealZK` design and proof story.
 - [ ] Deployed product operations: context storage, keys, provenance, replay,
   authz, audit retention, revocation, release signing.
-- [ ] NumiSeal-specific product formalization.
-- [ ] Independent cryptographic, implementation, and side-channel audit.
+- [ ] NumiSeal-specific product/carry/ZK formalization tracked by
+  `TestVectors/numiseal-conformance-scope-v1.json`.
+- [ ] Self-owned cryptographic, implementation, and side-channel review record.
 
 Safe wording:
 
 > NumiSeal verifies checked immediate-residual artifacts through an explicit
 > kind `4` policy path. It is not yet a public proving, recursive,
-> zero-knowledge, deployed, or independently audited production product.
+> zero-knowledge-by-default, deployed production product.

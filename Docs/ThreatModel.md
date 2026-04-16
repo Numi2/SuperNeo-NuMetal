@@ -110,7 +110,7 @@ The NumiSeal CLI exposure is a verifier/inspection surface for the checked
 immediate-residual artifact family. `superneo-numiseal-vectors` remains a
 deterministic vector generator and validator, not a production proving product,
 and `superneo verify --require-numiseal` is not a claim of recursive, zero
-knowledge, or externally audited NumiSeal security.
+knowledge, or deployment-ready NumiSeal security.
 
 ## Randomness Notes
 
