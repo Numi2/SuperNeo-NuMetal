@@ -1,0 +1,88 @@
+{
+  "claimStatus": "compiler-observation-lanes-local-and-gap-recorded",
+  "generatedAtUTC": "2026-04-16T17:37:58Z",
+  "lanes": [
+    {
+      "id": "swift-llvm-goldilocks-arithmetic",
+      "observationStatus": "source-runtime-review-pinned-lowering-artifacts-required",
+      "observedArtifacts": [
+        "runtime-allocation-review"
+      ],
+      "positiveFindings": [
+        "The release evidence pins the Swift source-scope allocation/COW review for the marked regions.",
+        "No Swift compiler lowering artifact is promoted to a production constant-time claim in this lane."
+      ],
+      "regions": [
+        "swift-goldilocks-common-arithmetic",
+        "swift-goldilocks-fixed-exponentiation"
+      ],
+      "requiredBeforeProduction": [
+        "optimized SIL or equivalent Swift frontend lowering for marked Swift regions",
+        "optimized LLVM IR for marked Swift regions",
+        "target assembly or object-code branch audit for marked Swift regions"
+      ],
+      "residualBoundaries": [
+        "Bool-to-mask and select lowering still require emitted SIL/LLVM/assembly observation.",
+        "This lane records a compiler-observation gap, not a completed Swift compiler proof."
+      ],
+      "surface": "Swift frontend through optimized SIL, LLVM IR, and target assembly for GoldilocksField arithmetic"
+    },
+    {
+      "id": "metal-air-goldilocks-arithmetic",
+      "observationStatus": "local-air-and-metallib-pinned-disassembly-required",
+      "observedArtifacts": [
+        "metal-air",
+        "metal-metallib",
+        "metal-artifact-report"
+      ],
+      "positiveFindings": [
+        "The release evidence pins the Metal AIR object, linked metallib, and generation report.",
+        "The Metal artifact report covers the Goldilocks helper source region."
+      ],
+      "regions": [
+        "metal-goldilocks-common-arithmetic"
+      ],
+      "requiredBeforeProduction": [
+        "target GPU-family disassembly or equivalent compiler report for integer select and compare lowering",
+        "per-GPU-family compiler report confirming no secret-dependent thread divergence"
+      ],
+      "residualBoundaries": [
+        "AIR/metallib pinning is not target GPU-family disassembly.",
+        "The lane remains non-certifying until emitted-code observations are recorded per accepted GPU family."
+      ],
+      "surface": "Apple Metal frontend through AIR/metallib for Goldilocks helper arithmetic"
+    },
+    {
+      "id": "metal-air-numiseal-zk-kernels",
+      "observationStatus": "local-air-and-metallib-pinned-disassembly-required",
+      "observedArtifacts": [
+        "metal-air",
+        "metal-metallib",
+        "metal-artifact-report"
+      ],
+      "positiveFindings": [
+        "The release evidence pins the Metal AIR object, linked metallib, and generation report.",
+        "The Metal artifact report covers the NumiSealZK secret-bearing source region."
+      ],
+      "regions": [
+        "metal-numiseal-zk-secret-bearing-kernels"
+      ],
+      "requiredBeforeProduction": [
+        "target GPU-family disassembly or equivalent compiler report for public-bound loops and select lowering",
+        "buffer-layout audit showing secret coefficients do not choose addresses"
+      ],
+      "residualBoundaries": [
+        "AIR/metallib pinning is not target GPU-family disassembly.",
+        "The lane remains non-certifying until emitted-code observations are recorded per accepted GPU family."
+      ],
+      "surface": "Apple Metal frontend through AIR/metallib for NumiSealZK secret-bearing kernels"
+    }
+  ],
+  "promotionImpact": {
+    "productionConstantTimeClaimAllowed": false,
+    "reason": "Compiler observation lanes are recorded, but Swift SIL/LLVM/assembly and target GPU-family disassembly remain required."
+  },
+  "reportID": "superneo-compiler-observation-lanes-v1",
+  "schemaVersion": 1,
+  "scopeManifest": "TestVectors/constant-time-scope-v1.json"
+}

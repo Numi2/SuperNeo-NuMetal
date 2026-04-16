@@ -67,9 +67,13 @@ The generated evidence records:
 - full production-gate command and result,
 - public artifact, manifest, schema, and proof-envelope versions,
 - NumiSeal product/carry/ZK conformance-scope version and digest,
+- NumiSeal end-to-end theorem-scope version and digest,
+- recursive folding knowledge, typed carry producer/consumer, and NumiSealZK
+  simulation/privacy theorem-surface digests inside the theorem-scope manifest,
 - constant-time source/formal scope version and digest,
 - constant-time lowering evidence version and digest,
 - constant-time release evidence version and digest,
+- constant-time compiler and hardware observation lane versions and digests,
 - E2E proof metrics version and digest,
 - product operations readiness status version,
 - signed revocation feed policy,

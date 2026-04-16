@@ -72,6 +72,18 @@ def main() -> None:
         write_json(path, wrong_numiseal_scope)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_numiseal_theorem_scope = copy.deepcopy(evidence)
+        wrong_numiseal_theorem_scope["publicSurfaces"]["numiSealEndToEndTheoremScopeVersion"] = 2
+        path = tmp / "wrong-numiseal-theorem-scope.json"
+        write_json(path, wrong_numiseal_theorem_scope)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_numiseal_theorem_scope = copy.deepcopy(evidence)
+        vague_numiseal_theorem_scope["publicSurfaces"]["numiSealEndToEndTheoremScopeClaimStatus"] = "full-product-theorem"
+        path = tmp / "vague-numiseal-theorem-scope.json"
+        write_json(path, vague_numiseal_theorem_scope)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_constant_time_scope = copy.deepcopy(evidence)
         wrong_constant_time_scope["publicSurfaces"]["constantTimeScopeVersion"] = 2
         path = tmp / "wrong-constant-time-scope.json"
@@ -100,6 +112,18 @@ def main() -> None:
         vague_constant_time_release_evidence["publicSurfaces"]["constantTimeReleaseEvidenceClaimStatus"] = "certified"
         path = tmp / "vague-constant-time-release-evidence.json"
         write_json(path, vague_constant_time_release_evidence)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_constant_time_compiler_lanes = copy.deepcopy(evidence)
+        vague_constant_time_compiler_lanes["publicSurfaces"]["constantTimeCompilerObservationLanesClaimStatus"] = "certified"
+        path = tmp / "vague-constant-time-compiler-lanes.json"
+        write_json(path, vague_constant_time_compiler_lanes)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_constant_time_hardware_lanes = copy.deepcopy(evidence)
+        vague_constant_time_hardware_lanes["publicSurfaces"]["constantTimeHardwareObservationLanesClaimStatus"] = "certified"
+        path = tmp / "vague-constant-time-hardware-lanes.json"
+        write_json(path, vague_constant_time_hardware_lanes)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         wrong_e2e_metrics = copy.deepcopy(evidence)

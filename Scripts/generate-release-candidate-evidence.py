@@ -87,6 +87,11 @@ def build_evidence(args: argparse.Namespace) -> dict:
     lowering_evidence = read_json("TestVectors/constant-time-lowering-evidence-v1.json")
     constant_time_release_evidence = str(lowering_evidence["releaseEvidenceManifest"])
     release_evidence = read_json(constant_time_release_evidence)
+    observation_lane_reports = lowering_evidence.get("observationLaneReports", {})
+    constant_time_compiler_observation_lanes = str(observation_lane_reports["compiler"])
+    constant_time_hardware_observation_lanes = str(observation_lane_reports["hardware"])
+    compiler_observation_lanes = read_json(constant_time_compiler_observation_lanes)
+    hardware_observation_lanes = read_json(constant_time_hardware_observation_lanes)
 
     return {
         "schemaVersion": 1,
@@ -122,6 +127,15 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "numiSealManifestVersion": manifest_version("TestVectors/numiseal-manifest.json"),
             "numiSealConformanceScopeVersion": int(read_json("TestVectors/numiseal-conformance-scope-v1.json")["schemaVersion"]),
             "numiSealConformanceScopeDigestHex": sha256_hex("TestVectors/numiseal-conformance-scope-v1.json"),
+            "numiSealEndToEndTheoremScopeVersion": int(
+                read_json("TestVectors/numiseal-end-to-end-theorem-scope-v1.json")["schemaVersion"]
+            ),
+            "numiSealEndToEndTheoremScopeDigestHex": sha256_hex(
+                "TestVectors/numiseal-end-to-end-theorem-scope-v1.json"
+            ),
+            "numiSealEndToEndTheoremScopeClaimStatus": str(
+                read_json("TestVectors/numiseal-end-to-end-theorem-scope-v1.json")["claimStatus"]
+            ),
             "constantTimeScopeVersion": int(read_json("TestVectors/constant-time-scope-v1.json")["schemaVersion"]),
             "constantTimeScopeDigestHex": sha256_hex("TestVectors/constant-time-scope-v1.json"),
             "constantTimeLoweringEvidenceVersion": int(lowering_evidence["schemaVersion"]),
@@ -130,6 +144,12 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "constantTimeReleaseEvidenceVersion": int(release_evidence["schemaVersion"]),
             "constantTimeReleaseEvidenceDigestHex": sha256_hex(constant_time_release_evidence),
             "constantTimeReleaseEvidenceClaimStatus": str(release_evidence["claimStatus"]),
+            "constantTimeCompilerObservationLanesVersion": int(compiler_observation_lanes["schemaVersion"]),
+            "constantTimeCompilerObservationLanesDigestHex": sha256_hex(constant_time_compiler_observation_lanes),
+            "constantTimeCompilerObservationLanesClaimStatus": str(compiler_observation_lanes["claimStatus"]),
+            "constantTimeHardwareObservationLanesVersion": int(hardware_observation_lanes["schemaVersion"]),
+            "constantTimeHardwareObservationLanesDigestHex": sha256_hex(constant_time_hardware_observation_lanes),
+            "constantTimeHardwareObservationLanesClaimStatus": str(hardware_observation_lanes["claimStatus"]),
             "e2eProofMetricsVersion": scoped_manifest_version("TestVectors/e2e-proof-metrics-v1.json"),
             "e2eProofMetricsDigestHex": sha256_hex("TestVectors/e2e-proof-metrics-v1.json"),
             "e2eProofMetricsTrackedArtifactCount": list_count("TestVectors/e2e-proof-metrics-v1.json", "trackedArtifacts"),
@@ -161,6 +181,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "releaseEngineering": "Docs/ReleaseEngineering-2026-04-16.md",
             "schemaCompatibility": "Docs/SchemaCompatibility-2026-04-16.md",
             "numiSealConformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
+            "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "constantTimeEvidence": "Docs/ConstantTimeEvidence-2026-04-16.md",
             "constantTimeScope": "TestVectors/constant-time-scope-v1.json",
             "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
@@ -180,10 +201,10 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "signedArtifactsRequiredForProductionSecurity": True,
         },
         "productionSecurityBoundaries": [
-            "A conditional source/formal constant-time trace scope and Swift/LLVM/Metal lowering proof contract are recorded; local Metal AIR/metallib artifacts, runtime allocation/COW review, and CPU/GPU smoke corpora are pinned, while Swift optimized SIL/LLVM/assembly review, hardware counters, power/contention, and broader device lanes remain explicit evidence boundaries.",
+            "A conditional source/formal constant-time trace scope and Swift/LLVM/Metal lowering proof contract are recorded; local Metal AIR/metallib artifacts, runtime allocation/COW review, CPU/GPU smoke corpora, and compiler/hardware observation lane reports are pinned, while Swift optimized SIL/LLVM/assembly review, hardware counters, power/contention, and broader device lanes remain explicit evidence boundaries.",
             "E2E proof-size budgets are checked for deterministic vectors and local product smokes; hardware latency claims still require fresh benchmark evidence.",
             "Local product-ops readiness and signed revocation-feed verification are machine-readable and audit-exported; no hosted product replay-protection, provenance, persistence, revocation-distribution, or access-control service is recorded.",
-            "NumiSeal product, carry, and ZK formalization remains tracked by the conformance scope manifest.",
+            "NumiSeal product, carry, and ZK formalization has a checked evidence-parametric end-to-end theorem scope; extractor, recursive carry producer, ZK simulator, and QROM loss instantiations remain production-security boundaries.",
         ],
     }
 

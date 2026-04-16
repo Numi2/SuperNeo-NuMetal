@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 1,
+  "scopeID": "numiseal-end-to-end-product-carry-zk-theorem-scope-v1",
+  "claimStatus": "evidence-parametric-end-to-end-composition-theorem",
+  "conformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
+  "formalModel": {
+    "module": "Formal/SuperNeoFormal/NumiSealEndToEnd.lean",
+    "rootImport": "import SuperNeoFormal.NumiSealEndToEnd",
+    "declarations": [
+      "NumiSealProofMode",
+      "NumiSealCarryMode",
+      "NumiSealProductPolicyGates",
+      "NumiSealTerminalSealGates",
+      "NumiSealTypedCarryGates",
+      "NumiSealZKGates",
+      "NumiSealProductVerifierGates",
+      "NumiSealEndToEndRelation",
+      "NumiSealEndToEndEvidence",
+      "NumiSealProductVerifierAccepts",
+      "NumiSealTerminalProductVerifierAccepts",
+      "NumiSealZKProductVerifierAccepts",
+      "numiSealProduct_acceptance_requires_source_fold",
+      "numiSealProduct_acceptance_requires_terminal_seal",
+      "numiSealProduct_acceptance_requires_typed_carry",
+      "numiSealProduct_acceptance_requires_zk_layer",
+      "numiSealProduct_endToEnd_from_evidence",
+      "numiSealTerminalProduct_endToEnd_from_evidence",
+      "numiSealZKProduct_endToEnd_from_evidence"
+    ],
+    "auxiliaryModules": [
+      {
+        "module": "Formal/SuperNeoFormal/RecursiveFoldingKnowledge.lean",
+        "rootImport": "import SuperNeoFormal.RecursiveFoldingKnowledge",
+        "declarations": [
+          "RecursiveFoldingKnowledgeStepGates",
+          "RecursiveFoldingKnowledgeStepAccepted",
+          "RecursiveFoldingKnowledgeStepRelation",
+          "RecursiveFoldingKnowledgeStepRelationHolds",
+          "RecursiveFoldingKnowledgeStepEvidence",
+          "recursiveFoldingKnowledgeStepSoundness_from_evidence",
+          "RecursiveFoldingKnowledgeChainGates",
+          "RecursiveFoldingKnowledgeChainAccepted",
+          "RecursiveFoldingKnowledgeChainRelation",
+          "RecursiveFoldingKnowledgeChainHolds",
+          "RecursiveFoldingKnowledgeChainEvidence",
+          "recursiveFoldingKnowledgeSoundness_from_chainEvidence",
+          "recursiveFoldingKnowledge_terminalCE_witnesses_from_badSeed_certificate"
+        ]
+      },
+      {
+        "module": "Formal/SuperNeoFormal/NumiSealTypedCarryTheorem.lean",
+        "rootImport": "import SuperNeoFormal.NumiSealTypedCarryTheorem",
+        "declarations": [
+          "NumiSealTypedCarryProducerGates",
+          "NumiSealTypedCarryProducerAccepted",
+          "NumiSealTypedCarryConsumerGates",
+          "NumiSealTypedCarryConsumerAccepted",
+          "NumiSealTypedCarryProducerConsumerRelation",
+          "NumiSealTypedCarryProducerConsumerRelationHolds",
+          "NumiSealTypedCarryProducerConsumerEvidence",
+          "numiSealTypedCarryProducerConsumer_from_evidence",
+          "numiSealTypedCarry_from_product_carry_acceptance"
+        ]
+      },
+      {
+        "module": "Formal/SuperNeoFormal/NumiSealZKPrivacy.lean",
+        "rootImport": "import SuperNeoFormal.NumiSealZKPrivacy",
+        "declarations": [
+          "NumiSealZKLeakageModel",
+          "NumiSealZKLeakageModelAccepted",
+          "NumiSealZKSimulationPrivacyClaim",
+          "NumiSealZKSimulationPrivacyHolds",
+          "NumiSealZKSimulationEvidence",
+          "numiSealZKSimulationPrivacy_from_evidence",
+          "numiSealZKProduct_privacy_from_product_acceptance",
+          "numiSealZKPrivacy_leakage_only_view",
+          "numiSealZKPrivacy_simulated_view_indistinguishable"
+        ]
+      },
+      {
+        "module": "Formal/SuperNeoFormal/NumiSealProductTheorem.lean",
+        "rootImport": "import SuperNeoFormal.NumiSealProductTheorem",
+        "declarations": [
+          "NumiSealProductKnowledgeCarryPrivacyRelations",
+          "NumiSealProductKnowledgeCarryPrivacyHolds",
+          "numiSealProductKnowledgeCarryPrivacy_composition",
+          "numiSealProductKnowledgeCarryPrivacy_from_evidence"
+        ]
+      }
+    ]
+  },
+  "relationComponents": [
+    "source fold relation",
+    "artifact metadata and obligation reconstruction",
+    "terminal NumiSeal seal relation",
+    "typed carry relation",
+    "typed carry producer/consumer relation",
+    "masked residual ZK relation",
+    "NumiSealZK leakage simulation privacy relation",
+    "recursive folding knowledge relation",
+    "product policy relation"
+  ],
+  "theoremSurfaces": [
+    {
+      "id": "recursive-folding-knowledge-soundness",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTerminalSeal.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealResidualCE.swift"
+      ],
+      "conformanceVectors": [
+        "TestVectors/numiseal-terminal-single-aggregate-v1.json",
+        "TestVectors/numiseal-terminal-two-aggregate-v1.json",
+        "TestVectors/numiseal-terminal-two-lane-v1.json"
+      ],
+      "testNames": [
+        "testNumiSealProductProverEmitsVerifiableV2Artifact",
+        "testNumiSealResidualOpeningVerifiesCEOpeningRelation",
+        "testNumiSealTerminalPolicyRejectsWrongLaneCarryModeAndProofSize"
+      ],
+      "evidenceObligations": [
+        "RecursiveFoldingKnowledge proves accepted fold and terminal witness extraction gates imply per-layer recursive knowledge relations",
+        "recursive chain digest and final accumulator obligations compose across every accepted layer"
+      ],
+      "status": "composed-under-evidence"
+    },
+    {
+      "id": "source-fold-product-handoff",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealArtifactVerifier.swift"
+      ],
+      "conformanceVectors": [
+        "TestVectors/numiseal-terminal-single-aggregate-v1.json",
+        "TestVectors/numiseal-terminal-two-aggregate-v1.json",
+        "TestVectors/numiseal-terminal-two-lane-v1.json"
+      ],
+      "testNames": [
+        "testNumiSealProductProverEmitsVerifiableV2Artifact",
+        "testNumiSealArtifactVerifierValidatesCheckedVectorWithStrictPins"
+      ],
+      "evidenceObligations": [
+        "accepted source fold envelope implies the source CCS relation",
+        "reconstructed obligations are exactly the terminal NumiSeal public statement"
+      ],
+      "status": "composed-under-evidence"
+    },
+    {
+      "id": "terminal-seal",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTerminalSeal.swift"
+      ],
+      "conformanceVectors": [
+        "TestVectors/numiseal-terminal-single-aggregate-v1.json",
+        "TestVectors/numiseal-terminal-two-aggregate-v1.json",
+        "TestVectors/numiseal-terminal-two-lane-v1.json"
+      ],
+      "testNames": [
+        "testNumiSealProverVerifierAssemblesSingleAggregateEnvelope",
+        "testNumiSealProverVerifierAssemblesMultipleAggregateEnvelope",
+        "testNumiSealTerminalPolicyRejectsWrongLaneCarryModeAndProofSize"
+      ],
+      "evidenceObligations": [
+        "terminal envelope verification implies all lane aggregate residual relations",
+        "component root and transcript digest bind the accepted lane-major proof body"
+      ],
+      "status": "composed-under-evidence"
+    },
+    {
+      "id": "typed-carry",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypedCarry.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift"
+      ],
+      "conformanceVectors": [
+        "TestVectors/numiseal-typed-carry-conformance-v1.json"
+      ],
+      "testNames": [
+        "testNumiSealTypedCarryStatementRoundTripsAndPolicyRejectsMalformedCarry",
+        "testNumiSealCarryConsumerBindsContextAndRejectsReplay"
+      ],
+      "evidenceObligations": [
+        "accepted typed carry bytes parse as NumiSealCarryStatement",
+        "NumiSealTypedCarryTheorem proves producer and consumer gates imply digest agreement, residual carry binding, recursion monotonicity, and replay freshness"
+      ],
+      "status": "composed-under-evidence"
+    },
+    {
+      "id": "typed-carry-producer-consumer",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypedCarry.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift"
+      ],
+      "conformanceVectors": [
+        "TestVectors/numiseal-typed-carry-conformance-v1.json"
+      ],
+      "testNames": [
+        "testNumiSealTypedCarryStatementRoundTripsAndPolicyRejectsMalformedCarry",
+        "testNumiSealCarryConsumerBindsContextAndRejectsReplay"
+      ],
+      "evidenceObligations": [
+        "producer parent acceptance, envelope digest, transcript digest, residual opening digest, final point digest, and consumer context are bound in the carry digest",
+        "consumer acceptance requires matching producer and parent digests, monotone recursion level, and fresh replay identity"
+      ],
+      "status": "composed-under-evidence"
+    },
+    {
+      "id": "masked-residual-zk",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift"
+      ],
+      "conformanceVectors": [
+        "TestVectors/numiseal-zk-masked-residual-conformance-v1.json"
+      ],
+      "testNames": [
+        "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse",
+        "testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch",
+        "testNumiSealProductProverEmitsVerifiableZKV2Artifact"
+      ],
+      "evidenceObligations": [
+        "masked residual verification implies the masked residual language under the declared leakage digest",
+        "randomness session freshness prevents mask reuse across accepted ZK artifacts",
+        "NumiSealZKPrivacy proves the accepted ZK product view is simulatable from the explicit leakage model when simulator evidence is supplied"
+      ],
+      "status": "composed-under-evidence"
+    },
+    {
+      "id": "zk-leakage-simulation-privacy",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift",
+        "SuperNeo-NuMetal/ProductIntegration/NumiSealZKSideChannelCertification.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift"
+      ],
+      "conformanceVectors": [
+        "TestVectors/numiseal-zk-masked-residual-conformance-v1.json"
+      ],
+      "testNames": [
+        "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse",
+        "testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch",
+        "testNumiSealProductProverEmitsVerifiableZKV2Artifact",
+        "testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked"
+      ],
+      "evidenceObligations": [
+        "the leakage function contains only public statement roots, aggregate metadata, tensor dimensions, randomness session ID, proof validity, and declared leakage digest",
+        "real verifier views are indistinguishable from simulator views generated only from declared leakage; hardware side channels are explicitly outside this proof"
+      ],
+      "status": "composed-under-evidence"
+    },
+    {
+      "id": "product-policy",
+      "implementationPaths": [
+        "SuperNeo-NuMetal/ProductIntegration/NumiSealProductVerifier.swift",
+        "SuperNeo-NuMetal/ProductIntegration/LocalProductControls.swift"
+      ],
+      "conformanceVectors": [
+        "TestVectors/numiseal-terminal-single-aggregate-v1.json",
+        "TestVectors/numiseal-zk-masked-residual-conformance-v1.json"
+      ],
+      "testNames": [
+        "testNumiSealProductVerifierAcceptsThroughIntegrationHooks",
+        "testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification",
+        "testLocalProductControlsVerifySignedContextProvenanceReplayAndAudit"
+      ],
+      "evidenceObligations": [
+        "expected context, provenance, replay, byte limit, and proof-kind policy gates are checked before acceptance",
+        "product audit identity binds the same accepted artifact and policy context"
+      ],
+      "status": "composed-under-evidence"
+    }
+  ],
+  "theoremConclusion": "Lean proves that accepted product verifier gates plus the named evidence obligations imply NumiSealEndToEndRelationHolds across source fold, terminal seal, typed carry, masked residual ZK, and product policy. Additional checked modules prove the recursive folding knowledge chain, typed carry producer/consumer relation, and NumiSealZK simulation/privacy relation compose into NumiSealProductKnowledgeCarryPrivacyHolds. The simulator/privacy theorem is under an explicit public-leakage model and excludes hardware side channels.",
+  "residualProofObligations": [
+    "concrete Swift extractor implementation evidence for product proof bytes and all recursive transcript schedules",
+    "product vectors exercising recursive typed carry producer paths beyond the current consumer conformance surface",
+    "statistical or computational distance bound for the concrete NumiSealZK mask distribution under the declared leakage model",
+    "QROM Fiat-Shamir reduction and concrete soundness-loss accounting for the product transcript",
+    "constant-time and side-channel evidence sufficient for product privacy promotion"
+  ],
+  "promotionRule": {
+    "productionNumiSealTheoremClaimAllowed": false,
+    "releaseEvidenceOnly": true,
+    "unblockRequires": [
+      "concrete Swift extractor implementation evidence is generated for product proof bytes and all recursive transcript schedules",
+      "typed carry producer vectors are generated and pinned with recursive consumer acceptance evidence",
+      "NumiSealZK concrete mask-distribution distance evidence is recorded under the accepted public leakage model",
+      "QROM Fiat-Shamir and concrete soundness-loss accounting are recorded for the product transcript",
+      "the promotion manifest changes productionNumiSealTheoremClaimAllowed only with updated validation"
+    ]
+  }
+}

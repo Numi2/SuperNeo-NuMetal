@@ -36,7 +36,7 @@
     "metal-goldilocks-common-arithmetic",
     "metal-numiseal-zk-secret-bearing-kernels"
   ],
-  "generatedAtUTC": "2026-04-16T17:00:28Z",
+  "generatedAtUTC": "2026-04-16T17:37:57Z",
   "positiveFindings": [
     "Metal source scope compiles to pinned AIR with the release Metal frontend.",
     "AIR links to a pinned metallib object for the release toolchain.",

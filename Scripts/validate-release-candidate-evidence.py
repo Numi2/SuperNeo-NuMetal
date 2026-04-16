@@ -79,6 +79,24 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require_string(surfaces.get("numiSealConformanceScopeDigestHex"), "numiSealConformanceScopeDigestHex")
     require(
+        require_int(
+            surfaces.get("numiSealEndToEndTheoremScopeVersion"),
+            "numiSealEndToEndTheoremScopeVersion",
+        ) == 1,
+        "NumiSeal end-to-end theorem scope version must be 1",
+    )
+    require_string(
+        surfaces.get("numiSealEndToEndTheoremScopeDigestHex"),
+        "numiSealEndToEndTheoremScopeDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("numiSealEndToEndTheoremScopeClaimStatus"),
+            "numiSealEndToEndTheoremScopeClaimStatus",
+        ) == "evidence-parametric-end-to-end-composition-theorem",
+        "NumiSeal end-to-end theorem scope claim status must stay precise",
+    )
+    require(
         require_int(surfaces.get("constantTimeScopeVersion"), "constantTimeScopeVersion") == 1,
         "constant-time scope version must be 1",
     )
@@ -108,6 +126,42 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "constant-time release evidence claim status must stay precise",
     )
     require(
+        require_int(
+            surfaces.get("constantTimeCompilerObservationLanesVersion"),
+            "constantTimeCompilerObservationLanesVersion",
+        ) == 1,
+        "constant-time compiler observation lanes version must be 1",
+    )
+    require_string(
+        surfaces.get("constantTimeCompilerObservationLanesDigestHex"),
+        "constantTimeCompilerObservationLanesDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("constantTimeCompilerObservationLanesClaimStatus"),
+            "constantTimeCompilerObservationLanesClaimStatus",
+        ) == "compiler-observation-lanes-local-and-gap-recorded",
+        "constant-time compiler observation lanes claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("constantTimeHardwareObservationLanesVersion"),
+            "constantTimeHardwareObservationLanesVersion",
+        ) == 1,
+        "constant-time hardware observation lanes version must be 1",
+    )
+    require_string(
+        surfaces.get("constantTimeHardwareObservationLanesDigestHex"),
+        "constantTimeHardwareObservationLanesDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("constantTimeHardwareObservationLanesClaimStatus"),
+            "constantTimeHardwareObservationLanesClaimStatus",
+        ) == "hardware-observation-lanes-local-non-certifying",
+        "constant-time hardware observation lanes claim status must stay precise",
+    )
+    require(
         require_int(surfaces.get("e2eProofMetricsVersion"), "e2eProofMetricsVersion") == 1,
         "E2E proof metrics version must be 1",
     )
@@ -135,6 +189,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "releaseEngineering",
         "schemaCompatibility",
         "numiSealConformanceScope",
+        "numiSealEndToEndTheoremScope",
         "constantTimeEvidence",
         "constantTimeScope",
         "constantTimeLoweringEvidence",

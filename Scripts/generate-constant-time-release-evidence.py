@@ -455,6 +455,191 @@ def generate_gpu_observation_corpus(output_dir: Path, iterations: int) -> tuple[
     )
 
 
+def generate_compiler_observation_lanes(output_dir: Path, scope: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    report_path = output_dir / "compiler" / "compiler-observation-lanes-v1.json"
+    swift_regions = [str(region["id"]) for region in scoped_regions(scope, "swift")]
+
+    report = {
+        "schemaVersion": 1,
+        "reportID": "superneo-compiler-observation-lanes-v1",
+        "claimStatus": "compiler-observation-lanes-local-and-gap-recorded",
+        "generatedAtUTC": utc_now(),
+        "scopeManifest": rel(SCOPE_PATH),
+        "lanes": [
+            {
+                "id": "swift-llvm-goldilocks-arithmetic",
+                "surface": "Swift frontend through optimized SIL, LLVM IR, and target assembly for GoldilocksField arithmetic",
+                "regions": swift_regions,
+                "observedArtifacts": [
+                    "runtime-allocation-review",
+                ],
+                "observationStatus": "source-runtime-review-pinned-lowering-artifacts-required",
+                "requiredBeforeProduction": [
+                    "optimized SIL or equivalent Swift frontend lowering for marked Swift regions",
+                    "optimized LLVM IR for marked Swift regions",
+                    "target assembly or object-code branch audit for marked Swift regions",
+                ],
+                "positiveFindings": [
+                    "The release evidence pins the Swift source-scope allocation/COW review for the marked regions.",
+                    "No Swift compiler lowering artifact is promoted to a production constant-time claim in this lane.",
+                ],
+                "residualBoundaries": [
+                    "Bool-to-mask and select lowering still require emitted SIL/LLVM/assembly observation.",
+                    "This lane records a compiler-observation gap, not a completed Swift compiler proof.",
+                ],
+            },
+            {
+                "id": "metal-air-goldilocks-arithmetic",
+                "surface": "Apple Metal frontend through AIR/metallib for Goldilocks helper arithmetic",
+                "regions": [
+                    "metal-goldilocks-common-arithmetic",
+                ],
+                "observedArtifacts": [
+                    "metal-air",
+                    "metal-metallib",
+                    "metal-artifact-report",
+                ],
+                "observationStatus": "local-air-and-metallib-pinned-disassembly-required",
+                "requiredBeforeProduction": [
+                    "target GPU-family disassembly or equivalent compiler report for integer select and compare lowering",
+                    "per-GPU-family compiler report confirming no secret-dependent thread divergence",
+                ],
+                "positiveFindings": [
+                    "The release evidence pins the Metal AIR object, linked metallib, and generation report.",
+                    "The Metal artifact report covers the Goldilocks helper source region.",
+                ],
+                "residualBoundaries": [
+                    "AIR/metallib pinning is not target GPU-family disassembly.",
+                    "The lane remains non-certifying until emitted-code observations are recorded per accepted GPU family.",
+                ],
+            },
+            {
+                "id": "metal-air-numiseal-zk-kernels",
+                "surface": "Apple Metal frontend through AIR/metallib for NumiSealZK secret-bearing kernels",
+                "regions": [
+                    "metal-numiseal-zk-secret-bearing-kernels",
+                ],
+                "observedArtifacts": [
+                    "metal-air",
+                    "metal-metallib",
+                    "metal-artifact-report",
+                ],
+                "observationStatus": "local-air-and-metallib-pinned-disassembly-required",
+                "requiredBeforeProduction": [
+                    "target GPU-family disassembly or equivalent compiler report for public-bound loops and select lowering",
+                    "buffer-layout audit showing secret coefficients do not choose addresses",
+                ],
+                "positiveFindings": [
+                    "The release evidence pins the Metal AIR object, linked metallib, and generation report.",
+                    "The Metal artifact report covers the NumiSealZK secret-bearing source region.",
+                ],
+                "residualBoundaries": [
+                    "AIR/metallib pinning is not target GPU-family disassembly.",
+                    "The lane remains non-certifying until emitted-code observations are recorded per accepted GPU family.",
+                ],
+            },
+        ],
+        "promotionImpact": {
+            "productionConstantTimeClaimAllowed": False,
+            "reason": "Compiler observation lanes are recorded, but Swift SIL/LLVM/assembly and target GPU-family disassembly remain required.",
+        },
+    }
+    write_json(report_path, report)
+    return report, artifact_entry(
+        "compiler-observation-lanes",
+        report_path,
+        "compiler observation lane report for Swift/LLVM/Metal constant-time evidence",
+    )
+
+
+def generate_hardware_observation_lanes(output_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    report_path = output_dir / "hardware" / "hardware-observation-lanes-v1.json"
+    report = {
+        "schemaVersion": 1,
+        "reportID": "superneo-hardware-observation-lanes-v1",
+        "claimStatus": "hardware-observation-lanes-local-non-certifying",
+        "generatedAtUTC": utc_now(),
+        "scopeManifest": rel(SCOPE_PATH),
+        "hardware": {
+            "uname": run_text(["uname", "-a"]),
+            "swVers": run_text(["sw_vers"]),
+            "machine": run_text(["machine"]),
+        },
+        "lanes": [
+            {
+                "id": "cpu-wall-clock-zk-high-assurance",
+                "policy": CPU_POLICY,
+                "observedArtifacts": [
+                    "cpu-observation-corpus",
+                    "runtime-allocation-review",
+                ],
+                "observationStatus": "local-wall-clock-smoke-pinned",
+                "observationModel": [
+                    "process wall-clock timing",
+                    "CLI reported prove time",
+                    "proof artifact byte-count and digest binding",
+                ],
+                "requiredBeforeProduction": [
+                    "dudect-style or hardware-counter corpus for the marked CPU regions",
+                    "accepted CPU hardware class and thermal/scheduler control policy",
+                ],
+                "residualBoundaries": [
+                    "Wall-clock process timing is noisy and non-certifying.",
+                    "The local CPU corpus does not prove cache, scheduler, or power behavior.",
+                ],
+            },
+            {
+                "id": "gpu-direct-metal-kernel-observation",
+                "policy": "direct-metal-secret-bearing-kernel-observation",
+                "observedArtifacts": [
+                    "gpu-observation-corpus",
+                    "metal-metallib",
+                ],
+                "observationStatus": "local-direct-metal-smoke-pinned",
+                "observationModel": [
+                    "Metal command-buffer elapsed timing",
+                    "operation result digest binding",
+                    "CPU reference equality for observed operations",
+                ],
+                "requiredBeforeProduction": [
+                    "GPU timing/counter corpus for each accepted Apple GPU family",
+                    "scheduler and occupancy policy for the accepted GPU observation model",
+                ],
+                "residualBoundaries": [
+                    "Direct Metal timing is local smoke evidence, not a GPU microarchitectural certificate.",
+                    "Broader Apple GPU-family coverage remains required before production constant-time claims.",
+                ],
+            },
+            {
+                "id": "power-contention-scheduler-boundary",
+                "policy": "outside-current-release-claim",
+                "observedArtifacts": [],
+                "observationStatus": "required-before-production-ct-claim",
+                "observationModel": [
+                    "explicit negative boundary for power, contention, and scheduler observations",
+                ],
+                "requiredBeforeProduction": [
+                    "power/contention exclusion statement for the accepted deployment model",
+                    "scheduler and co-residency assumptions for CPU and GPU execution lanes",
+                ],
+                "residualBoundaries": [
+                    "Power, contention, and cross-tenant scheduler effects are outside the current release evidence.",
+                ],
+            },
+        ],
+        "promotionImpact": {
+            "productionConstantTimeClaimAllowed": False,
+            "reason": "Hardware observation lanes are local and non-certifying; counter, power, contention, and broader-device evidence remain required.",
+        },
+    }
+    write_json(report_path, report)
+    return report, artifact_entry(
+        "hardware-observation-lanes",
+        report_path,
+        "hardware observation lane report for CPU/GPU constant-time evidence",
+    )
+
+
 def build_manifest(output_dir: Path, entries: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "schemaVersion": 1,
@@ -463,6 +648,8 @@ def build_manifest(output_dir: Path, entries: list[dict[str, Any]]) -> dict[str,
         "generatedAtUTC": utc_now(),
         "scopeManifest": rel(SCOPE_PATH),
         "loweringEvidenceManifest": "TestVectors/constant-time-lowering-evidence-v1.json",
+        "compilerObservationLaneReport": rel(output_dir / "compiler" / "compiler-observation-lanes-v1.json"),
+        "hardwareObservationLaneReport": rel(output_dir / "hardware" / "hardware-observation-lanes-v1.json"),
         "artifactEntries": entries,
         "hardware": {
             "uname": run_text(["uname", "-a"]),
@@ -506,6 +693,10 @@ def main() -> None:
     entries.append(cpu_entry)
     _, gpu_entry = generate_gpu_observation_corpus(output_dir, args.iterations)
     entries.append(gpu_entry)
+    _, compiler_lane_entry = generate_compiler_observation_lanes(output_dir, scope)
+    entries.append(compiler_lane_entry)
+    _, hardware_lane_entry = generate_hardware_observation_lanes(output_dir)
+    entries.append(hardware_lane_entry)
 
     manifest_path = output_dir / "manifest.json"
     manifest = build_manifest(output_dir, entries)

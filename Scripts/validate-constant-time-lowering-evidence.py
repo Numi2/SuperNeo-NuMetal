@@ -32,6 +32,8 @@ REQUIRED_RELEASE_EVIDENCE_IDS = {
     "runtime-allocation-review",
     "cpu-observation-corpus",
     "gpu-observation-corpus",
+    "compiler-observation-lanes",
+    "hardware-observation-lanes",
 }
 REQUIRED_GPU_OPERATIONS = {
     "numiseal_apply_mask_kernel",
@@ -39,6 +41,25 @@ REQUIRED_GPU_OPERATIONS = {
     "numiseal_eq_weight_kernel",
     "numiseal_sumcheck_accumulate_kernel",
     "numiseal_mask_accumulate_kernel",
+}
+REQUIRED_COMPILER_LANE_IDS = {
+    "swift-llvm-goldilocks-arithmetic",
+    "metal-air-goldilocks-arithmetic",
+    "metal-air-numiseal-zk-kernels",
+}
+REQUIRED_COMPILER_LANE_STATUS = {
+    "source-runtime-review-pinned-lowering-artifacts-required",
+    "local-air-and-metallib-pinned-disassembly-required",
+}
+REQUIRED_HARDWARE_LANE_IDS = {
+    "cpu-wall-clock-zk-high-assurance",
+    "gpu-direct-metal-kernel-observation",
+    "power-contention-scheduler-boundary",
+}
+REQUIRED_HARDWARE_LANE_STATUS = {
+    "local-wall-clock-smoke-pinned",
+    "local-direct-metal-smoke-pinned",
+    "required-before-production-ct-claim",
 }
 
 
@@ -204,6 +225,19 @@ def validate_promotion_rule(manifest: dict[str, Any]) -> None:
     require(any("CPU and GPU observation" in item for item in unblock), "unblockRequires must mention CPU and GPU observation")
 
 
+def validate_observation_lane_contract(manifest: dict[str, Any]) -> None:
+    reports = manifest.get("observationLaneReports")
+    require(isinstance(reports, dict), "observationLaneReports must be an object")
+    require(
+        reports.get("compiler") == "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
+        "observationLaneReports.compiler must point to the pinned compiler observation lane report",
+    )
+    require(
+        reports.get("hardware") == "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
+        "observationLaneReports.hardware must point to the pinned hardware observation lane report",
+    )
+
+
 def release_entries(release_manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
     entries = release_manifest.get("artifactEntries")
     require(isinstance(entries, list) and entries, "release evidence artifactEntries must be a non-empty list")
@@ -327,6 +361,108 @@ def validate_observation_corpus(
     return corpus
 
 
+def require_artifact_refs(value: Any, label: str, entries: dict[str, dict[str, Any]]) -> list[str]:
+    refs = require_string_list(value, label)
+    for artifact_id in refs:
+        require(artifact_id in entries, f"{label} names unknown artifact id: {artifact_id}")
+    return refs
+
+
+def validate_compiler_observation_lanes(entries: dict[str, dict[str, Any]], scope: dict[str, Any]) -> None:
+    report_path = require_relative_artifact_path(
+        entries["compiler-observation-lanes"].get("path"),
+        "compiler-observation-lanes.path",
+    )
+    report = read_json(report_path)
+    require(report.get("schemaVersion") == 1, "compiler observation lanes schemaVersion must be 1")
+    require(
+        report.get("reportID") == "superneo-compiler-observation-lanes-v1",
+        "compiler observation lanes reportID mismatch",
+    )
+    require(
+        report.get("claimStatus") == "compiler-observation-lanes-local-and-gap-recorded",
+        "compiler observation lanes claimStatus must stay precise",
+    )
+    require(report.get("scopeManifest") == "TestVectors/constant-time-scope-v1.json", "compiler observation lanes scopeManifest mismatch")
+    scoped = scope_region_ids(scope)
+    lanes = report.get("lanes")
+    require(isinstance(lanes, list) and lanes, "compiler observation lanes must be a non-empty list")
+    seen: set[str] = set()
+    covered: set[str] = set()
+    for lane in lanes:
+        require(isinstance(lane, dict), "compiler observation lane must be an object")
+        lane_id = require_string(lane.get("id"), "compiler observation lane id")
+        require(lane_id not in seen, f"duplicate compiler observation lane id: {lane_id}")
+        seen.add(lane_id)
+        require_string(lane.get("surface"), f"{lane_id}.surface")
+        regions = set(require_string_list(lane.get("regions"), f"{lane_id}.regions"))
+        require(regions and regions.issubset(scoped), f"{lane_id} names unknown or empty region set")
+        covered.update(regions)
+        require_artifact_refs(lane.get("observedArtifacts"), f"{lane_id}.observedArtifacts", entries)
+        status = require_string(lane.get("observationStatus"), f"{lane_id}.observationStatus")
+        require(status in REQUIRED_COMPILER_LANE_STATUS, f"{lane_id}.observationStatus is not accepted")
+        require_string_list(lane.get("requiredBeforeProduction"), f"{lane_id}.requiredBeforeProduction")
+        require_string_list(lane.get("positiveFindings"), f"{lane_id}.positiveFindings")
+        require_string_list(lane.get("residualBoundaries"), f"{lane_id}.residualBoundaries")
+    require(seen == REQUIRED_COMPILER_LANE_IDS, f"compiler observation lanes must be exactly {sorted(REQUIRED_COMPILER_LANE_IDS)}")
+    require(covered == scoped, "compiler observation lanes must cover every constant-time source region")
+    promotion = report.get("promotionImpact")
+    require(isinstance(promotion, dict), "compiler observation lanes promotionImpact must be an object")
+    require(
+        promotion.get("productionConstantTimeClaimAllowed") is False,
+        "compiler observation lanes must not promote production constant-time claims",
+    )
+
+
+def validate_hardware_observation_lanes(entries: dict[str, dict[str, Any]]) -> None:
+    report_path = require_relative_artifact_path(
+        entries["hardware-observation-lanes"].get("path"),
+        "hardware-observation-lanes.path",
+    )
+    report = read_json(report_path)
+    require(report.get("schemaVersion") == 1, "hardware observation lanes schemaVersion must be 1")
+    require(
+        report.get("reportID") == "superneo-hardware-observation-lanes-v1",
+        "hardware observation lanes reportID mismatch",
+    )
+    require(
+        report.get("claimStatus") == "hardware-observation-lanes-local-non-certifying",
+        "hardware observation lanes claimStatus must stay precise",
+    )
+    require(report.get("scopeManifest") == "TestVectors/constant-time-scope-v1.json", "hardware observation lanes scopeManifest mismatch")
+    hardware = report.get("hardware")
+    require(isinstance(hardware, dict), "hardware observation lanes hardware metadata must be an object")
+    require_string(hardware.get("uname"), "hardware observation lanes hardware.uname")
+    require_string(hardware.get("swVers"), "hardware observation lanes hardware.swVers")
+    require_string(hardware.get("machine"), "hardware observation lanes hardware.machine")
+    lanes = report.get("lanes")
+    require(isinstance(lanes, list) and lanes, "hardware observation lanes must be a non-empty list")
+    seen: set[str] = set()
+    for lane in lanes:
+        require(isinstance(lane, dict), "hardware observation lane must be an object")
+        lane_id = require_string(lane.get("id"), "hardware observation lane id")
+        require(lane_id not in seen, f"duplicate hardware observation lane id: {lane_id}")
+        seen.add(lane_id)
+        require_string(lane.get("policy"), f"{lane_id}.policy")
+        observed = lane.get("observedArtifacts")
+        if lane_id == "power-contention-scheduler-boundary":
+            require(observed == [], f"{lane_id}.observedArtifacts must be empty for the explicit boundary lane")
+        else:
+            require_artifact_refs(observed, f"{lane_id}.observedArtifacts", entries)
+        status = require_string(lane.get("observationStatus"), f"{lane_id}.observationStatus")
+        require(status in REQUIRED_HARDWARE_LANE_STATUS, f"{lane_id}.observationStatus is not accepted")
+        require_string_list(lane.get("observationModel"), f"{lane_id}.observationModel")
+        require_string_list(lane.get("requiredBeforeProduction"), f"{lane_id}.requiredBeforeProduction")
+        require_string_list(lane.get("residualBoundaries"), f"{lane_id}.residualBoundaries")
+    require(seen == REQUIRED_HARDWARE_LANE_IDS, f"hardware observation lanes must be exactly {sorted(REQUIRED_HARDWARE_LANE_IDS)}")
+    promotion = report.get("promotionImpact")
+    require(isinstance(promotion, dict), "hardware observation lanes promotionImpact must be an object")
+    require(
+        promotion.get("productionConstantTimeClaimAllowed") is False,
+        "hardware observation lanes must not promote production constant-time claims",
+    )
+
+
 def validate_release_evidence(manifest: dict[str, Any], scope: dict[str, Any]) -> None:
     release_manifest_path = resolve_manifest_path(manifest.get("releaseEvidenceManifest"), "releaseEvidenceManifest")
     release_manifest = read_json(release_manifest_path)
@@ -352,6 +488,14 @@ def validate_release_evidence(manifest: dict[str, Any], scope: dict[str, Any]) -
     )
 
     entries = release_entries(release_manifest)
+    require(
+        release_manifest.get("compilerObservationLaneReport") == entries["compiler-observation-lanes"].get("path"),
+        "release evidence compilerObservationLaneReport must match the pinned compiler lane artifact",
+    )
+    require(
+        release_manifest.get("hardwareObservationLaneReport") == entries["hardware-observation-lanes"].get("path"),
+        "release evidence hardwareObservationLaneReport must match the pinned hardware lane artifact",
+    )
     validate_metal_artifact_report(entries, scope)
     validate_runtime_review(entries, scope)
 
@@ -384,6 +528,8 @@ def validate_release_evidence(manifest: dict[str, Any], scope: dict[str, Any]) -
                 operation in digests or any(str(key).startswith(operation + ".") for key in digests),
                 f"GPU observation sample missing result digest for {operation}",
             )
+    validate_compiler_observation_lanes(entries, scope)
+    validate_hardware_observation_lanes(entries)
 
 
 def main() -> None:
@@ -421,6 +567,7 @@ def main() -> None:
     validate_formal_model(manifest)
     validate_boundaries(manifest, scope)
     validate_promotion_rule(manifest)
+    validate_observation_lane_contract(manifest)
     validate_release_evidence(manifest, scope)
 
     gate = read_text("Scripts/production-gate.sh")

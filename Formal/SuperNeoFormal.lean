@@ -30,6 +30,11 @@ import SuperNeoFormal.CEByteSerialization
 import SuperNeoFormal.Ext2CallerSerialization
 import SuperNeoFormal.Transcript
 import SuperNeoFormal.NumiSealSumcheckTranscript
+import SuperNeoFormal.NumiSealEndToEnd
+import SuperNeoFormal.RecursiveFoldingKnowledge
+import SuperNeoFormal.NumiSealTypedCarryTheorem
+import SuperNeoFormal.NumiSealZKPrivacy
+import SuperNeoFormal.NumiSealProductTheorem
 import SuperNeoFormal.TranscriptChallenge
 import SuperNeoFormal.Composition
 import SuperNeoFormal.ProbabilityComposition

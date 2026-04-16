@@ -29,7 +29,7 @@ true:
   in `Docs/SchemaCompatibility-2026-04-16.md`.
 - Release notes explicitly use research/integration wording and do not claim
   production-secure SNARK status, formal constant-time behavior, or completed
-  NumiSeal product/carry/ZK theorem scope.
+  production-security NumiSeal product/carry/ZK theorem instantiations.
 
 ### Production-Security Release
 
@@ -46,7 +46,9 @@ At minimum, this requires:
   smoke corpus,
 - product integration policy for trusted context, replay protection,
   provenance, and signed revocation feeds,
-- NumiSeal conformance-scope promotion or explicit narrowing,
+- NumiSeal conformance-scope promotion plus concrete Swift extractor evidence,
+  typed carry producer vectors, concrete mask-distribution distance evidence,
+  and QROM loss instantiations,
 - pinned Sage-backed lattice-estimator evidence,
 - release signing/provenance,
 - branch protection requiring the full production gate.
@@ -65,9 +67,14 @@ Each release candidate should record:
 - proof envelope version,
 - known residual boundaries,
 - NumiSeal conformance-scope digest.
+- NumiSeal end-to-end theorem scope digest.
+- recursive folding knowledge soundness scope digest.
+- typed carry producer/consumer theorem scope digest.
+- NumiSealZK simulation/privacy leakage-model digest.
 - constant-time source/formal scope digest.
 - constant-time lowering evidence digest.
 - constant-time release evidence digest.
+- constant-time compiler and hardware observation lane digests.
 - E2E proof metrics digest.
 - product operations readiness status version.
 - signed revocation feed policy.
@@ -76,7 +83,13 @@ Each release candidate should record:
 machine-readable JSON packet, and `Scripts/validate-release-candidate-evidence.py`
 checks that the packet was produced from the full production gate and current
 public surface versions. `Scripts/validate-numiseal-conformance-scope.py`
-checks the NumiSeal product/carry/ZK scope manifest that release evidence pins.
+checks the NumiSeal product/carry/ZK scope manifest and the checked
+`TestVectors/numiseal-end-to-end-theorem-scope-v1.json` theorem-scope manifest
+that release evidence pins. That theorem scope includes recursive folding
+knowledge soundness, typed carry producer/consumer composition, and NumiSealZK
+simulation/privacy under the declared public-leakage model.
+`Scripts/test-numiseal-conformance-scope-validation.py` mutation-tests those
+promotion guards.
 `Scripts/validate-constant-time-scope.py` checks the constant-time
 source/formal scope manifest and the formal declarations recorded in
 `Docs/ConstantTimeEvidence-2026-04-16.md`.
@@ -84,7 +97,8 @@ source/formal scope manifest and the formal declarations recorded in
 Swift/LLVM/Metal lowering proof contract, runtime/hardware TCB obligations, and
 promotion rule recorded in `TestVectors/constant-time-lowering-evidence-v1.json`;
 it also verifies the pinned local Metal AIR/metallib artifacts, runtime
-allocation review, and CPU/GPU observation corpora under
+allocation review, CPU/GPU observation corpora, and compiler/hardware
+observation lane reports under
 `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. Regenerate those
 artifacts with `Scripts/generate-constant-time-release-evidence.py` before a
 release candidate when the scoped source or toolchain changes.

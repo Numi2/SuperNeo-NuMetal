@@ -101,3 +101,26 @@ Scripts/validate-lattice-estimator-artifact.py --expect-status ran --expect-late
 
 The output is still an implementation reproducibility artifact. It does not turn
 the parameter set into an audited production cryptographic certification.
+
+## Alternate Cost-Model Audit
+
+The canonical artifact records the default estimator lane. A security dossier
+must also account for the sensitivity of the same `SIS.Parameters` tuple under
+alternate reduction-cost models. The 2026-04-16 manual audit using the same
+pinned estimator checkout produced:
+
+| Cost model | Estimated rop bits | beta | d |
+| --- | ---: | ---: | ---: |
+| default MATZOV | `129.1` | `345` | `3129` |
+| ADPS16 classical | `100.7` | `345` | `3129` |
+| ADPS16 quantum | `91.4` | `345` | `3129` |
+| ADPS16 paranoid | `71.6` | `345` | `3129` |
+| ChaLoy21 | `88.7` | `345` | `3129` |
+| LaaMosPol14 | `122.4` | `345` | `3129` |
+
+These alternate rows are not currently release-gated by
+`Scripts/reproduce-lattice-estimator.sh`. They are included here to prevent
+overstating the profile: the implemented `kappa = 18` profile clears the paper's
+default lane, not a broad 128-bit quantum-security target across common costing
+models. See `Docs/ParameterSecurityDossier-2026-04-16.md` for the full
+parameter-security position.

@@ -19,12 +19,21 @@ close that claim incrementally without relying on outsourced review.
   declaration names, and residual lowering boundaries.
 - `TestVectors/constant-time-lowering-evidence-v1.json` records the
   Swift/LLVM/Metal lowering proof contract, runtime/hardware TCB obligations,
-  required release artifacts, and the exact promotion rule that keeps
-  production constant-time language disabled until those artifacts exist.
+  required release artifacts, compiler/hardware observation lane reports, and
+  the exact promotion rule that keeps production constant-time language disabled
+  until those artifacts exist.
 - `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json` pins the local
   release evidence generated for this slice: Metal AIR, linked metallib,
   Metal generation report, Swift runtime allocation/COW static review, CPU
-  observation corpus, and direct GPU kernel observation corpus.
+  observation corpus, direct GPU kernel observation corpus, compiler
+  observation lane report, and hardware observation lane report.
+- `Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json`
+  records the Swift/LLVM and Metal compiler observation lanes, including which
+  lanes only have local AIR/metallib or runtime review evidence and which
+  emitted-code observations remain required.
+- `Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json`
+  records CPU wall-clock, direct Metal GPU, and power/contention/scheduler
+  observation lanes with explicit non-certifying status.
 - `Scripts/generate-constant-time-release-evidence.py` regenerates that release
   evidence from the local toolchain and `superneo-ct-observe` captures the
   direct Metal NumiSeal kernel observations.
@@ -34,7 +43,8 @@ close that claim incrementally without relying on outsourced review.
 - `Scripts/validate-constant-time-lowering-evidence.py` checks that every
   source region is covered by a Swift/LLVM, Metal AIR, or runtime/hardware
   boundary, that the Lean whole-stack evidence declarations exist, that pinned
-  release artifacts match their SHA-256 digests and byte counts, and that the
+  release artifacts match their SHA-256 digests and byte counts, that compiler
+  and hardware observation lane reports cover the checked regions, and that the
   promotion rule cannot be flipped silently.
 
 The production gate runs both validators before release-readiness validation, so
@@ -116,9 +126,10 @@ constant-trace claim for the fixed schedule.
 
 The current manifest is a proof contract, not a hardware certificate.
 `productionConstantTimeClaimAllowed` is checked as `false` until the release
-toolchain artifacts and CPU/GPU observation corpora are sufficient for the
-accepted threat model. This keeps constant-time evidence out of proof bytes
-while making the unblock criteria owned, explicit, and machine-checked.
+toolchain artifacts, CPU/GPU observation corpora, and compiler/hardware
+observation lanes are sufficient for the accepted threat model. This keeps
+constant-time evidence out of proof bytes while making the unblock criteria
+owned, explicit, and machine-checked.
 
 ## Pinned Local Release Evidence
 
@@ -146,12 +157,41 @@ Pinned artifacts:
   `numiseal_eq_weight_kernel`, `numiseal_sumcheck_accumulate_kernel`, and
   `numiseal_mask_accumulate_kernel`, with CPU reference equality checked for
   every observed operation.
+- `compiler/compiler-observation-lanes-v1.json`: compiler-observation lane
+  report separating Swift lowering gaps from local Metal AIR/metallib pinning.
+- `hardware/hardware-observation-lanes-v1.json`: hardware-observation lane
+  report separating local CPU/GPU smoke corpora from power, contention, scheduler,
+  counter, and broader-device requirements.
 
 These files are release evidence, not proof bytes. They are deliberately local
 and non-certifying: wall-clock and Metal command-buffer observations do not
 prove microarchitectural constant-time behavior, and the AIR/metallib artifacts
 do not replace Swift optimized SIL, LLVM IR, target assembly review, hardware
 counters, power/contention testing, or broader Apple GPU-family coverage.
+
+## Compiler And Hardware Observation Lanes
+
+The release evidence now separates raw pinned artifacts from observation lanes:
+
+- `swift-llvm-goldilocks-arithmetic`: the Swift source/runtime review is pinned,
+  but optimized SIL, LLVM IR, and target assembly observations are still required.
+- `metal-air-goldilocks-arithmetic`: local AIR/metallib artifacts are pinned for
+  the Metal Goldilocks helper region; target GPU-family disassembly or equivalent
+  compiler reports remain required.
+- `metal-air-numiseal-zk-kernels`: local AIR/metallib artifacts are pinned for
+  the NumiSealZK secret-bearing kernels; target GPU-family disassembly and
+  buffer-layout signoff remain required.
+- `cpu-wall-clock-zk-high-assurance`: the CPU NumiSealZK wall-clock corpus is
+  pinned as local smoke evidence only.
+- `gpu-direct-metal-kernel-observation`: the direct Metal kernel corpus is
+  pinned as local smoke evidence only.
+- `power-contention-scheduler-boundary`: power, contention, and scheduler effects
+  remain outside the current release claim and are required before production
+  constant-time language.
+
+The validator requires all lanes to remain present and non-certifying. Adding a
+new accepted compiler or hardware lane must update the lane report, manifest
+digest, validator expectations, and promotion rule together.
 
 ## Remaining Work
 

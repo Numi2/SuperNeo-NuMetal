@@ -19,6 +19,13 @@ validity, but not the unmasked aggregate witness or raw digit tensor. The
 simulator target is a verifier view generated from public roots, aggregate
 metadata, transcript challenges, declared leakage, and sampled masks.
 
+`Formal/SuperNeoFormal/NumiSealZKPrivacy.lean` now records the checked
+simulation/privacy theorem surface for this model: an accepted NumiSealZK proof
+is private when the real verifier view has the declared leakage and is
+indistinguishable from a simulator view generated only from that leakage. This
+is an explicit public-leakage simulation model. It does not include GPU timing,
+cache, scheduling, power, contention, allocation, or error-path side channels.
+
 This document does not by itself certify GPU side-channel privacy. It separates
 correctness of Metal output from privacy of Metal execution, and the product
 control layer can inspect signed certificate metadata without making that
@@ -133,7 +140,8 @@ Implemented:
 
 Still not certified as production privacy:
 
-- the simulator proof for the full masked residual language,
+- concrete mask-distribution distance evidence for the implemented prover under
+  the declared public-leakage model,
 - benchmark-report promotion of proof-byte equivalence across product-sized
   hardware profiles,
 - collecting side-channel evidence for each production hardware/profile lane,

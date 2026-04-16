@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "scopeID": "numiseal-product-carry-zk-conformance-v1",
+  "theoremScopeManifest": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
   "surfaces": [
     {
       "conformanceVectors": [
@@ -21,7 +22,7 @@
         "SuperNeo-NuMetal/ProductIntegration/NumiSealProductVerifier.swift"
       ],
       "openFormalWork": [
-        "single end-to-end product theorem tying artifact metadata, reconstructed obligations, terminal envelope verification, and product replay identity"
+        "generate concrete Swift extractor evidence for product proof bytes and all recursive transcript schedules"
       ],
       "testNames": [
         "testNumiSealProductProverEmitsVerifiableV2Artifact",
@@ -45,8 +46,8 @@
         "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift"
       ],
       "openFormalWork": [
-        "recursive producer path from accepted parent proof to typed carry claim",
-        "formal relation connecting carried residual opening to the next product statement"
+        "generate recursive producer vectors from accepted parent proof to typed carry claim",
+        "pin product evidence that the generated typed carry producer path feeds the recursive consumer"
       ],
       "testNames": [
         "testNumiSealTypedCarryStatementRoundTripsAndPolicyRejectsMalformedCarry",
@@ -70,8 +71,8 @@
         "SuperNeo-NuMetal/ProductIntegration/NumiSealZKSideChannelCertification.swift"
       ],
       "openFormalWork": [
-        "simulator theorem for the full masked residual language",
-        "leakage model signoff for product default promotion from zkMode none to masked-digit-tensor-v1"
+        "record concrete mask-distribution distance evidence for the accepted public leakage model",
+        "collect side-channel evidence before product default promotion from zkMode none to masked-digit-tensor-v1"
       ],
       "testNames": [
         "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse",

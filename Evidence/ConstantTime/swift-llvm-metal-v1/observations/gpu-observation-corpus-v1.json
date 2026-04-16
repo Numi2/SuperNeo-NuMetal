@@ -1,7 +1,7 @@
 {
   "claimStatus" : "local-non-certifying-observation-corpus",
   "corpusID" : "superneo-gpu-metal-kernel-observation-corpus-v1",
-  "generatedAtUTC" : "2026-04-16T17:00:30Z",
+  "generatedAtUTC" : "2026-04-16T17:37:58Z",
   "metalDevice" : "Apple M4",
   "observationModel" : [
     "Metal command-buffer encode\/commit\/wait wall-clock timing",
@@ -35,52 +35,52 @@
       "operationTimings" : [
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 56083,
+          "commitWallTimeNanoseconds" : 20167,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 431209,
-          "gpuTimeNanoseconds" : 13167,
+          "encodeWallTimeNanoseconds" : 157167,
+          "gpuTimeNanoseconds" : 7792,
           "operation" : "numiseal_apply_mask_kernel",
-          "waitWallTimeNanoseconds" : 4017584
+          "waitWallTimeNanoseconds" : 1310958
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 9958,
+          "commitWallTimeNanoseconds" : 5666,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 27666,
-          "gpuTimeNanoseconds" : 9500,
+          "encodeWallTimeNanoseconds" : 15042,
+          "gpuTimeNanoseconds" : 10500,
           "operation" : "numiseal_dense_fold_kernel",
-          "waitWallTimeNanoseconds" : 256167
+          "waitWallTimeNanoseconds" : 386000
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 14333,
+          "commitWallTimeNanoseconds" : 2958,
           "elementCount" : 64,
-          "encodeWallTimeNanoseconds" : 26000,
-          "gpuTimeNanoseconds" : 11625,
+          "encodeWallTimeNanoseconds" : 5292,
+          "gpuTimeNanoseconds" : 12375,
           "operation" : "numiseal_eq_weight_kernel",
-          "waitWallTimeNanoseconds" : 426250
+          "waitWallTimeNanoseconds" : 406042
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 14291,
+          "commitWallTimeNanoseconds" : 2500,
           "elementCount" : 128,
-          "encodeWallTimeNanoseconds" : 24208,
-          "gpuTimeNanoseconds" : 12250,
+          "encodeWallTimeNanoseconds" : 3875,
+          "gpuTimeNanoseconds" : 11958,
           "operation" : "numiseal_sumcheck_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 1622292
+          "waitWallTimeNanoseconds" : 197583
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 18292,
+          "commitWallTimeNanoseconds" : 2583,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 461125,
-          "gpuTimeNanoseconds" : 20125,
+          "encodeWallTimeNanoseconds" : 45833,
+          "gpuTimeNanoseconds" : 15250,
           "operation" : "numiseal_mask_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 1119208
+          "waitWallTimeNanoseconds" : 664000
         }
       ],
       "policy" : "direct-metal-secret-bearing-kernel-observation",
-      "processWallTimeNanoseconds" : 10152000,
+      "processWallTimeNanoseconds" : 3796500,
       "resultDigestsHex" : {
         "numiseal_apply_mask_kernel" : "dac2d08f98d9b195bc6f773da10bc848cd52504204445b49091c53e58e8f16a1",
         "numiseal_dense_fold_kernel" : "f994db53b0fdda956bed04935e23b9563842f3c7039bcdc7d5ca105a06efd2ad",
@@ -96,52 +96,52 @@
       "operationTimings" : [
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 18791,
+          "commitWallTimeNanoseconds" : 2459,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 40667,
-          "gpuTimeNanoseconds" : 7333,
+          "encodeWallTimeNanoseconds" : 3708,
+          "gpuTimeNanoseconds" : 7958,
           "operation" : "numiseal_apply_mask_kernel",
-          "waitWallTimeNanoseconds" : 807584
+          "waitWallTimeNanoseconds" : 371625
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 7208,
+          "commitWallTimeNanoseconds" : 2417,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 16625,
-          "gpuTimeNanoseconds" : 9917,
+          "encodeWallTimeNanoseconds" : 3125,
+          "gpuTimeNanoseconds" : 10375,
           "operation" : "numiseal_dense_fold_kernel",
-          "waitWallTimeNanoseconds" : 385584
+          "waitWallTimeNanoseconds" : 407083
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 5500,
+          "commitWallTimeNanoseconds" : 2500,
           "elementCount" : 64,
-          "encodeWallTimeNanoseconds" : 10167,
-          "gpuTimeNanoseconds" : 12125,
+          "encodeWallTimeNanoseconds" : 3042,
+          "gpuTimeNanoseconds" : 11500,
           "operation" : "numiseal_eq_weight_kernel",
-          "waitWallTimeNanoseconds" : 474458
+          "waitWallTimeNanoseconds" : 226917
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 11208,
+          "commitWallTimeNanoseconds" : 2500,
           "elementCount" : 128,
-          "encodeWallTimeNanoseconds" : 25708,
-          "gpuTimeNanoseconds" : 12500,
+          "encodeWallTimeNanoseconds" : 2959,
+          "gpuTimeNanoseconds" : 12167,
           "operation" : "numiseal_sumcheck_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 428667
+          "waitWallTimeNanoseconds" : 388000
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 11750,
+          "commitWallTimeNanoseconds" : 2250,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 21917,
-          "gpuTimeNanoseconds" : 15167,
+          "encodeWallTimeNanoseconds" : 2959,
+          "gpuTimeNanoseconds" : 13333,
           "operation" : "numiseal_mask_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 403959
+          "waitWallTimeNanoseconds" : 221209
         }
       ],
       "policy" : "direct-metal-secret-bearing-kernel-observation",
-      "processWallTimeNanoseconds" : 3510084,
+      "processWallTimeNanoseconds" : 1921083,
       "resultDigestsHex" : {
         "numiseal_apply_mask_kernel" : "d39dfd491fdb93929dea2966bfc6c672349932c32d16c8b7322b31e5246bb9c9",
         "numiseal_dense_fold_kernel" : "2cbc77fae9e0bdb941a5d08db57125a9db799c3cdd74801aaa1d20c34a536c3e",
@@ -157,52 +157,52 @@
       "operationTimings" : [
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 4916,
+          "commitWallTimeNanoseconds" : 2000,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 10833,
+          "encodeWallTimeNanoseconds" : 2792,
           "gpuTimeNanoseconds" : 7958,
           "operation" : "numiseal_apply_mask_kernel",
-          "waitWallTimeNanoseconds" : 348750
+          "waitWallTimeNanoseconds" : 369583
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 3583,
+          "commitWallTimeNanoseconds" : 2416,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 6666,
-          "gpuTimeNanoseconds" : 9042,
+          "encodeWallTimeNanoseconds" : 2834,
+          "gpuTimeNanoseconds" : 8833,
           "operation" : "numiseal_dense_fold_kernel",
-          "waitWallTimeNanoseconds" : 189000
+          "waitWallTimeNanoseconds" : 187209
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 2625,
+          "commitWallTimeNanoseconds" : 1833,
           "elementCount" : 64,
-          "encodeWallTimeNanoseconds" : 3959,
-          "gpuTimeNanoseconds" : 11750,
+          "encodeWallTimeNanoseconds" : 3625,
+          "gpuTimeNanoseconds" : 11458,
           "operation" : "numiseal_eq_weight_kernel",
-          "waitWallTimeNanoseconds" : 208541
+          "waitWallTimeNanoseconds" : 196250
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 2292,
+          "commitWallTimeNanoseconds" : 1750,
           "elementCount" : 128,
-          "encodeWallTimeNanoseconds" : 3208,
-          "gpuTimeNanoseconds" : 11750,
+          "encodeWallTimeNanoseconds" : 2834,
+          "gpuTimeNanoseconds" : 11458,
           "operation" : "numiseal_sumcheck_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 209208
+          "waitWallTimeNanoseconds" : 192459
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 5042,
+          "commitWallTimeNanoseconds" : 2083,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 7750,
-          "gpuTimeNanoseconds" : 13583,
+          "encodeWallTimeNanoseconds" : 2917,
+          "gpuTimeNanoseconds" : 13500,
           "operation" : "numiseal_mask_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 222375
+          "waitWallTimeNanoseconds" : 212375
         }
       ],
       "policy" : "direct-metal-secret-bearing-kernel-observation",
-      "processWallTimeNanoseconds" : 1785750,
+      "processWallTimeNanoseconds" : 1442583,
       "resultDigestsHex" : {
         "numiseal_apply_mask_kernel" : "a0974f9536c86913c59527301e8e7d74873fa674ebcafc45e366a4ecffdab55b",
         "numiseal_dense_fold_kernel" : "c53a0e95234c71ad5ace94d1ec92998a602f681f4f2f415e12ffcf9cdcd4bbc9",
@@ -218,52 +218,52 @@
       "operationTimings" : [
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 13709,
+          "commitWallTimeNanoseconds" : 2083,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 20541,
-          "gpuTimeNanoseconds" : 7167,
+          "encodeWallTimeNanoseconds" : 2583,
+          "gpuTimeNanoseconds" : 7083,
           "operation" : "numiseal_apply_mask_kernel",
-          "waitWallTimeNanoseconds" : 224833
+          "waitWallTimeNanoseconds" : 174542
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 10125,
+          "commitWallTimeNanoseconds" : 2042,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 16375,
-          "gpuTimeNanoseconds" : 160875,
+          "encodeWallTimeNanoseconds" : 2708,
+          "gpuTimeNanoseconds" : 9000,
           "operation" : "numiseal_dense_fold_kernel",
-          "waitWallTimeNanoseconds" : 2472042
+          "waitWallTimeNanoseconds" : 183166
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 9083,
+          "commitWallTimeNanoseconds" : 2083,
           "elementCount" : 64,
-          "encodeWallTimeNanoseconds" : 19209,
-          "gpuTimeNanoseconds" : 12125,
+          "encodeWallTimeNanoseconds" : 2667,
+          "gpuTimeNanoseconds" : 11292,
           "operation" : "numiseal_eq_weight_kernel",
-          "waitWallTimeNanoseconds" : 393583
+          "waitWallTimeNanoseconds" : 194125
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 3583,
+          "commitWallTimeNanoseconds" : 1875,
           "elementCount" : 128,
-          "encodeWallTimeNanoseconds" : 8208,
-          "gpuTimeNanoseconds" : 12458,
+          "encodeWallTimeNanoseconds" : 2708,
+          "gpuTimeNanoseconds" : 11500,
           "operation" : "numiseal_sumcheck_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 360333
+          "waitWallTimeNanoseconds" : 191584
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 3000,
+          "commitWallTimeNanoseconds" : 1917,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 6042,
-          "gpuTimeNanoseconds" : 14750,
+          "encodeWallTimeNanoseconds" : 2708,
+          "gpuTimeNanoseconds" : 13167,
           "operation" : "numiseal_mask_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 365875
+          "waitWallTimeNanoseconds" : 207708
         }
       ],
       "policy" : "direct-metal-secret-bearing-kernel-observation",
-      "processWallTimeNanoseconds" : 4477667,
+      "processWallTimeNanoseconds" : 1240958,
       "resultDigestsHex" : {
         "numiseal_apply_mask_kernel" : "9c4d7a043bf8d77213f073aa63d7df5375841377264d1fad6524c3dddf07edfe",
         "numiseal_dense_fold_kernel" : "da0359cedc3df427c3715bb5a5428bf08fc9a17d2ec55763bec04b3de657417e",
@@ -279,52 +279,52 @@
       "operationTimings" : [
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 3375,
+          "commitWallTimeNanoseconds" : 1958,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 6000,
-          "gpuTimeNanoseconds" : 8208,
+          "encodeWallTimeNanoseconds" : 2625,
+          "gpuTimeNanoseconds" : 7208,
           "operation" : "numiseal_apply_mask_kernel",
-          "waitWallTimeNanoseconds" : 389250
+          "waitWallTimeNanoseconds" : 174792
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 12833,
+          "commitWallTimeNanoseconds" : 1917,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 18375,
-          "gpuTimeNanoseconds" : 9125,
+          "encodeWallTimeNanoseconds" : 2708,
+          "gpuTimeNanoseconds" : 8875,
           "operation" : "numiseal_dense_fold_kernel",
-          "waitWallTimeNanoseconds" : 235167
+          "waitWallTimeNanoseconds" : 180833
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 4708,
+          "commitWallTimeNanoseconds" : 1875,
           "elementCount" : 64,
-          "encodeWallTimeNanoseconds" : 8291,
-          "gpuTimeNanoseconds" : 11708,
+          "encodeWallTimeNanoseconds" : 2542,
+          "gpuTimeNanoseconds" : 11417,
           "operation" : "numiseal_eq_weight_kernel",
-          "waitWallTimeNanoseconds" : 203209
+          "waitWallTimeNanoseconds" : 191833
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 2959,
+          "commitWallTimeNanoseconds" : 1834,
           "elementCount" : 128,
-          "encodeWallTimeNanoseconds" : 4459,
-          "gpuTimeNanoseconds" : 12000,
+          "encodeWallTimeNanoseconds" : 2708,
+          "gpuTimeNanoseconds" : 11500,
           "operation" : "numiseal_sumcheck_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 228166
+          "waitWallTimeNanoseconds" : 205958
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 12500,
+          "commitWallTimeNanoseconds" : 2000,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 21791,
-          "gpuTimeNanoseconds" : 14875,
+          "encodeWallTimeNanoseconds" : 2750,
+          "gpuTimeNanoseconds" : 15625,
           "operation" : "numiseal_mask_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 258333
+          "waitWallTimeNanoseconds" : 396916
         }
       ],
       "policy" : "direct-metal-secret-bearing-kernel-observation",
-      "processWallTimeNanoseconds" : 2136000,
+      "processWallTimeNanoseconds" : 1428792,
       "resultDigestsHex" : {
         "numiseal_apply_mask_kernel" : "073d9105acd960a561211a1ef749e8a3527d13bf722c068f66f6def838fe1317",
         "numiseal_dense_fold_kernel" : "552736f7c87405dd91ce276bc6fa63155ffa4254598c9bed6f93c5971d4d60ce",
@@ -340,52 +340,52 @@
       "operationTimings" : [
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 16875,
+          "commitWallTimeNanoseconds" : 2084,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 38042,
-          "gpuTimeNanoseconds" : 7375,
+          "encodeWallTimeNanoseconds" : 2708,
+          "gpuTimeNanoseconds" : 7958,
           "operation" : "numiseal_apply_mask_kernel",
-          "waitWallTimeNanoseconds" : 468125
+          "waitWallTimeNanoseconds" : 481875
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 10542,
+          "commitWallTimeNanoseconds" : 3416,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 20291,
-          "gpuTimeNanoseconds" : 23250,
+          "encodeWallTimeNanoseconds" : 5792,
+          "gpuTimeNanoseconds" : 291750,
           "operation" : "numiseal_dense_fold_kernel",
-          "waitWallTimeNanoseconds" : 586958
+          "waitWallTimeNanoseconds" : 3928792
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 15291,
+          "commitWallTimeNanoseconds" : 4042,
           "elementCount" : 64,
-          "encodeWallTimeNanoseconds" : 26541,
-          "gpuTimeNanoseconds" : 11958,
+          "encodeWallTimeNanoseconds" : 9041,
+          "gpuTimeNanoseconds" : 13167,
           "operation" : "numiseal_eq_weight_kernel",
-          "waitWallTimeNanoseconds" : 926542
+          "waitWallTimeNanoseconds" : 942500
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 12291,
+          "commitWallTimeNanoseconds" : 11583,
           "elementCount" : 128,
-          "encodeWallTimeNanoseconds" : 28625,
-          "gpuTimeNanoseconds" : 12042,
+          "encodeWallTimeNanoseconds" : 5458,
+          "gpuTimeNanoseconds" : 22458,
           "operation" : "numiseal_sumcheck_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 270334
+          "waitWallTimeNanoseconds" : 268375
         },
         {
           "commandCount" : 1,
-          "commitWallTimeNanoseconds" : 9542,
+          "commitWallTimeNanoseconds" : 2542,
           "elementCount" : 432,
-          "encodeWallTimeNanoseconds" : 18792,
-          "gpuTimeNanoseconds" : 13875,
+          "encodeWallTimeNanoseconds" : 4500,
+          "gpuTimeNanoseconds" : 66250,
           "operation" : "numiseal_mask_accumulate_kernel",
-          "waitWallTimeNanoseconds" : 264792
+          "waitWallTimeNanoseconds" : 766083
         }
       ],
       "policy" : "direct-metal-secret-bearing-kernel-observation",
-      "processWallTimeNanoseconds" : 3883209,
+      "processWallTimeNanoseconds" : 6852584,
       "resultDigestsHex" : {
         "numiseal_apply_mask_kernel" : "2661889b2e2662dd88386d9a80318272e1a3cbab41988c8f9e5c0b182e2e4b0c",
         "numiseal_dense_fold_kernel" : "c2443c916853e00b29a09eced3856b64dbb64b5d3ce9706ec773f629d23f760a",
@@ -402,20 +402,20 @@
     "classSummaries" : [
       {
         "classID" : "high-index-secret-mass",
-        "maxNanoseconds" : 4477667,
-        "meanNanoseconds" : 3956986,
-        "minNanoseconds" : 3510084,
+        "maxNanoseconds" : 6852584,
+        "meanNanoseconds" : 3338208,
+        "minNanoseconds" : 1240958,
         "sampleCount" : 3
       },
       {
         "classID" : "low-index-secret-mass",
-        "maxNanoseconds" : 10152000,
-        "meanNanoseconds" : 4691250,
-        "minNanoseconds" : 1785750,
+        "maxNanoseconds" : 3796500,
+        "meanNanoseconds" : 2222625,
+        "minNanoseconds" : 1428792,
         "sampleCount" : 3
       }
     ],
-    "maxClassMeanRatio" : 1.1855614348900907,
+    "maxClassMeanRatio" : 1.501921376750464,
     "successfulSampleCount" : 6
   }
 }

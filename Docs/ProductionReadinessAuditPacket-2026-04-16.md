@@ -24,6 +24,7 @@ Coverage included:
 - release XCTest suite,
 - R1CS artifact schema contract validation and schema mutation tests,
 - NumiSeal artifact schema contract validation and schema mutation tests,
+- NumiSeal conformance and end-to-end theorem-scope validation,
 - constant-time source/formal scope validation,
 - constant-time Swift/LLVM/Metal lowering and pinned release evidence
   validation,
@@ -109,6 +110,7 @@ Release and validation gates:
 - `Docs/ProductIntegrationLayer-2026-04-16.md`
 - `Docs/ReleaseCandidateRunbook-2026-04-16.md`
 - `TestVectors/numiseal-conformance-scope-v1.json`
+- `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`
 - `TestVectors/constant-time-scope-v1.json`
 - `TestVectors/constant-time-lowering-evidence-v1.json`
 - `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
@@ -116,6 +118,7 @@ Release and validation gates:
 - `CHANGELOG.md`
 - `Scripts/validate-release-readiness-policy.py`
 - `Scripts/validate-numiseal-conformance-scope.py`
+- `Scripts/test-numiseal-conformance-scope-validation.py`
 - `Scripts/validate-constant-time-scope.py`
 - `Scripts/test-constant-time-scope-validation.py`
 - `Scripts/validate-constant-time-lowering-evidence.py`
@@ -201,10 +204,11 @@ These are the remaining blockers before using production-security language:
    repository now has a checked Swift/LLVM/Metal lowering proof contract in
    `TestVectors/constant-time-lowering-evidence-v1.json` and pinned local
    release evidence in `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
-   for Metal AIR/metallib generation, runtime allocation/COW static review, and
-   CPU/GPU smoke corpora. Swift optimized SIL/LLVM/assembly review, hardware
-   counters, power/contention, and broader device lanes still have to be
-   recorded before production constant-time language is allowed.
+   for Metal AIR/metallib generation, runtime allocation/COW static review,
+   CPU/GPU smoke corpora, and compiler/hardware observation lane reports. Swift
+   optimized SIL/LLVM/assembly review, hardware counters, power/contention, and
+   broader device lanes still have to be recorded before production constant-time
+   language is allowed.
 3. Deployed product implementations for trusted key distribution,
    expected-context storage, artifact provenance, replay protection,
    persistence, access control, hosted logging, and hosted revocation
@@ -212,8 +216,20 @@ These are the remaining blockers before using production-security language:
    product-ops readiness status, and signed revocation feed now exist, but
    durable product implementations remain outside the repository.
 4. NumiSeal product/carry/ZK theorem scope remains release-discipline work:
-   `TestVectors/numiseal-conformance-scope-v1.json` now tracks the current
-   surfaces, conformance vectors, and open theorem work inside the repository.
+   `TestVectors/numiseal-conformance-scope-v1.json` tracks the current
+   surfaces and conformance vectors, and
+   `TestVectors/numiseal-end-to-end-theorem-scope-v1.json` pins the checked
+   NumiSeal end-to-end theorem scope. That scope now includes checked Lean
+   surfaces for recursive folding knowledge soundness, typed carry
+   producer/consumer composition, and NumiSealZK simulation/privacy under the
+   declared public-leakage model. The current theorem is still
+   evidence-parametric: accepted product gates plus named source-fold,
+   terminal-seal, recursive-knowledge, typed-carry, masked-residual ZK,
+   simulation/privacy, and product-policy obligations imply the composed
+   relation. Concrete Swift extractor evidence, typed carry producer vectors,
+   concrete mask-distribution distance evidence, QROM Fiat-Shamir loss
+   accounting, and side-channel evidence still have to be supplied before
+   production-security NumiSeal theorem language is allowed.
 5. Broader hardware benchmark reports before making cross-generation
    performance claims. The E2E proof metrics manifest now gates checked-vector
    proof size and product-smoke size budgets, but hardware latency claims still

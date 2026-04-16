@@ -72,12 +72,14 @@ def validate_docs() -> None:
             "Docs/E2EProofMetrics-2026-04-16.md",
             "Docs/ProductOperationsReadiness-2026-04-16.md",
             "TestVectors/numiseal-conformance-scope-v1.json",
+            "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
             "TestVectors/e2e-proof-metrics-v1.json",
             "Scripts/validate-release-readiness-policy.py",
             "Scripts/validate-numiseal-conformance-scope.py",
+            "Scripts/test-numiseal-conformance-scope-validation.py",
             "Scripts/validate-constant-time-scope.py",
             "Scripts/test-constant-time-scope-validation.py",
             "Scripts/validate-constant-time-lowering-evidence.py",
@@ -90,6 +92,10 @@ def validate_docs() -> None:
             "Scripts/generate-release-candidate-evidence.py",
             "Scripts/validate-release-candidate-evidence.py",
             "local product-ops readiness",
+            "NumiSeal end-to-end theorem scope",
+            "recursive folding knowledge soundness",
+            "typed carry producer/consumer",
+            "NumiSealZK simulation/privacy",
             "signed revocation feed",
         ],
     )
@@ -104,12 +110,18 @@ def validate_docs() -> None:
             "signed artifacts",
             "branch protection requiring the full production gate",
             "Scripts/validate-numiseal-conformance-scope.py",
+            "Scripts/test-numiseal-conformance-scope-validation.py",
+            "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "Scripts/validate-constant-time-scope.py",
             "Scripts/validate-constant-time-lowering-evidence.py",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
             "Scripts/validate-e2e-proof-metrics.py",
             "Scripts/validate-product-ops-surface.py",
             "product operations readiness",
+            "NumiSeal end-to-end theorem scope digest",
+            "recursive folding knowledge soundness",
+            "typed carry producer/consumer",
+            "NumiSealZK simulation/privacy",
             "signed revocation feed",
             "E2E proof metrics digest",
             "constant-time release evidence digest",
@@ -125,6 +137,7 @@ def validate_docs() -> None:
             "`numiseal-test-vector-artifact-v1.json`",
             "`test-vector-artifact-v1.json`",
             "TestVectors/numiseal-conformance-scope-v1.json",
+            "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -141,6 +154,7 @@ def validate_docs() -> None:
             "--expect-production-gate-result passed",
             "unsigned research artifacts",
             "NumiSeal product/carry/ZK conformance-scope version and digest",
+            "NumiSeal end-to-end theorem-scope version and digest",
             "constant-time source/formal scope version and digest",
             "constant-time lowering evidence version and digest",
             "constant-time release evidence version and digest",
@@ -158,6 +172,10 @@ def validate_docs() -> None:
             "Production Readiness",
             "Compatibility",
             "Remaining Production-Security Blockers",
+            "NumiSeal end-to-end theorem scope",
+            "recursive folding knowledge soundness",
+            "typed carry producer/consumer",
+            "NumiSealZK simulation/privacy",
             "constant-time release evidence",
         ],
     )
@@ -190,8 +208,50 @@ def validate_schema_versions() -> None:
     conformance_scope = read_json("TestVectors/numiseal-conformance-scope-v1.json")
     require(isinstance(conformance_scope, dict), "NumiSeal conformance scope root must be an object")
     require(conformance_scope.get("schemaVersion") == 1, "NumiSeal conformance scope schemaVersion must be 1")
+    require(
+        conformance_scope.get("theoremScopeManifest") == "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+        "NumiSeal conformance scope must link the end-to-end theorem scope",
+    )
     legacy_review_flag = "external" + "AuditRequired"
     require(legacy_review_flag not in conformance_scope, "NumiSeal conformance scope must not carry review-gate flags")
+    theorem_scope = read_json("TestVectors/numiseal-end-to-end-theorem-scope-v1.json")
+    require(isinstance(theorem_scope, dict), "NumiSeal end-to-end theorem scope root must be an object")
+    require(theorem_scope.get("schemaVersion") == 1, "NumiSeal end-to-end theorem scope schemaVersion must be 1")
+    require(
+        theorem_scope.get("claimStatus") == "evidence-parametric-end-to-end-composition-theorem",
+        "NumiSeal end-to-end theorem scope claimStatus must stay precise",
+    )
+    formal_model = theorem_scope.get("formalModel")
+    require(isinstance(formal_model, dict), "NumiSeal end-to-end theorem formalModel must be an object")
+    auxiliary_modules = formal_model.get("auxiliaryModules")
+    require(isinstance(auxiliary_modules, list), "NumiSeal theorem auxiliaryModules must be a list")
+    auxiliary_paths = {module.get("module") for module in auxiliary_modules if isinstance(module, dict)}
+    require(
+        {
+            "Formal/SuperNeoFormal/RecursiveFoldingKnowledge.lean",
+            "Formal/SuperNeoFormal/NumiSealTypedCarryTheorem.lean",
+            "Formal/SuperNeoFormal/NumiSealZKPrivacy.lean",
+            "Formal/SuperNeoFormal/NumiSealProductTheorem.lean",
+        }.issubset(auxiliary_paths),
+        "NumiSeal theorem scope must pin recursive knowledge, typed carry, ZK privacy, and product theorem modules",
+    )
+    theorem_surfaces = theorem_scope.get("theoremSurfaces")
+    require(isinstance(theorem_surfaces, list), "NumiSeal theoremSurfaces must be a list")
+    theorem_surface_ids = {surface.get("id") for surface in theorem_surfaces if isinstance(surface, dict)}
+    require(
+        {
+            "recursive-folding-knowledge-soundness",
+            "typed-carry-producer-consumer",
+            "zk-leakage-simulation-privacy",
+        }.issubset(theorem_surface_ids),
+        "NumiSeal theorem scope must pin recursive knowledge, typed carry producer/consumer, and ZK privacy surfaces",
+    )
+    theorem_promotion = theorem_scope.get("promotionRule")
+    require(isinstance(theorem_promotion, dict), "NumiSeal end-to-end theorem promotionRule must be an object")
+    require(
+        theorem_promotion.get("productionNumiSealTheoremClaimAllowed") is False,
+        "NumiSeal end-to-end theorem scope must not prematurely allow production theorem claims",
+    )
     constant_time_scope = read_json("TestVectors/constant-time-scope-v1.json")
     require(isinstance(constant_time_scope, dict), "constant-time scope root must be an object")
     require(constant_time_scope.get("schemaVersion") == 1, "constant-time scope schemaVersion must be 1")
@@ -214,6 +274,16 @@ def validate_schema_versions() -> None:
         lowering_evidence.get("releaseEvidenceManifest") == "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
         "constant-time lowering evidence must link the pinned release evidence manifest",
     )
+    observation_lane_reports = lowering_evidence.get("observationLaneReports")
+    require(isinstance(observation_lane_reports, dict), "constant-time lowering evidence observationLaneReports must be an object")
+    require(
+        observation_lane_reports.get("compiler") == "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
+        "constant-time lowering evidence must link the compiler observation lane report",
+    )
+    require(
+        observation_lane_reports.get("hardware") == "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
+        "constant-time lowering evidence must link the hardware observation lane report",
+    )
     promotion_rule = lowering_evidence.get("promotionRule")
     require(isinstance(promotion_rule, dict), "constant-time lowering evidence promotionRule must be an object")
     require(
@@ -235,8 +305,17 @@ def validate_schema_versions() -> None:
     )
     artifact_entries = release_evidence.get("artifactEntries")
     require(
-        isinstance(artifact_entries, list) and len(artifact_entries) == 6,
-        "constant-time release evidence must pin six artifacts",
+        isinstance(artifact_entries, list) and len(artifact_entries) == 8,
+        "constant-time release evidence must pin eight artifacts",
+    )
+    artifact_ids = {
+        str(entry.get("id"))
+        for entry in artifact_entries
+        if isinstance(entry, dict)
+    }
+    require(
+        {"compiler-observation-lanes", "hardware-observation-lanes"}.issubset(artifact_ids),
+        "constant-time release evidence must pin compiler and hardware observation lane reports",
     )
     e2e_metrics = read_json("TestVectors/e2e-proof-metrics-v1.json")
     require(isinstance(e2e_metrics, dict), "E2E proof metrics root must be an object")
@@ -272,6 +351,10 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/validate-numiseal-conformance-scope.py" in gate,
         "production gate must run validate-numiseal-conformance-scope.py",
+    )
+    require(
+        "run_step Scripts/test-numiseal-conformance-scope-validation.py" in gate,
+        "production gate must run NumiSeal conformance scope regression tests",
     )
     require(
         "run_step Scripts/validate-constant-time-scope.py" in gate,

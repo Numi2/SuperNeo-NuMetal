@@ -19,38 +19,54 @@
       "id": "metal-artifact-report",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/metal-artifacts-v1.json",
       "role": "Metal AIR/metallib generation report",
-      "sha256Hex": "b23d4b855ebbcc577e134565097681de871ccb8aae1e13ec8c0b6eb46be07040"
+      "sha256Hex": "4dc0df46346fd73e23af5c65e19d7663d60e1916b47aa73083cc3377f3e27fbb"
     },
     {
       "byteCount": 1945,
       "id": "runtime-allocation-review",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/runtime/runtime-allocation-review-v1.json",
       "role": "Swift runtime allocation/COW static review",
-      "sha256Hex": "5883a4dd8d5c7f0cd333a6d19bfe55db3f41515e9d5ba35a1f5e7d990bb44396"
+      "sha256Hex": "116f92419c24b1cbcfd0d4f03f445eae51f06b1c2befe6ad0d83793ac4be2154"
     },
     {
       "byteCount": 8618,
       "id": "cpu-observation-corpus",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/observations/cpu-observation-corpus-v1.json",
       "role": "zk-high-assurance-cpu local observation corpus",
-      "sha256Hex": "70070cd03fed01accc66b6811019072d5732697c9fffd22743f9e0e296f851c9"
+      "sha256Hex": "4746e4fd890fbe62159f9d23a462f879fc6c6920eb1b837f5a1f716c0950f452"
     },
     {
-      "byteCount": 17322,
+      "byteCount": 17285,
       "id": "gpu-observation-corpus",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/observations/gpu-observation-corpus-v1.json",
       "role": "direct Metal secret-bearing kernel observation corpus",
-      "sha256Hex": "a92137afecb8eac1facd0bc085b7bb5f12f282db6f407916ffc048fa24c02e82"
+      "sha256Hex": "dcc9111fc704496b5496e78d22d9a54c8f28df93b09f94856ec70daa7809522f"
+    },
+    {
+      "byteCount": 3923,
+      "id": "compiler-observation-lanes",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
+      "role": "compiler observation lane report for Swift/LLVM/Metal constant-time evidence",
+      "sha256Hex": "dc268c29f96f84c88ad295b844e762f770dd25f6ee9d16cd205bbddbfdc13f7f"
+    },
+    {
+      "byteCount": 3215,
+      "id": "hardware-observation-lanes",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
+      "role": "hardware observation lane report for CPU/GPU constant-time evidence",
+      "sha256Hex": "00eb8a36462d47c681a53924a02e885a42fe2b6eb68c61904b3013ef1cd036cd"
     }
   ],
   "claimStatus": "local-release-evidence-pinned",
+  "compilerObservationLaneReport": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
   "evidenceID": "superneo-swift-llvm-metal-release-evidence-v1",
-  "generatedAtUTC": "2026-04-16T17:00:30Z",
+  "generatedAtUTC": "2026-04-16T17:37:58Z",
   "hardware": {
     "machine": "arm64e",
     "swVers": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5\nBuildVersion:\t\t25F5042g",
     "uname": "Darwin Mac.domain_not_set.invalid 25.5.0 Darwin Kernel Version 25.5.0: Fri Mar 20 18:54:08 PDT 2026; root:xnu-12377.120.72.0.4~13/RELEASE_ARM64_T8132 arm64"
   },
+  "hardwareObservationLaneReport": "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
   "loweringEvidenceManifest": "TestVectors/constant-time-lowering-evidence-v1.json",
   "promotionDecision": {
     "productionConstantTimeClaimAllowed": false,

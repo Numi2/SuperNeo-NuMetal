@@ -13,6 +13,11 @@ Machine-readable files:
 - `numiseal-artifact.schema.json`: JSON Schema for NumiSeal artifact version 1.
 - `numiseal-conformance-scope-v1.json`: checked NumiSeal product/carry/ZK
   theorem and conformance-vector promotion scope.
+- `numiseal-end-to-end-theorem-scope-v1.json`: checked NumiSeal end-to-end
+  theorem scope for the current evidence-parametric product/carry/ZK relation,
+  including recursive folding knowledge soundness, typed carry
+  producer/consumer composition, and NumiSealZK simulation/privacy under the
+  declared public-leakage model.
 - `numiseal-typed-carry-conformance-v1.json`: typed carry positive/negative
   conformance descriptor.
 - `numiseal-zk-masked-residual-conformance-v1.json`: masked residual ZK
@@ -23,7 +28,8 @@ Machine-readable files:
   lowering evidence contract for the constant-time source/formal scope. It
   links to `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`, which
   pins the local Metal AIR/metallib, runtime allocation-review, and CPU/GPU
-  observation evidence outside the test-vector directory.
+  observation evidence plus compiler/hardware observation lane reports outside
+  the test-vector directory.
 - `e2e-proof-metrics-v1.json`: checked proof-envelope byte counts, artifact
   byte counts, generated product-smoke budgets, and benchmark-evidence policy.
 
@@ -33,6 +39,7 @@ Validate the checked-in vectors with:
 swift Scripts/validate-test-vectors.swift
 swift run superneo-numiseal-vectors validate
 Scripts/validate-numiseal-conformance-scope.py
+Scripts/test-numiseal-conformance-scope-validation.py
 Scripts/validate-constant-time-scope.py
 Scripts/validate-constant-time-lowering-evidence.py
 Scripts/generate-constant-time-release-evidence.py --skip-build

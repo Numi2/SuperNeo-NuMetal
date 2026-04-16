@@ -102,7 +102,8 @@ acceptance as a policy decision.
 
 ## What The Envelope Adds
 
-A proof envelope prevents context confusion. It binds proof bytes to:
+A proof envelope prevents context confusion. At the serialized-envelope parser it
+binds proof bytes to:
 
 - profile ID,
 - proof kind,
@@ -111,6 +112,11 @@ A proof envelope prevents context confusion. It binds proof bytes to:
 - verifier-key digest,
 - transcript domain, and
 - exact body length.
+
+The Fiat-Shamir transcript seed uses the same context except `bodyLength`: the
+141-byte header includes `bodyLength`, while the transcript-binding payload is
+the 137-byte prefix ending at `transcriptDomain`. The parser still enforces the
+body length before proof verification.
 
 The envelope does not define the application-level meaning of a statement. That
 meaning comes from the CCS encoder and the application that chooses the public
@@ -124,7 +130,8 @@ This repository does not yet provide:
 - a production-audited zero-knowledge claim,
 - a production SNARK, IVC, or PCD system,
 - an independent implementation in another language,
-- a formal proof of the paper's lattice-estimator analysis, or
+- a formal proof of the paper's lattice-estimator analysis,
+- a QROM Fiat-Shamir theorem for the implemented transcript stack, or
 - formal side-channel resistance.
 
 The repository does include a pinned lattice-estimator reproduction harness and

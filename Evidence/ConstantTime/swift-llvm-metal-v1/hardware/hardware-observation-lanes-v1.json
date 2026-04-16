@@ -1,0 +1,78 @@
+{
+  "claimStatus": "hardware-observation-lanes-local-non-certifying",
+  "generatedAtUTC": "2026-04-16T17:37:58Z",
+  "hardware": {
+    "machine": "arm64e",
+    "swVers": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5\nBuildVersion:\t\t25F5042g",
+    "uname": "Darwin Mac.domain_not_set.invalid 25.5.0 Darwin Kernel Version 25.5.0: Fri Mar 20 18:54:08 PDT 2026; root:xnu-12377.120.72.0.4~13/RELEASE_ARM64_T8132 arm64"
+  },
+  "lanes": [
+    {
+      "id": "cpu-wall-clock-zk-high-assurance",
+      "observationModel": [
+        "process wall-clock timing",
+        "CLI reported prove time",
+        "proof artifact byte-count and digest binding"
+      ],
+      "observationStatus": "local-wall-clock-smoke-pinned",
+      "observedArtifacts": [
+        "cpu-observation-corpus",
+        "runtime-allocation-review"
+      ],
+      "policy": "zk-high-assurance-cpu",
+      "requiredBeforeProduction": [
+        "dudect-style or hardware-counter corpus for the marked CPU regions",
+        "accepted CPU hardware class and thermal/scheduler control policy"
+      ],
+      "residualBoundaries": [
+        "Wall-clock process timing is noisy and non-certifying.",
+        "The local CPU corpus does not prove cache, scheduler, or power behavior."
+      ]
+    },
+    {
+      "id": "gpu-direct-metal-kernel-observation",
+      "observationModel": [
+        "Metal command-buffer elapsed timing",
+        "operation result digest binding",
+        "CPU reference equality for observed operations"
+      ],
+      "observationStatus": "local-direct-metal-smoke-pinned",
+      "observedArtifacts": [
+        "gpu-observation-corpus",
+        "metal-metallib"
+      ],
+      "policy": "direct-metal-secret-bearing-kernel-observation",
+      "requiredBeforeProduction": [
+        "GPU timing/counter corpus for each accepted Apple GPU family",
+        "scheduler and occupancy policy for the accepted GPU observation model"
+      ],
+      "residualBoundaries": [
+        "Direct Metal timing is local smoke evidence, not a GPU microarchitectural certificate.",
+        "Broader Apple GPU-family coverage remains required before production constant-time claims."
+      ]
+    },
+    {
+      "id": "power-contention-scheduler-boundary",
+      "observationModel": [
+        "explicit negative boundary for power, contention, and scheduler observations"
+      ],
+      "observationStatus": "required-before-production-ct-claim",
+      "observedArtifacts": [],
+      "policy": "outside-current-release-claim",
+      "requiredBeforeProduction": [
+        "power/contention exclusion statement for the accepted deployment model",
+        "scheduler and co-residency assumptions for CPU and GPU execution lanes"
+      ],
+      "residualBoundaries": [
+        "Power, contention, and cross-tenant scheduler effects are outside the current release evidence."
+      ]
+    }
+  ],
+  "promotionImpact": {
+    "productionConstantTimeClaimAllowed": false,
+    "reason": "Hardware observation lanes are local and non-certifying; counter, power, contention, and broader-device evidence remain required."
+  },
+  "reportID": "superneo-hardware-observation-lanes-v1",
+  "schemaVersion": 1,
+  "scopeManifest": "TestVectors/constant-time-scope-v1.json"
+}

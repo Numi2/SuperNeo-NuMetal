@@ -80,6 +80,12 @@ def main() -> None:
         write_json(path, missing_release_evidence)
         run_fail(str(VALIDATE), str(path))
 
+        missing_observation_lanes = copy.deepcopy(manifest)
+        del missing_observation_lanes["observationLaneReports"]
+        path = tmp / "missing-observation-lanes.json"
+        write_json(path, missing_observation_lanes)
+        run_fail(str(VALIDATE), str(path))
+
         stale_release_artifact = copy.deepcopy(manifest)
         release_evidence = json.loads(RELEASE_EVIDENCE.read_text(encoding="utf-8"))
         release_evidence["artifactEntries"][0]["sha256Hex"] = "0" * 64
@@ -88,6 +94,19 @@ def main() -> None:
         stale_release_artifact["releaseEvidenceManifest"] = str(release_path)
         path = tmp / "stale-release-artifact.json"
         write_json(path, stale_release_artifact)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_compiler_lane_artifact = copy.deepcopy(manifest)
+        release_evidence = json.loads(RELEASE_EVIDENCE.read_text(encoding="utf-8"))
+        release_evidence["artifactEntries"] = [
+            entry for entry in release_evidence["artifactEntries"]
+            if entry.get("id") != "compiler-observation-lanes"
+        ]
+        release_path = tmp / "missing-compiler-lane-artifact.json"
+        write_json(release_path, release_evidence)
+        missing_compiler_lane_artifact["releaseEvidenceManifest"] = str(release_path)
+        path = tmp / "missing-compiler-lane.json"
+        write_json(path, missing_compiler_lane_artifact)
         run_fail(str(VALIDATE), str(path))
 
         outsourced_review = copy.deepcopy(manifest)

@@ -5,6 +5,10 @@
   "scopeManifest": "TestVectors/constant-time-scope-v1.json",
   "proofConclusion": "complete-under-stated-proof-obligations-not-a-hardware-certificate",
   "releaseEvidenceManifest": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
+  "observationLaneReports": {
+    "compiler": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
+    "hardware": "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json"
+  },
   "formalModel": {
     "module": "Formal/SuperNeoFormal/ConstantTime.lean",
     "declarations": [
@@ -128,6 +132,7 @@
       "Swift optimized SIL, LLVM IR, and target assembly lowering artifacts are recorded for the release toolchain",
       "runtime allocation and copy-on-write review remains recorded for marked Swift regions",
       "CPU and GPU observation corpora are expanded beyond local smoke coverage for the accepted hardware lanes",
+      "compiler and hardware observation lane reports are updated with accepted production-lane findings",
       "the promotion manifest changes productionConstantTimeClaimAllowed only with updated validation"
     ]
   }

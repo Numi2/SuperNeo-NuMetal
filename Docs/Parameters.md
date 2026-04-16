@@ -17,6 +17,10 @@ scheme for CCS with:
 - native Goldilocks support, and
 - low recursion overhead relative to ring-sum-check lattice approaches.
 
+This is a paper-claim mapping, not the repository's production-security claim.
+The current parameter-security position is narrower and is recorded in
+`Docs/ParameterSecurityDossier-2026-04-16.md`.
+
 The implemented protocol follows the paper's SuperNeo stack:
 
 - `PiCCS`: a sum-check reduction from CCS and prior CE claims to CE claims.
@@ -98,10 +102,18 @@ Module-SIS/ring commitment claim: `n = kappa * d`, `m = 2^30`,
 This harness does not convert the research analysis into a production
 cryptographic certification.
 
+The full assumption and Fiat-Shamir position is recorded in
+`Docs/ParameterSecurityDossier-2026-04-16.md`. That dossier is the controlling
+security-position document for the implemented profile. In particular, it records
+that the pinned default estimator lane clears 129 bits, while sampled quantum and
+more conservative reduction-cost models for the same `SIS.Parameters` tuple do
+not support a 128-bit quantum claim.
+
 Treat the implemented profile as:
 
 - a faithful code-level profile for research and benchmarking,
-- plausibly post-quantum under the paper's Module-SIS analysis, and
+- backed by a reproduced 129-bit default estimator lane under the paper's
+  stated Module-SIS analysis, and
 - not yet an audited production parameter set.
 
 Any change to `kappa`, ring degree, challenge set, decomposition length,
