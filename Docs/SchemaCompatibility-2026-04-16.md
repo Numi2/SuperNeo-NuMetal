@@ -17,6 +17,7 @@ manifests, and binary proof envelopes.
 | NumiSeal product JSON Schema | `numiseal-product-artifact-v2.schema.json` |
 | NumiSeal manifest | `manifestVersion = 1` |
 | NumiSeal end-to-end theorem scope manifest | `schemaVersion = 1` |
+| NumiSealZK mask-distribution evidence manifest | `schemaVersion = 1` |
 | Constant-time source/formal scope manifest | `schemaVersion = 1` |
 | Constant-time Swift/LLVM/Metal lowering evidence manifest | `schemaVersion = 1` |
 | Constant-time release evidence manifest | `schemaVersion = 1` |
@@ -130,6 +131,14 @@ surfaces, conformance vectors, and promotion rule for the current
 evidence-parametric NumiSeal product/carry/ZK theorem, including recursive
 folding knowledge soundness, typed carry producer/consumer composition, and
 NumiSealZK simulation/privacy under the declared public-leakage model.
+
+`TestVectors/numiseal-zk-mask-distribution-evidence-v1.json` is the checked
+NumiSealZK mask-distribution evidence manifest. It is not a proof artifact
+schema and does not affect proof bytes. It pins the exact rejection-sampled
+field mask distribution used by `NumiSealZKMaskSampler`, including the mask
+expansion domain, 64-bit candidate space, Goldilocks modulus, rejection count,
+zero statistical distance after rejection, public-leakage binding, and the
+promotion boundary that keeps broader ZK privacy claims evidence-parametric.
 
 `TestVectors/constant-time-scope-v1.json` is the checked constant-time
 source/formal scope manifest. It is not a proof artifact schema; it pins audited

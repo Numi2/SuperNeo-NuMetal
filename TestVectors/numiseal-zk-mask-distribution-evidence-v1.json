@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "evidenceID": "numiseal-zk-mask-distribution-evidence-v1",
+  "claimStatus": "exact-rejection-sampled-field-mask-evidence",
+  "conformanceScopeManifest": "TestVectors/numiseal-conformance-scope-v1.json",
+  "theoremScopeManifest": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+  "implementationPath": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift",
+  "sampler": {
+    "samplerType": "rejection-sampled-sha256-xof-candidates",
+    "domainLabel": "SuperNeo-NuMetal.numiseal.zk.mask-expand.v2",
+    "candidateBitWidth": 64,
+    "candidateSpaceSize": "18446744073709551616",
+    "fieldModulusHex": "ffffffff00000001",
+    "fieldModulusDecimal": "18446744069414584321",
+    "acceptanceCondition": "candidate < GoldilocksField.modulus",
+    "acceptedCandidateCount": "18446744069414584321",
+    "rejectedCandidateCount": "4294967295",
+    "rejectionProbabilityUpperBound": "2^-32",
+    "statisticalDistanceFromUniformAcceptedFieldElement": "0",
+    "exactUniformAfterRejection": true
+  },
+  "leakageModelBinding": {
+    "publicLeakageOnly": [
+      "public statement digest",
+      "obligation root",
+      "lane summary root",
+      "lane key",
+      "aggregate index",
+      "mask tensor dimensions",
+      "active digit count",
+      "randomness session digest",
+      "declared leakage digest"
+    ],
+    "secretMaskMaterialExcludedFromVerifierView": true,
+    "hardwareSideChannelsExcluded": true
+  },
+  "coveredByTests": [
+    "testNumiSealZKMaskSamplerUsesExactFieldRejectionSampling",
+    "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse",
+    "testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch"
+  ],
+  "promotionRule": {
+    "productionZKPrivacyClaimAllowed": false,
+    "releaseEvidenceOnly": true,
+    "remainingBoundaries": [
+      "simulation/privacy theorem remains evidence-parametric outside this concrete mask distribution lemma",
+      "hardware side-channel leakage remains outside the public-leakage model",
+      "product default promotion still requires side-channel evidence and release policy update"
+    ]
+  }
+}

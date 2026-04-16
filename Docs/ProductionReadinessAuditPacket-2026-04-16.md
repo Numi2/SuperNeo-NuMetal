@@ -111,6 +111,7 @@ Release and validation gates:
 - `Docs/ReleaseCandidateRunbook-2026-04-16.md`
 - `TestVectors/numiseal-conformance-scope-v1.json`
 - `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`
+- `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`
 - `TestVectors/constant-time-scope-v1.json`
 - `TestVectors/constant-time-lowering-evidence-v1.json`
 - `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
@@ -119,6 +120,8 @@ Release and validation gates:
 - `Scripts/validate-release-readiness-policy.py`
 - `Scripts/validate-numiseal-conformance-scope.py`
 - `Scripts/test-numiseal-conformance-scope-validation.py`
+- `Scripts/validate-numiseal-zk-mask-distribution-evidence.py`
+- `Scripts/test-numiseal-zk-mask-distribution-evidence-validation.py`
 - `Scripts/validate-constant-time-scope.py`
 - `Scripts/test-constant-time-scope-validation.py`
 - `Scripts/validate-constant-time-lowering-evidence.py`
@@ -222,14 +225,16 @@ These are the remaining blockers before using production-security language:
    NumiSeal end-to-end theorem scope. That scope now includes checked Lean
    surfaces for recursive folding knowledge soundness, typed carry producer/consumer
    composition, and NumiSealZK simulation/privacy under the
-   declared public-leakage model. The current theorem is still
-   evidence-parametric: accepted product gates plus named source-fold,
+   declared public-leakage model. The scope now also pins the exact rejection-sampled field mask distribution evidence in
+   `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`. The current
+   theorem is still evidence-parametric: accepted product gates plus named source-fold,
    terminal-seal, recursive-knowledge, typed-carry, masked-residual ZK,
    simulation/privacy, and product-policy obligations imply the composed
-   relation. Concrete Swift extractor evidence, typed carry producer vectors,
-   concrete mask-distribution distance evidence, QROM Fiat-Shamir loss
-   accounting, and side-channel evidence still have to be supplied before
-   production-security NumiSeal theorem language is allowed.
+   relation. Concrete Swift extractor evidence, product recursive typed carry
+   vectors, simulator coupling evidence beyond the exact mask-distribution
+   lemma, QROM Fiat-Shamir loss accounting, and side-channel evidence still
+   have to be supplied before production-security NumiSeal theorem language is
+   allowed.
 5. Broader hardware benchmark reports before making cross-generation
    performance claims. The E2E proof metrics manifest now gates checked-vector
    proof size and product-smoke size budgets, but hardware latency claims still

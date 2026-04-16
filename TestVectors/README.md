@@ -18,6 +18,11 @@ Machine-readable files:
   including recursive folding knowledge soundness, typed carry
   producer/consumer composition, and NumiSealZK simulation/privacy under the
   declared public-leakage model.
+- `numiseal-zk-mask-distribution-evidence-v1.json`: checked exact
+  rejection-sampled field mask distribution evidence for the NumiSealZK mask
+  sampler. It pins the v2 expansion domain, 64-bit candidate space, Goldilocks
+  acceptance set, rejection count, zero statistical distance after rejection,
+  leakage-model binding, and production-promotion boundary.
 - `numiseal-typed-carry-conformance-v1.json`: typed carry positive/negative
   conformance descriptor.
 - `numiseal-zk-masked-residual-conformance-v1.json`: masked residual ZK
@@ -40,6 +45,8 @@ swift Scripts/validate-test-vectors.swift
 swift run superneo-numiseal-vectors validate
 Scripts/validate-numiseal-conformance-scope.py
 Scripts/test-numiseal-conformance-scope-validation.py
+Scripts/validate-numiseal-zk-mask-distribution-evidence.py
+Scripts/test-numiseal-zk-mask-distribution-evidence-validation.py
 Scripts/validate-constant-time-scope.py
 Scripts/validate-constant-time-lowering-evidence.py
 Scripts/generate-constant-time-release-evidence.py --skip-build

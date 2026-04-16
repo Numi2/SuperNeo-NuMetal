@@ -47,8 +47,8 @@ At minimum, this requires:
 - product integration policy for trusted context, replay protection,
   provenance, and signed revocation feeds,
 - NumiSeal conformance-scope promotion plus concrete Swift extractor evidence,
-  typed carry producer vectors, concrete mask-distribution distance evidence,
-  and QROM loss instantiations,
+  product recursive typed carry vectors, simulator coupling beyond the exact
+  rejection-sampled field mask distribution, and QROM loss instantiations,
 - pinned Sage-backed lattice-estimator evidence,
 - release signing/provenance,
 - branch protection requiring the full production gate.
@@ -71,6 +71,7 @@ Each release candidate should record:
 - recursive folding knowledge soundness scope digest.
 - typed carry producer/consumer theorem scope digest.
 - NumiSealZK simulation/privacy leakage-model digest.
+- NumiSealZK mask-distribution evidence digest.
 - constant-time source/formal scope digest.
 - constant-time lowering evidence digest.
 - constant-time release evidence digest.
@@ -87,9 +88,13 @@ checks the NumiSeal product/carry/ZK scope manifest and the checked
 `TestVectors/numiseal-end-to-end-theorem-scope-v1.json` theorem-scope manifest
 that release evidence pins. That theorem scope includes recursive folding
 knowledge soundness, typed carry producer/consumer composition, and NumiSealZK
-simulation/privacy under the declared public-leakage model.
+simulation/privacy under the declared public-leakage model, and the release
+packet separately pins exact rejection-sampled field mask distribution evidence
+in `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`.
 `Scripts/test-numiseal-conformance-scope-validation.py` mutation-tests those
 promotion guards.
+`Scripts/validate-numiseal-zk-mask-distribution-evidence.py` checks the concrete
+NumiSealZK mask sampler arithmetic and promotion boundary.
 `Scripts/validate-constant-time-scope.py` checks the constant-time
 source/formal scope manifest and the formal declarations recorded in
 `Docs/ConstantTimeEvidence-2026-04-16.md`.

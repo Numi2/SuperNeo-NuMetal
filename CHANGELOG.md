@@ -29,6 +29,8 @@ claims remain blocked by the release packet no-go items.
 - Added checked Lean theorem surfaces for recursive folding knowledge soundness,
   typed carry producer/consumer composition, and NumiSealZK simulation/privacy
   under the declared public-leakage model.
+- Added exact rejection-sampled field mask distribution for NumiSealZK masks
+  plus a checked mask-distribution evidence manifest and validator.
 - Added a checked constant-time source/formal scope manifest, validator, and
   Lean trace-independence model for the first Swift/Metal secret-bearing slices.
 - Added a checked Swift/LLVM/Metal lowering evidence manifest, validator,
@@ -76,6 +78,7 @@ claims remain blocked by the release packet no-go items.
 - NumiSeal product/carry/ZK theorem and conformance-vector promotion; the
   NumiSeal end-to-end theorem scope is checked, while production-security
   NumiSeal product claims still require concrete Swift extractor evidence,
-  typed carry producer vectors, concrete mask-distribution distance evidence,
-  QROM loss instantiations, and side-channel evidence.
+  product recursive typed carry vectors, simulator coupling beyond the exact
+  field-mask distribution lemma, QROM loss instantiations, and side-channel
+  evidence.
 - Signed artifacts and repository branch-protection enforcement.

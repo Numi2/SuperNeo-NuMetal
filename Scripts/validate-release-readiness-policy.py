@@ -73,6 +73,7 @@ def validate_docs() -> None:
             "Docs/ProductOperationsReadiness-2026-04-16.md",
             "TestVectors/numiseal-conformance-scope-v1.json",
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+            "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -96,6 +97,7 @@ def validate_docs() -> None:
             "recursive folding knowledge soundness",
             "typed carry producer/consumer",
             "NumiSealZK simulation/privacy",
+            "exact rejection-sampled field mask distribution",
             "signed revocation feed",
         ],
     )
@@ -112,6 +114,7 @@ def validate_docs() -> None:
             "Scripts/validate-numiseal-conformance-scope.py",
             "Scripts/test-numiseal-conformance-scope-validation.py",
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+            "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
             "Scripts/validate-constant-time-scope.py",
             "Scripts/validate-constant-time-lowering-evidence.py",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -122,6 +125,7 @@ def validate_docs() -> None:
             "recursive folding knowledge soundness",
             "typed carry producer/consumer",
             "NumiSealZK simulation/privacy",
+            "exact rejection-sampled field mask distribution",
             "signed revocation feed",
             "E2E proof metrics digest",
             "constant-time release evidence digest",
@@ -138,6 +142,7 @@ def validate_docs() -> None:
             "`test-vector-artifact-v1.json`",
             "TestVectors/numiseal-conformance-scope-v1.json",
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+            "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -155,6 +160,7 @@ def validate_docs() -> None:
             "unsigned research artifacts",
             "NumiSeal product/carry/ZK conformance-scope version and digest",
             "NumiSeal end-to-end theorem-scope version and digest",
+            "NumiSealZK mask-distribution evidence version and digest",
             "constant-time source/formal scope version and digest",
             "constant-time lowering evidence version and digest",
             "constant-time release evidence version and digest",
@@ -176,6 +182,7 @@ def validate_docs() -> None:
             "recursive folding knowledge soundness",
             "typed carry producer/consumer",
             "NumiSealZK simulation/privacy",
+            "exact rejection-sampled field mask distribution",
             "constant-time release evidence",
         ],
     )
@@ -212,6 +219,10 @@ def validate_schema_versions() -> None:
         conformance_scope.get("theoremScopeManifest") == "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
         "NumiSeal conformance scope must link the end-to-end theorem scope",
     )
+    require(
+        conformance_scope.get("zkMaskDistributionEvidence") == "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+        "NumiSeal conformance scope must link the mask-distribution evidence",
+    )
     legacy_review_flag = "external" + "AuditRequired"
     require(legacy_review_flag not in conformance_scope, "NumiSeal conformance scope must not carry review-gate flags")
     theorem_scope = read_json("TestVectors/numiseal-end-to-end-theorem-scope-v1.json")
@@ -220,6 +231,10 @@ def validate_schema_versions() -> None:
     require(
         theorem_scope.get("claimStatus") == "evidence-parametric-end-to-end-composition-theorem",
         "NumiSeal end-to-end theorem scope claimStatus must stay precise",
+    )
+    require(
+        theorem_scope.get("zkMaskDistributionEvidence") == "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+        "NumiSeal theorem scope must link the mask-distribution evidence",
     )
     formal_model = theorem_scope.get("formalModel")
     require(isinstance(formal_model, dict), "NumiSeal end-to-end theorem formalModel must be an object")
@@ -251,6 +266,25 @@ def validate_schema_versions() -> None:
     require(
         theorem_promotion.get("productionNumiSealTheoremClaimAllowed") is False,
         "NumiSeal end-to-end theorem scope must not prematurely allow production theorem claims",
+    )
+    mask_evidence = read_json("TestVectors/numiseal-zk-mask-distribution-evidence-v1.json")
+    require(isinstance(mask_evidence, dict), "NumiSealZK mask-distribution evidence root must be an object")
+    require(mask_evidence.get("schemaVersion") == 1, "NumiSealZK mask-distribution evidence schemaVersion must be 1")
+    require(
+        mask_evidence.get("claimStatus") == "exact-rejection-sampled-field-mask-evidence",
+        "NumiSealZK mask-distribution evidence claimStatus must stay precise",
+    )
+    sampler = mask_evidence.get("sampler")
+    require(isinstance(sampler, dict), "NumiSealZK mask evidence sampler must be an object")
+    require(
+        sampler.get("statisticalDistanceFromUniformAcceptedFieldElement") == "0",
+        "NumiSealZK mask evidence must record zero statistical distance after rejection",
+    )
+    mask_promotion = mask_evidence.get("promotionRule")
+    require(isinstance(mask_promotion, dict), "NumiSealZK mask evidence promotionRule must be an object")
+    require(
+        mask_promotion.get("productionZKPrivacyClaimAllowed") is False,
+        "NumiSealZK mask evidence must not prematurely allow production privacy claims",
     )
     constant_time_scope = read_json("TestVectors/constant-time-scope-v1.json")
     require(isinstance(constant_time_scope, dict), "constant-time scope root must be an object")
@@ -362,6 +396,14 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/test-numiseal-conformance-scope-validation.py" in gate,
         "production gate must run NumiSeal conformance scope regression tests",
+    )
+    require(
+        "run_step Scripts/validate-numiseal-zk-mask-distribution-evidence.py" in gate,
+        "production gate must run NumiSealZK mask-distribution evidence validation",
+    )
+    require(
+        "run_step Scripts/test-numiseal-zk-mask-distribution-evidence-validation.py" in gate,
+        "production gate must run NumiSealZK mask-distribution evidence regression tests",
     )
     require(
         "run_step Scripts/validate-constant-time-scope.py" in gate,

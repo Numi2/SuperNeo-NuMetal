@@ -294,21 +294,56 @@ public struct NumiSealZKMaskMaterial: Equatable, Sendable {
             var coefficients: [GoldilocksField] = []
             coefficients.reserveCapacity(CyclotomicRing54.degree)
             for coefficient in 0..<CyclotomicRing54.degree {
-                let digest = Digest256.hash(
-                    Array("SuperNeo-NuMetal.numiseal.zk.mask-expand.v1".utf8)
-                        + sessionMaterial
-                        + laneKey.superNeoBytes
-                        + numiSealEncodeCount(aggregateIndex)
-                        + numiSealEncodeCount(column)
-                        + numiSealEncodeCount(coefficient)
-                        + numiSealEncodeCount(counter)
+                coefficients.append(
+                    NumiSealZKMaskSampler.sampleFieldElement(
+                        sessionMaterial: sessionMaterial,
+                        laneKey: laneKey,
+                        aggregateIndex: aggregateIndex,
+                        column: column,
+                        coefficient: coefficient,
+                        counter: &counter
+                    )
                 )
-                coefficients.append(GoldilocksField(UInt64(littleEndianBytes: Array(digest.bytes.prefix(8)))))
-                counter += 1
             }
             rings.append(CyclotomicRing54(coefficients))
         }
         return rings
+    }
+}
+
+public enum NumiSealZKMaskSampler {
+    public static let domainLabel = "SuperNeo-NuMetal.numiseal.zk.mask-expand.v2"
+    public static let candidateBitWidth = 64
+    public static let rejectedCandidateCount = UInt64.max - GoldilocksField.modulus + 1
+
+    public static func accepts(candidate: UInt64) -> Bool {
+        candidate < GoldilocksField.modulus
+    }
+
+    static func sampleFieldElement(
+        sessionMaterial: [UInt8],
+        laneKey: NumiSealLaneKey,
+        aggregateIndex: Int,
+        column: Int,
+        coefficient: Int,
+        counter: inout Int
+    ) -> GoldilocksField {
+        while true {
+            let digest = Digest256.hash(
+                Array(domainLabel.utf8)
+                    + sessionMaterial
+                    + laneKey.superNeoBytes
+                    + numiSealEncodeCount(aggregateIndex)
+                    + numiSealEncodeCount(column)
+                    + numiSealEncodeCount(coefficient)
+                    + numiSealEncodeCount(counter)
+            )
+            counter += 1
+            let candidate = UInt64(littleEndianBytes: Array(digest.bytes.prefix(8)))
+            if accepts(candidate: candidate) {
+                return GoldilocksField(candidate)
+            }
+        }
     }
 }
 

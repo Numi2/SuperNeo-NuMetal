@@ -12,6 +12,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "TestVectors" / "numiseal-conformance-scope-v1.json"
 THEOREM_SCOPE = ROOT / "TestVectors" / "numiseal-end-to-end-theorem-scope-v1.json"
+MASK_DISTRIBUTION_EVIDENCE = ROOT / "TestVectors" / "numiseal-zk-mask-distribution-evidence-v1.json"
 REQUIRED_SURFACES = {
     "numiseal-product",
     "numiseal-typed-carry",
@@ -184,6 +185,19 @@ def validate_surface(surface: Any, test_source: str) -> str:
         if "surface" in vector:
             require(vector.get("formatVersion") == 1, f"{path} formatVersion must be 1")
             require(vector.get("surface") == surface_id, f"{path} surface must be {surface_id}")
+            if surface_id == "numiseal-zk":
+                statement = vector.get("statement")
+                require(isinstance(statement, dict), f"{path}.statement must be an object")
+                require(
+                    statement.get("maskDistributionEvidence") == "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+                    f"{path} must link the NumiSealZK mask-distribution evidence",
+                )
+                require(
+                    statement.get("maskExpandDomainLabel") == "SuperNeo-NuMetal.numiseal.zk.mask-expand.v2",
+                    f"{path} must pin the rejection-sampled mask expansion domain",
+                )
+                require(statement.get("maskCandidateBitWidth") == 64, f"{path} maskCandidateBitWidth must be 64")
+                require(statement.get("maskRejectedCandidateCount") == "4294967295", f"{path} maskRejectedCandidateCount mismatch")
             covered_by_tests = require_string_list(vector.get("coveredByTests"), f"{path}.coveredByTests")
             for name in covered_by_tests:
                 require(name in test_source, f"{path} covered test not found in XCTest source: {name}")
@@ -254,6 +268,10 @@ def validate_theorem_scope(path: Path, test_source: str) -> None:
         theorem_scope.get("conformanceScope") == "TestVectors/numiseal-conformance-scope-v1.json",
         "theorem scope must link the NumiSeal conformance scope",
     )
+    require(
+        theorem_scope.get("zkMaskDistributionEvidence") == "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+        "theorem scope must link the NumiSealZK mask-distribution evidence",
+    )
     text = json.dumps(theorem_scope, sort_keys=True).lower()
     require("external" + " audit" not in text, "theorem scope must not encode outsourced review")
 
@@ -321,10 +339,18 @@ def main() -> None:
     require(scope.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(scope.get("scopeID") == "numiseal-product-carry-zk-conformance-v1", "scopeID is unsupported")
     theorem_path = require_manifest_path(scope.get("theoremScopeManifest"), "theoremScopeManifest")
+    mask_evidence_path = require_manifest_path(scope.get("zkMaskDistributionEvidence"), "zkMaskDistributionEvidence")
     if manifest_path == MANIFEST:
         require(theorem_path == THEOREM_SCOPE, "theoremScopeManifest must point to the pinned theorem scope manifest")
+        require(mask_evidence_path == MASK_DISTRIBUTION_EVIDENCE, "zkMaskDistributionEvidence must point to the pinned mask evidence manifest")
     legacy_review_flag = "external" + "AuditRequired"
     require(legacy_review_flag not in scope, "outsourced review gate field must not be present")
+    mask_evidence = read_json(mask_evidence_path)
+    require(mask_evidence.get("schemaVersion") == 1, "mask-distribution evidence schemaVersion must be 1")
+    require(
+        mask_evidence.get("claimStatus") == "exact-rejection-sampled-field-mask-evidence",
+        "mask-distribution evidence claimStatus must stay precise",
+    )
 
     test_source = (ROOT / "SuperNeo-NuMetalTests" / "SuperNeoNuMetalTests.swift").read_text(encoding="utf-8")
     validate_theorem_scope(theorem_path, test_source)

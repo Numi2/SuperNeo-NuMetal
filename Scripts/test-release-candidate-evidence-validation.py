@@ -84,6 +84,18 @@ def main() -> None:
         write_json(path, vague_numiseal_theorem_scope)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_numiseal_mask_distribution = copy.deepcopy(evidence)
+        wrong_numiseal_mask_distribution["publicSurfaces"]["numiSealZKMaskDistributionEvidenceVersion"] = 2
+        path = tmp / "wrong-numiseal-mask-distribution.json"
+        write_json(path, wrong_numiseal_mask_distribution)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_numiseal_mask_distribution = copy.deepcopy(evidence)
+        vague_numiseal_mask_distribution["publicSurfaces"]["numiSealZKMaskDistributionEvidenceClaimStatus"] = "privacy-proof"
+        path = tmp / "vague-numiseal-mask-distribution.json"
+        write_json(path, vague_numiseal_mask_distribution)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_constant_time_scope = copy.deepcopy(evidence)
         wrong_constant_time_scope["publicSurfaces"]["constantTimeScopeVersion"] = 2
         path = tmp / "wrong-constant-time-scope.json"

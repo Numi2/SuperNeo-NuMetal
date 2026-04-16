@@ -42,6 +42,10 @@ below.
 - [x] Product verifier facade hooks for expected context, authorization,
   provenance, replay, byte limits, and audit events.
 - [x] Lean hook for the NumiSeal dense sum-check transcript frame order.
+- [x] NumiSealZK proof kind `5`, masked residual proof syntax, randomness reuse
+  guard, and exact rejection-sampled field mask distribution evidence.
+- [x] Typed carry statement, consumer relation, and producer API for accepted
+  parent NumiSeal proof envelopes.
 
 ## Not Done
 
@@ -55,15 +59,14 @@ below.
   obligations and trusted context packs for more than checked identity-style
   fixtures.
 
-- [ ] Recursive carry semantics.
-  Done when carry is a typed statement, not raw bytes, and binds parent
-  statement/proof digest, recursion level, lane/aggregate scope, transcript
-  domain, producer, consumer, vectors, tests, and formal relation.
+- [ ] Product recursive carry promotion.
+  Done when typed carry producer/consumer semantics are wired into product
+  replay policy, product vectors, and default product carry modes.
 
-- [ ] `NumiSealZK`.
-  Done when `Docs/NumiSealZKDesign.md` defines the privacy claim, leakage list,
-  simulator target, masking design, randomness policy, ZK proof kind or policy
-  flag, fail-closed randomness-reuse tests, and side-channel review scope.
+- [ ] `NumiSealZK` production privacy promotion.
+  Done when simulator coupling evidence beyond the exact field-mask
+  distribution lemma, product-sized hardware benchmark evidence, and
+  side-channel evidence are recorded before product defaults change.
 
 - [ ] Deployed product operations.
   Done when hosted trusted context storage, key distribution/rotation rollout,
@@ -72,10 +75,10 @@ below.
   context/provenance/revocation feed, SQLite replay, hash-chained audit export, and
   product-ops readiness status are implemented.
 
-- [ ] NumiSeal-specific end-to-end product formalization.
-  Done when the NumiSeal public statement, aggregation, scalarization,
-  digit-language, residual-opening, generated-artifact, and carry/ZK relations
-  have scoped formal claims and conformance vectors.
+- [ ] NumiSeal-specific end-to-end product formalization promotion.
+  Done when the checked end-to-end theorem scope has concrete Swift extractor,
+  typed carry vector, simulator, and QROM evidence sufficient for production
+  theorem language.
 
 - [ ] Self-owned cryptographic and implementation review.
   Done when review evidence is recorded in the repository and findings are
@@ -90,9 +93,10 @@ below.
 Use:
 
 > NumiSeal verifies checked immediate-residual artifacts through an explicit
-> kind `4` policy path. Public proving, recursive carry, zero knowledge,
-> deployed product operations, NumiSeal-specific product formalization, and
-> self-owned review closure remain.
+> kind `4` policy path. Public proving, recursive-by-default carry,
+> zero-knowledge-by-default privacy, deployed product operations,
+> NumiSeal-specific product formalization promotion, and self-owned review
+> closure remain.
 
 Do not say:
 

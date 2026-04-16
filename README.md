@@ -25,7 +25,7 @@ cryptographic library.
 | Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
 | Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/` and summarized below. |
-| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
+| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
 | Product ops | Local signed context/provenance/revocation feed, replay ledger, audit export, and machine-readable operations readiness status for private integration work. |
 
 ## Highlights
@@ -81,6 +81,9 @@ cryptographic library.
 - Checked theorem surfaces for recursive folding knowledge soundness, typed
   carry producer/consumer composition, and NumiSealZK simulation/privacy under
   an explicit public-leakage model.
+- Exact rejection-sampled field mask distribution for NumiSealZK masks, with a
+  checked evidence manifest binding the sampler domain, Goldilocks acceptance
+  set, rejection count, and zero statistical distance after rejection.
 - A canonical local product operations readiness status exposed by
   `product-status --format json` and embedded in product audit exports.
 - A required signed revocation feed for local product controls, with effective
@@ -128,8 +131,8 @@ Current boundaries:
 - no production hardware constant-time certificate for Swift/LLVM/Metal
   lowering and selected CPU/GPU lanes, and
 - no completed production-security concrete Swift extractor evidence,
-  mask-distribution distance evidence, side-channel privacy evidence, or QROM
-  theorem instantiation.
+  simulator coupling beyond the exact field-mask distribution lemma,
+  side-channel privacy evidence, or QROM theorem instantiation.
 
 The concise proof semantics are documented in
 [Docs/WhatThisProves.md](Docs/WhatThisProves.md), and the operational threat

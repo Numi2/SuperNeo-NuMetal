@@ -271,6 +271,75 @@ public struct NumiSealAcceptedCarry: Equatable, Sendable {
     }
 }
 
+public struct NumiSealTypedCarryProducer: Sendable {
+    public init() {}
+
+    public func produce(
+        fromAcceptedParent parentEnvelope: NumiSealProofEnvelope,
+        parentProofAccepted: Bool,
+        laneKey: NumiSealLaneKey,
+        aggregateIndex: Int,
+        consumerContextDigest: Digest256,
+        nextRecursionLevel: Int,
+        carryKind: NumiSealCarryKind = .residualOpening
+    ) throws -> NumiSealCarryStatement {
+        guard parentProofAccepted else {
+            throw SuperNeoError.verificationFailed("NumiSeal typed carry parent proof is not accepted")
+        }
+        guard nextRecursionLevel > 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal typed carry next recursion level must be positive")
+        }
+        guard let laneProof = parentEnvelope.proof.laneProofs.first(where: {
+            $0.laneKey == laneKey && $0.aggregateIndex == aggregateIndex
+        }) else {
+            throw SuperNeoError.invalidParameter("NumiSeal typed carry parent lane proof not found")
+        }
+        return try produce(
+            fromAcceptedParent: parentEnvelope,
+            parentProofAccepted: true,
+            laneProof: laneProof,
+            consumerContextDigest: consumerContextDigest,
+            nextRecursionLevel: nextRecursionLevel,
+            carryKind: carryKind
+        )
+    }
+
+    public func produce(
+        fromAcceptedParent parentEnvelope: NumiSealProofEnvelope,
+        parentProofAccepted: Bool,
+        laneProof: NumiSealLaneProof,
+        consumerContextDigest: Digest256,
+        nextRecursionLevel: Int,
+        carryKind: NumiSealCarryKind = .residualOpening
+    ) throws -> NumiSealCarryStatement {
+        guard parentProofAccepted else {
+            throw SuperNeoError.verificationFailed("NumiSeal typed carry parent proof is not accepted")
+        }
+        guard nextRecursionLevel > 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal typed carry next recursion level must be positive")
+        }
+        guard parentEnvelope.proof.laneProofs.contains(laneProof) else {
+            throw SuperNeoError.invalidParameter("NumiSeal typed carry lane proof is not in parent envelope")
+        }
+        return try NumiSealCarryStatement(
+            carryKind: carryKind,
+            recursionLevel: nextRecursionLevel,
+            producerProofEnvelopeDigest: Digest256.hash(parentEnvelope.superNeoBytes),
+            producerProofTranscriptDigest: parentEnvelope.proof.transcriptDigest,
+            parentStatementDigest: parentEnvelope.header.statementDigest,
+            parentPublicStatementDigest: parentEnvelope.proof.publicStatement.digest,
+            laneKey: laneProof.laneKey,
+            aggregateIndex: laneProof.aggregateIndex,
+            residualOpeningDigest: laneProof.residualOpening.openingDigest,
+            decompositionKeyDigest: laneProof.decompositionKeyDigest,
+            decompositionCommitmentDigest: laneProof.residualOpening.decompositionCommitmentDigest,
+            finalPointDigest: NumiSealCarryStatement.finalPointDigest(laneProof.sumcheckProof.finalPoint),
+            claimedDigitEvaluation: laneProof.residualOpening.residualStatement.claimedDigitEvaluation,
+            consumerContextDigest: consumerContextDigest
+        )
+    }
+}
+
 public struct NumiSealCarryConsumer: Sendable {
     private var seenReplayIdentities: Set<Digest256>
 

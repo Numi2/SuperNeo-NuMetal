@@ -97,6 +97,24 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "NumiSeal end-to-end theorem scope claim status must stay precise",
     )
     require(
+        require_int(
+            surfaces.get("numiSealZKMaskDistributionEvidenceVersion"),
+            "numiSealZKMaskDistributionEvidenceVersion",
+        ) == 1,
+        "NumiSealZK mask-distribution evidence version must be 1",
+    )
+    require_string(
+        surfaces.get("numiSealZKMaskDistributionEvidenceDigestHex"),
+        "numiSealZKMaskDistributionEvidenceDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("numiSealZKMaskDistributionEvidenceClaimStatus"),
+            "numiSealZKMaskDistributionEvidenceClaimStatus",
+        ) == "exact-rejection-sampled-field-mask-evidence",
+        "NumiSealZK mask-distribution evidence claim status must stay precise",
+    )
+    require(
         require_int(surfaces.get("constantTimeScopeVersion"), "constantTimeScopeVersion") == 1,
         "constant-time scope version must be 1",
     )
@@ -190,6 +208,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "schemaCompatibility",
         "numiSealConformanceScope",
         "numiSealEndToEndTheoremScope",
+        "numiSealZKMaskDistributionEvidence",
         "constantTimeEvidence",
         "constantTimeScope",
         "constantTimeLoweringEvidence",

@@ -17,10 +17,12 @@
   },
   "positiveCases": [
     "round-trip NumiSealCarryStatement bytes under typedRequired policy",
-    "consume accepted parent proof once with matching producer, parent, and consumer context digests"
+    "consume accepted parent proof once with matching producer, parent, and consumer context digests",
+    "produce typed carry statement from an accepted parent NumiSeal envelope and feed it to the recursive consumer"
   ],
   "negativeCases": [
     "reject raw carry bytes when typedRequired policy is active",
+    "reject typed carry production from an unaccepted parent proof",
     "reject producer proof envelope digest mismatch",
     "reject producer transcript digest mismatch",
     "reject parent statement digest mismatch",
@@ -31,6 +33,7 @@
   ],
   "coveredByTests": [
     "testNumiSealTypedCarryStatementRoundTripsAndPolicyRejectsMalformedCarry",
-    "testNumiSealCarryConsumerBindsContextAndRejectsReplay"
+    "testNumiSealCarryConsumerBindsContextAndRejectsReplay",
+    "testNumiSealTypedCarryProducerFeedsConsumerAndRejectsUnacceptedParent"
   ]
 }

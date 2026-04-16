@@ -70,6 +70,8 @@ The generated evidence records:
 - NumiSeal end-to-end theorem-scope version and digest,
 - recursive folding knowledge, typed carry producer/consumer, and NumiSealZK
   simulation/privacy theorem-surface digests inside the theorem-scope manifest,
+- NumiSealZK mask-distribution evidence version and digest,
+- exact rejection-sampled field mask distribution evidence status,
 - constant-time source/formal scope version and digest,
 - constant-time lowering evidence version and digest,
 - constant-time release evidence version and digest,

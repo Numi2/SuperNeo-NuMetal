@@ -5724,6 +5724,60 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
     }
 
+    func testNumiSealTypedCarryProducerFeedsConsumerAndRejectsUnacceptedParent() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let consumerContextDigest = Digest256.hash("typed-carry-recursive-consumer-context")
+        let producer = NumiSealTypedCarryProducer()
+        let statement = try producer.produce(
+            fromAcceptedParent: fixture.envelope,
+            parentProofAccepted: true,
+            laneKey: fixture.aggregate.laneKey,
+            aggregateIndex: fixture.aggregate.aggregateIndex,
+            consumerContextDigest: consumerContextDigest,
+            nextRecursionLevel: 3
+        )
+        XCTAssertEqual(statement.producerProofEnvelopeDigest, Digest256.hash(fixture.envelope.superNeoBytes))
+        XCTAssertEqual(statement.producerProofTranscriptDigest, fixture.proof.transcriptDigest)
+        XCTAssertEqual(statement.parentStatementDigest, fixture.policy.statementDigest)
+        XCTAssertEqual(statement.parentPublicStatementDigest, fixture.publicStatement.digest)
+        XCTAssertEqual(statement.residualOpeningDigest, fixture.residualOpening.openingDigest)
+        XCTAssertEqual(statement.decompositionCommitmentDigest, fixture.decomposition.commitmentDigest)
+        XCTAssertEqual(statement.finalPointDigest, NumiSealCarryStatement.finalPointDigest(fixture.laneProof.sumcheckProof.finalPoint))
+
+        var consumer = NumiSealCarryConsumer()
+        let accepted = try consumer.consume(
+            statement,
+            parentProofAccepted: true,
+            expectedProducerProofEnvelopeDigest: Digest256.hash(fixture.envelope.superNeoBytes),
+            expectedProducerProofTranscriptDigest: fixture.proof.transcriptDigest,
+            expectedParentStatementDigest: fixture.policy.statementDigest,
+            expectedParentPublicStatementDigest: fixture.publicStatement.digest,
+            expectedConsumerContextDigest: consumerContextDigest,
+            minimumNextRecursionLevel: 3
+        )
+        XCTAssertEqual(accepted.statement, statement)
+
+        XCTAssertThrowsSuperNeoError(
+            try producer.produce(
+                fromAcceptedParent: fixture.envelope,
+                parentProofAccepted: false,
+                laneKey: fixture.aggregate.laneKey,
+                aggregateIndex: fixture.aggregate.aggregateIndex,
+                consumerContextDigest: consumerContextDigest,
+                nextRecursionLevel: 3
+            ),
+            .verificationFailed("NumiSeal typed carry parent proof is not accepted")
+        )
+    }
+
+    func testNumiSealZKMaskSamplerUsesExactFieldRejectionSampling() {
+        XCTAssertEqual(NumiSealZKMaskSampler.candidateBitWidth, 64)
+        XCTAssertEqual(NumiSealZKMaskSampler.rejectedCandidateCount, 0xFFFF_FFFF)
+        XCTAssertTrue(NumiSealZKMaskSampler.accepts(candidate: GoldilocksField.modulus - 1))
+        XCTAssertFalse(NumiSealZKMaskSampler.accepts(candidate: GoldilocksField.modulus))
+        XCTAssertFalse(NumiSealZKMaskSampler.accepts(candidate: UInt64.max))
+    }
+
     func testNumiSealArtifactVerifierValidatesCheckedVectorWithStrictPins() throws {
         let artifact = try loadNumiSealArtifact(named: "numiseal-terminal-single-aggregate-v1.json")
         let expectedContext = try strictExpectedContext(for: artifact)

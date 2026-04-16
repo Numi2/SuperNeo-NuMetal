@@ -4,6 +4,10 @@
   "surface": "numiseal-zk",
   "statement": {
     "baseEnvelopeKind": 4,
+    "maskCandidateBitWidth": 64,
+    "maskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+    "maskExpandDomainLabel": "SuperNeo-NuMetal.numiseal.zk.mask-expand.v2",
+    "maskRejectedCandidateCount": "4294967295",
     "maskedResidualStatementVersion": 2,
     "proofBodyVersion": 13,
     "proofEnvelopeKind": 5,
@@ -15,6 +19,7 @@
     "bind one mask statement to one masked residual statement",
     "validate masked digit evaluation equals claimed digit evaluation plus mask evaluation",
     "verify fixed-randomness CPU and Metal proof bytes match",
+    "sample mask field elements with exact rejection sampling instead of modulo reduction",
     "verify product artifact carrying proof kind numiseal-zk"
   ],
   "negativeCases": [
@@ -28,6 +33,7 @@
   "coveredByTests": [
     "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse",
     "testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch",
+    "testNumiSealZKMaskSamplerUsesExactFieldRejectionSampling",
     "testNumiSealProductProverEmitsVerifiableZKV2Artifact",
     "testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked"
   ]

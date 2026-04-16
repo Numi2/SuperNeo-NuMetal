@@ -3,6 +3,7 @@
   "scopeID": "numiseal-end-to-end-product-carry-zk-theorem-scope-v1",
   "claimStatus": "evidence-parametric-end-to-end-composition-theorem",
   "conformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
+  "zkMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
   "formalModel": {
     "module": "Formal/SuperNeoFormal/NumiSealEndToEnd.lean",
     "rootImport": "import SuperNeoFormal.NumiSealEndToEnd",
@@ -222,6 +223,7 @@
       "evidenceObligations": [
         "masked residual verification implies the masked residual language under the declared leakage digest",
         "randomness session freshness prevents mask reuse across accepted ZK artifacts",
+        "NumiSealZK mask distribution evidence proves rejection-sampled field masks have zero statistical distance from uniform accepted field elements",
         "NumiSealZKPrivacy proves the accepted ZK product view is simulatable from the explicit leakage model when simulator evidence is supplied"
       ],
       "status": "composed-under-evidence"
@@ -274,7 +276,7 @@
   "residualProofObligations": [
     "concrete Swift extractor implementation evidence for product proof bytes and all recursive transcript schedules",
     "product vectors exercising recursive typed carry producer paths beyond the current consumer conformance surface",
-    "statistical or computational distance bound for the concrete NumiSealZK mask distribution under the declared leakage model",
+    "concrete NumiSealZK simulator coupling evidence beyond the exact field-mask distribution lemma",
     "QROM Fiat-Shamir reduction and concrete soundness-loss accounting for the product transcript",
     "constant-time and side-channel evidence sufficient for product privacy promotion"
   ],
@@ -283,8 +285,8 @@
     "releaseEvidenceOnly": true,
     "unblockRequires": [
       "concrete Swift extractor implementation evidence is generated for product proof bytes and all recursive transcript schedules",
-      "typed carry producer vectors are generated and pinned with recursive consumer acceptance evidence",
-      "NumiSealZK concrete mask-distribution distance evidence is recorded under the accepted public leakage model",
+      "product recursive typed carry vectors are generated and pinned with recursive consumer acceptance evidence",
+      "NumiSealZK simulator/leakage model evidence is recorded beyond the exact field-mask distribution lemma",
       "QROM Fiat-Shamir and concrete soundness-loss accounting are recorded for the product transcript",
       "the promotion manifest changes productionNumiSealTheoremClaimAllowed only with updated validation"
     ]

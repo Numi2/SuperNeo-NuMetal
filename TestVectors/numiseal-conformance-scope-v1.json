@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "scopeID": "numiseal-product-carry-zk-conformance-v1",
   "theoremScopeManifest": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+  "zkMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
   "surfaces": [
     {
       "conformanceVectors": [
@@ -62,7 +63,8 @@
         "randomness session reuse rejection",
         "masked digit tensor statement binding",
         "masked residual accumulation binding",
-        "public leakage digest binding"
+        "public leakage digest binding",
+        "exact rejection-sampled field mask distribution"
       ],
       "id": "numiseal-zk",
       "implementationPaths": [
@@ -71,12 +73,12 @@
         "SuperNeo-NuMetal/ProductIntegration/NumiSealZKSideChannelCertification.swift"
       ],
       "openFormalWork": [
-        "record concrete mask-distribution distance evidence for the accepted public leakage model",
         "collect side-channel evidence before product default promotion from zkMode none to masked-digit-tensor-v1"
       ],
       "testNames": [
         "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse",
         "testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch",
+        "testNumiSealZKMaskSamplerUsesExactFieldRejectionSampling",
         "testNumiSealProductProverEmitsVerifiableZKV2Artifact",
         "testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked"
       ]

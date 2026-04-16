@@ -59,6 +59,12 @@ def main() -> None:
         write_json(path, missing_theorem_link)
         run_fail(str(VALIDATE), str(path))
 
+        missing_mask_evidence = copy.deepcopy(manifest)
+        del missing_mask_evidence["zkMaskDistributionEvidence"]
+        path = tmp / "missing-mask-evidence.json"
+        write_json(path, missing_mask_evidence)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_claim = copy.deepcopy(theorem)
         wrong_claim["claimStatus"] = "full-product-theorem"
         theorem_path = tmp / "wrong-claim-theorem.json"

@@ -121,6 +121,9 @@ Implemented:
   CPU oracle checks in `.zkRedundantMetal`,
 - transcript-derived masked residual accumulation challenges bound to each base
   lane proof, mask statement, and three accumulation weights,
+- exact rejection-sampled field mask distribution through
+  `NumiSealZKMaskSampler`, pinned by
+  `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`,
 - verifier-side recomputation of the public equality-weight digest,
 - Metal kernels for dense folding, equality weights, sum-check accumulation, and
   fused mask-plus-accumulation,
@@ -140,8 +143,8 @@ Implemented:
 
 Still not certified as production privacy:
 
-- concrete mask-distribution distance evidence for the implemented prover under
-  the declared public-leakage model,
+- simulator coupling evidence beyond the exact field-mask distribution lemma
+  under the declared public-leakage model,
 - benchmark-report promotion of proof-byte equivalence across product-sized
   hardware profiles,
 - collecting side-channel evidence for each production hardware/profile lane,

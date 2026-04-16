@@ -329,6 +329,14 @@ under Metal-enabled ZK policies and by CPU reference code under
 `.zkHighAssuranceCPU`; `.zkRedundantMetal` checks GPU output against the CPU
 oracle.
 
+Mask material is expanded by `NumiSealZKMaskSampler` with the domain
+`SuperNeo-NuMetal.numiseal.zk.mask-expand.v2`. Each field element is sampled
+from a 64-bit SHA-256-derived candidate and accepted only when
+`candidate < GoldilocksField.modulus`; rejected candidates advance the counter.
+This is exact rejection-sampled field mask distribution evidence and avoids the
+old modulo-reduction bias. The mask bytes remain witness-side material and are
+not part of verifier input.
+
 `NumiSealZKMaskedResidualStatement` is:
 
 ```text

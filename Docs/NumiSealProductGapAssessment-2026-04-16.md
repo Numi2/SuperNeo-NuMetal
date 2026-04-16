@@ -26,6 +26,11 @@ corrected model. What remains is NumiSeal-specific product formalization.
   machine-readable product-ops readiness status.
 - [x] `NumiSealProver`/`NumiSealVerifier` library APIs exist for the current
   immediate-residual path.
+- [x] `NumiSealZK` kind `5` exists with checked masked residual proof syntax,
+  randomness-session reuse guards, and exact rejection-sampled field mask
+  distribution evidence.
+- [x] Recursive typed carry now has a producer API that binds accepted parent
+  proof context into the existing typed carry consumer relation.
 
 ## Remaining Work
 
@@ -33,15 +38,17 @@ corrected model. What remains is NumiSeal-specific product formalization.
   deterministic vector tooling.
 - [ ] General frontend: create NumiSeal obligations from real supported
   frontend outputs and trusted context packs.
-- [ ] Recursive carry: replace raw optional carry bytes with typed carry
-  statement, producer/consumer, replay rules, vectors, tests, and formal claim.
-- [ ] ZK: create `NumiSealZK` design, proof kind/policy, masking, simulator
-  story, randomness policy, tests, and side-channel review.
+- [ ] Recursive carry: promote typed producer/consumer through product replay
+  semantics and product vectors before changing product defaults.
+- [ ] ZK: add simulator coupling evidence beyond the exact field-mask
+  distribution lemma, product-sized hardware benchmark evidence, and
+  side-channel review before changing product defaults.
 - [ ] Product operations: hosted context storage, deployed key distribution,
   tenant authz, hosted audit retention, hosted revocation feed distribution, and
   signed releases.
-- [ ] NumiSeal-specific formalization: immediate-residual product theorem first,
-  then separate carry and ZK theorem scope.
+- [ ] NumiSeal-specific formalization: promote the checked end-to-end theorem
+  scope with concrete Swift extractor, typed carry vector, simulator, and QROM
+  evidence.
 - [ ] Self-owned review: cryptographic review, implementation review, and
   side-channel assessment recorded in repository evidence.
 
@@ -50,5 +57,5 @@ corrected model. What remains is NumiSeal-specific product formalization.
 Use:
 
 > NumiSeal currently verifies checked immediate-residual artifacts. It is not
-> yet a public proving, recursive, zero-knowledge-by-default, or deployed
-> production product.
+> yet a public proving, recursive-by-default, zero-knowledge-by-default, or
+> deployed production product.
