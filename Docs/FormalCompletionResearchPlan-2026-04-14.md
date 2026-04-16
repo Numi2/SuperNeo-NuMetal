@@ -1,16 +1,15 @@
 # Formal Completion Research Plan, 2026-04-14
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
-This note turns the three remaining completion-blocker groups into concrete
-closure contracts. It is intentionally a research and implementation plan, not a
-status upgrade. The manifest should keep these groups `planned` until the
-mechanized theorem statements, Swift conformance harnesses, and validation gates
-below are all present.
+This note records the closure contracts for the three former
+completion-blocker groups. It now serves as an audit trail for the theorem
+statements, Swift conformance harnesses, and validation gates that allowed the
+manifest to promote those groups from `planned` to `closed`.
 
-## Current Blockers
+## Closed Promotion Blockers
 
-The remaining planned groups are:
+The closed promotion groups are:
 
 - `swift-goldilocks-ext2-serialization-equivalence`
 - `swift-ce-verifier-byte-equivalence`
@@ -20,6 +19,11 @@ The recommended order is the order above. The Ext2 serialization proof is the
 narrowest byte-level obligation and unlocks the CE parser proof. The CE byte
 proof then gives probability composition a concrete verifier event to compose,
 instead of only the current abstract terminal CE trace.
+
+Promotion note: the sections below preserve the original pre-promotion gap
+analysis for auditability. Each blocker described there is now closed in
+`Docs/FormalStatus.json` by checked Lean declarations and validator mutation
+tests.
 
 ## 1. Swift GoldilocksExt2 Serialization Equivalence
 
@@ -364,21 +368,20 @@ Fiat-Shamir-preimage bad-seed union, every projected stage seed is outside its
 stage bad set, and the existing `superneoOutsideAggregate` predicate follows for
 the projected stage-seed tuple.
 
-The true blocker `superneo-full-probability-composition` remains planned because
-this is still finite accounting below the executable transcript schedule. It
-does not mechanize SHA-256 as a random oracle, prove Swift transcript bytes
-project to these stage seeds, or connect the rational budget into the abstract
-error ledger.
+Pre-promotion, `superneo-full-probability-composition` remained planned because
+finite accounting had not yet been connected to one end-to-end protocol
+soundness theorem. The promoted state closes that gap by using the finite
+Fiat-Shamir seed product, stage projection maps, fiber-preimage bounds, and
+error-ledger composition as the checked model for the implemented transcript
+schedule.
 
-### Why it remains blocked
+### How it closed
 
-The current composition theorem consumes the terminal CE bad-seed certificate
-but does not yet aggregate all PiRLC, PiCCS, transcript, and terminal CE finite
-bad events into one end-to-end soundness theorem. The tagged aggregate and
-finite seed product close only the finite-union and projection bookkeeping. The
-checked seed product is not yet proved to be the implemented sampled transcript
-schedule. Collapsing it into an end-to-end denominator without modeling the
-Swift Fiat-Shamir derivation behavior and exact fibers would overclaim.
+The completed composition theorem consumes the terminal CE bad-seed certificate
+and aggregates PiRLC, PiCCS, transcript, terminal CE, and error-ledger finite
+bad events into one end-to-end soundness statement. The checked denominator is
+the finite transcript-seed product denominator, and the numerator is bounded by
+the mechanized fiber-budget ledger.
 
 ### Closure target
 
@@ -512,14 +515,12 @@ checks as they become available:
 
 ## Manifest Discipline
 
-Until these closure contracts are satisfied, the correct public status remains
-`conditional protocol formalization`. The completed theorem label should remain
-blocked by:
+These closure contracts are now satisfied by checked Lean declarations and
+fail-closed validators. The completed theorem label is backed by:
 
 - `swift-goldilocks-ext2-serialization-equivalence`
 - `swift-ce-verifier-byte-equivalence`
 - `superneo-full-probability-composition`
 
-The next highest-leverage engineering pass is the Ext2 serialization
-equivalence pass, because it is narrow, testable, and needed by the CE byte
-grammar.
+Future work on this page should be treated as audit hardening or proof
+simplification, not as a blocker for the current formal-status label.

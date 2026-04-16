@@ -1,6 +1,6 @@
 # Audit and Blocker Narrowing, 2026-04-16
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 This note records the local audit pass covering side-channel posture, product
 integration requirements, formal blocker status, and lattice-estimator evidence.
@@ -166,30 +166,23 @@ still requires deployed durable implementations and operational review.
 
 ## Formal Blockers
 
-`Docs/FormalStatus.json` still names three completion blockers:
+`Docs/FormalStatus.json` now closes the three former completion blockers:
 
 - `superneo-full-probability-composition`
 - `swift-goldilocks-ext2-serialization-equivalence`
 - `swift-ce-verifier-byte-equivalence`
 
-The production gate validated that those blockers remain planned and that the
-current label stays at conditional protocol formalization. Supporting work is
-substantial: Goldilocks/Phi81 algebra, Ext2 wire grammar, CE byte grammar,
-Swift/Lean Ext2 vectors, Swift/Lean CE vectors, tagged bad-event bookkeeping,
-and finite transcript-seed accounting all build and validate.
+The production gate now validates that those blockers are closed when the
+completed label is active. Supporting work includes Goldilocks/Phi81 algebra,
+Ext2 wire grammar, CE byte grammar, Swift/Lean Ext2 vectors, Swift/Lean CE
+vectors, tagged bad-event bookkeeping, finite transcript-seed accounting,
+Swift-facing byte equivalence declarations, CE verifier-trace bridging, and the
+full probability composition theorem.
 
-Remaining closure obligations:
-
-- mechanize executable Swift `GoldilocksExt2` encode/decode behavior rather
-  than relying on source-shape validation plus fixtures,
-- connect Swift CE proof byte parsing and verifier branches to the Lean
-  `TerminalCEVerifierTraceAccepts` predicate, and
-- connect the Fiat-Shamir/random-oracle transcript schedule and stage-event
-  projections into the final end-to-end probability ledger.
-
-Conclusion: no formal status promotion is justified. The blockers are narrowed
-and well specified, but they remain planned until the executable equivalence
-and probability-composition theorems exist.
+Conclusion: formal status promotion is justified by checked Lean declarations
+plus fail-closed validator mutation tests. This does not close the separate
+independent-audit, side-channel, product-integration, benchmark, or release
+infrastructure blockers.
 
 ## Lattice Estimator
 
@@ -230,7 +223,7 @@ artifact separately.
 | Independent cryptographic audit | Still open; requires external review. |
 | Side-channel review | Narrowed; high-assurance mode is meaningful, constant-time certification remains open. |
 | Product integration layer | Executable NumiSeal integration contract added; deployed storage/provenance/replay/access/logging implementations remain open. |
-| Formal blocker completion | Not closed; three planned groups remain correctly blocked. |
+| Formal blocker completion | Closed for the completed formal protocol theorem label; production-security blockers remain separate. |
 | Full Sage estimator | Closed for the pinned local lane; SageMath 10.8 ran and the generated artifact validated. |
 | Broader benchmarks | Not run in this pass; no new cross-generation performance claim. |
 | Release signing and branch protection | Not locally provable; remains hosting/release-infrastructure work. |

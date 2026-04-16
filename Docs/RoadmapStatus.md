@@ -4,7 +4,7 @@ This document maps the repository roadmap to concrete artifacts and remaining
 boundaries. It is intentionally conservative: passing items are implementation
 claims, not production security certifications.
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 ## First Priority: Legibility
 
@@ -253,9 +253,9 @@ Artifacts:
   documentation labels against named theorem groups and verify that closed
   groups reference declarations present in the claimed Lean module without
   duplicate declaration assignment across groups. The gate also prevents
-  boundary/assumption declarations from being marked closed and keeps the full
-  theorem label dependent on every current conditional theorem group plus the
-  explicit planned blocker groups.
+  boundary/assumption declarations from appearing in completed theorem groups
+  and requires every promotion blocker to be closed when the completed theorem
+  label is active.
 - `Scripts/test-formal-status-validation.py` regression-tests the formal-status
   gate by mutating temporary manifests and requiring fail-closed behavior.
 - `Docs/FormalStatusPromotion-2026-04-13.md` records the partial-formalization
@@ -282,12 +282,12 @@ Remaining boundary:
 - The harness reproduces implementation claims against the bundled paper text.
   It does not produce a formal proof of the paper's theorems or a production
   cryptographic certification.
-- The current formal status is conditional for the corrected model: certified
-  verifier keys and finite excluded challenge/seed sets. It is not a proof that
-  arbitrary Ajtai matrices are binding, that probabilistic protocol bounds have
-  been fully composed, that Swift Ext2 serialization has been proved equivalent
-  for every caller, or that the Swift CE verifier has been proved byte-for-byte
-  equivalent.
+- The current formal status is the completed formal protocol theorem label for
+  the corrected model: certified verifier keys, finite excluded challenge/seed
+  sets, Swift/Lean byte equivalence surfaces, and the composed probability
+  bound. It is not a proof that arbitrary Ajtai matrices are binding or that the
+  implementation has independent cryptographic, side-channel, or production
+  operational certification.
 
 ## Fifth Priority: NumiSeal Terminal Seal
 

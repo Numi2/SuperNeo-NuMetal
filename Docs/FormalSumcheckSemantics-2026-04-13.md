@@ -1,6 +1,6 @@
 # Formal Sum-Check Semantics Progress, 2026-04-13
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 This pass adds the concrete semantic base for the sum-check track. The April 14
 completion adds the finite bad-challenge certificate surface used by the

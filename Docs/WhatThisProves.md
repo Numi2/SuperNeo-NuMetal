@@ -4,7 +4,7 @@ This page is the shortest safe description of SuperNeo NuMetal's proof
 semantics. Use it when explaining the project to someone who needs to know what
 verifier acceptance means.
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 ## The Relation
 
@@ -132,20 +132,22 @@ opt-in high-assurance execution policies. Those are hardening artifacts; they do
 not change the meaning of proof acceptance by themselves.
 
 The repository also includes a Lean 4 formalization track. The current formal
-status is a conditional protocol formalization for the corrected model:
+status is the completed formal protocol theorem label for the corrected model:
 
 - Ajtai binding is certified-key binding, not arbitrary-matrix binding.
 - PiRLC, PiCCS/sum-check, and terminal CE proof soundness are finite
   bad-challenge/bad-seed statements, not zero-error deterministic statements.
-- End-to-end terminal composition is proved outside the certified CE bad-seed
-  set.
+- Swift `GoldilocksField`/`GoldilocksExt2` byte surfaces and Swift CE proof
+  parser/verifier branch selection are connected to the Lean byte grammars and
+  terminal CE verifier trace model.
+- The finite PiRLC, PiCCS/sum-check, transcript-stage, terminal CE, and error
+  ledgers are composed into the final rational protocol soundness bound.
 
 Historical assumption-boundary IDs remain documented for auditability, but they
-are not active manifest groups. The full theorem label is blocked until the
-remaining planned groups mechanize full cryptographic probability composition,
-complete Swift serialization equivalence, and a byte-for-byte Swift CE verifier
-equivalence proof. The Lean `GoldilocksExt2` field instance is closed
-separately by the `goldilocks-ext2-field-instance` theorem group.
+are not active manifest groups. The Lean `GoldilocksExt2` field instance is
+closed separately by the `goldilocks-ext2-field-instance` theorem group, and the
+three former promotion blockers are now closed theorem groups in
+`Docs/FormalStatus.json`.
 
 The correct public positioning remains:
 

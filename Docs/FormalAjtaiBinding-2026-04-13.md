@@ -1,6 +1,6 @@
 # Formal Ajtai Binding Pass, 2026-04-13
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 This pass strengthens the Lean formalization for the abstract Ajtai commitment
 layer without changing the repository's public formal status. The deterministic

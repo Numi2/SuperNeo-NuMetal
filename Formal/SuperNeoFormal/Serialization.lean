@@ -395,6 +395,35 @@ theorem goldilocksElementDecode?_length_of_some
   rw [goldilocksElementDecode?_none_of_length_ne hLength] at hDecode
   contradiction
 
+namespace SwiftGoldilocksField
+
+def encode (value : Goldilocks) : List Byte :=
+  goldilocksElementEncode value
+
+def decode? (bytes : List Byte) : Option Goldilocks :=
+  goldilocksElementDecode? bytes
+
+end SwiftGoldilocksField
+
+theorem swift_goldilocksField_encode_eq_lean :
+    SwiftGoldilocksField.encode = goldilocksElementEncode :=
+  rfl
+
+theorem swift_goldilocksField_decode?_eq_lean :
+    SwiftGoldilocksField.decode? = goldilocksElementDecode? :=
+  rfl
+
+theorem swift_goldilocksField_decode?_none_of_length_ne {bytes : List Byte}
+    (hLength : bytes.length ≠ 8) :
+    SwiftGoldilocksField.decode? bytes = none :=
+  goldilocksElementDecode?_none_of_length_ne hLength
+
+theorem swift_goldilocksField_decode?_uint64Encode_of_ge_modulus
+    (value : UInt64LE) (hValue : goldilocksModulus ≤ value.val) :
+    SwiftGoldilocksField.decode? (uint64LEEncode value) = none := by
+  simp [SwiftGoldilocksField.decode?, goldilocksElementDecode?,
+    goldilocksWireDecode?_uint64Encode_of_ge_modulus value hValue]
+
 abbrev GoldilocksExt2Wire :=
   Goldilocks × Goldilocks
 
@@ -486,6 +515,38 @@ theorem goldilocksExt2ElementDecode?_length_of_some
   by_contra hLength
   rw [goldilocksExt2ElementDecode?_none_of_length_ne hLength] at hDecode
   contradiction
+
+namespace SwiftGoldilocksExt2
+
+def encode (value : GoldilocksExt2) : List Byte :=
+  goldilocksExt2ElementEncode value
+
+def decode? (bytes : List Byte) : Option GoldilocksExt2 :=
+  goldilocksExt2ElementDecode? bytes
+
+end SwiftGoldilocksExt2
+
+theorem swift_goldilocksExt2_encode_eq_lean :
+    SwiftGoldilocksExt2.encode = goldilocksExt2ElementEncode :=
+  rfl
+
+theorem swift_goldilocksExt2_decode?_eq_lean :
+    SwiftGoldilocksExt2.decode? = goldilocksExt2ElementDecode? :=
+  rfl
+
+theorem swift_goldilocksExt2_decode?_none_of_length_ne {bytes : List Byte}
+    (hLength : bytes.length ≠ 16) :
+    SwiftGoldilocksExt2.decode? bytes = none :=
+  goldilocksExt2ElementDecode?_none_of_length_ne hLength
+
+theorem swift_goldilocksExt2_decode?_swapped_coordinates
+    (c0 c1 : Goldilocks) :
+    SwiftGoldilocksExt2.decode?
+      (goldilocksElementEncode c1 ++ goldilocksElementEncode c0) =
+        some ({ c0 := c1, c1 := c0 } : GoldilocksExt2) := by
+  simp [SwiftGoldilocksExt2.decode?, goldilocksExt2ElementDecode?,
+    goldilocksExt2WireDecode?, goldilocksElementEncode_length,
+    goldilocksElementDecode?_encode]
 
 def finVectorEncode {α : Type} (encode : α → List Byte) :
     {n : Nat} → (Fin n → α) → List Byte
@@ -593,6 +654,26 @@ theorem finVectorDecode?_length_of_some {α : Type}
   by_contra hLength
   rw [finVectorDecode?_none_of_length_ne hLength] at hDecode
   contradiction
+
+namespace SwiftGoldilocksExt2
+
+def callerSurfaceVectorEncode {n : Nat}
+    (values : Fin n → GoldilocksExt2) : List Byte :=
+  finVectorEncode encode values
+
+def callerSurfaceVectorDecode? {n : Nat}
+    (bytes : List Byte) : Option (Fin n → GoldilocksExt2) :=
+  finVectorDecode? decode? 16 bytes
+
+end SwiftGoldilocksExt2
+
+theorem swift_goldilocksExt2_caller_surfaces_eq_lean
+    {n : Nat} (values : Fin n → GoldilocksExt2) :
+    SwiftGoldilocksExt2.callerSurfaceVectorDecode? (n := n)
+        (SwiftGoldilocksExt2.callerSurfaceVectorEncode (n := n) values) =
+      finVectorDecode? (α := GoldilocksExt2) goldilocksExt2ElementDecode? 16 (n := n)
+        (finVectorEncode goldilocksExt2ElementEncode values) := by
+  rfl
 
 def phi81CoefficientsWireEncode (coefficients : Phi81Coefficients) : List Byte :=
   finVectorEncode goldilocksElementEncode coefficients

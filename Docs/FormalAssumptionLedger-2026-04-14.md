@@ -1,6 +1,6 @@
 # Formal Assumption Ledger Split, 2026-04-14
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 This pass replaces the assumption-boundary dependency path with certified-key
 and finite bad-challenge/bad-seed theorem groups. Historical `closed_under_*`

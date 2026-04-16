@@ -33,6 +33,13 @@ LEAN_DECL_RE = re.compile(
     re.MULTILINE,
 )
 ASSUMPTION_DECL_RE = re.compile(r"(?:Assumption|Boundary)$")
+COMPLETED_LABEL = "completed formal protocol theorem"
+CONDITIONAL_LABEL = "conditional protocol formalization"
+REQUIRED_COMPLETION_BLOCKERS = {
+    "swift-goldilocks-ext2-serialization-equivalence",
+    "swift-ce-verifier-byte-equivalence",
+    "superneo-full-probability-composition",
+}
 
 
 def fail(message: str) -> None:
@@ -197,15 +204,13 @@ def validate_completion_label_guard(manifest: Dict[str, Any]) -> None:
     labels = manifest.get("labels")
     if not isinstance(labels, dict):
         fail("labels must be an object")
-    completed = "completed formal protocol theorem"
-    conditional = "conditional protocol formalization"
-    if completed in labels:
-        completed_statuses = accepted_statuses(manifest, completed)
+    if COMPLETED_LABEL in labels:
+        completed_statuses = accepted_statuses(manifest, COMPLETED_LABEL)
         if completed_statuses != {"closed"}:
             fail("completed formal protocol theorem may only accept closed status")
-    if completed in labels and conditional in labels:
-        conditional_groups = set(required_groups(manifest, conditional))
-        completed_groups = set(required_groups(manifest, completed))
+    if COMPLETED_LABEL in labels and CONDITIONAL_LABEL in labels:
+        conditional_groups = set(required_groups(manifest, CONDITIONAL_LABEL))
+        completed_groups = set(required_groups(manifest, COMPLETED_LABEL))
         missing = sorted(conditional_groups - completed_groups)
         if missing:
             fail(
@@ -220,25 +225,67 @@ def validate_completion_blockers(manifest: Dict[str, Any], statuses: Dict[str, s
         fail("completion_blocker_groups must be an array of strings")
     if len(set(blockers)) != len(blockers):
         fail("completion_blocker_groups contains duplicates")
+    missing_required = sorted(REQUIRED_COMPLETION_BLOCKERS - set(blockers))
+    if missing_required:
+        fail(f"completion_blocker_groups missing required blocker(s): {missing_required!r}")
+    unknown_required = sorted(set(blockers) - REQUIRED_COMPLETION_BLOCKERS)
+    if unknown_required:
+        fail(f"completion_blocker_groups contains unsupported blocker(s): {unknown_required!r}")
 
     labels = manifest.get("labels")
     if not isinstance(labels, dict):
         fail("labels must be an object")
-    completed = "completed formal protocol theorem"
-    conditional = "conditional protocol formalization"
-    completed_groups = set(required_groups(manifest, completed)) if completed in labels else set()
-    conditional_groups = set(required_groups(manifest, conditional)) if conditional in labels else set()
+    completed_groups = set(required_groups(manifest, COMPLETED_LABEL)) if COMPLETED_LABEL in labels else set()
+    conditional_groups = set(required_groups(manifest, CONDITIONAL_LABEL)) if CONDITIONAL_LABEL in labels else set()
+    current_label = manifest.get("current_label")
+    if not isinstance(current_label, str):
+        fail("current_label must be a string")
+    promoted = current_label == COMPLETED_LABEL
 
     for blocker in blockers:
         status = statuses.get(blocker)
         if status is None:
             fail(f"completion blocker {blocker!r} is not a theorem group")
-        if status != "planned":
-            fail(f"completion blocker {blocker!r} must remain planned until mechanized")
+        if promoted:
+            if status != "closed":
+                fail(f"completion blocker {blocker!r} must be closed at promotion")
+        elif status != "planned":
+            fail(f"completion blocker {blocker!r} must remain planned before promotion")
         if blocker not in completed_groups:
             fail(f"completed formal protocol theorem must include completion blocker {blocker!r}")
         if blocker in conditional_groups:
             fail(f"conditional protocol formalization must not require completion blocker {blocker!r}")
+
+
+def validate_completion_group_declarations(manifest: Dict[str, Any]) -> None:
+    labels = manifest.get("labels")
+    if not isinstance(labels, dict) or COMPLETED_LABEL not in labels:
+        return
+    completion_groups = set(required_groups(manifest, COMPLETED_LABEL))
+    groups = manifest.get("theorem_groups")
+    if not isinstance(groups, list):
+        fail("theorem_groups must be an array")
+    by_id = {
+        group.get("id"): group
+        for group in groups
+        if isinstance(group, dict) and isinstance(group.get("id"), str)
+    }
+    for group_id in sorted(completion_groups):
+        group = by_id.get(group_id)
+        if group is None:
+            fail(f"completed formal protocol theorem depends on unknown theorem group {group_id!r}")
+        declarations = group.get("declarations")
+        if not isinstance(declarations, list):
+            fail(f"theorem group {group_id!r}.declarations must be an array")
+        for declaration in declarations:
+            if not isinstance(declaration, str):
+                fail(f"theorem group {group_id!r}.declarations must be an array of strings")
+            short_name = declaration.rsplit(".", 1)[-1]
+            if ASSUMPTION_DECL_RE.search(short_name):
+                fail(
+                    f"completion theorem group {group_id!r} must not list assumption "
+                    f"or boundary declaration {declaration!r}"
+                )
 
 
 def validate_docs(manifest: Dict[str, Any]) -> None:
@@ -261,6 +308,8 @@ def validate_docs(manifest: Dict[str, Any]) -> None:
         if rel_path in seen_paths:
             fail(f"duplicate documentation claim path {rel_path!r}")
         seen_paths.add(rel_path)
+        if expected_label == COMPLETED_LABEL and current_label != COMPLETED_LABEL:
+            fail(f"{rel_path} claims completed formal protocol theorem before promotion")
         if label_rank(manifest, expected_label) > current_rank:
             fail(f"{rel_path} claims {expected_label!r}, which is stronger than current label {current_label!r}")
         path = ROOT / rel_path
@@ -271,6 +320,8 @@ def validate_docs(manifest: Dict[str, Any]) -> None:
         if expected_label.lower() not in matches:
             fail(f"{rel_path} must contain 'Formal status: {expected_label}'")
         for found in matches:
+            if found == COMPLETED_LABEL and current_label != COMPLETED_LABEL:
+                fail(f"{rel_path} contains completed formal protocol theorem before promotion")
             if label_rank(manifest, found) > current_rank:
                 fail(f"{rel_path} contains stronger formal status {found!r} than manifest current label {current_label!r}")
 
@@ -298,6 +349,7 @@ def main() -> None:
     validate_labels(manifest, statuses)
     validate_completion_label_guard(manifest)
     validate_completion_blockers(manifest, statuses)
+    validate_completion_group_declarations(manifest)
     current_label = manifest.get("current_label")
     if not isinstance(current_label, str):
         fail("current_label must be a string")

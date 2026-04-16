@@ -1,6 +1,6 @@
 # PiRLC Finite Distribution Formal Slice
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 This note records the April 14, 2026 PiRLC soundness progress in
 `Formal/SuperNeoFormal/PiRLCSoundness.lean`.

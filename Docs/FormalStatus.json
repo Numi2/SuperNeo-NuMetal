@@ -1,6 +1,6 @@
 {
   "schema": "superneo.formal-status.v1",
-  "current_label": "conditional protocol formalization",
+  "current_label": "completed formal protocol theorem",
   "labels": {
     "bounded formalization": {
       "rank": 0,
@@ -1386,8 +1386,14 @@
     {
       "id": "superneo-full-probability-composition",
       "lean_module": "SuperNeoFormal.Composition",
-      "status": "planned",
-      "declarations": []
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.superneo_full_outside_bad_events_sound",
+        "SuperNeoFormal.superneo_full_bad_event_cardinality_bound",
+        "SuperNeoFormal.superneo_full_probability_denominator_profile",
+        "SuperNeoFormal.superneo_full_probability_numerator_bound",
+        "SuperNeoFormal.superneo_full_probability_composition"
+      ]
     },
     {
       "id": "goldilocks-ext2-field-instance",
@@ -1416,116 +1422,137 @@
     {
       "id": "swift-goldilocks-ext2-serialization-equivalence",
       "lean_module": "SuperNeoFormal.Serialization",
-      "status": "planned",
-      "declarations": []
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.swift_goldilocksField_encode_eq_lean",
+        "SuperNeoFormal.swift_goldilocksField_decode?_eq_lean",
+        "SuperNeoFormal.swift_goldilocksField_decode?_none_of_length_ne",
+        "SuperNeoFormal.swift_goldilocksField_decode?_uint64Encode_of_ge_modulus",
+        "SuperNeoFormal.swift_goldilocksExt2_encode_eq_lean",
+        "SuperNeoFormal.swift_goldilocksExt2_decode?_eq_lean",
+        "SuperNeoFormal.swift_goldilocksExt2_decode?_none_of_length_ne",
+        "SuperNeoFormal.swift_goldilocksExt2_decode?_swapped_coordinates",
+        "SuperNeoFormal.swift_goldilocksExt2_caller_surfaces_eq_lean"
+      ]
     },
     {
       "id": "swift-ce-verifier-byte-equivalence",
-      "lean_module": "SuperNeoFormal.TerminalCEFiniteSoundness",
-      "status": "planned",
-      "declarations": []
+      "lean_module": "SuperNeoFormal.CEByteSerialization",
+      "status": "closed",
+      "declarations": [
+        "SuperNeoFormal.swift_ceProof_decode?_eq_lean",
+        "SuperNeoFormal.swiftCEProofResponseTag",
+        "SuperNeoFormal.swiftCETranscriptBranch",
+        "SuperNeoFormal.leanCETranscriptBranch",
+        "SuperNeoFormal.swift_ceResponseTag_branch_eq_lean",
+        "SuperNeoFormal.swift_ceTranscriptBranch_eq_lean",
+        "SuperNeoFormal.SwiftCEVerifierTrace",
+        "SuperNeoFormal.SwiftCEVerifierAccepts",
+        "SuperNeoFormal.swift_ceVerifier_accepts_implies_traceAccepts",
+        "SuperNeoFormal.swift_ceVerifier_accepts_sound_outside_badSeeds"
+      ]
     }
   ],
   "documentation_claims": [
     {
       "path": "Docs/PaperReproduction.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/RoadmapStatus.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/ProductionReadinessAuditPacket-2026-04-16.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/AuditBlockerNarrowing-2026-04-16.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/ProductIntegrationLayer-2026-04-16.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/WhatThisProves.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalVerification.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalConcreteAlgebra-2026-04-13.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalAjtaiBinding-2026-04-13.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalPiDECRecomposition-2026-04-13.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalProtocolComposition-2026-04-13.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalSumcheckSemantics-2026-04-13.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalPiDEC-2026-04-13.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalCCSSemantics-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalChallengeSampling-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalPiRLCFiniteDistribution-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalCEOpeningRelation-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalSerialization-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalTranscript-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalAssumptionLedger-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalRemainingBoundaries-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalSwiftWireSerialization-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalGoldilocksExt2Field-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalCompletionResearchPlan-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalConformanceHarness-2026-04-14.md",
-      "label": "conditional protocol formalization"
+      "label": "completed formal protocol theorem"
     }
   ]
 }

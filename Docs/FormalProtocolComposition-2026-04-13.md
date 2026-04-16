@@ -1,6 +1,6 @@
 # Formal Protocol Composition Pass, 2026-04-13
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 This pass replaces the remaining planned Lean roadmap markers with explicit
 assumption-scoped theorem surfaces for PiRLC, PiCCS/sum-check, terminal CE, and

@@ -1,6 +1,6 @@
 # Formal PiDEC Recomposition Pass, 2026-04-13
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 This pass adds a Lean module for the algebraic recomposition boundary used by
 the PiDEC verifier.

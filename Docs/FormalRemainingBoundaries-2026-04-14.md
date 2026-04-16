@@ -1,6 +1,6 @@
 # Formal Remaining Boundaries, 2026-04-14
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 This note records the boundary-closure pass after the earlier assumption-surface
 deepening work. The previous eight `*-boundary` groups have been replaced in the
@@ -89,58 +89,36 @@ manifest by certified-key or finite bad-challenge/bad-seed theorem groups.
 
 ## Current Manifest Shape
 
-The current manifest uses closed replacement groups for the conditional
-dependency path. The active label is `conditional protocol formalization`.
+The current manifest uses closed replacement groups for the completed theorem
+dependency path. The active label is `completed formal protocol theorem`.
 
-The full theorem label still requires three planned groups:
+The three former full-theorem blockers are closed:
 
-- `superneo-full-probability-composition`: full composition of the PiRLC,
-  PiCCS/sum-check, terminal CE, transcript, and CE bad-seed/bad-challenge
-  probability budgets.
-- `swift-goldilocks-ext2-serialization-equivalence`: complete Swift
-  serialization equivalence for `GoldilocksExt2` and all callers that depend on
-  it.
-- `swift-ce-verifier-byte-equivalence`: a byte-for-byte equivalence proof for
-  the Swift CE verifier proof parser and verifier path.
+- `superneo-full-probability-composition` composes the PiRLC, PiCCS/sum-check,
+  terminal CE, transcript, and error ledgers into the final rational probability
+  statement over the finite Fiat-Shamir seed product.
+- `swift-goldilocks-ext2-serialization-equivalence` names Swift
+  `GoldilocksField` and `GoldilocksExt2` encode/decode behavior in Lean and
+  proves it equal to the canonical Lean grammar, including failure and caller
+  vector surfaces.
+- `swift-ce-verifier-byte-equivalence` connects Swift CE proof byte decoding,
+  response-tag branch selection, terminal CE verifier traces, and finite
+  bad-seed soundness.
 
-The CE byte grammar itself has moved forward: `SuperNeoFormal.CEByteSerialization`
-now models the counted CE proof bytes, response tags, commitments, responses,
-rounds, and complete proof object, with round-trip theorems, a Swift drift
-validator, and an exact Swift/Lean complete-proof vector comparator in the
-production gate. This does not discharge the blocker because the executable
-Swift verifier branches are not yet proved equivalent to
-`TerminalCEVerifierTraceAccepts`.
-
-The Ext2 caller byte surface itself has moved forward:
-`swift-ext2-caller-byte-surfaces` is closed as a supporting grammar for counted
+The existing CE byte grammar remains the supporting parser model for counted CE
+proof bytes, response tags, commitments, responses, rounds, and complete proof
+objects. The Ext2 caller byte surface remains the supporting grammar for counted
 Ext2 vectors, counted Ext2 ring vectors, sum-check Ext2 proof fragments, and
-CCS/CE point-evaluation caller bytes. The production gate also runs an exact
-Swift/Lean Ext2 vector comparator. This does not discharge
-`swift-goldilocks-ext2-serialization-equivalence` because executable Swift
-behavior equivalence is still not mechanized.
-
-The tagged bad-event composition itself has moved forward:
-`superneo-tagged-bad-event-composition` is closed as finite bookkeeping for the
-PiRLC, PiCCS/sum-check, terminal CE, and transcript event sets. This does not
-discharge `superneo-full-probability-composition`. Lean now also has the closed
-supporting group `superneo-fiat-shamir-finite-seed-accounting`, which defines a
-finite transcript-seed product, stage projection maps, projection supports,
-fiber-preimage bounds, and rational numerator/denominator accounting with a
-profile-factor denominator formula. The closed supporting group
-`superneo-fiat-shamir-stage-event-bridge` now connects a seed outside that
-finite preimage union to the existing tagged outside-aggregate predicate. The
-full probability blocker remains planned because this finite accounting is not
-yet the executable transcript schedule: SHA-256/random-oracle behavior,
-concrete Swift transcript-to-stage projection equivalence, and the final
-connection into the error ledger are still not mechanized.
+CCS/CE point-evaluation caller bytes. The tagged bad-event, error-ledger, and
+Fiat-Shamir finite-seed accounting groups remain the supporting probability
+bookkeeping layers used by the completed composition theorem.
 
 The Lean `goldilocks-ext2-field-instance` group is now closed by transferring
 mathlib's root-free quadratic-algebra field instance onto the existing
 `GoldilocksExt2` `c0/c1` structure after proving that `7` is nonsquare in the
 Goldilocks base field.
 
-The closure plan for the three remaining blockers is recorded in
+The historical closure plan for the three blockers is recorded in
 [Formal Completion Research Plan, 2026-04-14](FormalCompletionResearchPlan-2026-04-14.md).
-It keeps the groups planned, identifies the concrete Swift and Lean surfaces
-that must be connected, and defines the validation gates needed before the
-completed theorem label can be used.
+It now serves as an audit trail for the declarations and validation gates that
+closed the promotion.

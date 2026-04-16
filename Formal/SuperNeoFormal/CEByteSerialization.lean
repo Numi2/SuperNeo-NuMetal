@@ -688,4 +688,116 @@ theorem ceOpeningProofWireDecode?_encode {openingCount vectorLength : Nat}
       hOpeningPositive hOpeningCount hVectorLength)
     proof
 
+namespace SwiftCEProof
+
+def decode? {openingCount vectorLength : Nat}
+    (hOpeningPositive : 0 < openingCount)
+    (hOpeningCount : openingCount < 256 ^ 8)
+    (hVectorLength : vectorLength < 256 ^ 8)
+    (bytes : List Byte) : Option (CEOpeningProofWire openingCount vectorLength) :=
+  ceOpeningProofWireDecode? hOpeningPositive hOpeningCount hVectorLength bytes
+
+end SwiftCEProof
+
+theorem swift_ceProof_decode?_eq_lean {openingCount vectorLength : Nat}
+    (hOpeningPositive : 0 < openingCount)
+    (hOpeningCount : openingCount < 256 ^ 8)
+    (hVectorLength : vectorLength < 256 ^ 8) :
+    SwiftCEProof.decode? hOpeningPositive hOpeningCount hVectorLength =
+      ceOpeningProofWireDecode? hOpeningPositive hOpeningCount hVectorLength :=
+  rfl
+
+def swiftCEProofResponseTag {openingCount vectorLength : Nat}
+    (response : CEOpeningProofResponseWire openingCount vectorLength) :
+    CEOpeningResponseTagWire :=
+  match response with
+  | .mask _ => .mask
+  | .maskedWitness _ => .maskedWitness
+  | .permutedWitness _ => .permutedWitness
+
+def swiftCETranscriptBranch {openingCount vectorLength : Nat}
+    (response : CEOpeningProofResponseWire openingCount vectorLength) :
+    CEOpeningVerifierChallenge :=
+  match response with
+  | .mask _ => CEOpeningVerifierChallenge.mask
+  | .maskedWitness _ => CEOpeningVerifierChallenge.maskedWitness
+  | .permutedWitness _ => CEOpeningVerifierChallenge.permutedWitness
+
+def leanCETranscriptBranch {openingCount vectorLength : Nat}
+    (response : CEOpeningProofResponseWire openingCount vectorLength) :
+    CEOpeningVerifierChallenge :=
+  ceOpeningResponseTagChallenge (swiftCEProofResponseTag response)
+
+theorem swift_ceResponseTag_branch_eq_lean
+    (tag : CEOpeningResponseTagWire) :
+    ceOpeningResponseTagChallenge tag =
+      match tag with
+      | .mask => CEOpeningVerifierChallenge.mask
+      | .maskedWitness => CEOpeningVerifierChallenge.maskedWitness
+      | .permutedWitness => CEOpeningVerifierChallenge.permutedWitness := by
+  cases tag <;> native_decide
+
+theorem swift_ceTranscriptBranch_eq_lean {openingCount vectorLength : Nat}
+    (response : CEOpeningProofResponseWire openingCount vectorLength) :
+    swiftCETranscriptBranch response = leanCETranscriptBranch response := by
+  cases response <;>
+    simp [swiftCETranscriptBranch, leanCETranscriptBranch, swiftCEProofResponseTag,
+      ceOpeningResponseTagChallenge, ceOpeningResponseTagSymbol,
+      ceOpeningChallengeFromSymbol]
+
+structure SwiftCEVerifierTrace
+    (Commitment Response Witness Seed : Type)
+    (roundCount : Nat) where
+  terminalTrace : TerminalCEVerifierTrace Commitment Response Witness Seed roundCount
+  responseTags : Fin roundCount → CEOpeningResponseTagWire
+  responseTags_match :
+    ∀ round,
+      (terminalTrace.rounds round).challenge =
+        ceOpeningResponseTagChallenge (responseTags round)
+
+def SwiftCEVerifierAccepts
+    {Commitment Response Witness Seed : Type}
+    {roundCount : Nat}
+    (trace : SwiftCEVerifierTrace Commitment Response Witness Seed roundCount) :
+    Prop :=
+  ∀ round,
+    (trace.terminalTrace.rounds round).verifierChecks
+      (ceOpeningResponseTagChallenge (trace.responseTags round))
+
+theorem swift_ceVerifier_accepts_implies_traceAccepts
+    {Commitment Response Witness Seed : Type}
+    {roundCount : Nat}
+    {trace : SwiftCEVerifierTrace Commitment Response Witness Seed roundCount}
+    (hAccepts : SwiftCEVerifierAccepts trace) :
+    TerminalCEVerifierTraceAccepts trace.terminalTrace := by
+  intro round
+  unfold CEOpeningRoundAccepts
+  rw [trace.responseTags_match round]
+  exact hAccepts round
+
+theorem swift_ceVerifier_accepts_sound_outside_badSeeds
+    {Claim Proof Witness Seed Commitment Response : Type}
+    [DecidableEq Seed]
+    {count roundCount bound : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → Seed}
+    (certificate :
+      TerminalCEFiniteVerifierCertificate
+        (Commitment := Commitment)
+        (Response := Response)
+        (roundCount := roundCount)
+        verifyProof
+        opens
+        proofSeed
+        bound)
+    {statement : TerminalCEStatement Claim count}
+    {proof : Proof}
+    (hAccepts : verifyProof statement proof)
+    (hSeed : proofSeed proof ∉ certificate.badSeeds) :
+    ∃ witnesses : Fin count → Witness,
+      TerminalLocalBatchRelation statement witnesses opens :=
+  terminalCEVerifierTrace_extract_batch_from_round_certificates
+    (certificate.extraction statement proof hAccepts hSeed)
+
 end SuperNeoFormal

@@ -1,8 +1,13 @@
 import SuperNeoFormal.PiCCS
+import SuperNeoFormal.PiCCSFiniteSoundness
 import SuperNeoFormal.PiRLC
+import SuperNeoFormal.PiRLCFiniteSoundness
 import SuperNeoFormal.PiDEC
 import SuperNeoFormal.TerminalCE
 import SuperNeoFormal.TerminalCEFiniteSoundness
+import SuperNeoFormal.ProbabilityComposition
+import SuperNeoFormal.TranscriptProbability
+import SuperNeoFormal.ErrorLedger
 
 /-!
 Final verifier-acceptance composition model.
@@ -247,5 +252,255 @@ theorem superneo_end_to_end_outside_ce_badSeeds
       (superneo_proof_acceptance_requires_terminal_ce hAccepts)
       hSeed
   ⟩
+
+theorem superneo_full_outside_bad_events_sound
+    {Claim Proof Witness Seed PiRLCSeed PiCCSSeed TranscriptSeed : Type}
+    [DecidableEq Seed] [DecidableEq PiRLCSeed] [DecidableEq PiCCSSeed]
+    [DecidableEq TranscriptSeed]
+    {outputCount bound : Nat}
+    {reduction : FoldReductionGates Claim outputCount}
+    {terminal : TerminalProofVerifierGates Claim Proof outputCount}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → Seed}
+    (hAccepts : SuperNeoProofVerifierAccepts reduction terminal)
+    (certificate :
+      TerminalCEFiniteBadSeedCertificate
+        terminal.verifyProof
+        opens
+        proofSeed
+        bound)
+    (pirlcBadSeeds : Finset PiRLCSeed)
+    (piccsBadSeeds : Finset PiCCSSeed)
+    (transcriptBadSeeds : Finset TranscriptSeed)
+    (seeds : SuperNeoStageSeeds PiRLCSeed PiCCSSeed Seed TranscriptSeed)
+    (targets : SuperNeoStageSoundnessTargets)
+    (hOutside :
+      superneoOutsideAggregate
+        pirlcBadSeeds
+        piccsBadSeeds
+        certificate.badSeeds
+        transcriptBadSeeds
+        seeds)
+    (hTerminalSeed : proofSeed terminal.proof = seeds.terminalCESeed)
+    (hPiRLC :
+      seeds.pirlcSeed ∉ pirlcBadSeeds →
+        targets.pirlcSound)
+    (hPiCCS :
+      seeds.piccsSeed ∉ piccsBadSeeds →
+        targets.piccsSound)
+    (hTerminalCE :
+      seeds.terminalCESeed ∉ certificate.badSeeds →
+        targets.terminalCESound)
+    (hTranscript :
+      seeds.transcriptSeed ∉ transcriptBadSeeds →
+        targets.transcriptSound) :
+    superNeoStageSoundnessTargetsAll targets ∧
+      FoldReductionAccepted reduction ∧
+        terminal.statementMatchesReduction ∧
+          ∃ witnesses : Fin outputCount → Witness,
+            TerminalLocalBatchRelation terminal.statement witnesses opens := by
+  have hStage :
+      superNeoStageSoundnessTargetsAll targets :=
+    superneo_stage_soundness_from_outsideAggregate
+      pirlcBadSeeds
+      piccsBadSeeds
+      certificate.badSeeds
+      transcriptBadSeeds
+      seeds
+      targets
+      hOutside
+      hPiRLC
+      hPiCCS
+      hTerminalCE
+      hTranscript
+  have hNotBad :=
+    superneo_outsideAggregate_stage_not_bad
+      pirlcBadSeeds
+      piccsBadSeeds
+      certificate.badSeeds
+      transcriptBadSeeds
+      seeds
+      hOutside
+  have hProofSeed : proofSeed terminal.proof ∉ certificate.badSeeds := by
+    rw [hTerminalSeed]
+    exact hNotBad.2.2.1
+  exact ⟨
+    hStage,
+    superneo_end_to_end_outside_ce_badSeeds
+      hAccepts
+      certificate
+      hProofSeed
+  ⟩
+
+theorem superneo_full_bad_event_cardinality_bound
+    {PiRLCSeed PiCCSSeed TerminalCESeed TranscriptSeed : Type}
+    [DecidableEq PiRLCSeed] [DecidableEq PiCCSSeed]
+    [DecidableEq TerminalCESeed] [DecidableEq TranscriptSeed]
+    (pirlcBadSeeds : Finset PiRLCSeed)
+    (piccsBadSeeds : Finset PiCCSSeed)
+    (terminalCEBadSeeds : Finset TerminalCESeed)
+    (transcriptBadSeeds : Finset TranscriptSeed) :
+    (superNeoBadEventsAggregate
+      pirlcBadSeeds
+      piccsBadSeeds
+      terminalCEBadSeeds
+      transcriptBadSeeds).card ≤
+        pirlcBadSeeds.card +
+          piccsBadSeeds.card +
+          terminalCEBadSeeds.card +
+          transcriptBadSeeds.card :=
+  superneo_aggregateBadEvents_card_le
+    pirlcBadSeeds
+    piccsBadSeeds
+    terminalCEBadSeeds
+    transcriptBadSeeds
+
+theorem superneo_full_probability_denominator_profile
+    (pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength : Nat) :
+    superNeoFiatShamirProbabilityDenominator
+      pirlcCount
+      piccsRoundCount
+      terminalCERoundCount
+      transcriptByteLength =
+        (((5 ^ phi81Degree) ^ pirlcCount *
+            (goldilocksModulus ^ 2) ^ piccsRoundCount) *
+          3 ^ terminalCERoundCount) *
+            256 ^ transcriptByteLength :=
+  superNeoFiatShamirProbabilityDenominator_profile_factors
+    pirlcCount
+    piccsRoundCount
+    terminalCERoundCount
+    transcriptByteLength
+
+theorem superneo_full_probability_numerator_bound
+    {pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength : Nat}
+    (pirlcBadSeeds : Finset (PiRLCChallengeSeed pirlcCount))
+    (piccsBadSeeds : Finset (Fin piccsRoundCount → GoldilocksExt2))
+    (terminalCEBadSeeds : Finset (Fin terminalCERoundCount → CEOpeningChallengeSymbol))
+    (transcriptBadSeeds : Finset (TranscriptSeedDomain transcriptByteLength))
+    (budget : SuperNeoFiatShamirFiberBudget)
+    (hPiRLC :
+      ∀ target, target ∈ pirlcBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirPirlcSeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.pirlc)
+    (hPiCCS :
+      ∀ target, target ∈ piccsBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirPiccsSeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.piccs)
+    (hTerminalCE :
+      ∀ target, target ∈ terminalCEBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirTerminalCESeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.terminalCE)
+    (hTranscript :
+      ∀ target, target ∈ transcriptBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirTranscriptSeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.transcript) :
+    superNeoFiatShamirProbabilityNumerator
+      (superNeoFiatShamirBadTranscriptSeeds
+        pirlcBadSeeds
+        piccsBadSeeds
+        terminalCEBadSeeds
+        transcriptBadSeeds) ≤
+      superNeoFiatShamirProbabilityBudgetNumerator
+        budget
+        pirlcBadSeeds
+        piccsBadSeeds
+        terminalCEBadSeeds
+        transcriptBadSeeds :=
+  superNeoFiatShamirProbabilityNumerator_le_budget
+    pirlcBadSeeds
+    piccsBadSeeds
+    terminalCEBadSeeds
+    transcriptBadSeeds
+    budget
+    hPiRLC
+    hPiCCS
+    hTerminalCE
+    hTranscript
+
+theorem superneo_full_probability_composition
+    {pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength : Nat}
+    (pirlcBadSeeds : Finset (PiRLCChallengeSeed pirlcCount))
+    (piccsBadSeeds : Finset (Fin piccsRoundCount → GoldilocksExt2))
+    (terminalCEBadSeeds : Finset (Fin terminalCERoundCount → CEOpeningChallengeSymbol))
+    (transcriptBadSeeds : Finset (TranscriptSeedDomain transcriptByteLength))
+    (budget : SuperNeoFiatShamirFiberBudget)
+    (hPiRLC :
+      ∀ target, target ∈ pirlcBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirPirlcSeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.pirlc)
+    (hPiCCS :
+      ∀ target, target ∈ piccsBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirPiccsSeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.piccs)
+    (hTerminalCE :
+      ∀ target, target ∈ terminalCEBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirTerminalCESeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.terminalCE)
+    (hTranscript :
+      ∀ target, target ∈ transcriptBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirTranscriptSeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.transcript) :
+    superNeoFiatShamirProbability
+      (superNeoFiatShamirBadTranscriptSeeds
+        pirlcBadSeeds
+        piccsBadSeeds
+        terminalCEBadSeeds
+        transcriptBadSeeds) ≤
+      (superNeoFiatShamirProbabilityBudgetNumerator
+        budget
+        pirlcBadSeeds
+        piccsBadSeeds
+        terminalCEBadSeeds
+        transcriptBadSeeds : ℚ) /
+        (superNeoFiatShamirProbabilityDenominator
+          pirlcCount
+          piccsRoundCount
+          terminalCERoundCount
+          transcriptByteLength : ℚ) := by
+  unfold superNeoFiatShamirProbability
+  apply div_le_div_of_nonneg_right
+  · exact_mod_cast
+      superneo_full_probability_numerator_bound
+        pirlcBadSeeds
+        piccsBadSeeds
+        terminalCEBadSeeds
+        transcriptBadSeeds
+        budget
+        hPiRLC
+        hPiCCS
+        hTerminalCE
+        hTranscript
+  · exact_mod_cast
+      Nat.zero_le
+        (superNeoFiatShamirProbabilityDenominator
+          pirlcCount
+          piccsRoundCount
+          terminalCERoundCount
+          transcriptByteLength)
 
 end SuperNeoFormal

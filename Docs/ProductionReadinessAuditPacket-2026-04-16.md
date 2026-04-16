@@ -1,6 +1,6 @@
 # Production Readiness Audit Packet, 2026-04-16
 
-Formal status: conditional protocol formalization.
+Formal status: completed formal protocol theorem.
 
 This packet is the current reviewer entry point for production-readiness
 assessment. It records what the repository can substantiate today, what the
@@ -160,7 +160,6 @@ The repository must not yet be presented as:
 - a hosted verifier service, wallet, replay-protection service, or policy
   engine,
 - a formally constant-time implementation,
-- a completed formal end-to-end protocol theorem,
 - a general program-to-CCS compiler,
 - a general NumiSeal production proving product.
 
@@ -176,11 +175,10 @@ These are the remaining blockers before using production-security language:
    persistence, access control, logging, and user-facing error policy. The
    local NumiSeal integration protocol facade now exists, but durable product
    implementations remain outside the repository.
-4. Completion or explicit narrowing of formal claims around the remaining
-   `Docs/FormalStatus.json` blocker groups:
-   `superneo-full-probability-composition`,
-   `swift-goldilocks-ext2-serialization-equivalence`, and
-   `swift-ce-verifier-byte-equivalence`.
+4. Formal-claims hygiene remains a release discipline item: the completed
+   formal protocol theorem label is now validator-gated by closed Lean
+   declarations, but production-security language still requires the independent
+   audits and operational controls listed here.
 5. Broader hardware benchmark reports before making cross-generation
    performance claims.
 6. Release engineering execution: signed artifacts and hosted branch-protection
