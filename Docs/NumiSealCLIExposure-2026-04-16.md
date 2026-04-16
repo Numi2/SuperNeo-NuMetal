@@ -9,10 +9,11 @@ terminal vector artifacts.
   parses the envelope, and reports the NumiSeal public statement digest,
   obligation root, lane-summary root, aggregate digests, component digest root,
   proof transcript digest, policy limits, and header transcript domain.
-- `superneo verify --require-numiseal` reconstructs the public obligations and
+- `superneo verify --require-numiseal` now delegates to the shared
+  `NumiSealArtifactVerifier` core, which reconstructs the public obligations and
   aggregate plan from artifact metadata, checks the NumiSeal public statement and
-  proof-body digest bindings, and dispatches through `NumiSealVerifier` with the
-  immediate residual CE opening policy.
+  proof-body digest bindings, compares caller-owned trust pins, and dispatches
+  through `NumiSealVerifier` with the immediate residual CE opening policy.
 - `superneo verify` without `--require-numiseal` rejects NumiSeal artifacts, and
   `--require-terminal` remains limited to legacy terminal-local and
   compressed-public envelopes.
@@ -20,9 +21,11 @@ terminal vector artifacts.
   public-statement, obligation-root, lane-summary-root, aggregate,
   component-root, proof-transcript, public-input, shape, statement, and
   verifier-key digest options.
-- `Scripts/production-gate.sh` now exercises `superneo inspect`, the missing
-  `--require-numiseal` failure, the legacy terminal-policy failure, strict
-  single-aggregate verification, and broad two-aggregate/two-lane verification.
+- `Scripts/production-gate.sh` now exercises `superneo inspect`, strict
+  single-aggregate verification, broad two-aggregate/two-lane verification, and
+  a direct production CLI negative matrix for missing `--require-numiseal`,
+  legacy terminal policy, wrong pins, wrong public input, and proof-kind/header
+  mismatch.
 
 ## Security Boundary
 

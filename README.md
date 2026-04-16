@@ -280,8 +280,10 @@ swift run superneo verify \
 ```
 
 For NumiSeal terminal artifacts, use `--require-numiseal` and additionally pin
-the transcript-domain, public-statement, aggregate, component-root, and
-proof-transcript digests when the artifact comes from another party.
+the transcript-domain, public-statement, obligation-root, lane-summary-root,
+aggregate, component-root, and proof-transcript digests when the artifact comes
+from another party. The production CLI and vector validator share the library
+`NumiSealArtifactVerifier` core for those NumiSeal artifact checks.
 
 Without trusted context arguments, the verifier reads the seed and digests from
 the artifact itself, which is useful for demos but not a policy decision. The
@@ -327,7 +329,10 @@ testing:
 `TestVectors/manifest.json` is the trusted context for checked-in vectors:
 hashes, byte counts, public inputs, key seeds, digests, proof-kind requirements,
 and strict verification commands. `TestVectors/artifact.schema.json` is the
-machine-readable artifact schema.
+machine-readable artifact schema. NumiSeal uses
+`TestVectors/numiseal-manifest.json` plus
+`TestVectors/numiseal-artifact.schema.json`, with schema and manifest mutation
+checks in the production gate.
 
 ```sh
 swift Scripts/validate-test-vectors.swift

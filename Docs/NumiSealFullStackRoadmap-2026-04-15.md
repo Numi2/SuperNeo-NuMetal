@@ -523,15 +523,17 @@ validates `TestVectors/numiseal-terminal-single-aggregate-v1.json`,
 `TestVectors/numiseal-manifest.json` and
 `TestVectors/numiseal-artifact.schema.json`. Validation rejects duplicate and
 unknown JSON keys, checks byte count and SHA-256, regenerates deterministic
-envelopes from checked fixtures, compares public statement, aggregate,
-component-root, and proof-transcript digests, parses kind `4` envelopes, and
-verifies through `NumiSealVerifier`. `Scripts/production-gate.sh` runs this
-validator and runs `Scripts/test-numiseal-vector-validation.py`, which mutates
-the manifest workload metadata and artifact proof-kind metadata for every
-checked NumiSeal vector shape. The production `superneo` CLI now inspects
-NumiSeal vector artifacts and verifies them only behind `--require-numiseal`,
-with optional external pins for transcript-domain, public-statement, aggregate,
-component-root, proof-transcript, and ordinary verifier-context digests.
+envelopes from checked fixtures, and uses the shared `NumiSealArtifactVerifier`
+core to compare public statement, obligation-root, lane-summary-root,
+aggregate, component-root, and proof-transcript digests before verifying through
+`NumiSealVerifier`. `Scripts/production-gate.sh` runs this validator and runs
+`Scripts/test-numiseal-vector-validation.py`, which mutates the manifest
+workload metadata and artifact proof-kind metadata for every checked NumiSeal
+vector shape. The production `superneo` CLI now inspects NumiSeal vector
+artifacts and verifies them only behind `--require-numiseal`, with optional
+external pins for transcript-domain, public-statement, obligation-root,
+lane-summary-root, aggregate, component-root, proof-transcript, and ordinary
+verifier-context digests.
 
 Acceptance gates:
 
@@ -540,7 +542,8 @@ Acceptance gates:
   two-lane checked NumiSeal vectors through `superneo verify --require-numiseal`;
 - negative fixtures cover wrong digest, wrong lane, wrong proof kind, wrong
   byte count, wrong manifest hash, per-shape NumiSeal manifest and artifact
-  metadata, and missing `--require-numiseal`;
+  metadata, missing `--require-numiseal`, legacy terminal policy, wrong
+  production pins, wrong public input, and proof-kind/header mismatch;
 - production gate runs parser-only tests before expensive algebraic tests.
 
 World-class bar:

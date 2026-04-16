@@ -30,50 +30,9 @@ private struct DemoProofArtifact: Codable {
     var verifierKeyDigestHex: String
 }
 
-private struct NumiSealVectorArtifact: Codable {
-    let artifactVersion: UInt32
-    let workload: String
-    let profile: String
-    let proofKind: String
-    let residualMode: String
-    let keySeedUTF8: String
-    let keyColumnCount: Int
-    let foldTranscriptSeedUTF8: String
-    let laneIDsUTF8: [String]
-    let sourceFoldDigestSeedsUTF8: [String]
-    let ceRandomSeedsUTF8: [String]
-    let maximumObligationsPerAggregate: Int
-    let maximumLaneCount: Int
-    let maximumAggregatesPerLane: Int
-    let publicInputCount: Int
-    let privateWitnessCount: Int
-    let publicInputs: [UInt64]
-    let shapeDigestHex: String
-    let statementDigestHex: String
-    let verifierKeyDigestHex: String
-    let transcriptDomainHex: String
-    let publicStatementDigestHex: String
-    let obligationRootHex: String
-    let laneSummaryRootHex: String
-    let aggregateDigestsHex: [String]
-    let componentDigestRootHex: String
-    let proofTranscriptDigestHex: String
-    let proofEnvelopeBase64: String
-}
-
-private struct NumiSealVerificationMaterial {
-    let shape: CCSShape
-    let key: AjtaiCommitmentKey
-    let obligations: [NumiSealObligation]
-    let policy: NumiSealAcceptancePolicy
-    let terminalPolicy: NumiSealTerminalProofAcceptancePolicy
-    let aggregationLimits: NumiSealAggregationLimits
-    let plan: NumiSealProvingPlan
-}
-
 private enum ProofArtifact {
     case demo(DemoProofArtifact)
-    case numiSeal(NumiSealVectorArtifact)
+    case numiSeal(NumiSealArtifact)
 }
 
 private let demoProofArtifactTopLevelKeys: Set<String> = [
@@ -92,42 +51,6 @@ private let demoProofArtifactTopLevelKeys: Set<String> = [
     "statementDigestHex",
     "verifierKeyDigestHex",
 ]
-
-private let numiSealArtifactTopLevelKeys: Set<String> = [
-    "aggregateDigestsHex",
-    "artifactVersion",
-    "ceRandomSeedsUTF8",
-    "componentDigestRootHex",
-    "foldTranscriptSeedUTF8",
-    "keyColumnCount",
-    "keySeedUTF8",
-    "laneIDsUTF8",
-    "laneSummaryRootHex",
-    "maximumAggregatesPerLane",
-    "maximumLaneCount",
-    "maximumObligationsPerAggregate",
-    "obligationRootHex",
-    "privateWitnessCount",
-    "profile",
-    "proofEnvelopeBase64",
-    "proofKind",
-    "proofTranscriptDigestHex",
-    "publicInputCount",
-    "publicInputs",
-    "publicStatementDigestHex",
-    "residualMode",
-    "shapeDigestHex",
-    "sourceFoldDigestSeedsUTF8",
-    "statementDigestHex",
-    "transcriptDomainHex",
-    "verifierKeyDigestHex",
-    "workload",
-]
-
-private enum NumiSealArtifactDefaults {
-    static let proofKind = "numiseal-terminal"
-    static let residualMode = "immediate"
-}
 
 private enum DemoProofKind: String {
     case fold
@@ -605,46 +528,20 @@ private func inspectDemoArtifact(_ artifact: DemoProofArtifact) throws {
     print("envelope total bytes: \(proofBytes.count)")
 }
 
-private func verifyNumiSealArtifact(_ artifact: NumiSealVectorArtifact, options: VerifyOptions) throws {
+private func verifyNumiSealArtifact(_ artifact: NumiSealArtifact, options: VerifyOptions) throws {
     if options.requireTerminalProof {
         throw CLIError.invalidArgument("legacy terminal proof required, but artifact contains a NumiSeal terminal proof")
     }
     guard options.requireNumiSealProof else {
         throw CLIError.invalidArgument("NumiSeal terminal proof requires --require-numiseal")
     }
-    if let expectedPublicInputs = options.expectedPublicInputs {
-        guard artifact.publicInputs == expectedPublicInputs else {
-            throw CLIError.invalidArgument("artifact public inputs do not match expected public inputs")
-        }
-    }
-    try validateNumiSealArtifactMetadata(artifact)
-
-    let proofBytes = try artifact.proofEnvelopeBytes()
-    let parsedEnvelope = try NumiSealProofEnvelope(bytes: proofBytes)
-    let keySeed = options.trustedKeySeed ?? artifact.keySeedUTF8
-    let material = try makeNumiSealVerificationMaterial(from: artifact, keySeed: keySeed)
-    try validateNumiSealMaterial(material, against: artifact)
-    try validateNumiSealEnvelope(parsedEnvelope, artifact: artifact)
-    try validateNumiSealExpectedContext(artifact: artifact, material: material, options: options)
-
-    let verifier = NumiSealVerifier(
-        shape: material.shape,
-        key: material.key,
+    let expectedContext = try makeNumiSealExpectedContext(options: options)
+    let started = Date()
+    _ = try NumiSealArtifactVerifier.verify(
+        artifact: artifact,
+        expectedContext: expectedContext,
         executionPolicy: .highAssurance
     )
-    let started = Date()
-    let result = verifier.verify(
-        proofBytes: proofBytes,
-        obligations: material.obligations,
-        policy: material.terminalPolicy,
-        aggregationLimits: material.aggregationLimits
-    )
-    guard result.isValid else {
-        throw CLIError.invalidArgument("NumiSeal terminal proof rejected: \(result.reason ?? "unknown reason")")
-    }
-    guard result.envelope == parsedEnvelope else {
-        throw CLIError.invalidArgument("NumiSeal verifier returned a different envelope")
-    }
     print("valid NumiSeal terminal proof")
     print("lanes: \(Set(artifact.laneIDsUTF8).count)")
     print("aggregates: \(artifact.aggregateDigestsHex.count)")
@@ -652,12 +549,11 @@ private func verifyNumiSealArtifact(_ artifact: NumiSealVectorArtifact, options:
     print(String(format: "verify time: %.3f s", Date().timeIntervalSince(started)))
 }
 
-private func inspectNumiSealArtifact(_ artifact: NumiSealVectorArtifact) throws {
-    try validateNumiSealArtifactMetadata(artifact)
+private func inspectNumiSealArtifact(_ artifact: NumiSealArtifact) throws {
+    try NumiSealArtifactVerifier.validateMetadata(artifact)
     let proofBytes = try artifact.proofEnvelopeBytes()
     let header = try parseEnvelopeHeader(proofBytes)
-    let envelope = try NumiSealProofEnvelope(bytes: proofBytes)
-    try validateNumiSealEnvelope(envelope, artifact: artifact)
+    let envelope = try NumiSealArtifactVerifier.validatedEnvelope(from: artifact)
 
     print("artifact version: \(artifact.artifactVersion)")
     print("workload: \(artifact.workload)")
@@ -779,294 +675,43 @@ private func requireWorkloadParameters(
     return parameters
 }
 
-private func validateNumiSealArtifactMetadata(_ artifact: NumiSealVectorArtifact) throws {
-    guard artifact.artifactVersion == 1 else {
-        throw CLIError.invalidArgument("unsupported NumiSeal artifact version")
-    }
-    guard artifact.profile == SuperNeoParameterProfile.goldilocksPhi81.name else {
-        throw CLIError.invalidArgument("unsupported NumiSeal profile: \(artifact.profile)")
-    }
-    guard artifact.proofKind == NumiSealArtifactDefaults.proofKind else {
-        throw CLIError.invalidArgument("unsupported NumiSeal proof kind: \(artifact.proofKind)")
-    }
-    guard artifact.residualMode == NumiSealArtifactDefaults.residualMode else {
-        throw CLIError.invalidArgument("unsupported NumiSeal residual mode: \(artifact.residualMode)")
-    }
-    guard artifact.publicInputCount > 0 else {
-        throw CLIError.invalidArgument("NumiSeal public input count must be positive")
-    }
-    guard artifact.privateWitnessCount >= 0 else {
-        throw CLIError.invalidArgument("NumiSeal private witness count cannot be negative")
-    }
-    guard artifact.publicInputs.count == artifact.publicInputCount else {
-        throw CLIError.invalidArgument("NumiSeal public input count mismatch")
-    }
-    _ = try parsePublicFields(artifact.publicInputs)
-    guard artifact.keyColumnCount == expectedNumiSealKeyColumnCount(artifact) else {
-        throw CLIError.invalidArgument("NumiSeal key column count mismatch")
-    }
-    guard !artifact.laneIDsUTF8.isEmpty else {
-        throw CLIError.invalidArgument("NumiSeal artifact must include at least one lane ID")
-    }
-    guard artifact.laneIDsUTF8.count == artifact.sourceFoldDigestSeedsUTF8.count else {
-        throw CLIError.invalidArgument("NumiSeal lane/source seed count mismatch")
-    }
-    guard artifact.maximumObligationsPerAggregate > 0 else {
-        throw CLIError.invalidArgument("NumiSeal maximum obligations per aggregate must be positive")
-    }
-    guard artifact.maximumLaneCount > 0 else {
-        throw CLIError.invalidArgument("NumiSeal maximum lane count must be positive")
-    }
-    guard artifact.maximumAggregatesPerLane > 0 else {
-        throw CLIError.invalidArgument("NumiSeal maximum aggregates per lane must be positive")
-    }
-    guard !artifact.aggregateDigestsHex.isEmpty else {
-        throw CLIError.invalidArgument("NumiSeal artifact must include aggregate digests")
-    }
-    guard artifact.ceRandomSeedsUTF8.count == artifact.aggregateDigestsHex.count else {
-        throw CLIError.invalidArgument("NumiSeal CE seed count must match aggregate digest count")
-    }
-
-    for (name, digest) in [
-        ("shapeDigestHex", artifact.shapeDigestHex),
-        ("statementDigestHex", artifact.statementDigestHex),
-        ("verifierKeyDigestHex", artifact.verifierKeyDigestHex),
-        ("transcriptDomainHex", artifact.transcriptDomainHex),
-        ("publicStatementDigestHex", artifact.publicStatementDigestHex),
-        ("obligationRootHex", artifact.obligationRootHex),
-        ("laneSummaryRootHex", artifact.laneSummaryRootHex),
-        ("componentDigestRootHex", artifact.componentDigestRootHex),
-        ("proofTranscriptDigestHex", artifact.proofTranscriptDigestHex),
-    ] {
-        _ = try parseHexDigest(digest, name: "NumiSeal \(name)")
-    }
-    for digest in artifact.aggregateDigestsHex {
-        _ = try parseHexDigest(digest, name: "NumiSeal aggregate digest")
-    }
-}
-
-private func makeNumiSealVerificationMaterial(
-    from artifact: NumiSealVectorArtifact,
-    keySeed: String
-) throws -> NumiSealVerificationMaterial {
-    let publicInput = try parsePublicFields(artifact.publicInputs)
-    let privateWitness = Array(repeating: GoldilocksField.zero, count: artifact.privateWitnessCount)
-    let matrix = try SparseFieldMatrix.identity(size: publicInput.count + privateWitness.count)
-    let structure = CCSStructure.hadamardProduct(matrices: [matrix])
-    let backend = SuperNeoCPUBackend()
-    let key = try AjtaiCommitmentKey(
-        columns: artifact.keyColumnCount,
-        seed: Array(keySeed.utf8)
+private func makeNumiSealExpectedContext(options: VerifyOptions) throws -> NumiSealArtifactExpectedContext {
+    try NumiSealArtifactExpectedContext(
+        trustedKeySeedUTF8: options.trustedKeySeed,
+        verifierKeyDigest: options.expectedVerifierKeyDigestHex.map {
+            try parseDigest256($0, name: "--expected-verifier-key-digest")
+        },
+        shapeDigest: options.expectedShapeDigestHex.map {
+            try parseDigest256($0, name: "--expected-shape-digest")
+        },
+        statementDigest: options.expectedStatementDigestHex.map {
+            try parseDigest256($0, name: "--expected-statement-digest")
+        },
+        transcriptDomainDigest: options.expectedTranscriptDomainDigestHex.map {
+            try parseDigest256($0, name: "--expected-transcript-domain-digest")
+        },
+        publicStatementDigest: options.expectedPublicStatementDigestHex.map {
+            try parseDigest256($0, name: "--expected-public-statement-digest")
+        },
+        obligationRoot: options.expectedObligationRootHex.map {
+            try parseDigest256($0, name: "--expected-obligation-root")
+        },
+        laneSummaryRoot: options.expectedLaneSummaryRootHex.map {
+            try parseDigest256($0, name: "--expected-lane-summary-root")
+        },
+        aggregateDigests: options.expectedAggregateDigestsHex.map { values in
+            try values.map {
+                try parseDigest256($0, name: "--expected-aggregate-digests")
+            }
+        },
+        componentDigestRoot: options.expectedComponentDigestRootHex.map {
+            try parseDigest256($0, name: "--expected-component-digest-root")
+        },
+        proofTranscriptDigest: options.expectedProofTranscriptDigestHex.map {
+            try parseDigest256($0, name: "--expected-proof-transcript-digest")
+        },
+        publicInputs: options.expectedPublicInputs
     )
-    let commitment = try backend.commit(key: key, message: publicInput + privateWitness)
-    let input = try SuperNeoFoldInput(
-        structure: structure,
-        instances: [CCSInstance(commitment: commitment, publicInput: publicInput)],
-        witnesses: [CCSWitness(privateWitness)]
-    )
-    let fold = try backend.makeProver(
-        key: key,
-        executionPolicy: .highAssurance
-    ).foldWithOutput(input, transcriptSeed: Array(artifact.foldTranscriptSeedUTF8.utf8))
-    let publicFoldInput = SuperNeoPublicFoldInput(input)
-    let statement = CCSStatement(
-        shapeDigest: publicFoldInput.shape.shapeDigest,
-        ccsInstances: publicFoldInput.instances
-    )
-    let claims = Array(fold.outputClaims.prefix(artifact.laneIDsUTF8.count))
-    guard claims.count == artifact.laneIDsUTF8.count else {
-        throw CLIError.invalidArgument("NumiSeal fold did not produce enough output claims")
-    }
-    let laneIDs = try artifact.laneIDsUTF8.map(NumiSealLaneID.init)
-    let obligations = zip(zip(laneIDs, claims), artifact.sourceFoldDigestSeedsUTF8).map { pair, sourceSeed in
-        let (laneID, claim) = pair
-        return NumiSealObligation(
-            laneID: laneID,
-            profileID: key.parameters.profileID,
-            statement: statement,
-            verifierKeyDigest: key.verifierKeyDigest,
-            instance: CEInstance(claim),
-            sourceFoldDigest: Digest256.hash(sourceSeed)
-        )
-    }
-    let transcriptDomain = try parseDigest256(artifact.transcriptDomainHex, name: "NumiSeal transcript domain")
-    let policy = NumiSealAcceptancePolicy(
-        statement: statement,
-        verifierKeyDigest: key.verifierKeyDigest,
-        transcriptDomain: transcriptDomain,
-        acceptedLaneIDs: Set(laneIDs)
-    )
-    let aggregationLimits = try NumiSealAggregationLimits(
-        maximumObligationsPerAggregate: artifact.maximumObligationsPerAggregate
-    )
-    let prover = NumiSealProver(
-        shape: input.shape,
-        key: key,
-        executionPolicy: .highAssurance
-    )
-    let plan = try prover.provingPlan(
-        obligations: obligations,
-        policy: policy,
-        aggregationLimits: aggregationLimits
-    )
-    let terminalPolicy = NumiSealTerminalProofAcceptancePolicy(
-        profileID: policy.profileID,
-        shapeDigest: policy.shapeDigest,
-        statementDigest: policy.statementDigest,
-        verifierKeyDigest: policy.verifierKeyDigest,
-        transcriptDomain: policy.transcriptDomain,
-        acceptedLaneIDs: policy.acceptedLaneIDs,
-        maximumLaneCount: artifact.maximumLaneCount,
-        maximumAggregatesPerLane: artifact.maximumAggregatesPerLane,
-        acceptedResidualMode: .immediate,
-        acceptedCarryMode: .none
-    )
-    return NumiSealVerificationMaterial(
-        shape: input.shape,
-        key: key,
-        obligations: obligations,
-        policy: policy,
-        terminalPolicy: terminalPolicy,
-        aggregationLimits: aggregationLimits,
-        plan: plan
-    )
-}
-
-private func validateNumiSealMaterial(
-    _ material: NumiSealVerificationMaterial,
-    against artifact: NumiSealVectorArtifact
-) throws {
-    guard material.shape.shapeDigest.hexString == artifact.shapeDigestHex else {
-        throw CLIError.invalidArgument("NumiSeal artifact shape digest does not match reconstructed material")
-    }
-    guard material.policy.statementDigest.hexString == artifact.statementDigestHex else {
-        throw CLIError.invalidArgument("NumiSeal artifact statement digest does not match reconstructed material")
-    }
-    guard material.key.verifierKeyDigest.hexString == artifact.verifierKeyDigestHex else {
-        throw CLIError.invalidArgument("NumiSeal artifact verifier key digest does not match regenerated key")
-    }
-    guard material.policy.transcriptDomain.hexString == artifact.transcriptDomainHex else {
-        throw CLIError.invalidArgument("NumiSeal artifact transcript domain does not match verification policy")
-    }
-    guard material.plan.publicStatement.digest.hexString == artifact.publicStatementDigestHex else {
-        throw CLIError.invalidArgument("NumiSeal public statement digest does not match reconstructed obligations")
-    }
-    guard material.plan.publicStatement.obligationRoot.hexString == artifact.obligationRootHex else {
-        throw CLIError.invalidArgument("NumiSeal obligation root does not match reconstructed obligations")
-    }
-    guard material.plan.publicStatement.laneSummaryRoot.hexString == artifact.laneSummaryRootHex else {
-        throw CLIError.invalidArgument("NumiSeal lane summary root does not match reconstructed obligations")
-    }
-    guard material.plan.aggregateDigests.map(\.hexString) == artifact.aggregateDigestsHex else {
-        throw CLIError.invalidArgument("NumiSeal aggregate digests do not match reconstructed obligations")
-    }
-    guard material.plan.aggregateCount == artifact.ceRandomSeedsUTF8.count else {
-        throw CLIError.invalidArgument("NumiSeal CE seed count does not match reconstructed aggregate count")
-    }
-}
-
-private func validateNumiSealEnvelope(
-    _ envelope: NumiSealProofEnvelope,
-    artifact: NumiSealVectorArtifact
-) throws {
-    guard envelope.header.kind == .numiSealTerminal else {
-        throw CLIError.invalidArgument("NumiSeal proof envelope kind mismatch")
-    }
-    guard envelope.header.profileID == SuperNeoParameterProfile.goldilocksPhi81.profileID else {
-        throw CLIError.invalidArgument("NumiSeal proof envelope profile mismatch")
-    }
-    guard envelope.header.shapeDigest.hexString == artifact.shapeDigestHex else {
-        throw CLIError.invalidArgument("NumiSeal proof envelope shape digest mismatch")
-    }
-    guard envelope.header.statementDigest.hexString == artifact.statementDigestHex else {
-        throw CLIError.invalidArgument("NumiSeal proof envelope statement digest mismatch")
-    }
-    guard envelope.header.verifierKeyDigest.hexString == artifact.verifierKeyDigestHex else {
-        throw CLIError.invalidArgument("NumiSeal proof envelope verifier key digest mismatch")
-    }
-    guard envelope.header.transcriptDomain.hexString == artifact.transcriptDomainHex else {
-        throw CLIError.invalidArgument("NumiSeal proof envelope transcript domain mismatch")
-    }
-    guard envelope.proof.publicStatement.digest.hexString == artifact.publicStatementDigestHex else {
-        throw CLIError.invalidArgument("NumiSeal proof public statement digest mismatch")
-    }
-    guard envelope.proof.publicStatement.obligationRoot.hexString == artifact.obligationRootHex else {
-        throw CLIError.invalidArgument("NumiSeal proof obligation root mismatch")
-    }
-    guard envelope.proof.publicStatement.laneSummaryRoot.hexString == artifact.laneSummaryRootHex else {
-        throw CLIError.invalidArgument("NumiSeal proof lane summary root mismatch")
-    }
-    guard envelope.proof.laneProofs.map(\.aggregateDigest.hexString) == artifact.aggregateDigestsHex else {
-        throw CLIError.invalidArgument("NumiSeal proof aggregate digest mismatch")
-    }
-    guard envelope.proof.componentDigestRoot.hexString == artifact.componentDigestRootHex else {
-        throw CLIError.invalidArgument("NumiSeal proof component digest root mismatch")
-    }
-    guard envelope.proof.transcriptDigest.hexString == artifact.proofTranscriptDigestHex else {
-        throw CLIError.invalidArgument("NumiSeal proof transcript digest mismatch")
-    }
-}
-
-private func validateNumiSealExpectedContext(
-    artifact: NumiSealVectorArtifact,
-    material: NumiSealVerificationMaterial,
-    options: VerifyOptions
-) throws {
-    if let expectedShapeDigestHex = options.expectedShapeDigestHex {
-        guard material.shape.shapeDigest.hexString == expectedShapeDigestHex else {
-            throw CLIError.invalidArgument("NumiSeal shape digest does not match expected shape digest")
-        }
-    }
-    if let expectedStatementDigestHex = options.expectedStatementDigestHex {
-        guard material.policy.statementDigest.hexString == expectedStatementDigestHex else {
-            throw CLIError.invalidArgument("NumiSeal statement digest does not match expected statement digest")
-        }
-    }
-    if let expectedVerifierKeyDigestHex = options.expectedVerifierKeyDigestHex {
-        guard material.key.verifierKeyDigest.hexString == expectedVerifierKeyDigestHex else {
-            throw CLIError.invalidArgument("NumiSeal verifier key digest does not match expected verifier key digest")
-        }
-    }
-    if let expectedTranscriptDomainDigestHex = options.expectedTranscriptDomainDigestHex {
-        guard material.policy.transcriptDomain.hexString == expectedTranscriptDomainDigestHex else {
-            throw CLIError.invalidArgument("NumiSeal transcript domain does not match expected transcript domain")
-        }
-    }
-    if let expectedPublicStatementDigestHex = options.expectedPublicStatementDigestHex {
-        guard artifact.publicStatementDigestHex == expectedPublicStatementDigestHex else {
-            throw CLIError.invalidArgument("NumiSeal public statement digest does not match expected public statement digest")
-        }
-    }
-    if let expectedObligationRootHex = options.expectedObligationRootHex {
-        guard artifact.obligationRootHex == expectedObligationRootHex else {
-            throw CLIError.invalidArgument("NumiSeal obligation root does not match expected obligation root")
-        }
-    }
-    if let expectedLaneSummaryRootHex = options.expectedLaneSummaryRootHex {
-        guard artifact.laneSummaryRootHex == expectedLaneSummaryRootHex else {
-            throw CLIError.invalidArgument("NumiSeal lane summary root does not match expected lane summary root")
-        }
-    }
-    if let expectedAggregateDigestsHex = options.expectedAggregateDigestsHex {
-        guard artifact.aggregateDigestsHex == expectedAggregateDigestsHex else {
-            throw CLIError.invalidArgument("NumiSeal aggregate digests do not match expected aggregate digests")
-        }
-    }
-    if let expectedComponentDigestRootHex = options.expectedComponentDigestRootHex {
-        guard artifact.componentDigestRootHex == expectedComponentDigestRootHex else {
-            throw CLIError.invalidArgument("NumiSeal component digest root does not match expected component digest root")
-        }
-    }
-    if let expectedProofTranscriptDigestHex = options.expectedProofTranscriptDigestHex {
-        guard artifact.proofTranscriptDigestHex == expectedProofTranscriptDigestHex else {
-            throw CLIError.invalidArgument("NumiSeal proof transcript digest does not match expected proof transcript digest")
-        }
-    }
-}
-
-private func expectedNumiSealKeyColumnCount(_ artifact: NumiSealVectorArtifact) -> Int {
-    SuperNeoEmbedding.paddedLength(forFieldElementCount: artifact.publicInputCount + artifact.privateWitnessCount)
-        / CyclotomicRing54.degree
 }
 
 private func readProofArtifact(path: String) throws -> ProofArtifact {
@@ -1076,13 +721,13 @@ private func readProofArtifact(path: String) throws -> ProofArtifact {
     guard let proofKind = object["proofKind"] as? String else {
         throw CLIError.invalidArgument("proof artifact must include proofKind")
     }
-    if proofKind == NumiSealArtifactDefaults.proofKind {
+    if proofKind == NumiSealArtifact.proofKind {
         try validateKnownArtifactTopLevelKeys(
             object: object,
-            allowedKeys: numiSealArtifactTopLevelKeys,
+            allowedKeys: NumiSealArtifact.topLevelKeys,
             artifactName: "NumiSeal proof artifact"
         )
-        return .numiSeal(try JSONDecoder().decode(NumiSealVectorArtifact.self, from: data))
+        return .numiSeal(try JSONDecoder().decode(NumiSealArtifact.self, from: data))
     }
     try validateKnownArtifactTopLevelKeys(
         object: object,
@@ -1570,20 +1215,5 @@ private extension DemoProofArtifact {
             throw CLIError.invalidArgument("unsupported proof kind in artifact: \(proofKind)")
         }
         return kind
-    }
-}
-
-private extension NumiSealVectorArtifact {
-    func proofEnvelopeBytes() throws -> [UInt8] {
-        guard let data = Data(base64Encoded: proofEnvelopeBase64) else {
-            throw CLIError.invalidArgument("NumiSeal proof envelope is not valid base64")
-        }
-        return [UInt8](data)
-    }
-}
-
-private extension Digest256 {
-    var hexString: String {
-        bytes.map { String(format: "%02x", $0) }.joined()
     }
 }

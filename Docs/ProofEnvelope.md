@@ -38,9 +38,11 @@ callers must follow when supplying per-aggregate digit-tensor inputs.
 `TestVectors/numiseal-terminal-two-lane-v1.json` are the checked kind `4`
 vectors for this immediate-residual path. `superneo inspect` parses their
 NumiSeal public statement and roots, while `superneo verify --require-numiseal`
-reconstructs the public obligations and terminal policy before running
-`NumiSealVerifier`. General-purpose `superneo prove --seal numiseal` remains a
-separate roadmap item.
+uses the shared `NumiSealArtifactVerifier` boundary to validate artifact
+metadata, reconstruct public obligations, build terminal policy, check envelope
+digests, compare caller-owned trust pins, and then run `NumiSealVerifier`.
+General-purpose `superneo prove --seal numiseal` remains a separate roadmap
+item.
 
 ## Header Layout
 
@@ -507,11 +509,12 @@ statement and linear-residual digest binding, sum-check proof digest binding,
 derived decomposition-key binding, reconstructed decomposition-commitment digest
 binding, residual CE statement binding, digit-opening statement
 profile/shape/verifier/final-point scope, and per-round CE opening-count
-agreement. Preflight remains cheap. The explicit NumiSeal terminal `verify` path
-additionally accepts the application's public shape/key material for policy
-binding, derives the digit-opening key from `NumiSealDecompositionKeyDerivation`,
-and calls `CEOpeningRelation.verify` for the supplied direct digit-commitment
-residual CE opening proof.
+agreement. Preflight remains cheap. The shared `NumiSealArtifactVerifier`
+layer used by the CLIs additionally accepts the application's public
+shape/key/digest material as trust pins, reconstructs the public obligation set
+and NumiSeal policy, derives the digit-opening key from
+`NumiSealDecompositionKeyDerivation`, and calls `CEOpeningRelation.verify` for
+the supplied direct digit-commitment residual CE opening proof.
 
 ## Versioning Policy
 

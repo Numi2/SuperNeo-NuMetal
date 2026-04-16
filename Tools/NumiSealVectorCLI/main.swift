@@ -2,6 +2,8 @@ import CryptoKit
 import Foundation
 @_spi(Benchmarking) import SuperNeo_NuMetal
 
+private typealias NumiSealVectorArtifact = NumiSealArtifact
+
 private enum VectorCLIError: Error, CustomStringConvertible {
     case usage(String)
     case invalid(String)
@@ -35,41 +37,12 @@ private struct NumiSealManifestVector: Codable {
     let expectedVerifierKeyDigestHex: String
     let expectedTranscriptDomainHex: String
     let expectedPublicStatementDigestHex: String
+    let expectedObligationRootHex: String
+    let expectedLaneSummaryRootHex: String
     let expectedAggregateDigestsHex: [String]
     let expectedComponentDigestRootHex: String
     let expectedProofTranscriptDigestHex: String
     let verifyCommand: String
-}
-
-private struct NumiSealVectorArtifact: Codable {
-    let artifactVersion: UInt32
-    let workload: String
-    let profile: String
-    let proofKind: String
-    let residualMode: String
-    let keySeedUTF8: String
-    let keyColumnCount: Int
-    let foldTranscriptSeedUTF8: String
-    let laneIDsUTF8: [String]
-    let sourceFoldDigestSeedsUTF8: [String]
-    let ceRandomSeedsUTF8: [String]
-    let maximumObligationsPerAggregate: Int
-    let maximumLaneCount: Int
-    let maximumAggregatesPerLane: Int
-    let publicInputCount: Int
-    let privateWitnessCount: Int
-    let publicInputs: [UInt64]
-    let shapeDigestHex: String
-    let statementDigestHex: String
-    let verifierKeyDigestHex: String
-    let transcriptDomainHex: String
-    let publicStatementDigestHex: String
-    let obligationRootHex: String
-    let laneSummaryRootHex: String
-    let aggregateDigestsHex: [String]
-    let componentDigestRootHex: String
-    let proofTranscriptDigestHex: String
-    let proofEnvelopeBase64: String
 }
 
 private struct NumiSealVectorMaterial {
@@ -98,7 +71,7 @@ private struct NumiSealVectorSpec {
     let maximumAggregatesPerLane: Int
 
     var keyColumnCount: Int {
-        expectedKeyColumnCount(
+        NumiSealArtifactVerifier.expectedKeyColumnCount(
             publicInputCount: publicInputCount,
             privateWitnessCount: privateWitnessCount
         )
@@ -195,41 +168,12 @@ private let manifestVectorKeys: Set<String> = [
     "expectedVerifierKeyDigestHex",
     "expectedTranscriptDomainHex",
     "expectedPublicStatementDigestHex",
+    "expectedObligationRootHex",
+    "expectedLaneSummaryRootHex",
     "expectedAggregateDigestsHex",
     "expectedComponentDigestRootHex",
     "expectedProofTranscriptDigestHex",
     "verifyCommand",
-]
-
-private let artifactTopLevelKeys: Set<String> = [
-    "artifactVersion",
-    "workload",
-    "profile",
-    "proofKind",
-    "residualMode",
-    "keySeedUTF8",
-    "keyColumnCount",
-    "foldTranscriptSeedUTF8",
-    "laneIDsUTF8",
-    "sourceFoldDigestSeedsUTF8",
-    "ceRandomSeedsUTF8",
-    "maximumObligationsPerAggregate",
-    "maximumLaneCount",
-    "maximumAggregatesPerLane",
-    "publicInputCount",
-    "privateWitnessCount",
-    "publicInputs",
-    "shapeDigestHex",
-    "statementDigestHex",
-    "verifierKeyDigestHex",
-    "transcriptDomainHex",
-    "publicStatementDigestHex",
-    "obligationRootHex",
-    "laneSummaryRootHex",
-    "aggregateDigestsHex",
-    "componentDigestRootHex",
-    "proofTranscriptDigestHex",
-    "proofEnvelopeBase64",
 ]
 
 private func usage() -> String {
@@ -323,10 +267,12 @@ private func generate(root: URL) throws {
                 expectedVerifierKeyDigestHex: artifact.verifierKeyDigestHex,
                 expectedTranscriptDomainHex: artifact.transcriptDomainHex,
                 expectedPublicStatementDigestHex: artifact.publicStatementDigestHex,
+                expectedObligationRootHex: artifact.obligationRootHex,
+                expectedLaneSummaryRootHex: artifact.laneSummaryRootHex,
                 expectedAggregateDigestsHex: artifact.aggregateDigestsHex,
                 expectedComponentDigestRootHex: artifact.componentDigestRootHex,
                 expectedProofTranscriptDigestHex: artifact.proofTranscriptDigestHex,
-                verifyCommand: strictVerifyCommand(file: spec.artifactFile)
+                verifyCommand: strictVerifyCommand(file: spec.artifactFile, artifact: artifact)
             )
         )
         print("wrote TestVectors/\(spec.artifactFile)")
@@ -382,9 +328,11 @@ private func validateManifest(root: URL) throws {
         try validateHexDigest(vector.expectedVerifierKeyDigestHex, name: "\(vector.file) expected verifier-key digest")
         try validateHexDigest(vector.expectedTranscriptDomainHex, name: "\(vector.file) expected transcript domain")
         try validateHexDigest(vector.expectedPublicStatementDigestHex, name: "\(vector.file) expected public statement digest")
+        try validateHexDigest(vector.expectedObligationRootHex, name: "\(vector.file) expected obligation root")
+        try validateHexDigest(vector.expectedLaneSummaryRootHex, name: "\(vector.file) expected lane summary root")
         try validateHexDigest(vector.expectedComponentDigestRootHex, name: "\(vector.file) expected component digest root")
         try validateHexDigest(vector.expectedProofTranscriptDigestHex, name: "\(vector.file) expected proof transcript digest")
-        try require(vector.verifyCommand == strictVerifyCommand(file: file), "\(vector.file) verify command mismatch")
+        try require(vector.verifyCommand == strictVerifyCommand(file: file, vector: vector, spec: spec), "\(vector.file) verify command mismatch")
 
         let url = vectorsDirectory.appendingPathComponent(file)
         let data = try Data(contentsOf: url)
@@ -397,6 +345,8 @@ private func validateManifest(root: URL) throws {
         try require(artifact.verifierKeyDigestHex == vector.expectedVerifierKeyDigestHex, "\(vector.file) verifier-key digest mismatch")
         try require(artifact.transcriptDomainHex == vector.expectedTranscriptDomainHex, "\(vector.file) transcript domain mismatch")
         try require(artifact.publicStatementDigestHex == vector.expectedPublicStatementDigestHex, "\(vector.file) public statement digest mismatch")
+        try require(artifact.obligationRootHex == vector.expectedObligationRootHex, "\(vector.file) obligation root mismatch")
+        try require(artifact.laneSummaryRootHex == vector.expectedLaneSummaryRootHex, "\(vector.file) lane summary root mismatch")
         try require(artifact.aggregateDigestsHex == vector.expectedAggregateDigestsHex, "\(vector.file) aggregate digest mismatch")
         try require(artifact.componentDigestRootHex == vector.expectedComponentDigestRootHex, "\(vector.file) component digest root mismatch")
         try require(artifact.proofTranscriptDigestHex == vector.expectedProofTranscriptDigestHex, "\(vector.file) proof transcript digest mismatch")
@@ -437,8 +387,7 @@ private func validateSingleVector(
         throw VectorCLIError.invalid("\(file) proof envelope is not base64")
     }
     let proofBytes = [UInt8](proofEnvelopeData)
-    let parsedEnvelope = try NumiSealProofEnvelope(bytes: proofBytes)
-    try validateParsedEnvelope(parsedEnvelope, artifact: artifact, file: file)
+    _ = try validateSharedArtifact(artifact, file: file)
 
     let material = try makeMaterial(from: artifact)
     try require(
@@ -446,24 +395,25 @@ private func validateSingleVector(
         "\(file) regenerated deterministic NumiSeal envelope does not match checked-in bytes"
     )
 
-    let verifier = NumiSealVerifier(
-        shape: material.shape,
-        key: material.key,
-        executionPolicy: .highAssurance
-    )
-    let result = verifier.verify(
-        proofBytes: proofBytes,
-        obligations: material.obligations,
-        policy: material.terminalPolicy,
-        aggregationLimits: try NumiSealAggregationLimits(
-            maximumObligationsPerAggregate: artifact.maximumObligationsPerAggregate
-        )
-    )
-    try require(result.isValid, "\(file) NumiSeal verifier rejected vector: \(result.reason ?? "unknown reason")")
-    try require(result.envelope == parsedEnvelope, "\(file) verifier returned a different envelope")
-
     print("validated \(file)")
     return artifact
+}
+
+@discardableResult
+private func validateSharedArtifact(
+    _ artifact: NumiSealVectorArtifact,
+    file: String
+) throws -> NumiSealArtifactVerificationReport {
+    do {
+        return try NumiSealArtifactVerifier.verify(
+            artifact: artifact,
+            executionPolicy: .highAssurance
+        )
+    } catch let error as NumiSealArtifactVerificationError {
+        throw VectorCLIError.invalid("\(file) \(error.description)")
+    } catch {
+        throw VectorCLIError.invalid("\(file) \(error)")
+    }
 }
 
 private func validateArtifactMetadata(
@@ -490,7 +440,7 @@ private func validateArtifactMetadata(
     try require(artifact.publicInputCount == spec.publicInputCount, "\(file) public input count mismatch")
     try require(artifact.privateWitnessCount == spec.privateWitnessCount, "\(file) private witness count mismatch")
     try require(artifact.publicInputs == Array(repeating: 0, count: spec.publicInputCount), "\(file) public inputs mismatch")
-    try require(artifact.keyColumnCount == expectedKeyColumnCount(artifact), "\(file) key column count mismatch")
+    try require(artifact.keyColumnCount == NumiSealArtifactVerifier.expectedKeyColumnCount(artifact), "\(file) key column count mismatch")
     try require(artifact.aggregateDigestsHex.count == spec.ceRandomSeeds.count, "\(file) aggregate digest count mismatch")
     for (name, digest) in [
         ("shapeDigestHex", artifact.shapeDigestHex),
@@ -508,25 +458,6 @@ private func validateArtifactMetadata(
     for digest in artifact.aggregateDigestsHex {
         try validateHexDigest(digest, name: "\(file) aggregate digest")
     }
-}
-
-private func validateParsedEnvelope(
-    _ envelope: NumiSealProofEnvelope,
-    artifact: NumiSealVectorArtifact,
-    file: String
-) throws {
-    try require(envelope.header.kind == .numiSealTerminal, "\(file) proof envelope kind mismatch")
-    try require(envelope.header.profileID == SuperNeoParameterProfile.goldilocksPhi81.profileID, "\(file) profile id mismatch")
-    try require(envelope.header.shapeDigest.hexString == artifact.shapeDigestHex, "\(file) header shape digest mismatch")
-    try require(envelope.header.statementDigest.hexString == artifact.statementDigestHex, "\(file) header statement digest mismatch")
-    try require(envelope.header.verifierKeyDigest.hexString == artifact.verifierKeyDigestHex, "\(file) header verifier-key digest mismatch")
-    try require(envelope.header.transcriptDomain.hexString == artifact.transcriptDomainHex, "\(file) header transcript domain mismatch")
-    try require(envelope.proof.publicStatement.digest.hexString == artifact.publicStatementDigestHex, "\(file) public statement digest mismatch")
-    try require(envelope.proof.publicStatement.obligationRoot.hexString == artifact.obligationRootHex, "\(file) obligation root mismatch")
-    try require(envelope.proof.publicStatement.laneSummaryRoot.hexString == artifact.laneSummaryRootHex, "\(file) lane summary root mismatch")
-    try require(envelope.proof.laneProofs.map(\.aggregateDigest.hexString) == artifact.aggregateDigestsHex, "\(file) aggregate digest mismatch")
-    try require(envelope.proof.componentDigestRoot.hexString == artifact.componentDigestRootHex, "\(file) component digest root mismatch")
-    try require(envelope.proof.transcriptDigest.hexString == artifact.proofTranscriptDigestHex, "\(file) proof transcript digest mismatch")
 }
 
 private func makeArtifact(spec: NumiSealVectorSpec) throws -> NumiSealVectorArtifact {
@@ -607,7 +538,7 @@ private func makeMaterial(
     try require(!laneIDs.isEmpty, "NumiSeal vector must include at least one lane ID")
     try require(laneIDs.count == sourceFoldDigestSeeds.count, "NumiSeal vector lane/source seed count mismatch")
     try require(laneIDs.count == ceRandomSeeds.count, "NumiSeal vector lane/CE seed count mismatch")
-    try require(keyColumnCount == expectedKeyColumnCount(
+    try require(keyColumnCount == NumiSealArtifactVerifier.expectedKeyColumnCount(
         publicInputCount: publicInputCount,
         privateWitnessCount: privateWitnessCount
     ), "NumiSeal vector key column count mismatch")
@@ -746,7 +677,7 @@ private func validateKnownArtifactKeys(_ data: Data, file: String) throws {
     guard let object = json as? [String: Any] else {
         throw VectorCLIError.invalid("\(file) JSON must be an object")
     }
-    let unknownKeys = Set(object.keys).subtracting(artifactTopLevelKeys).sorted()
+    let unknownKeys = Set(object.keys).subtracting(NumiSealArtifact.topLevelKeys).sorted()
     try require(
         unknownKeys.isEmpty,
         "\(file) contains unknown top-level fields: \(unknownKeys.joined(separator: ","))"
@@ -792,8 +723,93 @@ private func vectorSpec(
     return try vectorSpec(workload: artifact.workload)
 }
 
-private func strictVerifyCommand(file: String) -> String {
-    "swift run superneo-numiseal-vectors validate TestVectors/\(file)"
+private func strictVerifyCommand(file: String, artifact: NumiSealVectorArtifact) -> String {
+    strictVerifyCommand(
+        file: file,
+        keySeed: artifact.keySeedUTF8,
+        verifierKeyDigest: artifact.verifierKeyDigestHex,
+        shapeDigest: artifact.shapeDigestHex,
+        statementDigest: artifact.statementDigestHex,
+        transcriptDomain: artifact.transcriptDomainHex,
+        publicStatementDigest: artifact.publicStatementDigestHex,
+        obligationRoot: artifact.obligationRootHex,
+        laneSummaryRoot: artifact.laneSummaryRootHex,
+        aggregateDigests: artifact.aggregateDigestsHex,
+        componentDigestRoot: artifact.componentDigestRootHex,
+        proofTranscriptDigest: artifact.proofTranscriptDigestHex,
+        publicInputs: artifact.publicInputs
+    )
+}
+
+private func strictVerifyCommand(
+    file: String,
+    vector: NumiSealManifestVector,
+    spec: NumiSealVectorSpec
+) -> String {
+    strictVerifyCommand(
+        file: file,
+        keySeed: vector.expectedKeySeedUTF8,
+        verifierKeyDigest: vector.expectedVerifierKeyDigestHex,
+        shapeDigest: vector.expectedShapeDigestHex,
+        statementDigest: vector.expectedStatementDigestHex,
+        transcriptDomain: vector.expectedTranscriptDomainHex,
+        publicStatementDigest: vector.expectedPublicStatementDigestHex,
+        obligationRoot: vector.expectedObligationRootHex,
+        laneSummaryRoot: vector.expectedLaneSummaryRootHex,
+        aggregateDigests: vector.expectedAggregateDigestsHex,
+        componentDigestRoot: vector.expectedComponentDigestRootHex,
+        proofTranscriptDigest: vector.expectedProofTranscriptDigestHex,
+        publicInputs: Array(repeating: 0, count: spec.publicInputCount)
+    )
+}
+
+private func strictVerifyCommand(
+    file: String,
+    keySeed: String,
+    verifierKeyDigest: String,
+    shapeDigest: String,
+    statementDigest: String,
+    transcriptDomain: String,
+    publicStatementDigest: String,
+    obligationRoot: String,
+    laneSummaryRoot: String,
+    aggregateDigests: [String],
+    componentDigestRoot: String,
+    proofTranscriptDigest: String,
+    publicInputs: [UInt64]
+) -> String {
+    [
+        "swift",
+        "run",
+        "superneo",
+        "verify",
+        "--require-numiseal",
+        "--key-seed",
+        keySeed,
+        "--expected-verifier-key-digest",
+        verifierKeyDigest,
+        "--expected-shape-digest",
+        shapeDigest,
+        "--expected-statement-digest",
+        statementDigest,
+        "--expected-transcript-domain-digest",
+        transcriptDomain,
+        "--expected-public-statement-digest",
+        publicStatementDigest,
+        "--expected-obligation-root",
+        obligationRoot,
+        "--expected-lane-summary-root",
+        laneSummaryRoot,
+        "--expected-aggregate-digests",
+        aggregateDigests.joined(separator: ","),
+        "--expected-component-digest-root",
+        componentDigestRoot,
+        "--expected-proof-transcript-digest",
+        proofTranscriptDigest,
+        "--expected-public-inputs",
+        publicInputs.map(String.init).joined(separator: ","),
+        "TestVectors/\(file)",
+    ].joined(separator: " ")
 }
 
 private func vectorURL(_ path: String, root: URL) -> URL {
@@ -802,18 +818,6 @@ private func vectorURL(_ path: String, root: URL) -> URL {
         return url.standardizedFileURL
     }
     return root.appendingPathComponent(path).standardizedFileURL
-}
-
-private func expectedKeyColumnCount(_ artifact: NumiSealVectorArtifact) -> Int {
-    expectedKeyColumnCount(
-        publicInputCount: artifact.publicInputCount,
-        privateWitnessCount: artifact.privateWitnessCount
-    )
-}
-
-private func expectedKeyColumnCount(publicInputCount: Int, privateWitnessCount: Int) -> Int {
-    SuperNeoEmbedding.paddedLength(forFieldElementCount: publicInputCount + privateWitnessCount)
-        / CyclotomicRing54.degree
 }
 
 private func encodeJSON<T: Encodable>(_ value: T) throws -> Data {
@@ -1101,11 +1105,5 @@ private struct JSONDuplicateKeyScanner {
         default:
             return nil
         }
-    }
-}
-
-private extension Digest256 {
-    var hexString: String {
-        bytes.map { String(format: "%02x", $0) }.joined()
     }
 }

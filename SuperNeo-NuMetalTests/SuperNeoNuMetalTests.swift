@@ -5406,6 +5406,185 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             .verificationFailed("NumiSeal carry claim required by policy")
         )
     }
+
+    func testNumiSealArtifactVerifierValidatesCheckedVectorWithStrictPins() throws {
+        let artifact = try loadNumiSealArtifact(named: "numiseal-terminal-single-aggregate-v1.json")
+        let expectedContext = try strictExpectedContext(for: artifact)
+
+        let report = try NumiSealArtifactVerifier.verify(
+            artifact: artifact,
+            expectedContext: expectedContext,
+            executionPolicy: .highAssurance
+        )
+
+        XCTAssertTrue(report.verificationResult.isValid, report.verificationResult.reason ?? "")
+        XCTAssertEqual(report.verificationResult.envelope, report.envelope)
+        XCTAssertEqual(report.material.obligations.count, artifact.laneIDsUTF8.count)
+        XCTAssertEqual(report.material.plan.aggregateDigests.map(\.hexStringForTest), artifact.aggregateDigestsHex)
+        XCTAssertEqual(report.envelope.proof.publicStatement.digest.hexStringForTest, artifact.publicStatementDigestHex)
+        XCTAssertEqual(report.envelope.proof.componentDigestRoot.hexStringForTest, artifact.componentDigestRootHex)
+        XCTAssertEqual(report.envelope.proof.transcriptDigest.hexStringForTest, artifact.proofTranscriptDigestHex)
+    }
+
+    func testNumiSealArtifactVerifierRejectsExpectedContextTrustPinMismatches() throws {
+        let artifact = try loadNumiSealArtifact(named: "numiseal-terminal-single-aggregate-v1.json")
+        let material = try NumiSealArtifactVerifier.makeVerificationMaterial(
+            from: artifact,
+            keySeed: artifact.keySeedUTF8,
+            executionPolicy: .highAssurance
+        )
+        try NumiSealArtifactVerifier.validateMaterial(material, against: artifact)
+
+        let wrongDigest = Digest256.hash("numiseal-artifact-verifier-wrong-digest")
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.validateExpectedContext(
+                artifact: artifact,
+                material: material,
+                expectedContext: NumiSealArtifactExpectedContext(shapeDigest: wrongDigest)
+            ),
+            containing: "expected shape digest"
+        )
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.validateExpectedContext(
+                artifact: artifact,
+                material: material,
+                expectedContext: NumiSealArtifactExpectedContext(statementDigest: wrongDigest)
+            ),
+            containing: "expected statement digest"
+        )
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.validateExpectedContext(
+                artifact: artifact,
+                material: material,
+                expectedContext: NumiSealArtifactExpectedContext(verifierKeyDigest: wrongDigest)
+            ),
+            containing: "expected verifier key digest"
+        )
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.validateExpectedContext(
+                artifact: artifact,
+                material: material,
+                expectedContext: NumiSealArtifactExpectedContext(transcriptDomainDigest: wrongDigest)
+            ),
+            containing: "expected transcript domain"
+        )
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.validateExpectedContext(
+                artifact: artifact,
+                material: material,
+                expectedContext: NumiSealArtifactExpectedContext(publicStatementDigest: wrongDigest)
+            ),
+            containing: "expected public statement digest"
+        )
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.validateExpectedContext(
+                artifact: artifact,
+                material: material,
+                expectedContext: NumiSealArtifactExpectedContext(obligationRoot: wrongDigest)
+            ),
+            containing: "expected obligation root"
+        )
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.validateExpectedContext(
+                artifact: artifact,
+                material: material,
+                expectedContext: NumiSealArtifactExpectedContext(laneSummaryRoot: wrongDigest)
+            ),
+            containing: "expected lane summary root"
+        )
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.validateExpectedContext(
+                artifact: artifact,
+                material: material,
+                expectedContext: NumiSealArtifactExpectedContext(aggregateDigests: [wrongDigest])
+            ),
+            containing: "expected aggregate digests"
+        )
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.validateExpectedContext(
+                artifact: artifact,
+                material: material,
+                expectedContext: NumiSealArtifactExpectedContext(componentDigestRoot: wrongDigest)
+            ),
+            containing: "expected component digest root"
+        )
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.validateExpectedContext(
+                artifact: artifact,
+                material: material,
+                expectedContext: NumiSealArtifactExpectedContext(proofTranscriptDigest: wrongDigest)
+            ),
+            containing: "expected proof transcript digest"
+        )
+
+        var wrongPublicInputs = artifact.publicInputs
+        wrongPublicInputs[0] ^= 1
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.verify(
+                artifact: artifact,
+                expectedContext: NumiSealArtifactExpectedContext(publicInputs: wrongPublicInputs),
+                executionPolicy: .highAssurance
+            ),
+            containing: "expected public inputs"
+        )
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.verify(
+                artifact: artifact,
+                expectedContext: NumiSealArtifactExpectedContext(trustedKeySeedUTF8: "wrong-numiseal-key-seed"),
+                executionPolicy: .highAssurance
+            ),
+            containing: "regenerated key"
+        )
+    }
+
+    private func loadNumiSealArtifact(named name: String) throws -> NumiSealArtifact {
+        let testFile = URL(fileURLWithPath: #filePath)
+        let repositoryRoot = testFile
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let url = repositoryRoot
+            .appendingPathComponent("TestVectors")
+            .appendingPathComponent(name)
+        let data = try Data(contentsOf: url)
+        return try JSONDecoder().decode(NumiSealArtifact.self, from: data)
+    }
+
+    private func strictExpectedContext(for artifact: NumiSealArtifact) throws -> NumiSealArtifactExpectedContext {
+        NumiSealArtifactExpectedContext(
+            trustedKeySeedUTF8: artifact.keySeedUTF8,
+            verifierKeyDigest: try Digest256(hexDigest: artifact.verifierKeyDigestHex),
+            shapeDigest: try Digest256(hexDigest: artifact.shapeDigestHex),
+            statementDigest: try Digest256(hexDigest: artifact.statementDigestHex),
+            transcriptDomainDigest: try Digest256(hexDigest: artifact.transcriptDomainHex),
+            publicStatementDigest: try Digest256(hexDigest: artifact.publicStatementDigestHex),
+            obligationRoot: try Digest256(hexDigest: artifact.obligationRootHex),
+            laneSummaryRoot: try Digest256(hexDigest: artifact.laneSummaryRootHex),
+            aggregateDigests: try artifact.aggregateDigestsHex.map { try Digest256(hexDigest: $0) },
+            componentDigestRoot: try Digest256(hexDigest: artifact.componentDigestRootHex),
+            proofTranscriptDigest: try Digest256(hexDigest: artifact.proofTranscriptDigestHex),
+            publicInputs: artifact.publicInputs
+        )
+    }
+
+    private func XCTAssertThrowsNumiSealArtifactError<T>(
+        _ expression: @autoclosure () throws -> T,
+        containing expectedMessage: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertThrowsError(try expression(), file: file, line: line) { error in
+            guard let artifactError = error as? NumiSealArtifactVerificationError else {
+                XCTFail("expected NumiSealArtifactVerificationError, got \(error)", file: file, line: line)
+                return
+            }
+            XCTAssertTrue(
+                artifactError.description.contains(expectedMessage),
+                "expected \(artifactError.description) to contain \(expectedMessage)",
+                file: file,
+                line: line
+            )
+        }
+    }
 }
 
 final class UsabilitySurfaceTests: SuperNeoTestCase {

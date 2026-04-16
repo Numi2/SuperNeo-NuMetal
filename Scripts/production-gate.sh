@@ -15,7 +15,8 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - Lean formal build, executable gates, and formal-status validation
   - Lean/Swift profile-constant conformance validation
   - checked-in test vector validation
-  - checked-in NumiSeal vector validation
+  - checked-in NumiSeal schema and vector validation
+  - production NumiSeal CLI adversarial matrix
   - release CLI fold, terminal, compressed-terminal, and NumiSeal verify smoke
 
 Pass --with-benchmarks to include Scripts/run-benchmarks.sh quick.
@@ -117,6 +118,8 @@ NUMISEAL_SINGLE_STATEMENT_DIGEST="9a8a92e65a81372c4be1b6a853c4fb6417011de99fa116
 NUMISEAL_SINGLE_VERIFIER_KEY_DIGEST="fd2605390a4f450fdfdcde6259aa8bb06c51bf66d1def285fbe9cabc5eb09a73"
 NUMISEAL_SINGLE_TRANSCRIPT_DOMAIN_DIGEST="018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de"
 NUMISEAL_SINGLE_PUBLIC_STATEMENT_DIGEST="b38d814282d7273508a1ce56ac98bfca87018250080c26b7ad98b9fa6b8b9070"
+NUMISEAL_SINGLE_OBLIGATION_ROOT="f2885132eb7e2354904f2171e7fb1a7f8764a8a96a1dab2fa059c8923bce6f13"
+NUMISEAL_SINGLE_LANE_SUMMARY_ROOT="53141d23dc57cbf7bba102aa3c92de94997139d416f007b69cf50e3b57953147"
 NUMISEAL_SINGLE_AGGREGATE_DIGESTS="6bd43ca109ddc7578de000d6a0983a878e3a7d76df4ccb60d74b08f9fbfd25ae"
 NUMISEAL_SINGLE_COMPONENT_DIGEST_ROOT="5320b1bf387199838f8f1ebd9fbfa2efec054555af3a4d07cea001e17ec510ad"
 NUMISEAL_SINGLE_PROOF_TRANSCRIPT_DIGEST="f4315994c550045181389647af20533bfee3a2383b6a23072d1715f854c8c7b4"
@@ -126,10 +129,13 @@ run_step swift test --disable-swift-testing
 run_step swift test -c release --disable-swift-testing
 run_step Scripts/validate-artifact-schema.py
 run_step Scripts/test-artifact-schema-validation.py
+run_step Scripts/validate-numiseal-artifact-schema.py
+run_step Scripts/test-numiseal-artifact-schema-validation.py
 run_step Scripts/test-benchmark-tooling-validation.py
 run_step swift Scripts/validate-test-vectors.swift
 run_step "${NUMISEAL_VECTOR_CLI}" validate
 run_step python3 Scripts/test-numiseal-vector-validation.py --cli "${NUMISEAL_VECTOR_CLI}"
+run_step python3 Scripts/test-numiseal-superneo-cli-validation.py --cli "${SUPERNEO_CLI}"
 run_step "${SUPERNEO_CLI}" inspect "${NUMISEAL_SINGLE_VECTOR}"
 run_expect_failure "${SUPERNEO_CLI}" verify "${NUMISEAL_SINGLE_VECTOR}"
 run_expect_failure "${SUPERNEO_CLI}" verify --require-terminal "${NUMISEAL_SINGLE_VECTOR}"
@@ -141,6 +147,8 @@ run_step "${SUPERNEO_CLI}" verify \
   --expected-statement-digest "${NUMISEAL_SINGLE_STATEMENT_DIGEST}" \
   --expected-transcript-domain-digest "${NUMISEAL_SINGLE_TRANSCRIPT_DOMAIN_DIGEST}" \
   --expected-public-statement-digest "${NUMISEAL_SINGLE_PUBLIC_STATEMENT_DIGEST}" \
+  --expected-obligation-root "${NUMISEAL_SINGLE_OBLIGATION_ROOT}" \
+  --expected-lane-summary-root "${NUMISEAL_SINGLE_LANE_SUMMARY_ROOT}" \
   --expected-aggregate-digests "${NUMISEAL_SINGLE_AGGREGATE_DIGESTS}" \
   --expected-component-digest-root "${NUMISEAL_SINGLE_COMPONENT_DIGEST_ROOT}" \
   --expected-proof-transcript-digest "${NUMISEAL_SINGLE_PROOF_TRANSCRIPT_DIGEST}" \

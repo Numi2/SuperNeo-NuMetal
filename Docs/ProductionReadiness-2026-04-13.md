@@ -22,6 +22,13 @@ context explicitly:
 
 The verifier rejects artifacts whose regenerated key, reconstructed shape,
 statement, public inputs, or proof kind do not match those pinned values.
+For checked NumiSeal kind `4` artifacts, the explicit `--require-numiseal`
+path uses the shared `NumiSealArtifactVerifier` library boundary. That boundary
+validates NumiSeal artifact metadata, reconstructs public obligations and
+policy, checks envelope digests, and compares caller-owned pins for transcript
+domain, public-statement digest, obligation root, lane-summary root, aggregate
+digests, component root, and proof-transcript digest before dispatching to
+`NumiSealVerifier`.
 
 Checked-in vector validation now treats `TestVectors/manifest.json` as the
 trusted expected context. The manifest records expected public inputs, key seed,
@@ -47,6 +54,8 @@ case.
 - `swift build -c release`
 - `swift test --disable-swift-testing`
 - `swift test -c release --disable-swift-testing`
+- R1CS and NumiSeal artifact schema contract validation plus schema mutation
+  tests
 - `swift Scripts/validate-test-vectors.swift`
 - `Scripts/test-vector-manifest-validation.py`
 - release binary CLI fold prove/verify smoke for one-hot and binary-addition
@@ -57,6 +66,14 @@ case.
 - negative strict-verifier checks for public-input mismatch and terminal-proof
   requirement mismatch, including NumiSeal missing-policy and digest-pin
   mismatch checks
+- direct production `superneo verify --require-numiseal` mutation checks for
+  missing policy, legacy terminal policy, wrong key seed, wrong transcript
+  domain, wrong public statement digest, wrong obligation root, wrong aggregate
+  digest, wrong component root, wrong proof transcript digest, wrong public
+  input, and proof-kind/header mismatch
+- direct NumiSeal manifest mutation checks for obligation-root,
+  lane-summary-root, legacy verify-command, and missing `--require-numiseal`
+  command drift
 - negative artifact-ingestion checks for unknown fields, duplicate JSON keys,
   missing workload parameters, non-canonical workload parameters, and workload
   parameter/public-input mismatches
@@ -111,9 +128,10 @@ Result: passed.
 
 The command covered release build, debug XCTest, release XCTest, strict vector
 validation including the compressed-terminal vector, release CLI fold,
-terminal, and compressed-terminal smoke tests, negative strict-verifier checks,
-compressed-terminal proof-kind mismatch checks, vector manifest mutation tests,
-and the quick benchmark profile.
+terminal, and compressed-terminal smoke tests, NumiSeal shared-verifier smoke
+and mutation checks, negative strict-verifier checks, compressed-terminal
+proof-kind mismatch checks, vector manifest mutation tests, and the quick
+benchmark profile.
 
 ## Residual Boundaries
 

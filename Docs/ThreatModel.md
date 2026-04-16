@@ -127,8 +127,11 @@ that path with an explicitly documented CSPRNG policy and seed provenance.
 Checked NumiSeal vectors carry deterministic fold/source/CE seed metadata for
 reproducibility. That metadata is a test-vector reproducibility mechanism. A
 deployment that accepts third-party NumiSeal artifacts must pin expected key,
-shape, statement, transcript-domain, public-statement, aggregate, component-root,
-proof-transcript, and public-input context outside the artifact.
+shape, statement, transcript-domain, public-statement, obligation-root,
+lane-summary-root, aggregate, component-root, proof-transcript, and public-input
+context outside the artifact. The shared `NumiSealArtifactVerifier` core is the
+library boundary that compares those pins to reconstructed public obligations
+and the kind `4` envelope.
 
 ## GPU And Metal Boundary
 

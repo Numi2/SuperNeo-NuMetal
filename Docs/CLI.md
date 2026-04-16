@@ -138,9 +138,12 @@ swift run superneo verify \
   --expected-statement-digest 9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e \
   --expected-transcript-domain-digest 018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de \
   --expected-public-statement-digest b38d814282d7273508a1ce56ac98bfca87018250080c26b7ad98b9fa6b8b9070 \
+  --expected-obligation-root f2885132eb7e2354904f2171e7fb1a7f8764a8a96a1dab2fa059c8923bce6f13 \
+  --expected-lane-summary-root 53141d23dc57cbf7bba102aa3c92de94997139d416f007b69cf50e3b57953147 \
   --expected-aggregate-digests 6bd43ca109ddc7578de000d6a0983a878e3a7d76df4ccb60d74b08f9fbfd25ae \
   --expected-component-digest-root 5320b1bf387199838f8f1ebd9fbfa2efec054555af3a4d07cea001e17ec510ad \
   --expected-proof-transcript-digest f4315994c550045181389647af20533bfee3a2383b6a23072d1715f854c8c7b4 \
+  --expected-public-inputs 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 \
   TestVectors/numiseal-terminal-single-aggregate-v1.json
 ```
 
@@ -177,9 +180,10 @@ NumiSeal vector artifacts additionally store residual mode, lane IDs,
 fold/source/CE deterministic vector seeds, aggregate limits, transcript-domain
 digest, public-statement digest, obligation root, lane-summary root, aggregate
 digests, component digest root, and proof-transcript digest. `superneo verify
---require-numiseal` reconstructs the public obligations and NumiSeal policy from
-that metadata, checks those digests against the kind `4` envelope, and then
-dispatches through `NumiSealVerifier`.
+--require-numiseal` delegates artifact metadata validation, public-obligation
+reconstruction, NumiSeal policy construction, envelope digest checks, expected
+trust-pin checks, and final `NumiSealVerifier` dispatch to the shared
+`NumiSealArtifactVerifier` library boundary.
 
 The verifier reconstructs the workload shape and public input, regenerates the
 Ajtai verifier key from the seed, checks all three digests, and then verifies the
@@ -212,9 +216,11 @@ The `UsabilitySurfaceTests` cover the checked-in fold, terminal, and
 compressed-terminal vectors. The manifest validator reconstructs trusted context
 for every checked-in vector and verifies terminal and compressed-terminal
 vectors with `--require-terminal`. `superneo-numiseal-vectors` remains the
-deterministic NumiSeal generator/manifest validator, while `superneo inspect`
-and `superneo verify --require-numiseal` are the production-facing reader and
-verifier surfaces for checked NumiSeal terminal artifacts.
+deterministic NumiSeal generator/manifest validator, while the manifest strict
+commands now target `superneo verify --require-numiseal` with caller-owned trust
+pins. `superneo inspect` and `superneo verify --require-numiseal` are the
+production-facing reader and verifier surfaces for checked NumiSeal terminal
+artifacts.
 
 For external implementations, `TestVectors/manifest.json` records each vector's
 SHA-256 hash, byte count, workload, proof kind, trusted expected verifier

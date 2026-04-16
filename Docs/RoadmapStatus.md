@@ -372,16 +372,22 @@ Artifacts:
   `superneo-numiseal-vectors` generator/validator for checked NumiSeal vectors.
   It uses SPI-only deterministic CE randomness for reproducible artifacts,
   rejects duplicate and unknown JSON keys, checks manifest byte count and
-  SHA-256, regenerates exact envelope bytes, parses the kind `4` envelope, and
-  verifies through `NumiSealVerifier`.
+  SHA-256, regenerates exact envelope bytes, and uses the shared
+  `NumiSealArtifactVerifier` core for public reconstruction, envelope digest
+  checks, and `NumiSealVerifier` dispatch.
 - `SuperNeoCLI/main.swift` recognizes checked NumiSeal terminal vector artifacts
-  in `inspect` and in `verify --require-numiseal`, reconstructs public
-  obligations and aggregate policy, checks public-statement, aggregate,
-  component-root, and proof-transcript bindings, and rejects kind `4` artifacts
-  without the NumiSeal policy gate.
+  in `inspect` and in `verify --require-numiseal`; the same shared core
+  reconstructs public obligations and aggregate policy, checks public-statement,
+  obligation-root, lane-summary-root, aggregate, component-root, and
+  proof-transcript bindings, and rejects kind `4` artifacts without the
+  NumiSeal policy gate.
 - `Scripts/test-numiseal-vector-validation.py` mutation-tests fail-closed
   NumiSeal vector validation for each checked shape by corrupting manifest
   workload metadata and artifact proof-kind metadata.
+- `Scripts/test-numiseal-superneo-cli-validation.py` mutation-tests the
+  production `superneo verify --require-numiseal` path for missing policy,
+  legacy terminal policy, wrong key seed, wrong trust pins, wrong public input,
+  and proof-kind/header mismatch.
 - `TestVectors/numiseal-terminal-single-aggregate-v1.json`,
   `TestVectors/numiseal-terminal-two-aggregate-v1.json`,
   `TestVectors/numiseal-terminal-two-lane-v1.json`,

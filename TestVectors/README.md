@@ -221,12 +221,17 @@ and rejects unknown manifest fields before Swift's decoder can ignore them.
 NumiSeal vectors use `numiseal-artifact.schema.json` instead of the R1CS
 workload artifact schema. The NumiSeal manifest is the trusted expected context:
 it records the expected shape, statement, verifier-key, transcript-domain,
-public-statement, aggregate, component-root, and proof-transcript digests.
-Consumers should rebuild the deterministic fixture, compare all manifest
-digests, parse the proof envelope as kind `4`, and verify with
-`NumiSealVerifier`. `Scripts/test-numiseal-vector-validation.py` mutation-tests
-that every checked NumiSeal shape fails closed when its trusted manifest
-workload metadata or artifact proof-kind metadata is corrupted.
+public-statement, obligation-root, lane-summary-root, aggregate,
+component-root, and proof-transcript digests. Its strict commands target
+`superneo verify --require-numiseal` with those trust pins; the vector CLI
+remains the deterministic generator/regenerator authority. Both CLIs use the
+shared `NumiSealArtifactVerifier` core for public reconstruction, policy,
+envelope digest checks, and final verification. `Scripts/validate-numiseal-artifact-schema.py`
+keeps the JSON Schema aligned with the shared artifact core's public shape,
+`Scripts/test-numiseal-vector-validation.py` mutation-tests manifest trust pins
+and strict production commands, and
+`Scripts/test-numiseal-superneo-cli-validation.py` covers the production CLI
+negative matrix.
 
 For checked-in NumiSeal vectors, treat `numiseal-manifest.json` as the trusted
 expected context. The artifact still stores its own seed, public inputs, and

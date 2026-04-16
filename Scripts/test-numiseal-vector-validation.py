@@ -18,6 +18,7 @@ REQUIRED_VECTOR_FILES = {
     "numiseal-terminal-two-aggregate-v1.json",
     "numiseal-terminal-two-lane-v1.json",
 }
+ZERO_DIGEST = "0" * 64
 
 
 def fail(message: str) -> None:
@@ -104,6 +105,78 @@ def test_artifact_metadata_negative(cli: Path, vector: Dict[str, Any]) -> None:
         )
 
 
+def test_manifest_obligation_root_negative(cli: Path, vector: Dict[str, Any]) -> None:
+    file = vector["file"]
+    with tempfile.TemporaryDirectory(prefix="superneo-numiseal-obligation-root-") as tmp:
+        temp_root = Path(tmp)
+        temp_vectors = copy_numiseal_vectors(temp_root)
+        manifest = load_json(temp_vectors / MANIFEST_FILE)
+        for item in manifest_vectors(manifest):
+            if item["file"] == file:
+                original = item["expectedObligationRootHex"]
+                item["expectedObligationRootHex"] = ZERO_DIGEST
+                item["verifyCommand"] = item["verifyCommand"].replace(original, ZERO_DIGEST)
+                break
+        write_json(temp_vectors / MANIFEST_FILE, manifest)
+        run_expect_failure(
+            [str(cli), "validate", str(temp_root)],
+            f"{file} obligation root mismatch",
+        )
+
+
+def test_manifest_lane_summary_root_negative(cli: Path, vector: Dict[str, Any]) -> None:
+    file = vector["file"]
+    with tempfile.TemporaryDirectory(prefix="superneo-numiseal-lane-summary-root-") as tmp:
+        temp_root = Path(tmp)
+        temp_vectors = copy_numiseal_vectors(temp_root)
+        manifest = load_json(temp_vectors / MANIFEST_FILE)
+        for item in manifest_vectors(manifest):
+            if item["file"] == file:
+                original = item["expectedLaneSummaryRootHex"]
+                item["expectedLaneSummaryRootHex"] = ZERO_DIGEST
+                item["verifyCommand"] = item["verifyCommand"].replace(original, ZERO_DIGEST)
+                break
+        write_json(temp_vectors / MANIFEST_FILE, manifest)
+        run_expect_failure(
+            [str(cli), "validate", str(temp_root)],
+            f"{file} lane summary root mismatch",
+        )
+
+
+def test_manifest_legacy_verify_command_negative(cli: Path, vector: Dict[str, Any]) -> None:
+    file = vector["file"]
+    with tempfile.TemporaryDirectory(prefix="superneo-numiseal-legacy-command-") as tmp:
+        temp_root = Path(tmp)
+        temp_vectors = copy_numiseal_vectors(temp_root)
+        manifest = load_json(temp_vectors / MANIFEST_FILE)
+        for item in manifest_vectors(manifest):
+            if item["file"] == file:
+                item["verifyCommand"] = f"swift run superneo-numiseal-vectors validate TestVectors/{file}"
+                break
+        write_json(temp_vectors / MANIFEST_FILE, manifest)
+        run_expect_failure(
+            [str(cli), "validate", str(temp_root)],
+            f"{file} verify command mismatch",
+        )
+
+
+def test_manifest_verify_command_requires_numiseal_negative(cli: Path, vector: Dict[str, Any]) -> None:
+    file = vector["file"]
+    with tempfile.TemporaryDirectory(prefix="superneo-numiseal-command-guard-") as tmp:
+        temp_root = Path(tmp)
+        temp_vectors = copy_numiseal_vectors(temp_root)
+        manifest = load_json(temp_vectors / MANIFEST_FILE)
+        for item in manifest_vectors(manifest):
+            if item["file"] == file:
+                item["verifyCommand"] = item["verifyCommand"].replace(" --require-numiseal", "")
+                break
+        write_json(temp_vectors / MANIFEST_FILE, manifest)
+        run_expect_failure(
+            [str(cli), "validate", str(temp_root)],
+            f"{file} verify command mismatch",
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mutation-test NumiSeal vector validation fail-closed behavior.")
     parser.add_argument(
@@ -122,6 +195,10 @@ def main() -> None:
         if vector["file"] in REQUIRED_VECTOR_FILES:
             test_manifest_metadata_negative(cli, vector)
             test_artifact_metadata_negative(cli, vector)
+            test_manifest_obligation_root_negative(cli, vector)
+            test_manifest_lane_summary_root_negative(cli, vector)
+            test_manifest_legacy_verify_command_negative(cli, vector)
+            test_manifest_verify_command_requires_numiseal_negative(cli, vector)
 
     print("NumiSeal vector validation regression tests passed")
 
