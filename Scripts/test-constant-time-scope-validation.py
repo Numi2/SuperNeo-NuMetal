@@ -75,6 +75,12 @@ def main() -> None:
         write_json(path, missing_formal)
         run_fail(str(VALIDATE), str(path))
 
+        missing_lowering_manifest = copy.deepcopy(manifest)
+        del missing_lowering_manifest["loweringEvidenceManifest"]
+        path = tmp / "missing-lowering-manifest.json"
+        write_json(path, missing_lowering_manifest)
+        run_fail(str(VALIDATE), str(path))
+
         outsourced_review = copy.deepcopy(manifest)
         outsourced_review["openBoundaries"].append("External" + " audit required.")
         path = tmp / "outsourced-review.json"

@@ -1,0 +1,421 @@
+{
+  "claimStatus" : "local-non-certifying-observation-corpus",
+  "corpusID" : "superneo-gpu-metal-kernel-observation-corpus-v1",
+  "generatedAtUTC" : "2026-04-16T17:00:30Z",
+  "metalDevice" : "Apple M4",
+  "observationModel" : [
+    "Metal command-buffer encode\/commit\/wait wall-clock timing",
+    "Metal command-buffer gpuStartTime\/gpuEndTime when available",
+    "CPU reference equality for every observed GPU kernel"
+  ],
+  "policy" : "direct-metal-secret-bearing-kernel-observation",
+  "residualBoundaries" : [
+    "This corpus is local wall-clock and Metal command timing evidence, not a GPU microarchitectural proof.",
+    "Hardware counters, power\/contention measurements, and additional Apple GPU families remain production promotion inputs."
+  ],
+  "sampleClasses" : [
+    {
+      "classID" : "low-index-secret-mass",
+      "publicShape" : "8 ring elements, 54 coefficients each",
+      "publicStatement" : "same tensor length and public kernel launch shape",
+      "secretDescription" : "non-zero digit mass near the first ring\/coefficient"
+    },
+    {
+      "classID" : "high-index-secret-mass",
+      "publicShape" : "8 ring elements, 54 coefficients each",
+      "publicStatement" : "same tensor length and public kernel launch shape",
+      "secretDescription" : "non-zero digit mass near the last ring\/coefficient"
+    }
+  ],
+  "sampleModel" : "same public launch dimensions with different secret coefficient positions",
+  "samples" : [
+    {
+      "classID" : "low-index-secret-mass",
+      "iteration" : 0,
+      "operationTimings" : [
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 56083,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 431209,
+          "gpuTimeNanoseconds" : 13167,
+          "operation" : "numiseal_apply_mask_kernel",
+          "waitWallTimeNanoseconds" : 4017584
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 9958,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 27666,
+          "gpuTimeNanoseconds" : 9500,
+          "operation" : "numiseal_dense_fold_kernel",
+          "waitWallTimeNanoseconds" : 256167
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 14333,
+          "elementCount" : 64,
+          "encodeWallTimeNanoseconds" : 26000,
+          "gpuTimeNanoseconds" : 11625,
+          "operation" : "numiseal_eq_weight_kernel",
+          "waitWallTimeNanoseconds" : 426250
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 14291,
+          "elementCount" : 128,
+          "encodeWallTimeNanoseconds" : 24208,
+          "gpuTimeNanoseconds" : 12250,
+          "operation" : "numiseal_sumcheck_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 1622292
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 18292,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 461125,
+          "gpuTimeNanoseconds" : 20125,
+          "operation" : "numiseal_mask_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 1119208
+        }
+      ],
+      "policy" : "direct-metal-secret-bearing-kernel-observation",
+      "processWallTimeNanoseconds" : 10152000,
+      "resultDigestsHex" : {
+        "numiseal_apply_mask_kernel" : "dac2d08f98d9b195bc6f773da10bc848cd52504204445b49091c53e58e8f16a1",
+        "numiseal_dense_fold_kernel" : "f994db53b0fdda956bed04935e23b9563842f3c7039bcdc7d5ca105a06efd2ad",
+        "numiseal_eq_weight_kernel" : "1e6c4307e36179edf1d83a39cbea6c1e87a53f2059bea6f16d3e54bce7b28128",
+        "numiseal_mask_accumulate_kernel.accumulation" : "f2b0c58bfa0dba21e71d875b36b61909513bdea2922ec5a09e618d69038a972d",
+        "numiseal_mask_accumulate_kernel.maskedTensor" : "dac2d08f98d9b195bc6f773da10bc848cd52504204445b49091c53e58e8f16a1",
+        "numiseal_sumcheck_accumulate_kernel" : "1398fa6ad4114285adbb1daa560e770303602f1d7e6d2ee8fb31ce2f0c74d1a6"
+      }
+    },
+    {
+      "classID" : "high-index-secret-mass",
+      "iteration" : 0,
+      "operationTimings" : [
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 18791,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 40667,
+          "gpuTimeNanoseconds" : 7333,
+          "operation" : "numiseal_apply_mask_kernel",
+          "waitWallTimeNanoseconds" : 807584
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 7208,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 16625,
+          "gpuTimeNanoseconds" : 9917,
+          "operation" : "numiseal_dense_fold_kernel",
+          "waitWallTimeNanoseconds" : 385584
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 5500,
+          "elementCount" : 64,
+          "encodeWallTimeNanoseconds" : 10167,
+          "gpuTimeNanoseconds" : 12125,
+          "operation" : "numiseal_eq_weight_kernel",
+          "waitWallTimeNanoseconds" : 474458
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 11208,
+          "elementCount" : 128,
+          "encodeWallTimeNanoseconds" : 25708,
+          "gpuTimeNanoseconds" : 12500,
+          "operation" : "numiseal_sumcheck_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 428667
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 11750,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 21917,
+          "gpuTimeNanoseconds" : 15167,
+          "operation" : "numiseal_mask_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 403959
+        }
+      ],
+      "policy" : "direct-metal-secret-bearing-kernel-observation",
+      "processWallTimeNanoseconds" : 3510084,
+      "resultDigestsHex" : {
+        "numiseal_apply_mask_kernel" : "d39dfd491fdb93929dea2966bfc6c672349932c32d16c8b7322b31e5246bb9c9",
+        "numiseal_dense_fold_kernel" : "2cbc77fae9e0bdb941a5d08db57125a9db799c3cdd74801aaa1d20c34a536c3e",
+        "numiseal_eq_weight_kernel" : "1e6c4307e36179edf1d83a39cbea6c1e87a53f2059bea6f16d3e54bce7b28128",
+        "numiseal_mask_accumulate_kernel.accumulation" : "abd43aad0d314551187deb2a256881c4c96f41ddd00abe0aec954137b0bfcf36",
+        "numiseal_mask_accumulate_kernel.maskedTensor" : "d39dfd491fdb93929dea2966bfc6c672349932c32d16c8b7322b31e5246bb9c9",
+        "numiseal_sumcheck_accumulate_kernel" : "e9e55b2af7d17aa06c171ba435ced01a9aa167cc25691494d7f9e321791dd21b"
+      }
+    },
+    {
+      "classID" : "low-index-secret-mass",
+      "iteration" : 1,
+      "operationTimings" : [
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 4916,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 10833,
+          "gpuTimeNanoseconds" : 7958,
+          "operation" : "numiseal_apply_mask_kernel",
+          "waitWallTimeNanoseconds" : 348750
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 3583,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 6666,
+          "gpuTimeNanoseconds" : 9042,
+          "operation" : "numiseal_dense_fold_kernel",
+          "waitWallTimeNanoseconds" : 189000
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 2625,
+          "elementCount" : 64,
+          "encodeWallTimeNanoseconds" : 3959,
+          "gpuTimeNanoseconds" : 11750,
+          "operation" : "numiseal_eq_weight_kernel",
+          "waitWallTimeNanoseconds" : 208541
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 2292,
+          "elementCount" : 128,
+          "encodeWallTimeNanoseconds" : 3208,
+          "gpuTimeNanoseconds" : 11750,
+          "operation" : "numiseal_sumcheck_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 209208
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 5042,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 7750,
+          "gpuTimeNanoseconds" : 13583,
+          "operation" : "numiseal_mask_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 222375
+        }
+      ],
+      "policy" : "direct-metal-secret-bearing-kernel-observation",
+      "processWallTimeNanoseconds" : 1785750,
+      "resultDigestsHex" : {
+        "numiseal_apply_mask_kernel" : "a0974f9536c86913c59527301e8e7d74873fa674ebcafc45e366a4ecffdab55b",
+        "numiseal_dense_fold_kernel" : "c53a0e95234c71ad5ace94d1ec92998a602f681f4f2f415e12ffcf9cdcd4bbc9",
+        "numiseal_eq_weight_kernel" : "71817f3be1bd9288d58c548102dba90cc810d6bcfef9c45eff1ba500c9673b9c",
+        "numiseal_mask_accumulate_kernel.accumulation" : "5df22c93fc1e65afc190efe417a1d95f9d24cd1463fda5e605f4baf25028bbb0",
+        "numiseal_mask_accumulate_kernel.maskedTensor" : "a0974f9536c86913c59527301e8e7d74873fa674ebcafc45e366a4ecffdab55b",
+        "numiseal_sumcheck_accumulate_kernel" : "6934f47ddd8cf1347771a12cc03b14ce9286b138a42bbb1f35344793989f7a9a"
+      }
+    },
+    {
+      "classID" : "high-index-secret-mass",
+      "iteration" : 1,
+      "operationTimings" : [
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 13709,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 20541,
+          "gpuTimeNanoseconds" : 7167,
+          "operation" : "numiseal_apply_mask_kernel",
+          "waitWallTimeNanoseconds" : 224833
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 10125,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 16375,
+          "gpuTimeNanoseconds" : 160875,
+          "operation" : "numiseal_dense_fold_kernel",
+          "waitWallTimeNanoseconds" : 2472042
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 9083,
+          "elementCount" : 64,
+          "encodeWallTimeNanoseconds" : 19209,
+          "gpuTimeNanoseconds" : 12125,
+          "operation" : "numiseal_eq_weight_kernel",
+          "waitWallTimeNanoseconds" : 393583
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 3583,
+          "elementCount" : 128,
+          "encodeWallTimeNanoseconds" : 8208,
+          "gpuTimeNanoseconds" : 12458,
+          "operation" : "numiseal_sumcheck_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 360333
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 3000,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 6042,
+          "gpuTimeNanoseconds" : 14750,
+          "operation" : "numiseal_mask_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 365875
+        }
+      ],
+      "policy" : "direct-metal-secret-bearing-kernel-observation",
+      "processWallTimeNanoseconds" : 4477667,
+      "resultDigestsHex" : {
+        "numiseal_apply_mask_kernel" : "9c4d7a043bf8d77213f073aa63d7df5375841377264d1fad6524c3dddf07edfe",
+        "numiseal_dense_fold_kernel" : "da0359cedc3df427c3715bb5a5428bf08fc9a17d2ec55763bec04b3de657417e",
+        "numiseal_eq_weight_kernel" : "71817f3be1bd9288d58c548102dba90cc810d6bcfef9c45eff1ba500c9673b9c",
+        "numiseal_mask_accumulate_kernel.accumulation" : "a530395377a6663a508c9f920764c791841753ff4783bd0e1bb56160ee233e32",
+        "numiseal_mask_accumulate_kernel.maskedTensor" : "9c4d7a043bf8d77213f073aa63d7df5375841377264d1fad6524c3dddf07edfe",
+        "numiseal_sumcheck_accumulate_kernel" : "f878b7dfe3473ddd075cba27156ff72ebdba9723e95b5a7850caa48a900d4843"
+      }
+    },
+    {
+      "classID" : "low-index-secret-mass",
+      "iteration" : 2,
+      "operationTimings" : [
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 3375,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 6000,
+          "gpuTimeNanoseconds" : 8208,
+          "operation" : "numiseal_apply_mask_kernel",
+          "waitWallTimeNanoseconds" : 389250
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 12833,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 18375,
+          "gpuTimeNanoseconds" : 9125,
+          "operation" : "numiseal_dense_fold_kernel",
+          "waitWallTimeNanoseconds" : 235167
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 4708,
+          "elementCount" : 64,
+          "encodeWallTimeNanoseconds" : 8291,
+          "gpuTimeNanoseconds" : 11708,
+          "operation" : "numiseal_eq_weight_kernel",
+          "waitWallTimeNanoseconds" : 203209
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 2959,
+          "elementCount" : 128,
+          "encodeWallTimeNanoseconds" : 4459,
+          "gpuTimeNanoseconds" : 12000,
+          "operation" : "numiseal_sumcheck_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 228166
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 12500,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 21791,
+          "gpuTimeNanoseconds" : 14875,
+          "operation" : "numiseal_mask_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 258333
+        }
+      ],
+      "policy" : "direct-metal-secret-bearing-kernel-observation",
+      "processWallTimeNanoseconds" : 2136000,
+      "resultDigestsHex" : {
+        "numiseal_apply_mask_kernel" : "073d9105acd960a561211a1ef749e8a3527d13bf722c068f66f6def838fe1317",
+        "numiseal_dense_fold_kernel" : "552736f7c87405dd91ce276bc6fa63155ffa4254598c9bed6f93c5971d4d60ce",
+        "numiseal_eq_weight_kernel" : "5cce0b0ca82f329daac06880d9fbb0c24da417fde6b4882d26b3b58692da52d2",
+        "numiseal_mask_accumulate_kernel.accumulation" : "bde374e0b81e7c688024e7a9676737e22da3ab3e5da8b9400829a1a816f0d838",
+        "numiseal_mask_accumulate_kernel.maskedTensor" : "073d9105acd960a561211a1ef749e8a3527d13bf722c068f66f6def838fe1317",
+        "numiseal_sumcheck_accumulate_kernel" : "b683348f1c990aff7be8a15aef9e3e7610e4d7dfca9eea5f211678ceb8eadb2c"
+      }
+    },
+    {
+      "classID" : "high-index-secret-mass",
+      "iteration" : 2,
+      "operationTimings" : [
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 16875,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 38042,
+          "gpuTimeNanoseconds" : 7375,
+          "operation" : "numiseal_apply_mask_kernel",
+          "waitWallTimeNanoseconds" : 468125
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 10542,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 20291,
+          "gpuTimeNanoseconds" : 23250,
+          "operation" : "numiseal_dense_fold_kernel",
+          "waitWallTimeNanoseconds" : 586958
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 15291,
+          "elementCount" : 64,
+          "encodeWallTimeNanoseconds" : 26541,
+          "gpuTimeNanoseconds" : 11958,
+          "operation" : "numiseal_eq_weight_kernel",
+          "waitWallTimeNanoseconds" : 926542
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 12291,
+          "elementCount" : 128,
+          "encodeWallTimeNanoseconds" : 28625,
+          "gpuTimeNanoseconds" : 12042,
+          "operation" : "numiseal_sumcheck_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 270334
+        },
+        {
+          "commandCount" : 1,
+          "commitWallTimeNanoseconds" : 9542,
+          "elementCount" : 432,
+          "encodeWallTimeNanoseconds" : 18792,
+          "gpuTimeNanoseconds" : 13875,
+          "operation" : "numiseal_mask_accumulate_kernel",
+          "waitWallTimeNanoseconds" : 264792
+        }
+      ],
+      "policy" : "direct-metal-secret-bearing-kernel-observation",
+      "processWallTimeNanoseconds" : 3883209,
+      "resultDigestsHex" : {
+        "numiseal_apply_mask_kernel" : "2661889b2e2662dd88386d9a80318272e1a3cbab41988c8f9e5c0b182e2e4b0c",
+        "numiseal_dense_fold_kernel" : "c2443c916853e00b29a09eced3856b64dbb64b5d3ce9706ec773f629d23f760a",
+        "numiseal_eq_weight_kernel" : "5cce0b0ca82f329daac06880d9fbb0c24da417fde6b4882d26b3b58692da52d2",
+        "numiseal_mask_accumulate_kernel.accumulation" : "95f16fbee3de0943b0e20644433c196757957002f1378c0609ff70e8765d53ae",
+        "numiseal_mask_accumulate_kernel.maskedTensor" : "2661889b2e2662dd88386d9a80318272e1a3cbab41988c8f9e5c0b182e2e4b0c",
+        "numiseal_sumcheck_accumulate_kernel" : "243b67b7b396c4c4e61bbe91b68e5388dd783568365b5b411a90d80d8d5cdcaa"
+      }
+    }
+  ],
+  "schemaVersion" : 1,
+  "statisticalClaim" : "none; pinned local GPU kernel smoke corpus only",
+  "summary" : {
+    "classSummaries" : [
+      {
+        "classID" : "high-index-secret-mass",
+        "maxNanoseconds" : 4477667,
+        "meanNanoseconds" : 3956986,
+        "minNanoseconds" : 3510084,
+        "sampleCount" : 3
+      },
+      {
+        "classID" : "low-index-secret-mass",
+        "maxNanoseconds" : 10152000,
+        "meanNanoseconds" : 4691250,
+        "minNanoseconds" : 1785750,
+        "sampleCount" : 3
+      }
+    ],
+    "maxClassMeanRatio" : 1.1855614348900907,
+    "successfulSampleCount" : 6
+  }
+}

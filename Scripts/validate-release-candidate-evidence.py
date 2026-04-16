@@ -84,6 +84,30 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require_string(surfaces.get("constantTimeScopeDigestHex"), "constantTimeScopeDigestHex")
     require(
+        require_int(surfaces.get("constantTimeLoweringEvidenceVersion"), "constantTimeLoweringEvidenceVersion") == 1,
+        "constant-time lowering evidence version must be 1",
+    )
+    require_string(surfaces.get("constantTimeLoweringEvidenceDigestHex"), "constantTimeLoweringEvidenceDigestHex")
+    require(
+        require_string(
+            surfaces.get("constantTimeLoweringEvidenceClaimStatus"),
+            "constantTimeLoweringEvidenceClaimStatus",
+        ) == "conditional-lowering-and-tcb-proof-contract",
+        "constant-time lowering evidence claim status must stay precise",
+    )
+    require(
+        require_int(surfaces.get("constantTimeReleaseEvidenceVersion"), "constantTimeReleaseEvidenceVersion") == 1,
+        "constant-time release evidence version must be 1",
+    )
+    require_string(surfaces.get("constantTimeReleaseEvidenceDigestHex"), "constantTimeReleaseEvidenceDigestHex")
+    require(
+        require_string(
+            surfaces.get("constantTimeReleaseEvidenceClaimStatus"),
+            "constantTimeReleaseEvidenceClaimStatus",
+        ) == "local-release-evidence-pinned",
+        "constant-time release evidence claim status must stay precise",
+    )
+    require(
         require_int(surfaces.get("e2eProofMetricsVersion"), "e2eProofMetricsVersion") == 1,
         "E2E proof metrics version must be 1",
     )
@@ -113,6 +137,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "numiSealConformanceScope",
         "constantTimeEvidence",
         "constantTimeScope",
+        "constantTimeLoweringEvidence",
+        "constantTimeReleaseEvidence",
         "e2eProofMetrics",
         "e2eProofMetricsPolicy",
         "productOperationsReadiness",

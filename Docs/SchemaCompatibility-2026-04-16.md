@@ -17,6 +17,8 @@ manifests, and binary proof envelopes.
 | NumiSeal product JSON Schema | `numiseal-product-artifact-v2.schema.json` |
 | NumiSeal manifest | `manifestVersion = 1` |
 | Constant-time source/formal scope manifest | `schemaVersion = 1` |
+| Constant-time Swift/LLVM/Metal lowering evidence manifest | `schemaVersion = 1` |
+| Constant-time release evidence manifest | `schemaVersion = 1` |
 | E2E proof metrics manifest | `schemaVersion = 1` |
 | Proof envelope header | `ProofEnvelopeHeader.version = 4` |
 | NumiSeal proof envelope kind | `4` |
@@ -124,6 +126,19 @@ inside the current NumiSeal theorem and vector-promotion scope.
 source/formal scope manifest. It is not a proof artifact schema; it pins audited
 source markers, source-level forbidden branch patterns, formal trace-declaration
 names, and explicit compiler/runtime/hardware boundaries.
+
+`TestVectors/constant-time-lowering-evidence-v1.json` is the checked
+Swift/LLVM/Metal lowering evidence contract. It is not a proof artifact schema;
+it pins compiler lowering surfaces, required release artifacts,
+runtime/hardware TCB obligations, and the promotion rule for production
+constant-time language.
+
+`Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json` is the pinned local
+constant-time release evidence manifest. It is not a proof artifact schema and
+does not affect proof bytes. It pins the local Metal AIR object, linked
+metallib, Metal generation report, runtime allocation/COW static review, CPU
+observation corpus, and direct GPU kernel observation corpus used by the
+lowering evidence validator.
 
 `TestVectors/e2e-proof-metrics-v1.json` is the checked proof-size and product
 smoke budget manifest. It is not a proof artifact schema; it pins exact checked

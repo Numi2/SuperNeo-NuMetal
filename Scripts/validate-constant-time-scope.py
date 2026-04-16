@@ -146,6 +146,12 @@ def main() -> None:
     require(root_import in root_text, "Formal/SuperNeoFormal.lean must import the constant-time module")
     for declaration in require_string_list(formal_model.get("declarations"), "formalModel.declarations"):
         require(declaration in formal_text, f"formal declaration not found: {declaration}")
+    lowering_manifest = require_string(manifest.get("loweringEvidenceManifest"), "loweringEvidenceManifest")
+    require(
+        lowering_manifest == "TestVectors/constant-time-lowering-evidence-v1.json",
+        "loweringEvidenceManifest must point at the checked lowering evidence manifest",
+    )
+    require((ROOT / lowering_manifest).exists(), f"missing lowering evidence manifest: {lowering_manifest}")
 
     regions = manifest.get("regions")
     require(isinstance(regions, list), "regions must be a list")

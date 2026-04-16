@@ -11,7 +11,8 @@ let package = Package(
         .library(name: "SuperNeo_NuMetal", targets: ["SuperNeo_NuMetal"]),
         .executable(name: "superneo", targets: ["SuperNeoCLI"]),
         .executable(name: "superneo-formal-vectors", targets: ["SuperNeoFormalVectors"]),
-        .executable(name: "superneo-numiseal-vectors", targets: ["SuperNeoNumiSealVectors"])
+        .executable(name: "superneo-numiseal-vectors", targets: ["SuperNeoNumiSealVectors"]),
+        .executable(name: "superneo-ct-observe", targets: ["SuperNeoConstantTimeObservation"])
     ],
     dependencies: [],
     targets: [
@@ -52,6 +53,14 @@ let package = Package(
             name: "SuperNeoNumiSealVectors",
             dependencies: ["SuperNeo_NuMetal"],
             path: "Tools/NumiSealVectorCLI",
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
+        ),
+        .executableTarget(
+            name: "SuperNeoConstantTimeObservation",
+            dependencies: ["SuperNeo_NuMetal"],
+            path: "Tools/ConstantTimeObservationCLI",
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]

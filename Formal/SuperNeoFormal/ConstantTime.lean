@@ -139,6 +139,28 @@ structure ConstantTimeSourceEvidence where
   publicScheduleFixed : Prop
   loweringPreservesTrace : Prop
 
+structure CompilerLoweringEvidence where
+  swiftLLVMLoweringPreservesTrace : Prop
+  metalLoweringPreservesTrace : Prop
+  secretBranchesRejected : Prop
+  secretMemoryScheduleRejected : Prop
+
+structure RuntimeBoundaryEvidence where
+  noSecretDependentAllocation : Prop
+  noSecretDependentARCOrCopyOnWrite : Prop
+  publicLoopBoundsOnly : Prop
+
+structure HardwareObservationEvidence where
+  observationModelDeclared : Prop
+  cacheAndSchedulerBoundedByPublicSchedule : Prop
+  powerAndContentionOutsideClaim : Prop
+
+structure SwiftLLVMMetalStackEvidence where
+  source : ConstantTimeSourceEvidence
+  compiler : CompilerLoweringEvidence
+  runtime : RuntimeBoundaryEvidence
+  hardware : HardwareObservationEvidence
+
 def SourceRegionConstantTrace {α : Type}
     (evidence : ConstantTimeSourceEvidence)
     (schedule : ConstantTimeSchedule) : Prop :=
@@ -155,5 +177,91 @@ theorem sourceRegion_constantTrace_from_evidence {α : Type}
     (hLowering : evidence.loweringPreservesTrace) :
     SourceRegionConstantTrace (α := α) evidence schedule := by
   exact ⟨hSource, hSchedule, hLowering, fixedSchedule_traceIndependent schedule⟩
+
+def SwiftLLVMMetalConstantTrace {α : Type}
+    (evidence : SwiftLLVMMetalStackEvidence)
+    (schedule : ConstantTimeSchedule) : Prop :=
+  evidence.source.sourceBranchFree
+    ∧ evidence.source.publicScheduleFixed
+    ∧ evidence.source.loweringPreservesTrace
+    ∧ evidence.compiler.swiftLLVMLoweringPreservesTrace
+    ∧ evidence.compiler.metalLoweringPreservesTrace
+    ∧ evidence.compiler.secretBranchesRejected
+    ∧ evidence.compiler.secretMemoryScheduleRejected
+    ∧ evidence.runtime.noSecretDependentAllocation
+    ∧ evidence.runtime.noSecretDependentARCOrCopyOnWrite
+    ∧ evidence.runtime.publicLoopBoundsOnly
+    ∧ evidence.hardware.observationModelDeclared
+    ∧ evidence.hardware.cacheAndSchedulerBoundedByPublicSchedule
+    ∧ evidence.hardware.powerAndContentionOutsideClaim
+    ∧ TraceIndependent (fixedScheduleTrace (α := α) schedule)
+
+theorem wholeStack_constantTrace_from_evidence {α : Type}
+    (evidence : SwiftLLVMMetalStackEvidence)
+    (schedule : ConstantTimeSchedule)
+    (hSource : evidence.source.sourceBranchFree)
+    (hSchedule : evidence.source.publicScheduleFixed)
+    (hSourceLowering : evidence.source.loweringPreservesTrace)
+    (hSwiftLLVM : evidence.compiler.swiftLLVMLoweringPreservesTrace)
+    (hMetal : evidence.compiler.metalLoweringPreservesTrace)
+    (hBranches : evidence.compiler.secretBranchesRejected)
+    (hMemory : evidence.compiler.secretMemoryScheduleRejected)
+    (hAllocation : evidence.runtime.noSecretDependentAllocation)
+    (hARC : evidence.runtime.noSecretDependentARCOrCopyOnWrite)
+    (hLoopBounds : evidence.runtime.publicLoopBoundsOnly)
+    (hObservation : evidence.hardware.observationModelDeclared)
+    (hCacheScheduler : evidence.hardware.cacheAndSchedulerBoundedByPublicSchedule)
+    (hPowerContention : evidence.hardware.powerAndContentionOutsideClaim) :
+    SwiftLLVMMetalConstantTrace (α := α) evidence schedule := by
+  exact ⟨
+    hSource,
+    hSchedule,
+    hSourceLowering,
+    hSwiftLLVM,
+    hMetal,
+    hBranches,
+    hMemory,
+    hAllocation,
+    hARC,
+    hLoopBounds,
+    hObservation,
+    hCacheScheduler,
+    hPowerContention,
+    fixedSchedule_traceIndependent schedule
+  ⟩
+
+theorem swiftLLVMMetalWholeStack_constantTrace_from_evidence {α : Type}
+    (evidence : SwiftLLVMMetalStackEvidence)
+    (schedule : ConstantTimeSchedule)
+    (hSource : evidence.source.sourceBranchFree)
+    (hSchedule : evidence.source.publicScheduleFixed)
+    (hSourceLowering : evidence.source.loweringPreservesTrace)
+    (hSwiftLLVM : evidence.compiler.swiftLLVMLoweringPreservesTrace)
+    (hMetal : evidence.compiler.metalLoweringPreservesTrace)
+    (hBranches : evidence.compiler.secretBranchesRejected)
+    (hMemory : evidence.compiler.secretMemoryScheduleRejected)
+    (hAllocation : evidence.runtime.noSecretDependentAllocation)
+    (hARC : evidence.runtime.noSecretDependentARCOrCopyOnWrite)
+    (hLoopBounds : evidence.runtime.publicLoopBoundsOnly)
+    (hObservation : evidence.hardware.observationModelDeclared)
+    (hCacheScheduler : evidence.hardware.cacheAndSchedulerBoundedByPublicSchedule)
+    (hPowerContention : evidence.hardware.powerAndContentionOutsideClaim) :
+    SwiftLLVMMetalConstantTrace (α := α) evidence schedule :=
+  wholeStack_constantTrace_from_evidence
+    evidence
+    schedule
+    hSource
+    hSchedule
+    hSourceLowering
+    hSwiftLLVM
+    hMetal
+    hBranches
+    hMemory
+    hAllocation
+    hARC
+    hLoopBounds
+    hObservation
+    hCacheScheduler
+    hPowerContention
 
 end SuperNeoFormal

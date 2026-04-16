@@ -73,11 +73,16 @@ def validate_docs() -> None:
             "Docs/ProductOperationsReadiness-2026-04-16.md",
             "TestVectors/numiseal-conformance-scope-v1.json",
             "TestVectors/constant-time-scope-v1.json",
+            "TestVectors/constant-time-lowering-evidence-v1.json",
+            "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
             "TestVectors/e2e-proof-metrics-v1.json",
             "Scripts/validate-release-readiness-policy.py",
             "Scripts/validate-numiseal-conformance-scope.py",
             "Scripts/validate-constant-time-scope.py",
             "Scripts/test-constant-time-scope-validation.py",
+            "Scripts/validate-constant-time-lowering-evidence.py",
+            "Scripts/test-constant-time-lowering-evidence-validation.py",
+            "Scripts/generate-constant-time-release-evidence.py",
             "Scripts/validate-e2e-proof-metrics.py",
             "Scripts/test-e2e-proof-metrics-validation.py",
             "Scripts/validate-product-ops-surface.py",
@@ -100,11 +105,14 @@ def validate_docs() -> None:
             "branch protection requiring the full production gate",
             "Scripts/validate-numiseal-conformance-scope.py",
             "Scripts/validate-constant-time-scope.py",
+            "Scripts/validate-constant-time-lowering-evidence.py",
+            "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
             "Scripts/validate-e2e-proof-metrics.py",
             "Scripts/validate-product-ops-surface.py",
             "product operations readiness",
             "signed revocation feed",
             "E2E proof metrics digest",
+            "constant-time release evidence digest",
             "Scripts/generate-release-candidate-evidence.py",
         ],
     )
@@ -118,6 +126,8 @@ def validate_docs() -> None:
             "`test-vector-artifact-v1.json`",
             "TestVectors/numiseal-conformance-scope-v1.json",
             "TestVectors/constant-time-scope-v1.json",
+            "TestVectors/constant-time-lowering-evidence-v1.json",
+            "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
             "TestVectors/e2e-proof-metrics-v1.json",
             "Version Bump Checklist",
         ],
@@ -132,6 +142,8 @@ def validate_docs() -> None:
             "unsigned research artifacts",
             "NumiSeal product/carry/ZK conformance-scope version and digest",
             "constant-time source/formal scope version and digest",
+            "constant-time lowering evidence version and digest",
+            "constant-time release evidence version and digest",
             "E2E proof metrics version and digest",
             "product operations readiness status",
             "signed revocation feed",
@@ -146,6 +158,7 @@ def validate_docs() -> None:
             "Production Readiness",
             "Compatibility",
             "Remaining Production-Security Blockers",
+            "constant-time release evidence",
         ],
     )
 
@@ -185,6 +198,45 @@ def validate_schema_versions() -> None:
     require(
         constant_time_scope.get("claimStatus") == "conditional-source-and-formal-trace-model",
         "constant-time scope claimStatus must stay precise",
+    )
+    require(
+        constant_time_scope.get("loweringEvidenceManifest") == "TestVectors/constant-time-lowering-evidence-v1.json",
+        "constant-time scope must link the lowering evidence manifest",
+    )
+    lowering_evidence = read_json("TestVectors/constant-time-lowering-evidence-v1.json")
+    require(isinstance(lowering_evidence, dict), "constant-time lowering evidence root must be an object")
+    require(lowering_evidence.get("schemaVersion") == 1, "constant-time lowering evidence schemaVersion must be 1")
+    require(
+        lowering_evidence.get("claimStatus") == "conditional-lowering-and-tcb-proof-contract",
+        "constant-time lowering evidence claimStatus must stay precise",
+    )
+    require(
+        lowering_evidence.get("releaseEvidenceManifest") == "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
+        "constant-time lowering evidence must link the pinned release evidence manifest",
+    )
+    promotion_rule = lowering_evidence.get("promotionRule")
+    require(isinstance(promotion_rule, dict), "constant-time lowering evidence promotionRule must be an object")
+    require(
+        promotion_rule.get("productionConstantTimeClaimAllowed") is False,
+        "constant-time lowering evidence must not prematurely allow production CT claims",
+    )
+    release_evidence = read_json("Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json")
+    require(isinstance(release_evidence, dict), "constant-time release evidence root must be an object")
+    require(release_evidence.get("schemaVersion") == 1, "constant-time release evidence schemaVersion must be 1")
+    require(
+        release_evidence.get("claimStatus") == "local-release-evidence-pinned",
+        "constant-time release evidence claimStatus must stay precise",
+    )
+    release_promotion = release_evidence.get("promotionDecision")
+    require(isinstance(release_promotion, dict), "constant-time release evidence promotionDecision must be an object")
+    require(
+        release_promotion.get("productionConstantTimeClaimAllowed") is False,
+        "constant-time release evidence must not prematurely allow production CT claims",
+    )
+    artifact_entries = release_evidence.get("artifactEntries")
+    require(
+        isinstance(artifact_entries, list) and len(artifact_entries) == 6,
+        "constant-time release evidence must pin six artifacts",
     )
     e2e_metrics = read_json("TestVectors/e2e-proof-metrics-v1.json")
     require(isinstance(e2e_metrics, dict), "E2E proof metrics root must be an object")
@@ -228,6 +280,14 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/test-constant-time-scope-validation.py" in gate,
         "production gate must run constant-time validator regression tests",
+    )
+    require(
+        "run_step Scripts/validate-constant-time-lowering-evidence.py" in gate,
+        "production gate must run validate-constant-time-lowering-evidence.py",
+    )
+    require(
+        "run_step Scripts/test-constant-time-lowering-evidence-validation.py" in gate,
+        "production gate must run constant-time lowering evidence regression tests",
     )
     require(
         "run_step Scripts/validate-e2e-proof-metrics.py" in gate,

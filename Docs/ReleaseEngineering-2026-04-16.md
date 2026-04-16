@@ -21,6 +21,8 @@ true:
 - `Docs/ReleaseCandidateRunbook-2026-04-16.md` has been followed.
 - `Docs/E2EProofMetrics-2026-04-16.md` reflects current checked proof-size
   and product-smoke budgets.
+- `Docs/ConstantTimeEvidence-2026-04-16.md` reflects current source/formal
+  scope and Swift/LLVM/Metal lowering evidence semantics.
 - `Docs/ProductOperationsReadiness-2026-04-16.md` reflects current product
   operations readiness status semantics and signed revocation feed semantics.
 - Any changed public proof envelope, artifact, or manifest schema is documented
@@ -38,7 +40,10 @@ replaced by an explicit, narrower deployment threat model.
 At minimum, this requires:
 
 - self-owned cryptographic and implementation review,
-- side-channel review and evidence capture,
+- side-channel review and evidence capture for Swift, LLVM, Metal lowering,
+  runtime allocation, selected CPU/GPU observation lanes, and expansion beyond
+  the pinned local `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
+  smoke corpus,
 - product integration policy for trusted context, replay protection,
   provenance, and signed revocation feeds,
 - NumiSeal conformance-scope promotion or explicit narrowing,
@@ -61,6 +66,8 @@ Each release candidate should record:
 - known residual boundaries,
 - NumiSeal conformance-scope digest.
 - constant-time source/formal scope digest.
+- constant-time lowering evidence digest.
+- constant-time release evidence digest.
 - E2E proof metrics digest.
 - product operations readiness status version.
 - signed revocation feed policy.
@@ -73,6 +80,14 @@ checks the NumiSeal product/carry/ZK scope manifest that release evidence pins.
 `Scripts/validate-constant-time-scope.py` checks the constant-time
 source/formal scope manifest and the formal declarations recorded in
 `Docs/ConstantTimeEvidence-2026-04-16.md`.
+`Scripts/validate-constant-time-lowering-evidence.py` checks the
+Swift/LLVM/Metal lowering proof contract, runtime/hardware TCB obligations, and
+promotion rule recorded in `TestVectors/constant-time-lowering-evidence-v1.json`;
+it also verifies the pinned local Metal AIR/metallib artifacts, runtime
+allocation review, and CPU/GPU observation corpora under
+`Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. Regenerate those
+artifacts with `Scripts/generate-constant-time-release-evidence.py` before a
+release candidate when the scoped source or toolchain changes.
 `Scripts/validate-e2e-proof-metrics.py` checks deterministic checked-vector
 proof sizes and generated NumiSeal product smoke budgets recorded in
 `Docs/E2EProofMetrics-2026-04-16.md`.

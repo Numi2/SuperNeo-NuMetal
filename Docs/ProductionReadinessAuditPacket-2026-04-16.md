@@ -25,6 +25,8 @@ Coverage included:
 - R1CS artifact schema contract validation and schema mutation tests,
 - NumiSeal artifact schema contract validation and schema mutation tests,
 - constant-time source/formal scope validation,
+- constant-time Swift/LLVM/Metal lowering and pinned release evidence
+  validation,
 - E2E proof-size metrics and generated product smoke budget validation,
 - local product-ops readiness surface validation,
 - release policy, schema compatibility, and CI gate drift validation,
@@ -108,12 +110,17 @@ Release and validation gates:
 - `Docs/ReleaseCandidateRunbook-2026-04-16.md`
 - `TestVectors/numiseal-conformance-scope-v1.json`
 - `TestVectors/constant-time-scope-v1.json`
+- `TestVectors/constant-time-lowering-evidence-v1.json`
+- `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
 - `TestVectors/e2e-proof-metrics-v1.json`
 - `CHANGELOG.md`
 - `Scripts/validate-release-readiness-policy.py`
 - `Scripts/validate-numiseal-conformance-scope.py`
 - `Scripts/validate-constant-time-scope.py`
 - `Scripts/test-constant-time-scope-validation.py`
+- `Scripts/validate-constant-time-lowering-evidence.py`
+- `Scripts/test-constant-time-lowering-evidence-validation.py`
+- `Scripts/generate-constant-time-release-evidence.py`
 - `Scripts/validate-e2e-proof-metrics.py`
 - `Scripts/test-e2e-proof-metrics-validation.py`
 - `Scripts/validate-product-ops-surface.py`
@@ -178,6 +185,7 @@ The repository must not yet be presented as:
 - a hosted verifier service, wallet, replay-protection service, or policy
   engine,
 - a formally constant-time implementation,
+- a Swift/LLVM/Metal hardware constant-time certificate,
 - a general program-to-CCS compiler,
 - a general NumiSeal production proving product.
 - a self-owned production-hardening record for all NumiSeal product, carry,
@@ -188,8 +196,15 @@ The repository must not yet be presented as:
 These are the remaining blockers before using production-security language:
 
 1. Self-owned cryptographic and implementation review record.
-2. Side-channel review for Swift, LLVM, CPU microarchitecture, allocation, and
-   timing behavior.
+2. Side-channel review for Swift, LLVM, Metal AIR/object-code lowering, CPU/GPU
+   microarchitecture, allocation, power, contention, and timing behavior. The
+   repository now has a checked Swift/LLVM/Metal lowering proof contract in
+   `TestVectors/constant-time-lowering-evidence-v1.json` and pinned local
+   release evidence in `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
+   for Metal AIR/metallib generation, runtime allocation/COW static review, and
+   CPU/GPU smoke corpora. Swift optimized SIL/LLVM/assembly review, hardware
+   counters, power/contention, and broader device lanes still have to be
+   recorded before production constant-time language is allowed.
 3. Deployed product implementations for trusted key distribution,
    expected-context storage, artifact provenance, replay protection,
    persistence, access control, hosted logging, and hosted revocation

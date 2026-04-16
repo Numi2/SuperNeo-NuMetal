@@ -15,6 +15,7 @@ implementations of the integration protocols still required."
 
 ```sh
 Scripts/production-gate.sh
+Scripts/generate-constant-time-release-evidence.py --skip-build
 brew install --cask sage
 sage --version
 Scripts/reproduce-lattice-estimator.sh --full --pinned lattice-estimator-results/superneo-goldilocks-phi81.json
@@ -26,6 +27,10 @@ docker --version
 Results:
 
 - `Scripts/production-gate.sh` passed locally.
+- `Scripts/generate-constant-time-release-evidence.py --skip-build` generated
+  and pinned `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`, including
+  Metal AIR/metallib artifacts, a runtime allocation/COW static review, and
+  CPU/GPU local observation corpora.
 - The gate covered release build, debug XCTest, release XCTest, schemas,
   checked vectors, NumiSeal CLI adversarial validation, lattice-estimator
   dry-run validation, Lean build, Lean executable checks, formal manifest
@@ -86,23 +91,36 @@ Residual side-channel blockers:
   source/formal trace model for checked Swift Goldilocks common arithmetic,
   Metal Goldilocks common arithmetic, and the secret-bearing NumiSealZK Metal
   kernel slice.
+- `TestVectors/constant-time-lowering-evidence-v1.json` and
+  `Scripts/validate-constant-time-lowering-evidence.py` now provide the
+  Swift/LLVM/Metal lowering proof contract: every checked source region is tied
+  to required compiler, runtime, and hardware-observation evidence before
+  production constant-time language can be enabled.
+- `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json` now pins the local
+  release evidence for this contract: Metal AIR, linked metallib, a Metal
+  generation report, Swift runtime allocation/COW static review, NumiSealZK CPU
+  smoke timing, and direct Metal NumiSeal kernel observation with CPU reference
+  equality for every observed operation.
 - `GoldilocksField` now uses mask-based canonicalization for initialization,
   addition, subtraction, negation, multiplication reduction, and fixed-width
   exponentiation selection, removing the most common source-level arithmetic
   branches. Inversion still retains a zero check before the fixed exponent path,
-  and the Swift compiler/CPU lowering has not been audited as constant-time.
+  and the Swift optimized SIL/LLVM/assembly lowering evidence has not yet been
+  recorded as a release artifact.
 - Swift array allocation, copy-on-write behavior, ARC, and allocator/cache
-  behavior are not modeled or constrained. Even fixed loop schedules do not
-  prove stable memory-observation behavior.
+  behavior are modeled as explicit proof obligations in the lowering evidence
+  contract. The local scoped allocation/COW source review is pinned; runtime and
+  hardware counter evidence remains broader production-promotion work.
 - Optimized CPU paths intentionally use sparse skips and small-coefficient
   specialization. They are valid for benchmarks and public verification, not
   for co-resident side-channel adversaries observing secret witness work.
 - Metal remains a performance accelerator only. `.highAssurance` avoids
   secret-bearing GPU proving work, but GPU timing, cache, driver, and power
   side channels are not certified.
-- No dudect-style timing corpus, hardware counter study, or compiler-output
-  review is present. Adding those would narrow empirical leakage risk but would
-  still not prove constant-time behavior.
+- Local CPU/GPU observation corpora are now pinned, but no hardware counter
+  study, power/contention study, broader Apple GPU-family corpus, or Swift
+  emitted SIL/LLVM/assembly review artifact is present yet. The required
+  artifact classes are machine-checked by the lowering evidence manifest.
 
 Conclusion: the side-channel blocker is narrowed to a precise scope. The
 implemented mode removes the most visible witness-dependent zero-skip and GPU
@@ -230,7 +248,7 @@ artifact separately.
 | Blocker | Disposition |
 | --- | --- |
 | Cryptographic and implementation review record | Still open; owned in-repo as release evidence. |
-| Side-channel review | Narrowed; high-assurance mode is meaningful, constant-time certification remains open. |
+| Side-channel review | Narrowed; high-assurance mode is meaningful, source/formal plus Swift/LLVM/Metal lowering proof contracts exist, local Metal/runtime/CPU/GPU release evidence is pinned, and broader compiler/hardware evidence remains required before production CT language. |
 | Product integration layer | Executable NumiSeal integration contract added; deployed storage/provenance/replay/access/logging implementations remain open. |
 | Formal blocker completion | Closed for the completed formal protocol theorem label; production-security blockers remain separate. |
 | Full Sage estimator | Closed for the pinned local lane; SageMath 10.8 ran and the generated artifact validated. |

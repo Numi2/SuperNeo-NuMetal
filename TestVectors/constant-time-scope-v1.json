@@ -17,9 +17,17 @@
       "swiftGoldilocksPow64_traceIndependent",
       "metalGoldilocksCommonArithmetic_traceIndependent",
       "numiSealZKMaskKernelElement_traceIndependent",
-      "sourceRegion_constantTrace_from_evidence"
+      "sourceRegion_constantTrace_from_evidence",
+      "CompilerLoweringEvidence",
+      "RuntimeBoundaryEvidence",
+      "HardwareObservationEvidence",
+      "SwiftLLVMMetalStackEvidence",
+      "SwiftLLVMMetalConstantTrace",
+      "wholeStack_constantTrace_from_evidence",
+      "swiftLLVMMetalWholeStack_constantTrace_from_evidence"
     ]
   },
+  "loweringEvidenceManifest": "TestVectors/constant-time-lowering-evidence-v1.json",
   "regions": [
     {
       "id": "swift-goldilocks-common-arithmetic",

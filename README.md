@@ -18,14 +18,14 @@ cryptographic library.
 | Area | Current state |
 | --- | --- |
 | Profile | `Goldilocks/Phi81(d=54)`, `profileID = 1`. |
-| Package | macOS 14+ Swift package with library product `SuperNeo_NuMetal`, CLI executable `superneo`, and formal-vector helper `superneo-formal-vectors`. |
+| Package | macOS 14+ Swift package with library product `SuperNeo_NuMetal`, CLI executable `superneo`, formal-vector helper `superneo-formal-vectors`, and constant-time observation helper `superneo-ct-observe`. |
 | Proof modes | Fold reductions, terminal proofs with public CE opening material, and compressed public terminal envelopes. |
 | Workloads | Bundled one-hot vector and 8-bit binary-addition CCS workloads. |
 | Backends | CPU reference implementation plus selected Metal acceleration. Default routing avoids Metal on small shapes and keeps Metal as an acceleration path, not a trust oracle. |
 | Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
 | Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/` and summarized below. |
-| Formalization | Completed protocol theorem track plus a conditional constant-trace model in Lean 4, tracked by `Docs/FormalStatus.json` and `TestVectors/constant-time-scope-v1.json`. |
+| Formalization | Completed protocol theorem track plus conditional constant-trace and Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
 | Product ops | Local signed context/provenance/revocation feed, replay ledger, audit export, and machine-readable operations readiness status for private integration work. |
 
 ## Highlights
@@ -71,7 +71,10 @@ cryptographic library.
   Metal workspace invariants, checked allocation sizes, and high-assurance
   execution policies.
 - A checked constant-time source/formal scope for the first Swift Goldilocks and
-  NumiSealZK Metal slices, with explicit compiler/runtime/hardware boundaries.
+  NumiSealZK Metal slices, plus a checked Swift/LLVM/Metal lowering evidence
+  contract with explicit compiler/runtime/hardware boundaries and pinned local
+  Metal AIR/metallib, runtime allocation-review, and CPU/GPU observation
+  evidence.
 - A canonical local product operations readiness status exposed by
   `product-status --format json` and embedded in product audit exports.
 - A required signed revocation feed for local product controls, with effective
@@ -116,7 +119,8 @@ Current boundaries:
 - no deployed persistence layer, durable replay-protection system, or
   user-facing verification product,
 - no production zero-knowledge claim for arbitrary application statements,
-- no completed formal constant-time or side-channel proof, and
+- no production hardware constant-time certificate for Swift/LLVM/Metal
+  lowering and selected CPU/GPU lanes, and
 - no completed full formal protocol theorem.
 
 The concise proof semantics are documented in

@@ -19,6 +19,11 @@ Machine-readable files:
   positive/negative conformance descriptor.
 - `constant-time-scope-v1.json`: checked constant-time source/formal scope for
   the first Swift Goldilocks and NumiSealZK Metal regions.
+- `constant-time-lowering-evidence-v1.json`: checked Swift/LLVM/Metal
+  lowering evidence contract for the constant-time source/formal scope. It
+  links to `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`, which
+  pins the local Metal AIR/metallib, runtime allocation-review, and CPU/GPU
+  observation evidence outside the test-vector directory.
 - `e2e-proof-metrics-v1.json`: checked proof-envelope byte counts, artifact
   byte counts, generated product-smoke budgets, and benchmark-evidence policy.
 
@@ -29,6 +34,8 @@ swift Scripts/validate-test-vectors.swift
 swift run superneo-numiseal-vectors validate
 Scripts/validate-numiseal-conformance-scope.py
 Scripts/validate-constant-time-scope.py
+Scripts/validate-constant-time-lowering-evidence.py
+Scripts/generate-constant-time-release-evidence.py --skip-build
 Scripts/validate-e2e-proof-metrics.py
 ```
 

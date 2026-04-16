@@ -78,6 +78,30 @@ def main() -> None:
         write_json(path, wrong_constant_time_scope)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_constant_time_lowering = copy.deepcopy(evidence)
+        wrong_constant_time_lowering["publicSurfaces"]["constantTimeLoweringEvidenceVersion"] = 2
+        path = tmp / "wrong-constant-time-lowering.json"
+        write_json(path, wrong_constant_time_lowering)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_constant_time_lowering = copy.deepcopy(evidence)
+        vague_constant_time_lowering["publicSurfaces"]["constantTimeLoweringEvidenceClaimStatus"] = "full-proof"
+        path = tmp / "vague-constant-time-lowering.json"
+        write_json(path, vague_constant_time_lowering)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        wrong_constant_time_release_evidence = copy.deepcopy(evidence)
+        wrong_constant_time_release_evidence["publicSurfaces"]["constantTimeReleaseEvidenceVersion"] = 2
+        path = tmp / "wrong-constant-time-release-evidence.json"
+        write_json(path, wrong_constant_time_release_evidence)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_constant_time_release_evidence = copy.deepcopy(evidence)
+        vague_constant_time_release_evidence["publicSurfaces"]["constantTimeReleaseEvidenceClaimStatus"] = "certified"
+        path = tmp / "vague-constant-time-release-evidence.json"
+        write_json(path, vague_constant_time_release_evidence)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_e2e_metrics = copy.deepcopy(evidence)
         wrong_e2e_metrics["publicSurfaces"]["e2eProofMetricsVersion"] = 2
         path = tmp / "wrong-e2e-metrics.json"

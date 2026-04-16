@@ -14,6 +14,12 @@ candidate. It does not authorize production-security release claims.
   manifest, or proof-envelope changes.
 - `Docs/E2EProofMetrics-2026-04-16.md` reflects any proof-size or product
   smoke budget changes.
+- `Docs/ConstantTimeEvidence-2026-04-16.md` reflects any constant-time
+  source/formal or Swift/LLVM/Metal lowering evidence changes.
+- `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json` has been
+  regenerated with `Scripts/generate-constant-time-release-evidence.py` when
+  scoped source, Metal kernels, the release toolchain, or observation tooling
+  changed.
 - `Docs/ProductOperationsReadiness-2026-04-16.md` reflects any product
   operations readiness status or signed revocation feed changes.
 - `elan`, Swift, and the pinned Lean toolchain are available.
@@ -62,6 +68,8 @@ The generated evidence records:
 - public artifact, manifest, schema, and proof-envelope versions,
 - NumiSeal product/carry/ZK conformance-scope version and digest,
 - constant-time source/formal scope version and digest,
+- constant-time lowering evidence version and digest,
+- constant-time release evidence version and digest,
 - E2E proof metrics version and digest,
 - product operations readiness status version,
 - signed revocation feed policy,

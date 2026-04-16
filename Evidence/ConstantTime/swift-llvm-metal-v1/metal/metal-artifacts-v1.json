@@ -1,0 +1,62 @@
+{
+  "artifactID": "superneo-metal-air-object-evidence-v1",
+  "claimStatus": "local-metal-air-and-metallib-artifacts-pinned",
+  "commands": [
+    {
+      "argv": [
+        "xcrun",
+        "-sdk",
+        "macosx",
+        "metal",
+        "-c",
+        "SuperNeo-NuMetal/MetalBackend/SuperNeoKernels.metal",
+        "-o",
+        "Evidence/ConstantTime/swift-llvm-metal-v1/metal/SuperNeoKernels.air"
+      ],
+      "id": "compile-metal-air",
+      "outputPath": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/SuperNeoKernels.air",
+      "outputSHA256Hex": "4d3eb8cc44b79e9a3c6fbdd2826f8545fb278c4a98eddb4bdf39f430790a857e"
+    },
+    {
+      "argv": [
+        "xcrun",
+        "-sdk",
+        "macosx",
+        "metallib",
+        "Evidence/ConstantTime/swift-llvm-metal-v1/metal/SuperNeoKernels.air",
+        "-o",
+        "Evidence/ConstantTime/swift-llvm-metal-v1/metal/SuperNeoKernels.metallib"
+      ],
+      "id": "link-metal-library",
+      "outputPath": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/SuperNeoKernels.metallib",
+      "outputSHA256Hex": "e5003d2c24a826cdb4b1ca9ef650df1b6afb01f88ef3e554d0924a09adc56a7a"
+    }
+  ],
+  "coveredRegions": [
+    "metal-goldilocks-common-arithmetic",
+    "metal-numiseal-zk-secret-bearing-kernels"
+  ],
+  "generatedAtUTC": "2026-04-16T17:00:28Z",
+  "positiveFindings": [
+    "Metal source scope compiles to pinned AIR with the release Metal frontend.",
+    "AIR links to a pinned metallib object for the release toolchain.",
+    "Secret-bearing scoped kernels keep only public id/count guards in source scope."
+  ],
+  "residualBoundaries": [
+    "The pinned AIR/metallib files are compiler artifacts, not a GPU microarchitectural proof.",
+    "Per-GPU-family disassembly/counter signoff remains a production promotion input."
+  ],
+  "schemaVersion": 1,
+  "source": {
+    "path": "SuperNeo-NuMetal/MetalBackend/SuperNeoKernels.metal",
+    "sha256Hex": "8e79c7501e7138f299dc0e585aaceb6961f5b18447b7639caf9cb5c9ebf5d607"
+  },
+  "toolchain": {
+    "metalPath": "/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.5.188.0.3ShpVW/Metal.xctoolchain/usr/bin/metal",
+    "metalVersion": "Apple metal version 32023.883 (metalfe-32023.883)\nTarget: air64-apple-darwin25.5.0\nThread model: posix\nInstalledDir: /private/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.5.188.0.3ShpVW/Metal.xctoolchain/usr/metal/current/bin",
+    "metallibPath": "/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.5.188.0.3ShpVW/Metal.xctoolchain/usr/bin/metallib",
+    "metallibVersion": "AIR-LLD 32023.883 (metalfe-32023.883) (compatible with legacy metallib linker)",
+    "swiftVersion": "Apple Swift version 6.3 (swiftlang-6.3.0.123.5 clang-2100.0.123.102)",
+    "xcodeVersion": "Xcode 26.4\nBuild version 17E192"
+  }
+}

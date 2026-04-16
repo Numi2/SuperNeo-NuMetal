@@ -15,6 +15,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - Lean formal build, executable gates, and formal-status validation
   - Lean/Swift profile-constant conformance validation
   - constant-time source/formal scope validation
+  - constant-time Swift/LLVM/Metal lowering and pinned release evidence validation
   - E2E proof-size metrics and generated product smoke budget validation
   - product operations readiness surface validation
   - checked-in test vector validation
@@ -142,6 +143,8 @@ run_step Scripts/test-numiseal-artifact-schema-validation.py
 run_step Scripts/validate-numiseal-conformance-scope.py
 run_step Scripts/validate-constant-time-scope.py
 run_step Scripts/test-constant-time-scope-validation.py
+run_step Scripts/validate-constant-time-lowering-evidence.py
+run_step Scripts/test-constant-time-lowering-evidence-validation.py
 run_step Scripts/validate-e2e-proof-metrics.py
 run_step Scripts/test-e2e-proof-metrics-validation.py
 run_step Scripts/validate-product-ops-surface.py

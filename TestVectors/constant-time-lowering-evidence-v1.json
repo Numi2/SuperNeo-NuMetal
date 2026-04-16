@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "evidenceID": "superneo-swift-llvm-metal-lowering-evidence-v1",
+  "claimStatus": "conditional-lowering-and-tcb-proof-contract",
+  "scopeManifest": "TestVectors/constant-time-scope-v1.json",
+  "proofConclusion": "complete-under-stated-proof-obligations-not-a-hardware-certificate",
+  "releaseEvidenceManifest": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
+  "formalModel": {
+    "module": "Formal/SuperNeoFormal/ConstantTime.lean",
+    "declarations": [
+      "CompilerLoweringEvidence",
+      "RuntimeBoundaryEvidence",
+      "HardwareObservationEvidence",
+      "SwiftLLVMMetalStackEvidence",
+      "SwiftLLVMMetalConstantTrace",
+      "wholeStack_constantTrace_from_evidence",
+      "swiftLLVMMetalWholeStack_constantTrace_from_evidence"
+    ]
+  },
+  "toolchainBoundaries": [
+    {
+      "id": "swift-llvm-goldilocks-arithmetic",
+      "compilerSurface": "Swift frontend through optimized LLVM IR for GoldilocksField arithmetic",
+      "regions": [
+        "swift-goldilocks-common-arithmetic",
+        "swift-goldilocks-fixed-exponentiation"
+      ],
+      "requiredArtifacts": [
+        "optimized SIL or equivalent Swift frontend lowering for marked regions",
+        "optimized LLVM IR for marked regions",
+        "target assembly or object-code branch audit for marked regions"
+      ],
+      "forbiddenLoweringPatterns": [
+        "secret-dependent conditional branch",
+        "secret-dependent switch",
+        "secret-indexed memory address",
+        "secret-dependent call dispatch",
+        "secret-dependent allocation or copy-on-write path"
+      ],
+      "requiredPositiveFindings": [
+        "Bool-to-mask lowering preserves fixed trace",
+        "select helpers lower without secret-dependent branches",
+        "fixed 64-round exponentiation loop count is public and invariant"
+      ],
+      "status": "local-release-artifacts-pinned"
+    },
+    {
+      "id": "metal-air-goldilocks-arithmetic",
+      "compilerSurface": "Apple Metal frontend through AIR/object code for Goldilocks helper arithmetic",
+      "regions": [
+        "metal-goldilocks-common-arithmetic"
+      ],
+      "requiredArtifacts": [
+        "Metal AIR or equivalent compiler artifact for Goldilocks helper functions",
+        "target GPU family disassembly or compiler report for integer select and compare lowering",
+        "kernel launch shape showing public thread bounds"
+      ],
+      "forbiddenLoweringPatterns": [
+        "secret-dependent threadgroup divergence",
+        "secret-dependent memory address",
+        "secret-dependent early return",
+        "secret-dependent function selection"
+      ],
+      "requiredPositiveFindings": [
+        "ct_select_ulong lowers to predicated select or equivalent fixed-lane code",
+        "Goldilocks reduction has no secret-dependent branch in emitted code",
+        "only public thread-bound guards remain"
+      ],
+      "status": "local-release-artifacts-pinned"
+    },
+    {
+      "id": "metal-air-numiseal-zk-kernels",
+      "compilerSurface": "Apple Metal frontend through AIR/object code for NumiSealZK secret-bearing kernels",
+      "regions": [
+        "metal-numiseal-zk-secret-bearing-kernels"
+      ],
+      "requiredArtifacts": [
+        "Metal AIR or equivalent compiler artifact for NumiSealZK secret-bearing kernels",
+        "target GPU family disassembly or compiler report for public-bound loop and select lowering",
+        "buffer-layout audit showing secret coefficients do not choose addresses"
+      ],
+      "forbiddenLoweringPatterns": [
+        "secret-dependent threadgroup divergence",
+        "secret-dependent buffer index",
+        "secret-dependent early return",
+        "secret-dependent loop bound"
+      ],
+      "requiredPositiveFindings": [
+        "mask application is elementwise with public id",
+        "dense fold and accumulation loop bounds are public",
+        "equality-weight bit selection uses ct_select_ulong"
+      ],
+      "status": "required-before-production-ct-claim"
+    },
+    {
+      "id": "runtime-and-hardware-tcb",
+      "compilerSurface": "Swift runtime, ARC, allocator, CPU cache/scheduler, GPU scheduler, and power-observation boundary",
+      "regions": [
+        "swift-goldilocks-common-arithmetic",
+        "swift-goldilocks-fixed-exponentiation",
+        "metal-goldilocks-common-arithmetic",
+        "metal-numiseal-zk-secret-bearing-kernels"
+      ],
+      "requiredArtifacts": [
+        "runtime allocation and copy-on-write review for marked Swift regions",
+        "hardware-counter or dudect-style corpus for CPU marked regions",
+        "GPU timing/counter corpus for selected Apple GPU families",
+        "power/contention exclusion statement for the accepted observation model"
+      ],
+      "forbiddenLoweringPatterns": [
+        "secret-dependent allocation",
+        "secret-dependent ARC retain/release path",
+        "secret-dependent cache-line address",
+        "secret-dependent GPU occupancy or threadgroup count"
+      ],
+      "requiredPositiveFindings": [
+        "marked Swift arithmetic does not allocate in the secret-bearing path",
+        "all loop bounds in marked regions are public or fixed",
+        "accepted observation model is explicit and reproducible"
+      ],
+      "status": "local-observation-corpus-pinned"
+    }
+  ],
+  "promotionRule": {
+    "productionConstantTimeClaimAllowed": false,
+    "releaseEvidenceOnly": true,
+    "unblockRequires": [
+      "Swift optimized SIL, LLVM IR, and target assembly lowering artifacts are recorded for the release toolchain",
+      "runtime allocation and copy-on-write review remains recorded for marked Swift regions",
+      "CPU and GPU observation corpora are expanded beyond local smoke coverage for the accepted hardware lanes",
+      "the promotion manifest changes productionConstantTimeClaimAllowed only with updated validation"
+    ]
+  }
+}
