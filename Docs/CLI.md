@@ -174,7 +174,9 @@ obligation checks; the outer ZK body binds mask statements and masked residual
 statements into the component root and proof transcript.
 
 For product-controlled NumiSealZK acceptance, use signed context/provenance
-material and a side-channel certificate pinned by the trusted context:
+material. A side-channel certificate may be supplied as optional release
+metadata, but it is not part of the proof and is not required for private
+development:
 
 ```sh
 swift run superneo verify \
@@ -182,15 +184,14 @@ swift run superneo verify \
   --operator-profile profile.json \
   --context-pack context.json \
   --artifact-provenance provenance.json \
-  --side-channel-certificate numiseal-zk-side-channel.json \
   /tmp/one-hot-numiseal-zk.json
 ```
 
-The side-channel certificate binds the release build, context ID, ZK mode,
+When supplied, a side-channel certificate binds the release build, context ID, ZK mode,
 Metal mode, execution policy, leakage digest, proof body versions, reviewed
-kernels/stages, and evidence digests. Product verification rejects `numiseal-zk`
-trusted contexts that omit ZK policy, require a certificate that is missing, or
-present a certificate whose digest or bindings differ from the artifact.
+kernels/stages, and evidence digests. Product verification rejects
+`numiseal-zk` trusted contexts that omit ZK policy, and rejects supplied
+certificates whose digest or bindings differ from the artifact.
 
 Available NumiSeal execution policies are:
 
@@ -267,8 +268,8 @@ and `zkMode = "masked-digit-tensor-v1"`. It is available through the library
 surface (`NumiSealZKProver`, `NumiSealZKProofEnvelope`, and
 `NumiSealZKVerifier`) and through explicit CLI product proving via
 `--numiseal-zk-mode masked-digit-tensor-v1`. The CLI default remains
-`zkMode = "none"` until product contexts pin a leakage digest and, for
-secret-bearing Metal modes, a signed side-channel certificate.
+`zkMode = "none"` while accelerated side-channel evidence remains out-of-band
+release metadata rather than proof bytes.
 
 NumiSeal vector artifacts additionally store residual mode, lane IDs,
 fold/source/CE deterministic vector seeds, aggregate limits, transcript-domain

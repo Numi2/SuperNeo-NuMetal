@@ -32,17 +32,14 @@ public struct SuperNeoTrustedNumiSealZKContext: Codable, Equatable, Sendable {
     public let allowedLeakageDigestsHex: [String]
     public let allowedProofBodyVersions: [UInt16]
     public let allowedMaskedResidualStatementVersions: [UInt16]
-    public let requiredSideChannelLevel: NumiSealZKSideChannelCertificationLevel
-    public let requiredSideChannelCertificateDigestHex: String?
-    public let requiresRedundantMetalOracle: Bool
-    public let allowAcceleratedMetalWithoutCPUOracle: Bool
 
     public init(
         acceptedZKModes: [String] = [NumiSealZK.maskedDigitTensorMode],
         acceptedSealModes: [String] = [NumiSealZK.sealMode],
         acceptedMetalModes: [String] = [
             "cpu-reference",
-            "secret-bearing-metal-cpu-redundant"
+            "secret-bearing-metal-cpu-redundant",
+            "secret-bearing-metal-accelerated"
         ],
         acceptedExecutionPolicies: [String] = [
             NumiSealProvingExecutionPolicy.zkHighAssuranceCPU.rawValue,
@@ -51,11 +48,7 @@ public struct SuperNeoTrustedNumiSealZKContext: Codable, Equatable, Sendable {
         ],
         allowedLeakageDigestsHex: [String],
         allowedProofBodyVersions: [UInt16] = [NumiSealZKProof.bodyVersion],
-        allowedMaskedResidualStatementVersions: [UInt16] = [NumiSealZKMaskedResidualStatement.version],
-        requiredSideChannelLevel: NumiSealZKSideChannelCertificationLevel = .correctnessOnly,
-        requiredSideChannelCertificateDigestHex: String? = nil,
-        requiresRedundantMetalOracle: Bool = true,
-        allowAcceleratedMetalWithoutCPUOracle: Bool = false
+        allowedMaskedResidualStatementVersions: [UInt16] = [NumiSealZKMaskedResidualStatement.version]
     ) {
         self.acceptedZKModes = acceptedZKModes
         self.acceptedSealModes = acceptedSealModes
@@ -64,10 +57,6 @@ public struct SuperNeoTrustedNumiSealZKContext: Codable, Equatable, Sendable {
         self.allowedLeakageDigestsHex = allowedLeakageDigestsHex
         self.allowedProofBodyVersions = allowedProofBodyVersions
         self.allowedMaskedResidualStatementVersions = allowedMaskedResidualStatementVersions
-        self.requiredSideChannelLevel = requiredSideChannelLevel
-        self.requiredSideChannelCertificateDigestHex = requiredSideChannelCertificateDigestHex
-        self.requiresRedundantMetalOracle = requiresRedundantMetalOracle
-        self.allowAcceleratedMetalWithoutCPUOracle = allowAcceleratedMetalWithoutCPUOracle
     }
 }
 
@@ -337,12 +326,6 @@ public extension SuperNeoTrustedNumiSealZKContext {
         for digest in allowedLeakageDigestsHex {
             _ = try Digest256(hexDigest: digest, name: "trusted NumiSealZK leakage digest")
         }
-        if let requiredSideChannelCertificateDigestHex {
-            _ = try Digest256(
-                hexDigest: requiredSideChannelCertificateDigestHex,
-                name: "required NumiSealZK side-channel certificate digest"
-            )
-        }
     }
 
     func validate(
@@ -397,26 +380,7 @@ public extension SuperNeoTrustedNumiSealZKContext {
                 "NumiSealZK masked residual statement version is not accepted by trusted context"
             )
         }
-        if requiresRedundantMetalOracle,
-           artifact.metalMode.hasPrefix("secret-bearing-metal"),
-           artifact.metalMode != "secret-bearing-metal-cpu-redundant",
-           !allowAcceleratedMetalWithoutCPUOracle {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "NumiSealZK trusted context requires CPU-redundant Metal oracle coverage"
-            )
-        }
-
-        let certificateRequired = requiredSideChannelLevel > .correctnessOnly
-            || requiredSideChannelCertificateDigestHex != nil
-            || artifact.metalMode.hasPrefix("secret-bearing-metal")
-        guard certificateRequired else {
-            return
-        }
-        guard let certificate else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "NumiSealZK side-channel certificate is required by trusted context"
-            )
-        }
+        guard let certificate else { return }
         try validateCertificate(
             certificate,
             artifact: artifact,
@@ -431,18 +395,6 @@ public extension SuperNeoTrustedNumiSealZKContext {
         contextID: String,
         releaseBuildDigest: Digest256
     ) throws {
-        if let requiredSideChannelCertificateDigestHex {
-            guard certificate.certificateDigest.hexString == requiredSideChannelCertificateDigestHex else {
-                throw SuperNeoProductIntegrationError.missingExpectedContext(
-                    "NumiSealZK side-channel certificate digest does not match trusted context"
-                )
-            }
-        }
-        guard certificate.payload.certifiedLevel >= requiredSideChannelLevel else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "NumiSealZK side-channel certificate level is below trusted context requirement"
-            )
-        }
         guard certificate.payload.contextID == contextID else {
             throw SuperNeoProductIntegrationError.missingExpectedContext(
                 "NumiSealZK side-channel certificate context does not match trusted context"

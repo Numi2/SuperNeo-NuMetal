@@ -6090,7 +6090,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertEqual(auditStatus.lastSequence, 1)
     }
 
-    func testNumiSealZKSideChannelCertificateGatesTrustedContext() throws {
+    func testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked() throws {
         let signingKey = Curve25519.Signing.PrivateKey()
         let publicKeyDigest = Digest256.hash([UInt8](signingKey.publicKey.rawRepresentation)).hexString
         let releaseBuildDigest = Digest256.hash("numiseal-zk-release-build").hexString
@@ -6189,9 +6189,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         let zkPolicy = SuperNeoTrustedNumiSealZKContext(
             acceptedMetalModes: [artifact.metalMode],
             acceptedExecutionPolicies: [artifact.executionPolicy],
-            allowedLeakageDigestsHex: [try artifact.requiredExecutionMetadata("zkLeakageDigest")],
-            requiredSideChannelLevel: .productionSideChannelCleared,
-            requiredSideChannelCertificateDigestHex: verifiedCertificate.certificateDigest.hexString
+            allowedLeakageDigestsHex: [try artifact.requiredExecutionMetadata("zkLeakageDigest")]
         )
         let context = SuperNeoTrustedContextPayload(
             contextID: "ctx-numiseal-zk",
@@ -6222,14 +6220,11 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
         try context.validate(now: now, issuerKeyDigestHex: publicKeyDigest)
 
-        XCTAssertThrowsProductIntegrationError(
-            try zkPolicy.validate(
-                artifact: artifact,
-                contextID: context.contextID,
-                releaseBuildDigest: try context.releaseBuildDigest,
-                certificate: nil
-            ),
-            containing: "side-channel certificate is required"
+        try zkPolicy.validate(
+            artifact: artifact,
+            contextID: context.contextID,
+            releaseBuildDigest: try context.releaseBuildDigest,
+            certificate: nil
         )
         try zkPolicy.validate(
             artifact: artifact,
@@ -6266,7 +6261,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 releaseBuildDigest: try context.releaseBuildDigest,
                 certificate: wrongCertificate
             ),
-            containing: "certificate digest does not match"
+            containing: "certificate leakage digest mismatch"
         )
     }
 

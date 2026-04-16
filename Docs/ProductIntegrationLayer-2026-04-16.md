@@ -73,9 +73,9 @@ signed provenance before algebraic acceptance, rejects replay through a durable
 SQLite ledger, and appends accepted/rejected decisions to a hash-chained JSONL
 audit log. It covers terminal, compressed-terminal, NumiSeal terminal, and
 NumiSealZK product surfaces. For `numiseal-zk`, the trusted context must include
-NumiSealZK policy and can require a signed side-channel certificate that binds
-release, context, leakage, proof policy, Metal workspace, reviewed kernels, and
-evidence digests.
+NumiSealZK policy. Optional signed side-channel certificates can be supplied as
+release metadata and are checked for release, context, leakage, proof policy,
+Metal workspace, reviewed kernel, and evidence-digest bindings when present.
 
 ## Remaining Product Responsibilities
 
@@ -89,8 +89,8 @@ controls, but production deployment still requires product-owned completion for:
   model,
 - audit-log retention and export,
 - user-facing error and retry policy, and
-- side-channel certificate evidence generation for each production
-  hardware/profile lane, and
+- side-channel evidence collection for each production hardware/profile lane,
+  and
 - external audit completion.
 
 The product integration blocker is therefore narrowed: the local repository no

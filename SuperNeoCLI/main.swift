@@ -1041,10 +1041,8 @@ private func productStatus(_ options: ProductControlOptions) throws {
     print("valid until: \(context.validUntilUTC)")
     print("accepted proof kinds: \(context.acceptedProofKinds.map(\.rawValue).joined(separator: ","))")
     if let numiSealZK = context.numiSealZK {
-        print("numiseal zk required side-channel level: \(numiSealZK.requiredSideChannelLevel.rawValue)")
         print("numiseal zk accepted metal modes: \(numiSealZK.acceptedMetalModes.joined(separator: ","))")
         print("numiseal zk allowed leakage digests: \(numiSealZK.allowedLeakageDigestsHex.joined(separator: ","))")
-        print("numiseal zk required certificate digest: \(numiSealZK.requiredSideChannelCertificateDigestHex ?? "none")")
     }
     if let certificate = controls.sideChannelCertificate {
         print("side-channel certificate digest: \(certificate.certificateDigest.hexString)")

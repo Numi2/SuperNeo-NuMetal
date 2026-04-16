@@ -1,7 +1,7 @@
 # Local Product Controls, 2026-04-16
 
-Formal status: product-control implementation with signed NumiSealZK
-side-channel certificate gating, not a third-party production certification.
+Formal status: product-control implementation with optional signed NumiSealZK
+side-channel certificate metadata, not a third-party production certification.
 
 This pass adds an offline CLI product-control path for terminal,
 compressed-terminal, NumiSeal terminal, and NumiSealZK verification. It does not
@@ -17,17 +17,15 @@ superneo product-init-storage --operator-profile profile.json
 superneo verify \
   --product \
   --operator-profile profile.json \
-  --side-channel-certificate numiseal-zk-side-channel.json \
   proof.json
 
 superneo product-status \
-  --operator-profile profile.json \
-  --side-channel-certificate numiseal-zk-side-channel.json
+  --operator-profile profile.json
 ```
 
 `--context-pack`, `--artifact-provenance`, and
 `--side-channel-certificate` can override the paths embedded in the operator
-profile.
+profile when optional release evidence is being inspected.
 
 ## Operator Profile
 
@@ -69,8 +67,7 @@ The payload binds:
   NumiSeal terminal or NumiSealZK proofs,
 - NumiSealZK policy when the context accepts `numiseal-zk`: accepted ZK modes,
   seal modes, Metal modes, execution policies, leakage digests, proof body
-  versions, masked residual statement versions, required side-channel level,
-  optional required side-channel certificate digest, and CPU-oracle policy,
+  versions, and masked residual statement versions,
 - key-rotation metadata, and
 - revocation metadata.
 
@@ -81,10 +78,11 @@ against the artifact.
 ## NumiSealZK Side-Channel Certificate
 
 `numiseal-zk` product contexts fail closed unless they include explicit
-`numiSealZK` policy. A policy can require a signed side-channel certificate,
-either by raising `requiredSideChannelLevel` above `correctness-only`, by
-pinning `requiredSideChannelCertificateDigestHex`, or by accepting a
-secret-bearing Metal mode.
+`numiSealZK` policy. Signed side-channel certificates are optional
+release-evidence metadata: if supplied, the verifier checks their signature,
+validity window, and artifact bindings; if absent, product
+verification continues under the normal proof, context, leakage-digest, and
+provenance checks.
 
 The side-channel certificate is signed JSON. Its payload binds:
 
@@ -99,12 +97,10 @@ The side-channel certificate is signed JSON. Its payload binds:
 - evidence digests and optional benchmark report digest,
 - issue and expiry timestamps.
 
-Verification rejects a certificate if its signature is untrusted, file
-permissions are unsafe, validity window is wrong, digest is not the one pinned
-by the trusted context, certified level is too low, or any proof-policy/leakage
-binding differs from the artifact. This lets first-party release engineering
-unblock a production NumiSealZK Metal lane only by issuing a reviewed,
-release-bound certificate.
+Verification rejects a supplied certificate if its signature is untrusted, file
+permissions are unsafe, validity window is wrong, or any context, release,
+proof-policy, leakage, version, or Metal workspace binding differs from the
+artifact. Certificates remain out-of-band and do not increase proof size.
 
 ## Provenance Manifest
 
@@ -160,7 +156,7 @@ Key rotation:
 ## Remaining Blockers
 
 This closes the local product-control substrate for the CLI/offline verifier
-model and adds the signed certificate gate needed to promote a reviewed
-NumiSealZK side-channel lane. It does not close Apple signing/notarization,
-external audits, or the remaining evidence-production work for each production
-hardware profile.
+model and keeps signed side-channel evidence available as optional release
+metadata for a reviewed NumiSealZK side-channel lane. It does not close Apple
+signing/notarization, external audits, or the remaining evidence-production
+work for each production hardware profile.

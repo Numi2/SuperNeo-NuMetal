@@ -102,9 +102,9 @@ binding and public equality-weight digest, then re-envelopes the embedded base
 proof as kind `4` for existing NumiSeal terminal acceptance. Public product
 artifacts default to `zkMode = "none"`; explicit product proving may request
 `zkMode = "masked-digit-tensor-v1"` while side-channel privacy claims remain
-blocked unless product verification runs under a signed trusted context that
-pins NumiSealZK policy and, for secret-bearing Metal modes, a signed
-side-channel certificate digest.
+outside proof bytes and product verification. Deployment owners can keep
+side-channel evidence as release metadata while private development continues
+without certificate checks in proof acceptance.
 
 The side-channel certificate is not part of artifact schema v2. It is separate
 signed product-control evidence so artifact bytes, provenance bytes, and

@@ -17,7 +17,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - checked-in test vector validation
   - checked-in NumiSeal schema and vector validation
   - production NumiSeal CLI adversarial matrix
-  - signed NumiSealZK side-channel certificate policy tests
+  - optional signed NumiSealZK side-channel certificate binding tests
   - release policy, schema compatibility, and CI gate drift validation
   - release-candidate evidence tooling validation
   - release CLI fold, terminal, compressed-terminal, and NumiSeal prove/verify smoke

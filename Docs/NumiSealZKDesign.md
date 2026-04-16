@@ -21,8 +21,8 @@ metadata, transcript challenges, declared leakage, and sampled masks.
 
 This document does not by itself certify GPU side-channel privacy. It separates
 correctness of Metal output from privacy of Metal execution, and the product
-control layer now has a signed certificate gate for promoting reviewed
-side-channel evidence into trusted contexts.
+control layer can inspect signed certificate metadata without making that
+metadata part of proof acceptance.
 
 ## Declared Leakage
 
@@ -38,10 +38,10 @@ The first ZK artifact must snapshot and expose:
 - execution policy and Metal mode,
 - hardware/tuning metadata for accelerated proving runs.
 
-No production wording may claim side-channel privacy unless a trusted context
-pins the declared leakage digest and, for secret-bearing Metal modes, a signed
-NumiSealZK side-channel certificate covering memory access, command scheduling,
-cache behavior, timing, error paths, kernel/stage review, and benchmark evidence.
+No production wording may claim side-channel privacy until the deployment owner
+has out-of-band side-channel evidence for memory access, command scheduling,
+cache behavior, timing, error paths, kernel/stage review, and benchmark
+evidence. Those records are release metadata, not proof bytes.
 
 ## Masking Algebra
 
@@ -124,12 +124,11 @@ Implemented:
   CPU/Metal oracle equality,
 - fixed-randomness CPU and Metal proof-byte equality for the masked
   `NumiSealZKProofEnvelope`,
-- signed `NumiSealZK` side-channel certificate payloads with context, release,
-  proof-policy, leakage, Metal workspace, reviewed kernel/stage, evidence, and
-  expiry bindings,
+- optional signed `NumiSealZK` side-channel certificate payloads with context,
+  release, proof-policy, leakage, Metal workspace, reviewed kernel/stage,
+  evidence, and expiry bindings,
 - product-control fail-closed validation for `numiseal-zk` trusted contexts
-  that omit ZK policy, require a missing certificate, pin a different
-  certificate digest, or present a certificate whose bindings differ from the
+  that omit ZK policy or present a certificate whose bindings differ from the
   artifact.
 
 Still not certified as production privacy:
@@ -137,11 +136,10 @@ Still not certified as production privacy:
 - the simulator proof for the full masked residual language,
 - benchmark-report promotion of proof-byte equivalence across product-sized
   hardware profiles,
-- generating and signing side-channel certificate evidence for each production
-  hardware/profile lane,
+- collecting side-channel evidence for each production hardware/profile lane,
 - public product artifact defaulting to `zkMode = "masked-digit-tensor-v1"`.
 
-Until those gates land, product artifacts continue to default to
+Until that work lands, product artifacts continue to default to
 `zkMode = "none"`. Explicit masked product artifacts are correctness-checked and
-verifiable. Secret-bearing Metal privacy claims require a trusted context with
-NumiSealZK policy and a matching signed side-channel certificate.
+verifiable. Secret-bearing Metal privacy claims remain release/deployment
+claims, not verifier requirements in this private development repository.
