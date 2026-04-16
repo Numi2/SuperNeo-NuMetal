@@ -19,6 +19,10 @@ true:
 - `CHANGELOG.md` records user-facing changes and residual
   production-security blockers.
 - `Docs/ReleaseCandidateRunbook-2026-04-16.md` has been followed.
+- `Docs/E2EProofMetrics-2026-04-16.md` reflects current checked proof-size
+  and product-smoke budgets.
+- `Docs/ProductOperationsReadiness-2026-04-16.md` reflects current product
+  operations readiness status semantics and signed revocation feed semantics.
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
 - Release notes explicitly use research/integration wording and do not claim
@@ -35,8 +39,8 @@ At minimum, this requires:
 
 - self-owned cryptographic and implementation review,
 - side-channel review and evidence capture,
-- product integration policy for trusted context, replay protection, and
-  provenance,
+- product integration policy for trusted context, replay protection,
+  provenance, and signed revocation feeds,
 - NumiSeal conformance-scope promotion or explicit narrowing,
 - pinned Sage-backed lattice-estimator evidence,
 - release signing/provenance,
@@ -56,12 +60,26 @@ Each release candidate should record:
 - proof envelope version,
 - known residual boundaries,
 - NumiSeal conformance-scope digest.
+- constant-time source/formal scope digest.
+- E2E proof metrics digest.
+- product operations readiness status version.
+- signed revocation feed policy.
 
 `Scripts/generate-release-candidate-evidence.py` generates this evidence in a
 machine-readable JSON packet, and `Scripts/validate-release-candidate-evidence.py`
 checks that the packet was produced from the full production gate and current
 public surface versions. `Scripts/validate-numiseal-conformance-scope.py`
 checks the NumiSeal product/carry/ZK scope manifest that release evidence pins.
+`Scripts/validate-constant-time-scope.py` checks the constant-time
+source/formal scope manifest and the formal declarations recorded in
+`Docs/ConstantTimeEvidence-2026-04-16.md`.
+`Scripts/validate-e2e-proof-metrics.py` checks deterministic checked-vector
+proof sizes and generated NumiSeal product smoke budgets recorded in
+`Docs/E2EProofMetrics-2026-04-16.md`.
+`Scripts/validate-product-ops-surface.py` checks product operations readiness
+status, signed revocation feed wiring, CLI JSON mode, audit export binding, and
+production-gate wiring recorded in
+`Docs/ProductOperationsReadiness-2026-04-16.md`.
 
 ## Signing And Provenance
 

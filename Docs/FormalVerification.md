@@ -80,6 +80,9 @@ Recent formal pass:
 - `Formal/SuperNeoFormal/NumiSealSumcheckTranscript.lean` now names the dense
   NumiSeal sum-check transcript domain and absorb-frame order used by the Swift
   prover/verifier.
+- `Formal/SuperNeoFormal/ConstantTime.lean` now defines the conditional
+  constant-trace model used by `TestVectors/constant-time-scope-v1.json` and
+  proves trace independence for the checked fixed schedules.
 
 ## Build
 

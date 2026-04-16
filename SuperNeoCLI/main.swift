@@ -118,6 +118,7 @@ private struct VerifyOptions {
     var operatorProfilePath: String?
     var contextPackPath: String?
     var artifactProvenancePath: String?
+    var revocationFeedPath: String?
     var sideChannelCertificatePath: String?
     var useProductControls = false
 }
@@ -125,13 +126,22 @@ private struct VerifyOptions {
 private struct ProductControlOptions {
     var operatorProfilePath: String?
     var contextPackPath: String?
+    var revocationFeedPath: String?
     var sideChannelCertificatePath: String?
     var outputPath: String?
+    var outputFormat: ProductOutputFormat = .text
+}
+
+private enum ProductOutputFormat: String {
+    case text
+    case json
 }
 
 private struct LoadedProductControls {
     let profile: SuperNeoLocalOperatorProfile
     let context: SuperNeoVerifiedTrustedContextPack
+    let revocationFeed: SuperNeoVerifiedRevocationFeed
+    let effectiveRevocation: SuperNeoTrustedContextRevocation
     let sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?
     let replayLedger: SuperNeoSQLiteReplayLedger
     let auditLog: SuperNeoJSONLAuditLog
@@ -156,8 +166,13 @@ private struct ProductAuditExportDocument: Codable {
     let replayDatabasePath: String
     let acceptedReplayCount: Int
     let auditLogPath: String
+    let revocationFeedID: String
+    let revocationFeedSequence: UInt64
+    let revocationFeedDigestHex: String
+    let revocationFeedIssuerKeyDigestHex: String
     let auditLogDigestHex: String
     let auditStatus: SuperNeoAuditLogChainStatus
+    let operationsStatus: SuperNeoProductOperationsStatus
     let records: [SuperNeoAuditLogRecord]
 }
 
@@ -170,11 +185,11 @@ private func usage() -> String {
       superneo prove --seal numiseal [--workload one-hot] [--bits 0,0,1,0] [--numiseal-zk-mode none|masked-digit-tensor-v1] [--numiseal-execution-policy default-product|zk-redundant-metal|zk-metal-accelerated|zk-high-assurance-cpu] [--max-obligations-per-aggregate n] [--output proof.json]
       superneo prove --workload binary-add [--operand-bits 8] [--lhs 13] [--rhs 29] [--kind fold|terminal|compressed-terminal] [--output proof.json]
       superneo verify [--key-seed text] [--expected-verifier-key-digest hex] [--expected-shape-digest hex] [--expected-statement-digest hex] [--expected-public-inputs values] [--require-terminal|--require-numiseal] proof.json
-      superneo verify --product --operator-profile profile.json [--context-pack context.json] [--artifact-provenance provenance.json] [--side-channel-certificate certificate.json] proof.json
+      superneo verify --product --operator-profile profile.json [--context-pack context.json] [--artifact-provenance provenance.json] [--revocation-feed revocations.json] [--side-channel-certificate certificate.json] proof.json
       superneo inspect proof.json
       superneo product-init-storage --operator-profile profile.json
-      superneo product-status --operator-profile profile.json [--context-pack context.json] [--side-channel-certificate certificate.json]
-      superneo product-export-audit --operator-profile profile.json [--context-pack context.json] [--output audit-export.json]
+      superneo product-status --operator-profile profile.json [--context-pack context.json] [--revocation-feed revocations.json] [--side-channel-certificate certificate.json] [--format text|json]
+      superneo product-export-audit --operator-profile profile.json [--context-pack context.json] [--revocation-feed revocations.json] [--output audit-export.json]
 
     Workloads:
       one-hot: proves a committed private bit vector has exactly one selected bit.
@@ -325,6 +340,7 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
     var operatorProfilePath: String?
     var contextPackPath: String?
     var artifactProvenancePath: String?
+    var revocationFeedPath: String?
     var sideChannelCertificatePath: String?
     var useProductControls = false
     var index = 0
@@ -377,6 +393,9 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
         case "--artifact-provenance":
             artifactProvenancePath = try requireValue()
             useProductControls = true
+        case "--revocation-feed":
+            revocationFeedPath = try requireValue()
+            useProductControls = true
         case "--side-channel-certificate":
             sideChannelCertificatePath = try requireValue()
             useProductControls = true
@@ -416,6 +435,7 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
         operatorProfilePath: operatorProfilePath,
         contextPackPath: contextPackPath,
         artifactProvenancePath: artifactProvenancePath,
+        revocationFeedPath: revocationFeedPath,
         sideChannelCertificatePath: sideChannelCertificatePath,
         useProductControls: useProductControls
     )
@@ -438,10 +458,20 @@ private func parseProductControlOptions(_ arguments: [String]) throws -> Product
             options.operatorProfilePath = try requireValue()
         case "--context-pack":
             options.contextPackPath = try requireValue()
+        case "--revocation-feed":
+            options.revocationFeedPath = try requireValue()
         case "--side-channel-certificate":
             options.sideChannelCertificatePath = try requireValue()
         case "--output", "-o":
             options.outputPath = try requireValue()
+        case "--format":
+            let rawFormat = try requireValue()
+            guard let format = ProductOutputFormat(rawValue: rawFormat) else {
+                throw CLIError.invalidArgument("--format must be text or json")
+            }
+            options.outputFormat = format
+        case "--json":
+            options.outputFormat = .json
         default:
             throw CLIError.invalidArgument("unknown product option: \(argument)")
         }
@@ -551,6 +581,7 @@ private func prove(_ options: ProveOptions) throws {
     print("proof kind: \(artifact.proofKind)")
     print("bit count: \(artifact.bitCount)")
     print("proof envelope bytes: \(envelopeBytes.count)")
+    print("artifact bytes: \(data.count)")
     print(String(format: "prove time: %.3f s", elapsed))
 }
 
@@ -586,6 +617,7 @@ private func proveNumiSealProduct(
         )
     )
     let envelopeBytes = try artifact.proofEnvelopeBytes()
+    let sourceFoldBytes = try artifact.sourceFoldEnvelopeBytes()
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     let data = try encoder.encode(artifact)
@@ -600,7 +632,10 @@ private func proveNumiSealProduct(
     print("metal mode: \(artifact.metalMode)")
     print("source fold output claims: \(artifact.sourceFoldOutputClaimCount)")
     print("aggregates: \(artifact.aggregateDigestsHex.count)")
+    print("source fold envelope bytes: \(sourceFoldBytes.count)")
     print("proof envelope bytes: \(envelopeBytes.count)")
+    print("product artifact bytes: \(data.count)")
+    print("proof envelope digest: \(artifact.proofEnvelopeDigestHex)")
     print(String(format: "prove time: %.3f s", Date().timeIntervalSince(started)))
 }
 
@@ -639,6 +674,7 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
     let controls = try loadProductControls(
         operatorProfilePath: options.operatorProfilePath,
         contextPackPath: options.contextPackPath,
+        revocationFeedPath: options.revocationFeedPath,
         sideChannelCertificatePath: options.sideChannelCertificatePath
     )
     let context = controls.context.payload
@@ -654,7 +690,8 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
         guard artifactData.count <= context.maximumArtifactByteCount else {
             throw SuperNeoProductIntegrationError.invalidRequest("artifact byte count exceeds trusted context maximum")
         }
-        try context.requireNotRevoked(
+        try controls.effectiveRevocation.requireNotRevoked(
+            contextID: context.contextID,
             artifactDigest: artifactDigest,
             proofEnvelopeDigest: nil,
             provenanceDigest: nil
@@ -668,7 +705,8 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
         proofEnvelopeDigest = material.proofEnvelopeDigest
         proofKind = material.proofKind
         statementDigest = material.statementDigest
-        try context.requireNotRevoked(
+        try controls.effectiveRevocation.requireNotRevoked(
+            contextID: context.contextID,
             artifactDigest: artifactDigest,
             proofEnvelopeDigest: material.proofEnvelopeDigest,
             provenanceDigest: nil
@@ -687,7 +725,8 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             statementDigest: material.statementDigest,
             releaseBuildDigest: try context.releaseBuildDigest
         )
-        try context.requireNotRevoked(
+        try controls.effectiveRevocation.requireNotRevoked(
+            contextID: context.contextID,
             artifactDigest: artifactDigest,
             proofEnvelopeDigest: material.proofEnvelopeDigest,
             provenanceDigest: provenance.provenanceDigest
@@ -714,6 +753,7 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             artifactDigest: artifactDigest,
             proofEnvelopeDigest: proofEnvelopeDigest,
             provenanceDigest: provenanceDigest,
+            revocationFeedDigest: controls.revocationFeed.feedDigest,
             sideChannelCertificateDigest: controls.sideChannelCertificate?.certificateDigest,
             proofKind: proofKind,
             statementDigest: statementDigest,
@@ -734,6 +774,7 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             artifactDigest: artifactDigest,
             proofEnvelopeDigest: proofEnvelopeDigest,
             provenanceDigest: provenanceDigest,
+            revocationFeedDigest: controls.revocationFeed.feedDigest,
             sideChannelCertificateDigest: controls.sideChannelCertificate?.certificateDigest,
             proofKind: proofKind,
             statementDigest: statementDigest,
@@ -962,6 +1003,8 @@ private func verifyNumiSealProductArtifact(_ artifact: NumiSealProductArtifact, 
         key: key,
         executionPolicy: .highAssurance
     )
+    let sourceBytes = try artifact.sourceFoldEnvelopeBytes()
+    let proofBytes = try artifact.proofEnvelopeBytes()
     print("valid NumiSeal product proof")
     print("source output CE claims: \(result.sourceFoldResult.outputClaims.count)")
     print("aggregates: \(artifact.aggregateDigestsHex.count)")
@@ -969,6 +1012,8 @@ private func verifyNumiSealProductArtifact(_ artifact: NumiSealProductArtifact, 
     print("carry mode: \(artifact.carryMode)")
     print("zk mode: \(artifact.zkMode)")
     print("metal mode: \(artifact.metalMode)")
+    print("source fold envelope bytes: \(sourceBytes.count)")
+    print("proof envelope bytes: \(proofBytes.count)")
     print(String(format: "verify time: %.3f s", Date().timeIntervalSince(started)))
 }
 
@@ -1052,11 +1097,18 @@ private func productStatus(_ options: ProductControlOptions) throws {
     let controls = try loadProductControls(
         operatorProfilePath: options.operatorProfilePath,
         contextPackPath: options.contextPackPath,
+        revocationFeedPath: options.revocationFeedPath,
         sideChannelCertificatePath: options.sideChannelCertificatePath
     )
     let context = controls.context.payload
-    let auditStatus = try controls.auditLog.validateChain()
+    let auditStatus = try controls.auditLog.statusSnapshot()
+    let operationsStatus = try makeOperationsStatus(controls: controls, auditStatus: auditStatus)
+    if options.outputFormat == .json {
+        try writePrettyJSON(operationsStatus, outputPath: options.outputPath)
+        return
+    }
     print("trusted context: \(context.contextID)")
+    print("operations readiness: \(operationsStatus.readiness.rawValue)")
     print("issuer: \(context.issuer)")
     print("valid from: \(context.validFromUTC)")
     print("valid until: \(context.validUntilUTC)")
@@ -1076,17 +1128,30 @@ private func productStatus(_ options: ProductControlOptions) throws {
     print("allowed workloads: \(context.allowedWorkloads.joined(separator: ","))")
     print("context payload digest: \(controls.context.payloadDigest.hexString)")
     print("issuer key digest: \(controls.context.issuerKeyDigest.hexString)")
-    print("revoked context ids: \(context.revocation.revokedContextIDs.joined(separator: ","))")
-    print("revoked artifact digests: \(context.revocation.revokedArtifactDigestHex.count)")
-    print("revoked proof envelope digests: \(context.revocation.revokedProofEnvelopeDigestHex.count)")
-    print("revoked provenance digests: \(context.revocation.revokedProvenanceDigestHex.count)")
-    print("accepted replay count: \(try controls.replayLedger.acceptedReplayCount())")
-    print("audit log valid: \(auditStatus.isValid)")
-    print("audit log records: \(auditStatus.recordCount)")
-    print("audit log last sequence: \(auditStatus.lastSequence)")
-    print("audit log last digest: \(auditStatus.lastRecordDigestHex)")
-    if let reason = auditStatus.reason {
+    print("revocation feed: \(controls.revocationFeed.payload.feedID)")
+    print("revocation feed sequence: \(controls.revocationFeed.payload.sequence)")
+    print("revocation feed digest: \(controls.revocationFeed.feedDigest.hexString)")
+    print("revocation feed issuer key digest: \(controls.revocationFeed.issuerKeyDigest.hexString)")
+    print("revoked context ids: \(controls.effectiveRevocation.revokedContextIDs.joined(separator: ","))")
+    print("revoked artifact digests: \(controls.effectiveRevocation.revokedArtifactDigestHex.count)")
+    print("revoked proof envelope digests: \(controls.effectiveRevocation.revokedProofEnvelopeDigestHex.count)")
+    print("revoked provenance digests: \(controls.effectiveRevocation.revokedProvenanceDigestHex.count)")
+    print("accepted replay count: \(operationsStatus.acceptedReplayCount)")
+    print("audit log digest: \(operationsStatus.auditLogDigestHex)")
+    print("audit log valid: \(auditStatus.chainStatus.isValid)")
+    print("audit log records: \(auditStatus.chainStatus.recordCount)")
+    print("audit log last sequence: \(auditStatus.chainStatus.lastSequence)")
+    print("audit log last digest: \(auditStatus.chainStatus.lastRecordDigestHex)")
+    print("audit retention policy: \(operationsStatus.auditRetentionPolicy)")
+    print("retry policy: \(operationsStatus.retryPolicy)")
+    if let reason = auditStatus.chainStatus.reason {
         print("audit log reason: \(reason)")
+    }
+    for check in operationsStatus.checks {
+        print("check \(check.id): \(check.status.rawValue) - \(check.detail)")
+        if let remediation = check.remediation {
+            print("check \(check.id) remediation: \(remediation)")
+        }
     }
 }
 
@@ -1094,9 +1159,17 @@ private func productExportAudit(_ options: ProductControlOptions) throws {
     let controls = try loadProductControls(
         operatorProfilePath: options.operatorProfilePath,
         contextPackPath: options.contextPackPath,
+        revocationFeedPath: options.revocationFeedPath,
         sideChannelCertificatePath: options.sideChannelCertificatePath
     )
     let snapshot = try controls.auditLog.exportSnapshot()
+    let operationsStatus = try makeOperationsStatus(
+        controls: controls,
+        auditStatus: SuperNeoAuditLogStatusSnapshot(
+            auditLogDigestHex: snapshot.auditLogDigestHex,
+            chainStatus: snapshot.chainStatus
+        )
+    )
     let document = ProductAuditExportDocument(
         formatVersion: 1,
         exportedAtUTC: snapshot.exportedAtUTC,
@@ -1107,16 +1180,42 @@ private func productExportAudit(_ options: ProductControlOptions) throws {
         replayDatabasePath: controls.profile.replayDatabasePath,
         acceptedReplayCount: try controls.replayLedger.acceptedReplayCount(),
         auditLogPath: controls.profile.auditLogPath,
+        revocationFeedID: controls.revocationFeed.payload.feedID,
+        revocationFeedSequence: controls.revocationFeed.payload.sequence,
+        revocationFeedDigestHex: controls.revocationFeed.feedDigest.hexString,
+        revocationFeedIssuerKeyDigestHex: controls.revocationFeed.issuerKeyDigest.hexString,
         auditLogDigestHex: snapshot.auditLogDigestHex,
         auditStatus: snapshot.chainStatus,
+        operationsStatus: operationsStatus,
         records: snapshot.records
     )
+    try writePrettyJSON(document, outputPath: options.outputPath)
+    if let outputPath = options.outputPath {
+        print("wrote product audit export: \(outputPath)")
+    }
+}
+
+private func makeOperationsStatus(
+    controls: LoadedProductControls,
+    auditStatus: SuperNeoAuditLogStatusSnapshot
+) throws -> SuperNeoProductOperationsStatus {
+    try SuperNeoProductOperationsStatus.make(
+        profile: controls.profile,
+        context: controls.context,
+        revocationFeed: controls.revocationFeed,
+        effectiveRevocation: controls.effectiveRevocation,
+        sideChannelCertificate: controls.sideChannelCertificate,
+        acceptedReplayCount: try controls.replayLedger.acceptedReplayCount(),
+        auditStatus: auditStatus
+    )
+}
+
+private func writePrettyJSON<T: Encodable>(_ value: T, outputPath: String?) throws {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    let data = try encoder.encode(document)
-    if let outputPath = options.outputPath {
+    let data = try encoder.encode(value)
+    if let outputPath {
         try data.write(to: URL(fileURLWithPath: outputPath), options: Data.WritingOptions.atomic)
-        print("wrote product audit export: \(outputPath)")
     } else {
         FileHandle.standardOutput.write(data)
         FileHandle.standardOutput.write(Data([UInt8(ascii: "\n")]))
@@ -1126,6 +1225,7 @@ private func productExportAudit(_ options: ProductControlOptions) throws {
 private func loadProductControls(
     operatorProfilePath: String?,
     contextPackPath: String?,
+    revocationFeedPath: String?,
     sideChannelCertificatePath: String?
 ) throws -> LoadedProductControls {
     guard let operatorProfilePath else {
@@ -1140,6 +1240,13 @@ private func loadProductControls(
     guard context.payload.releaseBuildDigestHex == profile.releaseBuildDigestHex else {
         throw SuperNeoProductIntegrationError.unauthorized("operator profile release build digest does not match trusted context")
     }
+    let revocationPath = try productRevocationFeedPath(revocationFeedPath, profile: profile)
+    let revocationFeed = try SuperNeoSignedRevocationFeed.loadVerified(
+        from: URL(fileURLWithPath: revocationPath),
+        trustedIssuerKeyDigestsHex: try profile.trustedRevocationIssuerKeyDigestSet(),
+        context: context.payload
+    )
+    let effectiveRevocation = context.payload.revocation.merged(with: revocationFeed.payload.revocation)
     let certificatePath = sideChannelCertificatePath ?? profile.sideChannelCertificatePath
     let sideChannelCertificate = try certificatePath.map {
         try SuperNeoSignedNumiSealZKSideChannelCertificate.loadVerified(
@@ -1154,6 +1261,8 @@ private func loadProductControls(
     return LoadedProductControls(
         profile: profile,
         context: context,
+        revocationFeed: revocationFeed,
+        effectiveRevocation: effectiveRevocation,
         sideChannelCertificate: sideChannelCertificate,
         replayLedger: replayLedger,
         auditLog: auditLog
@@ -1171,6 +1280,13 @@ private func productContextPackPath(
         return profilePath
     }
     throw CLIError.invalidArgument("--context-pack is required when operator profile does not include contextPackPath")
+}
+
+private func productRevocationFeedPath(
+    _ explicitPath: String?,
+    profile: SuperNeoLocalOperatorProfile
+) throws -> String {
+    explicitPath ?? profile.revocationFeedPath
 }
 
 private func productArtifactProvenancePath(
@@ -1531,6 +1647,7 @@ private func appendProductAudit(
     artifactDigest: Digest256?,
     proofEnvelopeDigest: Digest256?,
     provenanceDigest: Digest256?,
+    revocationFeedDigest: Digest256?,
     sideChannelCertificateDigest: Digest256?,
     proofKind: SuperNeoProductProofKind?,
     statementDigest: Digest256?,
@@ -1544,6 +1661,7 @@ private func appendProductAudit(
             artifactDigestHex: artifactDigest?.hexString,
             proofEnvelopeDigestHex: proofEnvelopeDigest?.hexString,
             provenanceDigestHex: provenanceDigest?.hexString,
+            revocationFeedDigestHex: revocationFeedDigest?.hexString,
             sideChannelCertificateDigestHex: sideChannelCertificateDigest?.hexString,
             proofKind: proofKind?.rawValue,
             contextID: context.contextID,

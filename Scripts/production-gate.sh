@@ -14,6 +14,9 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - debug and release XCTest suites
   - Lean formal build, executable gates, and formal-status validation
   - Lean/Swift profile-constant conformance validation
+  - constant-time source/formal scope validation
+  - E2E proof-size metrics and generated product smoke budget validation
+  - product operations readiness surface validation
   - checked-in test vector validation
   - checked-in NumiSeal schema and vector validation
   - NumiSeal product/carry/ZK conformance-scope validation
@@ -137,6 +140,12 @@ run_step Scripts/validate-numiseal-artifact-schema.py
 run_step Scripts/validate-numiseal-product-artifact-schema.py
 run_step Scripts/test-numiseal-artifact-schema-validation.py
 run_step Scripts/validate-numiseal-conformance-scope.py
+run_step Scripts/validate-constant-time-scope.py
+run_step Scripts/test-constant-time-scope-validation.py
+run_step Scripts/validate-e2e-proof-metrics.py
+run_step Scripts/test-e2e-proof-metrics-validation.py
+run_step Scripts/validate-product-ops-surface.py
+run_step Scripts/test-product-ops-surface-validation.py
 run_step Scripts/validate-release-readiness-policy.py
 run_step Scripts/test-release-candidate-evidence-validation.py
 run_step Scripts/test-benchmark-tooling-validation.py
@@ -360,6 +369,7 @@ run_step "${SUPERNEO_CLI}" prove \
   --bits 0,1 \
   --max-obligations-per-aggregate 32 \
   --output "${numiseal_product_path}"
+run_step Scripts/validate-e2e-proof-metrics.py --generated-product-artifact "numiseal-product-smoke:${numiseal_product_path}"
 run_step "${SUPERNEO_CLI}" inspect "${numiseal_product_path}"
 run_expect_failure "${SUPERNEO_CLI}" verify "${numiseal_product_path}"
 run_expect_failure "${SUPERNEO_CLI}" verify --require-terminal "${numiseal_product_path}"
@@ -376,6 +386,7 @@ run_step "${SUPERNEO_CLI}" prove \
   --bits 0,1 \
   --max-obligations-per-aggregate 32 \
   --output "${numiseal_zk_product_path}"
+run_step Scripts/validate-e2e-proof-metrics.py --generated-product-artifact "numiseal-zk-product-smoke:${numiseal_zk_product_path}"
 run_step "${SUPERNEO_CLI}" inspect "${numiseal_zk_product_path}"
 run_step python3 - "${numiseal_zk_product_path}" <<'PY'
 import json

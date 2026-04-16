@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "scopeID": "superneo-swift-llvm-metal-constant-time-scope-v1",
+  "claimStatus": "conditional-source-and-formal-trace-model",
+  "productionDefaultDecision": "not-promoted-by-this-scope-alone",
+  "formalModel": {
+    "module": "Formal/SuperNeoFormal/ConstantTime.lean",
+    "rootImport": "import SuperNeoFormal.ConstantTime",
+    "declarations": [
+      "TraceIndependent",
+      "fixedSchedule_traceIndependent",
+      "seqTrace_independent",
+      "repeatedSchedule_traceIndependent",
+      "swiftGoldilocksAdd_traceIndependent",
+      "swiftGoldilocksSub_traceIndependent",
+      "swiftGoldilocksMulReduction_traceIndependent",
+      "swiftGoldilocksPow64_traceIndependent",
+      "metalGoldilocksCommonArithmetic_traceIndependent",
+      "numiSealZKMaskKernelElement_traceIndependent",
+      "sourceRegion_constantTrace_from_evidence"
+    ]
+  },
+  "regions": [
+    {
+      "id": "swift-goldilocks-common-arithmetic",
+      "language": "swift",
+      "path": "SuperNeo-NuMetal/Fields/GoldilocksField.swift",
+      "startMarker": "// constant-time-source-scope: swift-goldilocks-common-arithmetic begin",
+      "endMarker": "// constant-time-source-scope: swift-goldilocks-common-arithmetic end",
+      "secretInputs": [
+        "GoldilocksField.rawValue operands",
+        "intermediate reduction words"
+      ],
+      "publicInputs": [
+        "Goldilocks modulus constants"
+      ],
+      "allowedPublicControlFlowRegex": [],
+      "forbiddenRegex": [
+        "\\bif\\b",
+        "\\bguard\\b",
+        "\\bswitch\\b",
+        "\\bwhile\\b",
+        "\\bfor\\b",
+        "\\bcontinue\\b",
+        "\\bbreak\\b"
+      ],
+      "requiredSnippets": [
+        "addingReportingOverflow",
+        "subtractingReportingOverflow",
+        "truthMask",
+        "subtractModulusIfNeeded"
+      ],
+      "formalTraceDeclaration": "swiftGoldilocksMulReduction_traceIndependent"
+    },
+    {
+      "id": "swift-goldilocks-fixed-exponentiation",
+      "language": "swift",
+      "path": "SuperNeo-NuMetal/Fields/GoldilocksField.swift",
+      "startMarker": "// constant-time-source-scope: swift-goldilocks-fixed-exponentiation begin",
+      "endMarker": "// constant-time-source-scope: swift-goldilocks-fixed-exponentiation end",
+      "secretInputs": [
+        "GoldilocksField.rawValue base"
+      ],
+      "publicInputs": [
+        "UInt64 exponent"
+      ],
+      "allowedPublicControlFlowRegex": [
+        "for bit in 0..<UInt64\\.bitWidth \\{"
+      ],
+      "forbiddenRegex": [
+        "\\bif\\b",
+        "\\bguard\\b",
+        "\\bswitch\\b",
+        "\\bwhile\\b",
+        "\\bcontinue\\b",
+        "\\bbreak\\b"
+      ],
+      "requiredSnippets": [
+        "UInt64.bitWidth",
+        "Self.select",
+        "result * base",
+        "base = base * base"
+      ],
+      "formalTraceDeclaration": "swiftGoldilocksPow64_traceIndependent"
+    },
+    {
+      "id": "metal-goldilocks-common-arithmetic",
+      "language": "metal",
+      "path": "SuperNeo-NuMetal/MetalBackend/SuperNeoKernels.metal",
+      "startMarker": "// constant-time-source-scope: metal-goldilocks-common-arithmetic begin",
+      "endMarker": "// constant-time-source-scope: metal-goldilocks-common-arithmetic end",
+      "secretInputs": [
+        "field operands",
+        "intermediate reduction words"
+      ],
+      "publicInputs": [
+        "Goldilocks modulus constants"
+      ],
+      "allowedPublicControlFlowRegex": [],
+      "forbiddenRegex": [
+        "\\bif\\s*\\(",
+        "\\?",
+        "\\bcontinue\\b",
+        "\\bbreak\\b"
+      ],
+      "requiredSnippets": [
+        "ct_mask",
+        "ct_select_ulong",
+        "goldilocks_subtract_modulus_if_needed",
+        "goldilocks_reduce128"
+      ],
+      "formalTraceDeclaration": "metalGoldilocksCommonArithmetic_traceIndependent"
+    },
+    {
+      "id": "metal-numiseal-zk-secret-bearing-kernels",
+      "language": "metal",
+      "path": "SuperNeo-NuMetal/MetalBackend/SuperNeoKernels.metal",
+      "startMarker": "// constant-time-source-scope: metal-numiseal-zk-secret-bearing-kernels begin",
+      "endMarker": "// constant-time-source-scope: metal-numiseal-zk-secret-bearing-kernels end",
+      "secretInputs": [
+        "digit tensor coefficients",
+        "mask coefficients",
+        "masked tensor coefficients",
+        "sum-check term coefficients"
+      ],
+      "publicInputs": [
+        "thread id",
+        "buffer element count",
+        "variable count",
+        "term count",
+        "Fiat-Shamir challenges and weights"
+      ],
+      "allowedPublicControlFlowRegex": [
+        "if\\s*\\(id >= count\\) \\{ return; \\}"
+      ],
+      "forbiddenRegex": [
+        "\\bif\\s*\\(",
+        "\\?",
+        "\\bcontinue\\b",
+        "\\bbreak\\b"
+      ],
+      "requiredSnippets": [
+        "numiseal_apply_mask_kernel",
+        "numiseal_dense_fold_kernel",
+        "numiseal_eq_weight_kernel",
+        "numiseal_sumcheck_accumulate_kernel",
+        "numiseal_mask_accumulate_kernel",
+        "ct_select_ulong"
+      ],
+      "formalTraceDeclaration": "numiSealZKMaskKernelElement_traceIndependent"
+    }
+  ],
+  "openBoundaries": [
+    "Swift Bool-to-mask lowering must be checked in emitted SIL/LLVM or replaced with a verified primitive.",
+    "LLVM and Apple clang lowering for selected Metal integer operations must be recorded for release toolchains.",
+    "Allocator, ARC, array copy-on-write, cache, power, and scheduler observations are not modeled by the source trace proof.",
+    "Goldilocks inversion keeps an explicit zero rejection outside the fixed-exponentiation trace scope.",
+    "Sparse and small-coefficient optimized kernels remain performance kernels, not secret-bearing constant-time kernels."
+  ]
+}

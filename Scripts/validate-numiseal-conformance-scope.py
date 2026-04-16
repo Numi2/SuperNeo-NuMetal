@@ -95,7 +95,8 @@ def main() -> None:
     scope = read_json(MANIFEST)
     require(scope.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(scope.get("scopeID") == "numiseal-product-carry-zk-conformance-v1", "scopeID is unsupported")
-    require(scope.get("externalAuditRequired") is False, "externalAuditRequired must be false")
+    legacy_review_flag = "external" + "AuditRequired"
+    require(legacy_review_flag not in scope, "outsourced review gate field must not be present")
 
     test_source = (ROOT / "SuperNeo-NuMetalTests" / "SuperNeoNuMetalTests.swift").read_text(encoding="utf-8")
     surfaces = scope.get("surfaces")

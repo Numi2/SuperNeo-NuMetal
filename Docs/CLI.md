@@ -184,12 +184,20 @@ swift run superneo verify \
   --operator-profile profile.json \
   --context-pack context.json \
   --artifact-provenance provenance.json \
+  --revocation-feed revocations.json \
   /tmp/one-hot-numiseal-zk.json
 
 swift run superneo product-export-audit \
   --operator-profile profile.json \
   --context-pack context.json \
+  --revocation-feed revocations.json \
   --output audit-export.json
+
+swift run superneo product-status \
+  --operator-profile profile.json \
+  --context-pack context.json \
+  --revocation-feed revocations.json \
+  --format json
 ```
 
 When supplied, a side-channel certificate binds the release build, context ID, ZK mode,
@@ -199,7 +207,10 @@ kernels/stages, and evidence digests. Product verification rejects
 certificates whose digest or bindings differ from the artifact.
 `product-export-audit` validates the local hash-chained JSONL audit log before
 writing a sorted-key JSON export that includes the active context digest,
-issuer-key digest, replay count, audit-log digest, chain status, and records.
+issuer-key digest, signed revocation feed digest, replay count, audit-log
+digest, chain status, records, and `operationsStatus`. `product-status --format
+json` emits that same canonical operations-readiness object directly, including
+revocation feed, audit-retention, and retry policy fields.
 
 Available NumiSeal execution policies are:
 
@@ -259,6 +270,7 @@ The JSON artifact stores:
 - public inputs,
 - public commitment bytes,
 - proof envelope bytes,
+- artifact byte count in CLI output,
 - shape digest,
 - statement digest, and
 - verifier-key digest.
@@ -270,6 +282,9 @@ component root, proof transcript digest, aggregate limits, and execution-policy
 metadata. Public product proving derives its NumiSeal digit tensor internally
 from aggregate witness material; caller-supplied digit tensors remain SPI and
 test-vector-only.
+Product proving and verification print source fold envelope bytes, NumiSeal
+proof envelope bytes, and product artifact bytes so release budget regressions
+are visible during CLI development as well as in the production gate.
 
 The initial `NumiSealZK` proof body is envelope kind `5`, body version `13`,
 and `zkMode = "masked-digit-tensor-v1"`. It is available through the library

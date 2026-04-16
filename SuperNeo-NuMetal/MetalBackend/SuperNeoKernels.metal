@@ -5,30 +5,39 @@ constant ulong GOLDILOCKS_MODULUS = 0xffffffff00000001UL;
 constant ulong GOLDILOCKS_EPSILON = 0xffffffffUL;
 constant ulong GOLDILOCKS_LIMB_MASK = 0xffffffffUL;
 
-inline ulong goldilocks_add(ulong a, ulong b) {
-    ulong r = a + b;
-    if (r < a) {
-        r += 0xffffffffUL;
-    }
-    if (r >= GOLDILOCKS_MODULUS) {
-        r -= GOLDILOCKS_MODULUS;
-    }
-    return r;
+// constant-time-source-scope: metal-goldilocks-common-arithmetic begin
+inline ulong ct_mask(bool condition) {
+    return select(0UL, ~0UL, condition);
 }
 
-inline ulong goldilocks_sub(ulong a, ulong b) {
-    return a >= b ? a - b : GOLDILOCKS_MODULUS - (b - a);
+inline ulong ct_select_ulong(ulong falseValue, ulong trueValue, bool condition) {
+    ulong mask = ct_mask(condition);
+    return (falseValue & ~mask) | (trueValue & mask);
+}
+
+inline ulong goldilocks_subtract_modulus_if_needed(ulong value) {
+    ulong candidate = value - GOLDILOCKS_MODULUS;
+    return ct_select_ulong(value, candidate, value >= GOLDILOCKS_MODULUS);
 }
 
 inline ulong goldilocks_add_folded_carry(ulong value, ulong foldedCarry) {
-    ulong result = value + foldedCarry;
-    if (result < value) {
-        result += GOLDILOCKS_EPSILON;
-        if (result < GOLDILOCKS_EPSILON) {
-            result += GOLDILOCKS_EPSILON;
-        }
-    }
-    return result;
+    ulong first = value + foldedCarry;
+    bool firstOverflow = first < value;
+    ulong secondCarry = GOLDILOCKS_EPSILON & ct_mask(firstOverflow);
+    ulong second = first + secondCarry;
+    bool secondOverflow = second < first;
+    return second + (GOLDILOCKS_EPSILON & ct_mask(secondOverflow));
+}
+
+inline ulong goldilocks_add(ulong a, ulong b) {
+    ulong r = a + b;
+    r = goldilocks_add_folded_carry(r, GOLDILOCKS_EPSILON & ct_mask(r < a));
+    return goldilocks_subtract_modulus_if_needed(r);
+}
+
+inline ulong goldilocks_sub(ulong a, ulong b) {
+    ulong difference = a - b;
+    return difference + (GOLDILOCKS_MODULUS & ct_mask(a < b));
 }
 
 inline void mul_wide_u64(ulong a, ulong b, thread ulong &high, thread ulong &low) {
@@ -52,20 +61,13 @@ inline ulong goldilocks_reduce128(ulong high, ulong low) {
     ulong highHigh = high >> 32;
 
     ulong reduced = low - highHigh;
-    if (low < highHigh) {
-        reduced -= GOLDILOCKS_EPSILON;
-    }
+    reduced -= GOLDILOCKS_EPSILON & ct_mask(low < highHigh);
 
     ulong foldedHighLow = highLow * GOLDILOCKS_EPSILON;
     ulong sum = reduced + foldedHighLow;
-    if (sum < reduced) {
-        sum = goldilocks_add_folded_carry(sum, GOLDILOCKS_EPSILON);
-    }
+    sum = goldilocks_add_folded_carry(sum, GOLDILOCKS_EPSILON & ct_mask(sum < reduced));
 
-    if (sum >= GOLDILOCKS_MODULUS) {
-        sum -= GOLDILOCKS_MODULUS;
-    }
-    return sum;
+    return goldilocks_subtract_modulus_if_needed(sum);
 }
 
 inline ulong goldilocks_mul(ulong a, ulong b) {
@@ -74,6 +76,7 @@ inline ulong goldilocks_mul(ulong a, ulong b) {
     mul_wide_u64(a, b, high, low);
     return goldilocks_reduce128(high, low);
 }
+// constant-time-source-scope: metal-goldilocks-common-arithmetic end
 
 inline ulong goldilocks_mul_small_or_full(ulong a, ulong b) {
     if (a == 0 || b == 0) { return 0; }
@@ -183,6 +186,7 @@ kernel void ring_mul_kernel(
     out[base + coeff] = acc;
 }
 
+// constant-time-source-scope: metal-numiseal-zk-secret-bearing-kernels begin
 kernel void numiseal_apply_mask_kernel(
     device const ulong *digitTensor [[buffer(0)]],
     device const ulong *mask [[buffer(1)]],
@@ -220,7 +224,8 @@ kernel void numiseal_eq_weight_kernel(
     for (uint variable = 0; variable < variableCount; variable++) {
         ulong coordinate = point[variable];
         bool bit = ((id >> variable) & 1u) != 0;
-        ulong term = bit ? coordinate : goldilocks_sub(1, coordinate);
+        ulong oneMinusCoordinate = goldilocks_sub(1, coordinate);
+        ulong term = ct_select_ulong(oneMinusCoordinate, coordinate, bit);
         acc = goldilocks_mul(acc, term);
     }
     out[id] = acc;
@@ -264,6 +269,7 @@ kernel void numiseal_mask_accumulate_kernel(
     acc = goldilocks_add(acc, goldilocks_mul(masked, weights[2]));
     accumulation[id] = acc;
 }
+// constant-time-source-scope: metal-numiseal-zk-secret-bearing-kernels end
 
 inline void ring_mul_local(
     device const ulong *lhs,

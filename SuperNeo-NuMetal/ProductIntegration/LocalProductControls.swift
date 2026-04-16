@@ -83,6 +83,81 @@ public struct SuperNeoTrustedContextRevocation: Codable, Equatable, Sendable {
         self.revokedProvenanceDigestHex = revokedProvenanceDigestHex
         self.issuedAtUTC = issuedAtUTC
     }
+
+    public func merged(with newer: SuperNeoTrustedContextRevocation) -> Self {
+        Self(
+            revokedContextIDs: unionSorted(revokedContextIDs, newer.revokedContextIDs),
+            revokedArtifactDigestHex: unionSortedDigests(revokedArtifactDigestHex, newer.revokedArtifactDigestHex),
+            revokedProofEnvelopeDigestHex: unionSortedDigests(
+                revokedProofEnvelopeDigestHex,
+                newer.revokedProofEnvelopeDigestHex
+            ),
+            revokedProvenanceDigestHex: unionSortedDigests(
+                revokedProvenanceDigestHex,
+                newer.revokedProvenanceDigestHex
+            ),
+            issuedAtUTC: newer.issuedAtUTC ?? issuedAtUTC
+        )
+    }
+
+    public func validateEntries(namePrefix: String = "revocation") throws {
+        for contextID in revokedContextIDs {
+            guard !contextID.isEmpty else {
+                throw SuperNeoProductIntegrationError.invalidRequest("\(namePrefix) context ID must not be empty")
+            }
+        }
+        _ = try canonicalDigestSet(revokedArtifactDigestHex, name: "\(namePrefix) artifact digest")
+        _ = try canonicalDigestSet(revokedProofEnvelopeDigestHex, name: "\(namePrefix) proof envelope digest")
+        _ = try canonicalDigestSet(revokedProvenanceDigestHex, name: "\(namePrefix) provenance digest")
+        if let issuedAtUTC {
+            _ = try SuperNeoProductTime.parseUTC(issuedAtUTC, name: "\(namePrefix) issuedAtUTC")
+        }
+    }
+
+    public func requireNotRevoked(
+        contextID: String,
+        artifactDigest: Digest256?,
+        proofEnvelopeDigest: Digest256?,
+        provenanceDigest: Digest256?
+    ) throws {
+        guard !revokedContextIDs.contains(contextID) else {
+            throw SuperNeoProductIntegrationError.unauthorized("trusted context has been revoked")
+        }
+        if let artifactDigest {
+            let revokedDigests = try canonicalDigestSet(revokedArtifactDigestHex, name: "revoked artifact digest")
+            guard !revokedDigests.contains(artifactDigest.hexString) else {
+                throw SuperNeoProductIntegrationError.provenanceRejected("artifact digest has been revoked")
+            }
+        }
+        if let proofEnvelopeDigest {
+            let revokedDigests = try canonicalDigestSet(
+                revokedProofEnvelopeDigestHex,
+                name: "revoked proof envelope digest"
+            )
+            guard !revokedDigests.contains(proofEnvelopeDigest.hexString) else {
+                throw SuperNeoProductIntegrationError.provenanceRejected("proof envelope digest has been revoked")
+            }
+        }
+        if let provenanceDigest {
+            let revokedDigests = try canonicalDigestSet(revokedProvenanceDigestHex, name: "revoked provenance digest")
+            guard !revokedDigests.contains(provenanceDigest.hexString) else {
+                throw SuperNeoProductIntegrationError.provenanceRejected("provenance digest has been revoked")
+            }
+        }
+    }
+
+    private func unionSorted(_ lhs: [String], _ rhs: [String]) -> [String] {
+        Array(Set(lhs).union(rhs)).sorted()
+    }
+
+    private func unionSortedDigests(_ lhs: [String], _ rhs: [String]) -> [String] {
+        Array(Set(lhs.map { $0.lowercased() }).union(rhs.map { $0.lowercased() })).sorted()
+    }
+
+    private func canonicalDigestSet(_ values: [String], name: String) throws -> Set<String> {
+        let normalized = try values.map { try Digest256(hexDigest: $0, name: name).hexString }
+        return Set(normalized)
+    }
 }
 
 public struct SuperNeoTrustedNumiSealContext: Codable, Equatable, Sendable {
@@ -344,17 +419,180 @@ public struct SuperNeoVerifiedArtifactProvenanceManifest: Equatable, Sendable {
     }
 }
 
+public struct SuperNeoRevocationFeedPayload: Codable, Equatable, Sendable {
+    public let formatVersion: Int
+    public let feedID: String
+    public let issuer: String
+    public let contextID: String
+    public let releaseBuildDigestHex: String
+    public let sequence: UInt64
+    public let issuedAtUTC: String
+    public let validUntilUTC: String
+    public let revokedContextIDs: [String]
+    public let revokedArtifactDigestHex: [String]
+    public let revokedProofEnvelopeDigestHex: [String]
+    public let revokedProvenanceDigestHex: [String]
+
+    public init(
+        formatVersion: Int = 1,
+        feedID: String,
+        issuer: String,
+        contextID: String,
+        releaseBuildDigestHex: String,
+        sequence: UInt64,
+        issuedAtUTC: String,
+        validUntilUTC: String,
+        revokedContextIDs: [String] = [],
+        revokedArtifactDigestHex: [String] = [],
+        revokedProofEnvelopeDigestHex: [String] = [],
+        revokedProvenanceDigestHex: [String] = []
+    ) {
+        self.formatVersion = formatVersion
+        self.feedID = feedID
+        self.issuer = issuer
+        self.contextID = contextID
+        self.releaseBuildDigestHex = releaseBuildDigestHex
+        self.sequence = sequence
+        self.issuedAtUTC = issuedAtUTC
+        self.validUntilUTC = validUntilUTC
+        self.revokedContextIDs = revokedContextIDs
+        self.revokedArtifactDigestHex = revokedArtifactDigestHex
+        self.revokedProofEnvelopeDigestHex = revokedProofEnvelopeDigestHex
+        self.revokedProvenanceDigestHex = revokedProvenanceDigestHex
+    }
+
+    public var revocation: SuperNeoTrustedContextRevocation {
+        SuperNeoTrustedContextRevocation(
+            revokedContextIDs: revokedContextIDs,
+            revokedArtifactDigestHex: revokedArtifactDigestHex,
+            revokedProofEnvelopeDigestHex: revokedProofEnvelopeDigestHex,
+            revokedProvenanceDigestHex: revokedProvenanceDigestHex,
+            issuedAtUTC: issuedAtUTC
+        )
+    }
+
+    public func validate(context: SuperNeoTrustedContextPayload, now: Date = Date()) throws {
+        guard formatVersion == 1 else {
+            throw SuperNeoProductIntegrationError.invalidRequest("unsupported revocation feed version")
+        }
+        guard !feedID.isEmpty else {
+            throw SuperNeoProductIntegrationError.invalidRequest("revocation feed ID is required")
+        }
+        guard !issuer.isEmpty else {
+            throw SuperNeoProductIntegrationError.invalidRequest("revocation feed issuer is required")
+        }
+        guard contextID == context.contextID else {
+            throw SuperNeoProductIntegrationError.unauthorized("revocation feed context ID does not match trusted context")
+        }
+        guard releaseBuildDigestHex == context.releaseBuildDigestHex else {
+            throw SuperNeoProductIntegrationError.unauthorized("revocation feed release build digest does not match trusted context")
+        }
+        guard sequence > 0 else {
+            throw SuperNeoProductIntegrationError.invalidRequest("revocation feed sequence must be positive")
+        }
+        _ = try Digest256(hexDigest: releaseBuildDigestHex, name: "revocation feed release build digest")
+        try revocation.validateEntries(namePrefix: "revocation feed")
+        let issuedAt = try SuperNeoProductTime.parseUTC(issuedAtUTC, name: "revocation feed issuedAtUTC")
+        let validUntil = try SuperNeoProductTime.parseUTC(validUntilUTC, name: "revocation feed validUntilUTC")
+        guard issuedAt <= now else {
+            throw SuperNeoProductIntegrationError.unauthorized("revocation feed is not valid yet")
+        }
+        guard now <= validUntil else {
+            throw SuperNeoProductIntegrationError.unauthorized("revocation feed has expired")
+        }
+        guard issuedAt <= validUntil else {
+            throw SuperNeoProductIntegrationError.invalidRequest("revocation feed validity window is invalid")
+        }
+        if let contextRevocationIssuedAt = context.revocation.issuedAtUTC {
+            let contextIssuedAt = try SuperNeoProductTime.parseUTC(
+                contextRevocationIssuedAt,
+                name: "context revocation issuedAtUTC"
+            )
+            guard issuedAt >= contextIssuedAt else {
+                throw SuperNeoProductIntegrationError.unauthorized(
+                    "revocation feed is older than trusted context revocation metadata"
+                )
+            }
+        }
+    }
+}
+
+public struct SuperNeoSignedRevocationFeed: Codable, Equatable, Sendable {
+    public let payload: SuperNeoRevocationFeedPayload
+    public let signature: SuperNeoProductSignature
+
+    public init(payload: SuperNeoRevocationFeedPayload, signature: SuperNeoProductSignature) {
+        self.payload = payload
+        self.signature = signature
+    }
+
+    public static func loadVerified(
+        from url: URL,
+        trustedIssuerKeyDigestsHex: Set<String>,
+        context: SuperNeoTrustedContextPayload,
+        now: Date = Date()
+    ) throws -> SuperNeoVerifiedRevocationFeed {
+        try SuperNeoLocalFileSecurity.requireSecureRegularFile(url, description: "revocation feed")
+        let data = try Data(contentsOf: url)
+        try SuperNeoJSONDuplicateKeyValidator.validate(data: data, artifactName: "revocation feed")
+        let feed = try JSONDecoder().decode(Self.self, from: data)
+        return try feed.verified(
+            trustedIssuerKeyDigestsHex: trustedIssuerKeyDigestsHex,
+            context: context,
+            now: now
+        )
+    }
+
+    public func verified(
+        trustedIssuerKeyDigestsHex: Set<String>,
+        context: SuperNeoTrustedContextPayload,
+        now: Date = Date()
+    ) throws -> SuperNeoVerifiedRevocationFeed {
+        let payloadBytes = try SuperNeoCanonicalJSON.encode(payload)
+        let issuerKeyDigest = try SuperNeoProductSignatureVerifier.verify(
+            signature: signature,
+            payload: payloadBytes,
+            trustedKeyDigestsHex: trustedIssuerKeyDigestsHex,
+            description: "revocation feed"
+        )
+        try payload.validate(context: context, now: now)
+        return SuperNeoVerifiedRevocationFeed(
+            payload: payload,
+            feedDigest: Digest256.hash([UInt8](payloadBytes)),
+            issuerKeyDigest: issuerKeyDigest
+        )
+    }
+}
+
+public struct SuperNeoVerifiedRevocationFeed: Equatable, Sendable {
+    public let payload: SuperNeoRevocationFeedPayload
+    public let feedDigest: Digest256
+    public let issuerKeyDigest: Digest256
+
+    public init(
+        payload: SuperNeoRevocationFeedPayload,
+        feedDigest: Digest256,
+        issuerKeyDigest: Digest256
+    ) {
+        self.payload = payload
+        self.feedDigest = feedDigest
+        self.issuerKeyDigest = issuerKeyDigest
+    }
+}
+
 public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
     public let formatVersion: Int
     public let callerID: String
     public let contextPackPath: String?
     public let artifactProvenancePath: String?
     public let sideChannelCertificatePath: String?
+    public let revocationFeedPath: String
     public let replayDatabasePath: String
     public let auditLogPath: String
     public let trustedContextIssuerKeyDigestsHex: [String]
-    public let trustedProvenanceIssuerKeyDigestsHex: [String]?
-    public let trustedSideChannelIssuerKeyDigestsHex: [String]?
+    public let trustedProvenanceIssuerKeyDigestsHex: [String]
+    public let trustedSideChannelIssuerKeyDigestsHex: [String]
+    public let trustedRevocationIssuerKeyDigestsHex: [String]
     public let releaseBuildDigestHex: String
 
     public init(
@@ -363,11 +601,13 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
         contextPackPath: String? = nil,
         artifactProvenancePath: String? = nil,
         sideChannelCertificatePath: String? = nil,
+        revocationFeedPath: String,
         replayDatabasePath: String,
         auditLogPath: String,
         trustedContextIssuerKeyDigestsHex: [String],
-        trustedProvenanceIssuerKeyDigestsHex: [String]? = nil,
-        trustedSideChannelIssuerKeyDigestsHex: [String]? = nil,
+        trustedProvenanceIssuerKeyDigestsHex: [String],
+        trustedSideChannelIssuerKeyDigestsHex: [String],
+        trustedRevocationIssuerKeyDigestsHex: [String],
         releaseBuildDigestHex: String
     ) {
         self.formatVersion = formatVersion
@@ -375,11 +615,13 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
         self.contextPackPath = contextPackPath
         self.artifactProvenancePath = artifactProvenancePath
         self.sideChannelCertificatePath = sideChannelCertificatePath
+        self.revocationFeedPath = revocationFeedPath
         self.replayDatabasePath = replayDatabasePath
         self.auditLogPath = auditLogPath
         self.trustedContextIssuerKeyDigestsHex = trustedContextIssuerKeyDigestsHex
         self.trustedProvenanceIssuerKeyDigestsHex = trustedProvenanceIssuerKeyDigestsHex
         self.trustedSideChannelIssuerKeyDigestsHex = trustedSideChannelIssuerKeyDigestsHex
+        self.trustedRevocationIssuerKeyDigestsHex = trustedRevocationIssuerKeyDigestsHex
         self.releaseBuildDigestHex = releaseBuildDigestHex
     }
 
@@ -397,19 +639,15 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
     }
 
     public func trustedProvenanceIssuerKeyDigestSet() throws -> Set<String> {
-        try validateDigestList(
-            trustedProvenanceIssuerKeyDigestsHex ?? trustedContextIssuerKeyDigestsHex,
-            name: "trusted provenance issuer key digest"
-        )
+        try validateDigestList(trustedProvenanceIssuerKeyDigestsHex, name: "trusted provenance issuer key digest")
     }
 
     public func trustedSideChannelIssuerKeyDigestSet() throws -> Set<String> {
-        try validateDigestList(
-            trustedSideChannelIssuerKeyDigestsHex
-                ?? trustedProvenanceIssuerKeyDigestsHex
-                ?? trustedContextIssuerKeyDigestsHex,
-            name: "trusted side-channel issuer key digest"
-        )
+        try validateDigestList(trustedSideChannelIssuerKeyDigestsHex, name: "trusted side-channel issuer key digest")
+    }
+
+    public func trustedRevocationIssuerKeyDigestSet() throws -> Set<String> {
+        try validateDigestList(trustedRevocationIssuerKeyDigestsHex, name: "trusted revocation issuer key digest")
     }
 
     public var releaseBuildDigest: Digest256 {
@@ -431,9 +669,13 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
         guard !auditLogPath.isEmpty else {
             throw SuperNeoProductIntegrationError.invalidRequest("operator profile audit log path is required")
         }
+        guard !revocationFeedPath.isEmpty else {
+            throw SuperNeoProductIntegrationError.invalidRequest("operator profile revocation feed path is required")
+        }
         _ = try trustedContextIssuerKeyDigestSet()
         _ = try trustedProvenanceIssuerKeyDigestSet()
         _ = try trustedSideChannelIssuerKeyDigestSet()
+        _ = try trustedRevocationIssuerKeyDigestSet()
         _ = try releaseBuildDigest
     }
 }
@@ -642,6 +884,7 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
     public let artifactDigestHex: String?
     public let proofEnvelopeDigestHex: String?
     public let provenanceDigestHex: String?
+    public let revocationFeedDigestHex: String?
     public let sideChannelCertificateDigestHex: String?
     public let proofKind: String?
     public let contextID: String
@@ -656,6 +899,7 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
         artifactDigestHex: String? = nil,
         proofEnvelopeDigestHex: String? = nil,
         provenanceDigestHex: String? = nil,
+        revocationFeedDigestHex: String? = nil,
         sideChannelCertificateDigestHex: String? = nil,
         proofKind: String? = nil,
         contextID: String,
@@ -669,6 +913,7 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
         self.artifactDigestHex = artifactDigestHex
         self.proofEnvelopeDigestHex = proofEnvelopeDigestHex
         self.provenanceDigestHex = provenanceDigestHex
+        self.revocationFeedDigestHex = revocationFeedDigestHex
         self.sideChannelCertificateDigestHex = sideChannelCertificateDigestHex
         self.proofKind = proofKind
         self.contextID = contextID
@@ -713,6 +958,16 @@ public struct SuperNeoAuditLogChainStatus: Codable, Equatable, Sendable {
     }
 }
 
+public struct SuperNeoAuditLogStatusSnapshot: Codable, Equatable, Sendable {
+    public let auditLogDigestHex: String
+    public let chainStatus: SuperNeoAuditLogChainStatus
+
+    public init(auditLogDigestHex: String, chainStatus: SuperNeoAuditLogChainStatus) {
+        self.auditLogDigestHex = auditLogDigestHex
+        self.chainStatus = chainStatus
+    }
+}
+
 public struct SuperNeoAuditLogExportSnapshot: Codable, Equatable, Sendable {
     public let formatVersion: Int
     public let exportedAtUTC: String
@@ -732,6 +987,346 @@ public struct SuperNeoAuditLogExportSnapshot: Codable, Equatable, Sendable {
         self.auditLogDigestHex = auditLogDigestHex
         self.chainStatus = chainStatus
         self.records = records
+    }
+}
+
+public enum SuperNeoProductOperationsReadiness: String, Codable, Equatable, Sendable {
+    case ready
+    case attentionRequired = "attention-required"
+    case blocked
+}
+
+public enum SuperNeoProductOperationsCheckStatus: String, Codable, Equatable, Sendable {
+    case ok
+    case warn
+    case blocked
+}
+
+public struct SuperNeoProductOperationsCheck: Codable, Equatable, Sendable {
+    public let id: String
+    public let status: SuperNeoProductOperationsCheckStatus
+    public let detail: String
+    public let remediation: String?
+
+    public init(
+        id: String,
+        status: SuperNeoProductOperationsCheckStatus,
+        detail: String,
+        remediation: String? = nil
+    ) {
+        self.id = id
+        self.status = status
+        self.detail = detail
+        self.remediation = remediation
+    }
+}
+
+public struct SuperNeoProductOperationsStatus: Codable, Equatable, Sendable {
+    public static let formatVersion = 2
+    public static let contextExpiryWarningSeconds = 14 * 24 * 60 * 60
+    public static let auditExportRecommendedRecordCount = 10_000
+
+    public let formatVersion: Int
+    public let generatedAtUTC: String
+    public let readiness: SuperNeoProductOperationsReadiness
+    public let callerID: String
+    public let contextID: String
+    public let contextPayloadDigestHex: String
+    public let issuerKeyDigestHex: String
+    public let releaseBuildDigestHex: String
+    public let acceptedProofKinds: [String]
+    public let allowedWorkloads: [String]
+    public let keyRotationStatus: String
+    public let revocationStatus: String
+    public let revocationFeedID: String
+    public let revocationFeedSequence: UInt64
+    public let revocationFeedDigestHex: String
+    public let revocationFeedIssuerKeyDigestHex: String
+    public let sideChannelCertificateStatus: String
+    public let acceptedReplayCount: Int
+    public let auditLogDigestHex: String
+    public let auditLogRecordCount: Int
+    public let auditLogLastSequence: UInt64
+    public let auditLogLastDigestHex: String
+    public let auditRetentionPolicy: String
+    public let retryPolicy: String
+    public let checks: [SuperNeoProductOperationsCheck]
+
+    public init(
+        formatVersion: Int = Self.formatVersion,
+        generatedAtUTC: String,
+        readiness: SuperNeoProductOperationsReadiness,
+        callerID: String,
+        contextID: String,
+        contextPayloadDigestHex: String,
+        issuerKeyDigestHex: String,
+        releaseBuildDigestHex: String,
+        acceptedProofKinds: [String],
+        allowedWorkloads: [String],
+        keyRotationStatus: String,
+        revocationStatus: String,
+        revocationFeedID: String,
+        revocationFeedSequence: UInt64,
+        revocationFeedDigestHex: String,
+        revocationFeedIssuerKeyDigestHex: String,
+        sideChannelCertificateStatus: String,
+        acceptedReplayCount: Int,
+        auditLogDigestHex: String,
+        auditLogRecordCount: Int,
+        auditLogLastSequence: UInt64,
+        auditLogLastDigestHex: String,
+        auditRetentionPolicy: String,
+        retryPolicy: String,
+        checks: [SuperNeoProductOperationsCheck]
+    ) {
+        self.formatVersion = formatVersion
+        self.generatedAtUTC = generatedAtUTC
+        self.readiness = readiness
+        self.callerID = callerID
+        self.contextID = contextID
+        self.contextPayloadDigestHex = contextPayloadDigestHex
+        self.issuerKeyDigestHex = issuerKeyDigestHex
+        self.releaseBuildDigestHex = releaseBuildDigestHex
+        self.acceptedProofKinds = acceptedProofKinds
+        self.allowedWorkloads = allowedWorkloads
+        self.keyRotationStatus = keyRotationStatus
+        self.revocationStatus = revocationStatus
+        self.revocationFeedID = revocationFeedID
+        self.revocationFeedSequence = revocationFeedSequence
+        self.revocationFeedDigestHex = revocationFeedDigestHex
+        self.revocationFeedIssuerKeyDigestHex = revocationFeedIssuerKeyDigestHex
+        self.sideChannelCertificateStatus = sideChannelCertificateStatus
+        self.acceptedReplayCount = acceptedReplayCount
+        self.auditLogDigestHex = auditLogDigestHex
+        self.auditLogRecordCount = auditLogRecordCount
+        self.auditLogLastSequence = auditLogLastSequence
+        self.auditLogLastDigestHex = auditLogLastDigestHex
+        self.auditRetentionPolicy = auditRetentionPolicy
+        self.retryPolicy = retryPolicy
+        self.checks = checks
+    }
+
+    public static func make(
+        profile: SuperNeoLocalOperatorProfile,
+        context: SuperNeoVerifiedTrustedContextPack,
+        revocationFeed: SuperNeoVerifiedRevocationFeed,
+        effectiveRevocation: SuperNeoTrustedContextRevocation,
+        sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?,
+        acceptedReplayCount: Int,
+        auditStatus: SuperNeoAuditLogStatusSnapshot,
+        now: Date = Date()
+    ) throws -> Self {
+        let payload = context.payload
+        try revocationFeed.payload.validate(context: payload, now: now)
+        try effectiveRevocation.validateEntries(namePrefix: "effective revocation")
+        var checks: [SuperNeoProductOperationsCheck] = []
+
+        func appendCheck(
+            _ id: String,
+            _ status: SuperNeoProductOperationsCheckStatus,
+            _ detail: String,
+            remediation: String? = nil
+        ) {
+            checks.append(
+                SuperNeoProductOperationsCheck(
+                    id: id,
+                    status: status,
+                    detail: detail,
+                    remediation: remediation
+                )
+            )
+        }
+
+        if auditStatus.chainStatus.isValid {
+            appendCheck(
+                "audit-chain",
+                .ok,
+                "audit log hash chain is valid through sequence \(auditStatus.chainStatus.lastSequence)"
+            )
+        } else {
+            appendCheck(
+                "audit-chain",
+                .blocked,
+                auditStatus.chainStatus.reason ?? "audit log hash chain is invalid",
+                remediation: "export the file for incident response and reinitialize local product storage before accepting new proofs"
+            )
+        }
+
+        let validUntil = try SuperNeoProductTime.parseUTC(payload.validUntilUTC, name: "context validUntilUTC")
+        let secondsUntilExpiry = Int(validUntil.timeIntervalSince(now))
+        if secondsUntilExpiry < 0 {
+            appendCheck(
+                "context-validity",
+                .blocked,
+                "trusted context expired at \(payload.validUntilUTC)",
+                remediation: "install a freshly signed trusted context pack"
+            )
+        } else if secondsUntilExpiry <= contextExpiryWarningSeconds {
+            appendCheck(
+                "context-validity",
+                .warn,
+                "trusted context expires at \(payload.validUntilUTC)",
+                remediation: "rotate to the next signed trusted context before expiry"
+            )
+        } else {
+            appendCheck(
+                "context-validity",
+                .ok,
+                "trusted context is valid until \(payload.validUntilUTC)"
+            )
+        }
+
+        let rotation = payload.keyRotation
+        _ = try Digest256(hexDigest: rotation.currentIssuerKeyDigestHex, name: "current issuer key digest")
+        let keyRotationStatus: String
+        if let next = rotation.nextIssuerKeyDigestHex {
+            _ = try Digest256(hexDigest: next, name: "next issuer key digest")
+            keyRotationStatus = "next-key-staged"
+            appendCheck("key-rotation", .ok, "next issuer key digest is staged")
+        } else if rotation.previousIssuerKeyDigestsHex.isEmpty {
+            keyRotationStatus = "single-current-key"
+            appendCheck(
+                "key-rotation",
+                .warn,
+                "no next issuer key digest is staged",
+                remediation: "stage the next issuer key before a production-security release"
+            )
+        } else {
+            keyRotationStatus = "previous-key-accepted"
+            appendCheck(
+                "key-rotation",
+                .warn,
+                "previous issuer keys remain accepted",
+                remediation: "remove previous issuer keys after the rotation window closes"
+            )
+        }
+
+        let revocationCount = effectiveRevocation.revokedContextIDs.count
+            + effectiveRevocation.revokedArtifactDigestHex.count
+            + effectiveRevocation.revokedProofEnvelopeDigestHex.count
+            + effectiveRevocation.revokedProvenanceDigestHex.count
+        let revocationStatus: String
+        if effectiveRevocation.revokedContextIDs.contains(payload.contextID) {
+            revocationStatus = "active-context-revoked"
+            appendCheck(
+                "revocation",
+                .blocked,
+                "active trusted context is revoked",
+                remediation: "install a non-revoked trusted context pack"
+            )
+        } else {
+            guard let effectiveIssuedAtUTC = effectiveRevocation.issuedAtUTC else {
+                throw SuperNeoProductIntegrationError.invalidRequest("effective revocation issuedAtUTC is required")
+            }
+            _ = try SuperNeoProductTime.parseUTC(effectiveIssuedAtUTC, name: "revocation issuedAtUTC")
+            revocationStatus = revocationCount == 0 ? "signed-feed-current-empty" : "signed-feed-current-with-entries"
+            appendCheck(
+                "revocation",
+                .ok,
+                "signed revocation feed \(revocationFeed.payload.feedID) sequence \(revocationFeed.payload.sequence) is current with \(revocationCount) revoked item(s)"
+            )
+        }
+
+        let sideChannelCertificateStatus: String
+        if payload.acceptedProofKinds.contains(.numiSealZK) {
+            if sideChannelCertificate == nil {
+                sideChannelCertificateStatus = "missing-for-numiseal-zk"
+                appendCheck(
+                    "side-channel-certificate",
+                    .warn,
+                    "trusted context accepts numiseal-zk without an attached side-channel certificate",
+                    remediation: "attach a signed side-channel certificate when promoting a reviewed hardware lane"
+                )
+            } else {
+                sideChannelCertificateStatus = "attached"
+                appendCheck(
+                    "side-channel-certificate",
+                    .ok,
+                    "signed side-channel certificate is attached"
+                )
+            }
+        } else if sideChannelCertificate == nil {
+            sideChannelCertificateStatus = "not-required"
+            appendCheck(
+                "side-channel-certificate",
+                .ok,
+                "trusted context does not accept numiseal-zk"
+            )
+        } else {
+            sideChannelCertificateStatus = "attached-not-required"
+            appendCheck(
+                "side-channel-certificate",
+                .warn,
+                "side-channel certificate is attached but the active context does not accept numiseal-zk",
+                remediation: "remove stale certificate material or switch to the matching trusted context"
+            )
+        }
+
+        if profile.artifactProvenancePath == nil {
+            appendCheck(
+                "provenance-default",
+                .warn,
+                "operator profile has no default artifactProvenancePath",
+                remediation: "set artifactProvenancePath or always pass --artifact-provenance during product verification"
+            )
+        } else {
+            appendCheck(
+                "provenance-default",
+                .ok,
+                "operator profile includes default artifact provenance path"
+            )
+        }
+
+        if auditStatus.chainStatus.recordCount >= auditExportRecommendedRecordCount {
+            appendCheck(
+                "audit-retention",
+                .warn,
+                "audit log has \(auditStatus.chainStatus.recordCount) record(s)",
+                remediation: "export and archive the audit snapshot before rotating local logs"
+            )
+        } else {
+            appendCheck(
+                "audit-retention",
+                .ok,
+                "audit log is below the local export recommendation threshold"
+            )
+        }
+
+        let readiness: SuperNeoProductOperationsReadiness
+        if checks.contains(where: { $0.status == .blocked }) {
+            readiness = .blocked
+        } else if checks.contains(where: { $0.status == .warn }) {
+            readiness = .attentionRequired
+        } else {
+            readiness = .ready
+        }
+
+        return Self(
+            generatedAtUTC: SuperNeoProductTime.formatUTC(now),
+            readiness: readiness,
+            callerID: profile.callerID,
+            contextID: payload.contextID,
+            contextPayloadDigestHex: context.payloadDigest.hexString,
+            issuerKeyDigestHex: context.issuerKeyDigest.hexString,
+            releaseBuildDigestHex: profile.releaseBuildDigestHex,
+            acceptedProofKinds: payload.acceptedProofKinds.map(\.rawValue).sorted(),
+            allowedWorkloads: payload.allowedWorkloads.sorted(),
+            keyRotationStatus: keyRotationStatus,
+            revocationStatus: revocationStatus,
+            revocationFeedID: revocationFeed.payload.feedID,
+            revocationFeedSequence: revocationFeed.payload.sequence,
+            revocationFeedDigestHex: revocationFeed.feedDigest.hexString,
+            revocationFeedIssuerKeyDigestHex: revocationFeed.issuerKeyDigest.hexString,
+            sideChannelCertificateStatus: sideChannelCertificateStatus,
+            acceptedReplayCount: acceptedReplayCount,
+            auditLogDigestHex: auditStatus.auditLogDigestHex,
+            auditLogRecordCount: auditStatus.chainStatus.recordCount,
+            auditLogLastSequence: auditStatus.chainStatus.lastSequence,
+            auditLogLastDigestHex: auditStatus.chainStatus.lastRecordDigestHex,
+            auditRetentionPolicy: "export hash-chained JSON audit snapshots before local log rotation; hosted retention remains operator-owned",
+            retryPolicy: "retry only after refreshing signed context, provenance, revocation, storage, or certificate material; replay rejections require a new proof identity",
+            checks: checks
+        )
     }
 }
 
@@ -778,6 +1373,16 @@ public final class SuperNeoJSONLAuditLog {
     public func validateChain() throws -> SuperNeoAuditLogChainStatus {
         try withExclusiveAuditLogLock(flags: O_RDWR | O_CLOEXEC) { fd in
             try validateChainUnlocked(fd: fd)
+        }
+    }
+
+    public func statusSnapshot() throws -> SuperNeoAuditLogStatusSnapshot {
+        try withExclusiveAuditLogLock(flags: O_RDWR | O_CLOEXEC) { fd in
+            let result = try readRecordsUnlocked(fd: fd)
+            return SuperNeoAuditLogStatusSnapshot(
+                auditLogDigestHex: result.auditLogDigestHex,
+                chainStatus: result.status
+            )
         }
     }
 
@@ -970,24 +1575,12 @@ public extension SuperNeoTrustedContextPayload {
         proofEnvelopeDigest: Digest256?,
         provenanceDigest: Digest256?
     ) throws {
-        guard !revocation.revokedContextIDs.contains(contextID) else {
-            throw SuperNeoProductIntegrationError.unauthorized("trusted context has been revoked")
-        }
-        if let artifactDigest {
-            guard !revocation.revokedArtifactDigestHex.contains(artifactDigest.hexString) else {
-                throw SuperNeoProductIntegrationError.provenanceRejected("artifact digest has been revoked")
-            }
-        }
-        if let proofEnvelopeDigest {
-            guard !revocation.revokedProofEnvelopeDigestHex.contains(proofEnvelopeDigest.hexString) else {
-                throw SuperNeoProductIntegrationError.provenanceRejected("proof envelope digest has been revoked")
-            }
-        }
-        if let provenanceDigest {
-            guard !revocation.revokedProvenanceDigestHex.contains(provenanceDigest.hexString) else {
-                throw SuperNeoProductIntegrationError.provenanceRejected("provenance digest has been revoked")
-            }
-        }
+        try revocation.requireNotRevoked(
+            contextID: contextID,
+            artifactDigest: artifactDigest,
+            proofEnvelopeDigest: proofEnvelopeDigest,
+            provenanceDigest: provenanceDigest
+        )
     }
 
     func terminalPolicy() throws -> SuperNeoTerminalProofAcceptancePolicy {
@@ -1065,6 +1658,7 @@ public extension SuperNeoTrustedContextPayload {
         _ = try expectedStatementDigest
         _ = try expectedTranscriptDomainDigest
         _ = try releaseBuildDigest
+        try revocation.validateEntries(namePrefix: "trusted context revocation")
         if acceptedProofKinds.contains(.numiSealTerminal) || acceptedProofKinds.contains(.numiSealZK) {
             guard numiSeal != nil else {
                 throw SuperNeoProductIntegrationError.invalidRequest(
@@ -1149,9 +1743,13 @@ public enum SuperNeoCanonicalJSON {
 
 public enum SuperNeoProductTime {
     public static func nowUTCString() -> String {
+        formatUTC(Date())
+    }
+
+    public static func formatUTC(_ date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
-        return formatter.string(from: Date())
+        return formatter.string(from: date)
     }
 
     public static func parseUTC(_ raw: String, name: String) throws -> Date {

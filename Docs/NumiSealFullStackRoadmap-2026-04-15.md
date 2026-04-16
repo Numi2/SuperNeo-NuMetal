@@ -66,9 +66,11 @@ below.
   flag, fail-closed randomness-reuse tests, and side-channel review scope.
 
 - [ ] Deployed product operations.
-  Done when trusted context storage, key distribution/rotation, signed
-  provenance roots, race-safe replay, tenant authz, audit retention, revocation,
-  incident response, signed releases, and hosted branch protection exist.
+  Done when hosted trusted context storage, key distribution/rotation rollout,
+  tenant authz, hosted audit retention, revocation distribution, incident
+  response, signed releases, and hosted branch protection exist. Local signed
+  context/provenance/revocation feed, SQLite replay, hash-chained audit export, and
+  product-ops readiness status are implemented.
 
 - [ ] NumiSeal-specific end-to-end product formalization.
   Done when the NumiSeal public statement, aggregation, scalarization,

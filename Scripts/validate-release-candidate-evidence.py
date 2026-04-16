@@ -78,6 +78,28 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "NumiSeal conformance scope version must be 1",
     )
     require_string(surfaces.get("numiSealConformanceScopeDigestHex"), "numiSealConformanceScopeDigestHex")
+    require(
+        require_int(surfaces.get("constantTimeScopeVersion"), "constantTimeScopeVersion") == 1,
+        "constant-time scope version must be 1",
+    )
+    require_string(surfaces.get("constantTimeScopeDigestHex"), "constantTimeScopeDigestHex")
+    require(
+        require_int(surfaces.get("e2eProofMetricsVersion"), "e2eProofMetricsVersion") == 1,
+        "E2E proof metrics version must be 1",
+    )
+    require_string(surfaces.get("e2eProofMetricsDigestHex"), "e2eProofMetricsDigestHex")
+    require(
+        require_int(surfaces.get("e2eProofMetricsTrackedArtifactCount"), "e2eProofMetricsTrackedArtifactCount") >= 8,
+        "E2E proof metrics must track checked vector artifacts",
+    )
+    require(
+        require_int(surfaces.get("e2eProofMetricsGeneratedBudgetCount"), "e2eProofMetricsGeneratedBudgetCount") >= 2,
+        "E2E proof metrics must track product smoke budgets",
+    )
+    require(
+        require_int(surfaces.get("productOperationsStatusVersion"), "productOperationsStatusVersion") == 2,
+        "product operations status version must be 2",
+    )
     require(require_int(surfaces.get("proofEnvelopeHeaderVersion"), "proofEnvelopeHeaderVersion") == 4, "proof envelope version must be 4")
     require(require_int(surfaces.get("numiSealProofEnvelopeKind"), "numiSealProofEnvelopeKind") == 4, "NumiSeal envelope kind must be 4")
     require_string(surfaces.get("r1csSchemaID"), "r1csSchemaID")
@@ -89,6 +111,11 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "releaseEngineering",
         "schemaCompatibility",
         "numiSealConformanceScope",
+        "constantTimeEvidence",
+        "constantTimeScope",
+        "e2eProofMetrics",
+        "e2eProofMetricsPolicy",
+        "productOperationsReadiness",
         "releaseRunbook",
         "changelog",
     ]:

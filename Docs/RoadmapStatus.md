@@ -311,7 +311,8 @@ Remaining checklist:
 - [ ] Typed recursive carry semantics and carry consumer.
 - [ ] Separate `NumiSealZK` design and proof story.
 - [ ] Deployed product operations: context storage, keys, provenance, replay,
-  authz, audit retention, revocation, release signing.
+  authz, hosted audit retention, hosted revocation feed distribution, release
+  signing.
 - [ ] NumiSeal-specific product/carry/ZK formalization tracked by
   `TestVectors/numiseal-conformance-scope-v1.json`.
 - [ ] Self-owned cryptographic, implementation, and side-channel review record.

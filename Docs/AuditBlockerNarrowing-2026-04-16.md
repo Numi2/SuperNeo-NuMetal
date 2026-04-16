@@ -80,11 +80,17 @@ Covered strengths:
 
 Residual side-channel blockers:
 
+- `Formal/SuperNeoFormal/ConstantTime.lean`,
+  `TestVectors/constant-time-scope-v1.json`, and
+  `Scripts/validate-constant-time-scope.py` now provide a conditional
+  source/formal trace model for checked Swift Goldilocks common arithmetic,
+  Metal Goldilocks common arithmetic, and the secret-bearing NumiSealZK Metal
+  kernel slice.
 - `GoldilocksField` now uses mask-based canonicalization for initialization,
-  addition, subtraction, negation, and multiplication reduction, removing the
-  most common source-level arithmetic branches. Exponentiation and inversion
-  still retain a zero check and fixed-exponent control flow, and the Swift
-  compiler/CPU lowering has not been audited as constant-time.
+  addition, subtraction, negation, multiplication reduction, and fixed-width
+  exponentiation selection, removing the most common source-level arithmetic
+  branches. Inversion still retains a zero check before the fixed exponent path,
+  and the Swift compiler/CPU lowering has not been audited as constant-time.
 - Swift array allocation, copy-on-write behavior, ARC, and allocator/cache
   behavior are not modeled or constrained. Even fixed loop schedules do not
   prove stable memory-observation behavior.
@@ -101,9 +107,8 @@ Residual side-channel blockers:
 Conclusion: the side-channel blocker is narrowed to a precise scope. The
 implemented mode removes the most visible witness-dependent zero-skip and GPU
 prover hazards and narrows common field arithmetic, but production side-channel
-claims require complete inversion/exponentiation treatment plus compiler and
-hardware review, or a narrower deployment threat model that excludes local
-observation.
+claims require inversion-entry treatment plus compiler and hardware review, or a
+narrower deployment threat model that excludes local observation.
 
 ## Product Integration Layer
 
@@ -130,6 +135,9 @@ Existing primitives:
   and audit-event recording around `NumiSealArtifactVerifier.verify`.
 - The new product facade binds replay identity to expected context, statement
   digest, proof-envelope digest, raw artifact digest, and provenance digest.
+- Local product controls now require explicit issuer trust roots and a signed
+  revocation feed; audit events bind the revocation feed digest used for the
+  decision.
 - Focused XCTest coverage checks acceptance, audit recording, fail-closed
   authorization, replay rejection, and product byte-limit rejection.
 
@@ -141,9 +149,9 @@ Missing product responsibilities:
 - race-safe replay ledger semantics,
 - request authentication, authorization, and tenant isolation,
 - persistent verification records,
-- structured audit-log transport and retention,
-- user-facing error and retry policy,
-- incident response and revocation hooks.
+- structured hosted audit-log transport and retention,
+- hosted user-facing error and retry policy,
+- hosted incident response and revocation feed distribution.
 
 Recommended integration contract:
 

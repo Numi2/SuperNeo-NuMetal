@@ -17,6 +17,10 @@ Machine-readable files:
   conformance descriptor.
 - `numiseal-zk-masked-residual-conformance-v1.json`: masked residual ZK
   positive/negative conformance descriptor.
+- `constant-time-scope-v1.json`: checked constant-time source/formal scope for
+  the first Swift Goldilocks and NumiSealZK Metal regions.
+- `e2e-proof-metrics-v1.json`: checked proof-envelope byte counts, artifact
+  byte counts, generated product-smoke budgets, and benchmark-evidence policy.
 
 Validate the checked-in vectors with:
 
@@ -24,6 +28,8 @@ Validate the checked-in vectors with:
 swift Scripts/validate-test-vectors.swift
 swift run superneo-numiseal-vectors validate
 Scripts/validate-numiseal-conformance-scope.py
+Scripts/validate-constant-time-scope.py
+Scripts/validate-e2e-proof-metrics.py
 ```
 
 ## Vectors

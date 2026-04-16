@@ -12,6 +12,10 @@ candidate. It does not authorize production-security release claims.
   result and no-go list.
 - `Docs/SchemaCompatibility-2026-04-16.md` reflects any public artifact,
   manifest, or proof-envelope changes.
+- `Docs/E2EProofMetrics-2026-04-16.md` reflects any proof-size or product
+  smoke budget changes.
+- `Docs/ProductOperationsReadiness-2026-04-16.md` reflects any product
+  operations readiness status or signed revocation feed changes.
 - `elan`, Swift, and the pinned Lean toolchain are available.
 
 ## Candidate Gate
@@ -57,6 +61,10 @@ The generated evidence records:
 - full production-gate command and result,
 - public artifact, manifest, schema, and proof-envelope versions,
 - NumiSeal product/carry/ZK conformance-scope version and digest,
+- constant-time source/formal scope version and digest,
+- E2E proof metrics version and digest,
+- product operations readiness status version,
+- signed revocation feed policy,
 - release-policy documentation paths,
 - formal status summary,
 - explicit unsigned research-artifact signing status,

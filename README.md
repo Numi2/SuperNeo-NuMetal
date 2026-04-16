@@ -25,7 +25,8 @@ cryptographic library.
 | Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
 | Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/` and summarized below. |
-| Formalization | Conditional protocol formalization in Lean 4, tracked by `Docs/FormalStatus.json`. |
+| Formalization | Completed protocol theorem track plus a conditional constant-trace model in Lean 4, tracked by `Docs/FormalStatus.json` and `TestVectors/constant-time-scope-v1.json`. |
+| Product ops | Local signed context/provenance/revocation feed, replay ledger, audit export, and machine-readable operations readiness status for private integration work. |
 
 ## Highlights
 
@@ -69,6 +70,13 @@ cryptographic library.
   JSON keys, artifact schemas, workload metadata, key-seed domain separation,
   Metal workspace invariants, checked allocation sizes, and high-assurance
   execution policies.
+- A checked constant-time source/formal scope for the first Swift Goldilocks and
+  NumiSealZK Metal slices, with explicit compiler/runtime/hardware boundaries.
+- A canonical local product operations readiness status exposed by
+  `product-status --format json` and embedded in product audit exports.
+- A required signed revocation feed for local product controls, with effective
+  revocation checked before product acceptance and feed digest bound into audit
+  decisions.
 
 Core profile constants are documented in [Docs/Parameters.md](Docs/Parameters.md).
 
@@ -177,6 +185,12 @@ Include the quick benchmark profile in the same gate:
 
 ```sh
 Scripts/production-gate.sh --with-benchmarks
+```
+
+Validate the checked proof-size and product-smoke budgets:
+
+```sh
+Scripts/validate-e2e-proof-metrics.py
 ```
 
 Validate checked-in test vectors:
@@ -345,6 +359,9 @@ machine-readable artifact schema. NumiSeal uses
 `TestVectors/numiseal-manifest.json` plus
 `TestVectors/numiseal-artifact.schema.json`, with schema and manifest mutation
 checks in the production gate.
+`TestVectors/e2e-proof-metrics-v1.json` pins exact checked-vector proof-envelope
+bytes and generated product-smoke size budgets without adding certificate or
+metrics material to proof bytes.
 
 ```sh
 swift Scripts/validate-test-vectors.swift

@@ -59,6 +59,17 @@ def manifest_version(manifest_path: str) -> int:
     return int(read_json(manifest_path)["manifestVersion"])
 
 
+def scoped_manifest_version(manifest_path: str) -> int:
+    return int(read_json(manifest_path)["schemaVersion"])
+
+
+def list_count(manifest_path: str, key: str) -> int:
+    value = read_json(manifest_path)[key]
+    if not isinstance(value, list):
+        raise ValueError(f"{manifest_path} {key} must be a list")
+    return len(value)
+
+
 def sha256_hex(relative_path: str) -> str:
     return hashlib.sha256((ROOT / relative_path).read_bytes()).hexdigest()
 
@@ -108,6 +119,19 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "numiSealManifestVersion": manifest_version("TestVectors/numiseal-manifest.json"),
             "numiSealConformanceScopeVersion": int(read_json("TestVectors/numiseal-conformance-scope-v1.json")["schemaVersion"]),
             "numiSealConformanceScopeDigestHex": sha256_hex("TestVectors/numiseal-conformance-scope-v1.json"),
+            "constantTimeScopeVersion": int(read_json("TestVectors/constant-time-scope-v1.json")["schemaVersion"]),
+            "constantTimeScopeDigestHex": sha256_hex("TestVectors/constant-time-scope-v1.json"),
+            "e2eProofMetricsVersion": scoped_manifest_version("TestVectors/e2e-proof-metrics-v1.json"),
+            "e2eProofMetricsDigestHex": sha256_hex("TestVectors/e2e-proof-metrics-v1.json"),
+            "e2eProofMetricsTrackedArtifactCount": list_count("TestVectors/e2e-proof-metrics-v1.json", "trackedArtifacts"),
+            "e2eProofMetricsGeneratedBudgetCount": list_count("TestVectors/e2e-proof-metrics-v1.json", "generatedProductBudgets"),
+            "productOperationsStatusVersion": int(
+                parse_regex(
+                    "SuperNeo-NuMetal/ProductIntegration/LocalProductControls.swift",
+                    r"public\s+static\s+let\s+formatVersion\s*=\s*(\d+)",
+                    "SuperNeoProductOperationsStatus.formatVersion",
+                )
+            ),
             "proofEnvelopeHeaderVersion": int(
                 parse_regex(
                     "SuperNeo-NuMetal/SuperNeoSerialization.swift",
@@ -128,6 +152,11 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "releaseEngineering": "Docs/ReleaseEngineering-2026-04-16.md",
             "schemaCompatibility": "Docs/SchemaCompatibility-2026-04-16.md",
             "numiSealConformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
+            "constantTimeEvidence": "Docs/ConstantTimeEvidence-2026-04-16.md",
+            "constantTimeScope": "TestVectors/constant-time-scope-v1.json",
+            "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
+            "e2eProofMetricsPolicy": "Docs/E2EProofMetrics-2026-04-16.md",
+            "productOperationsReadiness": "Docs/ProductOperationsReadiness-2026-04-16.md",
             "releaseRunbook": "Docs/ReleaseCandidateRunbook-2026-04-16.md",
             "changelog": "CHANGELOG.md",
         },
@@ -140,8 +169,9 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "signedArtifactsRequiredForProductionSecurity": True,
         },
         "productionSecurityBoundaries": [
-            "No formal constant-time or side-channel certification is recorded.",
-            "No deployed product replay-protection, provenance, persistence, or access-control service is recorded.",
+            "A conditional source/formal constant-time trace scope is recorded; compiler lowering, runtime allocation, and hardware observations remain explicit boundaries.",
+            "E2E proof-size budgets are checked for deterministic vectors and local product smokes; hardware latency claims still require fresh benchmark evidence.",
+            "Local product-ops readiness and signed revocation-feed verification are machine-readable and audit-exported; no hosted product replay-protection, provenance, persistence, revocation-distribution, or access-control service is recorded.",
             "NumiSeal product, carry, and ZK formalization remains tracked by the conformance scope manifest.",
         ],
     }

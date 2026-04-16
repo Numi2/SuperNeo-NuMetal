@@ -24,6 +24,9 @@ Coverage included:
 - release XCTest suite,
 - R1CS artifact schema contract validation and schema mutation tests,
 - NumiSeal artifact schema contract validation and schema mutation tests,
+- constant-time source/formal scope validation,
+- E2E proof-size metrics and generated product smoke budget validation,
+- local product-ops readiness surface validation,
 - release policy, schema compatibility, and CI gate drift validation,
 - checked vector validation,
 - NumiSeal vector validation,
@@ -84,6 +87,9 @@ Threat model and proof semantics:
 - `Docs/CLI.md`
 - `Docs/AuditBlockerNarrowing-2026-04-16.md`
 - `Docs/ProductIntegrationLayer-2026-04-16.md`
+- `Docs/ConstantTimeEvidence-2026-04-16.md`
+- `Docs/E2EProofMetrics-2026-04-16.md`
+- `Docs/ProductOperationsReadiness-2026-04-16.md`
 
 Formal status:
 
@@ -101,9 +107,17 @@ Release and validation gates:
 - `Docs/ProductIntegrationLayer-2026-04-16.md`
 - `Docs/ReleaseCandidateRunbook-2026-04-16.md`
 - `TestVectors/numiseal-conformance-scope-v1.json`
+- `TestVectors/constant-time-scope-v1.json`
+- `TestVectors/e2e-proof-metrics-v1.json`
 - `CHANGELOG.md`
 - `Scripts/validate-release-readiness-policy.py`
 - `Scripts/validate-numiseal-conformance-scope.py`
+- `Scripts/validate-constant-time-scope.py`
+- `Scripts/test-constant-time-scope-validation.py`
+- `Scripts/validate-e2e-proof-metrics.py`
+- `Scripts/test-e2e-proof-metrics-validation.py`
+- `Scripts/validate-product-ops-surface.py`
+- `Scripts/test-product-ops-surface-validation.py`
 - `Scripts/generate-release-candidate-evidence.py`
 - `Scripts/validate-release-candidate-evidence.py`
 - `Scripts/test-release-candidate-evidence-validation.py`
@@ -143,7 +157,11 @@ Within the repository's stated scope, the code is ready for:
   using explicit policy gates,
 - NumiSeal product-integration experiments using protocol hooks for trusted
   context lookup, authorization, provenance verification, replay detection, and
-  audit recording.
+  audit recording,
+- local product-ops readiness inspection and audit export with machine-readable
+  `SuperNeoProductOperationsStatus`,
+- signed local revocation-feed verification and audit binding for product
+  controls.
 
 For NumiSeal, the production-facing surface is verification and inspection of
 the checked immediate-residual artifact family. The shared
@@ -174,14 +192,17 @@ These are the remaining blockers before using production-security language:
    timing behavior.
 3. Deployed product implementations for trusted key distribution,
    expected-context storage, artifact provenance, replay protection,
-   persistence, access control, logging, and user-facing error policy. The
-   local NumiSeal integration protocol facade now exists, but durable product
-   implementations remain outside the repository.
+   persistence, access control, hosted logging, and hosted revocation
+   distribution. The local NumiSeal integration protocol facade, local
+   product-ops readiness status, and signed revocation feed now exist, but
+   durable product implementations remain outside the repository.
 4. NumiSeal product/carry/ZK theorem scope remains release-discipline work:
    `TestVectors/numiseal-conformance-scope-v1.json` now tracks the current
    surfaces, conformance vectors, and open theorem work inside the repository.
 5. Broader hardware benchmark reports before making cross-generation
-   performance claims.
+   performance claims. The E2E proof metrics manifest now gates checked-vector
+   proof size and product-smoke size budgets, but hardware latency claims still
+   need fresh benchmark evidence.
 6. Release engineering execution: signed artifacts and hosted branch-protection
    enforcement requiring the full production gate. The changelog, reproducible
    release instructions, release evidence tooling, and schema compatibility
@@ -190,15 +211,14 @@ These are the remaining blockers before using production-security language:
 
 ## Next Engineering Slice
 
-The next high-leverage implementation slice is public NumiSeal artifact
-generation:
+The next high-leverage implementation slice is hosted product operations and
+typed recursive carry promotion. The local product verifier now has trusted
+context, provenance, replay, audit hooks, product-ops readiness classification,
+signed revocation feed verification, audit export retention policy, and retry
+policy. Production work should add durable context storage, key distribution and
+rotation rollout, hosted revocation feed distribution, tenant authorization, and
+hosted audit retention.
 
-```sh
-superneo prove --seal numiseal ...
-```
-
-That work should reuse the shared `NumiSealArtifactVerifier` trust boundary and
-keep deterministic vector generation separate from randomized production
-proving. The slice should include prover-side schema policy, generated-artifact
-negative tests, CLI docs, and production-gate coverage before being advertised
-as a public proving surface.
+Recursive carry promotion should keep using `NumiSealCarryStatement` rather
+than raw carry slots, add product producer/consumer vectors, and extend the
+conformance-scope manifest before changing product defaults.

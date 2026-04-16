@@ -72,6 +72,30 @@ def main() -> None:
         write_json(path, wrong_numiseal_scope)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_constant_time_scope = copy.deepcopy(evidence)
+        wrong_constant_time_scope["publicSurfaces"]["constantTimeScopeVersion"] = 2
+        path = tmp / "wrong-constant-time-scope.json"
+        write_json(path, wrong_constant_time_scope)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        wrong_e2e_metrics = copy.deepcopy(evidence)
+        wrong_e2e_metrics["publicSurfaces"]["e2eProofMetricsVersion"] = 2
+        path = tmp / "wrong-e2e-metrics.json"
+        write_json(path, wrong_e2e_metrics)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_product_budget = copy.deepcopy(evidence)
+        missing_product_budget["publicSurfaces"]["e2eProofMetricsGeneratedBudgetCount"] = 1
+        path = tmp / "missing-product-budget.json"
+        write_json(path, missing_product_budget)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        wrong_product_ops_surface = copy.deepcopy(evidence)
+        wrong_product_ops_surface["publicSurfaces"]["productOperationsStatusVersion"] = 1
+        path = tmp / "wrong-product-ops-surface.json"
+        write_json(path, wrong_product_ops_surface)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         outsourced_review_boundary = copy.deepcopy(evidence)
         outsourced_review_boundary["productionSecurityBoundaries"].append("External" + " audit required.")
         path = tmp / "outsourced-review-boundary.json"

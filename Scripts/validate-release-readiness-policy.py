@@ -68,11 +68,24 @@ def validate_docs() -> None:
             "Docs/ReleaseEngineering-2026-04-16.md",
             "Docs/SchemaCompatibility-2026-04-16.md",
             "Docs/ReleaseCandidateRunbook-2026-04-16.md",
+            "Docs/ConstantTimeEvidence-2026-04-16.md",
+            "Docs/E2EProofMetrics-2026-04-16.md",
+            "Docs/ProductOperationsReadiness-2026-04-16.md",
             "TestVectors/numiseal-conformance-scope-v1.json",
+            "TestVectors/constant-time-scope-v1.json",
+            "TestVectors/e2e-proof-metrics-v1.json",
             "Scripts/validate-release-readiness-policy.py",
             "Scripts/validate-numiseal-conformance-scope.py",
+            "Scripts/validate-constant-time-scope.py",
+            "Scripts/test-constant-time-scope-validation.py",
+            "Scripts/validate-e2e-proof-metrics.py",
+            "Scripts/test-e2e-proof-metrics-validation.py",
+            "Scripts/validate-product-ops-surface.py",
+            "Scripts/test-product-ops-surface-validation.py",
             "Scripts/generate-release-candidate-evidence.py",
             "Scripts/validate-release-candidate-evidence.py",
+            "local product-ops readiness",
+            "signed revocation feed",
         ],
     )
     require_contains(
@@ -86,6 +99,12 @@ def validate_docs() -> None:
             "signed artifacts",
             "branch protection requiring the full production gate",
             "Scripts/validate-numiseal-conformance-scope.py",
+            "Scripts/validate-constant-time-scope.py",
+            "Scripts/validate-e2e-proof-metrics.py",
+            "Scripts/validate-product-ops-surface.py",
+            "product operations readiness",
+            "signed revocation feed",
+            "E2E proof metrics digest",
             "Scripts/generate-release-candidate-evidence.py",
         ],
     )
@@ -98,6 +117,8 @@ def validate_docs() -> None:
             "`numiseal-test-vector-artifact-v1.json`",
             "`test-vector-artifact-v1.json`",
             "TestVectors/numiseal-conformance-scope-v1.json",
+            "TestVectors/constant-time-scope-v1.json",
+            "TestVectors/e2e-proof-metrics-v1.json",
             "Version Bump Checklist",
         ],
     )
@@ -110,6 +131,11 @@ def validate_docs() -> None:
             "--expect-production-gate-result passed",
             "unsigned research artifacts",
             "NumiSeal product/carry/ZK conformance-scope version and digest",
+            "constant-time source/formal scope version and digest",
+            "E2E proof metrics version and digest",
+            "product operations readiness status",
+            "signed revocation feed",
+            "Docs/ProductOperationsReadiness-2026-04-16.md",
             "Branch Protection",
         ],
     )
@@ -151,9 +177,21 @@ def validate_schema_versions() -> None:
     conformance_scope = read_json("TestVectors/numiseal-conformance-scope-v1.json")
     require(isinstance(conformance_scope, dict), "NumiSeal conformance scope root must be an object")
     require(conformance_scope.get("schemaVersion") == 1, "NumiSeal conformance scope schemaVersion must be 1")
+    legacy_review_flag = "external" + "AuditRequired"
+    require(legacy_review_flag not in conformance_scope, "NumiSeal conformance scope must not carry review-gate flags")
+    constant_time_scope = read_json("TestVectors/constant-time-scope-v1.json")
+    require(isinstance(constant_time_scope, dict), "constant-time scope root must be an object")
+    require(constant_time_scope.get("schemaVersion") == 1, "constant-time scope schemaVersion must be 1")
     require(
-        conformance_scope.get("externalAuditRequired") is False,
-        "NumiSeal conformance scope must not require outsourced review",
+        constant_time_scope.get("claimStatus") == "conditional-source-and-formal-trace-model",
+        "constant-time scope claimStatus must stay precise",
+    )
+    e2e_metrics = read_json("TestVectors/e2e-proof-metrics-v1.json")
+    require(isinstance(e2e_metrics, dict), "E2E proof metrics root must be an object")
+    require(e2e_metrics.get("schemaVersion") == 1, "E2E proof metrics schemaVersion must be 1")
+    require(
+        e2e_metrics.get("claimStatus") == "checked-vector-and-product-smoke-size-budgets",
+        "E2E proof metrics claimStatus must stay precise",
     )
 
     serialization = read_text("SuperNeo-NuMetal/SuperNeoSerialization.swift")
@@ -182,6 +220,38 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/validate-numiseal-conformance-scope.py" in gate,
         "production gate must run validate-numiseal-conformance-scope.py",
+    )
+    require(
+        "run_step Scripts/validate-constant-time-scope.py" in gate,
+        "production gate must run validate-constant-time-scope.py",
+    )
+    require(
+        "run_step Scripts/test-constant-time-scope-validation.py" in gate,
+        "production gate must run constant-time validator regression tests",
+    )
+    require(
+        "run_step Scripts/validate-e2e-proof-metrics.py" in gate,
+        "production gate must run validate-e2e-proof-metrics.py",
+    )
+    require(
+        "run_step Scripts/test-e2e-proof-metrics-validation.py" in gate,
+        "production gate must run E2E proof metrics validator regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-ops-surface.py" in gate,
+        "production gate must run validate-product-ops-surface.py",
+    )
+    require(
+        "run_step Scripts/test-product-ops-surface-validation.py" in gate,
+        "production gate must run product ops surface validator regression tests",
+    )
+    require(
+        "--generated-product-artifact \"numiseal-product-smoke:${numiseal_product_path}\"" in gate,
+        "production gate must budget the generated NumiSeal product smoke artifact",
+    )
+    require(
+        "--generated-product-artifact \"numiseal-zk-product-smoke:${numiseal_zk_product_path}\"" in gate,
+        "production gate must budget the generated NumiSealZK product smoke artifact",
     )
 
 

@@ -22,24 +22,38 @@ claims remain blocked by the release packet no-go items.
   compatibility policy, release-candidate runbook, and release evidence tooling.
 - Added a machine-checked NumiSeal product/carry/ZK conformance scope manifest
   so theorem and vector promotion work is tracked inside the repository.
+- Added a checked constant-time source/formal scope manifest, validator, and
+  Lean trace-independence model for the first Swift/Metal secret-bearing slices.
+- Added a checked E2E proof metrics manifest, validator, and production-gate
+  product smoke budget checks for proof-envelope and artifact byte growth.
+- Added a canonical local product operations readiness status, CLI JSON output,
+  audit-export binding, and production-gate validator for operator lifecycle,
+  audit retention, and retry policy.
+- Added required signed revocation feeds for local product controls and removed
+  implicit operator-profile trust-root fallback between context, provenance,
+  side-channel, and revocation issuers.
 - Added local product audit export: the CLI now emits a sorted-key JSON
   snapshot only after validating the hash-chained JSONL audit log under an
   exclusive file lock.
 - Hardened common Goldilocks field arithmetic by moving initialization,
   addition, subtraction, negation, and multiplication reduction to mask-based
   canonicalization.
+- Hardened Metal Goldilocks helpers used by NumiSealZK kernels with mask/select
+  carry folding and source-level branchless 128-bit reduction.
 
 ### Compatibility
 
 - Public R1CS/vector artifacts remain at `artifactVersion = 1`.
 - Public NumiSeal artifacts remain at `artifactVersion = 1`.
 - Public manifests remain at `manifestVersion = 1`.
+- The E2E proof metrics manifest starts at `schemaVersion = 1`.
 - Proof envelopes remain at `ProofEnvelopeHeader.version = 4`.
 
 ### Remaining Production-Security Blockers
 
 - Self-owned cryptographic and implementation review record.
-- Side-channel review and constant-time certification scope.
+- Constant-time compiler-lowering, runtime, and hardware evidence beyond the
+  checked source/formal trace scope.
 - Product integration for provenance, replay protection, trusted context, access
   control, persistence, logging, and user-facing policy.
 - NumiSeal product/carry/ZK theorem and conformance-vector promotion; the

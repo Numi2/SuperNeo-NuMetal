@@ -20,6 +20,7 @@ public struct GoldilocksField: Equatable, Hashable, Sendable {
     public static let zero = GoldilocksField(0)
     public static let one = GoldilocksField(1)
 
+    // constant-time-source-scope: swift-goldilocks-common-arithmetic begin
     public static func + (lhs: Self, rhs: Self) -> Self {
         let (sum, overflow) = lhs.rawValue.addingReportingOverflow(rhs.rawValue)
         let value = addFoldedCarry(sum, epsilon & truthMask(overflow))
@@ -41,36 +42,6 @@ public struct GoldilocksField: Equatable, Hashable, Sendable {
     }
 
     public func squared() -> Self { self * self }
-
-    public func pow(_ exponent: UInt64) -> Self {
-        var base = self
-        var exp = exponent
-        var result = Self.one
-        while exp > 0 {
-            if exp & 1 == 1 { result = result * base }
-            exp >>= 1
-            if exp > 0 { base = base * base }
-        }
-        return result
-    }
-
-    public func inverse() throws -> Self {
-        guard rawValue != 0 else { throw SuperNeoError.divisionByZero }
-        return pow(Self.modulus - 2)
-    }
-
-    public var littleEndianBytes: [UInt8] {
-        withUnsafeBytes(of: rawValue.littleEndian, Array.init)
-    }
-
-    public init(littleEndianBytes bytes: ArraySlice<UInt8>) throws {
-        guard bytes.count == 8 else { throw SuperNeoError.invalidEncoding("Goldilocks element must be 8 bytes") }
-        let value = bytes.enumerated().reduce(UInt64(0)) { acc, pair in
-            acc | (UInt64(pair.element) << UInt64(pair.offset * 8))
-        }
-        guard value < Self.modulus else { throw SuperNeoError.invalidEncoding("non-canonical Goldilocks element") }
-        self.rawValue = value
-    }
 
     private static func reduce(_ high: UInt64, _ low: UInt64) -> UInt64 {
         // p = 2^64 - 2^32 + 1, so fold the 128-bit high word with
@@ -98,8 +69,45 @@ public struct GoldilocksField: Equatable, Hashable, Sendable {
         return (candidate & mask) | (value & ~mask)
     }
 
+    private static func select(_ falseValue: Self, _ trueValue: Self, when condition: Bool) -> Self {
+        let mask = truthMask(condition)
+        return Self(uncheckedRawValue: (trueValue.rawValue & mask) | (falseValue.rawValue & ~mask))
+    }
+
     private static func truthMask(_ condition: Bool) -> UInt64 {
         0 &- UInt64(condition ? 1 : 0)
+    }
+    // constant-time-source-scope: swift-goldilocks-common-arithmetic end
+
+    // constant-time-source-scope: swift-goldilocks-fixed-exponentiation begin
+    public func pow(_ exponent: UInt64) -> Self {
+        var base = self
+        var result = Self.one
+        for bit in 0..<UInt64.bitWidth {
+            let product = result * base
+            result = Self.select(result, product, when: ((exponent >> UInt64(bit)) & 1) == 1)
+            base = base * base
+        }
+        return result
+    }
+    // constant-time-source-scope: swift-goldilocks-fixed-exponentiation end
+
+    public func inverse() throws -> Self {
+        guard rawValue != 0 else { throw SuperNeoError.divisionByZero }
+        return pow(Self.modulus - 2)
+    }
+
+    public var littleEndianBytes: [UInt8] {
+        withUnsafeBytes(of: rawValue.littleEndian, Array.init)
+    }
+
+    public init(littleEndianBytes bytes: ArraySlice<UInt8>) throws {
+        guard bytes.count == 8 else { throw SuperNeoError.invalidEncoding("Goldilocks element must be 8 bytes") }
+        let value = bytes.enumerated().reduce(UInt64(0)) { acc, pair in
+            acc | (UInt64(pair.element) << UInt64(pair.offset * 8))
+        }
+        guard value < Self.modulus else { throw SuperNeoError.invalidEncoding("non-canonical Goldilocks element") }
+        self.rawValue = value
     }
 }
 

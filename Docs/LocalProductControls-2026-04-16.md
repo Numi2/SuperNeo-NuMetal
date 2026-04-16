@@ -22,14 +22,26 @@ superneo verify \
 superneo product-status \
   --operator-profile profile.json
 
+superneo product-status \
+  --operator-profile profile.json \
+  --revocation-feed revocations.json \
+  --format json
+
 superneo product-export-audit \
   --operator-profile profile.json \
+  --revocation-feed revocations.json \
   --output audit-export.json
 ```
 
-`--context-pack`, `--artifact-provenance`, and
+`--context-pack`, `--artifact-provenance`, `--revocation-feed`, and
 `--side-channel-certificate` can override the paths embedded in the operator
-profile when optional release evidence is being inspected.
+profile for a single run. The operator profile still carries the required
+context, provenance, side-channel, and revocation trust roots explicitly.
+
+`product-status --format json` emits `SuperNeoProductOperationsStatus`, the
+canonical local product-ops readiness document. The text mode includes the same
+operations readiness, auditRetentionPolicy, retryPolicy, and per-check
+remediation lines for operator use.
 
 ## Operator Profile
 
@@ -38,14 +50,20 @@ group/world writable. It contains:
 
 - caller ID,
 - trusted context issuer key digests,
-- optional trusted provenance issuer key digests,
-- optional trusted side-channel issuer key digests,
+- trusted provenance issuer key digests,
+- trusted side-channel issuer key digests,
+- trusted revocation issuer key digests,
 - context-pack path,
 - artifact-provenance path,
 - optional side-channel certificate path,
+- signed revocation feed path,
 - SQLite replay database path,
 - JSONL audit log path, and
 - release build digest.
+
+Context, provenance, side-channel, and revocation issuer key digest lists are
+explicit profile fields. The loader no longer falls back from one trust root to
+another; private operator configs must name every accepted issuer class.
 
 The replay database and audit log must already exist and pass the same ownership
 and write-permission checks before verification runs. Use `product-init-storage`
@@ -73,11 +91,40 @@ The payload binds:
   seal modes, Metal modes, execution policies, leakage digests, proof body
   versions, and masked residual statement versions,
 - key-rotation metadata, and
-- revocation metadata.
+- embedded revocation metadata.
 
 Verification fails closed when the context is expired, unsigned by a trusted
 issuer key, outside the advertised rotation metadata, revoked, or mismatched
 against the artifact.
+
+## Signed Revocation Feed
+
+The signed revocation feed is separate from the trusted context pack so urgent
+revocations can be distributed without reissuing the full context. The feed is
+signed JSON and binds:
+
+- feed ID and issuer,
+- context ID,
+- release build digest,
+- monotonic sequence,
+- issue and expiry timestamps,
+- revoked context IDs,
+- revoked artifact digests,
+- revoked proof-envelope digests, and
+- revoked provenance digests.
+
+Product controls require a revocation feed path in the operator profile. The
+`--revocation-feed` override may select a different signed feed for a run, but
+the profile still has to declare the revocation-feed surface and trust root.
+The verifier checks feed signature, file
+permissions, context binding, release binding, sequence positivity, validity
+window, and freshness relative to embedded context revocation metadata.
+
+The effective revocation set is the union of embedded context revocation and the
+signed revocation feed. Every product verification checks artifact,
+proof-envelope, and provenance digests against that effective set before
+acceptance. Audit records include the revocation feed digest used for the
+decision.
 
 ## NumiSealZK Side-Channel Certificate
 
@@ -137,17 +184,19 @@ optional side-channel certificate digest, proof kind, context ID, tool version,
 and release build digest. `product-status` validates the hash chain and reports
 the last sequence and digest. `product-export-audit` validates that same chain
 before writing a sorted-key JSON snapshot with the active context digest,
-issuer-key digest, accepted replay count, audit-log digest, chain status, and
-records.
+issuer-key digest, revocation feed digest, accepted replay count, audit-log
+digest, chain status, and records. `product-export-audit` also embeds the active
+`operationsStatus` so exports preserve the operator lifecycle state that was
+current at export time.
 
 ## Incident Response
 
 Rollback:
 
-1. Issue a new context pack with the compromised context ID or artifact digest
-   listed in revocation metadata.
-2. Distribute the context pack and stop using older operator profiles that point
-   at the revoked pack.
+1. Issue a new signed revocation feed with the compromised context ID, artifact
+   digest, proof-envelope digest, or provenance digest listed.
+2. Distribute the revocation feed and stop using older operator profiles that
+   point at stale feed files.
 3. Run `product-status` to confirm the active context and audit chain.
 4. Run `product-export-audit --output audit-export.json` to preserve the
    hash-chained local audit state before restarting acceptance.

@@ -7,7 +7,9 @@ checked NumiSeal verification surface. A later April 16 pass added local
 CLI/offline product controls documented in
 `Docs/LocalProductControls-2026-04-16.md`: signed context packs, signed
 provenance manifests, signed NumiSealZK side-channel certificates, SQLite
-replay storage, and hash-chained JSONL audit logs.
+replay storage, hash-chained JSONL audit logs, and a machine-readable local
+product-ops readiness status. This pass also separates revocation distribution
+into a required signed revocation feed.
 Neither pass is a hosted verifier service or a complete production
 certification.
 
@@ -76,6 +78,10 @@ NumiSealZK product surfaces. For `numiseal-zk`, the trusted context must include
 NumiSealZK policy. Optional signed side-channel certificates can be supplied as
 release metadata and are checked for release, context, leakage, proof policy,
 Metal workspace, reviewed kernel, and evidence-digest bindings when present.
+`product-status --format json` emits the canonical readiness status, and
+`product-export-audit` embeds it as `operationsStatus`. The signed revocation
+feed is verified independently from the context pack and its digest is recorded
+in audit decisions.
 
 ## Remaining Product Responsibilities
 
@@ -84,11 +90,12 @@ controls, but production deployment still requires product-owned completion for:
 
 - Apple code signing, notarization, and release artifact publication,
 - trusted key ceremony and distribution,
-- operator-profile provisioning and revocation distribution,
+- operator-profile provisioning and hosted revocation feed distribution,
 - authentication, authorization, and tenant isolation beyond the local OS-user
   model,
-- hosted audit-log retention beyond the local hash-chain export,
-- user-facing error and retry policy,
+- hosted audit-log retention beyond the local hash-chain export and local
+  retention policy,
+- user-facing error and retry policy beyond the local CLI retry policy,
 - side-channel evidence collection for each production hardware/profile lane,
 - self-owned release review completion.
 

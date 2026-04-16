@@ -16,6 +16,8 @@ manifests, and binary proof envelopes.
 | NumiSeal product JSON artifact | `artifactVersion = 2` |
 | NumiSeal product JSON Schema | `numiseal-product-artifact-v2.schema.json` |
 | NumiSeal manifest | `manifestVersion = 1` |
+| Constant-time source/formal scope manifest | `schemaVersion = 1` |
+| E2E proof metrics manifest | `schemaVersion = 1` |
 | Proof envelope header | `ProofEnvelopeHeader.version = 4` |
 | NumiSeal proof envelope kind | `4` |
 
@@ -117,6 +119,28 @@ workspace feature digest, reviewed kernels/stages, and evidence digests.
 product/carry/ZK conformance-scope manifest. It is not a proof artifact schema;
 it pins which implementation files, conformance vectors, and focused tests are
 inside the current NumiSeal theorem and vector-promotion scope.
+
+`TestVectors/constant-time-scope-v1.json` is the checked constant-time
+source/formal scope manifest. It is not a proof artifact schema; it pins audited
+source markers, source-level forbidden branch patterns, formal trace-declaration
+names, and explicit compiler/runtime/hardware boundaries.
+
+`TestVectors/e2e-proof-metrics-v1.json` is the checked proof-size and product
+smoke budget manifest. It is not a proof artifact schema; it pins exact checked
+vector artifact bytes, decoded proof-envelope bytes, generated NumiSeal product
+smoke budgets, and the benchmark lane required before latency claims.
+
+`SuperNeoProductOperationsStatus.formatVersion = 2` is the local product
+operations readiness document version. It is emitted by
+`product-status --format json` and embedded in product audit exports as
+`operationsStatus`; it is not a proof artifact and must not affect proof bytes.
+Version `2` adds signed revocation feed identity, sequence, issuer-key digest,
+and feed digest fields.
+
+`SuperNeoSignedRevocationFeed.payload.formatVersion = 1` is the signed
+revocation-distribution document version. It is separate from proof artifacts
+and trusted context packs so revocations can be rotated without changing proof
+bytes.
 
 Typed carry is a policy refinement over the existing carry slot. Legacy raw carry
 fixtures remain under `.optional`/`.required`; product recursive carry must use

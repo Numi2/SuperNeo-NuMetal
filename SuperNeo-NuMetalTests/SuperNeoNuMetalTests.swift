@@ -5999,7 +5999,11 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             allowedWorkloads: ["one-hot-vector-v1"],
             publicInputs: [1],
             releaseBuildDigestHex: releaseBuildDigest,
-            keyRotation: SuperNeoTrustedContextKeyRotation(currentIssuerKeyDigestHex: publicKeyDigest)
+            keyRotation: SuperNeoTrustedContextKeyRotation(
+                currentIssuerKeyDigestHex: publicKeyDigest,
+                nextIssuerKeyDigestHex: Digest256.hash("next-issuer-key").hexString
+            ),
+            revocation: SuperNeoTrustedContextRevocation(issuedAtUTC: "2026-04-16T00:00:00Z")
         )
         let contextPack = SuperNeoSignedTrustedContextPack(
             payload: contextPayload,
@@ -6024,15 +6028,35 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         let provenanceURL = directory.appendingPathComponent("provenance.json")
         try writeSecureJSON(provenanceManifest, to: provenanceURL)
 
+        let revocationFeedPayload = SuperNeoRevocationFeedPayload(
+            feedID: "ctx-terminal-revocations",
+            issuer: "SuperNeo Release",
+            contextID: "ctx-terminal",
+            releaseBuildDigestHex: releaseBuildDigest,
+            sequence: 1,
+            issuedAtUTC: "2026-04-16T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z"
+        )
+        let revocationFeed = SuperNeoSignedRevocationFeed(
+            payload: revocationFeedPayload,
+            signature: try productSignature(for: revocationFeedPayload, signingKey: signingKey)
+        )
+        let revocationFeedURL = directory.appendingPathComponent("revocations.json")
+        try writeSecureJSON(revocationFeed, to: revocationFeedURL)
+
         let databaseURL = directory.appendingPathComponent("replay.sqlite")
         let auditURL = directory.appendingPathComponent("audit.jsonl")
         let profile = SuperNeoLocalOperatorProfile(
             callerID: "local-operator",
             contextPackPath: contextURL.path,
             artifactProvenancePath: provenanceURL.path,
+            revocationFeedPath: revocationFeedURL.path,
             replayDatabasePath: databaseURL.path,
             auditLogPath: auditURL.path,
             trustedContextIssuerKeyDigestsHex: [publicKeyDigest],
+            trustedProvenanceIssuerKeyDigestsHex: [publicKeyDigest],
+            trustedSideChannelIssuerKeyDigestsHex: [publicKeyDigest],
+            trustedRevocationIssuerKeyDigestsHex: [publicKeyDigest],
             releaseBuildDigestHex: releaseBuildDigest
         )
         let profileURL = directory.appendingPathComponent("profile.json")
@@ -6059,6 +6083,21 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             statementDigest: try Digest256(hexDigest: statementDigest),
             releaseBuildDigest: try Digest256(hexDigest: releaseBuildDigest)
         )
+        let verifiedRevocationFeed = try SuperNeoSignedRevocationFeed.loadVerified(
+            from: revocationFeedURL,
+            trustedIssuerKeyDigestsHex: try loadedProfile.trustedRevocationIssuerKeyDigestSet(),
+            context: verifiedContext.payload,
+            now: try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
+        )
+        XCTAssertEqual(verifiedRevocationFeed.payload.feedID, "ctx-terminal-revocations")
+        XCTAssertEqual(verifiedRevocationFeed.payload.sequence, 1)
+        let effectiveRevocation = verifiedContext.payload.revocation.merged(with: verifiedRevocationFeed.payload.revocation)
+        try effectiveRevocation.requireNotRevoked(
+            contextID: contextPayload.contextID,
+            artifactDigest: try Digest256(hexDigest: artifactDigest),
+            proofEnvelopeDigest: try Digest256(hexDigest: proofEnvelopeDigest),
+            provenanceDigest: verifiedProvenance.provenanceDigest
+        )
 
         let identity = SuperNeoProductProofIdentity(
             expectedContextID: contextPayload.contextID,
@@ -6083,6 +6122,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 artifactDigestHex: artifactDigest,
                 proofEnvelopeDigestHex: proofEnvelopeDigest,
                 provenanceDigestHex: verifiedProvenance.provenanceDigest.hexString,
+                revocationFeedDigestHex: verifiedRevocationFeed.feedDigest.hexString,
                 proofKind: SuperNeoProductProofKind.terminal.rawValue,
                 contextID: contextPayload.contextID,
                 statementDigestHex: statementDigest,
@@ -6101,7 +6141,57 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertEqual(auditSnapshot.records.count, 1)
         XCTAssertEqual(auditSnapshot.records.first?.payload.sequence, 1)
         XCTAssertEqual(auditSnapshot.records.first?.payload.event.contextID, contextPayload.contextID)
+        XCTAssertEqual(
+            auditSnapshot.records.first?.payload.event.revocationFeedDigestHex,
+            verifiedRevocationFeed.feedDigest.hexString
+        )
         XCTAssertEqual(try auditLog.records().map(\.payload.sequence), [1])
+
+        let operationsStatus = try SuperNeoProductOperationsStatus.make(
+            profile: loadedProfile,
+            context: verifiedContext,
+            revocationFeed: verifiedRevocationFeed,
+            effectiveRevocation: effectiveRevocation,
+            sideChannelCertificate: nil,
+            acceptedReplayCount: try ledger.acceptedReplayCount(),
+            auditStatus: try auditLog.statusSnapshot(),
+            now: try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
+        )
+        XCTAssertEqual(operationsStatus.formatVersion, 2)
+        XCTAssertEqual(operationsStatus.readiness, .ready)
+        XCTAssertEqual(operationsStatus.contextID, contextPayload.contextID)
+        XCTAssertEqual(operationsStatus.contextPayloadDigestHex, verifiedContext.payloadDigest.hexString)
+        XCTAssertEqual(operationsStatus.revocationFeedID, "ctx-terminal-revocations")
+        XCTAssertEqual(operationsStatus.revocationFeedSequence, 1)
+        XCTAssertEqual(operationsStatus.revocationFeedDigestHex, verifiedRevocationFeed.feedDigest.hexString)
+        XCTAssertEqual(operationsStatus.acceptedReplayCount, 1)
+        XCTAssertEqual(operationsStatus.auditLogRecordCount, 1)
+        XCTAssertEqual(operationsStatus.keyRotationStatus, "next-key-staged")
+        XCTAssertEqual(operationsStatus.revocationStatus, "signed-feed-current-empty")
+        XCTAssertEqual(operationsStatus.sideChannelCertificateStatus, "not-required")
+        XCTAssertTrue(operationsStatus.checks.allSatisfy { $0.status == .ok })
+        XCTAssertTrue(operationsStatus.retryPolicy.contains("signed context"))
+
+        let revokedFeedPayload = SuperNeoRevocationFeedPayload(
+            feedID: "ctx-terminal-revocations",
+            issuer: "SuperNeo Release",
+            contextID: "ctx-terminal",
+            releaseBuildDigestHex: releaseBuildDigest,
+            sequence: 2,
+            issuedAtUTC: "2026-04-17T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z",
+            revokedArtifactDigestHex: [artifactDigest.uppercased()]
+        )
+        let revokedEffective = verifiedContext.payload.revocation.merged(with: revokedFeedPayload.revocation)
+        XCTAssertThrowsProductIntegrationError(
+            try revokedEffective.requireNotRevoked(
+                contextID: contextPayload.contextID,
+                artifactDigest: try Digest256(hexDigest: artifactDigest),
+                proofEnvelopeDigest: try Digest256(hexDigest: proofEnvelopeDigest),
+                provenanceDigest: verifiedProvenance.provenanceDigest
+            ),
+            containing: "artifact digest has been revoked"
+        )
     }
 
     func testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked() throws {

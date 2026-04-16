@@ -21,6 +21,9 @@ corrected model. What remains is NumiSeal-specific product formalization.
   public reconstruction, and `NumiSealVerifier` dispatch.
 - [x] `SuperNeoNumiSealProductVerifier` provides hooks for expected context,
   authorization, provenance, replay, byte limits, and audit events.
+- [x] Local CLI product controls provide signed context/provenance loading,
+  signed revocation feed loading, SQLite replay, hash-chained audit export, and
+  machine-readable product-ops readiness status.
 - [x] `NumiSealProver`/`NumiSealVerifier` library APIs exist for the current
   immediate-residual path.
 
@@ -34,8 +37,8 @@ corrected model. What remains is NumiSeal-specific product formalization.
   statement, producer/consumer, replay rules, vectors, tests, and formal claim.
 - [ ] ZK: create `NumiSealZK` design, proof kind/policy, masking, simulator
   story, randomness policy, tests, and side-channel review.
-- [ ] Product operations: durable context storage, key rotation, signed
-  provenance, race-safe replay, tenant authz, audit retention, revocation, and
+- [ ] Product operations: hosted context storage, deployed key distribution,
+  tenant authz, hosted audit retention, hosted revocation feed distribution, and
   signed releases.
 - [ ] NumiSeal-specific formalization: immediate-residual product theorem first,
   then separate carry and ZK theorem scope.

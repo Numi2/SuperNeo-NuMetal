@@ -1,0 +1,144 @@
+{
+  "claimStatus": "checked-vector-and-product-smoke-size-budgets",
+  "generatedProductBudgets": [
+    {
+      "expectedArtifactVersion": 2,
+      "expectedCarryMode": "none",
+      "expectedExecutionPolicy": "zk-high-assurance-cpu",
+      "expectedMetalMode": "cpu-reference",
+      "expectedProofKind": "numiseal-terminal",
+      "expectedSealMode": "numiseal-terminal-v2",
+      "expectedSourceFoldOutputClaimCount": 14,
+      "expectedZKMode": "none",
+      "id": "numiseal-product-smoke",
+      "maximumArtifactBytes": 1100000,
+      "maximumProofEnvelopeBytes": 300000,
+      "maximumSourceFoldEnvelopeBytes": 400000
+    },
+    {
+      "expectedArtifactVersion": 2,
+      "expectedCarryMode": "none",
+      "expectedExecutionPolicy": "zk-high-assurance-cpu",
+      "expectedMetalMode": "cpu-reference",
+      "expectedProofKind": "numiseal-zk",
+      "expectedSealMode": "numiseal-zk-v1",
+      "expectedSourceFoldOutputClaimCount": 14,
+      "expectedZKMode": "masked-digit-tensor-v1",
+      "id": "numiseal-zk-product-smoke",
+      "maximumArtifactBytes": 2200000,
+      "maximumProofEnvelopeBytes": 900000,
+      "maximumSourceFoldEnvelopeBytes": 400000
+    }
+  ],
+  "latencyEvidencePolicy": {
+    "benchmarkCommand": "Scripts/run-benchmarks.sh quick",
+    "productionReleaseRequiresFreshBenchmarkReport": true,
+    "trackedReportDirectory": "Docs/BenchmarkReports"
+  },
+  "openBoundaries": [
+    "Checked vector byte counts are deterministic serialization budgets, not hardware latency evidence.",
+    "Generated product smoke budgets bound local release-gate artifacts for the pinned CLI workloads only.",
+    "Production performance claims require a fresh benchmark report for the named hardware class."
+  ],
+  "schemaVersion": 1,
+  "scopeID": "superneo-e2e-proof-metrics-v1",
+  "trackedArtifacts": [
+    {
+      "artifactBytes": 475933,
+      "expectedArtifactVersion": 1,
+      "expectedProofKind": "fold",
+      "file": "TestVectors/one-hot-vector-fold-v1.json",
+      "id": "r1cs-one-hot-fold",
+      "manifest": "TestVectors/manifest.json",
+      "maximumArtifactBytes": 475933,
+      "maximumProofEnvelopeBytes": 347189,
+      "proofEnvelopeBytes": 347189,
+      "proofEnvelopeField": "proofEnvelopeBase64"
+    },
+    {
+      "artifactBytes": 4741423,
+      "expectedArtifactVersion": 1,
+      "expectedProofKind": "terminal",
+      "file": "TestVectors/one-hot-vector-terminal-v1.json",
+      "id": "r1cs-one-hot-terminal",
+      "manifest": "TestVectors/manifest.json",
+      "maximumArtifactBytes": 4741423,
+      "maximumProofEnvelopeBytes": 3515470,
+      "proofEnvelopeBytes": 3515470,
+      "proofEnvelopeField": "proofEnvelopeBase64"
+    },
+    {
+      "artifactBytes": 4513526,
+      "expectedArtifactVersion": 1,
+      "expectedProofKind": "compressed-terminal",
+      "file": "TestVectors/one-hot-vector-compressed-terminal-v1.json",
+      "id": "r1cs-one-hot-compressed-terminal",
+      "manifest": "TestVectors/manifest.json",
+      "maximumArtifactBytes": 4513526,
+      "maximumProofEnvelopeBytes": 3343691,
+      "proofEnvelopeBytes": 3343691,
+      "proofEnvelopeField": "proofEnvelopeBase64"
+    },
+    {
+      "artifactBytes": 477368,
+      "expectedArtifactVersion": 1,
+      "expectedProofKind": "fold",
+      "file": "TestVectors/binary-addition-u8-fold-v1.json",
+      "id": "r1cs-binary-addition-u8-fold",
+      "manifest": "TestVectors/manifest.json",
+      "maximumArtifactBytes": 477368,
+      "maximumProofEnvelopeBytes": 347549,
+      "proofEnvelopeBytes": 347549,
+      "proofEnvelopeField": "proofEnvelopeBase64"
+    },
+    {
+      "artifactBytes": 8302264,
+      "expectedArtifactVersion": 1,
+      "expectedProofKind": "terminal",
+      "file": "TestVectors/binary-addition-u8-terminal-v1.json",
+      "id": "r1cs-binary-addition-u8-terminal",
+      "manifest": "TestVectors/manifest.json",
+      "maximumArtifactBytes": 8302264,
+      "maximumProofEnvelopeBytes": 6165078,
+      "proofEnvelopeBytes": 6165078,
+      "proofEnvelopeField": "proofEnvelopeBase64"
+    },
+    {
+      "artifactBytes": 321967,
+      "expectedArtifactVersion": 1,
+      "expectedProofKind": "numiseal-terminal",
+      "file": "TestVectors/numiseal-terminal-single-aggregate-v1.json",
+      "id": "numiseal-single-aggregate-terminal",
+      "manifest": "TestVectors/numiseal-manifest.json",
+      "maximumArtifactBytes": 321967,
+      "maximumProofEnvelopeBytes": 237339,
+      "proofEnvelopeBytes": 237339,
+      "proofEnvelopeField": "proofEnvelopeBase64"
+    },
+    {
+      "artifactBytes": 641404,
+      "expectedArtifactVersion": 1,
+      "expectedProofKind": "numiseal-terminal",
+      "file": "TestVectors/numiseal-terminal-two-aggregate-v1.json",
+      "id": "numiseal-two-aggregate-terminal",
+      "manifest": "TestVectors/numiseal-manifest.json",
+      "maximumArtifactBytes": 641404,
+      "maximumProofEnvelopeBytes": 474005,
+      "proofEnvelopeBytes": 474005,
+      "proofEnvelopeField": "proofEnvelopeBase64"
+    },
+    {
+      "artifactBytes": 641601,
+      "expectedArtifactVersion": 1,
+      "expectedProofKind": "numiseal-terminal",
+      "file": "TestVectors/numiseal-terminal-two-lane-v1.json",
+      "id": "numiseal-two-lane-terminal",
+      "manifest": "TestVectors/numiseal-manifest.json",
+      "maximumArtifactBytes": 641601,
+      "maximumProofEnvelopeBytes": 474203,
+      "proofEnvelopeBytes": 474203,
+      "proofEnvelopeField": "proofEnvelopeBase64"
+    }
+  ],
+  "units": "bytes"
+}
