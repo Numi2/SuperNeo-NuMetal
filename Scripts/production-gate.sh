@@ -17,6 +17,8 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - checked-in test vector validation
   - checked-in NumiSeal schema and vector validation
   - production NumiSeal CLI adversarial matrix
+  - release policy, schema compatibility, and CI gate drift validation
+  - release-candidate evidence tooling validation
   - release CLI fold, terminal, compressed-terminal, and NumiSeal verify smoke
 
 Pass --with-benchmarks to include Scripts/run-benchmarks.sh quick.
@@ -131,6 +133,8 @@ run_step Scripts/validate-artifact-schema.py
 run_step Scripts/test-artifact-schema-validation.py
 run_step Scripts/validate-numiseal-artifact-schema.py
 run_step Scripts/test-numiseal-artifact-schema-validation.py
+run_step Scripts/validate-release-readiness-policy.py
+run_step Scripts/test-release-candidate-evidence-validation.py
 run_step Scripts/test-benchmark-tooling-validation.py
 run_step swift Scripts/validate-test-vectors.swift
 run_step "${NUMISEAL_VECTOR_CLI}" validate

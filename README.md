@@ -111,7 +111,15 @@ Current boundaries:
 
 The concise proof semantics are documented in
 [Docs/WhatThisProves.md](Docs/WhatThisProves.md), and the operational threat
-model is documented in [Docs/ThreatModel.md](Docs/ThreatModel.md).
+model is documented in [Docs/ThreatModel.md](Docs/ThreatModel.md). The current
+release-gate evidence and remaining production no-go items are collected in
+[Docs/ProductionReadinessAuditPacket-2026-04-16.md](Docs/ProductionReadinessAuditPacket-2026-04-16.md).
+Release discipline and public artifact compatibility are tracked in
+[Docs/ReleaseEngineering-2026-04-16.md](Docs/ReleaseEngineering-2026-04-16.md)
+and [Docs/SchemaCompatibility-2026-04-16.md](Docs/SchemaCompatibility-2026-04-16.md).
+Release candidates should follow
+[Docs/ReleaseCandidateRunbook-2026-04-16.md](Docs/ReleaseCandidateRunbook-2026-04-16.md)
+and record user-facing changes in [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 

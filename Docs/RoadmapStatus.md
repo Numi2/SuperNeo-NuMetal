@@ -97,6 +97,9 @@ Artifacts:
   protocol/backend hardening work, and validation commands.
 - `Docs/ProductionReadiness-2026-04-13.md` records the latest production gate,
   CLI verifier, vector manifest, and Metal allocation hardening work.
+- `Docs/ProductionReadinessAuditPacket-2026-04-16.md` records the current full
+  release-gate evidence map, passed full local gate, and remaining no-go items
+  before production-security language is appropriate.
 - `ProtocolE2ETests` include malformed proof-envelope and tampering tests.
 - `Docs/GPUDeterminism.md` documents the CPU oracle policy and Metal
   determinism boundary.
@@ -170,6 +173,15 @@ Artifacts:
 - `Scripts/production-gate.sh` provides the same local release-readiness gate,
   including positive terminal and compressed-terminal proof smoke checks and an
   opt-in quick benchmark pass.
+- `Docs/ReleaseEngineering-2026-04-16.md` defines the current research release
+  bar and the separate blockers for production-security release language.
+- `Docs/SchemaCompatibility-2026-04-16.md` records the public artifact,
+  manifest, and proof-envelope compatibility rules.
+- `Scripts/validate-release-readiness-policy.py` checks release policy, schema
+  compatibility, and CI full-gate drift.
+- `Docs/ReleaseCandidateRunbook-2026-04-16.md`, `CHANGELOG.md`, and the
+  release-candidate evidence scripts define a reproducible research/integration
+  release path.
 - `TestVectors/manifest.json` gives file hashes, byte counts, workloads,
   trusted expected verifier context, proof-kind requirements, and strict
   verification commands.

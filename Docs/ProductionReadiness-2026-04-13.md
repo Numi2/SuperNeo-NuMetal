@@ -87,8 +87,9 @@ case.
 - lattice-estimator dry-run parameter derivation and artifact validation for
   the implemented `Goldilocks/Phi81(d=54)` Module-SIS tuple
 
-`.github/workflows/production-gate.yml` runs the same gate on pull requests,
-`main`, and manual dispatch.
+`.github/workflows/production-gate.yml` runs the same full gate on macOS for
+pull requests, `main`, and manual dispatch, and also runs an Ubuntu Lean
+cross-check for the formal workspace and formal source-surface validators.
 
 ### High-assurance execution policy
 
@@ -116,9 +117,17 @@ semantics, and estimator status. Dry-run generation and validation are part of
 the production gate; full estimator execution is intentionally separate because
 it requires Sage.
 
+## Current Audit Packet
+
+The current reviewer entry point is
+`Docs/ProductionReadinessAuditPacket-2026-04-16.md`. It records the latest full
+local production gate, evidence map, scope that is ready for verifier
+integration experiments, and the remaining no-go items before production-security
+language is appropriate.
+
 ## Verification
 
-Final local command:
+Earlier local command:
 
 ```sh
 Scripts/production-gate.sh --with-benchmarks
@@ -132,6 +141,18 @@ terminal, and compressed-terminal smoke tests, NumiSeal shared-verifier smoke
 and mutation checks, negative strict-verifier checks, compressed-terminal
 proof-kind mismatch checks, vector manifest mutation tests, and the quick
 benchmark profile.
+
+Latest full local command:
+
+```sh
+Scripts/production-gate.sh
+```
+
+Result: passed.
+
+This later run included the full Lean/formal gate, Swift/Lean vector bridges,
+the shared NumiSeal verifier core checks, NumiSeal schema/manifest mutation
+tests, and the production NumiSeal CLI adversarial matrix.
 
 ## Residual Boundaries
 

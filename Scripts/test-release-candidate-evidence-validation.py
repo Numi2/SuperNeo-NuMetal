@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+import copy
+import json
+import subprocess
+import tempfile
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+GENERATE = ROOT / "Scripts" / "generate-release-candidate-evidence.py"
+VALIDATE = ROOT / "Scripts" / "validate-release-candidate-evidence.py"
+
+
+def run_ok(*args: str) -> None:
+    subprocess.run(args, cwd=ROOT, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+
+def run_fail(*args: str) -> None:
+    completed = subprocess.run(args, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if completed.returncode == 0:
+        raise AssertionError(f"expected failure: {' '.join(args)}")
+
+
+def write_json(path: Path, value: object) -> None:
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def main() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        evidence_path = tmp / "release-evidence.json"
+        run_ok(
+            str(GENERATE),
+            "--allow-dirty",
+            "--release-name",
+            "test-fixture",
+            "--production-gate-result",
+            "passed",
+            "--output",
+            str(evidence_path),
+        )
+        run_ok(str(VALIDATE), "--allow-dirty", "--expect-production-gate-result", "passed", str(evidence_path))
+        evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+        wrong_schema = copy.deepcopy(evidence)
+        wrong_schema["schemaVersion"] = 2
+        path = tmp / "wrong-schema.json"
+        write_json(path, wrong_schema)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        dirty_not_allowed = copy.deepcopy(evidence)
+        dirty_not_allowed["repository"]["dirty"] = True
+        path = tmp / "dirty.json"
+        write_json(path, dirty_not_allowed)
+        run_fail(str(VALIDATE), str(path))
+
+        skipped_gate = copy.deepcopy(evidence)
+        skipped_gate["productionGate"]["command"] = "Scripts/production-gate.sh --skip-formal"
+        path = tmp / "skipped-gate.json"
+        write_json(path, skipped_gate)
+        run_fail(str(VALIDATE), "--allow-dirty", "--expect-production-gate-result", "passed", str(path))
+
+        wrong_version = copy.deepcopy(evidence)
+        wrong_version["publicSurfaces"]["proofEnvelopeHeaderVersion"] = 5
+        path = tmp / "wrong-version.json"
+        write_json(path, wrong_version)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_doc = copy.deepcopy(evidence)
+        missing_doc["documentation"]["releaseRunbook"] = "Docs/missing-release-runbook.md"
+        path = tmp / "missing-doc.json"
+        write_json(path, missing_doc)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_signing = copy.deepcopy(evidence)
+        vague_signing["signing"]["status"] = "unsigned"
+        path = tmp / "vague-signing.json"
+        write_json(path, vague_signing)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+    print("release candidate evidence validation regression tests passed")
+
+
+if __name__ == "__main__":
+    main()
