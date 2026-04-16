@@ -25,7 +25,7 @@ cryptographic library.
 | Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
 | Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/` and summarized below. |
-| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
+| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
 | Product ops | Local signed context/provenance/revocation feed, replay ledger, audit export, and machine-readable operations readiness status for private integration work. |
 
 ## Highlights
@@ -84,6 +84,11 @@ cryptographic library.
 - Exact rejection-sampled field mask distribution for NumiSealZK masks, with a
   checked evidence manifest binding the sampler domain, Goldilocks acceptance
   set, rejection count, and zero statistical distance after rejection.
+- A checked product cryptographic security dossier tying source fold, terminal
+  NumiSeal, NumiSealZK masked residual, typed carry, transcript, artifact,
+  proof-envelope, verifier-policy, and composition theorem surfaces to a
+  bounded-depth product theorem while keeping QROM, post-quantum, ZK privacy,
+  recursive carry, performance, and constant-time production claims disabled.
 - A canonical local product operations readiness status exposed by
   `product-status --format json` and embedded in product audit exports.
 - A required signed revocation feed for local product controls, with effective
@@ -132,7 +137,8 @@ Current boundaries:
   lowering and selected CPU/GPU lanes, and
 - no completed production-security concrete Swift extractor evidence,
   simulator coupling beyond the exact field-mask distribution lemma,
-  side-channel privacy evidence, or QROM theorem instantiation.
+  side-channel privacy evidence, QROM theorem instantiation, or product-level
+  post-quantum parameter dossier that clears the conservative sensitivity rows.
 
 The concise proof semantics are documented in
 [Docs/WhatThisProves.md](Docs/WhatThisProves.md), and the operational threat
@@ -144,6 +150,8 @@ Release discipline and public artifact compatibility are tracked in
 and [Docs/SchemaCompatibility-2026-04-16.md](Docs/SchemaCompatibility-2026-04-16.md).
 The NumiSeal product-integration facade is recorded in
 [Docs/ProductIntegrationLayer-2026-04-16.md](Docs/ProductIntegrationLayer-2026-04-16.md).
+The product cryptographic theorem dossier is tracked in
+[Docs/CryptographicSecurityDossier-2026-04-16.md](Docs/CryptographicSecurityDossier-2026-04-16.md).
 Release candidates should follow
 [Docs/ReleaseCandidateRunbook-2026-04-16.md](Docs/ReleaseCandidateRunbook-2026-04-16.md)
 and record user-facing changes in [CHANGELOG.md](CHANGELOG.md).

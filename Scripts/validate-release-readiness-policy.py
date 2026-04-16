@@ -71,9 +71,11 @@ def validate_docs() -> None:
             "Docs/ConstantTimeEvidence-2026-04-16.md",
             "Docs/E2EProofMetrics-2026-04-16.md",
             "Docs/ProductOperationsReadiness-2026-04-16.md",
+            "Docs/CryptographicSecurityDossier-2026-04-16.md",
             "TestVectors/numiseal-conformance-scope-v1.json",
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+            "TestVectors/product-crypto-security-dossier-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -86,6 +88,8 @@ def validate_docs() -> None:
             "Scripts/validate-constant-time-lowering-evidence.py",
             "Scripts/test-constant-time-lowering-evidence-validation.py",
             "Scripts/generate-constant-time-release-evidence.py",
+            "Scripts/validate-product-crypto-security-dossier.py",
+            "Scripts/test-product-crypto-security-dossier-validation.py",
             "Scripts/validate-e2e-proof-metrics.py",
             "Scripts/test-e2e-proof-metrics-validation.py",
             "Scripts/validate-product-ops-surface.py",
@@ -98,6 +102,10 @@ def validate_docs() -> None:
             "typed carry producer/consumer",
             "NumiSealZK simulation/privacy",
             "exact rejection-sampled field mask distribution",
+            "bounded-depth product security theorem",
+            "ProductSecurityTheorem",
+            "Fiat-Shamir/QROM",
+            "Module-SIS",
             "signed revocation feed",
         ],
     )
@@ -115,6 +123,8 @@ def validate_docs() -> None:
             "Scripts/test-numiseal-conformance-scope-validation.py",
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+            "TestVectors/product-crypto-security-dossier-v1.json",
+            "Docs/CryptographicSecurityDossier-2026-04-16.md",
             "Scripts/validate-constant-time-scope.py",
             "Scripts/validate-constant-time-lowering-evidence.py",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -126,6 +136,8 @@ def validate_docs() -> None:
             "typed carry producer/consumer",
             "NumiSealZK simulation/privacy",
             "exact rejection-sampled field mask distribution",
+            "product cryptographic security dossier digest",
+            "bounded-depth product security theorem",
             "signed revocation feed",
             "E2E proof metrics digest",
             "constant-time release evidence digest",
@@ -143,6 +155,7 @@ def validate_docs() -> None:
             "TestVectors/numiseal-conformance-scope-v1.json",
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+            "TestVectors/product-crypto-security-dossier-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -161,6 +174,7 @@ def validate_docs() -> None:
             "NumiSeal product/carry/ZK conformance-scope version and digest",
             "NumiSeal end-to-end theorem-scope version and digest",
             "NumiSealZK mask-distribution evidence version and digest",
+            "product cryptographic security dossier version and digest",
             "constant-time source/formal scope version and digest",
             "constant-time lowering evidence version and digest",
             "constant-time release evidence version and digest",
@@ -183,6 +197,8 @@ def validate_docs() -> None:
             "typed carry producer/consumer",
             "NumiSealZK simulation/privacy",
             "exact rejection-sampled field mask distribution",
+            "product cryptographic security dossier",
+            "bounded-depth product security theorem",
             "constant-time release evidence",
         ],
     )
@@ -285,6 +301,41 @@ def validate_schema_versions() -> None:
     require(
         mask_promotion.get("productionZKPrivacyClaimAllowed") is False,
         "NumiSealZK mask evidence must not prematurely allow production privacy claims",
+    )
+    product_dossier = read_json("TestVectors/product-crypto-security-dossier-v1.json")
+    require(isinstance(product_dossier, dict), "product crypto security dossier root must be an object")
+    require(product_dossier.get("schemaVersion") == 1, "product crypto security dossier schemaVersion must be 1")
+    require(
+        product_dossier.get("claimStatus") == "evidence-parametric-product-security-theorem-dossier",
+        "product crypto security dossier claimStatus must stay precise",
+    )
+    dossier_depth = product_dossier.get("supportedProductDepth")
+    require(isinstance(dossier_depth, dict), "product crypto security dossier supportedProductDepth must be an object")
+    require(dossier_depth.get("depthModel") == "bounded-depth", "product security theorem must stay bounded-depth")
+    require(dossier_depth.get("theoremMaximumDepth") == 1, "product security theorem maximum depth must remain 1")
+    require(
+        dossier_depth.get("polyDepthTheoremClaimAllowed") is False,
+        "product security theorem must not prematurely claim poly-depth knowledge soundness",
+    )
+    lattice_dossier = product_dossier.get("latticeAssumptionDossier")
+    require(isinstance(lattice_dossier, dict), "product crypto security dossier latticeAssumptionDossier must be an object")
+    require(lattice_dossier.get("qDecimal") == "18446744069414584321", "product lattice q must stay pinned")
+    require(
+        lattice_dossier.get("productionPostQuantumClaimAllowed") is False,
+        "product crypto security dossier must not prematurely allow production PQ claims",
+    )
+    qrom_position = product_dossier.get("fiatShamirQROMPosition")
+    require(isinstance(qrom_position, dict), "product crypto security dossier fiatShamirQROMPosition must be an object")
+    require(qrom_position.get("model") == "qrom", "product crypto security dossier must state the QROM target")
+    require(
+        qrom_position.get("productionQROMClaimAllowed") is False,
+        "product crypto security dossier must not prematurely allow production QROM claims",
+    )
+    dossier_promotion = product_dossier.get("promotionRule")
+    require(isinstance(dossier_promotion, dict), "product crypto security dossier promotionRule must be an object")
+    require(
+        dossier_promotion.get("productionProductSecurityClaimAllowed") is False,
+        "product crypto security dossier must not prematurely allow production product-security claims",
     )
     constant_time_scope = read_json("TestVectors/constant-time-scope-v1.json")
     require(isinstance(constant_time_scope, dict), "constant-time scope root must be an object")
@@ -404,6 +455,14 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/test-numiseal-zk-mask-distribution-evidence-validation.py" in gate,
         "production gate must run NumiSealZK mask-distribution evidence regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-crypto-security-dossier.py" in gate,
+        "production gate must run validate-product-crypto-security-dossier.py",
+    )
+    require(
+        "run_step Scripts/test-product-crypto-security-dossier-validation.py" in gate,
+        "production gate must run product crypto security dossier regression tests",
     )
     require(
         "run_step Scripts/validate-constant-time-scope.py" in gate,

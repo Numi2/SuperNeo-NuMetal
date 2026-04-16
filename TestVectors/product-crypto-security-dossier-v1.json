@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "dossierID": "superneo-product-crypto-security-dossier-v1",
+  "claimStatus": "evidence-parametric-product-security-theorem-dossier",
+  "formalTheorem": {
+    "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
+    "rootImport": "import SuperNeoFormal.ProductSecurityTheorem",
+    "declarations": [
+      "ProductFiatShamirModel",
+      "ProductRecursionDepthModel",
+      "ProductSecurityParameters",
+      "ProductSystemBindings",
+      "ProductSystemBindingsAccepted",
+      "ProductBoundedDepthLossEvidence",
+      "ProductBoundedDepthLossAccepted",
+      "ProductLatticeAssumptionDossier",
+      "ProductLatticeAssumptionDossierAccepted",
+      "ProductFiatShamirQROMEvidence",
+      "ProductFiatShamirQROMAccepted",
+      "ProductCompletenessSoundnessZKClaim",
+      "ProductCompletenessSoundnessZKHolds",
+      "ProductSecurityTheoremEvidence",
+      "productSecurityTheorem_from_evidence",
+      "productSecurityTheorem_requires_bounded_depth",
+      "productSecurityTheorem_requires_qrom_accounting",
+      "productSecurityTheorem_requires_artifact_envelope_binding"
+    ]
+  },
+  "relatedManifests": {
+    "numiSealConformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
+    "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+    "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+    "constantTimeScope": "TestVectors/constant-time-scope-v1.json",
+    "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
+    "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
+    "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
+    "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json"
+  },
+  "productTheoremCoverage": [
+    "source fold relation",
+    "NumiSeal terminal relation",
+    "NumiSealZK masked residual relation",
+    "typed recursive carry relation",
+    "transcript binding",
+    "artifact/proof-envelope binding",
+    "verifier acceptance policy",
+    "soundness/completeness/ZK composition"
+  ],
+  "supportedProductDepth": {
+    "depthModel": "bounded-depth",
+    "currentProductDefaultMaximumDepth": 1,
+    "theoremMaximumDepth": 1,
+    "polyDepthTheoremClaimAllowed": false,
+    "recursiveCarryProductDefault": "none",
+    "recursiveCarryPromotionAllowed": false,
+    "remainingForDepthPromotion": [
+      "instantiate concrete Swift extractor evidence for every accepted source fold and terminal NumiSeal layer",
+      "promote product recursive typed carry vectors and verifier replay semantics beyond carryMode none",
+      "account per-layer Fiat-Shamir, folding, terminal, carry, and ZK losses for the selected maximum depth",
+      "prove or narrow polynomial-depth knowledge soundness before exposing any poly-depth product claim"
+    ]
+  },
+  "latticeAssumptionDossier": {
+    "assumptionName": "Module-SIS over Goldilocks/Phi81 Ajtai commitments",
+    "assumptionStatement": "Given a public Ajtai matrix over F_q[X]/(X^54 + X^27 + 1), find a non-zero short module vector whose commitment is zero under the pinned SuperNeo Goldilocks/Phi81 profile bounds.",
+    "profileID": 1,
+    "qDecimal": "18446744069414584321",
+    "qHex": "ffffffff00000001",
+    "field": "Goldilocks",
+    "ring": "F_q[X]/(X^54 + X^27 + 1)",
+    "cyclotomicIndex": 81,
+    "ringDegree": 54,
+    "kappa": 18,
+    "decompositionLength": 14,
+    "normBound": 2,
+    "normRoots": [
+      -1,
+      0,
+      1
+    ],
+    "challengeCoefficients": [
+      -2,
+      -1,
+      0,
+      1,
+      2
+    ],
+    "challengeExpansionFactor": 216,
+    "maxFreshBatchCount": 61,
+    "maxPriorCEClaimCount": 14,
+    "moduleSISDimension": 972,
+    "estimatorMSISLength": 1073741824,
+    "lengthBoundL2": "927712935936",
+    "decompositionRadixBound": 16384,
+    "strongSamplingLeft": 16200,
+    "claimedSecurityBits": 129,
+    "pinnedEstimatorMinimumROPBits": 129.1,
+    "costEstimates": [
+      {
+        "model": "MATZOV",
+        "costClass": "default",
+        "ropBits": 129.1
+      },
+      {
+        "model": "ADPS16",
+        "costClass": "classical",
+        "ropBits": 100.7
+      },
+      {
+        "model": "ADPS16",
+        "costClass": "quantum",
+        "ropBits": 91.4
+      },
+      {
+        "model": "ADPS16",
+        "costClass": "paranoid",
+        "ropBits": 71.6
+      },
+      {
+        "model": "ChaLoy21",
+        "costClass": "enumeration",
+        "ropBits": 88.7
+      },
+      {
+        "model": "LaaMosPol14",
+        "costClass": "enumeration",
+        "ropBits": 122.4
+      }
+    ],
+    "productionPostQuantumClaimAllowed": false,
+    "postQuantumBoundary": "The pinned default estimator lane records 129.1 rop bits, but conservative quantum and enumeration sensitivity rows fall below a broad 128-bit post-quantum claim. Product releases must keep the claim assumption-scoped until parameter selection and reduction losses are updated."
+  },
+  "normGrowthAndFailureBudget": {
+    "strongSamplingInequality": "(K + k) * T * (b - 1) < b^k",
+    "leftSide": 16200,
+    "rightSide": 16384,
+    "status": "profile-bound-recorded-product-path-losses-not-fully-instantiated",
+    "failureProbabilityBudgetRecorded": true,
+    "remainingObligations": [
+      "prove norm growth for every source folding layer accepted by the product verifier",
+      "prove norm growth for terminal NumiSeal aggregation and residual opening paths",
+      "prove typed carry vector norm preservation across producer and consumer recursion handoff",
+      "compose folding, carry, ZK masking, Fiat-Shamir, and extraction losses inside the declared depth budget"
+    ]
+  },
+  "fiatShamirQROMPosition": {
+    "model": "qrom",
+    "interactiveProtocolSpecified": false,
+    "transformPreconditionsSatisfied": false,
+    "quantumOracleQueryBoundAccounted": false,
+    "transcriptDomainSeparatorsBound": true,
+    "proofKindSeparationBound": true,
+    "transcriptCollisionMalleabilityExcluded": false,
+    "productionQROMClaimAllowed": false,
+    "remainingObligations": [
+      "define the exact public-coin interactive protocol before Fiat-Shamir for each accepted product proof kind",
+      "prove the protocol satisfies the selected Fiat-Shamir transform preconditions or explicitly narrow to ROM",
+      "account quantum random-oracle query bounds in the soundness loss",
+      "prove proof-kind domain separation prevents transcript collision and malleability across fold, terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK envelopes"
+    ]
+  },
+  "zkPrivacyProofStatus": {
+    "formalMaskedResidualLanguage": "masked residual language declared in the NumiSealZK theorem surface and conformance scope",
+    "simulatorWithoutWitness": "evidence-parametric; coupling proof remains open",
+    "randomnessSessionBinding": "checked by product proof metadata and mask-distribution evidence",
+    "maskReusePolicy": "reuse is rejected by NumiSealZK proof validation and covered by conformance vectors",
+    "leakageModel": [
+      "randomness session digest",
+      "declared leakage digest",
+      "mask tensor dimensions",
+      "public proof envelope metadata"
+    ],
+    "artifactMetadataSizeErrorCarryLeakage": "not fully proved beyond declared public leakage and current deterministic envelope checks",
+    "repeatedProductProofComposition": "open until simulator coupling and session freshness composition are instantiated",
+    "productionZKPrivacyClaimAllowed": false
+  },
+  "carryRecursionClosure": {
+    "producerPath": "implemented and theorem-surfaced for typed carry statements",
+    "consumerPath": "implemented and theorem-surfaced for typed carry acceptance",
+    "carryVectorCommitment": "typed digest binding exists; product recursive vector promotion remains open",
+    "replaySemantics": "local replay/context freshness is checked for current carry consumers",
+    "recursiveRelationTheorem": "evidence-parametric typed producer/consumer theorem exists",
+    "conformanceVectors": [
+      "TestVectors/numiseal-typed-carry-conformance-v1.json"
+    ],
+    "malformedCarryNegativeVectors": "covered by typed-carry conformance and CLI/product validation tests",
+    "swapResistance": "carry digest binds producer envelope, transcript, residual opening, final point, context, lane, and parent acceptance evidence",
+    "productDefaultCarryMode": "none",
+    "productionRecursiveCarryClaimAllowed": false
+  },
+  "proofSizeLatencyComparison": {
+    "localProofSizeEvidence": "TestVectors/e2e-proof-metrics-v1.json",
+    "comparisonClass": [
+      "LatticeFold/LatticeFold+ style lattice folding systems",
+      "STARK-style transparent post-quantum-oriented systems"
+    ],
+    "currentLocalBudgets": [
+      {
+        "id": "numiseal-product-smoke",
+        "maximumArtifactBytes": 1100000,
+        "maximumProofEnvelopeBytes": 300000,
+        "maximumSourceFoldEnvelopeBytes": 400000
+      },
+      {
+        "id": "numiseal-zk-product-smoke",
+        "maximumArtifactBytes": 2200000,
+        "maximumProofEnvelopeBytes": 900000,
+        "maximumSourceFoldEnvelopeBytes": 400000
+      }
+    ],
+    "sameHardwareCompetitorTablePinned": false,
+    "productionPerformanceClaimAllowed": false,
+    "remainingObligations": [
+      "pin prover time, verifier time, peak memory, recursion overhead, carry overhead, ZK overhead, CPU cost, and Metal cost on the same hardware class",
+      "compare against nearest serious systems under the same threat model and parameter-security position"
+    ]
+  },
+  "implementationHardening": {
+    "constantTimeScopeManifest": "TestVectors/constant-time-scope-v1.json",
+    "loweringEvidenceManifest": "TestVectors/constant-time-lowering-evidence-v1.json",
+    "releaseEvidenceManifest": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
+    "swiftOptimizedSILReview": "pinned artifact exists; scoped emitted-code review remains open",
+    "llvmIRReview": "pinned artifact exists; scoped emitted-code review remains open",
+    "targetAssemblyReview": "pinned artifact exists; scoped emitted-code review remains open",
+    "metalAIRObjectReview": "pinned artifacts exist; GPU-family disassembly and broader lanes remain open",
+    "dudectCPUCorpus": "local smoke corpus pinned; full hardware-counter corpus remains open",
+    "gpuTimingCounterCorpus": "local smoke corpus pinned; full timing/counter corpus remains open",
+    "allocatorARCCOWReview": "local allocation-review artifact pinned; full proof or exclusion remains open",
+    "failurePathConstantBehavior": "not yet proved for every product error and retry path",
+    "secretDependentArtifactSizeErrorRetryBehaviorExcluded": false,
+    "productionConstantTimeClaimAllowed": false
+  },
+  "promotionRule": {
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
+    "productionZKPrivacyClaimAllowed": false,
+    "productionRecursiveCarryClaimAllowed": false,
+    "productionPerformanceClaimAllowed": false,
+    "productionConstantTimeClaimAllowed": false,
+    "requiresAllRemainingObligationsClosed": true
+  }
+}

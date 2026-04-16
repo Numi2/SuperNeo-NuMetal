@@ -109,6 +109,14 @@ that the pinned default estimator lane clears 129 bits, while sampled quantum an
 more conservative reduction-cost models for the same `SIS.Parameters` tuple do
 not support a 128-bit quantum claim.
 
+Product-level theorem promotion is controlled separately by
+`Docs/CryptographicSecurityDossier-2026-04-16.md` and
+`TestVectors/product-crypto-security-dossier-v1.json`. That dossier binds the
+same Module-SIS tuple into the bounded-depth product security theorem and keeps
+post-quantum, Fiat-Shamir/QROM, ZK privacy, recursive carry, performance, and
+constant-time production claims disabled until their product-specific evidence
+is supplied.
+
 Treat the implemented profile as:
 
 - a faithful code-level profile for research and benchmarking,

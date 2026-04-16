@@ -690,6 +690,7 @@ do {
                 && !$0.hasPrefix("numiseal-")
                 && !$0.hasSuffix("-scope-v1.json")
                 && !$0.hasPrefix("constant-time-lowering-evidence-")
+                && $0 != "product-crypto-security-dossier-v1.json"
                 && $0 != "e2e-proof-metrics-v1.json"
         }
     let unmanifestedFiles = Set(checkedVectorFiles).subtracting(manifestedFiles).sorted()

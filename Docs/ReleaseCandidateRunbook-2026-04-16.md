@@ -22,6 +22,10 @@ candidate. It does not authorize production-security release claims.
   changed.
 - `Docs/ProductOperationsReadiness-2026-04-16.md` reflects any product
   operations readiness status or signed revocation feed changes.
+- `Docs/CryptographicSecurityDossier-2026-04-16.md` and
+  `TestVectors/product-crypto-security-dossier-v1.json` reflect any product
+  theorem, Fiat-Shamir/QROM, Module-SIS parameter, proof-size, or hardening
+  boundary changes.
 - `elan`, Swift, and the pinned Lean toolchain are available.
 
 ## Candidate Gate
@@ -72,6 +76,8 @@ The generated evidence records:
   simulation/privacy theorem-surface digests inside the theorem-scope manifest,
 - NumiSealZK mask-distribution evidence version and digest,
 - exact rejection-sampled field mask distribution evidence status,
+- product cryptographic security dossier version and digest,
+- bounded-depth product security theorem status,
 - constant-time source/formal scope version and digest,
 - constant-time lowering evidence version and digest,
 - constant-time release evidence version and digest,

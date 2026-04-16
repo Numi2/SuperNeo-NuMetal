@@ -93,6 +93,8 @@ def build_evidence(args: argparse.Namespace) -> dict:
     compiler_observation_lanes = read_json(constant_time_compiler_observation_lanes)
     hardware_observation_lanes = read_json(constant_time_hardware_observation_lanes)
     numiseal_mask_distribution_evidence = read_json("TestVectors/numiseal-zk-mask-distribution-evidence-v1.json")
+    product_crypto_security_dossier = read_json("TestVectors/product-crypto-security-dossier-v1.json")
+    product_crypto_depth = product_crypto_security_dossier["supportedProductDepth"]
 
     return {
         "schemaVersion": 1,
@@ -146,6 +148,19 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "numiSealZKMaskDistributionEvidenceClaimStatus": str(
                 numiseal_mask_distribution_evidence["claimStatus"]
             ),
+            "productCryptoSecurityDossierVersion": int(
+                product_crypto_security_dossier["schemaVersion"]
+            ),
+            "productCryptoSecurityDossierDigestHex": sha256_hex(
+                "TestVectors/product-crypto-security-dossier-v1.json"
+            ),
+            "productCryptoSecurityDossierClaimStatus": str(
+                product_crypto_security_dossier["claimStatus"]
+            ),
+            "productCryptoSecurityDossierDepthModel": str(product_crypto_depth["depthModel"]),
+            "productCryptoSecurityDossierMaximumDepth": int(
+                product_crypto_depth["theoremMaximumDepth"]
+            ),
             "constantTimeScopeVersion": int(read_json("TestVectors/constant-time-scope-v1.json")["schemaVersion"]),
             "constantTimeScopeDigestHex": sha256_hex("TestVectors/constant-time-scope-v1.json"),
             "constantTimeLoweringEvidenceVersion": int(lowering_evidence["schemaVersion"]),
@@ -193,6 +208,8 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "numiSealConformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
             "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+            "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+            "productCryptoSecurityDossierPolicy": "Docs/CryptographicSecurityDossier-2026-04-16.md",
             "constantTimeEvidence": "Docs/ConstantTimeEvidence-2026-04-16.md",
             "constantTimeScope": "TestVectors/constant-time-scope-v1.json",
             "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
@@ -215,7 +232,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "A conditional source/formal constant-time trace scope and Swift/LLVM/Metal lowering proof contract are recorded; local Swift SIL/LLVM/assembly artifacts, Metal AIR/metallib artifacts, runtime allocation/COW review, CPU/GPU smoke corpora, and compiler/hardware observation lane reports are pinned, while scoped emitted-code review, hardware counters, power/contention, and broader device lanes remain explicit evidence boundaries.",
             "E2E proof-size budgets are checked for deterministic vectors and local product smokes; hardware latency claims still require fresh benchmark evidence.",
             "Local product-ops readiness and signed revocation-feed verification are machine-readable and audit-exported; no hosted product replay-protection, provenance, persistence, revocation-distribution, or access-control service is recorded.",
-            "NumiSeal product, carry, and ZK formalization has a checked evidence-parametric end-to-end theorem scope and exact rejection-sampled field mask distribution evidence; extractor, recursive product carry flow, ZK simulator coupling, side-channel evidence, and QROM loss instantiations remain production-security boundaries.",
+            "NumiSeal product, carry, and ZK formalization has a checked evidence-parametric end-to-end theorem scope, exact rejection-sampled field mask distribution evidence, and a product cryptographic security dossier pinned to bounded depth 1; extractor, recursive product carry flow, ZK simulator coupling, side-channel evidence, post-quantum parameter tightening, and QROM loss instantiations remain production-security boundaries.",
         ],
     }
 

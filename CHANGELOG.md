@@ -31,6 +31,12 @@ claims remain blocked by the release packet no-go items.
   under the declared public-leakage model.
 - Added exact rejection-sampled field mask distribution for NumiSealZK masks
   plus a checked mask-distribution evidence manifest and validator.
+- Added a checked product cryptographic security dossier and Lean theorem
+  surface for the bounded-depth product security theorem, pinning the current
+  source-fold, NumiSeal terminal, NumiSealZK masked residual, typed carry,
+  transcript, artifact/proof-envelope, verifier-policy, lattice-parameter,
+  Fiat-Shamir/QROM, proof-size, and side-channel-hardening obligations while
+  keeping production claims disabled.
 - Added a checked constant-time source/formal scope manifest, validator, and
   Lean trace-independence model for the first Swift/Metal secret-bearing slices.
 - Added a checked Swift/LLVM/Metal lowering evidence manifest, validator,
@@ -76,9 +82,10 @@ claims remain blocked by the release packet no-go items.
 - Product integration for provenance, replay protection, trusted context, access
   control, persistence, logging, and user-facing policy.
 - NumiSeal product/carry/ZK theorem and conformance-vector promotion; the
-  NumiSeal end-to-end theorem scope is checked, while production-security
-  NumiSeal product claims still require concrete Swift extractor evidence,
-  product recursive typed carry vectors, simulator coupling beyond the exact
-  field-mask distribution lemma, QROM loss instantiations, and side-channel
-  evidence.
+  NumiSeal end-to-end theorem scope and product cryptographic security dossier
+  are checked, while production-security NumiSeal product claims still require
+  concrete Swift extractor evidence, product recursive typed carry vectors,
+  simulator coupling beyond the exact field-mask distribution lemma, QROM loss
+  instantiations, conservative post-quantum parameter closure, competitive
+  proof-size/latency evidence, and side-channel evidence.
 - Signed artifacts and repository branch-protection enforcement.

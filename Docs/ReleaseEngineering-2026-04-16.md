@@ -25,6 +25,9 @@ true:
   scope and Swift/LLVM/Metal lowering evidence semantics.
 - `Docs/ProductOperationsReadiness-2026-04-16.md` reflects current product
   operations readiness status semantics and signed revocation feed semantics.
+- `Docs/CryptographicSecurityDossier-2026-04-16.md` reflects the current
+  bounded-depth product security theorem, Fiat-Shamir/QROM position, Module-SIS
+  parameter dossier, and production-claim boundaries.
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
 - Release notes explicitly use research/integration wording and do not claim
@@ -48,7 +51,8 @@ At minimum, this requires:
   provenance, and signed revocation feeds,
 - NumiSeal conformance-scope promotion plus concrete Swift extractor evidence,
   product recursive typed carry vectors, simulator coupling beyond the exact
-  rejection-sampled field mask distribution, and QROM loss instantiations,
+  rejection-sampled field mask distribution, QROM loss instantiations, and
+  product cryptographic security dossier promotion beyond depth 1,
 - pinned Sage-backed lattice-estimator evidence,
 - release signing/provenance,
 - branch protection requiring the full production gate.
@@ -72,6 +76,8 @@ Each release candidate should record:
 - typed carry producer/consumer theorem scope digest.
 - NumiSealZK simulation/privacy leakage-model digest.
 - NumiSealZK mask-distribution evidence digest.
+- product cryptographic security dossier digest.
+- bounded-depth product security theorem status.
 - constant-time source/formal scope digest.
 - constant-time lowering evidence digest.
 - constant-time release evidence digest.
@@ -95,6 +101,12 @@ in `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`.
 promotion guards.
 `Scripts/validate-numiseal-zk-mask-distribution-evidence.py` checks the concrete
 NumiSealZK mask sampler arithmetic and promotion boundary.
+`Scripts/validate-product-crypto-security-dossier.py` checks
+`TestVectors/product-crypto-security-dossier-v1.json`, including the
+bounded-depth product security theorem surface, ProductSecurityTheorem import,
+Fiat-Shamir/QROM target and disabled production claim, Module-SIS parameter
+tuple, conservative post-quantum boundary, proof-size/latency boundary, and
+implementation-hardening boundary.
 `Scripts/validate-constant-time-scope.py` checks the constant-time
 source/formal scope manifest and the formal declarations recorded in
 `Docs/ConstantTimeEvidence-2026-04-16.md`.

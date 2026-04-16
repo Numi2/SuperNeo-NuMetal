@@ -23,6 +23,12 @@ Machine-readable files:
   sampler. It pins the v2 expansion domain, 64-bit candidate space, Goldilocks
   acceptance set, rejection count, zero statistical distance after rejection,
   leakage-model binding, and production-promotion boundary.
+- `product-crypto-security-dossier-v1.json`: checked product cryptographic
+  security dossier for the bounded-depth product security theorem. It pins the
+  `ProductSecurityTheorem` surface, source fold, NumiSeal terminal,
+  NumiSealZK masked residual, typed carry, transcript, artifact/proof-envelope,
+  verifier-policy, Module-SIS, Fiat-Shamir/QROM, proof-size, and
+  implementation-hardening boundaries while keeping production claims disabled.
 - `numiseal-typed-carry-conformance-v1.json`: typed carry positive/negative
   conformance descriptor.
 - `numiseal-zk-masked-residual-conformance-v1.json`: masked residual ZK
@@ -47,6 +53,8 @@ Scripts/validate-numiseal-conformance-scope.py
 Scripts/test-numiseal-conformance-scope-validation.py
 Scripts/validate-numiseal-zk-mask-distribution-evidence.py
 Scripts/test-numiseal-zk-mask-distribution-evidence-validation.py
+Scripts/validate-product-crypto-security-dossier.py
+Scripts/test-product-crypto-security-dossier-validation.py
 Scripts/validate-constant-time-scope.py
 Scripts/validate-constant-time-lowering-evidence.py
 Scripts/generate-constant-time-release-evidence.py --skip-build

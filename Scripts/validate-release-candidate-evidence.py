@@ -115,6 +115,38 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "NumiSealZK mask-distribution evidence claim status must stay precise",
     )
     require(
+        require_int(
+            surfaces.get("productCryptoSecurityDossierVersion"),
+            "productCryptoSecurityDossierVersion",
+        ) == 1,
+        "product crypto security dossier version must be 1",
+    )
+    require_string(
+        surfaces.get("productCryptoSecurityDossierDigestHex"),
+        "productCryptoSecurityDossierDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productCryptoSecurityDossierClaimStatus"),
+            "productCryptoSecurityDossierClaimStatus",
+        ) == "evidence-parametric-product-security-theorem-dossier",
+        "product crypto security dossier claim status must stay precise",
+    )
+    require(
+        require_string(
+            surfaces.get("productCryptoSecurityDossierDepthModel"),
+            "productCryptoSecurityDossierDepthModel",
+        ) == "bounded-depth",
+        "product crypto security dossier depth model must stay bounded-depth",
+    )
+    require(
+        require_int(
+            surfaces.get("productCryptoSecurityDossierMaximumDepth"),
+            "productCryptoSecurityDossierMaximumDepth",
+        ) == 1,
+        "product crypto security dossier maximum depth must be 1",
+    )
+    require(
         require_int(surfaces.get("constantTimeScopeVersion"), "constantTimeScopeVersion") == 1,
         "constant-time scope version must be 1",
     )
@@ -209,6 +241,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "numiSealConformanceScope",
         "numiSealEndToEndTheoremScope",
         "numiSealZKMaskDistributionEvidence",
+        "productCryptoSecurityDossier",
+        "productCryptoSecurityDossierPolicy",
         "constantTimeEvidence",
         "constantTimeScope",
         "constantTimeLoweringEvidence",
@@ -233,6 +267,10 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(
         all("external" + " audit" not in str(boundary).lower() for boundary in boundaries),
         "productionSecurityBoundaries must not require outsourced review",
+    )
+    require(
+        any("product cryptographic security dossier" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention the product cryptographic security dossier",
     )
 
 

@@ -25,6 +25,7 @@ Coverage included:
 - R1CS artifact schema contract validation and schema mutation tests,
 - NumiSeal artifact schema contract validation and schema mutation tests,
 - NumiSeal conformance and end-to-end theorem-scope validation,
+- product cryptographic security dossier validation,
 - constant-time source/formal scope validation,
 - constant-time Swift/LLVM/Metal lowering and pinned release evidence
   validation,
@@ -93,6 +94,7 @@ Threat model and proof semantics:
 - `Docs/ConstantTimeEvidence-2026-04-16.md`
 - `Docs/E2EProofMetrics-2026-04-16.md`
 - `Docs/ProductOperationsReadiness-2026-04-16.md`
+- `Docs/CryptographicSecurityDossier-2026-04-16.md`
 
 Formal status:
 
@@ -112,6 +114,7 @@ Release and validation gates:
 - `TestVectors/numiseal-conformance-scope-v1.json`
 - `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`
 - `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`
+- `TestVectors/product-crypto-security-dossier-v1.json`
 - `TestVectors/constant-time-scope-v1.json`
 - `TestVectors/constant-time-lowering-evidence-v1.json`
 - `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
@@ -122,6 +125,8 @@ Release and validation gates:
 - `Scripts/test-numiseal-conformance-scope-validation.py`
 - `Scripts/validate-numiseal-zk-mask-distribution-evidence.py`
 - `Scripts/test-numiseal-zk-mask-distribution-evidence-validation.py`
+- `Scripts/validate-product-crypto-security-dossier.py`
+- `Scripts/test-product-crypto-security-dossier-validation.py`
 - `Scripts/validate-constant-time-scope.py`
 - `Scripts/test-constant-time-scope-validation.py`
 - `Scripts/validate-constant-time-lowering-evidence.py`
@@ -194,6 +199,8 @@ The repository must not yet be presented as:
 - a Swift/LLVM/Metal hardware constant-time certificate,
 - a general program-to-CCS compiler,
 - a general NumiSeal production proving product.
+- a production product-security theorem beyond the checked bounded-depth
+  product security theorem surface.
 - a self-owned production-hardening record for all NumiSeal product, carry,
   ZK, side-channel, and release-operation lanes.
 
@@ -234,7 +241,12 @@ These are the remaining blockers before using production-security language:
    vectors, simulator coupling evidence beyond the exact mask-distribution
    lemma, QROM Fiat-Shamir loss accounting, and side-channel evidence still
    have to be supplied before production-security NumiSeal theorem language is
-   allowed.
+   allowed. `TestVectors/product-crypto-security-dossier-v1.json` and
+   `Docs/CryptographicSecurityDossier-2026-04-16.md` now pin the bounded-depth product security theorem,
+   `ProductSecurityTheorem`, Fiat-Shamir/QROM
+   position, Module-SIS parameter dossier, proof-size/latency boundary, and
+   implementation-hardening boundary. The checked dossier keeps all production
+   claims disabled until those obligations are closed.
 5. Broader hardware benchmark reports before making cross-generation
    performance claims. The E2E proof metrics manifest now gates checked-vector
    proof size and product-smoke size budgets, but hardware latency claims still

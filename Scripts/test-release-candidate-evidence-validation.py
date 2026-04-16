@@ -96,6 +96,24 @@ def main() -> None:
         write_json(path, vague_numiseal_mask_distribution)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_product_crypto_dossier = copy.deepcopy(evidence)
+        wrong_product_crypto_dossier["publicSurfaces"]["productCryptoSecurityDossierVersion"] = 2
+        path = tmp / "wrong-product-crypto-dossier.json"
+        write_json(path, wrong_product_crypto_dossier)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_product_crypto_dossier = copy.deepcopy(evidence)
+        vague_product_crypto_dossier["publicSurfaces"]["productCryptoSecurityDossierClaimStatus"] = "production-security-theorem"
+        path = tmp / "vague-product-crypto-dossier.json"
+        write_json(path, vague_product_crypto_dossier)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        premature_product_depth = copy.deepcopy(evidence)
+        premature_product_depth["publicSurfaces"]["productCryptoSecurityDossierMaximumDepth"] = 2
+        path = tmp / "premature-product-depth.json"
+        write_json(path, premature_product_depth)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_constant_time_scope = copy.deepcopy(evidence)
         wrong_constant_time_scope["publicSurfaces"]["constantTimeScopeVersion"] = 2
         path = tmp / "wrong-constant-time-scope.json"
