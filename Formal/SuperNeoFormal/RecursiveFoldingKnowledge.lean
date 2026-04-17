@@ -154,29 +154,34 @@ theorem recursiveFoldingKnowledgeSoundness_from_chainEvidence
     evidence.finalAccumulatorSound hFinalAccumulator
   ⟩
 
-theorem recursiveFoldingKnowledge_terminalCE_witnesses_from_badSeed_certificate
-    {Claim Proof Witness Seed : Type}
-    [DecidableEq Seed]
-    {outputCount bound : Nat}
+theorem recursiveFoldingKnowledge_terminalCE_witnesses_from_constructive_badSeeds
+    {Claim Proof Witness Seed Commitment Response : Type}
+    [Fintype Seed] [DecidableEq Seed]
+    {outputCount roundCount : Nat}
     {reduction : FoldReductionGates Claim outputCount}
     {terminal : TerminalProofVerifierGates Claim Proof outputCount}
     {opens : Claim → Witness → Prop}
     {proofSeed : Proof → Seed}
+    [DecidablePred (TerminalCESeedExtracts terminal.verifyProof opens proofSeed)]
     (hAccepts : SuperNeoProofVerifierAccepts reduction terminal)
-    (certificate :
-      TerminalCEFiniteBadSeedCertificate
+    (semantics :
+      TerminalCEConstructiveVerifierSemantics
+        (Commitment := Commitment)
+        (Response := Response)
+        (roundCount := roundCount)
         terminal.verifyProof
         opens
-        proofSeed
-        bound)
-    (hSeed : proofSeed terminal.proof ∉ certificate.badSeeds) :
+        proofSeed)
+    (hSeed :
+      proofSeed terminal.proof ∉
+        TerminalCEConstructiveBadSeeds terminal.verifyProof opens proofSeed) :
     FoldReductionAccepted reduction ∧
       terminal.statementMatchesReduction ∧
       ∃ witnesses : Fin outputCount → Witness,
         TerminalLocalBatchRelation terminal.statement witnesses opens :=
-  superneo_end_to_end_outside_ce_badSeeds
+  superneo_end_to_end_outside_constructive_ce_badSeeds
     hAccepts
-    certificate
+    semantics
     hSeed
 
 end SuperNeoFormal

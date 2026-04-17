@@ -7,9 +7,15 @@ benchmark/release evidence, and a Lean 4 formal track under `Formal/`.
 
 Current safe claim:
 
-> SuperNeo NuMetal has a completed Lean formal protocol theorem for the
-> corrected finite model, checked proof-envelope and NumiSeal artifact paths, and
-> explicit remaining product/QROM/release evidence boundaries.
+> SuperNeo NuMetal now has a corrected Lean formal finite-model core with
+> well-formed transcript injectivity, 384-bit proof-envelope context
+> serialization, Phi81 CRT decomposition, constructive PiCCS bad-challenge
+> accounting, and exact finite-support probability modules. The product/QROM
+> theorem surface has been upgraded to the split-oracle/CTCO design. Some
+> theorem-critical integrations remain open: wiring the 384-bit typed-digest
+> binding layer into the upper theorem boundary, instantiating constructive
+> terminal CE localization evidence, completing CRT-based PiRLC finite soundness,
+> and full wiring of exact finite probability into the top-level product theorem.
 
 This is not a production-security claim. The repo does not claim production
 post-quantum security, production QROM security, whole-stack constant-time
@@ -17,8 +23,9 @@ certification, or independent cryptographic audit completion.
 
 ## Current Status
 
-As of 2026-04-17, the old formal blocker list has been retired. The current
-formal solution is built around:
+As of 2026-04-17, the formal layer has made real lower-level progress, but the
+old formal blocker list is not yet retired. The current formal solution is built
+around:
 
 - well-formed, length-counted transcripts with byte injectivity;
 - 384-bit theorem-critical proof-envelope binding encodings;
@@ -27,11 +34,22 @@ formal solution is built around:
   soundness layer;
 - constructive terminal CE finite bad-seed accounting over concrete
   extraction-failure semantics;
-- exact finite-uniform Fiat-Shamir seed probability connected to the
-  selected-depth error ledger.
+- exact finite-uniform Fiat-Shamir seed probability modules and a selected-depth
+  ledger interface.
 
-The remaining gaps are product/security evidence gaps, not the old Lean
-interface gaps:
+The remaining Lean integration gaps are theorem-critical and must not be folded
+into product/security evidence status:
+
+- wire the theorem-critical typed-digest binding path through the upper theorem
+  boundary on the 384-bit instantiation;
+- instantiate constructive terminal CE localization evidence beyond the current
+  constructive composition endpoint;
+- complete CRT-based PiRLC finite soundness on top of `Phi81CRT.lean` and
+  `PiRLCConcreteCollision.lean`;
+- keep exact finite-uniform probability wired through the selected-depth error
+  ledger and top-level product theorem.
+
+The remaining product/security evidence gaps are separate:
 
 - instantiate numeric extractor, QROM compiler-overhead, ZK-simulator,
   operations, side-channel, and release-distribution loss terms in the selected
@@ -53,6 +71,9 @@ Use these Lean files for theorem-facing references:
 - `Formal/SuperNeoFormal/WellFormedTranscript.lean`
 - `Formal/SuperNeoFormal/Digest384Serialization.lean`
 - `Formal/SuperNeoFormal/TypedDigestSemantics.lean`
+- `Formal/SuperNeoFormal/Phi81CRT.lean`
+- `Formal/SuperNeoFormal/PiRLCConcreteCollision.lean`
+- `Formal/SuperNeoFormal/PiRLCFiniteSoundness.lean`
 - `Formal/SuperNeoFormal/PiCCSConstructiveFiniteSoundness.lean`
 - `Formal/SuperNeoFormal/TerminalCEConstructiveFiniteSoundness.lean`
 - `Formal/SuperNeoFormal/FiniteUniformProbability.lean`
@@ -67,6 +88,8 @@ These files remain useful but are not the final theorem-critical endpoints:
 - `Formal/SuperNeoFormal/TerminalCEFiniteSoundness.lean`: compatibility wrapper.
 - `Formal/SuperNeoFormal/PiCCSFiniteSoundness.lean`: legacy certificate
   interface.
+- `Formal/SuperNeoFormal/Phi81Split.lean`: factorization support used below the
+  CRT endpoint.
 - `Formal/SuperNeoFormal/VectorChecks.lean`: executable conformance harness.
 
 ## Verification

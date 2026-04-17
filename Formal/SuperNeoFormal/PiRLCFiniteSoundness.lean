@@ -3,9 +3,10 @@ import SuperNeoFormal.PiRLCConcreteCollision
 /-!
 Finite-bad-seed PiRLC soundness.
 
-This is the completed-formal-status replacement for the old
-`PiRLCConcreteCollisionBound` boundary group.  The certificate names the exact
-finite challenge seeds that may hide a folded-claim collision.
+This file keeps the finite bad-seed set constructive: bad seeds are the filtered
+fold-failure seeds from `PiRLCBadSeedFinset`, and the CRT endpoint records the
+component localization needed to count them without the older split-certificate
+carrier.
 -/
 
 noncomputable section
@@ -16,62 +17,28 @@ namespace SuperNeoFormal
 
 open Finset
 
-inductive Phi81SplitSide where
+inductive PiRLCCRTComponentSide where
   | left
   | right
   deriving DecidableEq
 
-def phi81SplitProjection
-    (certificate : Phi81SplitCertificate)
-    (side : Phi81SplitSide) : Phi81 → Goldilocks :=
-  match side with
-  | Phi81SplitSide.left => certificate.leftProjection
-  | Phi81SplitSide.right => certificate.rightProjection
-
-def pirlcProjectedDeltas
+def PiRLCCRTComponentNonzero
     {count : Nat}
-    (split : Phi81SplitCertificate)
-    (side : Phi81SplitSide)
-    (deltas : Fin count → Phi81) : Fin count → Goldilocks :=
-  fun index => phi81SplitProjection split side (deltas index)
-
-def pirlcProjectedComponentBadValues
-    {count : Nat}
-    (support : Finset Goldilocks)
-    (split : Phi81SplitCertificate)
-    (side : Phi81SplitSide)
-    (fixedChallenges : Fin count → Goldilocks)
     (pivot : Fin count)
-    (deltas : Fin count → Phi81) : Finset Goldilocks :=
-  scalarRLCBadPivotValues
-    support
-    fixedChallenges
-    pivot
-    (pirlcProjectedDeltas split side deltas)
+    (deltas : Fin count → Phi81) :
+    PiRLCCRTComponentSide → Prop
+  | .left => pirlcCRTLeftProjectedDeltas deltas pivot ≠ 0
+  | .right => pirlcCRTRightProjectedDeltas deltas pivot ≠ 0
 
-theorem pirlcProjectedComponentBadValues_card_le_one
+theorem pirlcCRTComponentNonzero_exists_of_pivot_ne_zero
     {count : Nat}
-    (support : Finset Goldilocks)
-    (split : Phi81SplitCertificate)
-    (side : Phi81SplitSide)
-    (fixedChallenges : Fin count → Goldilocks)
-    (pivot : Fin count)
-    (deltas : Fin count → Phi81)
-    (hPivot :
-      phi81SplitProjection split side (deltas pivot) ≠ 0) :
-    (pirlcProjectedComponentBadValues
-      support
-      split
-      side
-      fixedChallenges
-      pivot
-      deltas).card ≤ 1 :=
-  scalarRLCBadPivotValues_card_le_one
-    support
-    fixedChallenges
-    pivot
-    (pirlcProjectedDeltas split side deltas)
-    hPivot
+    {pivot : Fin count}
+    {deltas : Fin count → Phi81}
+    (hPivot : deltas pivot ≠ 0) :
+    ∃ side, PiRLCCRTComponentNonzero pivot deltas side := by
+  rcases pirlcCRT_nonzero_pivot_has_nonzero_component hPivot with hLeft | hRight
+  · exact ⟨PiRLCCRTComponentSide.left, hLeft⟩
+  · exact ⟨PiRLCCRTComponentSide.right, hRight⟩
 
 abbrev PiRLCRemainingChallengeSeed
     (count : Nat)
@@ -265,7 +232,7 @@ theorem PiRLCUnitPivotCollisionBadSeeds_card_le_actualCoefficientSupport
       deltas
       hPivotUnit
 
-structure PiRLCFiniteBadSeedCertificate
+abbrev PiRLCConstructiveBadSeeds
     {count rows publicCount evalCount pointVars : Nat}
     (point : ProtocolVector Phi81 pointVars)
     (foldedSound :
@@ -273,47 +240,69 @@ structure PiRLCFiniteBadSeedCertificate
     (inputSound :
       EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop)
     (claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars)
-    (bound : Nat) where
-  split : Phi81SplitCertificate
-  badSeeds : Finset (PiRLCChallengeSeed count)
-  card_le : badSeeds.card ≤ bound
-  covers_failure :
-    ∀ seed,
-      PiRLCFoldFailure
+    [DecidablePred
+      (PiRLCFoldFailure
         (PiRLCConcreteAccepts point)
         foldedSound
         inputSound
-        claims
-        seed →
-          seed ∈ badSeeds
+        claims)] :
+    Finset (PiRLCChallengeSeed count) :=
+  PiRLCBadSeedFinset
+    (PiRLCConcreteAccepts point)
+    foldedSound
+    inputSound
+    claims
 
-theorem pirlc_concrete_badSeedCount_le_of_certificate
-    {count rows publicCount evalCount pointVars bound : Nat}
-    {point : ProtocolVector Phi81 pointVars}
-    {foldedSound :
-      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
-    {inputSound :
-      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
-    {claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars}
+theorem pirlc_constructiveBadSeeds_mem_iff
+    {count rows publicCount evalCount pointVars : Nat}
+    (point : ProtocolVector Phi81 pointVars)
+    (foldedSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop)
+    (inputSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop)
+    (claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars)
     [DecidablePred
       (PiRLCFoldFailure
         (PiRLCConcreteAccepts point)
         foldedSound
         inputSound
         claims)]
-    (certificate :
-      PiRLCFiniteBadSeedCertificate point foldedSound inputSound claims bound) :
-    (PiRLCBadSeedFinset
-      (PiRLCConcreteAccepts point)
-      foldedSound
-      inputSound
-      claims).card ≤ bound :=
-  pirlc_badSeedCount_le_of_collisionSet
-    (collisionSet := certificate.badSeeds)
-    certificate.covers_failure
-    certificate.card_le
+    (seed : PiRLCChallengeSeed count) :
+    seed ∈ PiRLCConstructiveBadSeeds point foldedSound inputSound claims ↔
+      PiRLCFoldFailure
+        (PiRLCConcreteAccepts point)
+        foldedSound
+        inputSound
+        claims
+        seed := by
+  simp [PiRLCConstructiveBadSeeds, PiRLCBadSeedFinset]
 
-def pirlc_certificate_split
+structure PiRLCCRTConstructiveFailureLocalization
+    {count rows publicCount evalCount pointVars : Nat}
+    (point : ProtocolVector Phi81 pointVars)
+    (foldedSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop)
+    (inputSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop)
+    (claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars)
+    (deltas : Fin count → Phi81)
+    [DecidablePred
+      (PiRLCFoldFailure
+        (PiRLCConcreteAccepts point)
+        foldedSound
+        inputSound
+        claims)] where
+  pivot : Fin count
+  component : PiRLCCRTComponentSide
+  component_nonzero : PiRLCCRTComponentNonzero pivot deltas component
+  remainingSeed_injective :
+    Function.Injective
+      (fun seed :
+          { seed // seed ∈
+            PiRLCConstructiveBadSeeds point foldedSound inputSound claims } =>
+        pirlcRemainingSeed pivot seed.1)
+
+theorem pirlc_constructive_badSeedCount_le_of_crtLocalization
     {count rows publicCount evalCount pointVars bound : Nat}
     {point : ProtocolVector Phi81 pointVars}
     {foldedSound :
@@ -321,13 +310,42 @@ def pirlc_certificate_split
     {inputSound :
       EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
     {claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars}
-    (certificate :
-      PiRLCFiniteBadSeedCertificate point foldedSound inputSound claims bound) :
-    Phi81SplitCertificate :=
-  certificate.split
+    {deltas : Fin count → Phi81}
+    [DecidablePred
+      (PiRLCFoldFailure
+        (PiRLCConcreteAccepts point)
+        foldedSound
+        inputSound
+        claims)]
+    (localization :
+      PiRLCCRTConstructiveFailureLocalization
+        point
+        foldedSound
+        inputSound
+        claims
+        deltas)
+    (hRemaining :
+      (5 ^ phi81Degree) ^ (count - 1) ≤ bound) :
+    (PiRLCConstructiveBadSeeds point foldedSound inputSound claims).card ≤ bound := by
+  have hCard :
+      Fintype.card
+        (PiRLCConstructiveBadSeeds point foldedSound inputSound claims) ≤
+          Fintype.card (PiRLCRemainingChallengeSeed count localization.pivot) :=
+    Fintype.card_le_of_injective
+      (fun seed :
+          { seed // seed ∈
+            PiRLCConstructiveBadSeeds point foldedSound inputSound claims } =>
+        pirlcRemainingSeed localization.pivot seed.1)
+      localization.remainingSeed_injective
+  have hConstructive :
+      (PiRLCConstructiveBadSeeds point foldedSound inputSound claims).card ≤
+        (5 ^ phi81Degree) ^ (count - 1) := by
+    simpa [Fintype.card_coe,
+      pirlcRemainingChallengeSeed_card localization.pivot] using hCard
+  exact le_trans hConstructive hRemaining
 
 theorem pirlc_allInputsSound_of_seed_not_bad
-    {count rows publicCount evalCount pointVars bound : Nat}
+    {count rows publicCount evalCount pointVars : Nat}
     {point : ProtocolVector Phi81 pointVars}
     {foldedSound :
       EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
@@ -336,46 +354,21 @@ theorem pirlc_allInputsSound_of_seed_not_bad
     {claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars}
     {seed : PiRLCChallengeSeed count}
     {folded : EvaluationClaim Phi81 rows publicCount evalCount pointVars}
-    (certificate :
-      PiRLCFiniteBadSeedCertificate point foldedSound inputSound claims bound)
-    (hSeed : seed ∉ certificate.badSeeds)
+    [DecidablePred
+      (PiRLCFoldFailure
+        (PiRLCConcreteAccepts point)
+        foldedSound
+        inputSound
+        claims)]
+    (hSeed :
+      seed ∉ PiRLCConstructiveBadSeeds point foldedSound inputSound claims)
     (hAccepts : PiRLCConcreteAccepts point seed claims folded)
     (hFoldedSound : foldedSound folded) :
     AllClaimsSound inputSound claims := by
   by_contra hUnsound
   exact hSeed
-    (certificate.covers_failure
-      seed
-      ⟨folded, hAccepts, hFoldedSound, hUnsound⟩)
-
-def PiRLCComponentwiseSplitCertificate
-    {count rows publicCount evalCount pointVars : Nat}
-    (point : ProtocolVector Phi81 pointVars)
-    (foldedSound :
-      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop)
-    (inputSound :
-      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop)
-    (claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars)
-    (bound : Nat) : Prop :=
-  ∃ _split : Phi81SplitCertificate,
-    ∃ _badSeedCertificate :
-      PiRLCFiniteBadSeedCertificate point foldedSound inputSound claims bound,
-        True
-
-theorem pirlc_certificate_from_componentwise_split
-    {count rows publicCount evalCount pointVars bound : Nat}
-    {point : ProtocolVector Phi81 pointVars}
-    {foldedSound :
-      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
-    {inputSound :
-      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
-    {claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars}
-    (certificate :
-      PiRLCComponentwiseSplitCertificate point foldedSound inputSound claims bound) :
-    ∃ _badSeedCertificate :
-      PiRLCFiniteBadSeedCertificate point foldedSound inputSound claims bound,
-        True := by
-  rcases certificate with ⟨_split, badSeedCertificate, hTrivial⟩
-  exact ⟨badSeedCertificate, hTrivial⟩
+    (by
+      rw [pirlc_constructiveBadSeeds_mem_iff]
+      exact ⟨folded, hAccepts, hFoldedSound, hUnsound⟩)
 
 end SuperNeoFormal

@@ -1,11 +1,10 @@
 import SuperNeoFormal.PiCCS
-import SuperNeoFormal.PiCCSFiniteSoundness
+import SuperNeoFormal.PiCCSConstructiveFiniteSoundness
 import SuperNeoFormal.PiRLC
 import SuperNeoFormal.PiRLCFiniteSoundness
 import SuperNeoFormal.PiDEC
 import SuperNeoFormal.TerminalCE
-import SuperNeoFormal.TerminalCEFiniteSoundness
-import SuperNeoFormal.ProbabilityComposition
+import SuperNeoFormal.TerminalCEConstructiveFiniteSoundness
 import SuperNeoFormal.TranscriptProbability
 import SuperNeoFormal.ErrorLedger
 
@@ -224,22 +223,27 @@ theorem superneo_end_to_end_from_ce_soundness
     hAccepts
     hCESoundness
 
-theorem superneo_end_to_end_outside_ce_badSeeds
-    {Claim Proof Witness Seed : Type}
-    [DecidableEq Seed]
-    {outputCount bound : Nat}
+theorem superneo_end_to_end_outside_constructive_ce_badSeeds
+    {Claim Proof Witness Seed Commitment Response : Type}
+    [Fintype Seed] [DecidableEq Seed]
+    {outputCount roundCount : Nat}
     {reduction : FoldReductionGates Claim outputCount}
     {terminal : TerminalProofVerifierGates Claim Proof outputCount}
     {opens : Claim → Witness → Prop}
     {proofSeed : Proof → Seed}
+    [DecidablePred (TerminalCESeedExtracts terminal.verifyProof opens proofSeed)]
     (hAccepts : SuperNeoProofVerifierAccepts reduction terminal)
-    (certificate :
-      TerminalCEFiniteBadSeedCertificate
+    (semantics :
+      TerminalCEConstructiveVerifierSemantics
+        (Commitment := Commitment)
+        (Response := Response)
+        (roundCount := roundCount)
         terminal.verifyProof
         opens
-        proofSeed
-        bound)
-    (hSeed : proofSeed terminal.proof ∉ certificate.badSeeds) :
+        proofSeed)
+    (hSeed :
+      proofSeed terminal.proof ∉
+        TerminalCEConstructiveBadSeeds terminal.verifyProof opens proofSeed) :
     FoldReductionAccepted reduction ∧
       terminal.statementMatchesReduction ∧
       ∃ witnesses : Fin outputCount → Witness,
@@ -247,28 +251,32 @@ theorem superneo_end_to_end_outside_ce_badSeeds
   exact ⟨
     superneo_proof_acceptance_requires_fold_reduction hAccepts,
     superneo_proof_acceptance_requires_terminal_statement_match hAccepts,
-    terminal_ce_relation_from_verified_proof_outside_badSeeds
-      certificate
+    terminalCEConstructive_extract_outside_bad
+      semantics
       (superneo_proof_acceptance_requires_terminal_ce hAccepts)
       hSeed
   ⟩
 
 theorem superneo_full_outside_bad_events_sound
-    {Claim Proof Witness Seed PiRLCSeed PiCCSSeed TranscriptSeed : Type}
-    [DecidableEq Seed] [DecidableEq PiRLCSeed] [DecidableEq PiCCSSeed]
+    {Claim Proof Witness Seed Commitment Response PiRLCSeed PiCCSSeed TranscriptSeed : Type}
+    [Fintype Seed] [DecidableEq Seed]
+    [DecidableEq PiRLCSeed] [DecidableEq PiCCSSeed]
     [DecidableEq TranscriptSeed]
-    {outputCount bound : Nat}
+    {outputCount roundCount : Nat}
     {reduction : FoldReductionGates Claim outputCount}
     {terminal : TerminalProofVerifierGates Claim Proof outputCount}
     {opens : Claim → Witness → Prop}
     {proofSeed : Proof → Seed}
+    [DecidablePred (TerminalCESeedExtracts terminal.verifyProof opens proofSeed)]
     (hAccepts : SuperNeoProofVerifierAccepts reduction terminal)
-    (certificate :
-      TerminalCEFiniteBadSeedCertificate
+    (terminalCESemantics :
+      TerminalCEConstructiveVerifierSemantics
+        (Commitment := Commitment)
+        (Response := Response)
+        (roundCount := roundCount)
         terminal.verifyProof
         opens
-        proofSeed
-        bound)
+        proofSeed)
     (pirlcBadSeeds : Finset PiRLCSeed)
     (piccsBadSeeds : Finset PiCCSSeed)
     (transcriptBadSeeds : Finset TranscriptSeed)
@@ -278,7 +286,7 @@ theorem superneo_full_outside_bad_events_sound
       superneoOutsideAggregate
         pirlcBadSeeds
         piccsBadSeeds
-        certificate.badSeeds
+        (TerminalCEConstructiveBadSeeds terminal.verifyProof opens proofSeed)
         transcriptBadSeeds
         seeds)
     (hTerminalSeed : proofSeed terminal.proof = seeds.terminalCESeed)
@@ -289,7 +297,8 @@ theorem superneo_full_outside_bad_events_sound
       seeds.piccsSeed ∉ piccsBadSeeds →
         targets.piccsSound)
     (hTerminalCE :
-      seeds.terminalCESeed ∉ certificate.badSeeds →
+      seeds.terminalCESeed ∉
+        TerminalCEConstructiveBadSeeds terminal.verifyProof opens proofSeed →
         targets.terminalCESound)
     (hTranscript :
       seeds.transcriptSeed ∉ transcriptBadSeeds →
@@ -304,7 +313,7 @@ theorem superneo_full_outside_bad_events_sound
     superneo_stage_soundness_from_outsideAggregate
       pirlcBadSeeds
       piccsBadSeeds
-      certificate.badSeeds
+      (TerminalCEConstructiveBadSeeds terminal.verifyProof opens proofSeed)
       transcriptBadSeeds
       seeds
       targets
@@ -317,18 +326,20 @@ theorem superneo_full_outside_bad_events_sound
     superneo_outsideAggregate_stage_not_bad
       pirlcBadSeeds
       piccsBadSeeds
-      certificate.badSeeds
+      (TerminalCEConstructiveBadSeeds terminal.verifyProof opens proofSeed)
       transcriptBadSeeds
       seeds
       hOutside
-  have hProofSeed : proofSeed terminal.proof ∉ certificate.badSeeds := by
+  have hProofSeed :
+      proofSeed terminal.proof ∉
+        TerminalCEConstructiveBadSeeds terminal.verifyProof opens proofSeed := by
     rw [hTerminalSeed]
     exact hNotBad.2.2.1
   exact ⟨
     hStage,
-    superneo_end_to_end_outside_ce_badSeeds
+    superneo_end_to_end_outside_constructive_ce_badSeeds
       hAccepts
-      certificate
+      terminalCESemantics
       hProofSeed
   ⟩
 
