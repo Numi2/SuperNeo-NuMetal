@@ -49,6 +49,12 @@ Machine-readable files:
   contract for fold, terminal, compressed-terminal, NumiSeal terminal, and
   NumiSealZK product proof kinds. It pins public challenge labels, transcript
   bindings, symbolic `Q_H` query families, and the fail-closed promotion rule.
+- `product-qrom-transform-preconditions-v1.json`: checked QROM transform
+  precondition dossier for the selected fail-closed measure-and-reprogram
+  profile. It pins primary research sources, theorem-family fit,
+  public-coin protocol obligations, round schedule, challenge uniformity,
+  transcript encoding, `Q_H` query-bound, and reduction-loss obligations while
+  keeping production QROM claims disabled.
 - `product-total-loss-budget-v1.json`: checked total-loss budget contract for
   the current selected-depth security boundary. It records exact rational
   summation, the `2^-128` selected threshold, ten component bounds, nine
@@ -92,6 +98,8 @@ Scripts/validate-product-qrom-fiat-shamir-accounting.py
 Scripts/test-product-qrom-fiat-shamir-accounting-validation.py
 Scripts/validate-product-qrom-transcript-schedule.py
 Scripts/test-product-qrom-transcript-schedule-validation.py
+Scripts/validate-product-qrom-transform-preconditions.py
+Scripts/test-product-qrom-transform-preconditions-validation.py
 Scripts/validate-product-total-loss-budget.py
 Scripts/test-product-total-loss-budget-validation.py
 Scripts/validate-constant-time-scope.py

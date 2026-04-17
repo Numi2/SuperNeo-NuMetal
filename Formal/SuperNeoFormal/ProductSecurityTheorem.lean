@@ -155,6 +155,34 @@ def ProductFiatShamirTranscriptScheduleAccepted
     ∧ schedule.numericQuantumQueryBoundsInstantiated
     ∧ schedule.productionTranscriptScheduleClaimAllowed
 
+structure ProductFiatShamirTransformPreconditions where
+  selectedDepth : Nat
+  selectedDepthPositive : 0 < selectedDepth
+  theoremFamilyPinned : Prop
+  publicCoinInteractiveProtocolSpecified : Prop
+  constantRoundOddMessageScheduleSpecified : Prop
+  challengeSpaceAndUniformityPinned : Prop
+  transcriptOracleEncodingInjective : Prop
+  transcriptScheduleAccepted : Prop
+  underlyingInteractiveSecurityBoundInstantiated : Prop
+  quantumOracleQueryBoundInstantiated : Prop
+  qromReductionLossInstantiated : Prop
+  productionTransformClaimAllowed : Prop
+
+def ProductFiatShamirTransformPreconditionsAccepted
+    (preconditions : ProductFiatShamirTransformPreconditions) : Prop :=
+  (0 < preconditions.selectedDepth)
+    ∧ preconditions.theoremFamilyPinned
+    ∧ preconditions.publicCoinInteractiveProtocolSpecified
+    ∧ preconditions.constantRoundOddMessageScheduleSpecified
+    ∧ preconditions.challengeSpaceAndUniformityPinned
+    ∧ preconditions.transcriptOracleEncodingInjective
+    ∧ preconditions.transcriptScheduleAccepted
+    ∧ preconditions.underlyingInteractiveSecurityBoundInstantiated
+    ∧ preconditions.quantumOracleQueryBoundInstantiated
+    ∧ preconditions.qromReductionLossInstantiated
+    ∧ preconditions.productionTransformClaimAllowed
+
 structure ProductFiatShamirLossAccounting where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
@@ -432,6 +460,44 @@ theorem productSecurityTheorem_requires_qrom_transcript_schedule
       hDomain,
       hProofKindSeparation,
       hNumericQueries,
+      hPromotion⟩
+
+theorem productSecurityTheorem_requires_qrom_transform_preconditions
+    {preconditions : ProductFiatShamirTransformPreconditions}
+    (hPreconditions :
+      ProductFiatShamirTransformPreconditionsAccepted preconditions) :
+    preconditions.theoremFamilyPinned
+      ∧ preconditions.publicCoinInteractiveProtocolSpecified
+      ∧ preconditions.constantRoundOddMessageScheduleSpecified
+      ∧ preconditions.challengeSpaceAndUniformityPinned
+      ∧ preconditions.transcriptOracleEncodingInjective
+      ∧ preconditions.transcriptScheduleAccepted
+      ∧ preconditions.underlyingInteractiveSecurityBoundInstantiated
+      ∧ preconditions.quantumOracleQueryBoundInstantiated
+      ∧ preconditions.qromReductionLossInstantiated
+      ∧ preconditions.productionTransformClaimAllowed := by
+  rcases hPreconditions with
+    ⟨_,
+      hFamily,
+      hInteractive,
+      hRounds,
+      hChallenge,
+      hEncoding,
+      hSchedule,
+      hInteractiveSecurity,
+      hQuantumQueries,
+      hReductionLoss,
+      hPromotion⟩
+  exact
+    ⟨hFamily,
+      hInteractive,
+      hRounds,
+      hChallenge,
+      hEncoding,
+      hSchedule,
+      hInteractiveSecurity,
+      hQuantumQueries,
+      hReductionLoss,
       hPromotion⟩
 
 theorem productSecurityTheorem_requires_total_loss_budget

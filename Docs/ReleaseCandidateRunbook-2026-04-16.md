@@ -42,6 +42,10 @@ candidate. It does not authorize production-security release claims.
 - `TestVectors/product-qrom-transcript-schedule-v1.json` reflects any product
   QROM transcript schedule changes for proof-kind order, public challenge
   labels, symbolic `Q_H` query families, or schedule-to-ledger binding.
+- `TestVectors/product-qrom-transform-preconditions-v1.json` reflects any
+  product QROM transform precondition changes for theorem-family fit,
+  public-coin protocol obligations, round schedule, challenge uniformity,
+  transcript encoding, `Q_H` query bounds, or reduction-loss accounting.
 - `TestVectors/product-total-loss-budget-v1.json` reflects any selected-depth
   total-loss budget, exact rational summation, required component bounds, or
   `2^-128` threshold changes.
@@ -106,6 +110,7 @@ The generated evidence records:
 - product extractor loss-accounting version and digest,
 - product QROM Fiat-Shamir accounting version and digest,
 - product QROM transcript schedule version and digest,
+- product QROM transform preconditions version and digest,
 - product total-loss budget version and digest,
 - constant-time source/formal scope version and digest,
 - constant-time lowering evidence version and digest,

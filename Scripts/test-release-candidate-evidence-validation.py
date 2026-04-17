@@ -192,6 +192,24 @@ def main() -> None:
         write_json(path, missing_qrom_schedule_entry)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_qrom_transform_preconditions = copy.deepcopy(evidence)
+        wrong_qrom_transform_preconditions["publicSurfaces"]["productQROMTransformPreconditionsVersion"] = 2
+        path = tmp / "wrong-qrom-transform-preconditions.json"
+        write_json(path, wrong_qrom_transform_preconditions)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_qrom_transform_preconditions = copy.deepcopy(evidence)
+        vague_qrom_transform_preconditions["publicSurfaces"]["productQROMTransformPreconditionsClaimStatus"] = "production-qrom-transform-proof"
+        path = tmp / "vague-qrom-transform-preconditions.json"
+        write_json(path, vague_qrom_transform_preconditions)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_qrom_transform_precondition = copy.deepcopy(evidence)
+        missing_qrom_transform_precondition["publicSurfaces"]["productQROMTransformPreconditionCount"] = 9
+        path = tmp / "missing-qrom-transform-precondition.json"
+        write_json(path, missing_qrom_transform_precondition)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_total_loss_budget = copy.deepcopy(evidence)
         wrong_total_loss_budget["publicSurfaces"]["productTotalLossBudgetVersion"] = 2
         path = tmp / "wrong-total-loss-budget.json"

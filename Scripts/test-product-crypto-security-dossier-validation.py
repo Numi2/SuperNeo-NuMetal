@@ -108,10 +108,22 @@ def main() -> None:
         write_json(path, missing_qrom_schedule)
         run_fail(str(VALIDATE), str(path))
 
+        missing_qrom_transform_preconditions = copy.deepcopy(dossier)
+        del missing_qrom_transform_preconditions["relatedManifests"]["productQROMTransformPreconditions"]
+        path = tmp / "missing-qrom-transform-preconditions.json"
+        write_json(path, missing_qrom_transform_preconditions)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_qrom_schedule_manifest = copy.deepcopy(dossier)
         wrong_qrom_schedule_manifest["fiatShamirQROMPosition"]["transcriptScheduleManifest"] = "TestVectors/product-qrom-fiat-shamir-accounting-v1.json"
         path = tmp / "wrong-qrom-schedule-manifest.json"
         write_json(path, wrong_qrom_schedule_manifest)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_qrom_transform_manifest = copy.deepcopy(dossier)
+        wrong_qrom_transform_manifest["fiatShamirQROMPosition"]["transformPreconditionManifest"] = "TestVectors/product-qrom-transcript-schedule-v1.json"
+        path = tmp / "wrong-qrom-transform-manifest.json"
+        write_json(path, wrong_qrom_transform_manifest)
         run_fail(str(VALIDATE), str(path))
 
         missing_total_budget = copy.deepcopy(dossier)

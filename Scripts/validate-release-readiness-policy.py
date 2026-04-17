@@ -80,6 +80,7 @@ def validate_docs() -> None:
             "TestVectors/product-extractor-loss-accounting-v1.json",
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "TestVectors/product-qrom-transcript-schedule-v1.json",
+            "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-total-loss-budget-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
@@ -104,6 +105,8 @@ def validate_docs() -> None:
             "Scripts/test-product-qrom-fiat-shamir-accounting-validation.py",
             "Scripts/validate-product-qrom-transcript-schedule.py",
             "Scripts/test-product-qrom-transcript-schedule-validation.py",
+            "Scripts/validate-product-qrom-transform-preconditions.py",
+            "Scripts/test-product-qrom-transform-preconditions-validation.py",
             "Scripts/validate-product-total-loss-budget.py",
             "Scripts/test-product-total-loss-budget-validation.py",
             "Scripts/validate-e2e-proof-metrics.py",
@@ -125,6 +128,7 @@ def validate_docs() -> None:
             "extractor loss-accounting validation",
             "QROM Fiat-Shamir accounting validation",
             "QROM transcript schedule validation",
+            "QROM transform precondition validation",
             "total-loss budget validation",
             "ProductSecurityTheorem",
             "Fiat-Shamir/QROM",
@@ -151,6 +155,7 @@ def validate_docs() -> None:
             "TestVectors/product-extractor-loss-accounting-v1.json",
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "TestVectors/product-qrom-transcript-schedule-v1.json",
+            "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-total-loss-budget-v1.json",
             "Docs/CryptographicSecurityDossier-2026-04-16.md",
             "Scripts/validate-constant-time-scope.py",
@@ -169,6 +174,7 @@ def validate_docs() -> None:
             "product extractor loss accounting",
             "product QROM Fiat-Shamir accounting",
             "product QROM transcript schedule",
+            "product QROM transform preconditions",
             "product total-loss budget",
             "signed revocation feed",
             "E2E proof metrics digest",
@@ -192,6 +198,7 @@ def validate_docs() -> None:
             "TestVectors/product-extractor-loss-accounting-v1.json",
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "TestVectors/product-qrom-transcript-schedule-v1.json",
+            "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-total-loss-budget-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
@@ -201,6 +208,7 @@ def validate_docs() -> None:
             "Product extractor loss accounting manifest",
             "Product QROM Fiat-Shamir accounting manifest",
             "Product QROM transcript schedule manifest",
+            "Product QROM transform preconditions manifest",
             "Product total-loss budget manifest",
             "Version Bump Checklist",
         ],
@@ -221,6 +229,7 @@ def validate_docs() -> None:
             "product extractor loss-accounting version and digest",
             "product QROM Fiat-Shamir accounting version and digest",
             "product QROM transcript schedule version and digest",
+            "product QROM transform preconditions version and digest",
             "product total-loss budget version and digest",
             "constant-time source/formal scope version and digest",
             "constant-time lowering evidence version and digest",
@@ -250,6 +259,7 @@ def validate_docs() -> None:
             "extractor loss accounting",
             "QROM Fiat-Shamir accounting",
             "QROM transcript schedule",
+            "QROM transform preconditions",
             "total-loss budget",
             "constant-time release evidence",
         ],
@@ -376,6 +386,10 @@ def validate_schema_versions() -> None:
         "product crypto security dossier must link QROM transcript schedule",
     )
     require(
+        dossier_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
+        "product crypto security dossier must link QROM transform preconditions",
+    )
+    require(
         dossier_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "product crypto security dossier must link total-loss budget",
     )
@@ -400,6 +414,10 @@ def validate_schema_versions() -> None:
     require(
         qrom_position.get("transcriptScheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json",
         "product crypto security dossier must link the QROM transcript schedule in the QROM position",
+    )
+    require(
+        qrom_position.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
+        "product crypto security dossier must link QROM transform preconditions in the QROM position",
     )
     require(
         qrom_position.get("productionQROMClaimAllowed") is False,
@@ -442,6 +460,10 @@ def validate_schema_versions() -> None:
     require(
         selected_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
         "selected-depth loss-accounting must link QROM transcript schedule",
+    )
+    require(
+        selected_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
+        "selected-depth loss-accounting must link QROM transform preconditions",
     )
     require(
         selected_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
@@ -493,6 +515,16 @@ def validate_schema_versions() -> None:
         qrom_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
         "QROM Fiat-Shamir accounting must link QROM transcript schedule",
     )
+    require(
+        qrom_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
+        "QROM Fiat-Shamir accounting must link QROM transform preconditions",
+    )
+    qrom_model = qrom_accounting.get("fiatShamirModel")
+    require(isinstance(qrom_model, dict), "QROM Fiat-Shamir accounting fiatShamirModel must be an object")
+    require(
+        qrom_model.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
+        "QROM Fiat-Shamir accounting must link transform preconditions in the model",
+    )
     qrom_schedule = read_json("TestVectors/product-qrom-transcript-schedule-v1.json")
     require(isinstance(qrom_schedule, dict), "QROM transcript schedule root must be an object")
     require(qrom_schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
@@ -504,6 +536,30 @@ def validate_schema_versions() -> None:
     require(
         isinstance(schedule_entries, list) and len(schedule_entries) == 5,
         "QROM transcript schedule must pin five schedule entries",
+    )
+    schedule_related = qrom_schedule.get("relatedManifests")
+    require(isinstance(schedule_related, dict), "QROM transcript schedule relatedManifests must be an object")
+    require(
+        schedule_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
+        "QROM transcript schedule must link QROM transform preconditions",
+    )
+    qrom_preconditions = read_json("TestVectors/product-qrom-transform-preconditions-v1.json")
+    require(isinstance(qrom_preconditions, dict), "QROM transform preconditions root must be an object")
+    require(qrom_preconditions.get("schemaVersion") == 1, "QROM transform preconditions schemaVersion must be 1")
+    require(
+        qrom_preconditions.get("claimStatus") == "qrom-transform-precondition-dossier-not-production-claim",
+        "QROM transform preconditions claimStatus must stay precise",
+    )
+    precondition_rows = qrom_preconditions.get("preconditions")
+    require(
+        isinstance(precondition_rows, list) and len(precondition_rows) == 10,
+        "QROM transform preconditions must pin ten precondition rows",
+    )
+    precondition_promotion = qrom_preconditions.get("promotionRule")
+    require(isinstance(precondition_promotion, dict), "QROM transform preconditions promotionRule must be an object")
+    require(
+        precondition_promotion.get("productionQROMClaimAllowed") is False,
+        "QROM transform preconditions must not prematurely allow QROM claims",
     )
     total_budget = read_json("TestVectors/product-total-loss-budget-v1.json")
     require(isinstance(total_budget, dict), "total-loss budget root must be an object")
@@ -527,6 +583,10 @@ def validate_schema_versions() -> None:
     require(
         total_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
         "total-loss budget must link QROM transcript schedule",
+    )
+    require(
+        total_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
+        "total-loss budget must link QROM transform preconditions",
     )
     constant_time_scope = read_json("TestVectors/constant-time-scope-v1.json")
     require(isinstance(constant_time_scope, dict), "constant-time scope root must be an object")
@@ -701,6 +761,14 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/test-product-qrom-transcript-schedule-validation.py" in gate,
         "production gate must run QROM transcript schedule regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-qrom-transform-preconditions.py" in gate,
+        "production gate must run validate-product-qrom-transform-preconditions.py",
+    )
+    require(
+        "run_step Scripts/test-product-qrom-transform-preconditions-validation.py" in gate,
+        "production gate must run QROM transform precondition regression tests",
     )
     require(
         "run_step Scripts/validate-product-total-loss-budget.py" in gate,

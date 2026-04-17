@@ -30,8 +30,9 @@ true:
 - `Docs/CryptographicSecurityDossier-2026-04-16.md` reflects the current
   bounded-depth product security theorem, Fiat-Shamir/QROM position, Module-SIS
   parameter dossier, selected-depth loss accounting, product extractor loss
-  accounting, product QROM transcript schedule, product QROM Fiat-Shamir
-  accounting, product total-loss budget, and production-claim boundaries.
+  accounting, product QROM transcript schedule, product QROM transform
+  preconditions, product QROM Fiat-Shamir accounting, product total-loss
+  budget, and production-claim boundaries.
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
 - Release notes explicitly use research/integration wording and do not claim
@@ -91,6 +92,7 @@ Each release candidate should record:
 - selected-depth loss accounting digest.
 - product extractor loss accounting digest.
 - product QROM transcript schedule digest.
+- product QROM transform preconditions digest.
 - product QROM Fiat-Shamir accounting digest.
 - product total-loss budget digest.
 - constant-time source/formal scope digest.
@@ -142,6 +144,12 @@ ledger mapping, and the fail-closed quantum random-oracle loss budget.
 `TestVectors/product-qrom-transcript-schedule-v1.json`, including the product
 QROM transcript schedule, proof-kind order, public challenge labels, symbolic
 `Q_H` query families, and the fail-closed query-bound promotion rule.
+`Scripts/validate-product-qrom-transform-preconditions.py` checks
+`TestVectors/product-qrom-transform-preconditions-v1.json`, including the
+product QROM transform preconditions, primary QROM Fiat-Shamir source basis,
+selected measure-and-reprogram profile, per-proof-kind theorem-family fit,
+symbolic `C_n * Q_H^(2n)` loss interface, and fail-closed production QROM
+promotion rule.
 `Scripts/validate-product-total-loss-budget.py` checks
 `TestVectors/product-total-loss-budget-v1.json`, including exact rational
 summation, the `2^-128` selected threshold, ten component bounds, nine

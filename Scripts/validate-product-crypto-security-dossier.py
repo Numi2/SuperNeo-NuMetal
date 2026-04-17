@@ -64,6 +64,8 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductExtractorLossAccountingAccepted",
     "ProductFiatShamirTranscriptSchedule",
     "ProductFiatShamirTranscriptScheduleAccepted",
+    "ProductFiatShamirTransformPreconditions",
+    "ProductFiatShamirTransformPreconditionsAccepted",
     "ProductFiatShamirLossAccounting",
     "ProductFiatShamirLossAccountingAccepted",
     "ProductTotalLossBudget",
@@ -73,6 +75,7 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "productSecurityTheorem_requires_selected_depth_loss_accounting",
     "productSecurityTheorem_requires_extractor_loss_accounting",
     "productSecurityTheorem_requires_qrom_transcript_schedule",
+    "productSecurityTheorem_requires_qrom_transform_preconditions",
     "productSecurityTheorem_requires_qrom_loss_accounting",
     "productSecurityTheorem_requires_total_loss_budget",
     "productSecurityTheorem_requires_qrom_accounting",
@@ -92,6 +95,7 @@ EXPECTED_MANIFESTS = {
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json",
 }
@@ -257,6 +261,10 @@ def validate_depth(dossier: dict[str, Any]) -> None:
         "selected-depth ledger must link QROM Fiat-Shamir accounting",
     )
     require(
+        ledger_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
+        "selected-depth ledger must link QROM transform preconditions",
+    )
+    require(
         ledger_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "selected-depth ledger must link the total loss budget",
     )
@@ -369,6 +377,11 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     )
     require_relative_path("TestVectors/product-qrom-transcript-schedule-v1.json", "fiatShamirQROMPosition.transcriptScheduleManifest")
     require(
+        qrom.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
+        "fiatShamirQROMPosition.transformPreconditionManifest mismatch",
+    )
+    require_relative_path("TestVectors/product-qrom-transform-preconditions-v1.json", "fiatShamirQROMPosition.transformPreconditionManifest")
+    require(
         qrom.get("claimStatus") == "qrom-fiat-shamir-loss-contract-not-production-claim",
         "fiatShamirQROMPosition.claimStatus must stay precise",
     )
@@ -384,7 +397,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(qrom.get("transcriptDomainSeparatorsBound") is True, "transcript domain separator binding must be recorded")
     require(qrom.get("proofKindSeparationBound") is True, "proof kind separation binding must be recorded")
     expression = require_string(qrom.get("selectedDepthExpression"), "fiatShamirQROMPosition.selectedDepthExpression")
-    for symbol in ["epsilon_fs_transform", "epsilon_qro_queries", "epsilon_proof_kind_malleability"]:
+    for symbol in ["epsilon_fs_transform", "epsilon_precondition", "epsilon_qro_queries", "epsilon_proof_kind_malleability"]:
         require(symbol in expression, f"QROM selected-depth expression must include {symbol}")
     require("epsilon_transcript_collision" not in expression, "QROM expression must export transcript collision as epsilon_collision")
     mapping = require_dict(qrom.get("ledgerTermMapping"), "fiatShamirQROMPosition.ledgerTermMapping")
@@ -415,12 +428,23 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     )
     loss_rule = require_dict(manifest.get("lossRule"), "QROM accounting lossRule")
     require_false(loss_rule.get("productionQROMClaimAllowed"), "QROM accounting productionQROMClaimAllowed")
+    require(
+        "epsilon_precondition" in require_string(loss_rule.get("selectedDepthExpression"), "QROM accounting selectedDepthExpression"),
+        "QROM accounting must carry transform-precondition failure into the transform loss expression",
+    )
     manifest_mapping = require_dict(manifest.get("ledgerTermMapping"), "QROM accounting ledgerTermMapping")
     manifest_qrom = require_dict(manifest_mapping.get("fiatShamirQROMLoss"), "QROM accounting fiatShamirQROMLoss")
     require(
         manifest_qrom.get("sourceSymbols") == ["epsilon_fs_transform", "epsilon_qro_queries", "epsilon_proof_kind_malleability"],
         "QROM accounting must not double-count transcript collision inside epsilon_qrom",
     )
+    preconditions = read_json(ROOT / "TestVectors/product-qrom-transform-preconditions-v1.json")
+    require(
+        preconditions.get("claimStatus") == "qrom-transform-precondition-dossier-not-production-claim",
+        "QROM transform precondition dossier claimStatus must stay precise",
+    )
+    loss_interface = require_dict(preconditions.get("lossInterface"), "QROM transform preconditions lossInterface")
+    require_false(loss_interface.get("numericLossInstantiated"), "QROM transform preconditions numericLossInstantiated")
 
 
 def validate_total_loss_budget(dossier: dict[str, Any]) -> None:

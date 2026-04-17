@@ -54,6 +54,12 @@ def main() -> None:
         write_json(path, missing_qrom_schedule)
         run_fail(str(VALIDATE), str(path))
 
+        missing_qrom_transform_preconditions = copy.deepcopy(budget)
+        missing_qrom_transform_preconditions["relatedManifests"].pop("productQROMTransformPreconditions")
+        path = tmp / "missing-qrom-transform-preconditions.json"
+        write_json(path, missing_qrom_transform_preconditions)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_security_bits = copy.deepcopy(budget)
         wrong_security_bits["budgetModel"]["selectedSecurityBudgetBits"] = 64
         path = tmp / "wrong-security-bits.json"

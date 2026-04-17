@@ -7,6 +7,7 @@
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json"
   },
@@ -28,6 +29,7 @@
   "fiatShamirModel": {
     "model": "qrom",
     "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "transformPreconditionManifest": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "interactiveProtocolSpecified": false,
     "publicCoinChallengeScheduleSpecified": true,
     "transformPreconditionsSatisfied": false,
@@ -89,8 +91,8 @@
     }
   ],
   "lossRule": {
-    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability",
-    "recursivePromotionExpression": "epsilon_qrom(depth=d) = d * (epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability)",
+    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform(C_n, Q_H, n, epsilon_interactive, epsilon_precondition) + epsilon_qro_queries + epsilon_proof_kind_malleability",
+    "recursivePromotionExpression": "epsilon_qrom(depth=d) = d * (epsilon_fs_transform(C_n, Q_H, n, epsilon_interactive, epsilon_precondition) + epsilon_qro_queries + epsilon_proof_kind_malleability)",
     "quantumOracleQuerySymbol": "Q_H",
     "challengeForkingLossSymbol": "epsilon_fs_transform",
     "transcriptCollisionLossSymbol": "epsilon_transcript_collision",

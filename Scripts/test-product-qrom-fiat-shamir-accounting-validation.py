@@ -68,10 +68,22 @@ def main() -> None:
         write_json(path, missing_schedule)
         run_fail(str(VALIDATE), str(path))
 
+        missing_transform_preconditions = copy.deepcopy(accounting)
+        missing_transform_preconditions["relatedManifests"].pop("productQROMTransformPreconditions")
+        path = tmp / "missing-transform-preconditions.json"
+        write_json(path, missing_transform_preconditions)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_schedule_manifest = copy.deepcopy(accounting)
         wrong_schedule_manifest["fiatShamirModel"]["transcriptScheduleManifest"] = "TestVectors/product-qrom-fiat-shamir-accounting-v1.json"
         path = tmp / "wrong-schedule-manifest.json"
         write_json(path, wrong_schedule_manifest)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_transform_manifest = copy.deepcopy(accounting)
+        wrong_transform_manifest["fiatShamirModel"]["transformPreconditionManifest"] = "TestVectors/product-qrom-transcript-schedule-v1.json"
+        path = tmp / "wrong-transform-manifest.json"
+        write_json(path, wrong_transform_manifest)
         run_fail(str(VALIDATE), str(path))
 
         wrong_envelope_kind = copy.deepcopy(accounting)
@@ -90,6 +102,12 @@ def main() -> None:
         missing_query_symbol["lossRule"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_fs_transform"
         path = tmp / "missing-query-symbol.json"
         write_json(path, missing_query_symbol)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_precondition_symbol = copy.deepcopy(accounting)
+        missing_precondition_symbol["lossRule"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability"
+        path = tmp / "missing-precondition-symbol.json"
+        write_json(path, missing_precondition_symbol)
         run_fail(str(VALIDATE), str(path))
 
         double_counted_collision = copy.deepcopy(accounting)

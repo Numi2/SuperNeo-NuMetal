@@ -23,6 +23,7 @@ manifests, and binary proof envelopes.
 | Product extractor loss accounting manifest | `schemaVersion = 1` |
 | Product QROM Fiat-Shamir accounting manifest | `schemaVersion = 1` |
 | Product QROM transcript schedule manifest | `schemaVersion = 1` |
+| Product QROM transform preconditions manifest | `schemaVersion = 1` |
 | Product total-loss budget manifest | `schemaVersion = 1` |
 | Constant-time source/formal scope manifest | `schemaVersion = 1` |
 | Constant-time Swift/LLVM/Metal lowering evidence manifest | `schemaVersion = 1` |
@@ -189,6 +190,15 @@ not affect proof bytes. It pins proof-kind order, envelope kinds, public
 challenge labels, transcript bindings, symbolic quantum random-oracle query
 families, and the promotion rule that keeps production QROM claims disabled
 until interactive protocol closure and numeric query bounds are instantiated.
+
+`TestVectors/product-qrom-transform-preconditions-v1.json` is the checked
+Product QROM transform preconditions manifest. It is not a proof artifact
+schema and does not affect proof bytes. It pins primary QROM Fiat-Shamir
+source references, the selected fail-closed measure-and-reprogram profile,
+proof-kind theorem-family fit, precondition rows, symbolic loss interface, and
+the promotion rule that keeps production QROM claims disabled until exact
+interactive protocols, transform preconditions, numeric quantum query bounds,
+and QROM reduction-loss terms are instantiated.
 
 `TestVectors/product-total-loss-budget-v1.json` is the checked product
 total-loss budget manifest. It is not a proof artifact schema and does not

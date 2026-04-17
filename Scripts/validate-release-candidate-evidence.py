@@ -255,6 +255,31 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require(
         require_int(
+            surfaces.get("productQROMTransformPreconditionsVersion"),
+            "productQROMTransformPreconditionsVersion",
+        ) == 1,
+        "product QROM transform preconditions version must be 1",
+    )
+    require_string(
+        surfaces.get("productQROMTransformPreconditionsDigestHex"),
+        "productQROMTransformPreconditionsDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productQROMTransformPreconditionsClaimStatus"),
+            "productQROMTransformPreconditionsClaimStatus",
+        ) == "qrom-transform-precondition-dossier-not-production-claim",
+        "product QROM transform preconditions claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("productQROMTransformPreconditionCount"),
+            "productQROMTransformPreconditionCount",
+        ) == 10,
+        "product QROM transform preconditions must pin ten preconditions",
+    )
+    require(
+        require_int(
             surfaces.get("productTotalLossBudgetVersion"),
             "productTotalLossBudgetVersion",
         ) == 1,
@@ -406,6 +431,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "productExtractorLossAccounting",
         "productQROMFiatShamirAccounting",
         "productQROMTranscriptSchedule",
+        "productQROMTransformPreconditions",
         "productTotalLossBudget",
         "constantTimeEvidence",
         "constantTimeScope",
@@ -453,6 +479,10 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(
         any("qrom transcript schedule" in str(boundary).lower() for boundary in boundaries),
         "productionSecurityBoundaries must mention QROM transcript schedule",
+    )
+    require(
+        any("qrom transform preconditions" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention QROM transform preconditions",
     )
     require(
         any("total-loss budget" in str(boundary).lower() for boundary in boundaries),

@@ -25,7 +25,7 @@ cryptographic library.
 | Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
 | Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/`; whole-stack row coverage is checked by `TestVectors/benchmark-coverage-v1.json`. |
-| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, checked selected-depth loss accounting contract, checked extractor, QROM transcript schedule, and QROM Fiat-Shamir accounting contracts, checked total-loss budget contract, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/product-selected-depth-loss-accounting-v1.json`, `TestVectors/product-extractor-loss-accounting-v1.json`, `TestVectors/product-qrom-transcript-schedule-v1.json`, `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, `TestVectors/product-total-loss-budget-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
+| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, checked selected-depth loss accounting contract, checked extractor, QROM transcript schedule, QROM transform preconditions, and QROM Fiat-Shamir accounting contracts, checked total-loss budget contract, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/product-selected-depth-loss-accounting-v1.json`, `TestVectors/product-extractor-loss-accounting-v1.json`, `TestVectors/product-qrom-transcript-schedule-v1.json`, `TestVectors/product-qrom-transform-preconditions-v1.json`, `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, `TestVectors/product-total-loss-budget-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
 | Product ops | Local signed context/provenance/revocation feed, replay ledger, audit export, and machine-readable operations readiness status for private integration work. |
 
 ## Highlights
@@ -98,14 +98,15 @@ cryptographic library.
   ZK-simulator, QROM, extractor, transcript-collision, product-ops replay,
   constant-time, and release distribution loss terms while keeping every hard
   production claim disabled.
-- Checked extractor loss accounting, QROM transcript schedule, and QROM
-  Fiat-Shamir accounting contracts in
+- Checked extractor loss accounting, QROM transcript schedule, QROM transform
+  preconditions, and QROM Fiat-Shamir accounting contracts in
   `TestVectors/product-extractor-loss-accounting-v1.json`,
-  `TestVectors/product-qrom-transcript-schedule-v1.json`, and
+  `TestVectors/product-qrom-transcript-schedule-v1.json`,
+  `TestVectors/product-qrom-transform-preconditions-v1.json`, and
   `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`. These pin the
   extractor inputs, transcript rewind schedule, proof-kind transcript labels,
-  oracle query families, QROM symbols, and selected-depth formulas while
-  keeping concrete reduction claims disabled.
+  oracle query families, transform theorem-family obligations, QROM symbols,
+  and selected-depth formulas while keeping concrete reduction claims disabled.
 - A checked total-loss budget contract in
   `TestVectors/product-total-loss-budget-v1.json` that evaluates the exact
   selected-depth rational sum format, maps `epsilon_transcript_collision` into
@@ -160,6 +161,7 @@ The current repository stack is:
   `TestVectors/product-extractor-loss-accounting-v1.json`,
   `TestVectors/product-qrom-transcript-schedule-v1.json`,
   `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`,
+  `TestVectors/product-qrom-transform-preconditions-v1.json`,
   `TestVectors/product-total-loss-budget-v1.json`, and
   `TestVectors/benchmark-coverage-v1.json`.
 - **Acceleration:** CPU reference path, Metal kernels for selected field/ring
@@ -171,8 +173,9 @@ The current repository stack is:
 
 Still intentionally not claimed as complete production security: hosted product
 operations, selected-depth loss accounting is contracted but not fully
-instantiated, extractor loss accounting, QROM transcript schedule, and QROM
-Fiat-Shamir accounting are contracted but not numerically instantiated, the
+instantiated, extractor loss accounting, QROM transcript schedule, QROM
+transform preconditions, and QROM Fiat-Shamir accounting are contracted but not
+numerically instantiated, the
 total-loss budget is checked but still missing every required numeric term,
 full ZK simulator composition,
 release signing/notarized distribution, and CPU/Swift/LLVM/Metal constant-time
@@ -482,6 +485,11 @@ terminal, and NumiSealZK product transcript interfaces.
 transcript schedule for fold, terminal, compressed-terminal, NumiSeal terminal,
 and NumiSealZK product proof kinds, including public challenge labels and
 symbolic quantum random-oracle query families.
+`TestVectors/product-qrom-transform-preconditions-v1.json` pins the QROM
+transform precondition dossier for the selected fail-closed measure-and-reprogram
+profile, including theorem-family fit, interactive protocol, round schedule,
+uniform challenges, transcript encoding, query-bound, and reduction-loss
+obligations.
 `TestVectors/product-total-loss-budget-v1.json` pins the total-loss budget
 contract, exact rational summation rule, required selected-depth component
 bounds, and the mapping that keeps transcript collision out of the core

@@ -11,6 +11,7 @@ Machine-readable scope:
 - `TestVectors/product-extractor-loss-accounting-v1.json`
 - `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
 - `TestVectors/product-qrom-transcript-schedule-v1.json`
+- `TestVectors/product-qrom-transform-preconditions-v1.json`
 - `TestVectors/product-total-loss-budget-v1.json`
 - `Formal/SuperNeoFormal/ProductSecurityTheorem.lean`
 - `Scripts/validate-product-crypto-security-dossier.py`
@@ -18,6 +19,7 @@ Machine-readable scope:
 - `Scripts/validate-product-extractor-loss-accounting.py`
 - `Scripts/validate-product-qrom-fiat-shamir-accounting.py`
 - `Scripts/validate-product-qrom-transcript-schedule.py`
+- `Scripts/validate-product-qrom-transform-preconditions.py`
 - `Scripts/validate-product-total-loss-budget.py`
 
 The current status is a bounded-depth product security theorem at depth 1.
@@ -189,14 +191,16 @@ style of scrutiny.
 The Fiat-Shamir/QROM target is recorded, and
 `TestVectors/product-qrom-fiat-shamir-accounting-v1.json` now pins the QROM
 Fiat-Shamir accounting contract. The accounting manifest links to
-`TestVectors/product-qrom-transcript-schedule-v1.json`, which pins the QROM
-transcript schedule separately from the numeric loss formula. The manifest
-records the selected depth, proof-kind transcript interfaces, challenge
-families, and the selected-depth loss expression:
+`TestVectors/product-qrom-transcript-schedule-v1.json` and
+`TestVectors/product-qrom-transform-preconditions-v1.json`, which pin the QROM
+transcript schedule and transform-precondition obligations separately from the
+numeric loss formula. The manifest records the selected depth, proof-kind
+transcript interfaces, challenge families, and the selected-depth loss
+expression:
 
 ```text
 epsilon_qrom(depth=1) =
-  epsilon_fs_transform
+  epsilon_fs_transform(C_n, Q_H, n, epsilon_interactive, epsilon_precondition)
   + epsilon_qro_queries
   + epsilon_proof_kind_malleability
 ```
@@ -214,8 +218,8 @@ Remaining work:
   every accepted product proof kind,
 - instantiate the pinned QROM transcript schedule with per-kind `Q_H` query
   bounds,
-- prove the selected transform preconditions or explicitly narrow the theorem
-  to ROM,
+- close `TestVectors/product-qrom-transform-preconditions-v1.json` by proving
+  the selected transform preconditions or explicitly narrow the theorem to ROM,
 - account quantum random-oracle query bounds in the soundness loss,
 - bind every domain separator and transcript label in the theorem, and
 - prove no transcript collision or malleability across fold, terminal,
@@ -224,15 +228,48 @@ Remaining work:
 `ProductSecurityTheorem` exposes `ProductFiatShamirTranscriptSchedule`,
 `ProductFiatShamirTranscriptScheduleAccepted`,
 `productSecurityTheorem_requires_qrom_transcript_schedule`,
+`ProductFiatShamirTransformPreconditions`,
+`ProductFiatShamirTransformPreconditionsAccepted`,
+`productSecurityTheorem_requires_qrom_transform_preconditions`,
 `ProductFiatShamirLossAccounting`, `ProductFiatShamirLossAccountingAccepted`,
 and `productSecurityTheorem_requires_qrom_loss_accounting` so future theorem
 promotion cannot bypass interactive-protocol, challenge-schedule,
 precondition, quantum-query, collision, malleability, or budget evidence.
 
-Relevant QROM literature includes Don, Fehr, Majenz, and Schaffner,
-`Security of the Fiat-Shamir Transformation in the Quantum Random-Oracle
-Model`, https://arxiv.org/abs/1902.07556. The current dossier does not claim
-that SuperNeo/NumiSeal already satisfies that theorem's hypotheses.
+## QROM Transform Preconditions
+
+`TestVectors/product-qrom-transform-preconditions-v1.json` is the checked QROM
+Transform Preconditions manifest. It is not a production QROM theorem; it is a
+fail-closed checklist that makes the missing Fiat-Shamir transform proof
+obligations executable. It pins primary sources, the selected
+measure-and-reprogram profile, the proof-kind fit table, the symbolic
+`C_n * Q_H^(2n)` loss interface, and the blockers that keep the production
+claim disabled.
+
+The manifest follows the QROM Fiat-Shamir literature most relevant to this
+stack:
+
+- Don, Fehr, Majenz, and Schaffner, `Security of the Fiat-Shamir
+  Transformation in the Quantum Random-Oracle Model`,
+  https://eprint.iacr.org/2019/190, for the three-round Sigma-protocol target.
+- Don, Fehr, and Majenz, `The Measure-and-Reprogram Technique 2.0:
+  Multi-Round Fiat-Shamir and More`, https://eprint.iacr.org/2020/282, for
+  constant-round public-coin multi-round Fiat-Shamir and the `O(q^(2n))` loss
+  shape.
+- Unruh, `Post-Quantum Security of Fiat-Shamir`,
+  https://eprint.iacr.org/2017/398, for the stronger post-quantum caveats
+  around zero knowledge, soundness, and extractability.
+- Don, Fehr, Majenz, and Schaffner, `Efficient NIZKs and Signatures from
+  Commit-and-Open Protocols in the QROM`, https://arxiv.org/abs/2202.13730,
+  for the future tighter commit-and-open extractor track if product proofs are
+  refactored to fit that family.
+
+Promotion requires the exact interactive public-coin protocol for every
+accepted proof kind, the exact `(2n + 1)` schedule, uniform challenge-space
+proofs, injective transcript-oracle input encoding, underlying interactive
+security against quantum dishonest provers, numeric `Q_H` and `C_n` bounds,
+and integration of `epsilon_fs_transform` and `epsilon_precondition` into the
+selected total-loss budget.
 
 ## QROM Transcript Schedule
 
