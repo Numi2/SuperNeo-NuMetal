@@ -210,6 +210,24 @@ def main() -> None:
         write_json(path, missing_qrom_transform_precondition)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_qrom_interactive_reduction = copy.deepcopy(evidence)
+        wrong_qrom_interactive_reduction["publicSurfaces"]["productQROMInteractiveReductionVersion"] = 2
+        path = tmp / "wrong-qrom-interactive-reduction.json"
+        write_json(path, wrong_qrom_interactive_reduction)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_qrom_interactive_reduction = copy.deepcopy(evidence)
+        vague_qrom_interactive_reduction["publicSurfaces"]["productQROMInteractiveReductionClaimStatus"] = "production-qrom-reduction"
+        path = tmp / "vague-qrom-interactive-reduction.json"
+        write_json(path, vague_qrom_interactive_reduction)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_qrom_interactive_reduction_kind = copy.deepcopy(evidence)
+        missing_qrom_interactive_reduction_kind["publicSurfaces"]["productQROMInteractiveReductionProofKindCount"] = 4
+        path = tmp / "missing-qrom-interactive-reduction-kind.json"
+        write_json(path, missing_qrom_interactive_reduction_kind)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_total_loss_budget = copy.deepcopy(evidence)
         wrong_total_loss_budget["publicSurfaces"]["productTotalLossBudgetVersion"] = 2
         path = tmp / "wrong-total-loss-budget.json"

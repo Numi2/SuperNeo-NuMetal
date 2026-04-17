@@ -33,6 +33,7 @@ EXPECTED_MANIFESTS = {
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
+    "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -173,6 +174,10 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
         ledger_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "selected-depth ledger must link QROM transform preconditions",
     )
+    require(
+        ledger_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "selected-depth ledger must link QROM interactive reduction",
+    )
     component_ids = [
         require_string(row.get("id"), f"selectedDepthLossAccounting.componentLosses[{index}].id")
         for index, row in enumerate(ledger.get("componentLosses", []))
@@ -196,6 +201,10 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
         ledger_binding.get("totalLossBudgetManifest") == "TestVectors/product-total-loss-budget-v1.json",
         "QROM transcript schedule must link total-loss budget",
     )
+    require(
+        ledger_binding.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "QROM transcript schedule must link interactive reduction",
+    )
 
     preconditions = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTransformPreconditions"])
     loss_interface = require_dict(preconditions.get("lossInterface"), "productQROMTransformPreconditions.lossInterface")
@@ -204,6 +213,14 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
         "QROM transform preconditions must link total-loss budget",
     )
     require_false(loss_interface.get("numericLossInstantiated"), "QROM transform preconditions numericLossInstantiated")
+
+    reduction = read_json(ROOT / EXPECTED_MANIFESTS["productQROMInteractiveReduction"])
+    integration = require_dict(reduction.get("ledgerIntegration"), "productQROMInteractiveReduction.ledgerIntegration")
+    require(
+        integration.get("totalLossBudgetManifest") == "TestVectors/product-total-loss-budget-v1.json",
+        "QROM interactive reduction must link total-loss budget",
+    )
+    require_false(integration.get("qromLossWithinBudget"), "QROM interactive reduction qromLossWithinBudget")
 
 
 def validate_formal_surface(budget: dict[str, Any]) -> None:
@@ -271,9 +288,14 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
             require(bound_log2 is None, f"{component_id}.boundLog2 must be null until the term is instantiated")
         require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
         if component_id == "fiat-shamir-qrom":
+            evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
-                "TestVectors/product-qrom-transform-preconditions-v1.json" in require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence"),
+                "TestVectors/product-qrom-transform-preconditions-v1.json" in evidence,
                 "fiat-shamir-qrom requiredEvidence must link QROM transform preconditions",
+            )
+            require(
+                "TestVectors/product-qrom-interactive-reduction-v1.json" in evidence,
+                "fiat-shamir-qrom requiredEvidence must link QROM interactive reduction",
             )
 
         if required:

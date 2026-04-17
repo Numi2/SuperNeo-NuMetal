@@ -55,6 +55,10 @@ Machine-readable files:
   public-coin protocol obligations, round schedule, challenge uniformity,
   transcript encoding, `Q_H` query-bound, and reduction-loss obligations while
   keeping production QROM claims disabled.
+- `product-qrom-interactive-reduction-v1.json`: checked QROM interactive
+  reduction ledger. It pins the product public-coin protocol formulas,
+  selected `Q_H = 2^64` policy, DFM20 loss multiplier, and per-proof-kind open
+  loss inputs while keeping production QROM claims disabled.
 - `product-total-loss-budget-v1.json`: checked total-loss budget contract for
   the current selected-depth security boundary. It records exact rational
   summation, the `2^-128` selected threshold, ten component bounds, nine
@@ -100,6 +104,8 @@ Scripts/validate-product-qrom-transcript-schedule.py
 Scripts/test-product-qrom-transcript-schedule-validation.py
 Scripts/validate-product-qrom-transform-preconditions.py
 Scripts/test-product-qrom-transform-preconditions-validation.py
+Scripts/validate-product-qrom-interactive-reduction.py
+Scripts/test-product-qrom-interactive-reduction-validation.py
 Scripts/validate-product-total-loss-budget.py
 Scripts/test-product-total-loss-budget-validation.py
 Scripts/validate-constant-time-scope.py

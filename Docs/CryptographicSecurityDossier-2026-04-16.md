@@ -12,6 +12,7 @@ Machine-readable scope:
 - `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
 - `TestVectors/product-qrom-transcript-schedule-v1.json`
 - `TestVectors/product-qrom-transform-preconditions-v1.json`
+- `TestVectors/product-qrom-interactive-reduction-v1.json`
 - `TestVectors/product-total-loss-budget-v1.json`
 - `Formal/SuperNeoFormal/ProductSecurityTheorem.lean`
 - `Scripts/validate-product-crypto-security-dossier.py`
@@ -20,6 +21,7 @@ Machine-readable scope:
 - `Scripts/validate-product-qrom-fiat-shamir-accounting.py`
 - `Scripts/validate-product-qrom-transcript-schedule.py`
 - `Scripts/validate-product-qrom-transform-preconditions.py`
+- `Scripts/validate-product-qrom-interactive-reduction.py`
 - `Scripts/validate-product-total-loss-budget.py`
 
 The current status is a bounded-depth product security theorem at depth 1.
@@ -192,15 +194,20 @@ The Fiat-Shamir/QROM target is recorded, and
 `TestVectors/product-qrom-fiat-shamir-accounting-v1.json` now pins the QROM
 Fiat-Shamir accounting contract. The accounting manifest links to
 `TestVectors/product-qrom-transcript-schedule-v1.json` and
-`TestVectors/product-qrom-transform-preconditions-v1.json`, which pin the QROM
-transcript schedule and transform-precondition obligations separately from the
+`TestVectors/product-qrom-transform-preconditions-v1.json`, and
+`TestVectors/product-qrom-interactive-reduction-v1.json`, which pin the QROM
+transcript schedule, transform-precondition obligations, and selected DFM20
+interactive-reduction loss interface separately from the
 numeric loss formula. The manifest records the selected depth, proof-kind
 transcript interfaces, challenge families, and the selected-depth loss
 expression:
 
 ```text
 epsilon_qrom(depth=1) =
-  epsilon_fs_transform(C_n, Q_H, n, epsilon_interactive, epsilon_precondition)
+  max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!)
+    * epsilon_interactive_kind
+    + n_kind! / 2^256
+    + epsilon_precondition_kind)
   + epsilon_qro_queries
   + epsilon_proof_kind_malleability
 ```
@@ -214,8 +221,9 @@ proofs. The production QROM claim is still disabled.
 
 Remaining work:
 
-- define the exact public-coin interactive protocol before Fiat-Shamir for
-  every accepted product proof kind,
+- close `TestVectors/product-qrom-interactive-reduction-v1.json` by
+  instantiating numeric NumiSeal challenge-count maxima, sampler uniformity,
+  and per-kind interactive security bounds,
 - instantiate the pinned QROM transcript schedule with per-kind `Q_H` query
   bounds,
 - close `TestVectors/product-qrom-transform-preconditions-v1.json` by proving
@@ -231,6 +239,8 @@ Remaining work:
 `ProductFiatShamirTransformPreconditions`,
 `ProductFiatShamirTransformPreconditionsAccepted`,
 `productSecurityTheorem_requires_qrom_transform_preconditions`,
+`ProductQROMInteractiveReduction`, `ProductQROMInteractiveReductionAccepted`,
+`productSecurityTheorem_requires_qrom_interactive_reduction`,
 `ProductFiatShamirLossAccounting`, `ProductFiatShamirLossAccountingAccepted`,
 and `productSecurityTheorem_requires_qrom_loss_accounting` so future theorem
 promotion cannot bypass interactive-protocol, challenge-schedule,
@@ -243,8 +253,8 @@ Transform Preconditions manifest. It is not a production QROM theorem; it is a
 fail-closed checklist that makes the missing Fiat-Shamir transform proof
 obligations executable. It pins primary sources, the selected
 measure-and-reprogram profile, the proof-kind fit table, the symbolic
-`C_n * Q_H^(2n)` loss interface, and the blockers that keep the production
-claim disabled.
+`((2*Q_H+n+1)^(2n)/n!)` DFM20 loss interface, and the blockers that keep the
+production claim disabled.
 
 The manifest follows the QROM Fiat-Shamir literature most relevant to this
 stack:
@@ -267,9 +277,30 @@ stack:
 Promotion requires the exact interactive public-coin protocol for every
 accepted proof kind, the exact `(2n + 1)` schedule, uniform challenge-space
 proofs, injective transcript-oracle input encoding, underlying interactive
-security against quantum dishonest provers, numeric `Q_H` and `C_n` bounds,
-and integration of `epsilon_fs_transform` and `epsilon_precondition` into the
-selected total-loss budget.
+security against quantum dishonest provers, numeric `Q_H`, numeric `n_kind`,
+sampler-uniformity, and per-kind `epsilon_interactive` bounds, and integration
+of `epsilon_fs_transform` and `epsilon_precondition` into the selected
+total-loss budget.
+
+## QROM Interactive Reduction
+
+`TestVectors/product-qrom-interactive-reduction-v1.json` is the checked QROM
+Interactive Reduction ledger. It records the selected DFM20 constant-round
+public-coin theorem family, `Q_H = 2^64` candidate query policy, 256-bit
+challenge-range accounting, exact challenge-count formulas for fold, terminal,
+compressed-terminal, NumiSeal terminal, and NumiSealZK product proofs, and the
+exact DFM20 multiplier `((2*Q_H+n+1)^(2n)/n!)` plus the additive
+`n! / 2^256` ordering term.
+
+The ledger instantiates conservative numeric `n` upper bounds for fold,
+terminal, and compressed-terminal using the checked profile limits
+`log2(shape.m) <= 64`, `maxFreshBatchCount = 61`, `maxPriorClaimCount = 14`,
+and `CEOpeningProof.roundCount = 219`. It deliberately does not instantiate
+numeric `n` for NumiSeal terminal or NumiSealZK product because those require
+hosted product-policy maxima for lane count, aggregate count, obligation count,
+lane proof count, and proof byte count. It also keeps every per-kind
+`epsilon_interactive` bound, sampler-uniformity proof, and final total-loss
+budget term open, so it is not a production QROM theorem.
 
 ## QROM Transcript Schedule
 

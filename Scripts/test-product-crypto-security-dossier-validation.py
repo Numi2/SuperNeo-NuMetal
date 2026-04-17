@@ -114,6 +114,12 @@ def main() -> None:
         write_json(path, missing_qrom_transform_preconditions)
         run_fail(str(VALIDATE), str(path))
 
+        missing_qrom_interactive_reduction = copy.deepcopy(dossier)
+        del missing_qrom_interactive_reduction["relatedManifests"]["productQROMInteractiveReduction"]
+        path = tmp / "missing-qrom-interactive-reduction.json"
+        write_json(path, missing_qrom_interactive_reduction)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_qrom_schedule_manifest = copy.deepcopy(dossier)
         wrong_qrom_schedule_manifest["fiatShamirQROMPosition"]["transcriptScheduleManifest"] = "TestVectors/product-qrom-fiat-shamir-accounting-v1.json"
         path = tmp / "wrong-qrom-schedule-manifest.json"

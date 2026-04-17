@@ -33,6 +33,7 @@ EXPECTED_MANIFESTS = {
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
+    "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "proofEnvelopePolicy": "Docs/ProofEnvelope.md",
@@ -135,6 +136,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
         qrom_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "QROM accounting must link transform preconditions",
     )
+    require(
+        qrom_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "QROM accounting must link interactive reduction",
+    )
     qrom_model = require_dict(qrom.get("fiatShamirModel"), "productQROMFiatShamirAccounting.fiatShamirModel")
     require(
         qrom_model.get("transcriptScheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json",
@@ -143,6 +148,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
     require(
         qrom_model.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "QROM accounting Fiat-Shamir model must point at transform preconditions",
+    )
+    require(
+        qrom_model.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "QROM accounting Fiat-Shamir model must point at interactive reduction",
     )
 
     dossier = read_json(ROOT / EXPECTED_MANIFESTS["productCryptoSecurityDossier"])
@@ -155,6 +164,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
         dossier_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "product crypto security dossier must link transform preconditions",
     )
+    require(
+        dossier_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "product crypto security dossier must link interactive reduction",
+    )
     qrom_position = require_dict(dossier.get("fiatShamirQROMPosition"), "productCryptoSecurityDossier.fiatShamirQROMPosition")
     require(
         qrom_position.get("transcriptScheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json",
@@ -163,6 +176,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
     require(
         qrom_position.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "dossier Fiat-Shamir/QROM position must point at transform preconditions",
+    )
+    require(
+        qrom_position.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "dossier Fiat-Shamir/QROM position must point at interactive reduction",
     )
 
     ledger = read_json(ROOT / EXPECTED_MANIFESTS["selectedDepthLossAccounting"])
@@ -175,6 +192,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
         ledger_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "selected-depth ledger must link transform preconditions",
     )
+    require(
+        ledger_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "selected-depth ledger must link interactive reduction",
+    )
 
     budget = read_json(ROOT / EXPECTED_MANIFESTS["productTotalLossBudget"])
     budget_related = require_dict(budget.get("relatedManifests"), "productTotalLossBudget.relatedManifests")
@@ -186,12 +207,27 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
         budget_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "total-loss budget must link transform preconditions",
     )
+    require(
+        budget_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "total-loss budget must link interactive reduction",
+    )
 
     preconditions = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTransformPreconditions"])
     precondition_related = require_dict(preconditions.get("relatedManifests"), "productQROMTransformPreconditions.relatedManifests")
     require(
         precondition_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
         "transform preconditions must link this transcript schedule",
+    )
+    require(
+        precondition_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "transform preconditions must link interactive reduction",
+    )
+
+    reduction = read_json(ROOT / EXPECTED_MANIFESTS["productQROMInteractiveReduction"])
+    reduction_related = require_dict(reduction.get("relatedManifests"), "productQROMInteractiveReduction.relatedManifests")
+    require(
+        reduction_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "interactive reduction must link this transcript schedule",
     )
 
 
@@ -218,6 +254,11 @@ def validate_oracle_model(schedule: dict[str, Any]) -> None:
     model = require_dict(schedule.get("oracleModel"), "oracleModel")
     require(model.get("model") == "qrom", "oracleModel.model must be qrom")
     require("quantum random-oracle" in require_string(model.get("randomOracleAbstraction"), "oracleModel.randomOracleAbstraction"), "oracle abstraction must state the quantum random-oracle boundary")
+    require(
+        model.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "oracleModel.interactiveReductionManifest mismatch",
+    )
+    require_relative_path(model.get("interactiveReductionManifest"), "oracleModel.interactiveReductionManifest")
     for key in [
         "hashInstantiationProofProvided",
         "interactiveProtocolFullySpecified",
@@ -314,10 +355,15 @@ def validate_ledger_binding(schedule: dict[str, Any]) -> None:
         "ledgerBinding.qromAccountingManifest mismatch",
     )
     require(
+        binding.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "ledgerBinding.interactiveReductionManifest mismatch",
+    )
+    require(
         binding.get("totalLossBudgetManifest") == "TestVectors/product-total-loss-budget-v1.json",
         "ledgerBinding.totalLossBudgetManifest mismatch",
     )
     require_relative_path(binding.get("qromAccountingManifest"), "ledgerBinding.qromAccountingManifest")
+    require_relative_path(binding.get("interactiveReductionManifest"), "ledgerBinding.interactiveReductionManifest")
     require_relative_path(binding.get("totalLossBudgetManifest"), "ledgerBinding.totalLossBudgetManifest")
     require(binding.get("qromLossSymbol") == "epsilon_qrom", "ledgerBinding.qromLossSymbol mismatch")
     require(binding.get("transcriptCollisionLossSymbol") == "epsilon_collision", "ledgerBinding.transcriptCollisionLossSymbol mismatch")
@@ -360,32 +406,39 @@ def validate_docs_and_gate() -> None:
         "README.md": [
             "TestVectors/product-qrom-transcript-schedule-v1.json",
             "TestVectors/product-qrom-transform-preconditions-v1.json",
+            "TestVectors/product-qrom-interactive-reduction-v1.json",
             "QROM transcript schedule",
         ],
         "Docs/CryptographicSecurityDossier-2026-04-16.md": [
             "TestVectors/product-qrom-transcript-schedule-v1.json",
             "TestVectors/product-qrom-transform-preconditions-v1.json",
+            "TestVectors/product-qrom-interactive-reduction-v1.json",
             "QROM Transcript Schedule",
         ],
         "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
             "Scripts/validate-product-qrom-transcript-schedule.py",
             "Scripts/validate-product-qrom-transform-preconditions.py",
+            "Scripts/validate-product-qrom-interactive-reduction.py",
         ],
         "Docs/ReleaseEngineering-2026-04-16.md": [
             "product QROM transcript schedule",
             "product QROM transform preconditions",
+            "product QROM interactive reduction",
         ],
         "Docs/ReleaseCandidateRunbook-2026-04-16.md": [
             "product QROM transcript schedule version and digest",
             "product QROM transform preconditions version and digest",
+            "product QROM interactive reduction version and digest",
         ],
         "Docs/SchemaCompatibility-2026-04-16.md": [
             "Product QROM transcript schedule manifest",
             "Product QROM transform preconditions manifest",
+            "Product QROM interactive reduction manifest",
         ],
         "TestVectors/README.md": [
             "product-qrom-transcript-schedule-v1.json",
             "product-qrom-transform-preconditions-v1.json",
+            "product-qrom-interactive-reduction-v1.json",
         ],
     }
     for relative, needles in docs.items():

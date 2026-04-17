@@ -80,6 +80,12 @@ def main() -> None:
         write_json(path, missing_accounting)
         run_fail(str(VALIDATE), str(path))
 
+        missing_interactive_reduction = copy.deepcopy(preconditions)
+        missing_interactive_reduction["relatedManifests"].pop("productQROMInteractiveReduction")
+        path = tmp / "missing-interactive-reduction.json"
+        write_json(path, missing_interactive_reduction)
+        run_fail(str(VALIDATE), str(path))
+
         premature_precondition = copy.deepcopy(preconditions)
         premature_precondition["preconditions"][0]["satisfied"] = True
         path = tmp / "premature-precondition.json"
@@ -116,7 +122,7 @@ def main() -> None:
 
         missing_blocker = copy.deepcopy(preconditions)
         missing_blocker["hardClaimBlockers"].remove(
-            "numeric Q_H query bound and C_n * Q_H^(2n) reduction-loss instantiation"
+            "numeric Q_H query bound and DFM20 ((2*Q_H+n+1)^(2n)/n!) reduction-loss instantiation"
         )
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)

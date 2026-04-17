@@ -183,6 +183,38 @@ def ProductFiatShamirTransformPreconditionsAccepted
     ∧ preconditions.qromReductionLossInstantiated
     ∧ preconditions.productionTransformClaimAllowed
 
+structure ProductQROMInteractiveReduction where
+  selectedDepth : Nat
+  selectedDepthPositive : 0 < selectedDepth
+  acceptedProofKindOrderPinned : Prop
+  protocolMessageAlgorithmsPinned : Prop
+  exactMoveCountsPinned : Prop
+  challengeCountFormulasPinned : Prop
+  transcriptOracleEncodingProofPinned : Prop
+  challengeUniformityProofPinned : Prop
+  quantumQueryPolicyBoundPinned : Prop
+  dfm20LossFormulaPinned : Prop
+  numericSelectedLossInstantiated : Prop
+  underlyingInteractiveSecurityInstantiated : Prop
+  totalLossBudgetInterfacePinned : Prop
+  productionQROMTheoremClaimAllowed : Prop
+
+def ProductQROMInteractiveReductionAccepted
+    (reduction : ProductQROMInteractiveReduction) : Prop :=
+  (0 < reduction.selectedDepth)
+    ∧ reduction.acceptedProofKindOrderPinned
+    ∧ reduction.protocolMessageAlgorithmsPinned
+    ∧ reduction.exactMoveCountsPinned
+    ∧ reduction.challengeCountFormulasPinned
+    ∧ reduction.transcriptOracleEncodingProofPinned
+    ∧ reduction.challengeUniformityProofPinned
+    ∧ reduction.quantumQueryPolicyBoundPinned
+    ∧ reduction.dfm20LossFormulaPinned
+    ∧ reduction.numericSelectedLossInstantiated
+    ∧ reduction.underlyingInteractiveSecurityInstantiated
+    ∧ reduction.totalLossBudgetInterfacePinned
+    ∧ reduction.productionQROMTheoremClaimAllowed
+
 structure ProductFiatShamirLossAccounting where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
@@ -498,6 +530,49 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
       hInteractiveSecurity,
       hQuantumQueries,
       hReductionLoss,
+      hPromotion⟩
+
+theorem productSecurityTheorem_requires_qrom_interactive_reduction
+    {reduction : ProductQROMInteractiveReduction}
+    (hReduction : ProductQROMInteractiveReductionAccepted reduction) :
+    reduction.acceptedProofKindOrderPinned
+      ∧ reduction.protocolMessageAlgorithmsPinned
+      ∧ reduction.exactMoveCountsPinned
+      ∧ reduction.challengeCountFormulasPinned
+      ∧ reduction.transcriptOracleEncodingProofPinned
+      ∧ reduction.challengeUniformityProofPinned
+      ∧ reduction.quantumQueryPolicyBoundPinned
+      ∧ reduction.dfm20LossFormulaPinned
+      ∧ reduction.numericSelectedLossInstantiated
+      ∧ reduction.underlyingInteractiveSecurityInstantiated
+      ∧ reduction.totalLossBudgetInterfacePinned
+      ∧ reduction.productionQROMTheoremClaimAllowed := by
+  rcases hReduction with
+    ⟨_,
+      hOrder,
+      hProtocols,
+      hMoves,
+      hChallenges,
+      hEncoding,
+      hUniformity,
+      hQueries,
+      hFormula,
+      hNumericLoss,
+      hInteractiveSecurity,
+      hBudget,
+      hPromotion⟩
+  exact
+    ⟨hOrder,
+      hProtocols,
+      hMoves,
+      hChallenges,
+      hEncoding,
+      hUniformity,
+      hQueries,
+      hFormula,
+      hNumericLoss,
+      hInteractiveSecurity,
+      hBudget,
       hPromotion⟩
 
 theorem productSecurityTheorem_requires_total_loss_budget

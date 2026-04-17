@@ -43,12 +43,14 @@ claims remain blocked by the release packet no-go items.
   replay, constant-time, and release-distribution loss terms while keeping
   production claims disabled.
 - Added checked extractor loss accounting, QROM transcript schedule, QROM
-  transform preconditions, and QROM Fiat-Shamir accounting manifests,
+  transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir
+  accounting manifests,
   validators, mutation tests,
   release-evidence wiring, and Lean theorem hooks. These pin the extractor
   input/rewind contract, proof-kind transcript labels, symbolic `Q_H` query
-  families, transform theorem-family obligations, QROM loss contract, and
-  collision-to-ledger mapping while keeping concrete extractor and numeric
+  families, transform theorem-family obligations, public-coin protocol
+  formulas, DFM20 QROM loss multiplier, QROM loss contract, and
+  collision-to-ledger mapping while keeping concrete extractor and production
   QROM loss claims disabled.
 - Added a checked total-loss budget manifest, validator, mutation tests,
   release-evidence wiring, and Lean theorem hook. The budget pins exact
@@ -98,6 +100,7 @@ claims remain blocked by the release packet no-go items.
 - The QROM Fiat-Shamir accounting manifest starts at `schemaVersion = 1`.
 - The QROM transcript schedule manifest starts at `schemaVersion = 1`.
 - The QROM transform preconditions manifest starts at `schemaVersion = 1`.
+- The QROM interactive reduction manifest starts at `schemaVersion = 1`.
 - The total-loss budget manifest starts at `schemaVersion = 1`.
 - Proof envelopes remain at `ProofEnvelopeHeader.version = 4`.
 
@@ -115,8 +118,9 @@ claims remain blocked by the release packet no-go items.
   concrete Swift extractor implementation, numeric extractor loss
   instantiation, product recursive typed carry vectors, selected total-loss
   budget instantiation, simulator coupling beyond the exact field-mask
-  distribution lemma, QROM transform precondition closure, numeric QROM loss
-  instantiations, conservative
+  distribution lemma, QROM transform precondition closure, NumiSeal challenge
+  maxima, sampler uniformity proofs, per-kind interactive security bounds,
+  numeric QROM loss instantiations, conservative
   post-quantum parameter closure, competitive proof-size/latency evidence, and
   side-channel evidence.
 - Signed artifacts and repository branch-protection enforcement.

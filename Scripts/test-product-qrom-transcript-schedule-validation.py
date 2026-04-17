@@ -66,6 +66,12 @@ def main() -> None:
         write_json(path, missing_transform_preconditions)
         run_fail(str(VALIDATE), str(path))
 
+        missing_interactive_reduction = copy.deepcopy(schedule)
+        missing_interactive_reduction["relatedManifests"].pop("productQROMInteractiveReduction")
+        path = tmp / "missing-interactive-reduction.json"
+        write_json(path, missing_interactive_reduction)
+        run_fail(str(VALIDATE), str(path))
+
         missing_entry = copy.deepcopy(schedule)
         missing_entry["scheduleEntries"] = [
             row for row in missing_entry["scheduleEntries"] if row["proofKind"] != "numiseal-zk-product"

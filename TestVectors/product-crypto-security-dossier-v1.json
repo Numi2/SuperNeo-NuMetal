@@ -28,6 +28,8 @@
       "ProductFiatShamirTranscriptScheduleAccepted",
       "ProductFiatShamirTransformPreconditions",
       "ProductFiatShamirTransformPreconditionsAccepted",
+      "ProductQROMInteractiveReduction",
+      "ProductQROMInteractiveReductionAccepted",
       "ProductFiatShamirLossAccounting",
       "ProductFiatShamirLossAccountingAccepted",
       "ProductTotalLossBudget",
@@ -38,6 +40,7 @@
       "productSecurityTheorem_requires_extractor_loss_accounting",
       "productSecurityTheorem_requires_qrom_transcript_schedule",
       "productSecurityTheorem_requires_qrom_transform_preconditions",
+      "productSecurityTheorem_requires_qrom_interactive_reduction",
       "productSecurityTheorem_requires_qrom_loss_accounting",
       "productSecurityTheorem_requires_total_loss_budget",
       "productSecurityTheorem_requires_qrom_accounting",
@@ -58,6 +61,7 @@
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
+    "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json"
   },
@@ -192,6 +196,7 @@
     "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "transformPreconditionManifest": "TestVectors/product-qrom-transform-preconditions-v1.json",
+    "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "claimStatus": "qrom-fiat-shamir-loss-contract-not-production-claim",
     "interactiveProtocolSpecified": false,
     "publicCoinChallengeScheduleSpecified": true,
@@ -200,7 +205,7 @@
     "transcriptDomainSeparatorsBound": true,
     "proofKindSeparationBound": true,
     "transcriptCollisionMalleabilityExcluded": false,
-    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform(C_n, Q_H, n, epsilon_interactive, epsilon_precondition) + epsilon_qro_queries + epsilon_proof_kind_malleability",
+    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability where epsilon_fs_transform = max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
     "ledgerTermMapping": {
       "epsilon_qrom": [
         "epsilon_fs_transform",
@@ -213,7 +218,7 @@
     },
     "productionQROMClaimAllowed": false,
     "remainingObligations": [
-      "define the exact public-coin interactive protocol before Fiat-Shamir for each accepted product proof kind",
+      "close the interactive reduction manifest TestVectors/product-qrom-interactive-reduction-v1.json by instantiating numeric NumiSeal challenge-count maxima, sampler uniformity, and per-kind interactive security bounds",
       "instantiate the pinned product QROM transcript schedule with numeric per-kind Q_H query bounds",
       "close TestVectors/product-qrom-transform-preconditions-v1.json by proving theorem-family fit, round schedule, challenge uniformity, transcript encoding injectivity, underlying interactive security, and QROM loss instantiation",
       "account quantum random-oracle query bounds in the soundness loss",

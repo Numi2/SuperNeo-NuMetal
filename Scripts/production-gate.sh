@@ -25,7 +25,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - NumiSeal end-to-end theorem-scope validation
   - NumiSealZK mask-distribution evidence validation
   - product cryptographic security theorem dossier validation
-  - product extractor, QROM transcript schedule, QROM transform preconditions, QROM Fiat-Shamir, and total-loss budget validation
+  - product extractor, QROM transcript schedule, QROM transform preconditions, QROM interactive reduction, QROM Fiat-Shamir, and total-loss budget validation
   - production NumiSeal CLI adversarial matrix
   - optional signed NumiSealZK side-channel certificate binding tests
   - release policy, schema compatibility, and CI gate drift validation
@@ -160,6 +160,8 @@ run_step Scripts/validate-product-qrom-transcript-schedule.py
 run_step Scripts/test-product-qrom-transcript-schedule-validation.py
 run_step Scripts/validate-product-qrom-transform-preconditions.py
 run_step Scripts/test-product-qrom-transform-preconditions-validation.py
+run_step Scripts/validate-product-qrom-interactive-reduction.py
+run_step Scripts/test-product-qrom-interactive-reduction-validation.py
 run_step Scripts/validate-product-qrom-fiat-shamir-accounting.py
 run_step Scripts/test-product-qrom-fiat-shamir-accounting-validation.py
 run_step Scripts/validate-product-total-loss-budget.py

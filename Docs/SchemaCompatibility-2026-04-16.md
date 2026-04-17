@@ -24,6 +24,7 @@ manifests, and binary proof envelopes.
 | Product QROM Fiat-Shamir accounting manifest | `schemaVersion = 1` |
 | Product QROM transcript schedule manifest | `schemaVersion = 1` |
 | Product QROM transform preconditions manifest | `schemaVersion = 1` |
+| Product QROM interactive reduction manifest | `schemaVersion = 1` |
 | Product total-loss budget manifest | `schemaVersion = 1` |
 | Constant-time source/formal scope manifest | `schemaVersion = 1` |
 | Constant-time Swift/LLVM/Metal lowering evidence manifest | `schemaVersion = 1` |
@@ -199,6 +200,14 @@ proof-kind theorem-family fit, precondition rows, symbolic loss interface, and
 the promotion rule that keeps production QROM claims disabled until exact
 interactive protocols, transform preconditions, numeric quantum query bounds,
 and QROM reduction-loss terms are instantiated.
+
+`TestVectors/product-qrom-interactive-reduction-v1.json` is the checked
+Product QROM interactive reduction manifest. It is not a proof artifact schema
+and does not affect proof bytes. It pins public-coin protocol formulas, the
+selected `Q_H = 2^64` policy, DFM20 reduction multiplier, per-proof-kind
+challenge-count formulas, and the promotion rule that keeps production QROM
+claims disabled until NumiSeal numeric challenge maxima, sampler-uniformity
+proofs, and interactive-security bounds are instantiated.
 
 `TestVectors/product-total-loss-budget-v1.json` is the checked product
 total-loss budget manifest. It is not a proof artifact schema and does not

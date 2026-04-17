@@ -30,6 +30,7 @@ Coverage included:
 - product extractor loss-accounting validation,
 - product QROM transcript schedule validation,
 - product QROM transform precondition validation,
+- product QROM interactive reduction validation,
 - product QROM Fiat-Shamir accounting validation,
 - product total-loss budget validation,
 - constant-time source/formal scope validation,
@@ -127,6 +128,7 @@ Release and validation gates:
 - `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
 - `TestVectors/product-qrom-transcript-schedule-v1.json`
 - `TestVectors/product-qrom-transform-preconditions-v1.json`
+- `TestVectors/product-qrom-interactive-reduction-v1.json`
 - `TestVectors/product-total-loss-budget-v1.json`
 - `TestVectors/constant-time-scope-v1.json`
 - `TestVectors/constant-time-lowering-evidence-v1.json`
@@ -151,6 +153,8 @@ Release and validation gates:
 - `Scripts/test-product-qrom-transcript-schedule-validation.py`
 - `Scripts/validate-product-qrom-transform-preconditions.py`
 - `Scripts/test-product-qrom-transform-preconditions-validation.py`
+- `Scripts/validate-product-qrom-interactive-reduction.py`
+- `Scripts/test-product-qrom-interactive-reduction-validation.py`
 - `Scripts/validate-product-total-loss-budget.py`
 - `Scripts/test-product-total-loss-budget-validation.py`
 - `Scripts/validate-constant-time-scope.py`
@@ -267,18 +271,21 @@ These are the remaining blockers before using production-security language:
    terminal-seal, recursive-knowledge, typed-carry, masked-residual ZK,
    simulation/privacy, and product-policy obligations imply the composed
    relation. Product extractor loss accounting, QROM transcript schedule, QROM
-   transform preconditions, QROM Fiat-Shamir accounting, and the total-loss
-   budget are now checked in
+   transform preconditions, QROM interactive reduction, QROM Fiat-Shamir
+   accounting, and the total-loss budget are now checked in
    `TestVectors/product-extractor-loss-accounting-v1.json`,
    `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`,
    `TestVectors/product-qrom-transcript-schedule-v1.json`,
-   `TestVectors/product-qrom-transform-preconditions-v1.json`, and
+   `TestVectors/product-qrom-transform-preconditions-v1.json`,
+   `TestVectors/product-qrom-interactive-reduction-v1.json`, and
    `TestVectors/product-total-loss-budget-v1.json`, but concrete Swift
    extractor implementation, product recursive typed carry depth/loss
    accounting beyond the checked parent-child handoff, simulator coupling
    evidence beyond the exact mask-distribution lemma, numeric QROM reduction
    loss, QROM transform-precondition closure, QROM transcript schedule query
-   bounds, total-loss budget instantiation, and side-channel evidence still have
+   bounds, NumiSeal challenge-count maxima, sampler uniformity and
+   interactive-security bounds, total-loss budget instantiation, and
+   side-channel evidence still have
    to be supplied before production-security NumiSeal theorem language is
    allowed.
    `TestVectors/product-crypto-security-dossier-v1.json` and

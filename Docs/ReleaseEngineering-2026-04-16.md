@@ -31,7 +31,8 @@ true:
   bounded-depth product security theorem, Fiat-Shamir/QROM position, Module-SIS
   parameter dossier, selected-depth loss accounting, product extractor loss
   accounting, product QROM transcript schedule, product QROM transform
-  preconditions, product QROM Fiat-Shamir accounting, product total-loss
+  preconditions, product QROM interactive reduction, product QROM
+  Fiat-Shamir accounting, product total-loss
   budget, and production-claim boundaries.
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
@@ -93,6 +94,7 @@ Each release candidate should record:
 - product extractor loss accounting digest.
 - product QROM transcript schedule digest.
 - product QROM transform preconditions digest.
+- product QROM interactive reduction digest.
 - product QROM Fiat-Shamir accounting digest.
 - product total-loss budget digest.
 - constant-time source/formal scope digest.
@@ -148,8 +150,13 @@ QROM transcript schedule, proof-kind order, public challenge labels, symbolic
 `TestVectors/product-qrom-transform-preconditions-v1.json`, including the
 product QROM transform preconditions, primary QROM Fiat-Shamir source basis,
 selected measure-and-reprogram profile, per-proof-kind theorem-family fit,
-symbolic `C_n * Q_H^(2n)` loss interface, and fail-closed production QROM
-promotion rule.
+DFM20 `((2*Q_H+n+1)^(2n)/n!)` loss interface, and fail-closed production
+QROM promotion rule.
+`Scripts/validate-product-qrom-interactive-reduction.py` checks
+`TestVectors/product-qrom-interactive-reduction-v1.json`, including the
+product QROM interactive reduction ledger, public-coin protocol formulas,
+selected `Q_H = 2^64` policy, DFM20 loss multiplier, and fail-closed
+production QROM promotion rule.
 `Scripts/validate-product-total-loss-budget.py` checks
 `TestVectors/product-total-loss-budget-v1.json`, including exact rational
 summation, the `2^-128` selected threshold, ten component bounds, nine

@@ -33,6 +33,13 @@ def require_string(value: Any, label: str) -> str:
     return value
 
 
+def require_hex_digest(value: Any, label: str) -> str:
+    digest = require_string(value, label)
+    require(len(digest) == 64, f"{label} must be a SHA-256 hex digest")
+    require(all(character in "0123456789abcdef" for character in digest), f"{label} must be lowercase hex")
+    return digest
+
+
 def require_int(value: Any, label: str) -> int:
     require(isinstance(value, int), f"{label} must be an integer")
     return value
@@ -280,6 +287,31 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require(
         require_int(
+            surfaces.get("productQROMInteractiveReductionVersion"),
+            "productQROMInteractiveReductionVersion",
+        ) == 1,
+        "product QROM interactive reduction version must be 1",
+    )
+    require_hex_digest(
+        surfaces.get("productQROMInteractiveReductionDigestHex"),
+        "productQROMInteractiveReductionDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productQROMInteractiveReductionClaimStatus"),
+            "productQROMInteractiveReductionClaimStatus",
+        ) == "qrom-interactive-reduction-ledger-not-production-claim",
+        "product QROM interactive reduction claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("productQROMInteractiveReductionProofKindCount"),
+            "productQROMInteractiveReductionProofKindCount",
+        ) == 5,
+        "product QROM interactive reduction must pin five proof-kind protocols",
+    )
+    require(
+        require_int(
             surfaces.get("productTotalLossBudgetVersion"),
             "productTotalLossBudgetVersion",
         ) == 1,
@@ -432,6 +464,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "productQROMFiatShamirAccounting",
         "productQROMTranscriptSchedule",
         "productQROMTransformPreconditions",
+        "productQROMInteractiveReduction",
         "productTotalLossBudget",
         "constantTimeEvidence",
         "constantTimeScope",
@@ -483,6 +516,10 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(
         any("qrom transform preconditions" in str(boundary).lower() for boundary in boundaries),
         "productionSecurityBoundaries must mention QROM transform preconditions",
+    )
+    require(
+        any("qrom interactive reduction" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention QROM interactive reduction",
     )
     require(
         any("total-loss budget" in str(boundary).lower() for boundary in boundaries),

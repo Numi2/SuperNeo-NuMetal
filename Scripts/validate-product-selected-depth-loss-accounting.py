@@ -39,6 +39,7 @@ EXPECTED_MANIFESTS = {
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
+    "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
 }
 
@@ -51,6 +52,8 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductFiatShamirTranscriptScheduleAccepted",
     "ProductFiatShamirTransformPreconditions",
     "ProductFiatShamirTransformPreconditionsAccepted",
+    "ProductQROMInteractiveReduction",
+    "ProductQROMInteractiveReductionAccepted",
     "ProductFiatShamirLossAccounting",
     "ProductFiatShamirLossAccountingAccepted",
     "ProductTotalLossBudget",
@@ -59,6 +62,7 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "productSecurityTheorem_requires_extractor_loss_accounting",
     "productSecurityTheorem_requires_qrom_transcript_schedule",
     "productSecurityTheorem_requires_qrom_transform_preconditions",
+    "productSecurityTheorem_requires_qrom_interactive_reduction",
     "productSecurityTheorem_requires_qrom_loss_accounting",
     "productSecurityTheorem_requires_total_loss_budget",
 }
@@ -78,7 +82,7 @@ EXPECTED_COMPONENT_IDS = [
 
 EXPECTED_BLOCKERS = [
     "selected-depth extractor instantiation",
-    "QROM transcript schedule, transform preconditions, and Fiat-Shamir loss accounting",
+    "QROM transcript schedule, transform preconditions, interactive reduction, and Fiat-Shamir loss accounting",
     "transcript collision and proof-kind malleability exclusion",
     "selected total-loss budget instantiation",
     "full ZK simulator composition",
@@ -179,6 +183,10 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         "product crypto security dossier must link QROM transform preconditions",
     )
     require(
+        dossier_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "product crypto security dossier must link QROM interactive reduction",
+    )
+    require(
         dossier_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "product crypto security dossier must link the total loss budget",
     )
@@ -196,12 +204,27 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         total_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "total loss budget must link QROM transform preconditions",
     )
+    require(
+        total_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "total loss budget must link QROM interactive reduction",
+    )
 
     preconditions = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTransformPreconditions"])
     precondition_related = require_dict(preconditions.get("relatedManifests"), "productQROMTransformPreconditions.relatedManifests")
     require(
         precondition_related.get("selectedDepthLossAccounting") == "TestVectors/product-selected-depth-loss-accounting-v1.json",
         "QROM transform preconditions must link selected-depth loss accounting",
+    )
+    require(
+        precondition_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "QROM transform preconditions must link interactive reduction",
+    )
+
+    reduction = read_json(ROOT / EXPECTED_MANIFESTS["productQROMInteractiveReduction"])
+    reduction_related = require_dict(reduction.get("relatedManifests"), "productQROMInteractiveReduction.relatedManifests")
+    require(
+        reduction_related.get("selectedDepthLossAccounting") == "TestVectors/product-selected-depth-loss-accounting-v1.json",
+        "QROM interactive reduction must link selected-depth loss accounting",
     )
 
 
@@ -274,9 +297,14 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "fiat-shamir-qrom must link product QROM Fiat-Shamir accounting",
             )
             require_relative_path(component.get("accountingManifest"), "fiat-shamir-qrom.accountingManifest")
+            evidence = require_string(component.get("requiredEvidence"), "fiat-shamir-qrom.requiredEvidence")
             require(
-                "TestVectors/product-qrom-transform-preconditions-v1.json" in require_string(component.get("requiredEvidence"), "fiat-shamir-qrom.requiredEvidence"),
+                "TestVectors/product-qrom-transform-preconditions-v1.json" in evidence,
                 "fiat-shamir-qrom requiredEvidence must link QROM transform preconditions",
+            )
+            require(
+                "TestVectors/product-qrom-interactive-reduction-v1.json" in evidence,
+                "fiat-shamir-qrom requiredEvidence must link QROM interactive reduction",
             )
         if component_id == "transcript-collision-domain-separation":
             require(

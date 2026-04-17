@@ -46,6 +46,10 @@ candidate. It does not authorize production-security release claims.
   product QROM transform precondition changes for theorem-family fit,
   public-coin protocol obligations, round schedule, challenge uniformity,
   transcript encoding, `Q_H` query bounds, or reduction-loss accounting.
+- `TestVectors/product-qrom-interactive-reduction-v1.json` reflects any
+  product QROM interactive reduction changes for public-coin protocol formulas,
+  selected `Q_H` policy, DFM20 loss multiplier, challenge-count maxima, or
+  per-kind interactive-security obligations.
 - `TestVectors/product-total-loss-budget-v1.json` reflects any selected-depth
   total-loss budget, exact rational summation, required component bounds, or
   `2^-128` threshold changes.
@@ -111,6 +115,7 @@ The generated evidence records:
 - product QROM Fiat-Shamir accounting version and digest,
 - product QROM transcript schedule version and digest,
 - product QROM transform preconditions version and digest,
+- product QROM interactive reduction version and digest,
 - product total-loss budget version and digest,
 - constant-time source/formal scope version and digest,
 - constant-time lowering evidence version and digest,

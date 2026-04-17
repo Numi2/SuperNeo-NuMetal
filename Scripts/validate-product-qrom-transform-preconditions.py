@@ -32,6 +32,7 @@ EXPECTED_MANIFESTS = {
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -72,7 +73,7 @@ EXPECTED_BLOCKERS = [
     "exact constant-round odd-message schedule and challenge count n",
     "challenge-space uniformity and transcript-oracle encoding proof",
     "underlying interactive knowledge-soundness or soundness bound against quantum dishonest provers",
-    "numeric Q_H query bound and C_n * Q_H^(2n) reduction-loss instantiation",
+    "numeric Q_H query bound and DFM20 ((2*Q_H+n+1)^(2n)/n!) reduction-loss instantiation",
     "integration of epsilon_fs_transform and epsilon_precondition into QROM accounting and the selected total-loss budget",
 ]
 
@@ -144,12 +145,20 @@ def validate_related_manifests(preconditions: dict[str, Any]) -> None:
         qrom_model.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "QROM accounting model must point at the transform precondition dossier",
     )
+    require(
+        qrom_model.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "QROM accounting model must point at the interactive reduction manifest",
+    )
 
     schedule = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTranscriptSchedule"])
     schedule_related = require_dict(schedule.get("relatedManifests"), "productQROMTranscriptSchedule.relatedManifests")
     require(
         schedule_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "QROM transcript schedule must link the transform precondition dossier",
+    )
+    require(
+        schedule_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "QROM transcript schedule must link the interactive reduction manifest",
     )
 
     dossier = read_json(ROOT / EXPECTED_MANIFESTS["productCryptoSecurityDossier"])
@@ -163,6 +172,10 @@ def validate_related_manifests(preconditions: dict[str, Any]) -> None:
         qrom_position.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "dossier Fiat-Shamir/QROM position must point at the transform precondition dossier",
     )
+    require(
+        qrom_position.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "dossier Fiat-Shamir/QROM position must point at the interactive reduction manifest",
+    )
 
     ledger = read_json(ROOT / EXPECTED_MANIFESTS["selectedDepthLossAccounting"])
     ledger_related = require_dict(ledger.get("relatedManifests"), "selectedDepthLossAccounting.relatedManifests")
@@ -170,12 +183,27 @@ def validate_related_manifests(preconditions: dict[str, Any]) -> None:
         ledger_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "selected-depth ledger must link the transform precondition dossier",
     )
+    require(
+        ledger_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "selected-depth ledger must link the interactive reduction manifest",
+    )
 
     budget = read_json(ROOT / EXPECTED_MANIFESTS["productTotalLossBudget"])
     budget_related = require_dict(budget.get("relatedManifests"), "productTotalLossBudget.relatedManifests")
     require(
         budget_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "total-loss budget must link the transform precondition dossier",
+    )
+    require(
+        budget_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
+        "total-loss budget must link the interactive reduction manifest",
+    )
+
+    reduction = read_json(ROOT / EXPECTED_MANIFESTS["productQROMInteractiveReduction"])
+    reduction_related = require_dict(reduction.get("relatedManifests"), "productQROMInteractiveReduction.relatedManifests")
+    require(
+        reduction_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
+        "interactive reduction manifest must link this transform precondition dossier",
     )
 
 
@@ -220,14 +248,14 @@ def validate_selected_transform_profile(preconditions: dict[str, Any]) -> None:
     require(profile.get("selectedDepth") == 1, "selectedTransformProfile.selectedDepth must be 1")
     families = require_string_list(profile.get("acceptedTheoremFamilies"), "selectedTransformProfile.acceptedTheoremFamilies")
     family_text = " ".join(families).lower()
-    for needle in ["sigma", "o(q_h^2)", "multi-round", "o(q_h^(2n))", "(2n + 1)"]:
+    for needle in ["sigma", "o(q_h^2)", "multi-round", "dfm20", "2*q_h", "n!", "(2n + 1)"]:
         require(needle in family_text, f"accepted theorem families must mention {needle}")
     require(profile.get("currentSelectedFamily") == "multi-round-public-coin-fail-closed", "currentSelectedFamily mismatch")
     require_false(profile.get("exactMoveCountInstantiated"), "selectedTransformProfile.exactMoveCountInstantiated")
     require(profile.get("challengeCountSymbol") == "n", "challengeCountSymbol must be n")
     require(profile.get("quantumOracleQuerySymbol") == "Q_H", "quantumOracleQuerySymbol must be Q_H")
     loss_shape = require_string(profile.get("selectedLossShape"), "selectedTransformProfile.selectedLossShape")
-    for symbol in ["C_n", "Q_H^(2n)", "epsilon_interactive", "epsilon_precondition"]:
+    for symbol in ["2*Q_H", "2n", "n!", "epsilon_interactive", "epsilon_precondition"]:
         require(symbol in loss_shape, f"selectedLossShape must include {symbol}")
     require_false(profile.get("exactConstantInstantiated"), "selectedTransformProfile.exactConstantInstantiated")
     require_false(profile.get("productionTransformClaimAllowed"), "selectedTransformProfile.productionTransformClaimAllowed")
@@ -253,7 +281,7 @@ def validate_precondition_rows(preconditions: dict[str, Any]) -> None:
         combined.append(json.dumps(row, sort_keys=True).lower())
     require(seen == EXPECTED_PRECONDITION_IDS, "preconditions must stay in the pinned order")
     joined = " ".join(combined)
-    for needle in ["interactive", "2n + 1", "uniform", "encoding", "witness", "quantum", "q_h", "c_n", "collision"]:
+    for needle in ["interactive", "2n + 1", "uniform", "encoding", "witness", "quantum", "q_h", "dfm20", "collision"]:
         require(needle in joined, f"precondition rows must mention {needle}")
 
 
@@ -293,6 +321,7 @@ def validate_loss_interface(preconditions: dict[str, Any]) -> None:
     interface = require_dict(preconditions.get("lossInterface"), "lossInterface")
     for key, expected in [
         ("qromAccountingManifest", "TestVectors/product-qrom-fiat-shamir-accounting-v1.json"),
+        ("interactiveReductionManifest", "TestVectors/product-qrom-interactive-reduction-v1.json"),
         ("transcriptScheduleManifest", "TestVectors/product-qrom-transcript-schedule-v1.json"),
         ("totalLossBudgetManifest", "TestVectors/product-total-loss-budget-v1.json"),
     ]:
@@ -304,7 +333,7 @@ def validate_loss_interface(preconditions: dict[str, Any]) -> None:
     require(interface.get("preconditionFailureSymbol") == "epsilon_precondition", "preconditionFailureSymbol mismatch")
     selected = require_string(interface.get("selectedDepthExpression"), "lossInterface.selectedDepthExpression")
     recursive = require_string(interface.get("recursivePromotionExpression"), "lossInterface.recursivePromotionExpression")
-    for symbol in ["C_n", "Q_H^(2n)", "epsilon_interactive", "epsilon_precondition"]:
+    for symbol in ["2*Q_H", "n_kind!", "epsilon_interactive_kind", "epsilon_precondition_kind"]:
         require(symbol in selected, f"selectedDepthExpression must include {symbol}")
         require(symbol in recursive, f"recursivePromotionExpression must include {symbol}")
     require_false(interface.get("numericLossInstantiated"), "lossInterface.numericLossInstantiated")
@@ -338,14 +367,18 @@ def validate_docs_and_gate() -> None:
     docs = {
         "README.md": [
             "TestVectors/product-qrom-transform-preconditions-v1.json",
+            "TestVectors/product-qrom-interactive-reduction-v1.json",
             "QROM transform preconditions",
         ],
         "Docs/CryptographicSecurityDossier-2026-04-16.md": [
             "TestVectors/product-qrom-transform-preconditions-v1.json",
+            "TestVectors/product-qrom-interactive-reduction-v1.json",
             "QROM Transform Preconditions",
+            "QROM Interactive Reduction",
         ],
         "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
             "Scripts/validate-product-qrom-transform-preconditions.py",
+            "Scripts/validate-product-qrom-interactive-reduction.py",
         ],
         "Docs/ReleaseEngineering-2026-04-16.md": [
             "product QROM transform preconditions",
@@ -358,6 +391,7 @@ def validate_docs_and_gate() -> None:
         ],
         "TestVectors/README.md": [
             "product-qrom-transform-preconditions-v1.json",
+            "product-qrom-interactive-reduction-v1.json",
         ],
     }
     for relative, needles in docs.items():
@@ -372,6 +406,10 @@ def validate_docs_and_gate() -> None:
     require(
         "run_step Scripts/test-product-qrom-transform-preconditions-validation.py" in gate,
         "production gate must run QROM transform precondition regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-qrom-interactive-reduction.py" in gate,
+        "production gate must run QROM interactive reduction validator",
     )
 
 

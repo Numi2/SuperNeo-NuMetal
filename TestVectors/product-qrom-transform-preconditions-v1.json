@@ -7,6 +7,7 @@
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -75,13 +76,13 @@
     "selectedDepth": 1,
     "acceptedTheoremFamilies": [
       "three-round Sigma protocol with O(Q_H^2) QROM loss when every accepted product proof kind is proven to fit the Sigma-protocol hypotheses",
-      "multi-round public-coin interactive proof with O(Q_H^(2n)) QROM loss for a (2n + 1)-move schedule when exact round count and ordered extraction are instantiated"
+      "multi-round public-coin interactive proof with DFM20 ((2*Q_H+n+1)^(2n) / n!) QROM loss for a (2n + 1)-move schedule when exact round count and ordered extraction are instantiated"
     ],
     "currentSelectedFamily": "multi-round-public-coin-fail-closed",
     "exactMoveCountInstantiated": false,
     "challengeCountSymbol": "n",
     "quantumOracleQuerySymbol": "Q_H",
-    "selectedLossShape": "epsilon_fs_transform <= C_n * Q_H^(2n) * epsilon_interactive + epsilon_precondition",
+    "selectedLossShape": "epsilon_fs_transform <= ((2*Q_H+n+1)^(2n) / n!) * epsilon_interactive + n! / 2^256 + epsilon_precondition",
     "exactConstantInstantiated": false,
     "productionTransformClaimAllowed": false
   },
@@ -180,7 +181,7 @@
       "status": "open",
       "required": true,
       "satisfied": false,
-      "evidence": "exact C_n constant, selected n, Q_H bound, and resulting epsilon_fs_transform contribution carried into the total-loss budget",
+      "evidence": "exact DFM20 ((2*Q_H+n+1)^(2n) / n!) multiplier, selected n, Q_H bound, and resulting epsilon_fs_transform contribution carried into the total-loss budget",
       "sourceBasis": [
         "DFM20"
       ]
@@ -256,14 +257,15 @@
   ],
   "lossInterface": {
     "qromAccountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "totalLossBudgetManifest": "TestVectors/product-total-loss-budget-v1.json",
     "qromLossSymbol": "epsilon_qrom",
     "fiatShamirTransformLossSymbol": "epsilon_fs_transform",
     "quantumOracleQueryLossSymbol": "epsilon_qro_queries",
     "preconditionFailureSymbol": "epsilon_precondition",
-    "selectedDepthExpression": "epsilon_fs_transform(depth=1) <= C_n * Q_H^(2n) * epsilon_interactive + epsilon_precondition",
-    "recursivePromotionExpression": "epsilon_fs_transform(depth=d) <= d * (C_n * Q_H^(2n) * epsilon_interactive + epsilon_precondition)",
+    "selectedDepthExpression": "epsilon_fs_transform(depth=1) <= max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
+    "recursivePromotionExpression": "epsilon_fs_transform(depth=d) <= d * max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
     "numericLossInstantiated": false,
     "qromLossWithinBudget": false
   },
@@ -272,7 +274,7 @@
     "exact constant-round odd-message schedule and challenge count n",
     "challenge-space uniformity and transcript-oracle encoding proof",
     "underlying interactive knowledge-soundness or soundness bound against quantum dishonest provers",
-    "numeric Q_H query bound and C_n * Q_H^(2n) reduction-loss instantiation",
+    "numeric Q_H query bound and DFM20 ((2*Q_H+n+1)^(2n)/n!) reduction-loss instantiation",
     "integration of epsilon_fs_transform and epsilon_precondition into QROM accounting and the selected total-loss budget"
   ],
   "promotionRule": {

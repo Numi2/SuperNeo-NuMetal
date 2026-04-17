@@ -86,6 +86,12 @@ def main() -> None:
         write_json(path, missing_qrom_transform_preconditions)
         run_fail(str(VALIDATE), str(path))
 
+        missing_qrom_interactive_reduction = copy.deepcopy(ledger)
+        missing_qrom_interactive_reduction["relatedManifests"].pop("productQROMInteractiveReduction")
+        path = tmp / "missing-qrom-interactive-reduction.json"
+        write_json(path, missing_qrom_interactive_reduction)
+        run_fail(str(VALIDATE), str(path))
+
         missing_total_budget = copy.deepcopy(ledger)
         missing_total_budget["relatedManifests"].pop("productTotalLossBudget")
         path = tmp / "missing-total-budget.json"
@@ -110,7 +116,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(ledger)
-        missing_blocker["hardClaimBlockers"].remove("QROM transcript schedule, transform preconditions, and Fiat-Shamir loss accounting")
+        missing_blocker["hardClaimBlockers"].remove("QROM transcript schedule, transform preconditions, interactive reduction, and Fiat-Shamir loss accounting")
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))

@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 1,
+  "reductionID": "superneo-product-qrom-interactive-reduction-v1",
+  "claimStatus": "qrom-interactive-reduction-ledger-not-production-claim",
+  "relatedManifests": {
+    "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+    "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+    "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
+    "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
+    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+    "proofEnvelopePolicy": "Docs/ProofEnvelope.md"
+  },
+  "formalSurface": {
+    "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
+    "declarations": [
+      "ProductQROMInteractiveReduction",
+      "ProductQROMInteractiveReductionAccepted",
+      "productSecurityTheorem_requires_qrom_interactive_reduction"
+    ]
+  },
+  "researchBasis": [
+    {
+      "id": "DFM20",
+      "title": "The Measure-and-Reprogram Technique 2.0: Multi-Round Fiat-Shamir and More",
+      "url": "https://eprint.iacr.org/2020/282",
+      "usedFor": [
+        "constant-round public-coin interactive protocol reduction target",
+        "exact (2n + 1)-move schedule contract",
+        "loss shape ((2*Q_H+n+1)^(2n)/n!) plus additive ordering term"
+      ]
+    },
+    {
+      "id": "DFMS19",
+      "title": "Security of the Fiat-Shamir Transformation in the Quantum Random-Oracle Model",
+      "url": "https://eprint.iacr.org/2019/190",
+      "usedFor": [
+        "three-round Sigma comparison target",
+        "quantum dishonest prover proof-of-knowledge boundary",
+        "Fiat-Shamir natural-property checklist"
+      ]
+    },
+    {
+      "id": "Unruh17",
+      "title": "Post-Quantum Security of Fiat-Shamir",
+      "url": "https://eprint.iacr.org/2017/398",
+      "usedFor": [
+        "post-quantum Fiat-Shamir caveat boundary",
+        "extractability and zero-knowledge precondition split"
+      ]
+    }
+  ],
+  "selectedTheoremFamily": {
+    "model": "qrom",
+    "selectedFamily": "DFM20 constant-round public-coin interactive proof",
+    "moveShape": "2n + 1",
+    "verifierChallengeCountSymbol": "n",
+    "adversaryQuantumOracleQuerySymbol": "Q_H",
+    "lossMultiplier": "((2*Q_H + n + 1)^(2*n)) / n!",
+    "additiveOrderingTerm": "n! / 2^lambda_challenge",
+    "selectedChallengeRangeBits": 256,
+    "selectedQHBound": "2^64",
+    "selectedQHLog2": 64,
+    "exactTheoremConstantPinned": true,
+    "numericSelectedLossInstantiated": false,
+    "productionQROMTheoremClaimAllowed": false
+  },
+  "productProtocolModel": {
+    "profile": "Goldilocks/Phi81(d=54)",
+    "selectedDepth": 1,
+    "acceptedProofKinds": [
+      "fold",
+      "terminal",
+      "compressed-terminal",
+      "numiseal-terminal",
+      "numiseal-zk-product"
+    ],
+    "acceptedProofKindOrderPinned": true,
+    "protocolMessageAlgorithmsPinned": true,
+    "exactChallengeCountFormulasPinned": true,
+    "allNumericChallengeCountsInstantiated": false,
+    "allInteractiveSecurityBoundsInstantiated": false,
+    "allUniformityProofsInstantiated": false,
+    "productionProtocolClaimAllowed": false
+  },
+  "proofKindProtocols": [
+    {
+      "proofKind": "fold",
+      "envelopeKind": 1,
+      "sourceReferences": [
+        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:1523",
+        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:3415",
+        "SuperNeo-NuMetal/Transcript/SumCheckTranscript.swift:167"
+      ],
+      "interactiveProtocol": [
+        "P0/V0 absorb makeFoldTranscript public input, shape digest, instances, prior claims, and transcript seed",
+        "V1 derive piCCS alpha[0..log2(shape.m)-1] and gamma from makeQOracle",
+        "P1 send sum-check claimed sum and one polynomial message per Boolean variable",
+        "V2 derive one Ext2 challenge after each sum-check polynomial message",
+        "P2 send piCCS final evaluation claims at the sum-check final point",
+        "V3 derive one Phi81 ring random-linear-combination challenge per piCCS final claim",
+        "P3 send folded claim plus deterministic PiDEC decomposition commitments/evaluations",
+        "V4 verify sum-check, piRLC recomposition, and PiDEC recomposition"
+      ],
+      "challengeCountFormula": "n_fold = 2*log2(shape.m) + 1 + piCCSClaimCount",
+      "moveCountFormula": "moves_fold = 2*n_fold + 1",
+      "instantiatedUpperBoundN": 204,
+      "upperBoundJustification": "log2(shape.m) <= 64 from proof decoding limits; piCCSClaimCount <= maxFreshBatchCount + maxPriorClaimCount = 61 + 14",
+      "queryBoundQH": "2^64",
+      "numericLossExpression": "epsilon_fs_fold <= ((2*2^64 + 204 + 1)^(408) / 204!) * epsilon_interactive_fold + 204! / 2^256 + epsilon_precondition_fold",
+      "numericLossInstantiated": false,
+      "openInputs": [
+        "epsilon_interactive_fold against quantum dishonest provers",
+        "challenge sampler uniformity proof for Ext2 and Phi81 ring challenges"
+      ],
+      "productionQROMClaimAllowed": false
+    },
+    {
+      "proofKind": "terminal",
+      "envelopeKind": 2,
+      "sourceReferences": [
+        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:390",
+        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:532",
+        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:4765"
+      ],
+      "interactiveProtocol": [
+        "Run the fold public-coin protocol",
+        "P sends TerminalCEStatement and 219 Stern CE-opening commitment rounds",
+        "V derives one rejection-sampled ternary CE challenge per CE-opening round",
+        "P sends the challenge-selected CE-opening response for each round",
+        "V verifies every CE-opening response and terminal CE relation"
+      ],
+      "challengeCountFormula": "n_terminal = n_fold + CEOpeningProof.roundCount",
+      "moveCountFormula": "moves_terminal = 2*n_terminal + 1",
+      "instantiatedUpperBoundN": 423,
+      "upperBoundJustification": "n_fold <= 204 and CEOpeningProof.roundCount = 219",
+      "queryBoundQH": "2^64",
+      "numericLossExpression": "epsilon_fs_terminal <= ((2*2^64 + 423 + 1)^(846) / 423!) * epsilon_interactive_terminal + 423! / 2^256 + epsilon_precondition_terminal",
+      "numericLossInstantiated": false,
+      "openInputs": [
+        "epsilon_interactive_terminal for fold plus CE-opening composition",
+        "ternary rejection-sampling uniformity and exact transcript-query accounting"
+      ],
+      "productionQROMClaimAllowed": false
+    },
+    {
+      "proofKind": "compressed-terminal",
+      "envelopeKind": 3,
+      "sourceReferences": [
+        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:2550",
+        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:3260"
+      ],
+      "interactiveProtocol": [
+        "Run the terminal public-coin protocol",
+        "Bind compressed public statement digest and compressed proof-envelope context before verification",
+        "V verifies decompression binding and terminal CE relation under the compressed envelope"
+      ],
+      "challengeCountFormula": "n_compressed_terminal = n_terminal",
+      "moveCountFormula": "moves_compressed_terminal = 2*n_compressed_terminal + 1",
+      "instantiatedUpperBoundN": 423,
+      "upperBoundJustification": "compressed-terminal adds public digest binding but no extra public-coin challenge beyond terminal",
+      "queryBoundQH": "2^64",
+      "numericLossExpression": "epsilon_fs_compressed_terminal <= ((2*2^64 + 423 + 1)^(846) / 423!) * epsilon_interactive_compressed_terminal + 423! / 2^256 + epsilon_precondition_compressed_terminal",
+      "numericLossInstantiated": false,
+      "openInputs": [
+        "epsilon_interactive_compressed_terminal",
+        "compressed statement collision/malleability exclusion bound"
+      ],
+      "productionQROMClaimAllowed": false
+    },
+    {
+      "proofKind": "numiseal-terminal",
+      "envelopeKind": 4,
+      "sourceReferences": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealLaneAggregation.swift:313",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealScalarization.swift:239",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealSumcheck.swift:217"
+      ],
+      "interactiveProtocol": [
+        "P sends public statement, lane summaries, aggregate digests, scalarization commitments, residual openings, and lane sum-check messages",
+        "V derives lane aggregation Phi81 challenges from public statement, lane key, aggregate index, and obligation digests",
+        "V derives scalarization Ext2 weights for commitments, decomposition commitments, public input, and matrix evaluations",
+        "V derives NumiSeal language and padding Ext2 weights",
+        "V derives one Ext2 sum-check challenge per lane proof variable",
+        "V verifies lane aggregation, scalarized residual opening, sum-check, and terminal NumiSeal relation"
+      ],
+      "challengeCountFormula": "n_numiseal_terminal = sum_aggregates(obligationCount + aggregateCommitmentCount + decompositionCommitmentCount + publicInputCount + matrixEvaluationCount + 2 + variableCount)",
+      "moveCountFormula": "moves_numiseal_terminal = 2*n_numiseal_terminal + 1",
+      "instantiatedUpperBoundN": null,
+      "upperBoundJustification": "requires hosted product policy maxima for lane count, aggregate count, obligation count, and proof byte count before a numeric theorem claim",
+      "queryBoundQH": "2^64",
+      "numericLossExpression": "epsilon_fs_numiseal_terminal <= ((2*2^64 + n_numiseal_terminal + 1)^(2*n_numiseal_terminal) / n_numiseal_terminal!) * epsilon_interactive_numiseal_terminal + n_numiseal_terminal! / 2^256 + epsilon_precondition_numiseal_terminal",
+      "numericLossInstantiated": false,
+      "openInputs": [
+        "numeric upper bound for n_numiseal_terminal under product policy",
+        "epsilon_interactive_numiseal_terminal",
+        "sum-check, scalarization, lane aggregation, and residual-opening uniformity proofs"
+      ],
+      "productionQROMClaimAllowed": false
+    },
+    {
+      "proofKind": "numiseal-zk-product",
+      "envelopeKind": 5,
+      "sourceReferences": [
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift:797",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift:1141",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift:921"
+      ],
+      "interactiveProtocol": [
+        "Run the NumiSeal terminal public-coin protocol as the base proof",
+        "P binds randomness session digest, mask statements, masked residual statements, and component digest root",
+        "V derives three masked-residual accumulation field challenges per lane proof",
+        "V verifies randomness-session binding, mask tensor commitments, masked residual equation, and base proof acceptance"
+      ],
+      "challengeCountFormula": "n_numiseal_zk_product = n_numiseal_terminal + 3*laneProofCount",
+      "moveCountFormula": "moves_numiseal_zk_product = 2*n_numiseal_zk_product + 1",
+      "instantiatedUpperBoundN": null,
+      "upperBoundJustification": "requires numeric n_numiseal_terminal and laneProofCount policy maxima before selected-depth theorem promotion",
+      "queryBoundQH": "2^64",
+      "numericLossExpression": "epsilon_fs_numiseal_zk <= ((2*2^64 + n_numiseal_zk_product + 1)^(2*n_numiseal_zk_product) / n_numiseal_zk_product!) * epsilon_interactive_numiseal_zk + n_numiseal_zk_product! / 2^256 + epsilon_precondition_numiseal_zk",
+      "numericLossInstantiated": false,
+      "openInputs": [
+        "numeric upper bound for n_numiseal_zk_product under product policy",
+        "epsilon_interactive_numiseal_zk",
+        "ZK simulator composition and masked-residual challenge uniformity proof"
+      ],
+      "productionQROMClaimAllowed": false
+    }
+  ],
+  "transcriptOracleEncodingProof": {
+    "encoding": "append-only 64-bit little-endian length-delimited transcript frames",
+    "domainSeparation": "domain separator, proof kind, schedule id, context/session digests, statement digests, verifier key digest, and artifact/proof-envelope digests are public inputs to the transcript",
+    "injectivityProofStatus": "pinned-definition-proof-open",
+    "witnessIndependentLabelsPinned": true,
+    "failurePathScheduleIndependent": true,
+    "productionEncodingClaimAllowed": false
+  },
+  "qromQueryAndLossInstantiation": {
+    "queryBoundQH": "2^64",
+    "queryBoundLog2": 64,
+    "queryBoundInstantiated": true,
+    "queryBoundScope": "candidate adversarial quantum random-oracle query cap for concrete selected-depth accounting; not a throughput benchmark and not a production theorem by itself",
+    "challengeRangeBits": 256,
+    "dfm20SelectedDepthExpression": "epsilon_fs_transform(depth=1) <= max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
+    "recursivePromotionExpression": "epsilon_fs_transform(depth=d) <= d * max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
+    "foldTerminalCompressedNumericNInstantiated": true,
+    "numiSealNumericNInstantiated": false,
+    "allInteractiveSecurityBoundsInstantiated": false,
+    "allNumericLossTermsInstantiated": false,
+    "qromLossWithinBudget": false,
+    "productionQROMClaimAllowed": false
+  },
+  "ledgerIntegration": {
+    "qromAccountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "transformPreconditionManifest": "TestVectors/product-qrom-transform-preconditions-v1.json",
+    "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "totalLossBudgetManifest": "TestVectors/product-total-loss-budget-v1.json",
+    "ledgerSymbol": "epsilon_qrom",
+    "sourceSymbols": [
+      "epsilon_fs_transform",
+      "epsilon_qro_queries",
+      "epsilon_proof_kind_malleability"
+    ],
+    "qromLossWithinBudget": false,
+    "totalLossBudgetUpdated": true
+  },
+  "hardClaimBlockers": [
+    "numeric NumiSeal terminal and NumiSealZK challenge-count maxima under hosted product policy",
+    "uniformity proof for Ext2, Phi81 ring, ternary CE, and masked-residual field challenge samplers",
+    "underlying interactive knowledge-soundness or soundness bounds for every accepted proof kind against quantum dishonest provers",
+    "numeric epsilon_interactive_kind bounds for every accepted proof kind",
+    "final epsilon_fs_transform boundLog2 integration into epsilon_qrom and the selected total-loss budget"
+  ],
+  "promotionRule": {
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
+    "requiresNumericNumiSealChallengeBounds": true,
+    "requiresChallengeUniformityProofs": true,
+    "requiresInteractiveSecurityBounds": true,
+    "requiresQROMLossWithinBudget": true,
+    "requiresTotalLossBudgetUpdate": true
+  }
+}

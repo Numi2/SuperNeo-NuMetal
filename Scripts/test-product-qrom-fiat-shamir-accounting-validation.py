@@ -74,6 +74,12 @@ def main() -> None:
         write_json(path, missing_transform_preconditions)
         run_fail(str(VALIDATE), str(path))
 
+        missing_interactive_reduction = copy.deepcopy(accounting)
+        missing_interactive_reduction["relatedManifests"].pop("productQROMInteractiveReduction")
+        path = tmp / "missing-interactive-reduction.json"
+        write_json(path, missing_interactive_reduction)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_schedule_manifest = copy.deepcopy(accounting)
         wrong_schedule_manifest["fiatShamirModel"]["transcriptScheduleManifest"] = "TestVectors/product-qrom-fiat-shamir-accounting-v1.json"
         path = tmp / "wrong-schedule-manifest.json"
@@ -131,7 +137,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(accounting)
-        missing_blocker["hardClaimBlockers"].remove("quantum random-oracle query bound")
+        missing_blocker["hardClaimBlockers"].remove("quantum random-oracle query bound and interactive reduction manifest")
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))
