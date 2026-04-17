@@ -60,8 +60,12 @@ below.
   fixtures.
 
 - [ ] Product recursive carry promotion.
-  Done when typed carry producer/consumer semantics are wired into product
-  replay policy, product vectors, and default product carry modes.
+  Parent-child product carry now uses `typed-required` when a verified recursive
+  parent is supplied, and local product controls bind the depth-1 carry replay
+  roots into SQLite replay identity and audit records while requiring signed
+  parent provenance, prior parent replay acceptance, and single-use local carry
+  replay binding. Done when that checked handoff is extended to the selected
+  production depth with hosted replay policy and loss accounting.
 
 - [ ] `NumiSealZK` production privacy promotion.
   Done when simulator coupling evidence beyond the exact field-mask

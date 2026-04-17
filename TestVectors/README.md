@@ -29,6 +29,11 @@ Machine-readable files:
   NumiSealZK masked residual, typed carry, transcript, artifact/proof-envelope,
   verifier-policy, Module-SIS, Fiat-Shamir/QROM, proof-size, and
   implementation-hardening boundaries while keeping production claims disabled.
+- `product-selected-depth-loss-accounting-v1.json`: checked selected-depth
+  loss accounting contract for the current depth-1 product security boundary.
+  It pins source fold, terminal seal, typed carry, ZK simulator, QROM,
+  extractor, product-ops replay, constant-time, and release-distribution loss
+  terms while keeping production claims disabled.
 - `numiseal-typed-carry-conformance-v1.json`: typed carry positive/negative
   conformance descriptor.
 - `numiseal-zk-masked-residual-conformance-v1.json`: masked residual ZK
@@ -43,6 +48,11 @@ Machine-readable files:
   observation lane reports outside the test-vector directory.
 - `e2e-proof-metrics-v1.json`: checked proof-envelope byte counts, artifact
   byte counts, generated product-smoke budgets, and benchmark-evidence policy.
+- `benchmark-coverage-v1.json`: checked whole-stack benchmark coverage contract
+  for source fold, verifier, stage, CPU kernel, Metal kernel, NumiSeal product,
+  typed recursive carry, and product-control rows. It proves row registration,
+  report rendering, baseline comparison, and gate wiring, not fresh hardware
+  timing performance.
 
 Validate the checked-in vectors with:
 
@@ -55,10 +65,14 @@ Scripts/validate-numiseal-zk-mask-distribution-evidence.py
 Scripts/test-numiseal-zk-mask-distribution-evidence-validation.py
 Scripts/validate-product-crypto-security-dossier.py
 Scripts/test-product-crypto-security-dossier-validation.py
+Scripts/validate-product-selected-depth-loss-accounting.py
+Scripts/test-product-selected-depth-loss-accounting-validation.py
 Scripts/validate-constant-time-scope.py
 Scripts/validate-constant-time-lowering-evidence.py
 Scripts/generate-constant-time-release-evidence.py --skip-build
 Scripts/validate-e2e-proof-metrics.py
+Scripts/validate-benchmark-coverage.py
+Scripts/test-benchmark-coverage-validation.py
 ```
 
 ## Vectors

@@ -162,6 +162,8 @@ func benchmarkClass(_ benchmark: String) -> BenchmarkClass {
         || benchmark.hasPrefix("proofEnvelope/")
         || benchmark.hasPrefix("ceOpeningProof/")
         || benchmark.hasPrefix("compressedEnvelope/")
+        || benchmark.hasPrefix("numisealProduct/")
+        || benchmark.hasPrefix("productControls/")
         || benchmark.hasPrefix("stage/") {
         return .protocolPath
     }

@@ -772,12 +772,22 @@ public final class SuperNeoSQLiteReplayLedger: SuperNeoReplayLedger {
               proof_envelope_digest TEXT NOT NULL,
               artifact_digest TEXT NOT NULL,
               provenance_digest TEXT NOT NULL,
+              recursive_carry_replay_binding_digest TEXT NOT NULL,
               accepted_at_utc TEXT NOT NULL,
-              UNIQUE(expected_context_id, statement_digest, proof_envelope_digest, artifact_digest, provenance_digest)
+              UNIQUE(expected_context_id, statement_digest, proof_envelope_digest, artifact_digest, provenance_digest, recursive_carry_replay_binding_digest)
             );
             """
         )
+        try execute(
+            on: handle,
+            sql: """
+            CREATE UNIQUE INDEX IF NOT EXISTS accepted_recursive_carry_replay_bindings
+            ON accepted_replays(recursive_carry_replay_binding_digest)
+            WHERE recursive_carry_replay_binding_digest <> 'none';
+            """
+        )
         try execute(on: handle, sql: "PRAGMA journal_mode = DELETE")
+        try requireAcceptedReplaySchema(on: handle)
     }
 
     public func hasAccepted(_ identity: SuperNeoProductProofIdentity) throws -> Bool {
@@ -800,8 +810,9 @@ public final class SuperNeoSQLiteReplayLedger: SuperNeoReplayLedger {
               proof_envelope_digest,
               artifact_digest,
               provenance_digest,
+              recursive_carry_replay_binding_digest,
               accepted_at_utc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """
             var statement: OpaquePointer?
             try prepare(sql, statement: &statement)
@@ -812,7 +823,8 @@ public final class SuperNeoSQLiteReplayLedger: SuperNeoReplayLedger {
             sqlite3_bind_text(statement, 4, identity.proofEnvelopeDigest.hexString, -1, sqliteTransient)
             sqlite3_bind_text(statement, 5, identity.artifactDigest.hexString, -1, sqliteTransient)
             sqlite3_bind_text(statement, 6, identity.provenanceDigest.hexString, -1, sqliteTransient)
-            sqlite3_bind_text(statement, 7, SuperNeoProductTime.nowUTCString(), -1, sqliteTransient)
+            sqlite3_bind_text(statement, 7, identity.recursiveCarryReplayBindingDigestColumn, -1, sqliteTransient)
+            sqlite3_bind_text(statement, 8, SuperNeoProductTime.nowUTCString(), -1, sqliteTransient)
             let step = sqlite3_step(statement)
             guard step == SQLITE_DONE else {
                 if step == SQLITE_CONSTRAINT {
@@ -846,6 +858,10 @@ public final class SuperNeoSQLiteReplayLedger: SuperNeoReplayLedger {
         guard sqlite3_step(statement) == SQLITE_ROW else {
             throw SuperNeoProductIntegrationError.invalidRequest("replay database schema is missing")
         }
+        guard let database else {
+            throw SuperNeoProductIntegrationError.invalidRequest("replay database is closed")
+        }
+        try Self.requireAcceptedReplaySchema(on: database)
     }
 
     private func prepare(_ sql: String, statement: inout OpaquePointer?) throws {
@@ -871,6 +887,55 @@ public final class SuperNeoSQLiteReplayLedger: SuperNeoReplayLedger {
         }
     }
 
+    private static func requireAcceptedReplaySchema(on database: OpaquePointer) throws {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "PRAGMA table_info(accepted_replays)", -1, &statement, nil) == SQLITE_OK else {
+            let detail = String(cString: sqlite3_errmsg(database))
+            throw SuperNeoProductIntegrationError.invalidRequest("could not inspect replay database schema: \(detail)")
+        }
+        defer { sqlite3_finalize(statement) }
+        var columns = Set<String>()
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let name = sqlite3_column_text(statement, 1) else {
+                continue
+            }
+            let columnName = String(cString: UnsafeRawPointer(name).assumingMemoryBound(to: CChar.self))
+            columns.insert(columnName)
+        }
+        let requiredColumns: Set<String> = [
+            "identity_digest",
+            "expected_context_id",
+            "statement_digest",
+            "proof_envelope_digest",
+            "artifact_digest",
+            "provenance_digest",
+            "recursive_carry_replay_binding_digest",
+            "accepted_at_utc"
+        ]
+        guard requiredColumns.isSubset(of: columns) else {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "replay database schema is missing recursive carry replay columns; reinitialize product storage"
+            )
+        }
+        var indexStatement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'accepted_recursive_carry_replay_bindings'",
+            -1,
+            &indexStatement,
+            nil
+        ) == SQLITE_OK else {
+            let detail = String(cString: sqlite3_errmsg(database))
+            throw SuperNeoProductIntegrationError.invalidRequest("could not inspect replay database indexes: \(detail)")
+        }
+        defer { sqlite3_finalize(indexStatement) }
+        guard sqlite3_step(indexStatement) == SQLITE_ROW else {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "replay database schema is missing recursive carry replay uniqueness index; reinitialize product storage"
+            )
+        }
+    }
+
     private func sqliteError(_ message: String) -> SuperNeoProductIntegrationError {
         let detail = database.map { String(cString: sqlite3_errmsg($0)) } ?? "unknown SQLite error"
         return SuperNeoProductIntegrationError.invalidRequest("\(message): \(detail)")
@@ -887,6 +952,17 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
     public let revocationFeedDigestHex: String?
     public let sideChannelCertificateDigestHex: String?
     public let proofKind: String?
+    public let carryMode: String?
+    public let recursiveCarryReplayBindingDigestHex: String?
+    public let recursiveCarryContextRootHex: String?
+    public let recursiveCarryReplayRootHex: String?
+    public let recursiveCarryParentArtifactDigestHex: String?
+    public let recursiveCarryParentProofEnvelopeDigestHex: String?
+    public let recursiveCarryParentProvenanceDigestHex: String?
+    public let recursiveCarryParentAcceptedReplayDigestHex: String?
+    public let recursiveCarryConsumerSessionDigestHex: String?
+    public let recursiveCarryNextRecursionLevel: Int?
+    public let recursiveCarryClaimCount: Int?
     public let contextID: String
     public let statementDigestHex: String?
     public let toolVersion: String
@@ -902,6 +978,17 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
         revocationFeedDigestHex: String? = nil,
         sideChannelCertificateDigestHex: String? = nil,
         proofKind: String? = nil,
+        carryMode: String? = nil,
+        recursiveCarryReplayBindingDigestHex: String? = nil,
+        recursiveCarryContextRootHex: String? = nil,
+        recursiveCarryReplayRootHex: String? = nil,
+        recursiveCarryParentArtifactDigestHex: String? = nil,
+        recursiveCarryParentProofEnvelopeDigestHex: String? = nil,
+        recursiveCarryParentProvenanceDigestHex: String? = nil,
+        recursiveCarryParentAcceptedReplayDigestHex: String? = nil,
+        recursiveCarryConsumerSessionDigestHex: String? = nil,
+        recursiveCarryNextRecursionLevel: Int? = nil,
+        recursiveCarryClaimCount: Int? = nil,
         contextID: String,
         statementDigestHex: String? = nil,
         toolVersion: String,
@@ -916,6 +1003,17 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
         self.revocationFeedDigestHex = revocationFeedDigestHex
         self.sideChannelCertificateDigestHex = sideChannelCertificateDigestHex
         self.proofKind = proofKind
+        self.carryMode = carryMode
+        self.recursiveCarryReplayBindingDigestHex = recursiveCarryReplayBindingDigestHex
+        self.recursiveCarryContextRootHex = recursiveCarryContextRootHex
+        self.recursiveCarryReplayRootHex = recursiveCarryReplayRootHex
+        self.recursiveCarryParentArtifactDigestHex = recursiveCarryParentArtifactDigestHex
+        self.recursiveCarryParentProofEnvelopeDigestHex = recursiveCarryParentProofEnvelopeDigestHex
+        self.recursiveCarryParentProvenanceDigestHex = recursiveCarryParentProvenanceDigestHex
+        self.recursiveCarryParentAcceptedReplayDigestHex = recursiveCarryParentAcceptedReplayDigestHex
+        self.recursiveCarryConsumerSessionDigestHex = recursiveCarryConsumerSessionDigestHex
+        self.recursiveCarryNextRecursionLevel = recursiveCarryNextRecursionLevel
+        self.recursiveCarryClaimCount = recursiveCarryClaimCount
         self.contextID = contextID
         self.statementDigestHex = statementDigestHex
         self.toolVersion = toolVersion
@@ -1724,12 +1822,23 @@ public extension SuperNeoArtifactProvenancePayload {
 public extension SuperNeoProductProofIdentity {
     var localReplayDigest: Digest256 {
         var bytes: [UInt8] = []
+        appendLengthPrefixedString("superneo.product-proof-identity.v2", to: &bytes)
         appendLengthPrefixedString(expectedContextID, to: &bytes)
         bytes += statementDigest.bytes
         bytes += proofEnvelopeDigest.bytes
         bytes += artifactDigest.bytes
         bytes += provenanceDigest.bytes
+        if let recursiveCarryReplayBindingDigest {
+            bytes.append(1)
+            bytes += recursiveCarryReplayBindingDigest.bytes
+        } else {
+            bytes.append(0)
+        }
         return Digest256.hash(bytes)
+    }
+
+    var recursiveCarryReplayBindingDigestColumn: String {
+        recursiveCarryReplayBindingDigest?.hexString ?? "none"
     }
 }
 

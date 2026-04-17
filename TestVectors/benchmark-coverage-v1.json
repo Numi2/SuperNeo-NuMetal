@@ -1,0 +1,119 @@
+{
+  "benchmarkCommand": "Scripts/run-benchmarks.sh quick",
+  "claimStatus": "coverage-contract-not-hardware-performance-claim",
+  "coverageBoundaries": [
+    "This manifest proves that benchmark rows are registered, rendered, compared, and gated; it is not a fresh hardware timing report.",
+    "Rows whose activation depends on Metal availability are required in source and report rendering, while fresh latency claims still require a named hardware-class run.",
+    "CE proof and compressed-envelope rows remain opt-in through SUPERNEO_BENCHMARK_CE because they are deliberately heavy.",
+    "Competitor timing tables remain outside this manifest and must use the same hardware, profile, and threat model before production performance claims are allowed."
+  ],
+  "requiredArtifacts": [
+    "benchmark-results/results.json",
+    "benchmark-results/metadata.json",
+    "benchmark-results/report.md"
+  ],
+  "requiredSurfaces": [
+    {
+      "comparedByBaseline": true,
+      "id": "fold-prover",
+      "renderedByReport": true,
+      "requiredRows": [
+        "fold/cpu/",
+        "fold/prepared/cpu/"
+      ],
+      "surface": "source fold prover"
+    },
+    {
+      "comparedByBaseline": true,
+      "id": "fold-verifier",
+      "renderedByReport": true,
+      "requiredRows": [
+        "reduceFold/cpu/",
+        "terminalVerify/cpu/",
+        "proofEnvelope/roundTrip/"
+      ],
+      "surface": "source fold verifier and proof envelope"
+    },
+    {
+      "comparedByBaseline": true,
+      "id": "fold-stages",
+      "renderedByReport": true,
+      "requiredRows": [
+        "stage/sumcheck/",
+        "stage/prepared/sumcheck/",
+        "stage/piCCSClaims/",
+        "stage/prepared/piCCSClaims/",
+        "stage/piRLC/",
+        "stage/piDEC/"
+      ],
+      "surface": "sumcheck, PiCCS, PiRLC, and PiDEC stages"
+    },
+    {
+      "comparedByBaseline": true,
+      "id": "cpu-kernels",
+      "renderedByReport": true,
+      "requiredRows": [
+        "kernel/fieldMultiply/",
+        "kernel/ringMultiply/",
+        "kernel/ringScalarMultiply/cpu/",
+        "kernel/ajtaiCommit/cpu/",
+        "kernel/ajtaiCommit/batch/cpu/",
+        "kernel/transformedEvaluation/cpu/",
+        "kernel/transformedEvaluation/cpuSparse/"
+      ],
+      "surface": "CPU arithmetic, commitment, and transformed-evaluation kernels"
+    },
+    {
+      "comparedByBaseline": true,
+      "id": "metal-kernels",
+      "renderedByReport": true,
+      "requiredRows": [
+        "fold/metal/",
+        "fold/prepared/metal/",
+        "kernel/fieldMultiply/metal/",
+        "kernel/ringMultiply/metal/",
+        "kernel/ringScalarMultiply/metal/",
+        "kernel/ajtaiCommit/metal/",
+        "kernel/ajtaiCommit/batchWorkspace/metal/",
+        "kernel/transformedEvaluation/metalSparse/",
+        "kernel/combinedCommitEval/batchWorkspace/metal/"
+      ],
+      "surface": "Metal fold and kernel acceleration rows"
+    },
+    {
+      "comparedByBaseline": true,
+      "id": "numiseal-product",
+      "renderedByReport": true,
+      "requiredRows": [
+        "numisealProduct/prove/cpu/",
+        "numisealProduct/verify/cpu/"
+      ],
+      "surface": "NumiSeal product terminal and ZK prove/verify"
+    },
+    {
+      "comparedByBaseline": true,
+      "id": "recursive-carry",
+      "renderedByReport": true,
+      "requiredRows": [
+        "numisealProduct/recursiveCarry/prove/cpu/",
+        "numisealProduct/recursiveCarry/verify/cpu/"
+      ],
+      "surface": "typed recursive carry child prove/verify"
+    },
+    {
+      "comparedByBaseline": true,
+      "id": "product-controls",
+      "renderedByReport": true,
+      "requiredRows": [
+        "productControls/replayIdentity/cpu/",
+        "productControls/auditEventEncode/cpu/"
+      ],
+      "surface": "product replay identity and audit encoding"
+    }
+  ],
+  "schemaVersion": 1,
+  "scopeID": "superneo-whole-stack-benchmark-coverage-v1",
+  "trackedBenchmarkSource": "Benchmarks/SuperNeoBenchmarks/SuperNeoBenchmarks.swift",
+  "trackedComparator": "Scripts/compare-benchmark-results.swift",
+  "trackedReportRenderer": "Scripts/render-benchmark-report.swift"
+}

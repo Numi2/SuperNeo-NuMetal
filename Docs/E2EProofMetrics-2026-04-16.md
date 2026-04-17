@@ -3,6 +3,8 @@
 This document records the checked proof-size and product-smoke budget surface.
 It is deliberately separate from proof bytes: metrics and release evidence do
 not change verifier semantics or proof size.
+Whole-stack benchmark row coverage is tracked separately in
+`TestVectors/benchmark-coverage-v1.json`.
 
 ## Machine-Checked Surface
 
@@ -50,4 +52,5 @@ The metrics manifest is a deterministic serialization and budget gate. It does
 not claim universal latency, because latency depends on toolchain, build mode,
 hardware, thermal state, and Metal availability. Production performance claims
 must attach a fresh report from `Scripts/run-benchmarks.sh quick` for the named
-hardware class.
+hardware class, with the required row families still covered by
+`TestVectors/benchmark-coverage-v1.json`.

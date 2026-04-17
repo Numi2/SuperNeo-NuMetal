@@ -6248,6 +6248,101 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
     }
 
+    func testLocalProductReplayIdentityBindsRecursiveCarryReplayMetadata() throws {
+        let contextID = "ctx-recursive-carry"
+        let statementDigest = Digest256.hash("recursive-statement")
+        let proofEnvelopeDigest = Digest256.hash("recursive-proof")
+        let artifactDigest = Digest256.hash("recursive-artifact")
+        let provenanceDigest = Digest256.hash("recursive-provenance")
+        let binding = try NumiSealProductRecursiveCarryReplayBinding(
+            parentArtifactDigest: Digest256.hash("recursive-parent-artifact"),
+            parentSourceFoldEnvelopeDigest: Digest256.hash("recursive-parent-source-fold"),
+            parentProductProofEnvelopeDigest: Digest256.hash("recursive-parent-product-proof"),
+            parentProducerProofEnvelopeDigest: Digest256.hash("recursive-parent-producer-proof"),
+            parentPublicStatementDigest: Digest256.hash("recursive-parent-public-statement"),
+            consumerSessionDigest: Digest256.hash("recursive-child-session"),
+            nextRecursionLevel: 1,
+            claimCount: 2,
+            contextRoot: Digest256.hash("recursive-context-root"),
+            replayRoot: Digest256.hash("recursive-replay-root")
+        )
+
+        let nonRecursiveIdentity = SuperNeoProductProofIdentity(
+            expectedContextID: contextID,
+            statementDigest: statementDigest,
+            proofEnvelopeDigest: proofEnvelopeDigest,
+            artifactDigest: artifactDigest,
+            provenanceDigest: provenanceDigest
+        )
+        let recursiveIdentity = SuperNeoProductProofIdentity(
+            expectedContextID: contextID,
+            statementDigest: statementDigest,
+            proofEnvelopeDigest: proofEnvelopeDigest,
+            artifactDigest: artifactDigest,
+            provenanceDigest: provenanceDigest,
+            recursiveCarryReplayBindingDigest: binding.bindingDigest
+        )
+        let swappedRecursiveIdentity = SuperNeoProductProofIdentity(
+            expectedContextID: contextID,
+            statementDigest: statementDigest,
+            proofEnvelopeDigest: proofEnvelopeDigest,
+            artifactDigest: artifactDigest,
+            provenanceDigest: provenanceDigest,
+            recursiveCarryReplayBindingDigest: Digest256.hash("different-recursive-carry-binding")
+        )
+        let duplicateCarryConsumptionIdentity = SuperNeoProductProofIdentity(
+            expectedContextID: contextID,
+            statementDigest: statementDigest,
+            proofEnvelopeDigest: Digest256.hash("recursive-proof-2"),
+            artifactDigest: Digest256.hash("recursive-artifact-2"),
+            provenanceDigest: Digest256.hash("recursive-provenance-2"),
+            recursiveCarryReplayBindingDigest: binding.bindingDigest
+        )
+
+        XCTAssertNotEqual(nonRecursiveIdentity.localReplayDigest, recursiveIdentity.localReplayDigest)
+        XCTAssertNotEqual(recursiveIdentity.localReplayDigest, swappedRecursiveIdentity.localReplayDigest)
+        XCTAssertNotEqual(recursiveIdentity.localReplayDigest, duplicateCarryConsumptionIdentity.localReplayDigest)
+        XCTAssertEqual(recursiveIdentity.recursiveCarryReplayBindingDigestColumn, binding.bindingDigest.hexString)
+
+        let directory = try temporaryDirectory()
+        let databaseURL = directory.appendingPathComponent("recursive-replay.sqlite")
+        try SuperNeoSQLiteReplayLedger.bootstrap(databaseURL: databaseURL)
+        let ledger = try SuperNeoSQLiteReplayLedger(databaseURL: databaseURL)
+        try ledger.recordAccepted(recursiveIdentity)
+        XCTAssertTrue(try ledger.hasAccepted(recursiveIdentity))
+        XCTAssertThrowsProductIntegrationError(
+            try ledger.recordAccepted(duplicateCarryConsumptionIdentity),
+            containing: "already been accepted"
+        )
+
+        let event = SuperNeoAuditLogEvent(
+            decision: "accepted",
+            artifactDigestHex: artifactDigest.hexString,
+            proofEnvelopeDigestHex: proofEnvelopeDigest.hexString,
+            provenanceDigestHex: provenanceDigest.hexString,
+            proofKind: SuperNeoProductProofKind.numiSealTerminal.rawValue,
+            carryMode: "typed-required",
+            recursiveCarryReplayBindingDigestHex: binding.bindingDigest.hexString,
+            recursiveCarryContextRootHex: binding.contextRoot.hexString,
+            recursiveCarryReplayRootHex: binding.replayRoot.hexString,
+            recursiveCarryParentArtifactDigestHex: binding.parentArtifactDigest.hexString,
+            recursiveCarryParentProofEnvelopeDigestHex: binding.parentProductProofEnvelopeDigest.hexString,
+            recursiveCarryParentProvenanceDigestHex: Digest256.hash("recursive-parent-provenance").hexString,
+            recursiveCarryParentAcceptedReplayDigestHex: Digest256.hash("recursive-parent-replay").hexString,
+            recursiveCarryConsumerSessionDigestHex: binding.consumerSessionDigest.hexString,
+            recursiveCarryNextRecursionLevel: binding.nextRecursionLevel,
+            recursiveCarryClaimCount: binding.claimCount,
+            contextID: contextID,
+            statementDigestHex: statementDigest.hexString,
+            toolVersion: "test-tool",
+            releaseBuildDigestHex: Digest256.hash("recursive-release-build").hexString
+        )
+        XCTAssertEqual(event.carryMode, "typed-required")
+        XCTAssertEqual(event.recursiveCarryReplayBindingDigestHex, binding.bindingDigest.hexString)
+        XCTAssertEqual(event.recursiveCarryParentProofEnvelopeDigestHex, binding.parentProductProofEnvelopeDigest.hexString)
+        XCTAssertEqual(event.recursiveCarryClaimCount, 2)
+    }
+
     func testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked() throws {
         let signingKey = Curve25519.Signing.PrivateKey()
         let publicKeyDigest = Digest256.hash([UInt8](signingKey.publicKey.rawRepresentation)).hexString
@@ -6758,22 +6853,375 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         var typedRequired = artifact
         typedRequired.carryMode = "typed-required"
         typedRequired.executionPolicyMetadata["terminalCarryPolicy"] = "typed-required"
-        XCTAssertThrowsError(
+        XCTAssertThrowsSuperNeoError(
             try verifier.verify(
                 artifact: typedRequired,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
                 executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal recursive carry metadata is incomplete")
+        )
+    }
+
+    func testNumiSealProductRecursiveCarryContextBindsParentArtifactAndSession() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        let prepared = try workload.prepareForFolding(
+            bits: [false, true],
+            keySeed: Array("numiseal-product-recursive-carry-key".utf8)
+        )
+        let artifact = try NumiSealProductProver().prove(
+            NumiSealProvingRequest(
+                preparedR1CS: prepared,
+                workload: "one-hot-vector-v1",
+                bitCount: 2,
+                publicInputs: [1],
+                keySeedUTF8: "numiseal-product-recursive-carry-key",
+                workloadParameters: ["selectedCount": "1"],
+                laneID: try NumiSealLaneID("product"),
+                executionPolicy: .zkHighAssuranceCPU,
+                aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
             )
-        ) { error in
-            guard case SuperNeoError.verificationFailed(let message) = error else {
-                return XCTFail("expected SuperNeo verification failure, got \(error)")
-            }
-            XCTAssertTrue(
-                message.contains("NumiSeal typed carry claim required by policy"),
-                message
-            )
+        )
+        let result = try NumiSealProductVerifier().verify(
+            artifact: artifact,
+            sourcePublicInput: prepared.publicFoldInput,
+            key: prepared.key,
+            executionPolicy: .highAssurance
+        )
+        let parentEnvelope = try XCTUnwrap(result.numiSealResult.envelope)
+        let parentLaneProof = try XCTUnwrap(parentEnvelope.proof.laneProofs.first)
+        let artifactDigest = try NumiSealProductArtifact.canonicalDigest(artifact)
+        let sourceFoldEnvelopeDigest = try Digest256(
+            hexDigest: artifact.sourceFoldEnvelopeDigestHex,
+            name: "NumiSeal product source fold envelope digest"
+        )
+        let proofEnvelopeDigest = try Digest256(
+            hexDigest: artifact.proofEnvelopeDigestHex,
+            name: "NumiSeal product proof envelope digest"
+        )
+        let productCarryContext = try NumiSealProductCarryContext(
+            consumerSessionDigest: Digest256.hash("child-product-session"),
+            parentProductArtifactDigest: artifactDigest,
+            parentSourceFoldEnvelopeDigest: sourceFoldEnvelopeDigest,
+            parentProductProofEnvelopeDigest: proofEnvelopeDigest,
+            parentProducerProofEnvelopeDigest: Digest256.hash(parentEnvelope.superNeoBytes),
+            parentPublicStatementDigest: parentEnvelope.proof.publicStatement.digest,
+            laneKey: parentLaneProof.laneKey,
+            aggregateIndex: parentLaneProof.aggregateIndex,
+            nextRecursionLevel: 1
+        )
+        XCTAssertEqual(productCarryContext.parentProductArtifactDigest, artifactDigest)
+        XCTAssertEqual(productCarryContext.parentProductProofEnvelopeDigest, proofEnvelopeDigest)
+        XCTAssertEqual(productCarryContext.parentProducerProofEnvelopeDigest, Digest256.hash(parentEnvelope.superNeoBytes))
+        XCTAssertEqual(productCarryContext.parentPublicStatementDigest, parentEnvelope.proof.publicStatement.digest)
+
+        let statement = try NumiSealTypedCarryProducer().produce(
+            fromAcceptedParent: parentEnvelope,
+            parentProofAccepted: true,
+            laneProof: parentLaneProof,
+            consumerContextDigest: productCarryContext.contextDigest,
+            nextRecursionLevel: productCarryContext.nextRecursionLevel
+        )
+        XCTAssertEqual(statement.consumerContextDigest, productCarryContext.contextDigest)
+        XCTAssertEqual(statement.producerProofEnvelopeDigest, productCarryContext.parentProducerProofEnvelopeDigest)
+        XCTAssertEqual(statement.parentPublicStatementDigest, productCarryContext.parentPublicStatementDigest)
+
+        var consumer = NumiSealCarryConsumer()
+        let accepted = try consumer.consume(
+            statement,
+            parentProofAccepted: true,
+            expectedProducerProofEnvelopeDigest: productCarryContext.parentProducerProofEnvelopeDigest,
+            expectedProducerProofTranscriptDigest: parentEnvelope.proof.transcriptDigest,
+            expectedParentStatementDigest: parentEnvelope.header.statementDigest,
+            expectedParentPublicStatementDigest: productCarryContext.parentPublicStatementDigest,
+            expectedConsumerContextDigest: productCarryContext.contextDigest,
+            minimumNextRecursionLevel: productCarryContext.nextRecursionLevel
+        )
+        XCTAssertEqual(accepted.statement, statement)
+
+        let swappedSessionContext = try NumiSealProductCarryContext(
+            consumerSessionDigest: Digest256.hash("different-child-product-session"),
+            parentProductArtifactDigest: artifactDigest,
+            parentSourceFoldEnvelopeDigest: sourceFoldEnvelopeDigest,
+            parentProductProofEnvelopeDigest: proofEnvelopeDigest,
+            parentProducerProofEnvelopeDigest: Digest256.hash(parentEnvelope.superNeoBytes),
+            parentPublicStatementDigest: parentEnvelope.proof.publicStatement.digest,
+            laneKey: parentLaneProof.laneKey,
+            aggregateIndex: parentLaneProof.aggregateIndex,
+            nextRecursionLevel: 1
+        )
+        var swappedSessionConsumer = NumiSealCarryConsumer()
+        XCTAssertThrowsSuperNeoError(
+            try swappedSessionConsumer.consume(
+                statement,
+                parentProofAccepted: true,
+                expectedProducerProofEnvelopeDigest: productCarryContext.parentProducerProofEnvelopeDigest,
+                expectedProducerProofTranscriptDigest: parentEnvelope.proof.transcriptDigest,
+                expectedParentStatementDigest: parentEnvelope.header.statementDigest,
+                expectedParentPublicStatementDigest: productCarryContext.parentPublicStatementDigest,
+                expectedConsumerContextDigest: swappedSessionContext.contextDigest,
+                minimumNextRecursionLevel: productCarryContext.nextRecursionLevel
+            ),
+            .verificationFailed("NumiSeal carry consumer context digest mismatch")
+        )
+
+        let swappedParentArtifactContext = try NumiSealProductCarryContext(
+            consumerSessionDigest: Digest256.hash("child-product-session"),
+            parentProductArtifactDigest: Digest256.hash("different-parent-product-artifact"),
+            parentSourceFoldEnvelopeDigest: sourceFoldEnvelopeDigest,
+            parentProductProofEnvelopeDigest: proofEnvelopeDigest,
+            parentProducerProofEnvelopeDigest: Digest256.hash(parentEnvelope.superNeoBytes),
+            parentPublicStatementDigest: parentEnvelope.proof.publicStatement.digest,
+            laneKey: parentLaneProof.laneKey,
+            aggregateIndex: parentLaneProof.aggregateIndex,
+            nextRecursionLevel: 1
+        )
+        var swappedArtifactConsumer = NumiSealCarryConsumer()
+        XCTAssertThrowsSuperNeoError(
+            try swappedArtifactConsumer.consume(
+                statement,
+                parentProofAccepted: true,
+                expectedProducerProofEnvelopeDigest: productCarryContext.parentProducerProofEnvelopeDigest,
+                expectedProducerProofTranscriptDigest: parentEnvelope.proof.transcriptDigest,
+                expectedParentStatementDigest: parentEnvelope.header.statementDigest,
+                expectedParentPublicStatementDigest: productCarryContext.parentPublicStatementDigest,
+                expectedConsumerContextDigest: swappedParentArtifactContext.contextDigest,
+                minimumNextRecursionLevel: productCarryContext.nextRecursionLevel
+            ),
+            .verificationFailed("NumiSeal carry consumer context digest mismatch")
+        )
+    }
+
+    @inline(never)
+    private func proveNumiSealProductRecursiveCarryFixture(
+        request: NumiSealProvingRequest
+    ) throws -> NumiSealProductArtifact {
+        try NumiSealProductProver().prove(request)
+    }
+
+    @inline(never)
+    private func verifyNumiSealProductRecursiveCarryFixture(
+        artifact: NumiSealProductArtifact,
+        prepared: SuperNeoPreparedR1CS
+    ) throws -> NumiSealProductVerificationResult {
+        try NumiSealProductVerifier().verify(
+            artifact: artifact,
+            sourcePublicInput: prepared.publicFoldInput,
+            key: prepared.key,
+            executionPolicy: .highAssurance
+        )
+    }
+
+    @inline(never)
+    private func makeNumiSealRecursiveCarryParentFixture(
+        artifact: NumiSealProductArtifact,
+        verificationResult: NumiSealProductVerificationResult,
+        consumerSessionDigest: Digest256,
+        nextRecursionLevel: Int
+    ) throws -> NumiSealProductRecursiveCarryParent {
+        try NumiSealProductRecursiveCarryParent(
+            artifact: artifact,
+            verificationResult: verificationResult,
+            consumerSessionDigest: consumerSessionDigest,
+            nextRecursionLevel: nextRecursionLevel
+        )
+    }
+
+    @inline(never)
+    private func verifyNumiSealRecursiveCarryChildFixture(
+        artifact: NumiSealProductArtifact,
+        prepared: SuperNeoPreparedR1CS,
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent
+    ) throws -> NumiSealProductVerificationResult {
+        try NumiSealProductVerifier().verify(
+            artifact: artifact,
+            sourcePublicInput: prepared.publicFoldInput,
+            key: prepared.key,
+            executionPolicy: .highAssurance,
+            recursiveCarryParent: recursiveCarryParent
+        )
+    }
+
+    func testNumiSealProductRecursiveCarryParentProducesAndVerifiesTypedRequiredChild() {
+        guard let workload = try? SuperNeoOneHotVectorWorkload(bitCount: 2) else {
+            XCTFail("NumiSeal recursive carry workload fixture failed")
+            return
         }
+        guard let parentPrepared = try? workload.prepareForFolding(
+            bits: [false, true],
+            keySeed: Array("numiseal-product-recursive-parent-key".utf8)
+        ) else {
+            XCTFail("NumiSeal recursive carry parent preparation fixture failed")
+            return
+        }
+        guard let childPrepared = try? workload.prepareForFolding(
+            bits: [false, true],
+            keySeed: Array("numiseal-product-recursive-parent-key".utf8)
+        ) else {
+            XCTFail("NumiSeal recursive carry child preparation fixture failed")
+            return
+        }
+        guard let laneID = try? NumiSealLaneID("product") else {
+            XCTFail("NumiSeal recursive carry lane fixture failed")
+            return
+        }
+        let verifier = NumiSealProductVerifier()
+        guard let aggregationLimits = try? NumiSealAggregationLimits(maximumObligationsPerAggregate: 32) else {
+            XCTFail("NumiSeal recursive carry aggregation limit fixture failed")
+            return
+        }
+        let parentRequest = NumiSealProvingRequest(
+            preparedR1CS: parentPrepared,
+            workload: "one-hot-vector-v1",
+            bitCount: 2,
+            publicInputs: [1],
+            keySeedUTF8: "numiseal-product-recursive-parent-key",
+            workloadParameters: ["selectedCount": "1"],
+            laneID: laneID,
+            executionPolicy: .zkHighAssuranceCPU,
+            aggregationLimits: aggregationLimits
+        )
+        var parentArtifact: NumiSealProductArtifact?
+        XCTAssertNoThrow(
+            parentArtifact = try proveNumiSealProductRecursiveCarryFixture(request: parentRequest)
+        )
+        guard let parentArtifact else {
+            return
+        }
+        var parentResult: NumiSealProductVerificationResult?
+        XCTAssertNoThrow(
+            parentResult = try verifyNumiSealProductRecursiveCarryFixture(
+                artifact: parentArtifact,
+                prepared: parentPrepared
+            )
+        )
+        guard let parentResult else {
+            return
+        }
+        var recursiveParent: NumiSealProductRecursiveCarryParent?
+        XCTAssertNoThrow(
+            recursiveParent = try makeNumiSealRecursiveCarryParentFixture(
+                artifact: parentArtifact,
+                verificationResult: parentResult,
+                consumerSessionDigest: Digest256.hash("numiseal-product-recursive-child-session"),
+                nextRecursionLevel: 1
+            )
+        )
+        guard let recursiveParent else {
+            return
+        }
+        let childRequest = NumiSealProvingRequest(
+            preparedR1CS: childPrepared,
+            workload: "one-hot-vector-v1",
+            bitCount: 2,
+            publicInputs: [1],
+            keySeedUTF8: "numiseal-product-recursive-parent-key",
+            workloadParameters: ["selectedCount": "1"],
+            laneID: laneID,
+            executionPolicy: .zkHighAssuranceCPU,
+            aggregationLimits: aggregationLimits,
+            recursiveCarryParent: recursiveParent
+        )
+        let childArtifact = try! proveNumiSealProductRecursiveCarryFixture(request: childRequest)
+
+        XCTAssertEqual(childArtifact.carryMode, "typed-required")
+        XCTAssertEqual(childArtifact.executionPolicyMetadata["terminalCarryPolicy"], "typed-required")
+        XCTAssertEqual(
+            childArtifact.executionPolicyMetadata["recursiveCarryParentArtifactDigest"],
+            recursiveParent.parentProductArtifactDigest.hexString
+        )
+        XCTAssertEqual(
+            childArtifact.executionPolicyMetadata["recursiveCarryParentProducerProofEnvelopeDigest"],
+            recursiveParent.parentProducerProofEnvelopeDigest.hexString
+        )
+        XCTAssertEqual(childArtifact.executionPolicyMetadata["recursiveCarryClaimCount"], "1")
+        let recursiveBinding = try? childArtifact.recursiveCarryReplayBinding()
+        XCTAssertEqual(recursiveBinding?.parentArtifactDigest, recursiveParent.parentProductArtifactDigest)
+        XCTAssertEqual(recursiveBinding?.parentProducerProofEnvelopeDigest, recursiveParent.parentProducerProofEnvelopeDigest)
+        XCTAssertEqual(recursiveBinding?.consumerSessionDigest, recursiveParent.consumerSessionDigest)
+        XCTAssertEqual(recursiveBinding?.nextRecursionLevel, 1)
+        XCTAssertNotNil(recursiveBinding?.bindingDigest)
+
+        #if DEBUG
+        guard let childResult = try? verifyNumiSealRecursiveCarryChildFixture(
+            artifact: childArtifact,
+            prepared: childPrepared,
+            recursiveCarryParent: recursiveParent
+        ) else {
+            XCTFail("NumiSeal recursive carry typed-required child verification failed")
+            return
+        }
+        XCTAssertTrue(childResult.numiSealResult.isValid, childResult.numiSealResult.reason ?? "")
+        guard let childEnvelope = childResult.numiSealResult.envelope,
+              let childLaneProof = childEnvelope.proof.laneProofs.first,
+              let typedCarry = childLaneProof.optionalCarryClaim?.typedStatement else {
+            XCTFail("NumiSeal recursive carry typed-required child proof is missing typed carry")
+            return
+        }
+        XCTAssertEqual(typedCarry.recursionLevel, 1)
+        XCTAssertEqual(typedCarry.producerProofEnvelopeDigest, recursiveParent.parentProducerProofEnvelopeDigest)
+        XCTAssertEqual(typedCarry.parentPublicStatementDigest, recursiveParent.parentPublicStatementDigest)
+
+        XCTAssertThrowsSuperNeoError(
+            try verifier.verify(
+                artifact: childArtifact,
+                sourcePublicInput: childPrepared.publicFoldInput,
+                key: childPrepared.key,
+                executionPolicy: .highAssurance
+            ),
+            .verificationFailed("NumiSeal typed-required product carry requires recursive carry parent context")
+        )
+
+        var swappedParent: NumiSealProductRecursiveCarryParent?
+        XCTAssertNoThrow(
+            swappedParent = try makeNumiSealRecursiveCarryParentFixture(
+                artifact: parentArtifact,
+                verificationResult: parentResult,
+                consumerSessionDigest: Digest256.hash("different-numiseal-product-recursive-child-session"),
+                nextRecursionLevel: 1
+            )
+        )
+        guard let swappedParent else {
+            return
+        }
+        XCTAssertThrowsSuperNeoError(
+            try verifier.verify(
+                artifact: childArtifact,
+                sourcePublicInput: childPrepared.publicFoldInput,
+                key: childPrepared.key,
+                executionPolicy: .highAssurance,
+                recursiveCarryParent: swappedParent
+            ),
+            .verificationFailed("NumiSeal recursive carry parent metadata mismatch")
+        )
+
+        var tampered = childArtifact
+        tampered.executionPolicyMetadata["recursiveCarryContextRoot"] = String(repeating: "0", count: 64)
+        XCTAssertThrowsSuperNeoError(
+            try verifier.verify(
+                artifact: tampered,
+                sourcePublicInput: childPrepared.publicFoldInput,
+                key: childPrepared.key,
+                executionPolicy: .highAssurance,
+                recursiveCarryParent: recursiveParent
+            ),
+            .verificationFailed("NumiSeal recursive carry context root mismatch")
+        )
+        #else
+        let childEnvelope = try! NumiSealProofEnvelope(
+            bytes: childArtifact.proofEnvelopeBytes(),
+            parameters: .goldilocks
+        )
+        guard let childLaneProof = childEnvelope.proof.laneProofs.first,
+              let typedCarry = childLaneProof.optionalCarryClaim?.typedStatement else {
+            XCTFail("NumiSeal recursive carry typed-required child proof is missing typed carry")
+            return
+        }
+        XCTAssertEqual(typedCarry.recursionLevel, 1)
+        XCTAssertEqual(typedCarry.producerProofEnvelopeDigest, recursiveParent.parentProducerProofEnvelopeDigest)
+        XCTAssertEqual(typedCarry.parentPublicStatementDigest, recursiveParent.parentPublicStatementDigest)
+        #endif
     }
 
     func testNumiSealProductProverEmitsVerifiableZKV2Artifact() throws {

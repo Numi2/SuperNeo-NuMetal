@@ -56,8 +56,11 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductCompletenessSoundnessZKClaim",
     "ProductCompletenessSoundnessZKHolds",
     "ProductSecurityTheoremEvidence",
+    "ProductSelectedDepthLossLedger",
+    "ProductSelectedDepthLossLedgerAccepted",
     "productSecurityTheorem_from_evidence",
     "productSecurityTheorem_requires_bounded_depth",
+    "productSecurityTheorem_requires_selected_depth_loss_accounting",
     "productSecurityTheorem_requires_qrom_accounting",
     "productSecurityTheorem_requires_artifact_envelope_binding",
 }
@@ -70,6 +73,8 @@ EXPECTED_MANIFESTS = {
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
+    "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
+    "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json",
 }
 
@@ -198,11 +203,32 @@ def validate_depth(dossier: dict[str, Any]) -> None:
     require(depth.get("currentProductDefaultMaximumDepth") == 1, "current product default maximum depth must be 1")
     require(depth.get("theoremMaximumDepth") == 1, "theorem maximum depth must be 1 until losses are instantiated")
     require_false(depth.get("polyDepthTheoremClaimAllowed"), "supportedProductDepth.polyDepthTheoremClaimAllowed")
-    require(depth.get("recursiveCarryProductDefault") == "none", "recursive carry product default must remain none")
+    recursive_default = require_string(depth.get("recursiveCarryProductDefault"), "recursiveCarryProductDefault").lower()
+    require(
+        "base" in recursive_default and "typed-required" in recursive_default,
+        "recursive carry product default must distinguish base and recursive child artifacts",
+    )
     require_false(depth.get("recursiveCarryPromotionAllowed"), "supportedProductDepth.recursiveCarryPromotionAllowed")
     obligations = " ".join(require_string_list(depth.get("remainingForDepthPromotion"), "supportedProductDepth.remainingForDepthPromotion")).lower()
     for needle in ["extractor", "recursive typed carry", "loss", "polynomial-depth"]:
         require(needle in obligations, f"depth-promotion obligations must mention {needle}")
+
+    loss_ledger = read_json(ROOT / str(EXPECTED_MANIFESTS["selectedDepthLossAccounting"]))
+    require(loss_ledger.get("schemaVersion") == 1, "selected-depth loss ledger schemaVersion must be 1")
+    require(
+        loss_ledger.get("claimStatus") == "selected-depth-loss-contract-not-production-claim",
+        "selected-depth loss ledger claimStatus must stay precise",
+    )
+    selected_depth = require_dict(loss_ledger.get("selectedDepth"), "selectedDepthLossAccounting.selectedDepth")
+    require(
+        selected_depth.get("selectedMaximumDepth") == depth.get("theoremMaximumDepth"),
+        "selected-depth loss ledger depth must match the product theorem maximum depth",
+    )
+    total = require_dict(loss_ledger.get("totalLossRule"), "selectedDepthLossAccounting.totalLossRule")
+    require_false(total.get("selectedDepthLossClaimAllowed"), "selectedDepthLossAccounting.selectedDepthLossClaimAllowed")
+    blockers = " ".join(require_string_list(loss_ledger.get("hardClaimBlockers"), "selectedDepthLossAccounting.hardClaimBlockers")).lower()
+    for needle in ["extractor", "qrom", "simulator", "hosted product operations", "release signing", "swift/llvm/metal"]:
+        require(needle in blockers, f"selected-depth loss ledger blockers must mention {needle}")
 
 
 def validate_lattice(dossier: dict[str, Any]) -> None:
@@ -294,13 +320,25 @@ def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
         require_string(carry.get("replaySemantics"), "replaySemantics"),
         require_string(carry.get("malformedCarryNegativeVectors"), "malformedCarryNegativeVectors"),
     ]).lower()
-    for needle in ["carry-mode policy binding", "terminalcarrypolicy", "product carry-policy"]:
+    for needle in [
+        "carry-mode policy binding",
+        "terminalcarrypolicy",
+        "product carry-policy",
+        "prior parent replay acceptance",
+        "single-use",
+    ]:
         require(needle in carry_binding_text, f"carry recursion closure must mention {needle}")
-    require(carry.get("productDefaultCarryMode") == "none", "product default carry mode must remain none")
+    product_default = require_string(carry.get("productDefaultCarryMode"), "productDefaultCarryMode").lower()
+    require("base" in product_default and "typed-required" in product_default, "product default carry mode must describe base and recursive child behavior")
     require_false(carry.get("productionRecursiveCarryClaimAllowed"), "carryRecursionClosure.productionRecursiveCarryClaimAllowed")
     vectors = set(require_string_list(carry.get("conformanceVectors"), "carryRecursionClosure.conformanceVectors"))
     require("TestVectors/numiseal-typed-carry-conformance-v1.json" in vectors, "typed carry conformance vector must be pinned")
+    require(
+        "TestVectors/numiseal-product-recursive-carry-context-v1.json" in vectors,
+        "product recursive carry context vector must be pinned",
+    )
     require_relative_path("TestVectors/numiseal-typed-carry-conformance-v1.json", "carry typed vector")
+    require_relative_path("TestVectors/numiseal-product-recursive-carry-context-v1.json", "product carry context vector")
     swap = require_string(carry.get("swapResistance"), "swapResistance").lower()
     for needle in ["producer", "transcript", "context", "lane", "parent"]:
         require(needle in swap, f"carry swap resistance must mention {needle}")
@@ -309,6 +347,8 @@ def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
 def validate_performance_and_hardening(dossier: dict[str, Any]) -> None:
     perf = require_dict(dossier.get("proofSizeLatencyComparison"), "proofSizeLatencyComparison")
     require(perf.get("localProofSizeEvidence") == "TestVectors/e2e-proof-metrics-v1.json", "proof-size evidence path mismatch")
+    require(perf.get("localBenchmarkCoverageEvidence") == "TestVectors/benchmark-coverage-v1.json", "benchmark coverage evidence path mismatch")
+    require_relative_path("TestVectors/benchmark-coverage-v1.json", "proofSizeLatencyComparison.localBenchmarkCoverageEvidence")
     comparison = " ".join(require_string_list(perf.get("comparisonClass"), "proofSizeLatencyComparison.comparisonClass")).lower()
     require("latticefold" in comparison and "stark" in comparison, "comparison class must include LatticeFold and STARK-style systems")
     require_false(perf.get("sameHardwareCompetitorTablePinned"), "proofSizeLatencyComparison.sameHardwareCompetitorTablePinned")

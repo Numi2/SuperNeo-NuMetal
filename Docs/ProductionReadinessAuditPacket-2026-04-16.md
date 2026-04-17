@@ -26,10 +26,12 @@ Coverage included:
 - NumiSeal artifact schema contract validation and schema mutation tests,
 - NumiSeal conformance and end-to-end theorem-scope validation,
 - product cryptographic security dossier validation,
+- selected-depth product loss-accounting validation,
 - constant-time source/formal scope validation,
 - constant-time Swift/LLVM/Metal lowering and pinned release evidence
   validation,
 - E2E proof-size metrics and generated product smoke budget validation,
+- whole-stack benchmark coverage validation,
 - local product-ops readiness surface validation,
 - release policy, schema compatibility, and CI gate drift validation,
 - checked vector validation,
@@ -115,10 +117,12 @@ Release and validation gates:
 - `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`
 - `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`
 - `TestVectors/product-crypto-security-dossier-v1.json`
+- `TestVectors/product-selected-depth-loss-accounting-v1.json`
 - `TestVectors/constant-time-scope-v1.json`
 - `TestVectors/constant-time-lowering-evidence-v1.json`
 - `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
 - `TestVectors/e2e-proof-metrics-v1.json`
+- `TestVectors/benchmark-coverage-v1.json`
 - `CHANGELOG.md`
 - `Scripts/validate-release-readiness-policy.py`
 - `Scripts/validate-numiseal-conformance-scope.py`
@@ -127,6 +131,8 @@ Release and validation gates:
 - `Scripts/test-numiseal-zk-mask-distribution-evidence-validation.py`
 - `Scripts/validate-product-crypto-security-dossier.py`
 - `Scripts/test-product-crypto-security-dossier-validation.py`
+- `Scripts/validate-product-selected-depth-loss-accounting.py`
+- `Scripts/test-product-selected-depth-loss-accounting-validation.py`
 - `Scripts/validate-constant-time-scope.py`
 - `Scripts/test-constant-time-scope-validation.py`
 - `Scripts/validate-constant-time-lowering-evidence.py`
@@ -134,6 +140,8 @@ Release and validation gates:
 - `Scripts/generate-constant-time-release-evidence.py`
 - `Scripts/validate-e2e-proof-metrics.py`
 - `Scripts/test-e2e-proof-metrics-validation.py`
+- `Scripts/validate-benchmark-coverage.py`
+- `Scripts/test-benchmark-coverage-validation.py`
 - `Scripts/validate-product-ops-surface.py`
 - `Scripts/test-product-ops-surface-validation.py`
 - `Scripts/generate-release-candidate-evidence.py`
@@ -159,6 +167,7 @@ Benchmark and estimator evidence:
 
 - `Docs/Benchmarking.md`
 - `Docs/BenchmarkReports/`
+- `TestVectors/benchmark-coverage-v1.json`
 - `Scripts/reproduce-lattice-estimator.sh`
 - `Scripts/validate-lattice-estimator-artifact.py`
 - `Docs/AuditBlockerNarrowing-2026-04-16.md`
@@ -238,19 +247,28 @@ These are the remaining blockers before using production-security language:
    terminal-seal, recursive-knowledge, typed-carry, masked-residual ZK,
    simulation/privacy, and product-policy obligations imply the composed
    relation. Concrete Swift extractor evidence, product recursive typed carry
-   vectors, simulator coupling evidence beyond the exact mask-distribution
-   lemma, QROM Fiat-Shamir loss accounting, and side-channel evidence still
-   have to be supplied before production-security NumiSeal theorem language is
-   allowed. `TestVectors/product-crypto-security-dossier-v1.json` and
+   depth/loss accounting beyond the checked parent-child handoff, simulator
+   coupling evidence beyond the exact mask-distribution lemma, QROM
+   Fiat-Shamir loss accounting, and side-channel evidence still have to be
+   supplied before production-security NumiSeal theorem language is allowed.
+   `TestVectors/product-crypto-security-dossier-v1.json` and
    `Docs/CryptographicSecurityDossier-2026-04-16.md` now pin the bounded-depth product security theorem,
    `ProductSecurityTheorem`, Fiat-Shamir/QROM
    position, Module-SIS parameter dossier, proof-size/latency boundary, and
-   implementation-hardening boundary. The checked dossier keeps all production
-   claims disabled until those obligations are closed.
+   implementation-hardening boundary.
+   `TestVectors/product-selected-depth-loss-accounting-v1.json` now pins the
+   selected-depth loss accounting contract for the current depth-1 boundary,
+   including source fold, terminal seal, carry, ZK simulator, QROM, extractor,
+   product-ops replay, constant-time, and release-distribution loss terms. The
+   checked dossier and ledger keep all production claims disabled until those
+   losses are instantiated and inside budget.
 5. Broader hardware benchmark reports before making cross-generation
    performance claims. The E2E proof metrics manifest now gates checked-vector
-   proof size and product-smoke size budgets, but hardware latency claims still
-   need fresh benchmark evidence.
+   proof size and product-smoke size budgets, and
+   `TestVectors/benchmark-coverage-v1.json` gates whole-stack benchmark row
+   coverage for source fold, kernels, Metal, NumiSeal product, recursive carry,
+   and product controls. Hardware latency and competitor claims still need
+   fresh benchmark evidence.
 6. Release engineering execution: signed artifacts and hosted branch-protection
    enforcement requiring the full production gate. The changelog, reproducible
    release instructions, release evidence tooling, and schema compatibility
@@ -268,5 +286,11 @@ rotation rollout, hosted revocation feed distribution, tenant authorization, and
 hosted audit retention.
 
 Recursive carry promotion should keep using `NumiSealCarryStatement` rather
-than raw carry slots, add product producer/consumer vectors, and extend the
-conformance-scope manifest before changing product defaults.
+than raw carry slots. Product producer/consumer context vectors are now pinned,
+and recursive child artifacts now use `typed-required` when a verified parent is
+supplied. Local product controls can now verify one parent edge with
+`--recursive-carry-parent` and `--recursive-carry-parent-provenance`, require
+prior parent replay acceptance, and bind the child carry context/replay roots
+into SQLite replay and JSONL audit with single-use carry replay-binding
+enforcement. The remaining work is hosted replay policy plus depth/loss
+accounting for the selected production recursion bound.

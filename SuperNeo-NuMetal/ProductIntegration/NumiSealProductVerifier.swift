@@ -53,19 +53,22 @@ public struct SuperNeoProductProofIdentity: Equatable, Hashable, Sendable {
     public let proofEnvelopeDigest: Digest256
     public let artifactDigest: Digest256
     public let provenanceDigest: Digest256
+    public let recursiveCarryReplayBindingDigest: Digest256?
 
     public init(
         expectedContextID: String,
         statementDigest: Digest256,
         proofEnvelopeDigest: Digest256,
         artifactDigest: Digest256,
-        provenanceDigest: Digest256
+        provenanceDigest: Digest256,
+        recursiveCarryReplayBindingDigest: Digest256? = nil
     ) {
         self.expectedContextID = expectedContextID
         self.statementDigest = statementDigest
         self.proofEnvelopeDigest = proofEnvelopeDigest
         self.artifactDigest = artifactDigest
         self.provenanceDigest = provenanceDigest
+        self.recursiveCarryReplayBindingDigest = recursiveCarryReplayBindingDigest
     }
 }
 
@@ -80,6 +83,7 @@ public struct SuperNeoProductVerificationAuditEvent: Equatable, Sendable {
     public let artifactDigest: Digest256
     public let proofEnvelopeDigest: Digest256?
     public let provenanceDigest: Digest256?
+    public let recursiveCarryReplayBindingDigest: Digest256?
     public let decision: SuperNeoProductAuditDecision
     public let reason: String?
 
@@ -89,6 +93,7 @@ public struct SuperNeoProductVerificationAuditEvent: Equatable, Sendable {
         artifactDigest: Digest256,
         proofEnvelopeDigest: Digest256?,
         provenanceDigest: Digest256?,
+        recursiveCarryReplayBindingDigest: Digest256? = nil,
         decision: SuperNeoProductAuditDecision,
         reason: String?
     ) {
@@ -97,6 +102,7 @@ public struct SuperNeoProductVerificationAuditEvent: Equatable, Sendable {
         self.artifactDigest = artifactDigest
         self.proofEnvelopeDigest = proofEnvelopeDigest
         self.provenanceDigest = provenanceDigest
+        self.recursiveCarryReplayBindingDigest = recursiveCarryReplayBindingDigest
         self.decision = decision
         self.reason = reason
     }

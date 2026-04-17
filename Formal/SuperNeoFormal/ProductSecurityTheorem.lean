@@ -75,6 +75,34 @@ def ProductBoundedDepthLossAccepted
     ∧ losses.fiatShamirLossAccounted
     ∧ losses.totalLossWithinBudget
 
+structure ProductSelectedDepthLossLedger where
+  selectedDepth : Nat
+  selectedDepthPositive : 0 < selectedDepth
+  sourceFoldLossInstantiated : Prop
+  terminalSealLossInstantiated : Prop
+  recursiveCarryLossInstantiated : Prop
+  zkSimulatorLossInstantiated : Prop
+  fiatShamirQROMLossInstantiated : Prop
+  extractorLossInstantiated : Prop
+  productOperationsReplayLossInstantiated : Prop
+  constantTimeSideChannelEvidenceClosed : Prop
+  releaseSigningEvidenceClosed : Prop
+  totalLossWithinBudget : Prop
+
+def ProductSelectedDepthLossLedgerAccepted
+    (ledger : ProductSelectedDepthLossLedger) : Prop :=
+  (0 < ledger.selectedDepth)
+    ∧ ledger.sourceFoldLossInstantiated
+    ∧ ledger.terminalSealLossInstantiated
+    ∧ ledger.recursiveCarryLossInstantiated
+    ∧ ledger.zkSimulatorLossInstantiated
+    ∧ ledger.fiatShamirQROMLossInstantiated
+    ∧ ledger.extractorLossInstantiated
+    ∧ ledger.productOperationsReplayLossInstantiated
+    ∧ ledger.constantTimeSideChannelEvidenceClosed
+    ∧ ledger.releaseSigningEvidenceClosed
+    ∧ ledger.totalLossWithinBudget
+
 structure ProductLatticeAssumptionDossier where
   moduleSISStatementPinned : Prop
   qRingDimensionAndNormPinned : Prop
@@ -208,6 +236,27 @@ theorem productSecurityTheorem_requires_bounded_depth
     (hLosses : ProductBoundedDepthLossAccepted losses) :
     0 < parameters.maximumProductDepth :=
   hLosses.1
+
+theorem productSecurityTheorem_requires_selected_depth_loss_accounting
+    {ledger : ProductSelectedDepthLossLedger}
+    (hLedger : ProductSelectedDepthLossLedgerAccepted ledger) :
+    ledger.extractorLossInstantiated
+      ∧ ledger.fiatShamirQROMLossInstantiated
+      ∧ ledger.zkSimulatorLossInstantiated
+      ∧ ledger.totalLossWithinBudget := by
+  rcases hLedger with
+    ⟨_,
+      _,
+      _,
+      _,
+      hZKSimulator,
+      hQROM,
+      hExtractor,
+      _,
+      _,
+      _,
+      hTotal⟩
+  exact ⟨hExtractor, hQROM, hZKSimulator, hTotal⟩
 
 theorem productSecurityTheorem_requires_qrom_accounting
     {fiatShamir : ProductFiatShamirQROMEvidence}

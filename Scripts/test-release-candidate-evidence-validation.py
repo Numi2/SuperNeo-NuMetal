@@ -114,6 +114,30 @@ def main() -> None:
         write_json(path, premature_product_depth)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_selected_loss = copy.deepcopy(evidence)
+        wrong_selected_loss["publicSurfaces"]["productSelectedDepthLossAccountingVersion"] = 2
+        path = tmp / "wrong-selected-loss.json"
+        write_json(path, wrong_selected_loss)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_selected_loss = copy.deepcopy(evidence)
+        vague_selected_loss["publicSurfaces"]["productSelectedDepthLossAccountingClaimStatus"] = "production-loss-proof"
+        path = tmp / "vague-selected-loss.json"
+        write_json(path, vague_selected_loss)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        premature_selected_loss_depth = copy.deepcopy(evidence)
+        premature_selected_loss_depth["publicSurfaces"]["productSelectedDepthLossAccountingMaximumDepth"] = 2
+        path = tmp / "premature-selected-loss-depth.json"
+        write_json(path, premature_selected_loss_depth)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_selected_loss_component = copy.deepcopy(evidence)
+        missing_selected_loss_component["publicSurfaces"]["productSelectedDepthLossComponentCount"] = 8
+        path = tmp / "missing-selected-loss-component.json"
+        write_json(path, missing_selected_loss_component)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_constant_time_scope = copy.deepcopy(evidence)
         wrong_constant_time_scope["publicSurfaces"]["constantTimeScopeVersion"] = 2
         path = tmp / "wrong-constant-time-scope.json"
@@ -166,6 +190,18 @@ def main() -> None:
         missing_product_budget["publicSurfaces"]["e2eProofMetricsGeneratedBudgetCount"] = 1
         path = tmp / "missing-product-budget.json"
         write_json(path, missing_product_budget)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        wrong_benchmark_coverage = copy.deepcopy(evidence)
+        wrong_benchmark_coverage["publicSurfaces"]["benchmarkCoverageVersion"] = 2
+        path = tmp / "wrong-benchmark-coverage.json"
+        write_json(path, wrong_benchmark_coverage)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_benchmark_surface = copy.deepcopy(evidence)
+        missing_benchmark_surface["publicSurfaces"]["benchmarkCoverageSurfaceCount"] = 1
+        path = tmp / "missing-benchmark-surface.json"
+        write_json(path, missing_benchmark_surface)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         wrong_product_ops_surface = copy.deepcopy(evidence)

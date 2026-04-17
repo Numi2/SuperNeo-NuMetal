@@ -1,0 +1,53 @@
+{
+  "caseID": "numiseal-product-recursive-carry-context-v1",
+  "formatVersion": 1,
+  "surface": "numiseal-product",
+  "statement": {
+    "contextDigestLabel": "numiseal.product-carry-context.digest.v1",
+    "contextDomainLabel": "SuperNeo-NuMetal.numiseal.product-carry-context.v1",
+    "statementVersion": 1,
+    "boundFields": [
+      "consumer session digest",
+      "parent product artifact digest",
+      "parent source fold envelope digest",
+      "parent product proof envelope digest",
+      "parent producer proof envelope digest",
+      "parent public statement digest",
+      "lane key",
+      "aggregate index",
+      "next recursion level"
+    ],
+    "contextRootLabel": "numiseal.product-carry.context-root.v1",
+    "replayRootLabel": "numiseal.product-carry.replay-root.v1",
+    "productReplayBindingLabel": "SuperNeo-NuMetal.numiseal.product.recursive-carry.replay-binding.v1",
+    "carryStatementDomainLabel": "SuperNeo-NuMetal.numiseal.typed-carry.v1",
+    "acceptedCarryModes": [
+      "typed-optional",
+      "typed-required"
+    ]
+  },
+  "positiveCases": [
+    "derive product carry context digest from a verified parent NumiSeal product artifact",
+    "produce a typed carry statement from the accepted parent product terminal envelope",
+    "consume the typed carry with matching product context digest and monotone recursion level",
+    "emit a typed-required child product artifact when a recursive carry parent is supplied",
+    "verify the typed-required child only with the matching recursive carry parent context",
+    "require signed parent provenance and prior parent replay acceptance before local child product acceptance",
+    "bind the child recursive carry context root and replay root into local product replay identity and audit records",
+    "enforce single-use local acceptance for each recursive carry replay-binding digest"
+  ],
+  "negativeCases": [
+    "reject carry consumption under a different child product session digest",
+    "reject carry consumption under a different parent product artifact digest",
+    "reject typed-required child verification without recursive carry parent context",
+    "reject typed-required child verification with swapped parent metadata",
+    "reject tampered recursive carry context roots",
+    "reject child product acceptance when the parent proof identity is not already accepted",
+    "reject duplicate local carry consumption under the same recursive carry replay-binding digest"
+  ],
+  "coveredByTests": [
+    "testNumiSealProductRecursiveCarryContextBindsParentArtifactAndSession",
+    "testNumiSealProductRecursiveCarryParentProducesAndVerifiesTypedRequiredChild",
+    "testLocalProductReplayIdentityBindsRecursiveCarryReplayMetadata"
+  ]
+}

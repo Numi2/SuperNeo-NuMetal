@@ -101,7 +101,8 @@ public final class NumiSealProver: @unchecked Sendable {
         policy: NumiSealAcceptancePolicy,
         digitTensorMessage: [CyclotomicRing54],
         activeDigitCount: Int? = nil,
-        aggregationLimits: NumiSealAggregationLimits = .defaultLimits()
+        aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
+        carryClaimsByAggregate: [NumiSealAggregateKey: NumiSealCarryClaim] = [:]
     ) throws -> NumiSealProofEnvelope {
         guard !digitTensorMessage.isEmpty else {
             throw SuperNeoError.invalidParameter("NumiSeal prover digit tensor message cannot be empty")
@@ -115,7 +116,8 @@ public final class NumiSealProver: @unchecked Sendable {
                     activeDigitCount: activeDigitCount
                 )
             ],
-            aggregationLimits: aggregationLimits
+            aggregationLimits: aggregationLimits,
+            carryClaimsByAggregate: carryClaimsByAggregate
         )
     }
 
@@ -123,7 +125,8 @@ public final class NumiSealProver: @unchecked Sendable {
         witnessedObligations: [NumiSealWitnessedObligation],
         policy: NumiSealAcceptancePolicy,
         digitTensorInputs: [NumiSealAggregateDigitTensorInput],
-        aggregationLimits: NumiSealAggregationLimits = .defaultLimits()
+        aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
+        carryClaimsByAggregate: [NumiSealAggregateKey: NumiSealCarryClaim] = [:]
     ) throws -> NumiSealProofEnvelope {
         let plan = try provingPlan(
             obligations: witnessedObligations.map(\.obligation),
@@ -134,7 +137,8 @@ public final class NumiSealProver: @unchecked Sendable {
             witnessedObligations: witnessedObligations,
             policy: policy,
             plan: plan,
-            digitTensorInputs: digitTensorInputs
+            digitTensorInputs: digitTensorInputs,
+            carryClaimsByAggregate: carryClaimsByAggregate
         )
     }
 
@@ -191,7 +195,8 @@ public final class NumiSealProver: @unchecked Sendable {
         policy: NumiSealAcceptancePolicy,
         plan: NumiSealProvingPlan,
         digitTensorInputs: [NumiSealAggregateDigitTensorInput],
-        ceRandomSeeds: [[UInt8]]? = nil
+        ceRandomSeeds: [[UInt8]]? = nil,
+        carryClaimsByAggregate: [NumiSealAggregateKey: NumiSealCarryClaim] = [:]
     ) throws -> NumiSealProofEnvelope {
         guard digitTensorInputs.count == plan.aggregateCount else {
             throw SuperNeoError.invalidParameter("NumiSeal prover digit tensor input count must match aggregate count")
@@ -200,6 +205,12 @@ public final class NumiSealProver: @unchecked Sendable {
             guard ceRandomSeeds.count == plan.aggregateCount else {
                 throw SuperNeoError.invalidParameter("NumiSeal prover CE random seed count must match aggregate count")
             }
+        }
+        let aggregateKeys = try Set(plan.aggregates.map {
+            try NumiSealAggregateKey(laneKey: $0.laneKey, aggregateIndex: $0.aggregateIndex)
+        })
+        guard Set(carryClaimsByAggregate.keys).isSubset(of: aggregateKeys) else {
+            throw SuperNeoError.invalidParameter("NumiSeal carry claim targets an aggregate outside the proving plan")
         }
 
         let claimsByDigest = try Self.claimsByDigest(from: witnessedObligations)
@@ -272,6 +283,10 @@ public final class NumiSealProver: @unchecked Sendable {
                     executionPolicy: executionPolicy
                 )
             }
+            let aggregateKey = try NumiSealAggregateKey(
+                laneKey: aggregate.laneKey,
+                aggregateIndex: aggregate.aggregateIndex
+            )
             return try NumiSealLaneProof(
                 laneKey: aggregate.laneKey,
                 aggregateIndex: aggregate.aggregateIndex,
@@ -280,7 +295,8 @@ public final class NumiSealProver: @unchecked Sendable {
                 decompositionCommitment: decomposition.commitment,
                 scalarizationDigest: scalarization.residualDigest,
                 sumcheckProof: sumcheckProof,
-                residualOpening: residualCE.residualOpening
+                residualOpening: residualCE.residualOpening,
+                optionalCarryClaim: carryClaimsByAggregate[aggregateKey]
             )
         }
         let proof = try NumiSealProof(

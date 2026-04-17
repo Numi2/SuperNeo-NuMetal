@@ -95,6 +95,8 @@ def build_evidence(args: argparse.Namespace) -> dict:
     numiseal_mask_distribution_evidence = read_json("TestVectors/numiseal-zk-mask-distribution-evidence-v1.json")
     product_crypto_security_dossier = read_json("TestVectors/product-crypto-security-dossier-v1.json")
     product_crypto_depth = product_crypto_security_dossier["supportedProductDepth"]
+    product_selected_depth_loss = read_json("TestVectors/product-selected-depth-loss-accounting-v1.json")
+    product_selected_depth = product_selected_depth_loss["selectedDepth"]
 
     return {
         "schemaVersion": 1,
@@ -161,6 +163,22 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "productCryptoSecurityDossierMaximumDepth": int(
                 product_crypto_depth["theoremMaximumDepth"]
             ),
+            "productSelectedDepthLossAccountingVersion": int(
+                product_selected_depth_loss["schemaVersion"]
+            ),
+            "productSelectedDepthLossAccountingDigestHex": sha256_hex(
+                "TestVectors/product-selected-depth-loss-accounting-v1.json"
+            ),
+            "productSelectedDepthLossAccountingClaimStatus": str(
+                product_selected_depth_loss["claimStatus"]
+            ),
+            "productSelectedDepthLossAccountingMaximumDepth": int(
+                product_selected_depth["selectedMaximumDepth"]
+            ),
+            "productSelectedDepthLossComponentCount": list_count(
+                "TestVectors/product-selected-depth-loss-accounting-v1.json",
+                "componentLosses",
+            ),
             "constantTimeScopeVersion": int(read_json("TestVectors/constant-time-scope-v1.json")["schemaVersion"]),
             "constantTimeScopeDigestHex": sha256_hex("TestVectors/constant-time-scope-v1.json"),
             "constantTimeLoweringEvidenceVersion": int(lowering_evidence["schemaVersion"]),
@@ -179,6 +197,9 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "e2eProofMetricsDigestHex": sha256_hex("TestVectors/e2e-proof-metrics-v1.json"),
             "e2eProofMetricsTrackedArtifactCount": list_count("TestVectors/e2e-proof-metrics-v1.json", "trackedArtifacts"),
             "e2eProofMetricsGeneratedBudgetCount": list_count("TestVectors/e2e-proof-metrics-v1.json", "generatedProductBudgets"),
+            "benchmarkCoverageVersion": int(read_json("TestVectors/benchmark-coverage-v1.json")["schemaVersion"]),
+            "benchmarkCoverageDigestHex": sha256_hex("TestVectors/benchmark-coverage-v1.json"),
+            "benchmarkCoverageSurfaceCount": list_count("TestVectors/benchmark-coverage-v1.json", "requiredSurfaces"),
             "productOperationsStatusVersion": int(
                 parse_regex(
                     "SuperNeo-NuMetal/ProductIntegration/LocalProductControls.swift",
@@ -210,12 +231,15 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
             "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
             "productCryptoSecurityDossierPolicy": "Docs/CryptographicSecurityDossier-2026-04-16.md",
+            "productSelectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "constantTimeEvidence": "Docs/ConstantTimeEvidence-2026-04-16.md",
             "constantTimeScope": "TestVectors/constant-time-scope-v1.json",
             "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
             "constantTimeReleaseEvidence": constant_time_release_evidence,
             "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
             "e2eProofMetricsPolicy": "Docs/E2EProofMetrics-2026-04-16.md",
+            "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
+            "benchmarkCoveragePolicy": "Docs/Benchmarking.md",
             "productOperationsReadiness": "Docs/ProductOperationsReadiness-2026-04-16.md",
             "releaseRunbook": "Docs/ReleaseCandidateRunbook-2026-04-16.md",
             "changelog": "CHANGELOG.md",
@@ -230,9 +254,9 @@ def build_evidence(args: argparse.Namespace) -> dict:
         },
         "productionSecurityBoundaries": [
             "A conditional source/formal constant-time trace scope and Swift/LLVM/Metal lowering proof contract are recorded; local Swift SIL/LLVM/assembly artifacts, Metal AIR/metallib artifacts, runtime allocation/COW review, CPU/GPU smoke corpora, and compiler/hardware observation lane reports are pinned, while scoped emitted-code review, hardware counters, power/contention, and broader device lanes remain explicit evidence boundaries.",
-            "E2E proof-size budgets are checked for deterministic vectors and local product smokes; hardware latency claims still require fresh benchmark evidence.",
+            "E2E proof-size budgets are checked for deterministic vectors and local product smokes; whole-stack benchmark row coverage is checked, but hardware latency claims still require fresh benchmark evidence.",
             "Local product-ops readiness and signed revocation-feed verification are machine-readable and audit-exported; no hosted product replay-protection, provenance, persistence, revocation-distribution, or access-control service is recorded.",
-            "NumiSeal product, carry, and ZK formalization has a checked evidence-parametric end-to-end theorem scope, exact rejection-sampled field mask distribution evidence, and a product cryptographic security dossier pinned to bounded depth 1; extractor, recursive product carry flow, ZK simulator coupling, side-channel evidence, post-quantum parameter tightening, and QROM loss instantiations remain production-security boundaries.",
+            "NumiSeal product, carry, and ZK formalization has a checked evidence-parametric end-to-end theorem scope, exact rejection-sampled field mask distribution evidence, a selected-depth loss-accounting ledger, and a product cryptographic security dossier pinned to bounded depth 1; extractor, recursive product carry flow, ZK simulator coupling, side-channel evidence, post-quantum parameter tightening, hosted operations, release signing, and QROM loss instantiations remain production-security boundaries.",
         ],
     }
 

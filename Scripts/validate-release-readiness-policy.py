@@ -76,10 +76,12 @@ def validate_docs() -> None:
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
             "TestVectors/product-crypto-security-dossier-v1.json",
+            "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
             "TestVectors/e2e-proof-metrics-v1.json",
+            "TestVectors/benchmark-coverage-v1.json",
             "Scripts/validate-release-readiness-policy.py",
             "Scripts/validate-numiseal-conformance-scope.py",
             "Scripts/test-numiseal-conformance-scope-validation.py",
@@ -90,8 +92,12 @@ def validate_docs() -> None:
             "Scripts/generate-constant-time-release-evidence.py",
             "Scripts/validate-product-crypto-security-dossier.py",
             "Scripts/test-product-crypto-security-dossier-validation.py",
+            "Scripts/validate-product-selected-depth-loss-accounting.py",
+            "Scripts/test-product-selected-depth-loss-accounting-validation.py",
             "Scripts/validate-e2e-proof-metrics.py",
             "Scripts/test-e2e-proof-metrics-validation.py",
+            "Scripts/validate-benchmark-coverage.py",
+            "Scripts/test-benchmark-coverage-validation.py",
             "Scripts/validate-product-ops-surface.py",
             "Scripts/test-product-ops-surface-validation.py",
             "Scripts/generate-release-candidate-evidence.py",
@@ -103,6 +109,7 @@ def validate_docs() -> None:
             "NumiSealZK simulation/privacy",
             "exact rejection-sampled field mask distribution",
             "bounded-depth product security theorem",
+            "selected-depth loss accounting",
             "ProductSecurityTheorem",
             "Fiat-Shamir/QROM",
             "Module-SIS",
@@ -124,6 +131,7 @@ def validate_docs() -> None:
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
             "TestVectors/product-crypto-security-dossier-v1.json",
+            "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "Docs/CryptographicSecurityDossier-2026-04-16.md",
             "Scripts/validate-constant-time-scope.py",
             "Scripts/validate-constant-time-lowering-evidence.py",
@@ -160,6 +168,7 @@ def validate_docs() -> None:
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
             "TestVectors/e2e-proof-metrics-v1.json",
+            "TestVectors/benchmark-coverage-v1.json",
             "Version Bump Checklist",
         ],
     )
@@ -175,6 +184,7 @@ def validate_docs() -> None:
             "NumiSeal end-to-end theorem-scope version and digest",
             "NumiSealZK mask-distribution evidence version and digest",
             "product cryptographic security dossier version and digest",
+            "selected-depth loss-accounting version and digest",
             "constant-time source/formal scope version and digest",
             "constant-time lowering evidence version and digest",
             "constant-time release evidence version and digest",
@@ -199,6 +209,7 @@ def validate_docs() -> None:
             "exact rejection-sampled field mask distribution",
             "product cryptographic security dossier",
             "bounded-depth product security theorem",
+            "selected-depth loss accounting",
             "constant-time release evidence",
         ],
     )
@@ -337,6 +348,24 @@ def validate_schema_versions() -> None:
         dossier_promotion.get("productionProductSecurityClaimAllowed") is False,
         "product crypto security dossier must not prematurely allow production product-security claims",
     )
+    selected_depth_loss = read_json("TestVectors/product-selected-depth-loss-accounting-v1.json")
+    require(isinstance(selected_depth_loss, dict), "selected-depth loss-accounting root must be an object")
+    require(selected_depth_loss.get("schemaVersion") == 1, "selected-depth loss-accounting schemaVersion must be 1")
+    require(
+        selected_depth_loss.get("claimStatus") == "selected-depth-loss-contract-not-production-claim",
+        "selected-depth loss-accounting claimStatus must stay precise",
+    )
+    selected_depth = selected_depth_loss.get("selectedDepth")
+    require(isinstance(selected_depth, dict), "selected-depth loss-accounting selectedDepth must be an object")
+    require(selected_depth.get("selectedMaximumDepth") == 1, "selected-depth loss-accounting maximum depth must remain 1")
+    total_loss = selected_depth_loss.get("totalLossRule")
+    require(isinstance(total_loss, dict), "selected-depth loss-accounting totalLossRule must be an object")
+    require(
+        total_loss.get("selectedDepthLossClaimAllowed") is False,
+        "selected-depth loss-accounting must not prematurely allow product-security loss claims",
+    )
+    blockers = selected_depth_loss.get("hardClaimBlockers")
+    require(isinstance(blockers, list) and len(blockers) == 6, "selected-depth loss-accounting must pin six hard blockers")
     constant_time_scope = read_json("TestVectors/constant-time-scope-v1.json")
     require(isinstance(constant_time_scope, dict), "constant-time scope root must be an object")
     require(constant_time_scope.get("schemaVersion") == 1, "constant-time scope schemaVersion must be 1")
@@ -416,6 +445,13 @@ def validate_schema_versions() -> None:
         e2e_metrics.get("claimStatus") == "checked-vector-and-product-smoke-size-budgets",
         "E2E proof metrics claimStatus must stay precise",
     )
+    benchmark_coverage = read_json("TestVectors/benchmark-coverage-v1.json")
+    require(isinstance(benchmark_coverage, dict), "benchmark coverage root must be an object")
+    require(benchmark_coverage.get("schemaVersion") == 1, "benchmark coverage schemaVersion must be 1")
+    require(
+        benchmark_coverage.get("claimStatus") == "coverage-contract-not-hardware-performance-claim",
+        "benchmark coverage claimStatus must stay precise",
+    )
 
     serialization = read_text("SuperNeo-NuMetal/SuperNeoSerialization.swift")
     header_version = re.search(r"public\s+static\s+let\s+version:\s*UInt16\s*=\s*(\d+)", serialization)
@@ -471,6 +507,14 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/test-product-crypto-security-dossier-validation.py" in gate,
         "production gate must run product crypto security dossier regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-selected-depth-loss-accounting.py" in gate,
+        "production gate must run validate-product-selected-depth-loss-accounting.py",
+    )
+    require(
+        "run_step Scripts/test-product-selected-depth-loss-accounting-validation.py" in gate,
+        "production gate must run selected-depth loss-accounting regression tests",
     )
     require(
         "run_step Scripts/validate-constant-time-scope.py" in gate,

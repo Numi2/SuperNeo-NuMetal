@@ -120,6 +120,8 @@ private struct VerifyOptions {
     var artifactProvenancePath: String?
     var revocationFeedPath: String?
     var sideChannelCertificatePath: String?
+    var recursiveCarryParentPath: String?
+    var recursiveCarryParentProvenancePath: String?
     var useProductControls = false
 }
 
@@ -150,10 +152,27 @@ private struct LoadedProductControls {
 private struct ProductArtifactMaterial {
     let proofKind: SuperNeoProductProofKind
     let workload: String
+    let carryMode: String?
+    let recursiveCarryReplayBinding: NumiSealProductRecursiveCarryReplayBinding?
     let proofEnvelopeBytes: [UInt8]
     let proofEnvelopeDigest: Digest256
     let statementDigest: Digest256
-    let verify: () throws -> Void
+    let verify: () throws -> ProductArtifactVerificationOutput
+}
+
+private enum ProductArtifactVerificationOutput {
+    case accepted
+    case numiSealProduct(NumiSealProductVerificationResult)
+}
+
+private struct ProductRecursiveCarryParentResolution {
+    let parent: NumiSealProductRecursiveCarryParent
+    let acceptedIdentity: SuperNeoProductProofIdentity
+    let provenanceDigest: Digest256
+
+    var acceptedReplayDigest: Digest256 {
+        acceptedIdentity.localReplayDigest
+    }
 }
 
 private struct ProductAuditExportDocument: Codable {
@@ -185,7 +204,7 @@ private func usage() -> String {
       superneo prove --seal numiseal [--workload one-hot] [--bits 0,0,1,0] [--numiseal-zk-mode none|masked-digit-tensor-v1] [--numiseal-execution-policy default-product|zk-redundant-metal|zk-metal-accelerated|zk-high-assurance-cpu] [--max-obligations-per-aggregate n] [--output proof.json]
       superneo prove --workload binary-add [--operand-bits 8] [--lhs 13] [--rhs 29] [--kind fold|terminal|compressed-terminal] [--output proof.json]
       superneo verify [--key-seed text] [--expected-verifier-key-digest hex] [--expected-shape-digest hex] [--expected-statement-digest hex] [--expected-public-inputs values] [--require-terminal|--require-numiseal] proof.json
-      superneo verify --product --operator-profile profile.json [--context-pack context.json] [--artifact-provenance provenance.json] [--revocation-feed revocations.json] [--side-channel-certificate certificate.json] proof.json
+      superneo verify --product --operator-profile profile.json [--context-pack context.json] [--artifact-provenance provenance.json] [--revocation-feed revocations.json] [--side-channel-certificate certificate.json] [--recursive-carry-parent parent-proof.json --recursive-carry-parent-provenance parent-provenance.json] proof.json
       superneo inspect proof.json
       superneo product-init-storage --operator-profile profile.json
       superneo product-status --operator-profile profile.json [--context-pack context.json] [--revocation-feed revocations.json] [--side-channel-certificate certificate.json] [--format text|json]
@@ -342,6 +361,8 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
     var artifactProvenancePath: String?
     var revocationFeedPath: String?
     var sideChannelCertificatePath: String?
+    var recursiveCarryParentPath: String?
+    var recursiveCarryParentProvenancePath: String?
     var useProductControls = false
     var index = 0
     while index < arguments.count {
@@ -399,6 +420,12 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
         case "--side-channel-certificate":
             sideChannelCertificatePath = try requireValue()
             useProductControls = true
+        case "--recursive-carry-parent":
+            recursiveCarryParentPath = try requireValue()
+            useProductControls = true
+        case "--recursive-carry-parent-provenance":
+            recursiveCarryParentProvenancePath = try requireValue()
+            useProductControls = true
         default:
             guard !argument.hasPrefix("-") else {
                 throw CLIError.invalidArgument("unknown verify option: \(argument)")
@@ -437,6 +464,8 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
         artifactProvenancePath: artifactProvenancePath,
         revocationFeedPath: revocationFeedPath,
         sideChannelCertificatePath: sideChannelCertificatePath,
+        recursiveCarryParentPath: recursiveCarryParentPath,
+        recursiveCarryParentProvenancePath: recursiveCarryParentProvenancePath,
         useProductControls: useProductControls
     )
 }
@@ -683,6 +712,9 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
     var provenanceDigest: Digest256?
     var proofKind: SuperNeoProductProofKind?
     var statementDigest: Digest256?
+    var carryMode: String?
+    var recursiveCarryReplayBinding: NumiSealProductRecursiveCarryReplayBinding?
+    var recursiveCarryParentResolution: ProductRecursiveCarryParentResolution?
 
     do {
         let artifactData = try Data(contentsOf: URL(fileURLWithPath: options.path))
@@ -697,14 +729,26 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             provenanceDigest: nil
         )
         let artifact = try readProofArtifact(data: artifactData)
+        if case .numiSealProduct(let productArtifact) = artifact {
+            carryMode = productArtifact.carryMode
+            recursiveCarryReplayBinding = try? productArtifact.recursiveCarryReplayBinding()
+        }
+        recursiveCarryParentResolution = try makeProductRecursiveCarryParentIfNeeded(
+            artifact: artifact,
+            options: options,
+            controls: controls
+        )
         let material = try makeProductArtifactMaterial(
             artifact,
             context: context,
-            sideChannelCertificate: controls.sideChannelCertificate
+            sideChannelCertificate: controls.sideChannelCertificate,
+            recursiveCarryParent: recursiveCarryParentResolution?.parent
         )
         proofEnvelopeDigest = material.proofEnvelopeDigest
         proofKind = material.proofKind
         statementDigest = material.statementDigest
+        carryMode = material.carryMode
+        recursiveCarryReplayBinding = material.recursiveCarryReplayBinding
         try controls.effectiveRevocation.requireNotRevoked(
             contextID: context.contextID,
             artifactDigest: artifactDigest,
@@ -737,13 +781,14 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             statementDigest: material.statementDigest,
             proofEnvelopeDigest: material.proofEnvelopeDigest,
             artifactDigest: artifactDigest!,
-            provenanceDigest: provenance.provenanceDigest
+            provenanceDigest: provenance.provenanceDigest,
+            recursiveCarryReplayBindingDigest: material.recursiveCarryReplayBinding?.bindingDigest
         )
         guard try !controls.replayLedger.hasAccepted(identity) else {
             throw SuperNeoProductIntegrationError.replayDetected("proof identity has already been accepted")
         }
 
-        try material.verify()
+        _ = try material.verify()
         try controls.replayLedger.recordAccepted(identity)
         try appendProductAudit(
             auditLog: controls.auditLog,
@@ -756,12 +801,25 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             revocationFeedDigest: controls.revocationFeed.feedDigest,
             sideChannelCertificateDigest: controls.sideChannelCertificate?.certificateDigest,
             proofKind: proofKind,
+            carryMode: carryMode,
+            recursiveCarryReplayBinding: recursiveCarryReplayBinding,
+            recursiveCarryParentResolution: recursiveCarryParentResolution,
             statementDigest: statementDigest,
             error: nil
         )
         print("valid product proof")
         print("context: \(context.contextID)")
         print("proof kind: \(material.proofKind.rawValue)")
+        if let carryMode = material.carryMode {
+            print("carry mode: \(carryMode)")
+        }
+        if let recursiveCarryReplayBinding = material.recursiveCarryReplayBinding {
+            print("recursive carry replay binding digest: \(recursiveCarryReplayBinding.bindingDigest.hexString)")
+        }
+        if let recursiveCarryParentResolution {
+            print("recursive carry parent accepted replay digest: \(recursiveCarryParentResolution.acceptedReplayDigest.hexString)")
+            print("recursive carry parent provenance digest: \(recursiveCarryParentResolution.provenanceDigest.hexString)")
+        }
         print("artifact digest: \(artifactDigest!.hexString)")
         print("proof envelope digest: \(material.proofEnvelopeDigest.hexString)")
         print("provenance digest: \(provenance.provenanceDigest.hexString)")
@@ -777,11 +835,134 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             revocationFeedDigest: controls.revocationFeed.feedDigest,
             sideChannelCertificateDigest: controls.sideChannelCertificate?.certificateDigest,
             proofKind: proofKind,
+            carryMode: carryMode,
+            recursiveCarryReplayBinding: recursiveCarryReplayBinding,
+            recursiveCarryParentResolution: recursiveCarryParentResolution,
             statementDigest: statementDigest,
             error: error
         )
         throw error
     }
+}
+
+private func makeProductRecursiveCarryParentIfNeeded(
+    artifact: ProofArtifact,
+    options: VerifyOptions,
+    controls: LoadedProductControls
+) throws -> ProductRecursiveCarryParentResolution? {
+    let context = controls.context.payload
+    guard case .numiSealProduct(let childArtifact) = artifact else {
+        guard options.recursiveCarryParentPath == nil,
+              options.recursiveCarryParentProvenancePath == nil else {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "recursive carry parent is only valid for NumiSeal product artifacts"
+            )
+        }
+        return nil
+    }
+
+    guard let childBinding = try childArtifact.recursiveCarryReplayBinding() else {
+        guard options.recursiveCarryParentPath == nil,
+              options.recursiveCarryParentProvenancePath == nil else {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "recursive carry parent supplied for a non-recursive NumiSeal product artifact"
+            )
+        }
+        return nil
+    }
+    guard let parentPath = options.recursiveCarryParentPath else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "typed-required NumiSeal product artifact requires --recursive-carry-parent"
+        )
+    }
+    guard let parentProvenancePath = options.recursiveCarryParentProvenancePath else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "typed-required NumiSeal product artifact requires --recursive-carry-parent-provenance"
+        )
+    }
+
+    let parentData = try Data(contentsOf: URL(fileURLWithPath: parentPath))
+    let parentRawArtifactDigest = Digest256.hash([UInt8](parentData))
+    try controls.effectiveRevocation.requireNotRevoked(
+        contextID: context.contextID,
+        artifactDigest: parentRawArtifactDigest,
+        proofEnvelopeDigest: nil,
+        provenanceDigest: nil
+    )
+    let parentArtifactContainer = try readProofArtifact(data: parentData)
+    guard case .numiSealProduct(let parentArtifact) = parentArtifactContainer else {
+        throw SuperNeoProductIntegrationError.invalidRequest(
+            "recursive carry parent must be a NumiSeal product artifact"
+        )
+    }
+    let parentMaterial = try makeProductNumiSealProductArtifactMaterial(
+        parentArtifact,
+        context: context,
+        sideChannelCertificate: controls.sideChannelCertificate,
+        recursiveCarryParent: nil
+    )
+    guard parentMaterial.recursiveCarryReplayBinding == nil else {
+        throw SuperNeoProductIntegrationError.invalidRequest(
+            "product controls currently accept one recursive carry parent edge per verification"
+        )
+    }
+    try controls.effectiveRevocation.requireNotRevoked(
+        contextID: context.contextID,
+        artifactDigest: parentRawArtifactDigest,
+        proofEnvelopeDigest: parentMaterial.proofEnvelopeDigest,
+        provenanceDigest: nil
+    )
+    let parentProvenance = try SuperNeoSignedArtifactProvenanceManifest.loadVerified(
+        from: URL(fileURLWithPath: parentProvenancePath),
+        trustedIssuerKeyDigestsHex: try controls.profile.trustedProvenanceIssuerKeyDigestSet()
+    )
+    try parentProvenance.validateBinding(
+        artifactDigest: parentRawArtifactDigest,
+        proofEnvelopeDigest: parentMaterial.proofEnvelopeDigest,
+        contextID: context.contextID,
+        statementDigest: parentMaterial.statementDigest,
+        releaseBuildDigest: try context.releaseBuildDigest
+    )
+    try controls.effectiveRevocation.requireNotRevoked(
+        contextID: context.contextID,
+        artifactDigest: parentRawArtifactDigest,
+        proofEnvelopeDigest: parentMaterial.proofEnvelopeDigest,
+        provenanceDigest: parentProvenance.provenanceDigest
+    )
+    let parentIdentity = SuperNeoProductProofIdentity(
+        expectedContextID: context.contextID,
+        statementDigest: parentMaterial.statementDigest,
+        proofEnvelopeDigest: parentMaterial.proofEnvelopeDigest,
+        artifactDigest: parentRawArtifactDigest,
+        provenanceDigest: parentProvenance.provenanceDigest
+    )
+    guard try controls.replayLedger.hasAccepted(parentIdentity) else {
+        throw SuperNeoProductIntegrationError.verificationFailed(
+            "recursive carry parent proof identity must be accepted before child verification"
+        )
+    }
+    let parentOutput = try parentMaterial.verify()
+    guard case .numiSealProduct(let parentResult) = parentOutput else {
+        throw SuperNeoProductIntegrationError.verificationFailed(
+            "recursive carry parent verification did not produce a NumiSeal product result"
+        )
+    }
+    let parent = try NumiSealProductRecursiveCarryParent(
+        artifact: parentArtifact,
+        verificationResult: parentResult,
+        consumerSessionDigest: childBinding.consumerSessionDigest,
+        nextRecursionLevel: childBinding.nextRecursionLevel
+    )
+    guard parent.parentProductArtifactDigest == childBinding.parentArtifactDigest else {
+        throw SuperNeoProductIntegrationError.verificationFailed(
+            "recursive carry parent artifact digest does not match child metadata"
+        )
+    }
+    return ProductRecursiveCarryParentResolution(
+        parent: parent,
+        acceptedIdentity: parentIdentity,
+        provenanceDigest: parentProvenance.provenanceDigest
+    )
 }
 
 private func verifyDemoArtifact(_ artifact: DemoProofArtifact, options: VerifyOptions) throws {
@@ -1324,18 +1505,30 @@ private func rejectLegacyVerifierOptionsInProductMode(_ options: VerifyOptions) 
 private func makeProductArtifactMaterial(
     _ artifact: ProofArtifact,
     context: SuperNeoTrustedContextPayload,
-    sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?
+    sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?,
+    recursiveCarryParent: NumiSealProductRecursiveCarryParent?
 ) throws -> ProductArtifactMaterial {
     switch artifact {
     case .demo(let artifact):
+        guard recursiveCarryParent == nil else {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "recursive carry parent is only valid for typed-required NumiSeal product artifacts"
+            )
+        }
         return try makeProductDemoArtifactMaterial(artifact, context: context)
     case .numiSeal(let artifact):
+        guard recursiveCarryParent == nil else {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "recursive carry parent is only valid for typed-required NumiSeal product artifacts"
+            )
+        }
         return try makeProductNumiSealArtifactMaterial(artifact, context: context)
     case .numiSealProduct(let artifact):
         return try makeProductNumiSealProductArtifactMaterial(
             artifact,
             context: context,
-            sideChannelCertificate: sideChannelCertificate
+            sideChannelCertificate: sideChannelCertificate,
+            recursiveCarryParent: recursiveCarryParent
         )
     }
 }
@@ -1390,6 +1583,8 @@ private func makeProductDemoArtifactMaterial(
     return ProductArtifactMaterial(
         proofKind: productKind,
         workload: artifact.workload,
+        carryMode: nil,
+        recursiveCarryReplayBinding: nil,
         proofEnvelopeBytes: proofBytes,
         proofEnvelopeDigest: Digest256.hash(proofBytes),
         statementDigest: statement.statementDigest,
@@ -1420,6 +1615,7 @@ private func makeProductDemoArtifactMaterial(
                     )
                 }
             }
+            return .accepted
         }
     )
 }
@@ -1466,6 +1662,8 @@ private func makeProductNumiSealArtifactMaterial(
     return ProductArtifactMaterial(
         proofKind: productKind,
         workload: artifact.workload,
+        carryMode: nil,
+        recursiveCarryReplayBinding: nil,
         proofEnvelopeBytes: proofBytes,
         proofEnvelopeDigest: Digest256.hash(proofBytes),
         statementDigest: try Digest256(hexDigest: artifact.statementDigestHex, name: "NumiSeal statement digest"),
@@ -1475,6 +1673,7 @@ private func makeProductNumiSealArtifactMaterial(
                 expectedContext: expectedContext,
                 executionPolicy: .highAssurance
             )
+            return .accepted
         }
     )
 }
@@ -1482,7 +1681,8 @@ private func makeProductNumiSealArtifactMaterial(
 private func makeProductNumiSealProductArtifactMaterial(
     _ artifact: NumiSealProductArtifact,
     context: SuperNeoTrustedContextPayload,
-    sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?
+    sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?,
+    recursiveCarryParent: NumiSealProductRecursiveCarryParent?
 ) throws -> ProductArtifactMaterial {
     let productKind: SuperNeoProductProofKind
     let expectedEnvelopeKind: ProofEnvelopeKind
@@ -1574,19 +1774,34 @@ private func makeProductNumiSealProductArtifactMaterial(
     guard key.verifierKeyDigest == expectedVerifierKeyDigest else {
         throw SuperNeoProductIntegrationError.missingExpectedContext("regenerated verifier key digest does not match trusted context")
     }
+    let recursiveCarryBinding = try artifact.recursiveCarryReplayBinding()
+    if recursiveCarryBinding == nil, recursiveCarryParent != nil {
+        throw SuperNeoProductIntegrationError.invalidRequest(
+            "recursive carry parent supplied for a non-recursive NumiSeal product artifact"
+        )
+    }
+    if recursiveCarryBinding != nil, recursiveCarryParent == nil {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "typed-required NumiSeal product artifact requires --recursive-carry-parent"
+        )
+    }
     return ProductArtifactMaterial(
         proofKind: productKind,
         workload: artifact.workload,
+        carryMode: artifact.carryMode,
+        recursiveCarryReplayBinding: recursiveCarryBinding,
         proofEnvelopeBytes: proofBytes,
         proofEnvelopeDigest: Digest256.hash(proofBytes),
         statementDigest: try Digest256(hexDigest: artifact.statementDigestHex, name: "NumiSeal product statement digest"),
         verify: {
-            _ = try NumiSealProductVerifier().verify(
+            let result = try NumiSealProductVerifier().verify(
                 artifact: artifact,
                 sourcePublicInput: publicInput,
                 key: key,
-                executionPolicy: .highAssurance
+                executionPolicy: .highAssurance,
+                recursiveCarryParent: recursiveCarryParent
             )
+            return .numiSealProduct(result)
         }
     )
 }
@@ -1650,6 +1865,9 @@ private func appendProductAudit(
     revocationFeedDigest: Digest256?,
     sideChannelCertificateDigest: Digest256?,
     proofKind: SuperNeoProductProofKind?,
+    carryMode: String?,
+    recursiveCarryReplayBinding: NumiSealProductRecursiveCarryReplayBinding?,
+    recursiveCarryParentResolution: ProductRecursiveCarryParentResolution?,
     statementDigest: Digest256?,
     error: Error?
 ) throws {
@@ -1664,6 +1882,17 @@ private func appendProductAudit(
             revocationFeedDigestHex: revocationFeedDigest?.hexString,
             sideChannelCertificateDigestHex: sideChannelCertificateDigest?.hexString,
             proofKind: proofKind?.rawValue,
+            carryMode: carryMode,
+            recursiveCarryReplayBindingDigestHex: recursiveCarryReplayBinding?.bindingDigest.hexString,
+            recursiveCarryContextRootHex: recursiveCarryReplayBinding?.contextRoot.hexString,
+            recursiveCarryReplayRootHex: recursiveCarryReplayBinding?.replayRoot.hexString,
+            recursiveCarryParentArtifactDigestHex: recursiveCarryReplayBinding?.parentArtifactDigest.hexString,
+            recursiveCarryParentProofEnvelopeDigestHex: recursiveCarryReplayBinding?.parentProductProofEnvelopeDigest.hexString,
+            recursiveCarryParentProvenanceDigestHex: recursiveCarryParentResolution?.provenanceDigest.hexString,
+            recursiveCarryParentAcceptedReplayDigestHex: recursiveCarryParentResolution?.acceptedReplayDigest.hexString,
+            recursiveCarryConsumerSessionDigestHex: recursiveCarryReplayBinding?.consumerSessionDigest.hexString,
+            recursiveCarryNextRecursionLevel: recursiveCarryReplayBinding?.nextRecursionLevel,
+            recursiveCarryClaimCount: recursiveCarryReplayBinding?.claimCount,
             contextID: context.contextID,
             statementDigestHex: statementDigest?.hexString,
             toolVersion: productToolVersion,

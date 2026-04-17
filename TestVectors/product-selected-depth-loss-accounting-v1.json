@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "ledgerID": "superneo-product-selected-depth-loss-accounting-v1",
+  "claimStatus": "selected-depth-loss-contract-not-production-claim",
+  "relatedManifests": {
+    "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+    "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+    "numiSealConformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
+    "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+    "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
+    "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
+    "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
+    "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json"
+  },
+  "formalSurface": {
+    "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
+    "declarations": [
+      "ProductSelectedDepthLossLedger",
+      "ProductSelectedDepthLossLedgerAccepted",
+      "productSecurityTheorem_requires_selected_depth_loss_accounting"
+    ]
+  },
+  "selectedDepth": {
+    "depthModel": "bounded-depth",
+    "selectedMaximumDepth": 1,
+    "selectedRecursiveCarryHops": 0,
+    "currentProductDefaultMaximumDepth": 1,
+    "polyDepthClaimAllowed": false,
+    "productionSelectedDepthClaimAllowed": false
+  },
+  "lossNotation": {
+    "securityParameter": "lambda",
+    "adversarySuccess": "epsilon_adv",
+    "sourceFoldLoss": "epsilon_fold",
+    "terminalSealLoss": "epsilon_terminal",
+    "recursiveCarryLoss": "epsilon_carry",
+    "zkSimulatorLoss": "epsilon_zk_sim",
+    "fiatShamirQROMLoss": "epsilon_qrom",
+    "extractorLoss": "epsilon_extract",
+    "transcriptCollisionLoss": "epsilon_collision",
+    "productOpsReplayLoss": "epsilon_replay",
+    "constantTimeLeakageLoss": "epsilon_ct",
+    "releaseDistributionLoss": "epsilon_release"
+  },
+  "componentLosses": [
+    {
+      "id": "source-fold-knowledge",
+      "appliesPerAcceptedLayer": true,
+      "status": "evidence-parametric-not-instantiated",
+      "lossSymbol": "epsilon_fold",
+      "accountingRule": "one source fold relation loss per accepted product layer",
+      "requiredEvidence": "concrete Swift extractor schedule and source fold transcript-loss instantiation for accepted proof-envelope bytes",
+      "productionClaimAllowed": false
+    },
+    {
+      "id": "terminal-numiseal-seal",
+      "appliesPerAcceptedLayer": true,
+      "status": "evidence-parametric-not-instantiated",
+      "lossSymbol": "epsilon_terminal",
+      "accountingRule": "one terminal seal relation loss per accepted NumiSeal terminal proof envelope",
+      "requiredEvidence": "terminal aggregation, residual opening, and component-root reduction loss instantiated for the selected depth",
+      "productionClaimAllowed": false
+    },
+    {
+      "id": "typed-recursive-carry",
+      "appliesPerAcceptedLayer": true,
+      "status": "parent-child-context-evidence-pinned-depth-promotion-open",
+      "lossSymbol": "epsilon_carry",
+      "accountingRule": "zero recursive carry hops at selected depth 1; recursive child promotion requires one typed carry producer/consumer loss per hop",
+      "requiredEvidence": "selected-depth typed-required carry vector, hosted replay semantics, and parent-child-to-chain induction",
+      "productionClaimAllowed": false
+    },
+    {
+      "id": "zk-simulator-composition",
+      "appliesPerAcceptedLayer": true,
+      "status": "mask-distribution-evidence-pinned-simulator-coupling-open",
+      "lossSymbol": "epsilon_zk_sim",
+      "accountingRule": "one simulator distinguishing loss per accepted masked residual product proof",
+      "requiredEvidence": "full simulator coupling for repeated product proofs under the declared leakage model",
+      "productionClaimAllowed": false
+    },
+    {
+      "id": "fiat-shamir-qrom",
+      "appliesPerAcceptedLayer": true,
+      "status": "domain-binding-recorded-qrom-loss-open",
+      "lossSymbol": "epsilon_qrom",
+      "accountingRule": "one QROM Fiat-Shamir transform loss per accepted product transcript plus transcript collision loss",
+      "requiredEvidence": "public-coin interactive protocol, transform preconditions, quantum random-oracle query bound, and collision/malleability proof",
+      "productionClaimAllowed": false
+    },
+    {
+      "id": "extractor-instantiation",
+      "appliesPerAcceptedLayer": true,
+      "status": "formal-gate-recorded-concrete-extractor-open",
+      "lossSymbol": "epsilon_extract",
+      "accountingRule": "one concrete extractor failure term per accepted product layer and recursive transcript schedule",
+      "requiredEvidence": "extractor implementation evidence over product proof bytes, source fold bytes, terminal seal bytes, and recursive carry context bytes",
+      "productionClaimAllowed": false
+    },
+    {
+      "id": "product-ops-replay",
+      "appliesPerAcceptedLayer": false,
+      "status": "local-sqlite-jsonl-replay-pinned-hosted-ops-open",
+      "lossSymbol": "epsilon_replay",
+      "accountingRule": "local replay identity is pinned; hosted tenant replay and revocation distribution must instantiate operational freshness loss before production",
+      "requiredEvidence": "durable hosted context storage, tenant authorization, key rotation, audit retention/export, and revocation feed distribution",
+      "productionClaimAllowed": false
+    },
+    {
+      "id": "constant-time-side-channel",
+      "appliesPerAcceptedLayer": false,
+      "status": "local-evidence-pinned-full-cpu-swift-llvm-metal-closure-open",
+      "lossSymbol": "epsilon_ct",
+      "accountingRule": "no product privacy promotion until CPU, Swift, LLVM, allocator, Metal, GPU timing, and failure-path evidence close",
+      "requiredEvidence": "complete CPU/Swift/LLVM/assembly/Metal/AIR/object/hardware-counter/allocator/failure-path constant-time evidence",
+      "productionClaimAllowed": false
+    },
+    {
+      "id": "release-signing-notarization",
+      "appliesPerAcceptedLayer": false,
+      "status": "unsigned-research-artifact",
+      "lossSymbol": "epsilon_release",
+      "accountingRule": "release distribution is outside the proof until signed artifacts, provenance, notarization, and branch-protection evidence are pinned",
+      "requiredEvidence": "release signing key, signed release provenance, notarization/publication path, branch protections, and archived release evidence",
+      "productionClaimAllowed": false
+    }
+  ],
+  "totalLossRule": {
+    "selectedDepthExpression": "epsilon_total(depth=1) = epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract + epsilon_collision + epsilon_replay + epsilon_ct + epsilon_release",
+    "recursivePromotionExpression": "epsilon_total(depth=d) = d * (epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract) + max(d - 1, 0) * epsilon_carry + epsilon_collision + epsilon_replay + epsilon_ct + epsilon_release",
+    "allComponentLossesInstantiated": false,
+    "totalLossWithinBudget": false,
+    "selectedDepthLossClaimAllowed": false
+  },
+  "hardClaimBlockers": [
+    "selected-depth extractor instantiation",
+    "QROM Fiat-Shamir loss accounting",
+    "full ZK simulator composition",
+    "hosted product operations replay and revocation freshness",
+    "release signing and notarization",
+    "complete CPU/Swift/LLVM/Metal constant-time evidence closure"
+  ],
+  "promotionRule": {
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
+    "productionZKPrivacyClaimAllowed": false,
+    "productionRecursiveCarryClaimAllowed": false,
+    "productionConstantTimeClaimAllowed": false,
+    "productionReleaseDistributionClaimAllowed": false,
+    "requiresAllComponentLossesInstantiated": true,
+    "requiresTotalLossWithinBudget": true
+  }
+}

@@ -37,7 +37,9 @@ The replay identity binds:
 - statement digest,
 - proof-envelope digest,
 - raw artifact digest, and
-- provenance digest.
+- provenance digest,
+- recursive carry replay-binding digest for typed-required product carry, or
+  `none` otherwise.
 
 The facade also enforces product-level artifact byte limits before proof body
 parsing.
@@ -82,6 +84,20 @@ Metal workspace, reviewed kernel, and evidence-digest bindings when present.
 `product-export-audit` embeds it as `operationsStatus`. The signed revocation
 feed is verified independently from the context pack and its digest is recorded
 in audit decisions.
+
+Depth-1 typed recursive carry is now wired into the local product-control path:
+`verify --product` accepts `--recursive-carry-parent` plus
+`--recursive-carry-parent-provenance` for child artifacts with
+`carryMode = "typed-required"`, verifies the parent product artifact and signed
+parent provenance under the same signed context, requires the parent product
+identity to already be present in the local replay ledger, reconstructs the child
+carry parent from the child metadata, and binds the recursive carry context root,
+replay root, parent artifact digest, parent proof-envelope digest, parent
+provenance digest, parent accepted replay digest, consumer-session digest, next
+recursion level, and claim count into JSONL audit records. SQLite also enforces
+single-use acceptance for each recursive carry replay-binding digest. Parent
+chains beyond one edge remain disabled here until the multi-depth theorem,
+replay semantics, and loss accounting are closed.
 
 ## Remaining Product Responsibilities
 

@@ -194,14 +194,20 @@
         "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift"
       ],
       "conformanceVectors": [
-        "TestVectors/numiseal-typed-carry-conformance-v1.json"
+        "TestVectors/numiseal-typed-carry-conformance-v1.json",
+        "TestVectors/numiseal-product-recursive-carry-context-v1.json"
       ],
       "testNames": [
         "testNumiSealTypedCarryStatementRoundTripsAndPolicyRejectsMalformedCarry",
-        "testNumiSealCarryConsumerBindsContextAndRejectsReplay"
+        "testNumiSealCarryConsumerBindsContextAndRejectsReplay",
+        "testNumiSealTypedCarryProducerFeedsConsumerAndRejectsUnacceptedParent",
+        "testNumiSealProductRecursiveCarryContextBindsParentArtifactAndSession",
+        "testNumiSealProductRecursiveCarryParentProducesAndVerifiesTypedRequiredChild"
       ],
       "evidenceObligations": [
         "producer parent acceptance, envelope digest, transcript digest, residual opening digest, final point digest, and consumer context are bound in the carry digest",
+        "product carry context binds parent product artifact digest, source fold digest, product proof envelope digest, producer proof envelope digest, lane, aggregate, session, and next recursion level",
+        "typed-required child product artifacts bind recursive carry context and replay roots to the terminal verifier policy",
         "consumer acceptance requires matching producer and parent digests, monotone recursion level, and fresh replay identity"
       ],
       "status": "composed-under-evidence"
@@ -277,7 +283,7 @@
   "theoremConclusion": "Lean proves that accepted product verifier gates plus the named evidence obligations imply NumiSealEndToEndRelationHolds across source fold, terminal seal, typed carry, masked residual ZK, and product policy. Additional checked modules prove the recursive folding knowledge chain, typed carry producer/consumer relation, and NumiSealZK simulation/privacy relation compose into NumiSealProductKnowledgeCarryPrivacyHolds. The simulator/privacy theorem is under an explicit public-leakage model and excludes hardware side channels.",
   "residualProofObligations": [
     "concrete Swift extractor implementation evidence for product proof bytes and all recursive transcript schedules",
-    "product vectors exercising recursive typed carry producer paths beyond the current consumer conformance surface",
+    "extend typed-required recursive child product carry beyond the checked parent-child handoff and account product replay/losses for the selected production depth",
     "concrete NumiSealZK simulator coupling evidence beyond the exact field-mask distribution lemma",
     "QROM Fiat-Shamir reduction and concrete soundness-loss accounting for the product transcript",
     "constant-time and side-channel evidence sufficient for product privacy promotion"
@@ -287,7 +293,7 @@
     "releaseEvidenceOnly": true,
     "unblockRequires": [
       "concrete Swift extractor implementation evidence is generated for product proof bytes and all recursive transcript schedules",
-      "product recursive typed carry vectors are generated and pinned with recursive consumer acceptance evidence",
+      "typed-required recursive child product typed carry is extended beyond the checked parent-child handoff with replay and loss accounting",
       "NumiSealZK simulator/leakage model evidence is recorded beyond the exact field-mask distribution lemma",
       "QROM Fiat-Shamir and concrete soundness-loss accounting are recorded for the product transcript",
       "the promotion manifest changes productionNumiSealTheoremClaimAllowed only with updated validation"

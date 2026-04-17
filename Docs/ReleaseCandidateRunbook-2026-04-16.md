@@ -14,6 +14,8 @@ candidate. It does not authorize production-security release claims.
   manifest, or proof-envelope changes.
 - `Docs/E2EProofMetrics-2026-04-16.md` reflects any proof-size or product
   smoke budget changes.
+- `Docs/Benchmarking.md` and `TestVectors/benchmark-coverage-v1.json` reflect
+  any benchmark row coverage changes.
 - `Docs/ConstantTimeEvidence-2026-04-16.md` reflects any constant-time
   source/formal or Swift/LLVM/Metal lowering evidence changes.
 - `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json` has been
@@ -26,6 +28,9 @@ candidate. It does not authorize production-security release claims.
   `TestVectors/product-crypto-security-dossier-v1.json` reflect any product
   theorem, Fiat-Shamir/QROM, Module-SIS parameter, proof-size, or hardening
   boundary changes.
+- `TestVectors/product-selected-depth-loss-accounting-v1.json` reflects any
+  selected-depth loss-accounting changes for extractor, QROM, ZK simulator,
+  product-ops replay, CT, or release-distribution terms.
 - `elan`, Swift, and the pinned Lean toolchain are available.
 
 ## Candidate Gate
@@ -44,6 +49,11 @@ Scripts/production-gate.sh --with-benchmarks
 Scripts/reproduce-lattice-estimator.sh release-evidence/lattice-estimator.json
 Scripts/validate-lattice-estimator-artifact.py --expect-status ran --require-claimed-security release-evidence/lattice-estimator.json
 ```
+
+The benchmark coverage manifest is mandatory release evidence, but it is only
+the coverage contract for row registration, report rendering, comparison, and
+gate wiring. A fresh `--with-benchmarks` run is still required before release
+notes quote latency, throughput, or competitor-comparison numbers.
 
 ## Evidence Packet
 
@@ -78,11 +88,13 @@ The generated evidence records:
 - exact rejection-sampled field mask distribution evidence status,
 - product cryptographic security dossier version and digest,
 - bounded-depth product security theorem status,
+- selected-depth loss-accounting version and digest,
 - constant-time source/formal scope version and digest,
 - constant-time lowering evidence version and digest,
 - constant-time release evidence version and digest,
 - constant-time compiler and hardware observation lane versions and digests,
 - E2E proof metrics version and digest,
+- benchmark coverage version, digest, and required-surface count,
 - product operations readiness status version,
 - signed revocation feed policy,
 - release-policy documentation paths,

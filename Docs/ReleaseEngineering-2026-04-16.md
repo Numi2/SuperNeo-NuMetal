@@ -21,13 +21,16 @@ true:
 - `Docs/ReleaseCandidateRunbook-2026-04-16.md` has been followed.
 - `Docs/E2EProofMetrics-2026-04-16.md` reflects current checked proof-size
   and product-smoke budgets.
+- `Docs/Benchmarking.md` and `TestVectors/benchmark-coverage-v1.json` reflect
+  current whole-stack benchmark row coverage.
 - `Docs/ConstantTimeEvidence-2026-04-16.md` reflects current source/formal
   scope and Swift/LLVM/Metal lowering evidence semantics.
 - `Docs/ProductOperationsReadiness-2026-04-16.md` reflects current product
   operations readiness status semantics and signed revocation feed semantics.
 - `Docs/CryptographicSecurityDossier-2026-04-16.md` reflects the current
   bounded-depth product security theorem, Fiat-Shamir/QROM position, Module-SIS
-  parameter dossier, and production-claim boundaries.
+  parameter dossier, selected-depth loss accounting, and production-claim
+  boundaries.
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
 - Release notes explicitly use research/integration wording and do not claim
@@ -53,6 +56,9 @@ At minimum, this requires:
   product recursive typed carry vectors, simulator coupling beyond the exact
   rejection-sampled field mask distribution, QROM loss instantiations, and
   product cryptographic security dossier promotion beyond depth 1,
+- selected-depth loss accounting instantiated for extractor, QROM,
+  ZK-simulator, hosted product-ops replay, constant-time side-channel, and
+  signed release-distribution terms,
 - pinned Sage-backed lattice-estimator evidence,
 - release signing/provenance,
 - branch protection requiring the full production gate.
@@ -65,6 +71,7 @@ Each release candidate should record:
 - dirty/clean source state,
 - exact `Scripts/production-gate.sh` output summary,
 - benchmark profile and hardware class if performance claims are included,
+- benchmark coverage manifest digest,
 - lattice-estimator artifact path and validation status if security-estimate
   claims are included,
 - artifact schema versions and any compatibility changes,
@@ -78,11 +85,13 @@ Each release candidate should record:
 - NumiSealZK mask-distribution evidence digest.
 - product cryptographic security dossier digest.
 - bounded-depth product security theorem status.
+- selected-depth loss accounting digest.
 - constant-time source/formal scope digest.
 - constant-time lowering evidence digest.
 - constant-time release evidence digest.
 - constant-time compiler and hardware observation lane digests.
 - E2E proof metrics digest.
+- benchmark coverage manifest digest.
 - product operations readiness status version.
 - signed revocation feed policy.
 
@@ -107,6 +116,12 @@ bounded-depth product security theorem surface, ProductSecurityTheorem import,
 Fiat-Shamir/QROM target and disabled production claim, Module-SIS parameter
 tuple, conservative post-quantum boundary, proof-size/latency boundary, and
 implementation-hardening boundary.
+`Scripts/validate-product-selected-depth-loss-accounting.py` checks
+`TestVectors/product-selected-depth-loss-accounting-v1.json`, including the
+current depth-1 loss expression, the recursive promotion expression, the nine
+component loss terms, and the fail-closed blockers for extractor, QROM,
+ZK-simulator, hosted product operations, release signing/notarization, and
+CPU/Swift/LLVM/Metal constant-time evidence closure.
 `Scripts/validate-constant-time-scope.py` checks the constant-time
 source/formal scope manifest and the formal declarations recorded in
 `Docs/ConstantTimeEvidence-2026-04-16.md`.
@@ -122,6 +137,12 @@ release candidate when the scoped source or toolchain changes.
 `Scripts/validate-e2e-proof-metrics.py` checks deterministic checked-vector
 proof sizes and generated NumiSeal product smoke budgets recorded in
 `Docs/E2EProofMetrics-2026-04-16.md`.
+`Scripts/validate-benchmark-coverage.py` checks
+`TestVectors/benchmark-coverage-v1.json`, including source registration,
+report-renderer coverage, baseline-comparator coverage, production-gate wiring,
+and the boundary that this is not a fresh hardware timing report.
+`Scripts/test-benchmark-coverage-validation.py` mutation-tests those row
+coverage guards.
 `Scripts/validate-product-ops-surface.py` checks product operations readiness
 status, signed revocation feed wiring, CLI JSON mode, audit export binding, and
 production-gate wiring recorded in

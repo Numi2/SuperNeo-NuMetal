@@ -271,6 +271,129 @@ public struct NumiSealAcceptedCarry: Equatable, Sendable {
     }
 }
 
+public struct NumiSealProductCarryContext: Equatable, Sendable, SuperNeoByteEncodable {
+    public static let domain = Digest256.hash("SuperNeo-NuMetal.numiseal.product-carry-context.v1")
+    public static let version: UInt16 = 1
+
+    public let version: UInt16
+    public let consumerSessionDigest: Digest256
+    public let parentProductArtifactDigest: Digest256
+    public let parentSourceFoldEnvelopeDigest: Digest256
+    public let parentProductProofEnvelopeDigest: Digest256
+    public let parentProducerProofEnvelopeDigest: Digest256
+    public let parentPublicStatementDigest: Digest256
+    public let laneKey: NumiSealLaneKey
+    public let aggregateIndex: Int
+    public let nextRecursionLevel: Int
+    public let contextDigest: Digest256
+
+    public init(
+        consumerSessionDigest: Digest256,
+        parentProductArtifactDigest: Digest256,
+        parentSourceFoldEnvelopeDigest: Digest256,
+        parentProductProofEnvelopeDigest: Digest256,
+        parentProducerProofEnvelopeDigest: Digest256,
+        parentPublicStatementDigest: Digest256,
+        laneKey: NumiSealLaneKey,
+        aggregateIndex: Int,
+        nextRecursionLevel: Int
+    ) throws {
+        guard aggregateIndex >= 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal product carry aggregate index must be non-negative")
+        }
+        guard nextRecursionLevel > 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal product carry next recursion level must be positive")
+        }
+        self.version = Self.version
+        self.consumerSessionDigest = consumerSessionDigest
+        self.parentProductArtifactDigest = parentProductArtifactDigest
+        self.parentSourceFoldEnvelopeDigest = parentSourceFoldEnvelopeDigest
+        self.parentProductProofEnvelopeDigest = parentProductProofEnvelopeDigest
+        self.parentProducerProofEnvelopeDigest = parentProducerProofEnvelopeDigest
+        self.parentPublicStatementDigest = parentPublicStatementDigest
+        self.laneKey = laneKey
+        self.aggregateIndex = aggregateIndex
+        self.nextRecursionLevel = nextRecursionLevel
+        self.contextDigest = Self.computeContextDigest(
+            consumerSessionDigest: consumerSessionDigest,
+            parentProductArtifactDigest: parentProductArtifactDigest,
+            parentSourceFoldEnvelopeDigest: parentSourceFoldEnvelopeDigest,
+            parentProductProofEnvelopeDigest: parentProductProofEnvelopeDigest,
+            parentProducerProofEnvelopeDigest: parentProducerProofEnvelopeDigest,
+            parentPublicStatementDigest: parentPublicStatementDigest,
+            laneKey: laneKey,
+            aggregateIndex: aggregateIndex,
+            nextRecursionLevel: nextRecursionLevel
+        )
+    }
+
+    public var superNeoBytes: [UInt8] {
+        Self.domain.superNeoBytes
+            + numiSealEncodeUInt16(version)
+            + Self.bodyBytes(
+                consumerSessionDigest: consumerSessionDigest,
+                parentProductArtifactDigest: parentProductArtifactDigest,
+                parentSourceFoldEnvelopeDigest: parentSourceFoldEnvelopeDigest,
+                parentProductProofEnvelopeDigest: parentProductProofEnvelopeDigest,
+                parentProducerProofEnvelopeDigest: parentProducerProofEnvelopeDigest,
+                parentPublicStatementDigest: parentPublicStatementDigest,
+                laneKey: laneKey,
+                aggregateIndex: aggregateIndex,
+                nextRecursionLevel: nextRecursionLevel
+            )
+            + contextDigest.superNeoBytes
+    }
+
+    private static func computeContextDigest(
+        consumerSessionDigest: Digest256,
+        parentProductArtifactDigest: Digest256,
+        parentSourceFoldEnvelopeDigest: Digest256,
+        parentProductProofEnvelopeDigest: Digest256,
+        parentProducerProofEnvelopeDigest: Digest256,
+        parentPublicStatementDigest: Digest256,
+        laneKey: NumiSealLaneKey,
+        aggregateIndex: Int,
+        nextRecursionLevel: Int
+    ) -> Digest256 {
+        NumiSealEncoding.digest(
+            label: "numiseal.product-carry-context.digest.v1",
+            bytes: bodyBytes(
+                consumerSessionDigest: consumerSessionDigest,
+                parentProductArtifactDigest: parentProductArtifactDigest,
+                parentSourceFoldEnvelopeDigest: parentSourceFoldEnvelopeDigest,
+                parentProductProofEnvelopeDigest: parentProductProofEnvelopeDigest,
+                parentProducerProofEnvelopeDigest: parentProducerProofEnvelopeDigest,
+                parentPublicStatementDigest: parentPublicStatementDigest,
+                laneKey: laneKey,
+                aggregateIndex: aggregateIndex,
+                nextRecursionLevel: nextRecursionLevel
+            )
+        )
+    }
+
+    private static func bodyBytes(
+        consumerSessionDigest: Digest256,
+        parentProductArtifactDigest: Digest256,
+        parentSourceFoldEnvelopeDigest: Digest256,
+        parentProductProofEnvelopeDigest: Digest256,
+        parentProducerProofEnvelopeDigest: Digest256,
+        parentPublicStatementDigest: Digest256,
+        laneKey: NumiSealLaneKey,
+        aggregateIndex: Int,
+        nextRecursionLevel: Int
+    ) -> [UInt8] {
+        consumerSessionDigest.superNeoBytes
+            + parentProductArtifactDigest.superNeoBytes
+            + parentSourceFoldEnvelopeDigest.superNeoBytes
+            + parentProductProofEnvelopeDigest.superNeoBytes
+            + parentProducerProofEnvelopeDigest.superNeoBytes
+            + parentPublicStatementDigest.superNeoBytes
+            + laneKey.superNeoBytes
+            + numiSealEncodeCount(aggregateIndex)
+            + numiSealEncodeCount(nextRecursionLevel)
+    }
+}
+
 public struct NumiSealTypedCarryProducer: Sendable {
     public init() {}
 
@@ -318,7 +441,8 @@ public struct NumiSealTypedCarryProducer: Sendable {
         guard nextRecursionLevel > 0 else {
             throw SuperNeoError.invalidParameter("NumiSeal typed carry next recursion level must be positive")
         }
-        guard parentEnvelope.proof.laneProofs.contains(laneProof) else {
+        let laneProofDigest = laneProof.proofDigest
+        guard parentEnvelope.proof.laneProofs.contains(where: { $0.proofDigest == laneProofDigest }) else {
             throw SuperNeoError.invalidParameter("NumiSeal typed carry lane proof is not in parent envelope")
         }
         return try NumiSealCarryStatement(
@@ -345,6 +469,15 @@ public struct NumiSealCarryConsumer: Sendable {
 
     public init(seenReplayIdentities: Set<Digest256> = []) {
         self.seenReplayIdentities = seenReplayIdentities
+    }
+
+    public static func replayIdentity(for statement: NumiSealCarryStatement) -> Digest256 {
+        NumiSealEncoding.digest(
+            label: "numiseal.carry.replay-identity.v1",
+            bytes: statement.carryDigest.superNeoBytes
+                + statement.producerProofEnvelopeDigest.superNeoBytes
+                + statement.consumerContextDigest.superNeoBytes
+        )
     }
 
     public mutating func consume(
@@ -378,12 +511,7 @@ public struct NumiSealCarryConsumer: Sendable {
         guard statement.recursionLevel >= minimumNextRecursionLevel else {
             throw SuperNeoError.verificationFailed("NumiSeal carry recursion level rollback")
         }
-        let replayIdentity = NumiSealEncoding.digest(
-            label: "numiseal.carry.replay-identity.v1",
-            bytes: statement.carryDigest.superNeoBytes
-                + statement.producerProofEnvelopeDigest.superNeoBytes
-                + statement.consumerContextDigest.superNeoBytes
-        )
+        let replayIdentity = Self.replayIdentity(for: statement)
         guard !seenReplayIdentities.contains(replayIdentity) else {
             throw SuperNeoError.verificationFailed("NumiSeal carry replay detected")
         }

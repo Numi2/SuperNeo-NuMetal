@@ -37,6 +37,10 @@ claims remain blocked by the release packet no-go items.
   transcript, artifact/proof-envelope, verifier-policy, lattice-parameter,
   Fiat-Shamir/QROM, proof-size, and side-channel-hardening obligations while
   keeping production claims disabled.
+- Added a checked selected-depth loss accounting ledger and validator for the
+  current depth-1 product theorem boundary, pinning source-fold, terminal-seal,
+  carry, ZK simulator, QROM, extractor, product-ops replay, constant-time, and
+  release-distribution loss terms while keeping production claims disabled.
 - Added a checked constant-time source/formal scope manifest, validator, and
   Lean trace-independence model for the first Swift/Metal secret-bearing slices.
 - Added a checked Swift/LLVM/Metal lowering evidence manifest, validator,
@@ -50,6 +54,9 @@ claims remain blocked by the release packet no-go items.
   compiler/hardware observation lane reports.
 - Added a checked E2E proof metrics manifest, validator, and production-gate
   product smoke budget checks for proof-envelope and artifact byte growth.
+- Added a checked whole-stack benchmark coverage manifest, validator, mutation
+  tests, and benchmark rows for NumiSeal terminal/ZK product proving,
+  recursive carry child proving, replay identity, and product audit encoding.
 - Added a canonical local product operations readiness status, CLI JSON output,
   audit-export binding, and production-gate validator for operator lifecycle,
   audit retention, and retry policy.
@@ -71,6 +78,8 @@ claims remain blocked by the release packet no-go items.
 - Public NumiSeal artifacts remain at `artifactVersion = 1`.
 - Public manifests remain at `manifestVersion = 1`.
 - The E2E proof metrics manifest starts at `schemaVersion = 1`.
+- The benchmark coverage manifest starts at `schemaVersion = 1`.
+- The selected-depth loss accounting manifest starts at `schemaVersion = 1`.
 - Proof envelopes remain at `ProofEnvelopeHeader.version = 4`.
 
 ### Remaining Production-Security Blockers
@@ -85,7 +94,8 @@ claims remain blocked by the release packet no-go items.
   NumiSeal end-to-end theorem scope and product cryptographic security dossier
   are checked, while production-security NumiSeal product claims still require
   concrete Swift extractor evidence, product recursive typed carry vectors,
-  simulator coupling beyond the exact field-mask distribution lemma, QROM loss
-  instantiations, conservative post-quantum parameter closure, competitive
-  proof-size/latency evidence, and side-channel evidence.
+  selected-depth loss instantiation, simulator coupling beyond the exact
+  field-mask distribution lemma, QROM loss instantiations, conservative
+  post-quantum parameter closure, competitive proof-size/latency evidence, and
+  side-channel evidence.
 - Signed artifacts and repository branch-protection enforcement.

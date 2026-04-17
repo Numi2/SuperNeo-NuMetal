@@ -19,10 +19,12 @@ manifests, and binary proof envelopes.
 | NumiSeal end-to-end theorem scope manifest | `schemaVersion = 1` |
 | NumiSealZK mask-distribution evidence manifest | `schemaVersion = 1` |
 | Product cryptographic security dossier manifest | `schemaVersion = 1` |
+| Product selected-depth loss accounting manifest | `schemaVersion = 1` |
 | Constant-time source/formal scope manifest | `schemaVersion = 1` |
 | Constant-time Swift/LLVM/Metal lowering evidence manifest | `schemaVersion = 1` |
 | Constant-time release evidence manifest | `schemaVersion = 1` |
 | E2E proof metrics manifest | `schemaVersion = 1` |
+| Benchmark coverage manifest | `schemaVersion = 1` |
 | Proof envelope header | `ProofEnvelopeHeader.version = 4` |
 | NumiSeal proof envelope kind | `4` |
 
@@ -151,6 +153,15 @@ verifier acceptance policy, Module-SIS parameter dossier, Fiat-Shamir/QROM
 position, proof-size/latency boundary, implementation-hardening boundary, and
 promotion rule that keeps production product-security claims disabled.
 
+`TestVectors/product-selected-depth-loss-accounting-v1.json` is the checked
+selected-depth loss accounting manifest. It is not a proof artifact schema and
+does not affect proof bytes. It pins the current depth-1 loss expression,
+future recursive-promotion loss expression, source-fold, terminal-seal, carry,
+ZK-simulator, QROM, extractor, product-ops replay, constant-time, and
+release-distribution loss terms, and the promotion rule that keeps production
+product-security claims disabled until all terms are instantiated and inside
+budget.
+
 `TestVectors/constant-time-scope-v1.json` is the checked constant-time
 source/formal scope manifest. It is not a proof artifact schema; it pins audited
 source markers, source-level forbidden branch patterns, formal trace-declaration
@@ -175,6 +186,16 @@ lowering evidence validator.
 smoke budget manifest. It is not a proof artifact schema; it pins exact checked
 vector artifact bytes, decoded proof-envelope bytes, generated NumiSeal product
 smoke budgets, and the benchmark lane required before latency claims.
+
+`TestVectors/benchmark-coverage-v1.json` is the checked whole-stack benchmark
+coverage manifest. It is not a proof artifact schema and does not affect proof
+bytes. It pins required benchmark row families for source fold proving,
+verifying, stage costs, CPU kernels, Metal kernels, NumiSeal product terminal
+and ZK proving/verifying, typed recursive carry child proving/verifying, and
+local product-control replay/audit encoding. It proves row registration,
+report-renderer inclusion, baseline-comparator inclusion, and production-gate
+wiring; fresh hardware timing and competitor-performance claims remain separate
+release evidence.
 
 `SuperNeoProductOperationsStatus.formatVersion = 2` is the local product
 operations readiness document version. It is emitted by

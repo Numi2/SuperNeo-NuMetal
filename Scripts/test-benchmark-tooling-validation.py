@@ -143,11 +143,13 @@ def test_benchmark_comparator(temp_root: Path) -> None:
     baseline_rows = [
         timing_row("kernel/fieldMultiply/m256-case", 100, "ns"),
         timing_row("fold/cpu/m256-case", 10, "ms"),
+        timing_row("numisealProduct/verify/cpu/one-hot-u2-terminal", 30, "ms"),
         timing_row("stage/sumcheck/m256-case", 20, "ms"),
     ]
     candidate_rows = [
         timing_row("kernel/fieldMultiply/m256-case", 104, "ns"),
         timing_row("fold/cpu/m256-case", 10.9, "ms"),
+        timing_row("numisealProduct/verify/cpu/one-hot-u2-terminal", 32, "ms"),
         timing_row("stage/sumcheck/m256-case", 18, "ms"),
     ]
     write_json(baseline, baseline_rows)
@@ -158,6 +160,7 @@ def test_benchmark_comparator(temp_root: Path) -> None:
     comparison = output.read_text(encoding="utf-8")
     require("- Result: PASS" in comparison, "comparison output did not record PASS")
     require("kernel/fieldMultiply/m256-case" in comparison, "comparison missing kernel row")
+    require("numisealProduct/verify/cpu/one-hot-u2-terminal" in comparison, "comparison missing NumiSeal product row")
     require("stage/sumcheck/m256-case" in comparison, "comparison missing stage row")
 
     write_json(candidate, [timing_row("kernel/fieldMultiply/m256-case", 106, "ns")])
@@ -351,6 +354,7 @@ def test_benchmark_metadata_comparison(temp_root: Path) -> None:
 def test_benchmark_report_renderer(temp_root: Path) -> None:
     results = temp_root / "results.json"
     report = temp_root / "report.md"
+    product_sizes = temp_root / "numiseal-product-proof-sizes.json"
     write_json(
         results,
         [
@@ -367,7 +371,38 @@ def test_benchmark_report_renderer(temp_root: Path) -> None:
             nanosecond_metric_row("fold/cpu/m256-case", "Metal wait wall time", 2_750_000),
             timing_row("kernel/ajtaiCommit/cpu/m256-case", 250, "us"),
             malloc_row("kernel/ajtaiCommit/cpu/m256-case", 7),
+            timing_row("numisealProduct/verify/cpu/one-hot-u2-terminal", 31, "ms"),
+            timing_row("productControls/replayIdentity/cpu/recursive-carry", 900, "ns"),
         ],
+    )
+    product_sizes.write_text(
+        json.dumps(
+            [
+                {
+                    "caseID": "one-hot-u2-terminal",
+                    "proofKind": "numiseal-terminal",
+                    "carryMode": "none",
+                    "zkMode": "none",
+                    "sourceFoldEnvelopeBytes": 1024,
+                    "productProofEnvelopeBytes": 2048,
+                    "canonicalArtifactBytes": 4096,
+                    "recursiveCarryReplayBindingBound": False,
+                },
+                {
+                    "caseID": "one-hot-u2-recursive-child",
+                    "proofKind": "numiseal-terminal",
+                    "carryMode": "typed-required",
+                    "zkMode": "none",
+                    "sourceFoldEnvelopeBytes": 1030,
+                    "productProofEnvelopeBytes": 2050,
+                    "canonicalArtifactBytes": 4100,
+                    "recursiveCarryReplayBindingBound": True,
+                },
+            ],
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
     )
     report.write_text("# Existing Metadata\n\nkeep this block\n", encoding="utf-8")
 
@@ -375,9 +410,16 @@ def test_benchmark_report_renderer(temp_root: Path) -> None:
     expect_success("render valid benchmark report", result)
     rendered = report.read_text(encoding="utf-8")
     require("# Existing Metadata" in rendered, "renderer dropped existing metadata")
+    require("## NumiSeal Product Proof Sizes" in rendered, "renderer missing NumiSeal proof-size section")
+    require("`one-hot-u2-recursive-child`" in rendered, "renderer missing NumiSeal recursive proof-size row")
+    require("typed-required" in rendered, "renderer missing recursive carry mode")
+    require("4100 B" in rendered, "renderer missing canonical artifact bytes")
+    require("yes" in rendered, "renderer missing recursive carry replay binding status")
     require("## Timing Summary" in rendered, "renderer missing timing summary")
     require("| Benchmark | Time | GPU | Encode | Commit | Wait | p95 | Derived | Allocations |" in rendered, "renderer missing timing split columns")
     require("`fold/cpu/m256-case`" in rendered, "renderer missing fold row")
+    require("`numisealProduct/verify/cpu/one-hot-u2-terminal`" in rendered, "renderer missing NumiSeal product row")
+    require("`productControls/replayIdentity/cpu/recursive-carry`" in rendered, "renderer missing product controls row")
     require("100.00 folds/s, 25600 constraints/s" in rendered, "renderer missing derived fold rate")
     require("2.5 ms" in rendered, "renderer missing GPU metric")
     require("80 μs" in rendered, "renderer missing Metal encode metric")
@@ -386,6 +428,13 @@ def test_benchmark_report_renderer(temp_root: Path) -> None:
     require("12 ms" in rendered, "renderer missing p95")
     require("3 #" in rendered, "renderer missing malloc count")
     require("4000.00 commitments/s" in rendered, "renderer missing commitment rate")
+    second_result = run_render(results, report)
+    expect_success("render valid benchmark report twice", second_result)
+    rendered_again = report.read_text(encoding="utf-8")
+    require(
+        rendered_again.count("## NumiSeal Product Proof Sizes") == 1,
+        "renderer duplicated NumiSeal proof-size section",
+    )
 
     results.write_text("{ not json\n", encoding="utf-8")
     expect_failure(

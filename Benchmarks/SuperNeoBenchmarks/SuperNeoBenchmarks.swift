@@ -62,7 +62,6 @@ private let fixtures = benchmarkCases.map { benchmarkCase in
         try SuperNeoBenchmarkFixture(benchmarkCase: benchmarkCase)
     }
 }
-
 private struct BenchmarkInvariantError: Error, CustomStringConvertible {
     let message: String
 
@@ -78,8 +77,10 @@ private func failBenchmarkSetup(_ message: String) -> Never {
 private func benchmarkSetupValue<T>(_ message: String, _ body: () throws -> T) -> T {
     do {
         return try body()
+    } catch let error as BenchmarkInvariantError {
+        failBenchmarkSetup("\(message): \(error.message)")
     } catch {
-        failBenchmarkSetup("\(message): \(error)")
+        failBenchmarkSetup(message)
     }
 }
 
@@ -95,6 +96,16 @@ private func requireBenchmarkInvariant(_ condition: @autoclosure () throws -> Bo
     }
 }
 
+private func benchmarkSetupStep<T>(_ name: String, _ body: () throws -> T) throws -> T {
+    do {
+        return try body()
+    } catch let error as BenchmarkInvariantError {
+        throw error
+    } catch {
+        throw BenchmarkInvariantError(message: name)
+    }
+}
+
 private func requireValid(_ result: VerificationResult) throws {
     guard result == .valid else {
         throw BenchmarkInvariantError(message: "verification failed: \(result.reason ?? "unknown")")
@@ -104,6 +115,189 @@ private func requireValid(_ result: VerificationResult) throws {
 private func requireValid(_ result: FoldReductionResult) throws {
     guard result.isReductionAccepted else {
         throw BenchmarkInvariantError(message: "reduction failed: \(result.reason ?? "unknown")")
+    }
+}
+
+private func requireValid(_ result: NumiSealProductVerificationResult) throws {
+    guard result.sourceFoldResult.isReductionAccepted else {
+        throw BenchmarkInvariantError(
+            message: "NumiSeal product source fold failed: \(result.sourceFoldResult.reason ?? "unknown")"
+        )
+    }
+    guard result.numiSealResult.isValid else {
+        throw BenchmarkInvariantError(
+            message: "NumiSeal product proof failed: \(result.numiSealResult.reason ?? "unknown")"
+        )
+    }
+}
+
+private final class NumiSealProductBenchmarkFixture {
+    let prepared: SuperNeoPreparedR1CS
+    let terminalRequest: NumiSealProvingRequest
+    let terminalArtifact: NumiSealProductArtifact
+    let zkRequest: NumiSealProvingRequest
+    let zkArtifact: NumiSealProductArtifact
+    let recursiveParent: NumiSealProductRecursiveCarryParent
+    let recursiveChildRequest: NumiSealProvingRequest
+    let recursiveChildArtifact: NumiSealProductArtifact
+    let recursiveIdentity: SuperNeoProductProofIdentity
+    let auditEvent: SuperNeoAuditLogEvent
+
+    init() throws {
+        let workload = try benchmarkSetupStep("build one-hot workload") {
+            try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        }
+        let keySeed = "superneo-benchmark-numiseal-product-key"
+        let prepared = try benchmarkSetupStep("prepare NumiSeal benchmark R1CS") {
+            try workload.prepareForFolding(
+                bits: [false, true],
+                keySeed: Array(keySeed.utf8)
+            )
+        }
+        let laneID = try benchmarkSetupStep("build NumiSeal benchmark lane") {
+            try NumiSealLaneID("product")
+        }
+        let limits = try benchmarkSetupStep("build NumiSeal benchmark aggregation limits") {
+            try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
+        }
+        let prover = NumiSealProductProver()
+        let verifier = NumiSealProductVerifier()
+        let workloadParameters = ["selectedCount": "1"]
+        let terminalRequest = NumiSealProvingRequest(
+            preparedR1CS: prepared,
+            workload: "one-hot-vector-v1",
+            bitCount: 2,
+            publicInputs: [1],
+            keySeedUTF8: keySeed,
+            workloadParameters: workloadParameters,
+            laneID: laneID,
+            executionPolicy: .zkHighAssuranceCPU,
+            aggregationLimits: limits
+        )
+        let terminalArtifact = try benchmarkSetupStep("prove NumiSeal terminal product fixture") {
+            try prover.prove(terminalRequest)
+        }
+        let terminalResult = try benchmarkSetupStep("verify NumiSeal terminal product fixture") {
+            try verifier.verify(
+                artifact: terminalArtifact,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            )
+        }
+        let zkRequest = NumiSealProvingRequest(
+            preparedR1CS: prepared,
+            workload: "one-hot-vector-v1",
+            bitCount: 2,
+            publicInputs: [1],
+            keySeedUTF8: keySeed,
+            workloadParameters: workloadParameters,
+            laneID: laneID,
+            executionPolicy: .zkHighAssuranceCPU,
+            zkMode: NumiSealZK.maskedDigitTensorMode,
+            aggregationLimits: limits
+        )
+        let zkArtifact = try benchmarkSetupStep("prove NumiSealZK product fixture") {
+            try prover.prove(zkRequest)
+        }
+        let zkResult = try benchmarkSetupStep("verify NumiSealZK product fixture") {
+            try verifier.verify(
+                artifact: zkArtifact,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            )
+        }
+        let recursiveParent = try benchmarkSetupStep("build recursive carry parent fixture") {
+            try NumiSealProductRecursiveCarryParent(
+                artifact: terminalArtifact,
+                verificationResult: terminalResult,
+                consumerSessionDigest: Digest256.hash("superneo-benchmark-recursive-carry-child-session"),
+                nextRecursionLevel: 1
+            )
+        }
+        let recursiveChildRequest = NumiSealProvingRequest(
+            preparedR1CS: prepared,
+            workload: "one-hot-vector-v1",
+            bitCount: 2,
+            publicInputs: [1],
+            keySeedUTF8: keySeed,
+            workloadParameters: workloadParameters,
+            laneID: laneID,
+            executionPolicy: .zkHighAssuranceCPU,
+            aggregationLimits: limits,
+            recursiveCarryParent: recursiveParent
+        )
+        let recursiveChildArtifact = try benchmarkSetupStep("prove recursive carry child product fixture") {
+            try prover.prove(recursiveChildRequest)
+        }
+        let recursiveChildResult = try benchmarkSetupStep("verify recursive carry child product fixture") {
+            try verifier.verify(
+                artifact: recursiveChildArtifact,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance,
+                recursiveCarryParent: recursiveParent
+            )
+        }
+        guard let recursiveBinding = try benchmarkSetupStep(
+            "decode recursive carry replay binding from child product fixture",
+            { try recursiveChildArtifact.recursiveCarryReplayBinding() }
+        ) else {
+            throw BenchmarkInvariantError(message: "recursive product benchmark child did not emit carry replay binding")
+        }
+        let recursiveIdentity = try benchmarkSetupStep("build recursive product replay identity fixture") {
+            try SuperNeoProductProofIdentity(
+                expectedContextID: "superneo-benchmark-product-context",
+                statementDigest: Digest256(
+                    hexDigest: recursiveChildArtifact.statementDigestHex,
+                    name: "benchmark recursive child statement digest"
+                ),
+                proofEnvelopeDigest: Digest256(
+                    hexDigest: recursiveChildArtifact.proofEnvelopeDigestHex,
+                    name: "benchmark recursive child proof envelope digest"
+                ),
+                artifactDigest: NumiSealProductArtifact.canonicalDigest(recursiveChildArtifact),
+                provenanceDigest: Digest256.hash("superneo-benchmark-recursive-child-provenance"),
+                recursiveCarryReplayBindingDigest: recursiveBinding.bindingDigest
+            )
+        }
+        let auditEvent = SuperNeoAuditLogEvent(
+            decision: "accepted",
+            artifactDigestHex: recursiveIdentity.artifactDigest.hexString,
+            proofEnvelopeDigestHex: recursiveIdentity.proofEnvelopeDigest.hexString,
+            provenanceDigestHex: recursiveIdentity.provenanceDigest.hexString,
+            proofKind: SuperNeoProductProofKind.numiSealTerminal.rawValue,
+            carryMode: recursiveChildArtifact.carryMode,
+            recursiveCarryReplayBindingDigestHex: recursiveBinding.bindingDigest.hexString,
+            recursiveCarryContextRootHex: recursiveBinding.contextRoot.hexString,
+            recursiveCarryReplayRootHex: recursiveBinding.replayRoot.hexString,
+            recursiveCarryParentArtifactDigestHex: recursiveBinding.parentArtifactDigest.hexString,
+            recursiveCarryParentProofEnvelopeDigestHex: recursiveBinding.parentProductProofEnvelopeDigest.hexString,
+            recursiveCarryParentProvenanceDigestHex: Digest256.hash("superneo-benchmark-parent-provenance").hexString,
+            recursiveCarryParentAcceptedReplayDigestHex: Digest256.hash("superneo-benchmark-parent-replay").hexString,
+            recursiveCarryConsumerSessionDigestHex: recursiveBinding.consumerSessionDigest.hexString,
+            recursiveCarryNextRecursionLevel: recursiveBinding.nextRecursionLevel,
+            recursiveCarryClaimCount: recursiveBinding.claimCount,
+            contextID: recursiveIdentity.expectedContextID,
+            statementDigestHex: recursiveIdentity.statementDigest.hexString,
+            toolVersion: "superneo-benchmark",
+            releaseBuildDigestHex: Digest256.hash("superneo-benchmark-release-build").hexString
+        )
+        try requireValid(terminalResult)
+        try requireValid(zkResult)
+        try requireValid(recursiveChildResult)
+
+        self.prepared = prepared
+        self.terminalRequest = terminalRequest
+        self.terminalArtifact = terminalArtifact
+        self.zkRequest = zkRequest
+        self.zkArtifact = zkArtifact
+        self.recursiveParent = recursiveParent
+        self.recursiveChildRequest = recursiveChildRequest
+        self.recursiveChildArtifact = recursiveChildArtifact
+        self.recursiveIdentity = recursiveIdentity
+        self.auditEvent = auditEvent
     }
 }
 
@@ -493,6 +687,95 @@ private func registerCEBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     }
 }
 
+private func registerNumiSealProductBenchmarks(_ fixture: NumiSealProductBenchmarkFixture) {
+    let label = "one-hot-u2"
+    let prover = NumiSealProductProver()
+    let verifier = NumiSealProductVerifier()
+
+    Benchmark("numisealProduct/prove/cpu/\(label)-terminal", configuration: expensiveConfiguration) { _ in
+        let artifact = try prover.prove(fixture.terminalRequest)
+        let result = try verifier.verify(
+            artifact: artifact,
+            sourcePublicInput: fixture.prepared.publicFoldInput,
+            key: fixture.prepared.key,
+            executionPolicy: .highAssurance
+        )
+        try requireValid(result)
+        blackHole(try artifact.proofEnvelopeBytes().count)
+    }
+
+    Benchmark("numisealProduct/verify/cpu/\(label)-terminal", configuration: defaultConfiguration) { _ in
+        let result = try verifier.verify(
+            artifact: fixture.terminalArtifact,
+            sourcePublicInput: fixture.prepared.publicFoldInput,
+            key: fixture.prepared.key,
+            executionPolicy: .highAssurance
+        )
+        try requireValid(result)
+    }
+
+    Benchmark("numisealProduct/prove/cpu/\(label)-zk", configuration: expensiveConfiguration) { _ in
+        let artifact = try prover.prove(fixture.zkRequest)
+        let result = try verifier.verify(
+            artifact: artifact,
+            sourcePublicInput: fixture.prepared.publicFoldInput,
+            key: fixture.prepared.key,
+            executionPolicy: .highAssurance
+        )
+        try requireValid(result)
+        blackHole(try artifact.proofEnvelopeBytes().count)
+    }
+
+    Benchmark("numisealProduct/verify/cpu/\(label)-zk", configuration: defaultConfiguration) { _ in
+        let result = try verifier.verify(
+            artifact: fixture.zkArtifact,
+            sourcePublicInput: fixture.prepared.publicFoldInput,
+            key: fixture.prepared.key,
+            executionPolicy: .highAssurance
+        )
+        try requireValid(result)
+    }
+
+    Benchmark("numisealProduct/recursiveCarry/prove/cpu/\(label)-child", configuration: expensiveConfiguration) { _ in
+        let artifact = try prover.prove(fixture.recursiveChildRequest)
+        let result = try verifier.verify(
+            artifact: artifact,
+            sourcePublicInput: fixture.prepared.publicFoldInput,
+            key: fixture.prepared.key,
+            executionPolicy: .highAssurance,
+            recursiveCarryParent: fixture.recursiveParent
+        )
+        try requireValid(result)
+        blackHole(try artifact.recursiveCarryReplayBinding()?.bindingDigest)
+    }
+
+    Benchmark("numisealProduct/recursiveCarry/verify/cpu/\(label)-child", configuration: defaultConfiguration) { _ in
+        let result = try verifier.verify(
+            artifact: fixture.recursiveChildArtifact,
+            sourcePublicInput: fixture.prepared.publicFoldInput,
+            key: fixture.prepared.key,
+            executionPolicy: .highAssurance,
+            recursiveCarryParent: fixture.recursiveParent
+        )
+        try requireValid(result)
+    }
+
+    Benchmark("productControls/replayIdentity/cpu/recursive-carry", configuration: defaultConfiguration) { _ in
+        let digest = fixture.recursiveIdentity.localReplayDigest
+        try requireBenchmarkInvariant(
+            fixture.recursiveIdentity.recursiveCarryReplayBindingDigestColumn != "none",
+            "recursive carry replay digest was not bound into product identity"
+        )
+        blackHole(digest)
+    }
+
+    Benchmark("productControls/auditEventEncode/cpu/recursive-carry", configuration: defaultConfiguration) { _ in
+        let data = try SuperNeoCanonicalJSON.encode(fixture.auditEvent)
+        try requireBenchmarkInvariant(!data.isEmpty, "recursive carry audit event encoded to an empty payload")
+        blackHole(data.count)
+    }
+}
+
 private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     let label = fixture.benchmarkCase.label
     let backend = SuperNeoCPUBackend(parameters: fixture.parameters)
@@ -822,11 +1105,15 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
 
 let benchmarks: @Sendable () -> Void = {
     let metadataDirectory = URL(fileURLWithPath: "benchmark-results", isDirectory: true)
+    let numiSealProductFixture = benchmarkSetupValue("failed to build NumiSeal product benchmark fixture") {
+        try NumiSealProductBenchmarkFixture()
+    }
     try? SuperNeoBenchmarkMetadata().write(to: metadataDirectory, profile: benchmarkProfile, fixtures: fixtures)
 
     for fixture in fixtures {
         registerEndToEndBenchmarks(fixture)
     }
+    registerNumiSealProductBenchmarks(numiSealProductFixture)
 
     let kernelFixtureLimit = benchmarkProfile == "scaling" ? fixtures.count : (benchmarkProfile == "quick" ? 1 : 4)
     for fixture in fixtures.prefix(kernelFixtureLimit) {

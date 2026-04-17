@@ -24,8 +24,8 @@ cryptographic library.
 | Backends | CPU reference implementation plus selected Metal acceleration. Default routing avoids Metal on small shapes and keeps Metal as an acceleration path, not a trust oracle. |
 | Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
-| Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/` and summarized below. |
-| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
+| Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/`; whole-stack row coverage is checked by `TestVectors/benchmark-coverage-v1.json`. |
+| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, checked selected-depth loss accounting contract, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/product-selected-depth-loss-accounting-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
 | Product ops | Local signed context/provenance/revocation feed, replay ledger, audit export, and machine-readable operations readiness status for private integration work. |
 
 ## Highlights
@@ -40,6 +40,10 @@ cryptographic library.
 - Benchmark instrumentation now splits Metal command-buffer GPU time from host
   encode, commit, and wait time so reports can distinguish device work from
   submission overhead.
+- Whole-stack benchmark coverage now includes source fold proving/verifying,
+  stage and kernel rows, Metal rows, NumiSeal terminal/ZK product prove/verify,
+  typed recursive carry child prove/verify, and local product-control replay
+  and audit encoding rows.
 - The Lean formal track has a conservative tagged bad-event composition layer,
   while the full protocol theorem remains intentionally blocked on mechanized
   probability composition and Swift equivalence proofs.
@@ -89,13 +93,69 @@ cryptographic library.
   proof-envelope, verifier-policy, and composition theorem surfaces to a
   bounded-depth product theorem while keeping QROM, post-quantum, ZK privacy,
   recursive carry, performance, and constant-time production claims disabled.
+- A checked selected-depth loss accounting ledger for the current depth-1
+  product claim boundary. It pins the source-fold, terminal-seal, carry,
+  ZK-simulator, QROM, extractor, product-ops replay, constant-time, and release
+  distribution loss terms while keeping every hard production claim disabled.
 - A canonical local product operations readiness status exposed by
   `product-status --format json` and embedded in product audit exports.
 - A required signed revocation feed for local product controls, with effective
   revocation checked before product acceptance and feed digest bound into audit
   decisions.
+- Depth-1 typed recursive carry product verification in local product controls,
+  with signed parent provenance, prior parent replay acceptance, recursive carry
+  replay roots, and single-use carry consumption bound into SQLite replay and
+  JSONL audit records.
 
 Core profile constants are documented in [Docs/Parameters.md](Docs/Parameters.md).
+
+## Complete Stack Snapshot
+
+The current repository stack is:
+
+- **Arithmetic and encoding:** Goldilocks base field, Goldilocks quadratic
+  extension, Phi81 cyclotomic ring, canonical byte encodings, duplicate-key JSON
+  rejection, and checked proof-envelope framing.
+- **Commitment layer:** Ajtai commitments over the pinned Goldilocks/Phi81
+  profile, deterministic key derivation, batch commitment paths, and CPU/Metal
+  differential checks.
+- **Constraint/frontend layer:** R1CS builders for checked one-hot and binary
+  addition workloads, R1CS-to-CCS preparation, paper-normalization checks, and
+  public-input packing.
+- **Folding layer:** fold-reduction envelopes, terminal and compressed-terminal
+  acceptance, CE opening proofs, transcript binding, and verifier policies that
+  keep reductions separate from terminal product acceptance.
+- **NumiSeal layer:** canonical obligations, lane aggregation, public statement
+  roots, scalarized residual checks, terminal product artifacts, strict expected
+  context pins, and a product proving API for generated R1CS programs.
+- **NumiSealZK layer:** kind-5 masked digit tensor artifacts, exact
+  rejection-sampled field masks, randomness-session binding, mask-reuse
+  rejection, ZK proof body validation, and optional signed side-channel evidence.
+- **Recursive carry layer:** typed carry statements, producer/consumer context
+  binding, parent-child product carry with `typed-required` child artifacts, and
+  local product controls that require signed parent provenance plus prior parent
+  replay acceptance for depth-1 child acceptance.
+- **Product controls:** signed trusted context packs, signed artifact provenance,
+  signed revocation feeds, local operator profiles, SQLite replay, hash-chained
+  JSONL audit, product status/export commands, local retry/readiness policy, and
+  signed side-channel certificate checking for reviewed ZK lanes.
+- **Evidence and formalization:** Lean conformance checks, Swift/Lean vector
+  bridges, theorem-scope manifests, parameter/security dossiers, constant-time
+  source/lowering evidence manifests, and benchmark/proof-size manifests,
+  including `TestVectors/product-selected-depth-loss-accounting-v1.json` and
+  `TestVectors/benchmark-coverage-v1.json`.
+- **Acceleration:** CPU reference path, Metal kernels for selected field/ring
+  and NumiSeal workloads, adaptive routing, redundant CPU/Metal checking, and
+  pinned Metal workspace evidence for side-channel review.
+- **Benchmarking and budgets:** quick/full benchmark profiles, metadata-aware
+  baseline comparison, report rendering, proof-size budgets, NumiSeal product
+  smoke budgets, and a checked whole-stack benchmark coverage manifest.
+
+Still intentionally not claimed as complete production security: hosted product
+operations, selected-depth loss accounting is contracted but not instantiated,
+extractor instantiation, QROM loss accounting, full ZK simulator composition,
+release signing/notarized distribution, and CPU/Swift/LLVM/Metal constant-time
+evidence closure for every production hardware lane.
 
 | Quantity | Value |
 | --- | ---: |
@@ -385,6 +445,14 @@ checks in the production gate.
 `TestVectors/e2e-proof-metrics-v1.json` pins exact checked-vector proof-envelope
 bytes and generated product-smoke size budgets without adding certificate or
 metrics material to proof bytes.
+`TestVectors/product-selected-depth-loss-accounting-v1.json` pins the
+selected-depth loss accounting contract for the current depth-1 product
+security boundary while keeping extractor, QROM, simulator, hosted-ops,
+release-signing, and CT evidence claims disabled.
+`TestVectors/benchmark-coverage-v1.json` pins the benchmark row families that
+must remain registered, rendered, baseline-comparable, and production-gated for
+the source fold, kernels, Metal, NumiSeal product, recursive carry, and product
+controls.
 
 ```sh
 swift Scripts/validate-test-vectors.swift
@@ -414,46 +482,60 @@ Current performance highlights:
 - The row-partial sparse transformed-evaluation schedule is available for
   tuning but remains opt-in because the local small-shape A/B run was slower
   than the blocked baseline.
+- Quick benchmark coverage now includes NumiSeal terminal product prove/verify,
+  NumiSealZK product prove/verify, typed recursive carry child prove/verify,
+  replay identity construction, and product audit-event encoding. The coverage
+  contract is checked by `TestVectors/benchmark-coverage-v1.json` and
+  `Scripts/validate-benchmark-coverage.py`.
 
 Latest local benchmark snapshot:
 
 | Field | Value |
 | --- | --- |
-| Generated | `2026-04-14T03:00:20Z` |
-| Source commit | `31d69f0` |
+| Generated | `2026-04-16T22:33:05Z` |
+| Source commit | `6d0a85f` |
 | Source state | dirty |
 | Host | MacBook Air, Apple M4, 10 CPU cores, 24 GB memory |
 | Toolchain | Swift 6.3, Xcode 26.4 |
 | OS | macOS 26.5 build `25F5042g` |
 | Profile | `quick` |
-| Case filter | `m256-K2-k1-binary` |
+| Case filter | none |
 | Metal device | Apple M4 |
 
-Proof size for the latest case:
+Proof sizes for the latest quick cases:
 
 | Case | Constraints | Proof | Envelope | Sum-check | PiCCS | PiRLC | PiDEC | Output claims |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `m64-K1-k0-binary` | 64 | 321,128 B | 321,269 B | 672 B | 10,920 B | 11,352 B | 145,280 B | 152,880 B |
 | `m256-K2-k1-binary` | 256 | 344,616 B | 344,757 B | 880 B | 32,856 B | 12,248 B | 145,280 B | 153,328 B |
 
 Selected timing rows from the same run:
 
 | Row | Time | Derived rate |
 | --- | ---: | ---: |
-| `fold/cpu/m256-K2-k1-binary` | 28 ms | 35.71 folds/s, 9,143 constraints/s |
-| `fold/metal/m256-K2-k1-binary` | 41 ms | 24.39 folds/s, 6,244 constraints/s |
-| `fold/prepared/cpu/m256-K2-k1-binary` | 27 ms | 37.04 folds/s, 9,481 constraints/s |
-| `fold/prepared/metal/m256-K2-k1-binary` | 38 ms | 26.32 folds/s, 6,737 constraints/s |
-| `stage/sumcheck/m256-K2-k1-binary` | 16 ms |  |
-| `stage/piCCSClaims/m256-K2-k1-binary` | 4.64 ms |  |
-| `stage/piRLC/m256-K2-k1-binary` | 2.18 ms |  |
-| `stage/piDEC/m256-K2-k1-binary` | 2.64 ms |  |
-| `reduceFold/cpu/m256-K2-k1-binary` | 2.37 ms |  |
-| `terminalVerify/cpu/m256-K2-k1-binary` | 4.83 ms |  |
-| `proofEnvelope/roundTrip/m256-K2-k1-binary` | 9.09 ms |  |
-| `kernel/ajtaiCommit/batch/cpu/m256-K2-k1-binary` | 5.34 ms | 187.23 commitments/s |
-| `kernel/ajtaiCommit/batch/metal/m256-K2-k1-binary` | 1.79 ms | 559.60 commitments/s |
-| `kernel/transformedEvaluation/cpuSparse/m256-K2-k1-binary` | 83 us |  |
-| `kernel/transformedEvaluation/metalSparse/m256-K2-k1-binary` | 4.13 ms |  |
+| `fold/cpu/m256-K2-k1-binary` | 19 ms | 52.63 folds/s, 13,474 constraints/s |
+| `fold/metal/m256-K2-k1-binary` | 58 ms | 17.24 folds/s, 4,414 constraints/s |
+| `fold/prepared/cpu/m256-K2-k1-binary` | 20 ms | 50.00 folds/s, 12,800 constraints/s |
+| `fold/prepared/metal/m256-K2-k1-binary` | 33 ms | 30.30 folds/s, 7,758 constraints/s |
+| `stage/sumcheck/m64-K1-k0-binary` | 231 us |  |
+| `stage/piCCSClaims/m64-K1-k0-binary` | 274 us |  |
+| `stage/piRLC/m64-K1-k0-binary` | 284 us |  |
+| `stage/piDEC/m64-K1-k0-binary` | 1.23 ms |  |
+| `reduceFold/cpu/m256-K2-k1-binary` | 1.79 ms |  |
+| `terminalVerify/cpu/m256-K2-k1-binary` | 3.58 ms |  |
+| `proofEnvelope/roundTrip/m256-K2-k1-binary` | 7.97 ms |  |
+| `kernel/ajtaiCommit/batch/cpu/m64-K1-k0-binary` | 677 us | 1,477.10 commitments/s |
+| `kernel/ajtaiCommit/batch/metal/m64-K1-k0-binary` | 1.84 ms | 542.89 commitments/s |
+| `kernel/transformedEvaluation/cpuSparse/m64-K1-k0-binary` | 22 us |  |
+| `kernel/transformedEvaluation/metalSparse/m64-K1-k0-binary` | 4.38 ms |  |
+| `numisealProduct/prove/cpu/one-hot-u2-terminal` | 174 ms |  |
+| `numisealProduct/verify/cpu/one-hot-u2-terminal` | 59 ms |  |
+| `numisealProduct/prove/cpu/one-hot-u2-zk` | 176 ms |  |
+| `numisealProduct/verify/cpu/one-hot-u2-zk` | 65 ms |  |
+| `numisealProduct/recursiveCarry/prove/cpu/one-hot-u2-child` | 176 ms |  |
+| `numisealProduct/recursiveCarry/verify/cpu/one-hot-u2-child` | 62 ms |  |
+| `productControls/replayIdentity/cpu/recursive-carry` | 23 us |  |
+| `productControls/auditEventEncode/cpu/recursive-carry` | 12.6 us |  |
 
 The full generated report is
 [benchmark-results/report.md](benchmark-results/report.md). Benchmark profiles,

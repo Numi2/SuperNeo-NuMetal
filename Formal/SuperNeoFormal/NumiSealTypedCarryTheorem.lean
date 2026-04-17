@@ -23,6 +23,7 @@ structure NumiSealTypedCarryProducerGates where
   decompositionCommitmentBound : Prop
   finalPointBound : Prop
   consumerContextBound : Prop
+  productContextDigestBound : Prop
   carryDigestBound : Prop
   recursionLevelAdvanced : Prop
 
@@ -37,6 +38,7 @@ def NumiSealTypedCarryProducerAccepted
     ∧ producer.decompositionCommitmentBound
     ∧ producer.finalPointBound
     ∧ producer.consumerContextBound
+    ∧ producer.productContextDigestBound
     ∧ producer.carryDigestBound
     ∧ producer.recursionLevelAdvanced
 
@@ -48,6 +50,7 @@ structure NumiSealTypedCarryConsumerGates where
   parentStatementDigestMatched : Prop
   parentPublicStatementDigestMatched : Prop
   consumerContextDigestMatched : Prop
+  productContextDigestMatched : Prop
   carryDigestMatched : Prop
   recursionLevelMonotone : Prop
   replayIdentityFresh : Prop
@@ -61,6 +64,7 @@ def NumiSealTypedCarryConsumerAccepted
     ∧ consumer.parentStatementDigestMatched
     ∧ consumer.parentPublicStatementDigestMatched
     ∧ consumer.consumerContextDigestMatched
+    ∧ consumer.productContextDigestMatched
     ∧ consumer.carryDigestMatched
     ∧ consumer.recursionLevelMonotone
     ∧ consumer.replayIdentityFresh
@@ -70,6 +74,7 @@ structure NumiSealTypedCarryProducerConsumerRelation where
   consumedByExpectedChild : Prop
   producerConsumerDigestsAgree : Prop
   carriedResidualBoundToNextStatement : Prop
+  productCarryContextBound : Prop
   recursionLevelMonotone : Prop
   replayIdentityFresh : Prop
 
@@ -79,6 +84,7 @@ def NumiSealTypedCarryProducerConsumerRelationHolds
     ∧ relation.consumedByExpectedChild
     ∧ relation.producerConsumerDigestsAgree
     ∧ relation.carriedResidualBoundToNextStatement
+    ∧ relation.productCarryContextBound
     ∧ relation.recursionLevelMonotone
     ∧ relation.replayIdentityFresh
 
@@ -111,6 +117,10 @@ structure NumiSealTypedCarryProducerConsumerEvidence
       producer.consumerContextBound →
       consumer.consumerContextDigestMatched →
         relation.carriedResidualBoundToNextStatement
+  productContextSound :
+    producer.productContextDigestBound →
+      consumer.productContextDigestMatched →
+        relation.productCarryContextBound
   recursionSound :
     producer.recursionLevelAdvanced →
       consumer.recursionLevelMonotone →
@@ -134,12 +144,12 @@ theorem numiSealTypedCarryProducerConsumer_from_evidence
   rcases hProducer with
     ⟨hParentAccepted, hEnvelope, hTranscript, hParentStatement,
       hParentPublicStatement, hResidual, hDecomposition, hFinalPoint,
-      hConsumerContext, hCarryDigest, hProducerRecursion⟩
+      hConsumerContext, hProductContext, hCarryDigest, hProducerRecursion⟩
   rcases hConsumer with
     ⟨hTypedGrammar, hConsumerParentAccepted, hEnvelopeMatched,
       hTranscriptMatched, hParentStatementMatched, hParentPublicStatementMatched,
-      hConsumerContextMatched, hCarryDigestMatched, hConsumerRecursion,
-      hReplayFresh⟩
+      hConsumerContextMatched, hProductContextMatched, hCarryDigestMatched,
+      hConsumerRecursion, hReplayFresh⟩
   have hProducerAccepted :
       NumiSealTypedCarryProducerAccepted producer := by
     exact ⟨
@@ -152,6 +162,7 @@ theorem numiSealTypedCarryProducerConsumer_from_evidence
       hDecomposition,
       hFinalPoint,
       hConsumerContext,
+      hProductContext,
       hCarryDigest,
       hProducerRecursion
     ⟩
@@ -165,6 +176,7 @@ theorem numiSealTypedCarryProducerConsumer_from_evidence
       hParentStatementMatched,
       hParentPublicStatementMatched,
       hConsumerContextMatched,
+      hProductContextMatched,
       hCarryDigestMatched,
       hConsumerRecursion,
       hReplayFresh
@@ -189,6 +201,9 @@ theorem numiSealTypedCarryProducerConsumer_from_evidence
       hFinalPoint
       hConsumerContext
       hConsumerContextMatched,
+    evidence.productContextSound
+      hProductContext
+      hProductContextMatched,
     evidence.recursionSound hProducerRecursion hConsumerRecursion,
     evidence.replaySound hReplayFresh
   ⟩
@@ -217,13 +232,16 @@ theorem numiSealTypedCarry_from_product_carry_acceptance
       hProducer
       hConsumer
       evidence
+  rcases hRelation with
+    ⟨hProduced, _, hDigests, hResidual, hProductContext, hRecursion, hReplay⟩
   exact ⟨
-    hRelation.1,
+    hProduced,
     hCarryModeSound hCarryMode hTypedGrammar,
-    hRelation.2.2.1,
-    hRelation.2.2.2.1,
-    hRelation.2.2.2.2.1,
-    hRelation.2.2.2.2.2
+    hDigests,
+    hResidual,
+    hProductContext,
+    hRecursion,
+    hReplay
   ⟩
 
 end SuperNeoFormal

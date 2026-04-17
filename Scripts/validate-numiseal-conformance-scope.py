@@ -42,11 +42,27 @@ REQUIRED_RELATION_COMPONENTS = {
 REQUIRED_SURFACE_TESTS = {
     "numiseal-product": {
         "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
+        "testNumiSealProductRecursiveCarryContextBindsParentArtifactAndSession",
+        "testNumiSealProductRecursiveCarryParentProducesAndVerifiesTypedRequiredChild",
     },
 }
 REQUIRED_THEOREM_SURFACE_TESTS = {
     "product-policy": {
         "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
+    },
+    "typed-carry-producer-consumer": {
+        "testNumiSealProductRecursiveCarryContextBindsParentArtifactAndSession",
+        "testNumiSealProductRecursiveCarryParentProducesAndVerifiesTypedRequiredChild",
+    },
+}
+REQUIRED_SURFACE_VECTORS = {
+    "numiseal-product": {
+        "TestVectors/numiseal-product-recursive-carry-context-v1.json",
+    },
+}
+REQUIRED_THEOREM_SURFACE_VECTORS = {
+    "typed-carry-producer-consumer": {
+        "TestVectors/numiseal-product-recursive-carry-context-v1.json",
     },
 }
 REQUIRED_FORMAL_DECLARATIONS = {
@@ -189,12 +205,63 @@ def validate_surface(surface: Any, test_source: str) -> str:
         surface.get("conformanceVectors"),
         f"{surface_id}.conformanceVectors",
     )
+    required_vectors = REQUIRED_SURFACE_VECTORS.get(surface_id, set())
+    require(
+        required_vectors.issubset(set(vectors)),
+        f"{surface_id}.conformanceVectors missing required vectors {sorted(required_vectors - set(vectors))}",
+    )
     for path in vectors:
         require_path(path, f"{surface_id} conformance vector")
         vector = read_json(ROOT / path)
         if "surface" in vector:
             require(vector.get("formatVersion") == 1, f"{path} formatVersion must be 1")
             require(vector.get("surface") == surface_id, f"{path} surface must be {surface_id}")
+            if vector.get("caseID") == "numiseal-product-recursive-carry-context-v1":
+                statement = vector.get("statement")
+                require(isinstance(statement, dict), f"{path}.statement must be an object")
+                require(
+                    statement.get("contextDomainLabel") == "SuperNeo-NuMetal.numiseal.product-carry-context.v1",
+                    f"{path} must pin the product carry context domain",
+                )
+                require(
+                    statement.get("contextDigestLabel") == "numiseal.product-carry-context.digest.v1",
+                    f"{path} must pin the product carry context digest label",
+                )
+                bound_fields = set(require_string_list(statement.get("boundFields"), f"{path}.statement.boundFields"))
+                require(
+                    {
+                        "parent product artifact digest",
+                        "parent source fold envelope digest",
+                        "parent product proof envelope digest",
+                        "parent producer proof envelope digest",
+                        "consumer session digest",
+                        "next recursion level",
+                    }.issubset(bound_fields),
+                    f"{path} must bind the product recursive carry context fields",
+                )
+                require(
+                    statement.get("contextRootLabel") == "numiseal.product-carry.context-root.v1",
+                    f"{path} must pin the product carry context root label",
+                )
+                require(
+                    statement.get("replayRootLabel") == "numiseal.product-carry.replay-root.v1",
+                    f"{path} must pin the product carry replay root label",
+                )
+                require(
+                    statement.get("productReplayBindingLabel")
+                    == "SuperNeo-NuMetal.numiseal.product.recursive-carry.replay-binding.v1",
+                    f"{path} must pin the product replay-binding label",
+                )
+                positive_cases = " ".join(
+                    require_string_list(vector.get("positiveCases"), f"{path}.positiveCases")
+                ).lower()
+                for needle in ["signed parent provenance", "prior parent replay acceptance", "single-use"]:
+                    require(needle in positive_cases, f"{path} positive cases must mention {needle}")
+                negative_cases = " ".join(
+                    require_string_list(vector.get("negativeCases"), f"{path}.negativeCases")
+                ).lower()
+                for needle in ["parent proof identity", "duplicate local carry consumption"]:
+                    require(needle in negative_cases, f"{path} negative cases must mention {needle}")
             if surface_id == "numiseal-zk":
                 statement = vector.get("statement")
                 require(isinstance(statement, dict), f"{path}.statement must be an object")
@@ -240,6 +307,12 @@ def validate_theorem_surface(surface: Any, test_source: str) -> str:
         if key == "implementationPaths" or key == "conformanceVectors":
             for path in values:
                 require_path(path, f"{surface_id} {key}")
+            if key == "conformanceVectors":
+                required_vectors = REQUIRED_THEOREM_SURFACE_VECTORS.get(surface_id, set())
+                require(
+                    required_vectors.issubset(set(values)),
+                    f"{surface_id}.conformanceVectors missing required vectors {sorted(required_vectors - set(values))}",
+                )
         if key == "testNames":
             for name in values:
                 require(name in test_source, f"{surface_id} theorem test not found in XCTest source: {name}")

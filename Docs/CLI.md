@@ -187,6 +187,16 @@ swift run superneo verify \
   --revocation-feed revocations.json \
   /tmp/one-hot-numiseal-zk.json
 
+swift run superneo verify \
+  --product \
+  --operator-profile profile.json \
+  --context-pack context.json \
+  --artifact-provenance child-provenance.json \
+  --revocation-feed revocations.json \
+  --recursive-carry-parent parent-numiseal-product.json \
+  --recursive-carry-parent-provenance parent-provenance.json \
+  /tmp/child-numiseal-product.json
+
 swift run superneo product-export-audit \
   --operator-profile profile.json \
   --context-pack context.json \
@@ -205,6 +215,11 @@ Metal mode, execution policy, leakage digest, proof body versions, reviewed
 kernels/stages, and evidence digests. Product verification rejects
 `numiseal-zk` trusted contexts that omit ZK policy, and rejects supplied
 certificates whose digest or bindings differ from the artifact.
+For `carryMode = "typed-required"`, product verification requires
+`--recursive-carry-parent` and `--recursive-carry-parent-provenance`, verifies
+that parent artifact under the same signed context, requires the parent proof
+identity to already be accepted in the local replay ledger, and binds the child
+recursive carry replay roots into the durable replay identity and audit record.
 `product-export-audit` validates the local hash-chained JSONL audit log before
 writing a sorted-key JSON export that includes the active context digest,
 issuer-key digest, signed revocation feed digest, replay count, audit-log

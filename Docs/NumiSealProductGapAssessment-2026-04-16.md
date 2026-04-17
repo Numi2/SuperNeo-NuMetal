@@ -31,6 +31,9 @@ corrected model. What remains is NumiSeal-specific product formalization.
   distribution evidence.
 - [x] Recursive typed carry now has a producer API that binds accepted parent
   proof context into the existing typed carry consumer relation.
+- [x] Product recursive carry now has a typed-required parent-child path: a
+  verified parent product can produce carry claims for a child artifact, and the
+  product verifier requires the matching parent context for `typed-required`.
 
 ## Remaining Work
 
@@ -38,8 +41,11 @@ corrected model. What remains is NumiSeal-specific product formalization.
   deterministic vector tooling.
 - [ ] General frontend: create NumiSeal obligations from real supported
   frontend outputs and trusted context packs.
-- [ ] Recursive carry: promote typed producer/consumer through product replay
-  semantics and product vectors before changing product defaults.
+- [ ] Recursive carry: local product controls now verify a depth-1 parent edge,
+  require signed parent provenance and prior parent replay acceptance, and bind
+  recursive carry replay roots into SQLite/audit with single-use local carry
+  consumption; extend this to the selected production depth with hosted replay
+  policy and formal loss accounting.
 - [ ] ZK: add simulator coupling evidence beyond the exact field-mask
   distribution lemma, product-sized hardware benchmark evidence, and
   side-channel review before changing product defaults.

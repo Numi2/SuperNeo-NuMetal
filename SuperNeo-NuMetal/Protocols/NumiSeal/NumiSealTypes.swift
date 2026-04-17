@@ -54,6 +54,19 @@ public struct NumiSealLaneKey: Equatable, Hashable, Sendable, SuperNeoByteEncoda
     }
 }
 
+public struct NumiSealAggregateKey: Equatable, Hashable, Sendable {
+    public let laneKey: NumiSealLaneKey
+    public let aggregateIndex: Int
+
+    public init(laneKey: NumiSealLaneKey, aggregateIndex: Int) throws {
+        guard aggregateIndex >= 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal aggregate key index must be non-negative")
+        }
+        self.laneKey = laneKey
+        self.aggregateIndex = aggregateIndex
+    }
+}
+
 public struct NumiSealAcceptancePolicy: Equatable, Sendable {
     public let profileID: UInt16
     public let shapeDigest: Digest256

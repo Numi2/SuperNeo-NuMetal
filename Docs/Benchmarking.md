@@ -35,6 +35,14 @@ The report renderer fails on malformed result JSON and on result files without
 wall-clock rows, so benchmark reports should not silently fall back to stale or
 empty evidence.
 
+`TestVectors/benchmark-coverage-v1.json` is the checked whole-stack benchmark
+coverage contract. It requires benchmark rows to remain registered in
+`Benchmarks/SuperNeoBenchmarks/SuperNeoBenchmarks.swift`, rendered by
+`Scripts/render-benchmark-report.swift`, compared by
+`Scripts/compare-benchmark-results.swift`, and gated by
+`Scripts/production-gate.sh`. It is not a fresh hardware timing report and does
+not authorize production performance or competitor-comparison claims.
+
 Benchmarks are built and run from `Benchmarks/Package.swift` with `package-benchmark`, keeping the benchmark plugin out of the main `swift test` graph. The dependency disables package-benchmark's default Jemalloc trait so the suite runs on stock macOS without `brew install jemalloc`. The script records wall-clock, total malloc count, leaked-memory, GPU command-buffer time, Metal encode wall time, Metal commit wall time, and Metal wait wall time metrics, then renders a Markdown summary with proof sizes and derived folds/sec, constraints/sec, and commitments/sec where applicable. The GPU column reports device command-buffer execution time for Metal rows; Encode, Commit, and Wait split host-side dispatch overhead for the same command buffer. Wall-clock still includes allocation, upload, readback, and any work outside the centralized Metal dispatch path. The script disables SwiftPM's command-plugin sandbox so the benchmark child process can discover the system Metal device, and passes package-directory write permission so benchmark exports can be written under `benchmark-results/`. The Xcode project remains the source of truth for app/framework development; the root `Package.swift` exists to run tests reproducibly from the command line, while the benchmark package owns benchmark-only dependencies.
 
 Profiles:
@@ -84,6 +92,10 @@ Benchmark groups:
   `stage/prepared/*` use the same prepared-context lifetime split as
   `fold/prepared/*`.
 - `kernel/*`: field multiplication, ring multiplication, ring-scalar multiplication, multilinear evaluation, dense/sparse/batched/workspace transformed evaluation, single/batched/workspace Ajtai commitment hot paths, and combined workspace commit-plus-evaluation dispatch.
+- `numisealProduct/*`: NumiSeal product terminal prove/verify, NumiSealZK
+  product prove/verify, and typed recursive carry child prove/verify rows.
+- `productControls/*`: local product replay identity construction and
+  product-audit event encoding rows.
 
 Correctness gates:
 
@@ -132,6 +144,13 @@ swift Scripts/compare-benchmark-results.swift \
   comparator and Markdown report renderer so malformed result JSON, unsupported
   units, duplicate wall-clock rows, missing rows, and threshold regressions keep
   failing closed.
+- `Scripts/validate-benchmark-coverage.py` validates
+  `TestVectors/benchmark-coverage-v1.json` so source fold, verifier, stage,
+  CPU kernel, Metal kernel, NumiSeal product, recursive carry, and product
+  control benchmark rows cannot be removed without an explicit policy update.
+- `Scripts/test-benchmark-coverage-validation.py` mutation-tests the benchmark
+  coverage validator for missing surfaces, missing row prefixes, imprecise
+  claim status, weak boundary wording, and duplicate JSON keys.
 - Use Instruments or `xcrun xctrace record --template 'Metal System Trace'` only after the benchmark suite identifies a hotspot.
 
 Hardware-class reports:

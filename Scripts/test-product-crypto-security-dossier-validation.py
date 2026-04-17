@@ -78,6 +78,12 @@ def main() -> None:
         write_json(path, missing_coverage)
         run_fail(str(VALIDATE), str(path))
 
+        missing_loss_ledger = copy.deepcopy(dossier)
+        del missing_loss_ledger["relatedManifests"]["selectedDepthLossAccounting"]
+        path = tmp / "missing-loss-ledger.json"
+        write_json(path, missing_loss_ledger)
+        run_fail(str(VALIDATE), str(path))
+
         outsourced_review = copy.deepcopy(dossier)
         outsourced_review["supportedProductDepth"]["remainingForDepthPromotion"].append("External" + " audit required.")
         path = tmp / "outsourced-review.json"

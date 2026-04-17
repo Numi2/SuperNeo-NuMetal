@@ -7,8 +7,10 @@ production-security claim.
 Machine-readable scope:
 
 - `TestVectors/product-crypto-security-dossier-v1.json`
+- `TestVectors/product-selected-depth-loss-accounting-v1.json`
 - `Formal/SuperNeoFormal/ProductSecurityTheorem.lean`
 - `Scripts/validate-product-crypto-security-dossier.py`
+- `Scripts/validate-product-selected-depth-loss-accounting.py`
 
 The current status is a bounded-depth product security theorem at depth 1.
 All production claims remain disabled until the listed extractor, QROM,
@@ -43,12 +45,67 @@ Depth promotion requires:
 
 - concrete Swift extractor evidence for every accepted source fold and terminal
   NumiSeal layer,
-- recursive typed carry product vectors and replay semantics beyond
-  `carryMode = none`,
+- typed-required recursive child product carry extended from the checked
+  parent-child handoff to the selected production depth with replay semantics,
 - explicit per-layer loss accounting for folding, terminal sealing, carry, ZK,
   and Fiat-Shamir, and
 - either a bounded-depth theorem for the chosen production depth or a
   polynomial-depth theorem for the actual folding/carry construction.
+
+## Selected-Depth Loss Accounting
+
+`TestVectors/product-selected-depth-loss-accounting-v1.json` is the checked
+selected-depth loss accounting ledger for the current depth-1 product boundary.
+It is a contract for what must be instantiated before production claims can be
+made, not a production loss proof.
+
+The ledger pins these loss terms:
+
+- source fold knowledge loss,
+- terminal NumiSeal seal loss,
+- typed recursive carry loss,
+- ZK simulator composition loss,
+- Fiat-Shamir/QROM loss,
+- concrete extractor failure loss,
+- product-ops replay and revocation freshness loss,
+- constant-time side-channel leakage loss, and
+- release signing/notarization distribution loss.
+
+For the current selected depth, the ledger records:
+
+```text
+epsilon_total(depth=1) =
+  epsilon_fold
+  + epsilon_terminal
+  + epsilon_zk_sim
+  + epsilon_qrom
+  + epsilon_extract
+  + epsilon_collision
+  + epsilon_replay
+  + epsilon_ct
+  + epsilon_release
+```
+
+For future recursive promotion, the ledger records the additional carry-hop
+term:
+
+```text
+epsilon_total(depth=d) =
+  d * (epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract)
+  + max(d - 1, 0) * epsilon_carry
+  + epsilon_collision
+  + epsilon_replay
+  + epsilon_ct
+  + epsilon_release
+```
+
+The ledger deliberately keeps `selectedDepthLossClaimAllowed = false` until
+all component losses are instantiated and the total loss is inside the selected
+budget. `ProductSecurityTheorem` now exposes
+`ProductSelectedDepthLossLedger`,
+`ProductSelectedDepthLossLedgerAccepted`, and
+`productSecurityTheorem_requires_selected_depth_loss_accounting` so the formal
+surface cannot skip extractor, QROM, simulator, and total-loss gates.
 
 ## Lattice Assumption Dossier
 
@@ -126,18 +183,32 @@ binds producer evidence, transcript evidence, residual opening material,
 parent acceptance evidence, context, and lane state. Product artifacts now bind
 `carryMode` to `terminalCarryPolicy` metadata and the terminal verifier carry
 acceptance mode, so a typed-required artifact cannot be accepted as a no-carry
-proof. The product default still uses `carryMode = none`.
+proof. Product recursive carry context vectors now bind parent artifact, source
+fold, product proof envelope, producer proof envelope, lane, aggregate, child
+session, and next recursion level. Base artifacts still use `carryMode = none`;
+recursive child artifacts with a verified parent use `carryMode =
+typed-required`. The local product-control path now reconstructs the same
+depth-1 parent edge, verifies the parent artifact under the signed context, and
+binds the recursive carry context root and replay root into durable SQLite
+replay identity and JSONL audit evidence. The child path also requires signed
+parent provenance and prior parent replay-ledger acceptance, and SQLite enforces
+single-use local acceptance for each recursive carry replay-binding digest.
 
-Production recursive carry promotion requires product-level carry vectors,
-malformed negative vectors for the recursive product path, replay semantics for
+Production recursive carry promotion still requires extending that parent-child
+handoff to the selected production depth, hosted replay/loss accounting for
 accepted product sessions, and a theorem showing carry cannot be swapped across
-contexts, lanes, proofs, or product sessions.
+contexts, lanes, proofs, or product sessions at the promoted depth.
 
 ## Proof Size And Latency
 
 `TestVectors/e2e-proof-metrics-v1.json` pins deterministic proof-envelope and
 artifact byte budgets for checked vectors and product smokes. That is not a
 competitive performance claim.
+`TestVectors/benchmark-coverage-v1.json` pins the benchmark row families that
+must remain present for source fold, verifier, stage, CPU kernel, Metal kernel,
+NumiSeal product, recursive carry, and product-control timing. That is coverage
+evidence for the local benchmarking stack, not a substitute for fresh hardware
+latency measurements.
 
 State-of-art comparison requires same-hardware tables for:
 

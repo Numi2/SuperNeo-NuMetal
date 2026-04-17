@@ -170,11 +170,24 @@ The replay identity is:
 - statement digest,
 - proof-envelope digest,
 - artifact digest, and
-- provenance digest.
+- provenance digest,
+- recursive carry replay-binding digest, or `none` for non-recursive proofs.
 
 Accepted identities are inserted into SQLite only after the algebraic verifier
 accepts. The table has a primary identity digest and a unique composite replay
-constraint.
+constraint. For `carryMode = "typed-required"`, product verification also
+requires `--recursive-carry-parent` and
+`--recursive-carry-parent-provenance`, verifies the parent NumiSeal product
+artifact and signed parent provenance under the same signed context, requires
+the parent proof identity to already exist in the local replay ledger,
+constructs the typed parent carry context from the child metadata, and includes
+the recursive carry context root, replay root, parent artifact digest, parent
+proof-envelope digest, parent provenance digest, parent accepted replay digest,
+consumer-session digest, next recursion level, and claim count in the audit
+record. A SQLite unique index also makes each non-`none` recursive carry
+replay-binding digest single-use at the local product layer. Product controls
+intentionally accept only one parent edge per verification until the multi-depth
+theorem and loss accounting are closed.
 
 ## Audit Log
 

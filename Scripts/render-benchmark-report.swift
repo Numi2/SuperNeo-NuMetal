@@ -7,6 +7,17 @@ struct BenchmarkResult: Decodable {
     let extra: String?
 }
 
+struct NumiSealProductProofSize: Decodable {
+    let caseID: String
+    let proofKind: String
+    let carryMode: String
+    let zkMode: String
+    let sourceFoldEnvelopeBytes: Int
+    let productProofEnvelopeBytes: Int
+    let canonicalArtifactBytes: Int
+    let recursiveCarryReplayBindingBound: Bool
+}
+
 func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
     exit(1)
@@ -65,6 +76,9 @@ let resultPath = CommandLine.arguments.dropFirst().first ?? "benchmark-results/r
 let reportPath = CommandLine.arguments.dropFirst().dropFirst().first ?? "benchmark-results/report.md"
 let resultURL = URL(fileURLWithPath: resultPath)
 let reportURL = URL(fileURLWithPath: reportPath)
+let productProofSizeURL = reportURL
+    .deletingLastPathComponent()
+    .appendingPathComponent("numiseal-product-proof-sizes.json")
 
 guard let data = try? Data(contentsOf: resultURL) else {
     fail("missing benchmark result JSON at \(resultPath)")
@@ -88,6 +102,16 @@ let gpuTimes = nanosecondMetricRows(results, containing: "GPU command buffer tim
 let metalEncodeTimes = nanosecondMetricRows(results, containing: "Metal encode wall time")
 let metalCommitTimes = nanosecondMetricRows(results, containing: "Metal commit wall time")
 let metalWaitTimes = nanosecondMetricRows(results, containing: "Metal wait wall time")
+let productProofSizes: [NumiSealProductProofSize]
+if let data = try? Data(contentsOf: productProofSizeURL) {
+    do {
+        productProofSizes = try decoder.decode([NumiSealProductProofSize].self, from: data)
+    } catch {
+        fail("failed to decode NumiSeal product proof-size JSON at \(productProofSizeURL.path): \(error)")
+    }
+} else {
+    productProofSizes = []
+}
 
 let selectedPrefixes = [
     "fold/cpu/",
@@ -98,6 +122,8 @@ let selectedPrefixes = [
     "proofEnvelope/roundTrip/",
     "ceOpeningProof/",
     "compressedEnvelope/",
+    "numisealProduct/",
+    "productControls/",
     "stage/",
     "kernel/fieldMultiply/",
     "kernel/ringMultiply/",
@@ -107,9 +133,31 @@ let selectedPrefixes = [
     "kernel/transformedEvaluation/"
 ]
 
-var lines = [
-    "",
-    "",
+var lines = ["", ""]
+
+if !productProofSizes.isEmpty {
+    lines += [
+        "## NumiSeal Product Proof Sizes",
+        "",
+        "| Case | Proof kind | Carry | ZK | Source fold envelope | Product proof envelope | Canonical artifact | Carry replay bound |",
+        "| --- | --- | --- | --- | ---: | ---: | ---: | --- |"
+    ]
+    for row in productProofSizes.sorted(by: { $0.caseID < $1.caseID }) {
+        lines.append(
+            "| `\(row.caseID)`"
+                + " | \(row.proofKind)"
+                + " | \(row.carryMode)"
+                + " | \(row.zkMode)"
+                + " | \(row.sourceFoldEnvelopeBytes) B"
+                + " | \(row.productProofEnvelopeBytes) B"
+                + " | \(row.canonicalArtifactBytes) B"
+                + " | \(row.recursiveCarryReplayBindingBound ? "yes" : "no") |"
+        )
+    }
+    lines += ["", ""]
+}
+
+lines += [
     "## Timing Summary",
     "",
     "| Benchmark | Time | GPU | Encode | Commit | Wait | p95 | Derived | Allocations |",
@@ -147,7 +195,7 @@ for result in wallClock.sorted(by: { $0.name < $1.name }) {
 
 let existing = (try? String(contentsOf: reportURL, encoding: .utf8)) ?? ""
 let trimmed = existing.replacingOccurrences(
-    of: #"\n+## Timing Summary\n[\s\S]*$"#,
+    of: #"\n+## (NumiSeal Product Proof Sizes|Timing Summary)\n[\s\S]*$"#,
     with: "",
     options: .regularExpression
 )

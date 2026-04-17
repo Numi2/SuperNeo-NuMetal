@@ -147,6 +147,38 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "product crypto security dossier maximum depth must be 1",
     )
     require(
+        require_int(
+            surfaces.get("productSelectedDepthLossAccountingVersion"),
+            "productSelectedDepthLossAccountingVersion",
+        ) == 1,
+        "product selected-depth loss accounting version must be 1",
+    )
+    require_string(
+        surfaces.get("productSelectedDepthLossAccountingDigestHex"),
+        "productSelectedDepthLossAccountingDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productSelectedDepthLossAccountingClaimStatus"),
+            "productSelectedDepthLossAccountingClaimStatus",
+        ) == "selected-depth-loss-contract-not-production-claim",
+        "product selected-depth loss accounting claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("productSelectedDepthLossAccountingMaximumDepth"),
+            "productSelectedDepthLossAccountingMaximumDepth",
+        ) == 1,
+        "product selected-depth loss accounting maximum depth must be 1",
+    )
+    require(
+        require_int(
+            surfaces.get("productSelectedDepthLossComponentCount"),
+            "productSelectedDepthLossComponentCount",
+        ) == 9,
+        "product selected-depth loss accounting must pin nine component losses",
+    )
+    require(
         require_int(surfaces.get("constantTimeScopeVersion"), "constantTimeScopeVersion") == 1,
         "constant-time scope version must be 1",
     )
@@ -225,6 +257,15 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "E2E proof metrics must track product smoke budgets",
     )
     require(
+        require_int(surfaces.get("benchmarkCoverageVersion"), "benchmarkCoverageVersion") == 1,
+        "benchmark coverage version must be 1",
+    )
+    require_string(surfaces.get("benchmarkCoverageDigestHex"), "benchmarkCoverageDigestHex")
+    require(
+        require_int(surfaces.get("benchmarkCoverageSurfaceCount"), "benchmarkCoverageSurfaceCount") >= 8,
+        "benchmark coverage must track the whole-stack surface set",
+    )
+    require(
         require_int(surfaces.get("productOperationsStatusVersion"), "productOperationsStatusVersion") == 2,
         "product operations status version must be 2",
     )
@@ -243,12 +284,15 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "numiSealZKMaskDistributionEvidence",
         "productCryptoSecurityDossier",
         "productCryptoSecurityDossierPolicy",
+        "productSelectedDepthLossAccounting",
         "constantTimeEvidence",
         "constantTimeScope",
         "constantTimeLoweringEvidence",
         "constantTimeReleaseEvidence",
         "e2eProofMetrics",
         "e2eProofMetricsPolicy",
+        "benchmarkCoverage",
+        "benchmarkCoveragePolicy",
         "productOperationsReadiness",
         "releaseRunbook",
         "changelog",
@@ -271,6 +315,10 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(
         any("product cryptographic security dossier" in str(boundary).lower() for boundary in boundaries),
         "productionSecurityBoundaries must mention the product cryptographic security dossier",
+    )
+    require(
+        any("selected-depth loss-accounting" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention selected-depth loss accounting",
     )
 
 

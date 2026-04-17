@@ -8,18 +8,22 @@
       "conformanceVectors": [
         "TestVectors/numiseal-terminal-single-aggregate-v1.json",
         "TestVectors/numiseal-terminal-two-aggregate-v1.json",
-        "TestVectors/numiseal-terminal-two-lane-v1.json"
+        "TestVectors/numiseal-terminal-two-lane-v1.json",
+        "TestVectors/numiseal-product-recursive-carry-context-v1.json"
       ],
-      "formalScope": [
-        "canonical obligation ordering",
-        "lane aggregation roots",
-        "immediate residual CE opening relation",
-        "terminal proof transcript binding",
-        "product carry-mode policy binding"
+    "formalScope": [
+      "canonical obligation ordering",
+      "lane aggregation roots",
+      "immediate residual CE opening relation",
+      "terminal proof transcript binding",
+      "product carry-mode policy binding",
+      "product recursive carry context binding",
+      "typed-required recursive child product verification"
       ],
       "id": "numiseal-product",
       "implementationPaths": [
         "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypedCarry.swift",
         "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealArtifactVerifier.swift",
         "SuperNeo-NuMetal/ProductIntegration/NumiSealProductVerifier.swift"
       ],
@@ -27,10 +31,12 @@
         "generate concrete Swift extractor evidence for product proof bytes and all recursive transcript schedules"
       ],
       "testNames": [
-        "testNumiSealProductProverEmitsVerifiableV2Artifact",
-        "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
-        "testNumiSealProductVerifierAcceptsThroughIntegrationHooks",
-        "testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification"
+      "testNumiSealProductProverEmitsVerifiableV2Artifact",
+      "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
+      "testNumiSealProductRecursiveCarryContextBindsParentArtifactAndSession",
+      "testNumiSealProductRecursiveCarryParentProducesAndVerifiesTypedRequiredChild",
+      "testNumiSealProductVerifierAcceptsThroughIntegrationHooks",
+      "testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification"
       ]
     },
     {
@@ -49,8 +55,7 @@
         "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift"
       ],
       "openFormalWork": [
-        "generate recursive producer vectors from accepted parent proof to typed carry claim",
-        "pin product evidence that the generated typed carry producer path feeds the recursive consumer"
+        "extend typed-required recursive child product carry mode beyond the checked parent-child handoff once depth and loss accounting are closed"
       ],
       "testNames": [
         "testNumiSealTypedCarryStatementRoundTripsAndPolicyRejectsMalformedCarry",

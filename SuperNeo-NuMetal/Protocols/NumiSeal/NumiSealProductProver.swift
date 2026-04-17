@@ -220,6 +220,7 @@ public struct NumiSealProvingRequest: Sendable {
     public let aggregationLimits: NumiSealAggregationLimits
     public let parameters: SuperNeoParameters
     public let metalContext: MetalExecutionContext?
+    public let recursiveCarryParent: NumiSealProductRecursiveCarryParent?
 
     public init(
         preparedR1CS: SuperNeoPreparedR1CS,
@@ -234,7 +235,8 @@ public struct NumiSealProvingRequest: Sendable {
         zkMode: String = NumiSealZK.nonZKMode,
         aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
         parameters: SuperNeoParameters = .goldilocks,
-        metalContext: MetalExecutionContext? = nil
+        metalContext: MetalExecutionContext? = nil,
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil
     ) {
         self.preparedR1CS = preparedR1CS
         self.workload = workload
@@ -249,6 +251,7 @@ public struct NumiSealProvingRequest: Sendable {
         self.aggregationLimits = aggregationLimits
         self.parameters = parameters
         self.metalContext = metalContext
+        self.recursiveCarryParent = recursiveCarryParent
     }
 }
 
@@ -425,9 +428,15 @@ public struct NumiSealProductArtifact: Codable, Equatable, Sendable {
         }
         return [UInt8](data)
     }
+
+    public static func canonicalDigest(_ artifact: NumiSealProductArtifact) throws -> Digest256 {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        return Digest256.hash([UInt8](try encoder.encode(artifact)))
+    }
 }
 
-public struct NumiSealProductVerificationResult: Equatable, Sendable {
+public final class NumiSealProductVerificationResult: @unchecked Sendable, Equatable {
     public let sourceFoldResult: FoldReductionResult
     public let numiSealResult: NumiSealVerificationResult
 
@@ -438,11 +447,354 @@ public struct NumiSealProductVerificationResult: Equatable, Sendable {
         self.sourceFoldResult = sourceFoldResult
         self.numiSealResult = numiSealResult
     }
+
+    public static func == (
+        lhs: NumiSealProductVerificationResult,
+        rhs: NumiSealProductVerificationResult
+    ) -> Bool {
+        lhs.sourceFoldResult == rhs.sourceFoldResult
+            && lhs.numiSealResult == rhs.numiSealResult
+    }
+}
+
+enum NumiSealProductRecursiveCarryMetadata {
+    static let parentArtifactDigest = "recursiveCarryParentArtifactDigest"
+    static let parentSourceFoldEnvelopeDigest = "recursiveCarryParentSourceFoldEnvelopeDigest"
+    static let parentProductProofEnvelopeDigest = "recursiveCarryParentProductProofEnvelopeDigest"
+    static let parentProducerProofEnvelopeDigest = "recursiveCarryParentProducerProofEnvelopeDigest"
+    static let parentPublicStatementDigest = "recursiveCarryParentPublicStatementDigest"
+    static let consumerSessionDigest = "recursiveCarryConsumerSessionDigest"
+    static let nextRecursionLevel = "recursiveCarryNextRecursionLevel"
+    static let claimCount = "recursiveCarryClaimCount"
+    static let contextRoot = "recursiveCarryContextRoot"
+    static let replayRoot = "recursiveCarryReplayRoot"
+
+    static let keys: Set<String> = [
+        parentArtifactDigest,
+        parentSourceFoldEnvelopeDigest,
+        parentProductProofEnvelopeDigest,
+        parentProducerProofEnvelopeDigest,
+        parentPublicStatementDigest,
+        consumerSessionDigest,
+        nextRecursionLevel,
+        claimCount,
+        contextRoot,
+        replayRoot
+    ]
+
+    static func digestRoot(label: String, digests: [Digest256]) -> Digest256 {
+        NumiSealEncoding.digest(
+            label: label,
+            bytes: numiSealEncodeCount(digests.count) + digests.flatMap(\.superNeoBytes)
+        )
+    }
+}
+
+public struct NumiSealProductRecursiveCarryReplayBinding: Equatable, Hashable, Sendable {
+    public let parentArtifactDigest: Digest256
+    public let parentSourceFoldEnvelopeDigest: Digest256
+    public let parentProductProofEnvelopeDigest: Digest256
+    public let parentProducerProofEnvelopeDigest: Digest256
+    public let parentPublicStatementDigest: Digest256
+    public let consumerSessionDigest: Digest256
+    public let nextRecursionLevel: Int
+    public let claimCount: Int
+    public let contextRoot: Digest256
+    public let replayRoot: Digest256
+
+    public init(
+        parentArtifactDigest: Digest256,
+        parentSourceFoldEnvelopeDigest: Digest256,
+        parentProductProofEnvelopeDigest: Digest256,
+        parentProducerProofEnvelopeDigest: Digest256,
+        parentPublicStatementDigest: Digest256,
+        consumerSessionDigest: Digest256,
+        nextRecursionLevel: Int,
+        claimCount: Int,
+        contextRoot: Digest256,
+        replayRoot: Digest256
+    ) throws {
+        guard nextRecursionLevel > 0 else {
+            throw SuperNeoError.invalidEncoding("NumiSeal recursive carry next recursion level is invalid")
+        }
+        guard claimCount > 0 else {
+            throw SuperNeoError.invalidEncoding("NumiSeal recursive carry claim count is invalid")
+        }
+        self.parentArtifactDigest = parentArtifactDigest
+        self.parentSourceFoldEnvelopeDigest = parentSourceFoldEnvelopeDigest
+        self.parentProductProofEnvelopeDigest = parentProductProofEnvelopeDigest
+        self.parentProducerProofEnvelopeDigest = parentProducerProofEnvelopeDigest
+        self.parentPublicStatementDigest = parentPublicStatementDigest
+        self.consumerSessionDigest = consumerSessionDigest
+        self.nextRecursionLevel = nextRecursionLevel
+        self.claimCount = claimCount
+        self.contextRoot = contextRoot
+        self.replayRoot = replayRoot
+    }
+
+    public var bindingDigest: Digest256 {
+        var bytes = Array("SuperNeo-NuMetal.numiseal.product.recursive-carry.replay-binding.v1".utf8)
+        bytes += parentArtifactDigest.superNeoBytes
+        bytes += parentSourceFoldEnvelopeDigest.superNeoBytes
+        bytes += parentProductProofEnvelopeDigest.superNeoBytes
+        bytes += parentProducerProofEnvelopeDigest.superNeoBytes
+        bytes += parentPublicStatementDigest.superNeoBytes
+        bytes += consumerSessionDigest.superNeoBytes
+        bytes += numiSealEncodeCount(nextRecursionLevel)
+        bytes += numiSealEncodeCount(claimCount)
+        bytes += contextRoot.superNeoBytes
+        bytes += replayRoot.superNeoBytes
+        return Digest256.hash(bytes)
+    }
+
+    init(metadata: [String: String]) throws {
+        try self.init(
+            parentArtifactDigest: Self.digest(
+                metadata,
+                key: NumiSealProductRecursiveCarryMetadata.parentArtifactDigest
+            ),
+            parentSourceFoldEnvelopeDigest: Self.digest(
+                metadata,
+                key: NumiSealProductRecursiveCarryMetadata.parentSourceFoldEnvelopeDigest
+            ),
+            parentProductProofEnvelopeDigest: Self.digest(
+                metadata,
+                key: NumiSealProductRecursiveCarryMetadata.parentProductProofEnvelopeDigest
+            ),
+            parentProducerProofEnvelopeDigest: Self.digest(
+                metadata,
+                key: NumiSealProductRecursiveCarryMetadata.parentProducerProofEnvelopeDigest
+            ),
+            parentPublicStatementDigest: Self.digest(
+                metadata,
+                key: NumiSealProductRecursiveCarryMetadata.parentPublicStatementDigest
+            ),
+            consumerSessionDigest: Self.digest(
+                metadata,
+                key: NumiSealProductRecursiveCarryMetadata.consumerSessionDigest
+            ),
+            nextRecursionLevel: Self.positiveInt(
+                metadata,
+                key: NumiSealProductRecursiveCarryMetadata.nextRecursionLevel
+            ),
+            claimCount: Self.positiveInt(
+                metadata,
+                key: NumiSealProductRecursiveCarryMetadata.claimCount
+            ),
+            contextRoot: Self.digest(
+                metadata,
+                key: NumiSealProductRecursiveCarryMetadata.contextRoot
+            ),
+            replayRoot: Self.digest(
+                metadata,
+                key: NumiSealProductRecursiveCarryMetadata.replayRoot
+            )
+        )
+    }
+
+    private static func digest(_ metadata: [String: String], key: String) throws -> Digest256 {
+        guard let value = metadata[key] else {
+            throw SuperNeoError.invalidEncoding("NumiSeal recursive carry metadata is incomplete")
+        }
+        return try Digest256(hexDigest: value, name: "NumiSeal recursive carry metadata \(key)")
+    }
+
+    private static func positiveInt(_ metadata: [String: String], key: String) throws -> Int {
+        guard let value = metadata[key], let parsed = Int(value), parsed > 0 else {
+            throw SuperNeoError.invalidEncoding("NumiSeal recursive carry metadata \(key) is invalid")
+        }
+        return parsed
+    }
+}
+
+public extension NumiSealProductArtifact {
+    func recursiveCarryReplayBinding() throws -> NumiSealProductRecursiveCarryReplayBinding? {
+        try NumiSealProductVerifier.validateMetadata(self)
+        guard carryMode == "typed-required" else {
+            return nil
+        }
+        return try NumiSealProductRecursiveCarryReplayBinding(metadata: executionPolicyMetadata)
+    }
+}
+
+public final class NumiSealProductRecursiveCarryParent: @unchecked Sendable {
+    public let parentProductArtifactDigest: Digest256
+    public let parentSourceFoldEnvelopeDigest: Digest256
+    public let parentProductProofEnvelopeDigest: Digest256
+    public let parentProducerProofEnvelopeDigest: Digest256
+    public let parentPublicStatementDigest: Digest256
+    public let consumerSessionDigest: Digest256
+    public let nextRecursionLevel: Int
+    public let acceptedProducerEnvelope: NumiSealProofEnvelope
+
+    private static func equalBytes(_ lhs: [UInt8], _ rhs: [UInt8]) -> Bool {
+        guard lhs.count == rhs.count else { return false }
+        for index in lhs.indices where lhs[index] != rhs[index] {
+            return false
+        }
+        return true
+    }
+
+    private static func equalDigest(_ lhs: Digest256, _ rhs: Digest256) -> Bool {
+        equalBytes(lhs.bytes, rhs.bytes)
+    }
+
+    private static func equalLaneID(_ lhs: NumiSealLaneID, _ rhs: NumiSealLaneID) -> Bool {
+        equalBytes(lhs.bytes, rhs.bytes)
+    }
+
+    private static func equalLaneKey(_ lhs: NumiSealLaneKey, _ rhs: NumiSealLaneKey) -> Bool {
+        lhs.profileID == rhs.profileID
+            && equalDigest(lhs.shapeDigest, rhs.shapeDigest)
+            && equalDigest(lhs.verifierKeyDigest, rhs.verifierKeyDigest)
+            && equalDigest(lhs.evalPointDigest, rhs.evalPointDigest)
+            && equalLaneID(lhs.laneID, rhs.laneID)
+    }
+
+    public init(
+        artifact: NumiSealProductArtifact,
+        verificationResult: NumiSealProductVerificationResult,
+        consumerSessionDigest: Digest256,
+        nextRecursionLevel: Int
+    ) throws {
+        guard verificationResult.sourceFoldResult.isReductionAccepted else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent source fold is not accepted")
+        }
+        guard verificationResult.numiSealResult.isValid,
+              let parentEnvelope = verificationResult.numiSealResult.envelope else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent proof is not accepted")
+        }
+        guard nextRecursionLevel > 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal recursive carry next recursion level must be positive")
+        }
+        let artifactDigest = try NumiSealProductArtifact.canonicalDigest(artifact)
+        let sourceFoldEnvelopeDigest = try Digest256(
+            hexDigest: artifact.sourceFoldEnvelopeDigestHex,
+            name: "NumiSeal recursive carry parent source fold envelope digest"
+        )
+        let productProofEnvelopeDigest = try Digest256(
+            hexDigest: artifact.proofEnvelopeDigestHex,
+            name: "NumiSeal recursive carry parent product proof envelope digest"
+        )
+        let proofBytes = try artifact.proofEnvelopeBytes()
+        guard Digest256.hash(proofBytes) == productProofEnvelopeDigest else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent product proof envelope digest mismatch")
+        }
+        let producerProofEnvelopeDigest = Digest256.hash(parentEnvelope.superNeoBytes)
+        if artifact.zkMode == NumiSealZK.nonZKMode {
+            guard producerProofEnvelopeDigest == productProofEnvelopeDigest else {
+                throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent terminal envelope digest mismatch")
+            }
+        }
+        guard parentEnvelope.proof.publicStatement.digest.hexString == artifact.publicStatementDigestHex else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent public statement mismatch")
+        }
+        guard parentEnvelope.proof.laneProofs.map(\.aggregateDigest.hexString) == artifact.aggregateDigestsHex else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent aggregate digest mismatch")
+        }
+        self.parentProductArtifactDigest = artifactDigest
+        self.parentSourceFoldEnvelopeDigest = sourceFoldEnvelopeDigest
+        self.parentProductProofEnvelopeDigest = productProofEnvelopeDigest
+        self.parentProducerProofEnvelopeDigest = producerProofEnvelopeDigest
+        self.parentPublicStatementDigest = parentEnvelope.proof.publicStatement.digest
+        self.consumerSessionDigest = consumerSessionDigest
+        self.nextRecursionLevel = nextRecursionLevel
+        self.acceptedProducerEnvelope = parentEnvelope
+    }
+
+    @inline(never)
+    public func laneProof(laneKey: NumiSealLaneKey, aggregateIndex: Int) throws -> NumiSealLaneProof {
+        let laneProofs = acceptedProducerEnvelope.proof.laneProofs
+        if laneProofs.count == 1 {
+            let only = laneProofs[0]
+            guard Self.equalLaneKey(only.laneKey, laneKey) && only.aggregateIndex == aggregateIndex else {
+                throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent lane proof not found")
+            }
+            return only
+        }
+        for laneProof in laneProofs
+            where Self.equalLaneKey(laneProof.laneKey, laneKey) && laneProof.aggregateIndex == aggregateIndex {
+            return laneProof
+        }
+        throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent lane proof not found")
+    }
+
+    @inline(never)
+    public func laneProof(laneID: NumiSealLaneID, aggregateIndex: Int) throws -> NumiSealLaneProof {
+        let laneProofs = acceptedProducerEnvelope.proof.laneProofs
+        if laneProofs.count == 1 {
+            let only = laneProofs[0]
+            guard Self.equalLaneID(only.laneKey.laneID, laneID) && only.aggregateIndex == aggregateIndex else {
+                throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent lane proof not found")
+            }
+            return only
+        }
+        var match: NumiSealLaneProof?
+        var matchCount = 0
+        for laneProof in laneProofs
+            where Self.equalLaneID(laneProof.laneKey.laneID, laneID) && laneProof.aggregateIndex == aggregateIndex {
+            match = laneProof
+            matchCount += 1
+        }
+        guard matchCount == 1, let match else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent lane proof not found")
+        }
+        return match
+    }
+
+    @inline(never)
+    public func context(for parentLaneProof: NumiSealLaneProof) throws -> NumiSealProductCarryContext {
+        let laneProofDigest = parentLaneProof.proofDigest
+        let laneProofs = acceptedProducerEnvelope.proof.laneProofs
+        var found = false
+        if laneProofs.count == 1 {
+            found = Self.equalDigest(laneProofs[0].proofDigest, laneProofDigest)
+        } else {
+            for laneProof in laneProofs where Self.equalDigest(laneProof.proofDigest, laneProofDigest) {
+                found = true
+                break
+            }
+        }
+        guard found else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent lane proof not found")
+        }
+        return try NumiSealProductCarryContext(
+            consumerSessionDigest: consumerSessionDigest,
+            parentProductArtifactDigest: parentProductArtifactDigest,
+            parentSourceFoldEnvelopeDigest: parentSourceFoldEnvelopeDigest,
+            parentProductProofEnvelopeDigest: parentProductProofEnvelopeDigest,
+            parentProducerProofEnvelopeDigest: parentProducerProofEnvelopeDigest,
+            parentPublicStatementDigest: parentPublicStatementDigest,
+            laneKey: parentLaneProof.laneKey,
+            aggregateIndex: parentLaneProof.aggregateIndex,
+            nextRecursionLevel: nextRecursionLevel
+        )
+    }
+
+    public func metadata(
+        claimCount: Int,
+        contextRoot: Digest256,
+        replayRoot: Digest256
+    ) -> [String: String] {
+        [
+            NumiSealProductRecursiveCarryMetadata.parentArtifactDigest: parentProductArtifactDigest.hexString,
+            NumiSealProductRecursiveCarryMetadata.parentSourceFoldEnvelopeDigest: parentSourceFoldEnvelopeDigest.hexString,
+            NumiSealProductRecursiveCarryMetadata.parentProductProofEnvelopeDigest: parentProductProofEnvelopeDigest.hexString,
+            NumiSealProductRecursiveCarryMetadata.parentProducerProofEnvelopeDigest: parentProducerProofEnvelopeDigest.hexString,
+            NumiSealProductRecursiveCarryMetadata.parentPublicStatementDigest: parentPublicStatementDigest.hexString,
+            NumiSealProductRecursiveCarryMetadata.consumerSessionDigest: consumerSessionDigest.hexString,
+            NumiSealProductRecursiveCarryMetadata.nextRecursionLevel: "\(nextRecursionLevel)",
+            NumiSealProductRecursiveCarryMetadata.claimCount: "\(claimCount)",
+            NumiSealProductRecursiveCarryMetadata.contextRoot: contextRoot.hexString,
+            NumiSealProductRecursiveCarryMetadata.replayRoot: replayRoot.hexString
+        ]
+    }
 }
 
 public final class NumiSealProductProver: @unchecked Sendable {
     public init() {}
 
+    @inline(never)
     public func prove(_ request: NumiSealProvingRequest) throws -> NumiSealProductArtifact {
         let prepared = request.preparedR1CS
         let parameters = request.parameters
@@ -524,11 +876,16 @@ public final class NumiSealProductProver: @unchecked Sendable {
             shape: publicInput.shape,
             executionPolicy: superNeoPolicy
         )
+        let recursiveCarry = try Self.makeRecursiveCarryClaims(
+            parent: request.recursiveCarryParent,
+            plan: plan
+        )
         let numiSealEnvelope = try numiSealProver.prove(
             witnessedObligations: obligations,
             policy: acceptancePolicy,
             digitTensorInputs: tensorInputs,
-            aggregationLimits: request.aggregationLimits
+            aggregationLimits: request.aggregationLimits,
+            carryClaimsByAggregate: recursiveCarry.claimsByAggregate
         )
         let digitTensors = try zip(plan.aggregates, tensorInputs).map { aggregate, tensorInput in
             try NumiSealDigitTensor(
@@ -596,7 +953,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
         default:
             throw SuperNeoError.invalidParameter("unsupported NumiSeal product ZK mode")
         }
-        let productCarryMode = "none"
+        let productCarryMode = request.recursiveCarryParent == nil ? "none" : "typed-required"
         var policyMetadata = [
             "sourceFoldKind": "fold-reduction",
             "numiSealProofKind": numiSealProductProof.proofKind,
@@ -612,7 +969,10 @@ public final class NumiSealProductProver: @unchecked Sendable {
         for (key, value) in numiSealProductProof.extraMetadata {
             policyMetadata[key] = value
         }
-        return NumiSealProductArtifact(
+        for (key, value) in recursiveCarry.metadata {
+            policyMetadata[key] = value
+        }
+        let artifact = NumiSealProductArtifact(
             workload: request.workload,
             profile: SuperNeoParameterProfile.goldilocksPhi81.name,
             proofKind: numiSealProductProof.proofKind,
@@ -649,6 +1009,68 @@ public final class NumiSealProductProver: @unchecked Sendable {
             maximumAggregatesPerLane: numiSealEnvelope.proof.laneProofs.count,
             proofEnvelopeDigestHex: numiSealProductProof.envelopeDigest.hexString,
             executionPolicyMetadata: policyMetadata
+        )
+        try NumiSealProductVerifier.validateMetadata(artifact)
+        return artifact
+    }
+
+    private static func makeRecursiveCarryClaims(
+        parent: NumiSealProductRecursiveCarryParent?,
+        plan: NumiSealProvingPlan
+    ) throws -> (
+        claimsByAggregate: [NumiSealAggregateKey: NumiSealCarryClaim],
+        metadata: [String: String]
+    ) {
+        guard let parent else {
+            return ([:], [:])
+        }
+        var claimsByAggregate: [NumiSealAggregateKey: NumiSealCarryClaim] = [:]
+        var contextDigests: [Digest256] = []
+        var replayIdentities: [Digest256] = []
+        let producer = NumiSealTypedCarryProducer()
+        for aggregate in plan.aggregates {
+            let parentLaneProof = try parent.laneProof(
+                laneID: aggregate.laneKey.laneID,
+                aggregateIndex: aggregate.aggregateIndex
+            )
+            let carryContext = try parent.context(for: parentLaneProof)
+            let statement = try producer.produce(
+                fromAcceptedParent: parent.acceptedProducerEnvelope,
+                parentProofAccepted: true,
+                laneProof: parentLaneProof,
+                consumerContextDigest: carryContext.contextDigest,
+                nextRecursionLevel: parent.nextRecursionLevel
+            )
+            guard statement.laneKey.laneID == aggregate.laneKey.laneID,
+                  statement.aggregateIndex == aggregate.aggregateIndex else {
+                throw SuperNeoError.verificationFailed("NumiSeal recursive carry statement target mismatch")
+            }
+            let aggregateKey = try NumiSealAggregateKey(
+                laneKey: aggregate.laneKey,
+                aggregateIndex: aggregate.aggregateIndex
+            )
+            claimsByAggregate[aggregateKey] = try NumiSealCarryClaim(statement.superNeoBytes)
+            contextDigests.append(carryContext.contextDigest)
+            replayIdentities.append(NumiSealCarryConsumer.replayIdentity(for: statement))
+        }
+        guard claimsByAggregate.count == plan.aggregateCount else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry claim count mismatch")
+        }
+        let contextRoot = NumiSealProductRecursiveCarryMetadata.digestRoot(
+            label: "numiseal.product-carry.context-root.v1",
+            digests: contextDigests
+        )
+        let replayRoot = NumiSealProductRecursiveCarryMetadata.digestRoot(
+            label: "numiseal.product-carry.replay-root.v1",
+            digests: replayIdentities
+        )
+        return (
+            claimsByAggregate,
+            parent.metadata(
+                claimCount: claimsByAggregate.count,
+                contextRoot: contextRoot,
+                replayRoot: replayRoot
+            )
         )
     }
 
@@ -834,13 +1256,15 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         }
     }
 
+    @inline(never)
     public func verify(
         artifact: NumiSealProductArtifact,
         sourcePublicInput: SuperNeoPublicFoldInput,
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters = .goldilocks,
         metalContext: MetalExecutionContext? = nil,
-        executionPolicy: SuperNeoExecutionPolicy = .highAssurance
+        executionPolicy: SuperNeoExecutionPolicy = .highAssurance,
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil
     ) throws -> NumiSealProductVerificationResult {
         try Self.validateMetadata(artifact)
         let sourceBytes = try artifact.sourceFoldEnvelopeBytes()
@@ -1004,10 +1428,110 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         guard proofTranscriptDigest.hexString == artifact.proofTranscriptDigestHex else {
             throw SuperNeoError.verificationFailed("NumiSeal product transcript digest mismatch")
         }
+        try Self.validateRecursiveCarryBindings(
+            artifact: artifact,
+            proof: publicProof,
+            acceptedCarryMode: acceptedCarryMode,
+            recursiveCarryParent: recursiveCarryParent
+        )
         return NumiSealProductVerificationResult(
             sourceFoldResult: sourceResult,
             numiSealResult: numiSealResult
         )
+    }
+
+    @inline(never)
+    private static func validateRecursiveCarryBindings(
+        artifact: NumiSealProductArtifact,
+        proof: NumiSealProof,
+        acceptedCarryMode: NumiSealCarryMode,
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent?
+    ) throws {
+        guard acceptedCarryMode == .typedRequired else {
+            if NumiSealProductRecursiveCarryMetadata.keys.contains(where: {
+                artifact.executionPolicyMetadata[$0] != nil
+            }) {
+                throw SuperNeoError.invalidEncoding(
+                    "NumiSeal recursive carry metadata requires typed-required carry mode"
+                )
+            }
+            return
+        }
+        guard let recursiveCarryParent else {
+            throw SuperNeoError.verificationFailed(
+                "NumiSeal typed-required product carry requires recursive carry parent context"
+            )
+        }
+        try validateRecursiveCarryParentMetadata(
+            artifact: artifact,
+            parent: recursiveCarryParent
+        )
+        guard let rawClaimCount = artifact.executionPolicyMetadata[NumiSealProductRecursiveCarryMetadata.claimCount],
+              let expectedClaimCount = Int(rawClaimCount),
+              expectedClaimCount == proof.laneProofs.count else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry claim count mismatch")
+        }
+
+        var consumer = NumiSealCarryConsumer()
+        var contextDigests: [Digest256] = []
+        var replayIdentities: [Digest256] = []
+        for laneProof in proof.laneProofs {
+            guard let statement = laneProof.optionalCarryClaim?.typedStatement else {
+                throw SuperNeoError.verificationFailed("NumiSeal typed carry claim required by policy")
+            }
+            guard statement.laneKey.laneID == laneProof.laneKey.laneID,
+                  statement.aggregateIndex == laneProof.aggregateIndex else {
+                throw SuperNeoError.verificationFailed("NumiSeal recursive carry statement target mismatch")
+            }
+            let parentLaneProof = try recursiveCarryParent.laneProof(
+                laneKey: statement.laneKey,
+                aggregateIndex: laneProof.aggregateIndex
+            )
+            let carryContext = try recursiveCarryParent.context(for: parentLaneProof)
+            let accepted = try consumer.consume(
+                statement,
+                parentProofAccepted: true,
+                expectedProducerProofEnvelopeDigest: recursiveCarryParent.parentProducerProofEnvelopeDigest,
+                expectedProducerProofTranscriptDigest: recursiveCarryParent.acceptedProducerEnvelope.proof.transcriptDigest,
+                expectedParentStatementDigest: recursiveCarryParent.acceptedProducerEnvelope.header.statementDigest,
+                expectedParentPublicStatementDigest: recursiveCarryParent.parentPublicStatementDigest,
+                expectedConsumerContextDigest: carryContext.contextDigest,
+                minimumNextRecursionLevel: recursiveCarryParent.nextRecursionLevel
+            )
+            contextDigests.append(carryContext.contextDigest)
+            replayIdentities.append(accepted.replayIdentity)
+        }
+        let contextRoot = NumiSealProductRecursiveCarryMetadata.digestRoot(
+            label: "numiseal.product-carry.context-root.v1",
+            digests: contextDigests
+        )
+        let replayRoot = NumiSealProductRecursiveCarryMetadata.digestRoot(
+            label: "numiseal.product-carry.replay-root.v1",
+            digests: replayIdentities
+        )
+        guard artifact.executionPolicyMetadata[NumiSealProductRecursiveCarryMetadata.contextRoot] == contextRoot.hexString else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry context root mismatch")
+        }
+        guard artifact.executionPolicyMetadata[NumiSealProductRecursiveCarryMetadata.replayRoot] == replayRoot.hexString else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry replay root mismatch")
+        }
+    }
+
+    @inline(never)
+    private static func validateRecursiveCarryParentMetadata(
+        artifact: NumiSealProductArtifact,
+        parent: NumiSealProductRecursiveCarryParent
+    ) throws {
+        let metadata = artifact.executionPolicyMetadata
+        guard metadata[NumiSealProductRecursiveCarryMetadata.parentArtifactDigest] == parent.parentProductArtifactDigest.hexString,
+              metadata[NumiSealProductRecursiveCarryMetadata.parentSourceFoldEnvelopeDigest] == parent.parentSourceFoldEnvelopeDigest.hexString,
+              metadata[NumiSealProductRecursiveCarryMetadata.parentProductProofEnvelopeDigest] == parent.parentProductProofEnvelopeDigest.hexString,
+              metadata[NumiSealProductRecursiveCarryMetadata.parentProducerProofEnvelopeDigest] == parent.parentProducerProofEnvelopeDigest.hexString,
+              metadata[NumiSealProductRecursiveCarryMetadata.parentPublicStatementDigest] == parent.parentPublicStatementDigest.hexString,
+              metadata[NumiSealProductRecursiveCarryMetadata.consumerSessionDigest] == parent.consumerSessionDigest.hexString,
+              metadata[NumiSealProductRecursiveCarryMetadata.nextRecursionLevel] == "\(parent.nextRecursionLevel)" else {
+            throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent metadata mismatch")
+        }
     }
 
     public static func validateMetadata(_ artifact: NumiSealProductArtifact) throws {
@@ -1025,6 +1549,20 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         let carryPolicyLabel = try productCarryModeLabel(acceptedCarryMode)
         guard artifact.executionPolicyMetadata[terminalCarryPolicyMetadataKey] == carryPolicyLabel else {
             throw SuperNeoError.invalidEncoding("NumiSeal product terminal carry policy metadata mismatch")
+        }
+        switch acceptedCarryMode {
+        case .typedRequired:
+            try validateRecursiveCarryMetadata(artifact.executionPolicyMetadata)
+        case .none, .typedOptional:
+            guard !NumiSealProductRecursiveCarryMetadata.keys.contains(where: {
+                artifact.executionPolicyMetadata[$0] != nil
+            }) else {
+                throw SuperNeoError.invalidEncoding(
+                    "NumiSeal recursive carry metadata requires typed-required carry mode"
+                )
+            }
+        case .optional, .required:
+            throw SuperNeoError.invalidEncoding("unsupported NumiSeal product carry mode")
         }
         guard artifact.zkMode == NumiSealZK.nonZKMode || artifact.zkMode == NumiSealZK.maskedDigitTensorMode else {
             throw SuperNeoError.invalidEncoding("unsupported NumiSeal product ZK mode")
@@ -1061,6 +1599,36 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             _ = try Digest256(hexDigest: digest, name: "NumiSeal aggregate digest")
         }
     }
+
+    private static func validateRecursiveCarryMetadata(_ metadata: [String: String]) throws {
+        for key in NumiSealProductRecursiveCarryMetadata.keys {
+            guard let value = metadata[key], !value.isEmpty else {
+                throw SuperNeoError.invalidEncoding("NumiSeal recursive carry metadata is incomplete")
+            }
+        }
+        for key in [
+            NumiSealProductRecursiveCarryMetadata.parentArtifactDigest,
+            NumiSealProductRecursiveCarryMetadata.parentSourceFoldEnvelopeDigest,
+            NumiSealProductRecursiveCarryMetadata.parentProductProofEnvelopeDigest,
+            NumiSealProductRecursiveCarryMetadata.parentProducerProofEnvelopeDigest,
+            NumiSealProductRecursiveCarryMetadata.parentPublicStatementDigest,
+            NumiSealProductRecursiveCarryMetadata.consumerSessionDigest,
+            NumiSealProductRecursiveCarryMetadata.contextRoot,
+            NumiSealProductRecursiveCarryMetadata.replayRoot
+        ] {
+            _ = try Digest256(hexDigest: metadata[key] ?? "", name: "NumiSeal recursive carry metadata \(key)")
+        }
+        guard let rawNextLevel = metadata[NumiSealProductRecursiveCarryMetadata.nextRecursionLevel],
+              let nextLevel = Int(rawNextLevel),
+              nextLevel > 0 else {
+            throw SuperNeoError.invalidEncoding("NumiSeal recursive carry next recursion level is invalid")
+        }
+        guard let rawClaimCount = metadata[NumiSealProductRecursiveCarryMetadata.claimCount],
+              let claimCount = Int(rawClaimCount),
+              claimCount > 0 else {
+            throw SuperNeoError.invalidEncoding("NumiSeal recursive carry claim count is invalid")
+        }
+    }
 }
 
 public extension SuperNeoR1CSProgram {
@@ -1075,9 +1643,11 @@ public extension SuperNeoR1CSProgram {
         sourceApplicationPathUTF8: String? = nil,
         laneID: NumiSealLaneID = .product,
         executionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct,
+        zkMode: String = NumiSealZK.nonZKMode,
         aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
         parameters: SuperNeoParameters = .goldilocks,
-        metalContext: MetalExecutionContext? = nil
+        metalContext: MetalExecutionContext? = nil,
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil
     ) throws -> NumiSealProductArtifact {
         let assignment = try assignment(for: input)
         let prepared = try builder.prepareForFolding(
@@ -1098,9 +1668,11 @@ public extension SuperNeoR1CSProgram {
                 sourceApplicationPathUTF8: sourceApplicationPathUTF8,
                 laneID: laneID,
                 executionPolicy: executionPolicy,
+                zkMode: zkMode,
                 aggregationLimits: aggregationLimits,
                 parameters: parameters,
-                metalContext: metalContext
+                metalContext: metalContext,
+                recursiveCarryParent: recursiveCarryParent
             )
         )
     }
