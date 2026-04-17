@@ -30,6 +30,7 @@ Coverage included:
 - product extractor loss-accounting validation,
 - product QROM transcript schedule validation,
 - product QROM sampler/encoding evidence validation,
+- product QROM collision/malleability structural evidence validation,
 - product QROM transform precondition validation,
 - product QROM interactive reduction validation,
 - product QROM Fiat-Shamir accounting validation,
@@ -129,6 +130,7 @@ Release and validation gates:
 - `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
 - `TestVectors/product-qrom-transcript-schedule-v1.json`
 - `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`
+- `TestVectors/product-qrom-collision-malleability-evidence-v1.json`
 - `TestVectors/product-qrom-transform-preconditions-v1.json`
 - `TestVectors/product-qrom-interactive-reduction-v1.json`
 - `TestVectors/product-total-loss-budget-v1.json`
@@ -155,6 +157,8 @@ Release and validation gates:
 - `Scripts/test-product-qrom-transcript-schedule-validation.py`
 - `Scripts/validate-product-qrom-sampler-encoding-evidence.py`
 - `Scripts/test-product-qrom-sampler-encoding-evidence-validation.py`
+- `Scripts/validate-product-qrom-collision-malleability-evidence.py`
+- `Scripts/test-product-qrom-collision-malleability-evidence-validation.py`
 - `Scripts/validate-product-qrom-transform-preconditions.py`
 - `Scripts/test-product-qrom-transform-preconditions-validation.py`
 - `Scripts/validate-product-qrom-interactive-reduction.py`
@@ -282,6 +286,7 @@ These are the remaining blockers before using production-security language:
    `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`,
    `TestVectors/product-qrom-transcript-schedule-v1.json`,
    `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`,
+   `TestVectors/product-qrom-collision-malleability-evidence-v1.json`,
    `TestVectors/product-qrom-transform-preconditions-v1.json`,
    `TestVectors/product-qrom-interactive-reduction-v1.json`, and
    `TestVectors/product-total-loss-budget-v1.json`, but concrete Swift
@@ -289,7 +294,8 @@ These are the remaining blockers before using production-security language:
    accounting beyond the checked parent-child handoff, simulator coupling
    evidence beyond the exact mask-distribution lemma, repair of the current
    out-of-budget DFM20 numeric QROM reduction finding, QROM
-   transform-precondition closure, collision/malleability closure,
+   transform-precondition closure, numeric digest collision and proof-kind
+   malleability bounds over the structurally pinned residual events,
    interactive-security bounds, total-loss budget instantiation, and
    side-channel evidence still have
    to be supplied before production-security NumiSeal theorem language is

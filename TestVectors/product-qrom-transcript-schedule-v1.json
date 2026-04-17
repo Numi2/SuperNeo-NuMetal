@@ -10,6 +10,7 @@
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "proofEnvelopePolicy": "Docs/ProofEnvelope.md"
@@ -36,7 +37,9 @@
     "interactiveProtocolFullySpecified": true,
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "samplerEncodingEvidenceManifest": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "collisionMalleabilityEvidenceManifest": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "quantumOracleQueryBoundInstantiated": true,
+    "structuralCollisionMalleabilityEvidencePinned": true,
     "transformPreconditionsSatisfied": false,
     "productionQROMClaimAllowed": false
   },
@@ -207,7 +210,7 @@
   },
   "hardClaimBlockers": [
     "Fiat-Shamir transform precondition proof for the pinned transcript schedule",
-    "domain-separation collision and proof-kind malleability exclusion proof",
+    "numeric digest collision and proof-kind malleability bound for the structurally pinned residual event",
     "integration of the instantiated Q_H bound into a repaired QROM loss model that fits the selected total-loss budget"
   ],
   "promotionRule": {
@@ -217,6 +220,8 @@
     "requiresInteractiveProtocol": false,
     "requiresTransformPreconditions": true,
     "requiresQuantumOracleQueryBound": false,
+    "requiresStructuralCollisionMalleabilityEvidence": false,
+    "requiresDigestCollisionBound": true,
     "requiresQROMAccountingUpdate": true,
     "requiresTotalLossBudgetUpdate": true
   }

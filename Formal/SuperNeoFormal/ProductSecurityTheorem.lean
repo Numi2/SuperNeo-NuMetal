@@ -463,6 +463,24 @@ theorem productSecurityTheorem_requires_qrom_loss_accounting
       hCollision,
       hBudget⟩
 
+theorem productSecurityTheorem_requires_qrom_collision_malleability_exclusion
+    {accounting : ProductFiatShamirLossAccounting}
+    (hAccounting : ProductFiatShamirLossAccountingAccepted accounting) :
+    accounting.transcriptDomainSeparatorsBound
+      ∧ accounting.proofKindSeparationBound
+      ∧ accounting.transcriptCollisionMalleabilityExcluded := by
+  rcases hAccounting with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      hTranscriptDomain,
+      hProofKind,
+      hCollision,
+      _⟩
+  exact ⟨hTranscriptDomain, hProofKind, hCollision⟩
+
 theorem productSecurityTheorem_requires_qrom_transcript_schedule
     {schedule : ProductFiatShamirTranscriptSchedule}
     (hSchedule : ProductFiatShamirTranscriptScheduleAccepted schedule) :

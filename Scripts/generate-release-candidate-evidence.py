@@ -103,6 +103,9 @@ def build_evidence(args: argparse.Namespace) -> dict:
     product_qrom_sampler_encoding_evidence = read_json(
         "TestVectors/product-qrom-sampler-encoding-evidence-v1.json"
     )
+    product_qrom_collision_malleability_evidence = read_json(
+        "TestVectors/product-qrom-collision-malleability-evidence-v1.json"
+    )
     product_qrom_transform_preconditions = read_json("TestVectors/product-qrom-transform-preconditions-v1.json")
     product_qrom_interactive_reduction = read_json("TestVectors/product-qrom-interactive-reduction-v1.json")
     product_total_loss_budget = read_json("TestVectors/product-total-loss-budget-v1.json")
@@ -247,6 +250,25 @@ def build_evidence(args: argparse.Namespace) -> dict:
                     "structuredFrameInjective"
                 ]
             ),
+            "productQROMCollisionMalleabilityEvidenceVersion": int(
+                product_qrom_collision_malleability_evidence["schemaVersion"]
+            ),
+            "productQROMCollisionMalleabilityEvidenceDigestHex": sha256_hex(
+                "TestVectors/product-qrom-collision-malleability-evidence-v1.json"
+            ),
+            "productQROMCollisionMalleabilityEvidenceClaimStatus": str(
+                product_qrom_collision_malleability_evidence["claimStatus"]
+            ),
+            "productQROMCollisionMalleabilityStructuralClosurePinned": bool(
+                product_qrom_collision_malleability_evidence["closureStatus"][
+                    "structuralCollisionMalleabilityExcludedOutsideDigestCollision"
+                ]
+            ),
+            "productQROMCollisionMalleabilityDigestBoundInstantiated": bool(
+                product_qrom_collision_malleability_evidence["closureStatus"][
+                    "digestCollisionBoundInstantiated"
+                ]
+            ),
             "productQROMTransformPreconditionsVersion": int(
                 product_qrom_transform_preconditions["schemaVersion"]
             ),
@@ -352,6 +374,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
             "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+            "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
             "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
             "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
             "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
@@ -379,7 +402,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "A conditional source/formal constant-time trace scope and Swift/LLVM/Metal lowering proof contract are recorded; local Swift SIL/LLVM/assembly artifacts, Metal AIR/metallib artifacts, runtime allocation/COW review, CPU/GPU smoke corpora, and compiler/hardware observation lane reports are pinned, while scoped emitted-code review, hardware counters, power/contention, and broader device lanes remain explicit evidence boundaries.",
             "E2E proof-size budgets are checked for deterministic vectors and local product smokes; whole-stack benchmark row coverage is checked, but hardware latency claims still require fresh benchmark evidence.",
             "Local product-ops readiness and signed revocation-feed verification are machine-readable and audit-exported; no hosted product replay-protection, provenance, persistence, revocation-distribution, or access-control service is recorded.",
-            "NumiSeal product, carry, and ZK formalization has a checked evidence-parametric end-to-end theorem scope, exact rejection-sampled field mask distribution evidence, a selected-depth loss-accounting ledger, extractor loss accounting, QROM Fiat-Shamir accounting with explicit collision mapping and an instantiated conditional Q_H = 2^64 query cap, a QROM transcript schedule, conditional QROM sampler/encoding evidence under the QRO abstraction, QROM transform preconditions, a QROM interactive reduction ledger with code-enforced NumiSeal challenge maxima, a total-loss budget contract, and a product cryptographic security dossier pinned to bounded depth 1; concrete extractor implementation, per-kind interactive security bounds, collision/malleability closure, repair of the current out-of-budget DFM20 QROM numeric loss finding, recursive product carry flow, ZK simulator coupling, side-channel evidence, post-quantum parameter tightening, hosted operations, release signing, and numeric loss instantiations remain production-security boundaries.",
+            "NumiSeal product, carry, and ZK formalization has a checked evidence-parametric end-to-end theorem scope, exact rejection-sampled field mask distribution evidence, a selected-depth loss-accounting ledger, extractor loss accounting, QROM Fiat-Shamir accounting with explicit collision mapping and an instantiated conditional Q_H = 2^64 query cap, a QROM transcript schedule, conditional QROM sampler/encoding evidence under the QRO abstraction, QROM collision/malleability structural evidence, QROM transform preconditions, a QROM interactive reduction ledger with code-enforced NumiSeal challenge maxima, a total-loss budget contract, and a product cryptographic security dossier pinned to bounded depth 1; concrete extractor implementation, per-kind interactive security bounds, numeric digest collision/proof-kind malleability bounds, repair of the current out-of-budget DFM20 QROM numeric loss finding, recursive product carry flow, ZK simulator coupling, side-channel evidence, post-quantum parameter tightening, hosted operations, release signing, and numeric loss instantiations remain production-security boundaries.",
         ],
     }
 

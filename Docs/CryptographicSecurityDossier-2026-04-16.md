@@ -12,6 +12,7 @@ Machine-readable scope:
 - `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
 - `TestVectors/product-qrom-transcript-schedule-v1.json`
 - `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`
+- `TestVectors/product-qrom-collision-malleability-evidence-v1.json`
 - `TestVectors/product-qrom-transform-preconditions-v1.json`
 - `TestVectors/product-qrom-interactive-reduction-v1.json`
 - `TestVectors/product-total-loss-budget-v1.json`
@@ -22,6 +23,7 @@ Machine-readable scope:
 - `Scripts/validate-product-qrom-fiat-shamir-accounting.py`
 - `Scripts/validate-product-qrom-transcript-schedule.py`
 - `Scripts/validate-product-qrom-sampler-encoding-evidence.py`
+- `Scripts/validate-product-qrom-collision-malleability-evidence.py`
 - `Scripts/validate-product-qrom-transform-preconditions.py`
 - `Scripts/validate-product-qrom-interactive-reduction.py`
 - `Scripts/validate-product-total-loss-budget.py`
@@ -230,8 +232,9 @@ Remaining work:
 - close `TestVectors/product-qrom-transform-preconditions-v1.json` by proving
   the selected transform preconditions or explicitly narrow the theorem to ROM,
 - bind every domain separator and transcript label in the theorem, and
-- prove no transcript collision or malleability across fold, terminal,
-  compressed-terminal, NumiSeal terminal, and NumiSealZK envelopes.
+- instantiate numeric digest collision and proof-kind malleability bounds for
+  the residual events exported by
+  `TestVectors/product-qrom-collision-malleability-evidence-v1.json`.
 
 `ProductSecurityTheorem` exposes `ProductFiatShamirTranscriptSchedule`,
 `ProductFiatShamirTranscriptScheduleAccepted`,
@@ -242,8 +245,9 @@ Remaining work:
 `ProductQROMInteractiveReduction`, `ProductQROMInteractiveReductionAccepted`,
 `productSecurityTheorem_requires_qrom_interactive_reduction`,
 `ProductFiatShamirLossAccounting`, `ProductFiatShamirLossAccountingAccepted`,
-and `productSecurityTheorem_requires_qrom_loss_accounting` so future theorem
-promotion cannot bypass interactive-protocol, challenge-schedule,
+`productSecurityTheorem_requires_qrom_loss_accounting`, and
+`productSecurityTheorem_requires_qrom_collision_malleability_exclusion` so
+future theorem promotion cannot bypass interactive-protocol, challenge-schedule,
 precondition, quantum-query, collision, malleability, or budget evidence.
 
 ## QROM Transform Preconditions
@@ -278,8 +282,10 @@ Promotion requires the exact `(2n + 1)` theorem fit for the pinned interactive
 public-coin protocol, underlying interactive security against quantum dishonest
 provers, repaired numeric QROM loss accounting under the instantiated
 `Q_H = 2^64` bound, per-kind `epsilon_interactive` bounds,
-collision/malleability closure, and integration of `epsilon_fs_transform` and
-`epsilon_precondition` into the selected total-loss budget. Uniform
+numeric digest collision and proof-kind malleability bounds over the
+structurally pinned residual events, and integration of
+`epsilon_fs_transform` and `epsilon_precondition` into the selected total-loss
+budget. Uniform
 challenge-space and structured transcript-oracle input encoding are now
 conditionally pinned by the sampler/encoding evidence under the QRO abstraction.
 
@@ -301,9 +307,27 @@ transcript state is append-only, and the Lean transcript lemmas record frame
 injectivity for structured inputs. This evidence closes the conditional
 challenge-space uniformity and transcript-oracle encoding obligations used by
 the transform-precondition and interactive-reduction ledgers. It does not prove
-the concrete hash instantiation as a QRO, exclude transcript collision or
-malleability, repair the DFM20 numeric loss, or instantiate the final total-loss
-budget.
+the concrete hash instantiation as a QRO, instantiate the residual digest
+collision bound, repair the DFM20 numeric loss, or instantiate the final
+total-loss budget.
+
+## QROM Collision/Malleability Structural Evidence
+
+`TestVectors/product-qrom-collision-malleability-evidence-v1.json` is the
+checked QROM Collision/Malleability Structural Evidence manifest. It pins the
+accepted five proof kinds, Swift proof-envelope raw values, the Lean
+proof-envelope kind and transcript-binding injectivity surface, transcript
+domain enforcement, proof-kind acceptance policy, artifact/provenance digest
+binding, product replay identity, NumiSeal component-root binding, and typed
+carry replay binding.
+
+This evidence closes structural cross-kind, cross-domain, cross-product-session,
+and cross-carry swap paths outside digest collision events. It intentionally
+does not instantiate a concrete hash/QRO proof, a numeric transcript collision
+bound, a numeric proof-kind malleability bound, repaired DFM20 reduction loss,
+or total-loss budget integration. Those residual events remain mapped into
+`epsilon_transcript_collision`, `epsilon_proof_kind_malleability`, and the
+selected-depth `epsilon_collision`/`epsilon_qrom` ledger terms.
 
 ## QROM Interactive Reduction
 
@@ -331,8 +355,8 @@ selected DFM20/256-bit challenge accounting, `log2(204!)` is already greater
 than 1276, so the additive `204! / 2^256` ordering term is greater than 1 for
 the smallest accepted proof kind. The QROM theorem therefore remains disabled
 until the loss model, challenge accounting, per-kind `epsilon_interactive`
-bounds, collision/malleability closure, and total-loss budget integration are
-repaired.
+bounds, numeric digest collision/proof-kind malleability bounds, and total-loss
+budget integration are repaired.
 
 ## QROM Transcript Schedule
 
@@ -344,10 +368,12 @@ terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK product proof
 kinds. It also pins the conditional `Q_H = 2^64` adversary-query cap and
 `8755125` selected-depth protocol challenge derivations. It is intentionally
 not a production QROM proof: theorem-family fit, transform preconditions, the
-repaired QROM loss model, collision/malleability closure, and integration into
-the total-loss budget remain open. Sampler uniformity and structured transcript
-encoding are conditionally pinned by
-`TestVectors/product-qrom-sampler-encoding-evidence-v1.json`.
+repaired QROM loss model, numeric digest collision/proof-kind malleability
+bounds, and integration into the total-loss budget remain open. Sampler
+uniformity and structured transcript encoding are conditionally pinned by
+`TestVectors/product-qrom-sampler-encoding-evidence-v1.json`; structural
+collision/malleability evidence is pinned by
+`TestVectors/product-qrom-collision-malleability-evidence-v1.json`.
 
 ## Total Loss Budget
 

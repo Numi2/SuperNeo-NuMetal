@@ -31,10 +31,10 @@ true:
   bounded-depth product security theorem, Fiat-Shamir/QROM position, Module-SIS
   parameter dossier, selected-depth loss accounting, product extractor loss
   accounting, product QROM transcript schedule, product QROM sampler and
-  encoding evidence, product QROM transform
-  preconditions, product QROM interactive reduction, product QROM
-  Fiat-Shamir accounting, product total-loss
-  budget, and production-claim boundaries.
+  encoding evidence, product QROM collision/malleability structural evidence,
+  product QROM transform preconditions, product QROM interactive reduction,
+  product QROM Fiat-Shamir accounting, product total-loss budget, and
+  production-claim boundaries.
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
 - Release notes explicitly use research/integration wording and do not claim
@@ -59,8 +59,10 @@ At minimum, this requires:
 - NumiSeal conformance-scope promotion plus concrete Swift extractor
   implementation and numeric extractor loss accounting, product recursive
   typed carry vectors, simulator coupling beyond the exact rejection-sampled
-  field mask distribution, repair of the current out-of-budget DFM20 QROM
-  numeric loss finding, selected total-loss budget closure, and product
+  field mask distribution, numeric digest collision and proof-kind
+  malleability bounds over the structurally pinned QROM residual events, repair
+  of the current out-of-budget DFM20 QROM numeric loss finding, selected
+  total-loss budget closure, and product
   cryptographic security dossier promotion beyond depth 1,
 - selected-depth loss accounting instantiated for extractor, QROM,
   ZK-simulator, hosted product-ops replay, constant-time side-channel, and
@@ -95,6 +97,7 @@ Each release candidate should record:
 - product extractor loss accounting digest.
 - product QROM transcript schedule digest.
 - product QROM sampler and encoding evidence digest.
+- product QROM collision/malleability structural evidence digest.
 - product QROM transform preconditions digest.
 - product QROM interactive reduction digest.
 - product QROM Fiat-Shamir accounting digest.
@@ -156,6 +159,14 @@ product QROM sampler and encoding evidence, exact rejection-sampling arithmetic
 for Goldilocks, Ext2, Phi81, CE ternary, and NumiSealZK masked-residual
 challenges, structured transcript frame injectivity, and the fail-closed QROM
 promotion rule.
+`Scripts/validate-product-qrom-collision-malleability-evidence.py` checks
+`TestVectors/product-qrom-collision-malleability-evidence-v1.json`, including
+product QROM collision/malleability structural evidence, accepted proof-kind
+separation, proof-envelope transcript-binding injectivity, artifact/provenance
+digest binding, product replay identity binding, NumiSeal component-root
+binding, typed carry replay binding, and the fail-closed boundary that keeps
+concrete hash/QRO instantiation, numeric digest collision bounds, proof-kind
+malleability bounds, QROM reduction repair, and total-loss integration open.
 `Scripts/validate-product-qrom-transform-preconditions.py` checks
 `TestVectors/product-qrom-transform-preconditions-v1.json`, including the
 product QROM transform preconditions, primary QROM Fiat-Shamir source basis,

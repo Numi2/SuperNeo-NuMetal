@@ -57,8 +57,16 @@ Machine-readable files:
   transcript-encoding evidence under the QRO abstraction. It pins the exact
   rejection-sampling arithmetic for Goldilocks, Ext2, Phi81, CE ternary, and
   NumiSealZK masked-residual challenges, plus structured 64-bit length-prefixed
-  transcript frame injectivity, while keeping hash instantiation,
-  collision/malleability, and production QROM claims disabled.
+  transcript frame injectivity, while keeping hash instantiation, numeric
+  digest collision bounds, proof-kind malleability bounds, and production QROM
+  claims disabled.
+- `product-qrom-collision-malleability-evidence-v1.json`: checked QROM
+  collision/malleability structural evidence. It pins accepted proof-kind
+  separation, proof-envelope transcript-binding injectivity, transcript-domain
+  enforcement, proof-kind acceptance policy, artifact/provenance digest
+  binding, product replay identity, NumiSeal component-root binding, typed
+  carry replay binding, and the fail-closed residual event mapping for numeric
+  digest collision and proof-kind malleability bounds.
 - `product-qrom-transform-preconditions-v1.json`: checked QROM transform
   precondition dossier for the selected fail-closed measure-and-reprogram
   profile. It pins primary research sources, theorem-family fit,
@@ -115,6 +123,8 @@ Scripts/validate-product-qrom-transcript-schedule.py
 Scripts/test-product-qrom-transcript-schedule-validation.py
 Scripts/validate-product-qrom-sampler-encoding-evidence.py
 Scripts/test-product-qrom-sampler-encoding-evidence-validation.py
+Scripts/validate-product-qrom-collision-malleability-evidence.py
+Scripts/test-product-qrom-collision-malleability-evidence-validation.py
 Scripts/validate-product-qrom-transform-preconditions.py
 Scripts/test-product-qrom-transform-preconditions-validation.py
 Scripts/validate-product-qrom-interactive-reduction.py

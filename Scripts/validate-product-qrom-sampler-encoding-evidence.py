@@ -36,6 +36,7 @@ EXPECTED_MANIFESTS = {
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
 }
 
@@ -152,6 +153,10 @@ def validate_related_manifests(evidence: dict[str, Any]) -> None:
         require(
             manifest_related.get(expected_key) == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             f"{manifest_key} must link product-qrom-sampler-encoding-evidence-v1.json",
+        )
+        require(
+            manifest_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+            f"{manifest_key} must link product-qrom-collision-malleability-evidence-v1.json",
         )
 
 
@@ -282,8 +287,18 @@ def validate_integration(evidence: dict[str, Any]) -> None:
         "challengeSpaceUniformitySatisfiedUnderQROAbstraction",
         "transcriptOracleEncodingInjectiveForStructuredFrames",
         "witnessIndependentOracleLabelsPinned",
+        "structuralCollisionMalleabilityExcludedOutsideDigestCollision",
     ]:
         require_true(integration.get(key), f"integrationStatus.{key}")
+    require(
+        integration.get("structuralCollisionMalleabilityEvidenceManifest")
+        == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "integrationStatus.structuralCollisionMalleabilityEvidenceManifest mismatch",
+    )
+    require_relative_path(
+        integration.get("structuralCollisionMalleabilityEvidenceManifest"),
+        "integrationStatus.structuralCollisionMalleabilityEvidenceManifest",
+    )
     for key in [
         "hashInstantiationProofProvided",
         "collisionMalleabilityExcluded",
@@ -297,26 +312,33 @@ def validate_docs_and_gate() -> None:
     docs = {
         "README.md": [
             "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
             "QROM sampler and encoding evidence",
         ],
         "Docs/CryptographicSecurityDossier-2026-04-16.md": [
             "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
             "QROM Sampler And Encoding Evidence",
         ],
         "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
             "Scripts/validate-product-qrom-sampler-encoding-evidence.py",
+            "Scripts/validate-product-qrom-collision-malleability-evidence.py",
         ],
         "Docs/ReleaseEngineering-2026-04-16.md": [
             "product QROM sampler and encoding evidence",
+            "product QROM collision/malleability structural evidence",
         ],
         "Docs/ReleaseCandidateRunbook-2026-04-16.md": [
             "product QROM sampler/encoding evidence version and digest",
+            "product QROM collision/malleability evidence version and digest",
         ],
         "Docs/SchemaCompatibility-2026-04-16.md": [
             "Product QROM sampler/encoding evidence manifest",
+            "Product QROM collision/malleability evidence manifest",
         ],
         "TestVectors/README.md": [
             "product-qrom-sampler-encoding-evidence-v1.json",
+            "product-qrom-collision-malleability-evidence-v1.json",
         ],
     }
     for relative, needles in docs.items():
@@ -331,6 +353,10 @@ def validate_docs_and_gate() -> None:
     require(
         "run_step Scripts/test-product-qrom-sampler-encoding-evidence-validation.py" in gate,
         "production gate must run QROM sampler/encoding regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-qrom-collision-malleability-evidence.py" in gate,
+        "production gate must run QROM collision/malleability evidence validator",
     )
 
 

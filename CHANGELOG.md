@@ -59,8 +59,17 @@ claims remain blocked by the release packet no-go items.
   exact rejection-sampling arithmetic for Goldilocks, Ext2, Phi81, CE ternary,
   and NumiSealZK masked-residual challenges plus structured transcript frame
   injectivity under the QRO abstraction, while leaving hash instantiation,
-  collision/malleability closure, the out-of-budget DFM20 loss repair, and the
-  final production QROM theorem disabled.
+  numeric digest collision bounds, proof-kind malleability bounds, the
+  out-of-budget DFM20 loss repair, and the final production QROM theorem
+  disabled.
+- Added checked QROM collision/malleability evidence, validator, mutation
+  tests, release-evidence wiring, production-gate coverage, and Lean
+  proof-envelope kind coverage for the NumiSeal terminal and NumiSealZK proof
+  kinds. The evidence pins structural cross-kind, cross-domain,
+  cross-product-session, and cross-carry binding outside digest collision
+  events while keeping concrete hash/QRO instantiation, numeric digest
+  collision bounds, proof-kind malleability bounds, QROM loss repair, and
+  total-loss integration disabled.
 - Added a checked total-loss budget manifest, validator, mutation tests,
   release-evidence wiring, and Lean theorem hook. The budget pins exact
   rational selected-depth summation, ten component bounds, nine required
@@ -108,6 +117,7 @@ claims remain blocked by the release packet no-go items.
 - The extractor loss accounting manifest starts at `schemaVersion = 1`.
 - The QROM Fiat-Shamir accounting manifest starts at `schemaVersion = 1`.
 - The QROM transcript schedule manifest starts at `schemaVersion = 1`.
+- The QROM collision/malleability evidence manifest starts at `schemaVersion = 1`.
 - The QROM transform preconditions manifest starts at `schemaVersion = 1`.
 - The QROM interactive reduction manifest starts at `schemaVersion = 1`.
 - The total-loss budget manifest starts at `schemaVersion = 1`.
@@ -128,8 +138,9 @@ claims remain blocked by the release packet no-go items.
   instantiation, product recursive typed carry vectors, selected total-loss
   budget instantiation, simulator coupling beyond the exact field-mask
   distribution lemma, QROM transform precondition closure,
-  collision/malleability closure, per-kind interactive security bounds, repair
-  of the current
+  numeric digest collision and proof-kind malleability bounds over the
+  structurally pinned residual events, per-kind interactive security bounds,
+  repair of the current
   out-of-budget DFM20 QROM numeric loss finding, conservative
   post-quantum parameter closure, competitive proof-size/latency evidence, and
   side-channel evidence.

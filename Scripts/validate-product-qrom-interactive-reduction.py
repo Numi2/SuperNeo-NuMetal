@@ -36,6 +36,7 @@ EXPECTED_MANIFESTS = {
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -60,7 +61,7 @@ EXPECTED_BLOCKERS = [
     "DFM20 numeric reduction terms exceed the selected 2^-128 total-loss budget under Q_H = 2^64 and 256-bit challenge accounting",
     "underlying interactive knowledge-soundness or soundness bounds for every accepted proof kind against quantum dishonest provers",
     "numeric epsilon_interactive_kind bounds for every accepted proof kind",
-    "collision and proof-kind malleability exclusion bound for the accepted transcript domains",
+    "numeric digest collision and proof-kind malleability bound for the accepted transcript domains",
     "final epsilon_fs_transform boundLog2 integration into epsilon_qrom and the selected total-loss budget",
 ]
 
@@ -166,6 +167,10 @@ def validate_related_manifests(reduction: dict[str, Any]) -> None:
             manifest_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             f"{manifest_key} must link product-qrom-sampler-encoding-evidence-v1.json",
         )
+        require(
+            manifest_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+            f"{manifest_key} must link product-qrom-collision-malleability-evidence-v1.json",
+        )
 
     dossier = read_json(ROOT / EXPECTED_MANIFESTS["productCryptoSecurityDossier"])
     qrom_position = require_dict(dossier.get("fiatShamirQROMPosition"), "productCryptoSecurityDossier.fiatShamirQROMPosition")
@@ -177,6 +182,10 @@ def validate_related_manifests(reduction: dict[str, Any]) -> None:
         qrom_position.get("samplerEncodingEvidenceManifest") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "dossier Fiat-Shamir/QROM position must link sampler/encoding evidence",
     )
+    require(
+        qrom_position.get("collisionMalleabilityEvidenceManifest") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "dossier Fiat-Shamir/QROM position must link collision/malleability evidence",
+    )
 
     accounting = read_json(ROOT / EXPECTED_MANIFESTS["productQROMFiatShamirAccounting"])
     model = require_dict(accounting.get("fiatShamirModel"), "productQROMFiatShamirAccounting.fiatShamirModel")
@@ -187,6 +196,10 @@ def validate_related_manifests(reduction: dict[str, Any]) -> None:
     require(
         model.get("samplerEncodingEvidenceManifest") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "QROM accounting model must link sampler/encoding evidence",
+    )
+    require(
+        model.get("collisionMalleabilityEvidenceManifest") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "QROM accounting model must link collision/malleability evidence",
     )
 
 
@@ -321,10 +334,22 @@ def validate_encoding_and_loss(reduction: dict[str, Any]) -> None:
         "transcriptOracleEncodingProof.samplerEncodingEvidenceManifest mismatch",
     )
     require_relative_path(encoding.get("samplerEncodingEvidenceManifest"), "transcriptOracleEncodingProof.samplerEncodingEvidenceManifest")
+    require(
+        encoding.get("collisionMalleabilityEvidenceManifest") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "transcriptOracleEncodingProof.collisionMalleabilityEvidenceManifest mismatch",
+    )
+    require_relative_path(
+        encoding.get("collisionMalleabilityEvidenceManifest"),
+        "transcriptOracleEncodingProof.collisionMalleabilityEvidenceManifest",
+    )
     require(encoding.get("injectivityProofStatus") == "structured-frame-injectivity-pinned", "transcriptOracleEncodingProof.injectivityProofStatus mismatch")
     require(
         encoding.get("samplerUniformityProofStatus") == "conditional-qro-rejection-sampling-arithmetic-pinned",
         "transcriptOracleEncodingProof.samplerUniformityProofStatus mismatch",
+    )
+    require(
+        encoding.get("structuralCollisionMalleabilityStatus") == "structural-exclusion-pinned-digest-bound-open",
+        "transcriptOracleEncodingProof.structuralCollisionMalleabilityStatus mismatch",
     )
     require_true(encoding.get("witnessIndependentLabelsPinned"), "witnessIndependentLabelsPinned")
     require_true(encoding.get("failurePathScheduleIndependent"), "failurePathScheduleIndependent")
@@ -395,6 +420,10 @@ def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
         require_false(promotion.get(key), f"promotionRule.{key}")
     require(promotion.get("requiresNumericNumiSealChallengeBounds") is False, "promotionRule.requiresNumericNumiSealChallengeBounds must be false after code-enforced numeric bounds")
     require(promotion.get("requiresChallengeUniformityProofs") is False, "promotionRule.requiresChallengeUniformityProofs must be false after sampler/encoding evidence closure")
+    require(
+        promotion.get("requiresStructuralCollisionMalleabilityEvidence") is False,
+        "promotionRule.requiresStructuralCollisionMalleabilityEvidence must be false after structural evidence closure",
+    )
     for key in [
         "requiresInteractiveSecurityBounds",
         "requiresCollisionMalleabilityBound",

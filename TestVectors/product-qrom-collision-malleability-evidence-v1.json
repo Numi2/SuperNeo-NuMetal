@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "evidenceID": "superneo-product-qrom-collision-malleability-evidence-v1",
+  "claimStatus": "qrom-collision-malleability-structural-evidence-not-production-qrom-theorem",
+  "relatedManifests": {
+    "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+    "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
+    "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json"
+  },
+  "formalSurface": {
+    "serializationModule": "Formal/SuperNeoFormal/Serialization.lean",
+    "transcriptModule": "Formal/SuperNeoFormal/Transcript.lean",
+    "productSecurityModule": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
+    "declarations": [
+      "proofEnvelopeKindEncode_injective",
+      "proofEnvelopeKindDecode?_encode",
+      "proofEnvelopeTranscriptBindingEncode_kind_slice",
+      "proofEnvelopeTranscriptBindingEncode_shape_slice",
+      "proofEnvelopeTranscriptBindingEncode_statement_slice",
+      "proofEnvelopeTranscriptBindingEncode_verifierKey_slice",
+      "proofEnvelopeTranscriptBindingEncode_transcriptDomain_slice",
+      "proofEnvelopeTranscriptBindingEncode_injective",
+      "proofEnvelopeTranscriptInit_context_injective",
+      "proofEnvelopeLengthCountedTranscriptInit?_first_payload_decodes",
+      "domainSeparatorTag_ne_proofEnvelopeHeaderTag",
+      "productSecurityTheorem_requires_qrom_collision_malleability_exclusion"
+    ]
+  },
+  "sourceSurfaces": {
+    "proofEnvelope": "SuperNeo-NuMetal/SuperNeoSerialization.swift",
+    "sumcheckTranscript": "SuperNeo-NuMetal/Transcript/SumCheckTranscript.swift",
+    "localProductControls": "SuperNeo-NuMetal/ProductIntegration/LocalProductControls.swift",
+    "numiSealProof": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift",
+    "numiSealZKProof": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift",
+    "numiSealTypes": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypes.swift",
+    "numiSealArtifactVerifier": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealArtifactVerifier.swift"
+  },
+  "acceptedProofKinds": [
+    {
+      "proofKind": "fold",
+      "envelopeKind": 1,
+      "publicTranscriptBinding": [
+        "ProofEnvelopeKind.foldReduction",
+        "shape digest",
+        "statement digest",
+        "verifier key digest",
+        "transcript domain digest"
+      ],
+      "residualMalleabilityEvent": "requires proof-envelope transcript-binding collision or source-fold statement/verifier-key digest collision"
+    },
+    {
+      "proofKind": "terminal",
+      "envelopeKind": 2,
+      "publicTranscriptBinding": [
+        "ProofEnvelopeKind.terminalLocal",
+        "shape digest",
+        "statement digest",
+        "verifier key digest",
+        "transcript domain digest"
+      ],
+      "residualMalleabilityEvent": "requires proof-envelope transcript-binding collision or terminal relation digest collision"
+    },
+    {
+      "proofKind": "compressed-terminal",
+      "envelopeKind": 3,
+      "publicTranscriptBinding": [
+        "ProofEnvelopeKind.compressedPublic",
+        "compressed public statement digest",
+        "proof-envelope digest",
+        "transcript domain digest"
+      ],
+      "residualMalleabilityEvent": "requires compressed-public transcript-domain collision or compressed statement digest collision"
+    },
+    {
+      "proofKind": "numiseal-terminal",
+      "envelopeKind": 4,
+      "publicTranscriptBinding": [
+        "ProofEnvelopeKind.numiSealTerminal",
+        "NumiSeal public statement digest",
+        "obligation root",
+        "lane summary root",
+        "aggregate digest set",
+        "component digest root",
+        "proof transcript digest"
+      ],
+      "residualMalleabilityEvent": "requires NumiSeal component-root/proof-transcript collision or product provenance replay-binding collision"
+    },
+    {
+      "proofKind": "numiseal-zk-product",
+      "envelopeKind": 5,
+      "publicTranscriptBinding": [
+        "ProofEnvelopeKind.numiSealZK",
+        "NumiSealZK public statement digest",
+        "randomness session digest",
+        "declared leakage digest",
+        "mask tensor dimensions",
+        "component digest root",
+        "proof transcript digest"
+      ],
+      "residualMalleabilityEvent": "requires NumiSealZK component-root/proof-transcript collision, randomness-session collision, or product provenance replay-binding collision"
+    }
+  ],
+  "structuralBinding": {
+    "proofEnvelopeKindRawValuesUnique": true,
+    "proofEnvelopeTranscriptBindingInjective": true,
+    "proofEnvelopeTranscriptDomainBound": true,
+    "proofKindAcceptancePolicyEnforced": true,
+    "artifactBodyDigestBindingRequired": true,
+    "productProvenanceBindsArtifactAndEnvelopeDigests": true,
+    "productReplayIdentityBindsContextStatementEnvelopeArtifactProvenanceAndCarry": true,
+    "numiSealComponentDigestRootBound": true,
+    "recursiveCarryReplayBindingPresent": true,
+    "witnessIndependentOracleLabelsPinned": true
+  },
+  "residualEvents": {
+    "proofKindMalleabilityLossSymbol": "epsilon_proof_kind_malleability",
+    "transcriptCollisionLossSymbol": "epsilon_transcript_collision",
+    "selectedDepthCollisionLedgerSymbol": "epsilon_collision",
+    "epsilonTranscriptCollisionExportedOutsideEpsilonQROM": true,
+    "epsilonProofKindMalleabilityInsideEpsilonQROM": true,
+    "digestCollisionBoundRequired": true,
+    "concreteHashQROInstantiationRequired": true
+  },
+  "closureStatus": {
+    "structuralCollisionMalleabilityExcludedOutsideDigestCollision": true,
+    "crossProofKindSwapRequiresEnvelopeKindOrTranscriptBindingCollision": true,
+    "crossTranscriptDomainSwapRequiresTranscriptDomainDigestCollision": true,
+    "crossProductSessionSwapRequiresReplayOrProvenanceDigestCollision": true,
+    "crossCarrySwapRequiresCarryReplayBindingCollision": true,
+    "digestCollisionBoundInstantiated": false,
+    "hashQROInstantiationProofProvided": false,
+    "qromReductionLossWithinBudget": false,
+    "totalLossBudgetIntegrated": false,
+    "productionQROMClaimAllowed": false
+  }
+}

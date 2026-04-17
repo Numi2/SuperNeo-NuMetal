@@ -80,6 +80,7 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "productSecurityTheorem_requires_qrom_transform_preconditions",
     "productSecurityTheorem_requires_qrom_interactive_reduction",
     "productSecurityTheorem_requires_qrom_loss_accounting",
+    "productSecurityTheorem_requires_qrom_collision_malleability_exclusion",
     "productSecurityTheorem_requires_total_loss_budget",
     "productSecurityTheorem_requires_qrom_accounting",
     "productSecurityTheorem_requires_artifact_envelope_binding",
@@ -101,6 +102,7 @@ EXPECTED_MANIFESTS = {
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json",
 }
@@ -274,6 +276,10 @@ def validate_depth(dossier: dict[str, Any]) -> None:
         "selected-depth ledger must link QROM interactive reduction",
     )
     require(
+        ledger_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "selected-depth ledger must link QROM collision/malleability evidence",
+    )
+    require(
         ledger_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "selected-depth ledger must link the total loss budget",
     )
@@ -401,6 +407,14 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     )
     require_relative_path("TestVectors/product-qrom-sampler-encoding-evidence-v1.json", "fiatShamirQROMPosition.samplerEncodingEvidenceManifest")
     require(
+        qrom.get("collisionMalleabilityEvidenceManifest") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "fiatShamirQROMPosition.collisionMalleabilityEvidenceManifest mismatch",
+    )
+    require_relative_path(
+        "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "fiatShamirQROMPosition.collisionMalleabilityEvidenceManifest",
+    )
+    require(
         qrom.get("claimStatus") == "qrom-fiat-shamir-loss-contract-not-production-claim",
         "fiatShamirQROMPosition.claimStatus must stay precise",
     )
@@ -418,6 +432,10 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(qrom.get("publicCoinChallengeScheduleSpecified") is True, "public coin challenge schedule must be recorded")
     require(qrom.get("transcriptDomainSeparatorsBound") is True, "transcript domain separator binding must be recorded")
     require(qrom.get("proofKindSeparationBound") is True, "proof kind separation binding must be recorded")
+    require(
+        qrom.get("structuralTranscriptCollisionMalleabilityExcluded") is True,
+        "structural transcript collision/malleability evidence must be recorded",
+    )
     expression = require_string(qrom.get("selectedDepthExpression"), "fiatShamirQROMPosition.selectedDepthExpression")
     for symbol in [
         "epsilon_fs_transform",
@@ -491,7 +509,23 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     integration = require_dict(sampler.get("integrationStatus"), "QROM sampler/encoding integrationStatus")
     require(integration.get("challengeSpaceUniformitySatisfiedUnderQROAbstraction") is True, "QROM sampler evidence must close conditional sampler uniformity")
     require(integration.get("transcriptOracleEncodingInjectiveForStructuredFrames") is True, "QROM sampler evidence must close structured-frame encoding injectivity")
+    require(
+        integration.get("structuralCollisionMalleabilityExcludedOutsideDigestCollision") is True,
+        "QROM sampler evidence must link structural collision/malleability closure",
+    )
     require_false(integration.get("productionQROMClaimAllowed"), "QROM sampler/encoding productionQROMClaimAllowed")
+    collision = read_json(ROOT / "TestVectors/product-qrom-collision-malleability-evidence-v1.json")
+    require(
+        collision.get("claimStatus") == "qrom-collision-malleability-structural-evidence-not-production-qrom-theorem",
+        "QROM collision/malleability evidence claimStatus must stay precise",
+    )
+    closure = require_dict(collision.get("closureStatus"), "QROM collision/malleability closureStatus")
+    require(
+        closure.get("structuralCollisionMalleabilityExcludedOutsideDigestCollision") is True,
+        "QROM collision/malleability evidence must pin structural closure",
+    )
+    require_false(closure.get("digestCollisionBoundInstantiated"), "QROM collision/malleability digestCollisionBoundInstantiated")
+    require_false(closure.get("productionQROMClaimAllowed"), "QROM collision/malleability productionQROMClaimAllowed")
 
 
 def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
@@ -628,6 +662,7 @@ def validate_docs_and_gate() -> None:
         "bounded-depth product security theorem",
         "ProductSecurityTheorem",
         "TestVectors/product-crypto-security-dossier-v1.json",
+        "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
         "Fiat-Shamir/QROM",
         "Module-SIS",
         "NumiSealZK masked residual relation",

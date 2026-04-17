@@ -24,6 +24,7 @@ manifests, and binary proof envelopes.
 | Product QROM Fiat-Shamir accounting manifest | `schemaVersion = 1` |
 | Product QROM transcript schedule manifest | `schemaVersion = 1` |
 | Product QROM sampler/encoding evidence manifest | `schemaVersion = 1` |
+| Product QROM collision/malleability evidence manifest | `schemaVersion = 1` |
 | Product QROM transform preconditions manifest | `schemaVersion = 1` |
 | Product QROM interactive reduction manifest | `schemaVersion = 1` |
 | Product total-loss budget manifest | `schemaVersion = 1` |
@@ -183,8 +184,9 @@ and does not affect proof bytes. It pins proof-kind transcript interfaces,
 challenge families, domain separation, QROM loss symbols, the mapping from
 `epsilon_transcript_collision` to the ledger's `epsilon_collision`, and the
 promotion rule that keeps production QROM claims disabled until the interactive
-protocol, transform preconditions, collision/malleability closure, and numeric
-loss budget are instantiated.
+protocol, transform preconditions, concrete hash/QRO instantiation, numeric
+digest collision and proof-kind malleability bounds, and numeric loss budget
+are instantiated.
 
 `TestVectors/product-qrom-transcript-schedule-v1.json` is the checked Product
 QROM transcript schedule manifest. It is not a proof artifact schema and does
@@ -193,7 +195,8 @@ challenge labels, transcript bindings, symbolic quantum random-oracle query
 families, per-kind protocol challenge-derivation maxima, the conditional
 `Q_H = 2^64` query cap, and the promotion rule that keeps production QROM
 claims disabled until transform-precondition closure and repaired QROM loss
-accounting are instantiated.
+accounting, numeric digest collision bounds, and proof-kind malleability bounds
+are instantiated.
 
 `TestVectors/product-qrom-sampler-encoding-evidence-v1.json` is the checked
 Product QROM sampler/encoding evidence manifest. It is not a proof artifact
@@ -202,7 +205,19 @@ arithmetic for Goldilocks, Ext2, Phi81, terminal CE ternary, and NumiSealZK
 masked-residual challenges under the QRO abstraction, plus structured
 64-bit-length-prefixed transcript frame encoding. The promotion rule keeps
 production QROM claims disabled until hash instantiation,
-collision/malleability, QROM reduction loss, and total-loss integration close.
+numeric digest collision bounds, proof-kind malleability bounds, QROM reduction
+loss, and total-loss integration close.
+
+`TestVectors/product-qrom-collision-malleability-evidence-v1.json` is the
+checked Product QROM collision/malleability evidence manifest. It is not a
+proof artifact schema and does not affect proof bytes. It pins accepted
+proof-kind separation, proof-envelope transcript-binding injectivity,
+transcript-domain enforcement, proof-kind acceptance policy,
+artifact/provenance digest binding, product replay identity, NumiSeal component
+root binding, and typed carry replay binding. The promotion rule keeps
+production QROM claims disabled until concrete hash/QRO instantiation, numeric
+digest collision bounds, proof-kind malleability bounds, repaired QROM
+reduction loss, and total-loss integration are supplied.
 
 `TestVectors/product-qrom-transform-preconditions-v1.json` is the checked
 Product QROM transform preconditions manifest. It is not a proof artifact
@@ -210,7 +225,8 @@ schema and does not affect proof bytes. It pins primary QROM Fiat-Shamir
 source references, the selected fail-closed measure-and-reprogram profile,
 proof-kind theorem-family fit, precondition rows, symbolic loss interface, and
 the promotion rule that keeps production QROM claims disabled until
-transform-precondition proofs, collision/malleability closure,
+transform-precondition proofs, numeric digest collision and proof-kind
+malleability bounds,
 interactive-security bounds, and repaired QROM reduction-loss terms are
 instantiated.
 
@@ -220,8 +236,8 @@ and does not affect proof bytes. It pins public-coin protocol formulas, the
 selected `Q_H = 2^64` policy, DFM20 reduction multiplier, per-proof-kind
 challenge-count formulas, selected-depth protocol challenge-derivation budget,
 and the promotion rule that keeps production QROM claims disabled until the
-current out-of-budget DFM20 numeric finding, collision/malleability closure,
-and interactive-security bounds are repaired.
+current out-of-budget DFM20 numeric finding, numeric digest collision and
+proof-kind malleability bounds, and interactive-security bounds are repaired.
 
 `TestVectors/product-total-loss-budget-v1.json` is the checked product
 total-loss budget manifest. It is not a proof artifact schema and does not

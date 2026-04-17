@@ -729,12 +729,16 @@ inductive ProofEnvelopeKindWire where
   | foldReduction
   | terminalLocal
   | compressedPublic
+  | numiSealTerminal
+  | numiSealZK
   deriving DecidableEq
 
 def proofEnvelopeKindEncode : ProofEnvelopeKindWire → Byte
   | .foldReduction => byteOfNat 1 (by native_decide)
   | .terminalLocal => byteOfNat 2 (by native_decide)
   | .compressedPublic => byteOfNat 3 (by native_decide)
+  | .numiSealTerminal => byteOfNat 4 (by native_decide)
+  | .numiSealZK => byteOfNat 5 (by native_decide)
 
 theorem proofEnvelopeKindEncode_injective :
     Function.Injective proofEnvelopeKindEncode := by
@@ -748,6 +752,10 @@ def proofEnvelopeKindDecode? (byte : Byte) : Option ProofEnvelopeKindWire :=
     some .terminalLocal
   else if byte = proofEnvelopeKindEncode .compressedPublic then
     some .compressedPublic
+  else if byte = proofEnvelopeKindEncode .numiSealTerminal then
+    some .numiSealTerminal
+  else if byte = proofEnvelopeKindEncode .numiSealZK then
+    some .numiSealZK
   else
     none
 

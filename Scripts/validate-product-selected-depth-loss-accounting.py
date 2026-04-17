@@ -41,6 +41,7 @@ EXPECTED_MANIFESTS = {
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
 }
 
@@ -84,7 +85,7 @@ EXPECTED_COMPONENT_IDS = [
 EXPECTED_BLOCKERS = [
     "selected-depth extractor instantiation",
     "QROM transcript schedule, transform preconditions, interactive reduction, and Fiat-Shamir loss accounting",
-    "transcript collision and proof-kind malleability exclusion",
+    "numeric transcript collision and proof-kind malleability bound",
     "selected total-loss budget instantiation",
     "full ZK simulator composition",
     "hosted product operations replay and revocation freshness",
@@ -192,6 +193,10 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         "product crypto security dossier must link sampler/encoding evidence",
     )
     require(
+        dossier_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "product crypto security dossier must link collision/malleability evidence",
+    )
+    require(
         dossier_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "product crypto security dossier must link the total loss budget",
     )
@@ -217,6 +222,10 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         total_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "total loss budget must link sampler/encoding evidence",
     )
+    require(
+        total_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "total loss budget must link collision/malleability evidence",
+    )
 
     preconditions = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTransformPreconditions"])
     precondition_related = require_dict(preconditions.get("relatedManifests"), "productQROMTransformPreconditions.relatedManifests")
@@ -232,6 +241,10 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         precondition_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "QROM transform preconditions must link sampler/encoding evidence",
     )
+    require(
+        precondition_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "QROM transform preconditions must link collision/malleability evidence",
+    )
 
     reduction = read_json(ROOT / EXPECTED_MANIFESTS["productQROMInteractiveReduction"])
     reduction_related = require_dict(reduction.get("relatedManifests"), "productQROMInteractiveReduction.relatedManifests")
@@ -242,6 +255,10 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
     require(
         reduction_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "QROM interactive reduction must link sampler/encoding evidence",
+    )
+    require(
+        reduction_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "QROM interactive reduction must link collision/malleability evidence",
     )
 
 
@@ -329,6 +346,19 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "transcript-collision-domain-separation must link product QROM Fiat-Shamir accounting",
             )
             require_relative_path(component.get("accountingManifest"), "transcript-collision-domain-separation.accountingManifest")
+            require(
+                component.get("status") == "structural-collision-evidence-pinned-numeric-bound-open",
+                "transcript-collision-domain-separation status mismatch",
+            )
+            evidence = require_string(component.get("requiredEvidence"), "transcript-collision-domain-separation.requiredEvidence")
+            require(
+                "TestVectors/product-qrom-collision-malleability-evidence-v1.json" in evidence,
+                "transcript-collision-domain-separation requiredEvidence must link collision/malleability evidence",
+            )
+            require(
+                "numeric digest collision" in evidence,
+                "transcript-collision-domain-separation requiredEvidence must leave numeric digest collision open",
+            )
         component_text.append(json.dumps(component, sort_keys=True).lower())
     require(seen_ids == EXPECTED_COMPONENT_IDS, "componentLosses must stay in the pinned accounting order")
     joined = " ".join(component_text)
@@ -372,28 +402,35 @@ def validate_docs_and_gate() -> None:
     docs = {
         "README.md": [
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
+            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
             "selected-depth loss accounting",
         ],
         "Docs/CryptographicSecurityDossier-2026-04-16.md": [
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
+            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
             "selected-depth loss accounting",
         ],
         "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "Scripts/validate-product-selected-depth-loss-accounting.py",
+            "Scripts/validate-product-qrom-collision-malleability-evidence.py",
         ],
         "Docs/ReleaseEngineering-2026-04-16.md": [
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
+            "product QROM collision/malleability structural evidence",
             "selected-depth loss accounting",
         ],
         "Docs/ReleaseCandidateRunbook-2026-04-16.md": [
             "selected-depth loss-accounting version and digest",
+            "product QROM collision/malleability evidence version and digest",
         ],
         "Docs/SchemaCompatibility-2026-04-16.md": [
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
+            "Product QROM collision/malleability evidence manifest",
         ],
         "TestVectors/README.md": [
             "product-selected-depth-loss-accounting-v1.json",
+            "product-qrom-collision-malleability-evidence-v1.json",
         ],
     }
     for relative, needles in docs.items():
@@ -408,6 +445,10 @@ def validate_docs_and_gate() -> None:
     require(
         "run_step Scripts/test-product-selected-depth-loss-accounting-validation.py" in gate,
         "production gate must run selected-depth loss-accounting regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-qrom-collision-malleability-evidence.py" in gate,
+        "production gate must run QROM collision/malleability evidence validator",
     )
 
 

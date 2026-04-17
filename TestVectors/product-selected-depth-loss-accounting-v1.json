@@ -17,6 +17,7 @@
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json"
   },
   "formalSurface": {
@@ -110,7 +111,7 @@
       "status": "qrom-accounting-and-transcript-schedule-contracts-pinned-loss-instantiation-open",
       "lossSymbol": "epsilon_qrom",
       "accountingRule": "one QROM Fiat-Shamir transform loss per accepted product transcript plus transcript collision loss",
-      "requiredEvidence": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json, TestVectors/product-qrom-transcript-schedule-v1.json, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, and TestVectors/product-qrom-sampler-encoding-evidence-v1.json plus transform preconditions, per-kind interactive security bounds, a QROM reduction loss that fits the selected total-loss budget, and collision/malleability proof",
+      "requiredEvidence": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json, TestVectors/product-qrom-transcript-schedule-v1.json, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, and TestVectors/product-qrom-collision-malleability-evidence-v1.json plus transform preconditions, per-kind interactive security bounds, a QROM reduction loss that fits the selected total-loss budget, and numeric digest collision/proof-kind malleability bound",
       "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
       "productionClaimAllowed": false
     },
@@ -127,10 +128,10 @@
     {
       "id": "transcript-collision-domain-separation",
       "appliesPerAcceptedLayer": false,
-      "status": "qrom-ledger-term-mapped-collision-proof-open",
+      "status": "structural-collision-evidence-pinned-numeric-bound-open",
       "lossSymbol": "epsilon_collision",
       "accountingRule": "one global transcript collision and proof-kind malleability exclusion term is mapped from the QROM Fiat-Shamir accounting manifest into the selected-depth total budget",
-      "requiredEvidence": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json ledgerTermMapping and TestVectors/product-qrom-transcript-schedule-v1.json labels plus proof that transcript-domain and proof-kind separation exclude collision and malleability across all accepted envelope kinds",
+      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json plus TestVectors/product-qrom-fiat-shamir-accounting-v1.json ledgerTermMapping and TestVectors/product-qrom-transcript-schedule-v1.json labels; structural binding is pinned and numeric digest collision/proof-kind malleability bound remains open",
       "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
       "productionClaimAllowed": false
     },
@@ -172,7 +173,7 @@
   "hardClaimBlockers": [
     "selected-depth extractor instantiation",
     "QROM transcript schedule, transform preconditions, interactive reduction, and Fiat-Shamir loss accounting",
-    "transcript collision and proof-kind malleability exclusion",
+    "numeric transcript collision and proof-kind malleability bound",
     "selected total-loss budget instantiation",
     "full ZK simulator composition",
     "hosted product operations replay and revocation freshness",

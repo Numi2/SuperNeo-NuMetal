@@ -149,7 +149,9 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(accounting)
-        missing_blocker["hardClaimBlockers"].remove("proof that proof-kind and transcript-domain separation exclude collision and malleability")
+        missing_blocker["hardClaimBlockers"].remove(
+            "numeric digest collision and proof-kind malleability bound for the residual events exported by TestVectors/product-qrom-collision-malleability-evidence-v1.json"
+        )
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))

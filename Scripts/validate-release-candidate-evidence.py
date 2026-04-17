@@ -288,6 +288,32 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require(
         require_int(
+            surfaces.get("productQROMCollisionMalleabilityEvidenceVersion"),
+            "productQROMCollisionMalleabilityEvidenceVersion",
+        ) == 1,
+        "product QROM collision/malleability evidence version must be 1",
+    )
+    require_hex_digest(
+        surfaces.get("productQROMCollisionMalleabilityEvidenceDigestHex"),
+        "productQROMCollisionMalleabilityEvidenceDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productQROMCollisionMalleabilityEvidenceClaimStatus"),
+            "productQROMCollisionMalleabilityEvidenceClaimStatus",
+        ) == "qrom-collision-malleability-structural-evidence-not-production-qrom-theorem",
+        "product QROM collision/malleability evidence claim status must stay precise",
+    )
+    require(
+        surfaces.get("productQROMCollisionMalleabilityStructuralClosurePinned") is True,
+        "product QROM collision/malleability evidence must pin structural closure",
+    )
+    require(
+        surfaces.get("productQROMCollisionMalleabilityDigestBoundInstantiated") is False,
+        "product QROM collision/malleability evidence must not pretend the digest bound is instantiated",
+    )
+    require(
+        require_int(
             surfaces.get("productQROMTransformPreconditionsVersion"),
             "productQROMTransformPreconditionsVersion",
         ) == 1,
@@ -490,6 +516,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "productQROMFiatShamirAccounting",
         "productQROMTranscriptSchedule",
         "productQROMSamplerEncodingEvidence",
+        "productQROMCollisionMalleabilityEvidence",
         "productQROMTransformPreconditions",
         "productQROMInteractiveReduction",
         "productTotalLossBudget",
@@ -543,6 +570,10 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(
         any("qrom sampler/encoding evidence" in str(boundary).lower() for boundary in boundaries),
         "productionSecurityBoundaries must mention QROM sampler/encoding evidence",
+    )
+    require(
+        any("qrom collision/malleability structural evidence" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention QROM collision/malleability structural evidence",
     )
     require(
         any("qrom transform preconditions" in str(boundary).lower() for boundary in boundaries),

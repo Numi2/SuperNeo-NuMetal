@@ -222,6 +222,38 @@ def main() -> None:
         write_json(path, missing_qrom_frame_injectivity)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_qrom_collision_malleability = copy.deepcopy(evidence)
+        wrong_qrom_collision_malleability["publicSurfaces"][
+            "productQROMCollisionMalleabilityEvidenceVersion"
+        ] = 2
+        path = tmp / "wrong-qrom-collision-malleability.json"
+        write_json(path, wrong_qrom_collision_malleability)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_qrom_collision_malleability = copy.deepcopy(evidence)
+        vague_qrom_collision_malleability["publicSurfaces"][
+            "productQROMCollisionMalleabilityEvidenceClaimStatus"
+        ] = "production-qrom-proof"
+        path = tmp / "vague-qrom-collision-malleability.json"
+        write_json(path, vague_qrom_collision_malleability)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_qrom_collision_malleability_structural = copy.deepcopy(evidence)
+        missing_qrom_collision_malleability_structural["publicSurfaces"][
+            "productQROMCollisionMalleabilityStructuralClosurePinned"
+        ] = False
+        path = tmp / "missing-qrom-collision-malleability-structural.json"
+        write_json(path, missing_qrom_collision_malleability_structural)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        premature_qrom_collision_malleability_digest = copy.deepcopy(evidence)
+        premature_qrom_collision_malleability_digest["publicSurfaces"][
+            "productQROMCollisionMalleabilityDigestBoundInstantiated"
+        ] = True
+        path = tmp / "premature-qrom-collision-malleability-digest.json"
+        write_json(path, premature_qrom_collision_malleability_digest)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_qrom_transform_preconditions = copy.deepcopy(evidence)
         wrong_qrom_transform_preconditions["publicSurfaces"]["productQROMTransformPreconditionsVersion"] = 2
         path = tmp / "wrong-qrom-transform-preconditions.json"

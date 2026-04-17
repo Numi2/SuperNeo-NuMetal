@@ -47,6 +47,12 @@ candidate. It does not authorize production-security release claims.
   product QROM sampler/encoding evidence changes for rejection-sampling
   arithmetic, transcript frame encoding, domain separators, or QRO abstraction
   boundaries.
+- `TestVectors/product-qrom-collision-malleability-evidence-v1.json` reflects
+  any product QROM collision/malleability structural evidence changes for
+  accepted proof-kind separation, proof-envelope transcript-binding
+  injectivity, artifact/provenance digest binding, product replay identity,
+  NumiSeal component-root binding, typed carry replay binding, or residual
+  digest-collision and proof-kind malleability event mapping.
 - `TestVectors/product-qrom-transform-preconditions-v1.json` reflects any
   product QROM transform precondition changes for theorem-family fit,
   pinned public-coin protocol schedules, challenge uniformity, transcript
@@ -120,6 +126,7 @@ The generated evidence records:
 - product QROM Fiat-Shamir accounting version and digest,
 - product QROM transcript schedule version and digest,
 - product QROM sampler/encoding evidence version and digest,
+- product QROM collision/malleability evidence version and digest,
 - product QROM transform preconditions version and digest,
 - product QROM interactive reduction version and digest,
 - product total-loss budget version and digest,

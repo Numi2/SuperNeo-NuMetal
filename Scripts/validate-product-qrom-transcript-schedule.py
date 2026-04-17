@@ -35,6 +35,7 @@ EXPECTED_MANIFESTS = {
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "proofEnvelopePolicy": "Docs/ProofEnvelope.md",
@@ -72,7 +73,7 @@ EXPECTED_QUERY_FAMILY_PREFIXES = [
 
 EXPECTED_BLOCKERS = [
     "Fiat-Shamir transform precondition proof for the pinned transcript schedule",
-    "domain-separation collision and proof-kind malleability exclusion proof",
+    "numeric digest collision and proof-kind malleability bound for the structurally pinned residual event",
     "integration of the instantiated Q_H bound into a repaired QROM loss model that fits the selected total-loss budget",
 ]
 
@@ -160,6 +161,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
         qrom_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "QROM accounting must link sampler/encoding evidence",
     )
+    require(
+        qrom_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "QROM accounting must link collision/malleability evidence",
+    )
     qrom_model = require_dict(qrom.get("fiatShamirModel"), "productQROMFiatShamirAccounting.fiatShamirModel")
     require(
         qrom_model.get("transcriptScheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json",
@@ -191,6 +196,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
     require(
         dossier_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "product crypto security dossier must link sampler/encoding evidence",
+    )
+    require(
+        dossier_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "product crypto security dossier must link collision/malleability evidence",
     )
     qrom_position = require_dict(dossier.get("fiatShamirQROMPosition"), "productCryptoSecurityDossier.fiatShamirQROMPosition")
     require(
@@ -224,6 +233,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
         ledger_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "selected-depth ledger must link sampler/encoding evidence",
     )
+    require(
+        ledger_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "selected-depth ledger must link collision/malleability evidence",
+    )
 
     budget = read_json(ROOT / EXPECTED_MANIFESTS["productTotalLossBudget"])
     budget_related = require_dict(budget.get("relatedManifests"), "productTotalLossBudget.relatedManifests")
@@ -243,6 +256,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
         budget_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "total-loss budget must link sampler/encoding evidence",
     )
+    require(
+        budget_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "total-loss budget must link collision/malleability evidence",
+    )
 
     preconditions = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTransformPreconditions"])
     precondition_related = require_dict(preconditions.get("relatedManifests"), "productQROMTransformPreconditions.relatedManifests")
@@ -258,6 +275,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
         precondition_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "transform preconditions must link sampler/encoding evidence",
     )
+    require(
+        precondition_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "transform preconditions must link collision/malleability evidence",
+    )
 
     reduction = read_json(ROOT / EXPECTED_MANIFESTS["productQROMInteractiveReduction"])
     reduction_related = require_dict(reduction.get("relatedManifests"), "productQROMInteractiveReduction.relatedManifests")
@@ -268,6 +289,10 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
     require(
         reduction_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
         "interactive reduction must link sampler/encoding evidence",
+    )
+    require(
+        reduction_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "interactive reduction must link collision/malleability evidence",
     )
 
 
@@ -304,8 +329,17 @@ def validate_oracle_model(schedule: dict[str, Any]) -> None:
         "oracleModel.samplerEncodingEvidenceManifest mismatch",
     )
     require_relative_path(model.get("samplerEncodingEvidenceManifest"), "oracleModel.samplerEncodingEvidenceManifest")
+    require(
+        model.get("collisionMalleabilityEvidenceManifest") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+        "oracleModel.collisionMalleabilityEvidenceManifest mismatch",
+    )
+    require_relative_path(
+        model.get("collisionMalleabilityEvidenceManifest"),
+        "oracleModel.collisionMalleabilityEvidenceManifest",
+    )
     require(model.get("interactiveProtocolFullySpecified") is True, "oracleModel.interactiveProtocolFullySpecified must be true")
     require_true(model.get("quantumOracleQueryBoundInstantiated"), "oracleModel.quantumOracleQueryBoundInstantiated")
+    require_true(model.get("structuralCollisionMalleabilityEvidencePinned"), "oracleModel.structuralCollisionMalleabilityEvidencePinned")
     for key in [
         "hashInstantiationProofProvided",
         "transformPreconditionsSatisfied",
@@ -456,6 +490,11 @@ def validate_promotion_and_blockers(schedule: dict[str, Any]) -> None:
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
     require(promotion.get("requiresQuantumOracleQueryBound") is False, "promotionRule.requiresQuantumOracleQueryBound must be false after Q_H bound instantiation")
+    require(
+        promotion.get("requiresStructuralCollisionMalleabilityEvidence") is False,
+        "promotionRule.requiresStructuralCollisionMalleabilityEvidence must be false after structural evidence closure",
+    )
+    require(promotion.get("requiresDigestCollisionBound") is True, "promotionRule.requiresDigestCollisionBound must be true")
 
 
 def validate_docs_and_gate() -> None:
@@ -465,6 +504,7 @@ def validate_docs_and_gate() -> None:
             "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-qrom-interactive-reduction-v1.json",
             "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
             "QROM transcript schedule",
         ],
         "Docs/CryptographicSecurityDossier-2026-04-16.md": [
@@ -472,6 +512,7 @@ def validate_docs_and_gate() -> None:
             "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-qrom-interactive-reduction-v1.json",
             "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
             "QROM Transcript Schedule",
         ],
         "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
@@ -479,30 +520,35 @@ def validate_docs_and_gate() -> None:
             "Scripts/validate-product-qrom-transform-preconditions.py",
             "Scripts/validate-product-qrom-interactive-reduction.py",
             "Scripts/validate-product-qrom-sampler-encoding-evidence.py",
+            "Scripts/validate-product-qrom-collision-malleability-evidence.py",
         ],
         "Docs/ReleaseEngineering-2026-04-16.md": [
             "product QROM transcript schedule",
             "product QROM transform preconditions",
             "product QROM interactive reduction",
             "product QROM sampler and encoding evidence",
+            "product QROM collision/malleability structural evidence",
         ],
         "Docs/ReleaseCandidateRunbook-2026-04-16.md": [
             "product QROM transcript schedule version and digest",
             "product QROM transform preconditions version and digest",
             "product QROM interactive reduction version and digest",
             "product QROM sampler/encoding evidence version and digest",
+            "product QROM collision/malleability evidence version and digest",
         ],
         "Docs/SchemaCompatibility-2026-04-16.md": [
             "Product QROM transcript schedule manifest",
             "Product QROM transform preconditions manifest",
             "Product QROM interactive reduction manifest",
             "Product QROM sampler/encoding evidence manifest",
+            "Product QROM collision/malleability evidence manifest",
         ],
         "TestVectors/README.md": [
             "product-qrom-transcript-schedule-v1.json",
             "product-qrom-transform-preconditions-v1.json",
             "product-qrom-interactive-reduction-v1.json",
             "product-qrom-sampler-encoding-evidence-v1.json",
+            "product-qrom-collision-malleability-evidence-v1.json",
         ],
     }
     for relative, needles in docs.items():
@@ -517,6 +563,10 @@ def validate_docs_and_gate() -> None:
     require(
         "run_step Scripts/test-product-qrom-transcript-schedule-validation.py" in gate,
         "production gate must run QROM transcript schedule regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-qrom-collision-malleability-evidence.py" in gate,
+        "production gate must run QROM collision/malleability evidence validator",
     )
 
 

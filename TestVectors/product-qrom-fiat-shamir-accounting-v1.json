@@ -10,6 +10,7 @@
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json"
   },
@@ -34,12 +35,14 @@
     "transformPreconditionManifest": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "samplerEncodingEvidenceManifest": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "collisionMalleabilityEvidenceManifest": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "interactiveProtocolSpecified": true,
     "publicCoinChallengeScheduleSpecified": true,
     "transformPreconditionsSatisfied": false,
     "quantumOracleQueryBoundAccounted": true,
     "transcriptDomainSeparatorsBound": true,
     "proofKindSeparationBound": true,
+    "structuralTranscriptCollisionMalleabilityExcluded": true,
     "transcriptCollisionMalleabilityExcluded": false,
     "productionQROMClaimAllowed": false
   },
@@ -130,7 +133,7 @@
   "hardClaimBlockers": [
     "proof that the selected Fiat-Shamir transform preconditions hold",
     "DFM20 numeric reduction terms exceed the selected total-loss budget under the current challenge accounting",
-    "proof that proof-kind and transcript-domain separation exclude collision and malleability"
+    "numeric digest collision and proof-kind malleability bound for the residual events exported by TestVectors/product-qrom-collision-malleability-evidence-v1.json"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
@@ -139,6 +142,8 @@
     "requiresInteractiveProtocol": false,
     "requiresTransformPreconditions": true,
     "requiresQuantumOracleQueryBound": false,
+    "requiresStructuralCollisionMalleabilityEvidence": false,
+    "requiresDigestCollisionBound": true,
     "requiresQROMLossWithinBudget": true,
     "requiresSelectedDepthLedgerUpdate": true
   }

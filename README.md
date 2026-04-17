@@ -25,7 +25,7 @@ cryptographic library.
 | Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
 | Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/`; whole-stack row coverage is checked by `TestVectors/benchmark-coverage-v1.json`. |
-| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, checked selected-depth loss accounting contract, checked extractor, QROM transcript schedule, QROM sampler/encoding evidence, QROM transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir accounting contracts, checked total-loss budget contract, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/product-selected-depth-loss-accounting-v1.json`, `TestVectors/product-extractor-loss-accounting-v1.json`, `TestVectors/product-qrom-transcript-schedule-v1.json`, `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`, `TestVectors/product-qrom-transform-preconditions-v1.json`, `TestVectors/product-qrom-interactive-reduction-v1.json`, `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, `TestVectors/product-total-loss-budget-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
+| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, checked selected-depth loss accounting contract, checked extractor, QROM transcript schedule, QROM sampler/encoding evidence, QROM collision/malleability structural evidence, QROM transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir accounting contracts, checked total-loss budget contract, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/product-selected-depth-loss-accounting-v1.json`, `TestVectors/product-extractor-loss-accounting-v1.json`, `TestVectors/product-qrom-transcript-schedule-v1.json`, `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`, `TestVectors/product-qrom-collision-malleability-evidence-v1.json`, `TestVectors/product-qrom-transform-preconditions-v1.json`, `TestVectors/product-qrom-interactive-reduction-v1.json`, `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, `TestVectors/product-total-loss-budget-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
 | Product ops | Local signed context/provenance/revocation feed, replay ledger, audit export, and machine-readable operations readiness status for private integration work. |
 
 ## Highlights
@@ -99,18 +99,20 @@ cryptographic library.
   constant-time, and release distribution loss terms while keeping every hard
   production claim disabled.
 - Checked extractor loss accounting, QROM transcript schedule, QROM
-  sampler/encoding evidence, QROM transform preconditions, QROM interactive
-  reduction, and QROM Fiat-Shamir accounting
+  sampler/encoding evidence, QROM collision/malleability structural evidence,
+  QROM transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir accounting
   contracts in
   `TestVectors/product-extractor-loss-accounting-v1.json`,
   `TestVectors/product-qrom-transcript-schedule-v1.json`,
   `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`,
+  `TestVectors/product-qrom-collision-malleability-evidence-v1.json`,
   `TestVectors/product-qrom-transform-preconditions-v1.json`,
   `TestVectors/product-qrom-interactive-reduction-v1.json`, and
   `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`. These pin the
   extractor inputs, transcript rewind schedule, proof-kind transcript labels,
   structured transcript frame encoding, exact rejection-sampling arithmetic for
-  QRO challenge samplers, oracle query families, the conditional `Q_H = 2^64`
+  QRO challenge samplers, structural proof-kind/domain/product-session/carry
+  binding, oracle query families, the conditional `Q_H = 2^64`
   adversary-query cap, transform theorem-family obligations, exact PCIP
   challenge-count formulas, code-enforced NumiSeal challenge maxima, the DFM20
   loss multiplier, QROM symbols, and selected-depth formulas while keeping
@@ -507,8 +509,21 @@ Goldilocks rejection sampler, Ext2 product sampler, Phi81 coefficient/ring
 sampler, CE ternary sampler, NumiSealZK masked residual challenge sampler, and
 structured 64-bit length-prefixed transcript frame encoding. This closes the
 conditional challenge-space uniformity and structured transcript-oracle encoding
-evidence layer, but it does not prove the concrete hash instantiation, exclude
-collision/malleability, or repair the out-of-budget DFM20 loss term.
+evidence layer, but it does not prove the concrete hash instantiation or repair
+the out-of-budget DFM20 loss term.
+
+### QROM collision/malleability structural evidence
+
+`TestVectors/product-qrom-collision-malleability-evidence-v1.json` pins QROM
+collision/malleability structural evidence across the five accepted proof kinds.
+It binds the Swift proof-envelope kind raw values to the Lean wire model,
+proof-envelope transcript-binding injectivity, transcript-domain enforcement,
+artifact/provenance digests, product replay identity, NumiSeal component roots,
+and recursive carry replay binding. This closes structural cross-kind,
+cross-domain, cross-product-session, and cross-carry swap paths outside digest
+collision events, but it keeps the concrete hash/QRO instantiation, numeric
+digest collision/proof-kind malleability bounds, repaired QROM reduction loss,
+and total-loss budget integration disabled.
 `TestVectors/product-qrom-transform-preconditions-v1.json` pins the QROM
 transform precondition dossier for the selected fail-closed measure-and-reprogram
 profile, including theorem-family fit, interactive protocol, round schedule,
@@ -521,8 +536,9 @@ maxima, and per-proof-kind open loss inputs. It also records the current
 fail-closed budget result: under the selected DFM20/256-bit challenge accounting,
 the `n! / 2^256` ordering term is already outside the `2^-128` budget for the
 smallest accepted proof kind, so production QROM remains disabled until the
-loss model, per-kind interactive security bounds, collision/malleability
-closure, and final total-loss integration are repaired.
+loss model, per-kind interactive security bounds, numeric digest
+collision/proof-kind malleability bounds, and final total-loss integration are
+repaired.
 `TestVectors/product-total-loss-budget-v1.json` pins the total-loss budget
 contract, exact rational summation rule, required selected-depth component
 bounds, and the mapping that keeps transcript collision out of the core

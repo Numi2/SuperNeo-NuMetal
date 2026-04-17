@@ -11,6 +11,7 @@
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+    "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -110,7 +111,7 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
-      "requiredEvidence": "pinned QROM transcript schedule labels plus numeric transcript collision and proof-kind malleability bound mapped from epsilon_transcript_collision"
+      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json structural binding plus numeric transcript collision and proof-kind malleability bound mapped from epsilon_transcript_collision"
     },
     {
       "id": "product-ops-replay",
