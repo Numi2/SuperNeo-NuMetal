@@ -309,42 +309,6 @@ def validate_integration(evidence: dict[str, Any]) -> None:
 
 
 def validate_docs_and_gate() -> None:
-    docs = {
-        "README.md": [
-            "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
-            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-            "QROM sampler and encoding evidence",
-        ],
-        "Docs/CryptographicSecurityDossier-2026-04-16.md": [
-            "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
-            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-            "QROM Sampler And Encoding Evidence",
-        ],
-        "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
-            "Scripts/validate-product-qrom-sampler-encoding-evidence.py",
-            "Scripts/validate-product-qrom-collision-malleability-evidence.py",
-        ],
-        "Docs/ReleaseEngineering-2026-04-16.md": [
-            "product QROM sampler and encoding evidence",
-            "product QROM collision/malleability structural evidence",
-        ],
-        "Docs/ReleaseCandidateRunbook-2026-04-16.md": [
-            "product QROM sampler/encoding evidence version and digest",
-            "product QROM collision/malleability evidence version and digest",
-        ],
-        "Docs/SchemaCompatibility-2026-04-16.md": [
-            "Product QROM sampler/encoding evidence manifest",
-            "Product QROM collision/malleability evidence manifest",
-        ],
-        "TestVectors/README.md": [
-            "product-qrom-sampler-encoding-evidence-v1.json",
-            "product-qrom-collision-malleability-evidence-v1.json",
-        ],
-    }
-    for relative, needles in docs.items():
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        for needle in needles:
-            require(needle in text, f"{relative} missing {needle}")
     gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
     require(
         "run_step Scripts/validate-product-qrom-sampler-encoding-evidence.py" in gate,

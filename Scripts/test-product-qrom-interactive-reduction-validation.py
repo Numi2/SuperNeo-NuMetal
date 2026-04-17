@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for product QROM interactive-reduction validation."""
+"""Regression tests for product QROM CTCO interactive-reduction validation."""
 
 from __future__ import annotations
 
@@ -49,15 +49,15 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         wrong_theorem = copy.deepcopy(reduction)
-        wrong_theorem["selectedTheoremFamily"]["selectedFamily"] = "ROM folklore"
+        wrong_theorem["selectedTheoremFamily"]["compilerFamily"] = "DFM20"
         path = tmp / "wrong-theorem.json"
         write_json(path, wrong_theorem)
         run_fail(str(VALIDATE), str(path))
 
-        wrong_qh = copy.deepcopy(reduction)
-        wrong_qh["selectedTheoremFamily"]["selectedQHBound"] = "2^32"
-        path = tmp / "wrong-qh.json"
-        write_json(path, wrong_qh)
+        weak_binding = copy.deepcopy(reduction)
+        weak_binding["selectedTheoremFamily"]["selectedBindingBits"] = 256
+        path = tmp / "weak-binding.json"
+        write_json(path, weak_binding)
         run_fail(str(VALIDATE), str(path))
 
         premature_numeric_loss = copy.deepcopy(reduction)
@@ -74,34 +74,34 @@ def main() -> None:
         write_json(path, missing_proof_kind)
         run_fail(str(VALIDATE), str(path))
 
-        wrong_fold_n = copy.deepcopy(reduction)
-        wrong_fold_n["proofKindProtocols"][0]["instantiatedUpperBoundN"] = 203
-        path = tmp / "wrong-fold-n.json"
-        write_json(path, wrong_fold_n)
+        wrong_ctco_count = copy.deepcopy(reduction)
+        wrong_ctco_count["proofKindProtocols"][0]["ctcoChallengeCount"] = 2
+        path = tmp / "wrong-ctco-count.json"
+        write_json(path, wrong_ctco_count)
         run_fail(str(VALIDATE), str(path))
 
-        wrong_numiseal_n = copy.deepcopy(reduction)
-        wrong_numiseal_n["proofKindProtocols"][3]["instantiatedUpperBoundN"] = 1
-        path = tmp / "wrong-numiseal-n.json"
-        write_json(path, wrong_numiseal_n)
+        wrong_legacy_metric = copy.deepcopy(reduction)
+        wrong_legacy_metric["proofKindProtocols"][3]["legacyScheduleChallengeDerivations"] = 1
+        path = tmp / "wrong-legacy-metric.json"
+        write_json(path, wrong_legacy_metric)
         run_fail(str(VALIDATE), str(path))
 
-        wrong_theorem_limit = copy.deepcopy(reduction)
-        wrong_theorem_limit["productProtocolModel"]["selectedProductTheoremLimits"]["maximumNumiSealZKProductChallengeCount"] = 4_377_149
-        path = tmp / "wrong-theorem-limit.json"
-        write_json(path, wrong_theorem_limit)
+        wrong_binding_loss = copy.deepcopy(reduction)
+        wrong_binding_loss["qromQueryAndLossInstantiation"]["bindingDigestBits"] = 256
+        path = tmp / "wrong-binding-loss.json"
+        write_json(path, wrong_binding_loss)
         run_fail(str(VALIDATE), str(path))
 
-        missing_loss_symbol = copy.deepcopy(reduction)
-        missing_loss_symbol["proofKindProtocols"][1]["numericLossExpression"] = "epsilon_fs_terminal <= epsilon_interactive_terminal"
-        path = tmp / "missing-loss-symbol.json"
-        write_json(path, missing_loss_symbol)
+        missing_legacy_finding = copy.deepcopy(reduction)
+        missing_legacy_finding["qromQueryAndLossInstantiation"].pop("legacyNumericBudgetFinding")
+        path = tmp / "missing-legacy-finding.json"
+        write_json(path, missing_legacy_finding)
         run_fail(str(VALIDATE), str(path))
 
-        missing_open_input = copy.deepcopy(reduction)
-        missing_open_input["proofKindProtocols"][0]["openInputs"] = ["sampler proof"]
-        path = tmp / "missing-open-input.json"
-        write_json(path, missing_open_input)
+        missing_blocker = copy.deepcopy(reduction)
+        missing_blocker["hardClaimBlockers"] = ["CTCO move-1 root commitments are not implemented for all accepted proof kinds"]
+        path = tmp / "missing-blocker.json"
+        write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))
 
         premature_qrom = copy.deepcopy(reduction)
@@ -110,27 +110,7 @@ def main() -> None:
         write_json(path, premature_qrom)
         run_fail(str(VALIDATE), str(path))
 
-        missing_budget_finding = copy.deepcopy(reduction)
-        missing_budget_finding["qromQueryAndLossInstantiation"].pop("numericBudgetFinding")
-        path = tmp / "missing-budget-finding.json"
-        write_json(path, missing_budget_finding)
-        run_fail(str(VALIDATE), str(path))
-
-        wrong_schedule_budget = copy.deepcopy(reduction)
-        wrong_schedule_budget["qromQueryAndLossInstantiation"]["scheduleDerivedQueryBudget"]["selectedDepthProtocolChallengeDerivations"] = 1
-        path = tmp / "wrong-schedule-budget.json"
-        write_json(path, wrong_schedule_budget)
-        run_fail(str(VALIDATE), str(path))
-
-        missing_blocker = copy.deepcopy(reduction)
-        missing_blocker["hardClaimBlockers"].remove(
-            "numeric epsilon_interactive_kind bounds for every accepted proof kind"
-        )
-        path = tmp / "missing-blocker.json"
-        write_json(path, missing_blocker)
-        run_fail(str(VALIDATE), str(path))
-
-    print("product QROM interactive reduction validation regression tests passed")
+    print("product QROM CTCO interactive reduction validation regression tests passed")
 
 
 if __name__ == "__main__":

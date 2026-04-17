@@ -70,6 +70,31 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductQROMInteractiveReductionAccepted",
     "ProductFiatShamirLossAccounting",
     "ProductFiatShamirLossAccountingAccepted",
+    "ProductQROMTransformFamily",
+    "ProductCompilerFamily",
+    "ProductHashOracleInstantiation",
+    "ProductHashOracleInstantiationAccepted",
+    "ProductInteractiveProtocolDefinitions",
+    "ProductInteractiveProtocolDefinitionsAccepted",
+    "ProductInteractiveSpecialSoundnessData",
+    "ProductInteractiveSpecialSoundnessDataAccepted",
+    "ProductInteractiveDelayedMessageData",
+    "ProductInteractiveDelayedMessageDataAccepted",
+    "ProductInteractiveUniqueResponseData",
+    "ProductInteractiveUniqueResponseDataAccepted",
+    "ProductChallengeTapeCommitOpenCompiler",
+    "ProductChallengeTapeCommitOpenCompilerAccepted",
+    "ProductQROMCollisionBound",
+    "ProductQROMCollisionBoundAccepted",
+    "ProductQROMMalleabilityBound",
+    "ProductQROMMalleabilityBoundAccepted",
+    "ProductInteractiveSecurityBounds",
+    "ProductInteractiveSecurityBoundsAccepted",
+    "ProductQROMTotalLossInstantiated",
+    "ProductQROMTotalLossInstantiatedAccepted",
+    "ProductInstantiatedQROMEvidence",
+    "ProductInstantiatedQROMEvidenceAccepted",
+    "ProductQROMTightTransform",
     "ProductTotalLossBudget",
     "ProductTotalLossBudgetAccepted",
     "ProductReleaseDistributionEvidence",
@@ -87,6 +112,7 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "productSecurityTheorem_requires_release_distribution_evidence",
     "productSecurityTheorem_requires_qrom_accounting",
     "productSecurityTheorem_requires_artifact_envelope_binding",
+    "productSecurityTheorem_from_instantiated_qrom",
 }
 
 EXPECTED_MANIFESTS = {
@@ -384,7 +410,7 @@ def validate_extractor_loss_accounting(dossier: dict[str, Any]) -> None:
 
 def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     qrom = require_dict(dossier.get("fiatShamirQROMPosition"), "fiatShamirQROMPosition")
-    require(qrom.get("model") == "qrom", "Fiat-Shamir model must be qrom")
+    require(qrom.get("model") == "ideal-split-qro", "Fiat-Shamir model must be ideal-split-qro")
     require(
         qrom.get("accountingManifest") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
         "fiatShamirQROMPosition.accountingManifest mismatch",
@@ -419,9 +445,17 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         "fiatShamirQROMPosition.collisionMalleabilityEvidenceManifest",
     )
     require(
-        qrom.get("claimStatus") == "qrom-fiat-shamir-loss-contract-not-production-claim",
+        qrom.get("claimStatus") == "qrom-ctco-split-qro-contract-not-production-claim",
         "fiatShamirQROMPosition.claimStatus must stay precise",
     )
+    require(qrom.get("transformFamily") == "ctco", "fiatShamirQROMPosition.transformFamily must be ctco")
+    require(
+        qrom.get("fallbackTransformFamily") == "merkle-straightline",
+        "fiatShamirQROMPosition.fallbackTransformFamily must be merkle-straightline",
+    )
+    require(qrom.get("challengeOracleBits") == 256, "challengeOracleBits must stay 256")
+    require(qrom.get("bindingOracleBits") == 384, "bindingOracleBits must stay 384")
+    require(qrom.get("bindingTargetEventCount") == 9, "bindingTargetEventCount must stay 9")
     require(qrom.get("interactiveProtocolSpecified") is True, "fiatShamirQROMPosition.interactiveProtocolSpecified must be true")
     require(qrom.get("quantumOracleQueryBoundAccounted") is True, "fiatShamirQROMPosition.quantumOracleQueryBoundAccounted must be true after Q_H bound instantiation")
     require(qrom.get("queryBoundQH") == "2^64", "fiatShamirQROMPosition.queryBoundQH must be 2^64")
@@ -429,7 +463,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(qrom.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "fiatShamirQROMPosition.selectedDepthProtocolChallengeDerivations mismatch")
     for key in [
         "transformPreconditionsSatisfied",
-        "transcriptCollisionMalleabilityExcluded",
+        "sourceHBindImplementationComplete",
         "productionQROMClaimAllowed",
     ]:
         require_false(qrom.get(key), f"fiatShamirQROMPosition.{key}")
@@ -440,28 +474,28 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         qrom.get("structuralTranscriptCollisionMalleabilityExcluded") is True,
         "structural transcript collision/malleability evidence must be recorded",
     )
+    require(qrom.get("transcriptCollisionMalleabilityExcluded") is True, "H_bind collision/malleability bound must be recorded")
+    require(qrom.get("interactiveLossChargedOutsideQROM") is True, "interactive loss must be charged outside epsilon_qrom")
+    require(qrom.get("hashQROInstantiationAssumptionPinned") is True, "split-QRO assumption must be pinned")
+    require_false(qrom.get("hashQROInstantiationProofProvided"), "fiatShamirQROMPosition.hashQROInstantiationProofProvided")
+    require(qrom.get("legacyDFM20InterfaceDeprecated") is True, "legacy DFM20 interface must be deprecated")
     expression = require_string(qrom.get("selectedDepthExpression"), "fiatShamirQROMPosition.selectedDepthExpression")
-    for symbol in [
-        "epsilon_fs_transform",
-        "epsilon_precondition",
-        "epsilon_qro_queries",
-        "epsilon_proof_kind_malleability",
-        "2*Q_H",
-        "n_kind!",
-    ]:
+    for symbol in ["epsilon_compiler_overhead", "epsilon_hash_model_gap"]:
         require(symbol in expression, f"QROM selected-depth expression must include {symbol}")
-    require("epsilon_transcript_collision" not in expression, "QROM expression must export transcript collision as epsilon_collision")
+    for stale in ["epsilon_fs_transform", "epsilon_precondition", "epsilon_qro_queries", "epsilon_proof_kind_malleability", "2*Q_H", "n_kind!"]:
+        require(stale not in expression, f"QROM selected-depth expression must not include legacy symbol {stale}")
+    require("epsilon_transcript_collision" not in expression, "QROM expression must export binding failures as epsilon_collision")
     mapping = require_dict(qrom.get("ledgerTermMapping"), "fiatShamirQROMPosition.ledgerTermMapping")
     require(
-        mapping.get("epsilon_qrom") == ["epsilon_fs_transform", "epsilon_qro_queries", "epsilon_proof_kind_malleability"],
+        mapping.get("epsilon_qrom") == ["epsilon_compiler_overhead", "epsilon_hash_model_gap"],
         "QROM ledgerTermMapping.epsilon_qrom mismatch",
     )
     require(
-        mapping.get("epsilon_collision") == ["epsilon_transcript_collision"],
+        mapping.get("epsilon_collision") == ["epsilon_bind"],
         "QROM ledgerTermMapping.epsilon_collision mismatch",
     )
     obligations = " ".join(require_string_list(qrom.get("remainingObligations"), "fiatShamirQROMPosition.remainingObligations")).lower()
-    for needle in ["interactive reduction", "preconditions", "quantum random-oracle", "collision", "malleability"]:
+    for needle in ["ctco", "h_bind", "special-soundness", "epsilon_compiler_overhead", "epsilon_replay"]:
         require(needle in obligations, f"QROM obligations must mention {needle}")
     schedule = read_json(ROOT / "TestVectors/product-qrom-transcript-schedule-v1.json")
     require(schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
@@ -475,35 +509,92 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     manifest = read_json(ROOT / "TestVectors/product-qrom-fiat-shamir-accounting-v1.json")
     require(manifest.get("schemaVersion") == 1, "QROM accounting schemaVersion must be 1")
     require(
-        manifest.get("claimStatus") == "qrom-fiat-shamir-loss-contract-not-production-claim",
+        manifest.get("claimStatus") == "qrom-ctco-split-qro-contract-not-production-claim",
         "QROM accounting claimStatus must stay precise",
     )
+    hash_model = require_dict(manifest.get("hashModel"), "QROM accounting hashModel")
+    require(hash_model.get("model") == "ideal-split-qro", "QROM accounting hashModel.model mismatch")
+    require(hash_model.get("concreteHashRecommendation") == "SHAKE256-domain-separated", "QROM accounting hash recommendation mismatch")
+    challenge = require_dict(hash_model.get("challengeOracle"), "QROM accounting challengeOracle")
+    binding = require_dict(hash_model.get("bindingOracle"), "QROM accounting bindingOracle")
+    merkle = require_dict(hash_model.get("merkleOracle"), "QROM accounting merkleOracle")
+    require(challenge.get("outputBits") == 256, "QROM accounting H_chal must be 256 bits")
+    require(binding.get("outputBits") == 384, "QROM accounting H_bind must be 384 bits")
+    require(binding.get("bindingTargetEventCount") == 9, "QROM accounting binding target count must be 9")
+    require(merkle.get("outputBits") == 384, "QROM accounting H_mt must be 384 bits")
+    require(hash_model.get("splitOraclesPinned") is True, "QROM accounting split oracles must be pinned")
+    require(hash_model.get("theoremCriticalBindingsUseHBind") is True, "theorem-critical bindings must use H_bind")
+    require(hash_model.get("hashQROInstantiationAssumptionPinned") is True, "QROM accounting hash assumption must be pinned")
+    require_false(hash_model.get("hashQROInstantiationProofProvided"), "QROM accounting hashQROInstantiationProofProvided")
+    fiat_model = require_dict(manifest.get("fiatShamirModel"), "QROM accounting fiatShamirModel")
+    require(fiat_model.get("transformFamily") == "ctco", "QROM accounting transform family must be ctco")
+    require(fiat_model.get("fallbackTransformFamily") == "merkle-straightline", "QROM accounting fallback family mismatch")
+    require(fiat_model.get("interactiveLossChargedOutsideQROM") is True, "QROM accounting must charge interactive loss outside QROM")
+    require(fiat_model.get("legacyDFM20InterfaceDeprecated") is True, "QROM accounting must deprecate legacy DFM20")
+    require_false(fiat_model.get("sourceImplementationComplete"), "QROM accounting sourceImplementationComplete")
     loss_rule = require_dict(manifest.get("lossRule"), "QROM accounting lossRule")
     require_false(loss_rule.get("productionQROMClaimAllowed"), "QROM accounting productionQROMClaimAllowed")
+    manifest_expression = require_string(loss_rule.get("selectedDepthExpression"), "QROM accounting selectedDepthExpression")
+    for symbol in ["epsilon_compiler_overhead", "epsilon_hash_model_gap"]:
+        require(symbol in manifest_expression, f"QROM accounting selectedDepthExpression must include {symbol}")
+    require("n_kind!" not in manifest_expression, "QROM accounting selectedDepthExpression must not carry legacy factorial loss")
+    require(loss_rule.get("interactiveLossChargedOutsideQROM") is True, "QROM accounting must charge interactive loss outside QROM")
+    require(loss_rule.get("sharedBadEventTagsPinned") is True, "QROM accounting must pin shared bad-event tags")
     require(
-        "epsilon_precondition" in require_string(loss_rule.get("selectedDepthExpression"), "QROM accounting selectedDepthExpression"),
-        "QROM accounting must carry transform-precondition failure into the transform loss expression",
+        loss_rule.get("proofKindMalleabilityFormula") == "0; charged inside epsilon_collision through binding-target events",
+        "proof-kind malleability formula mismatch",
+    )
+    require(
+        loss_rule.get("bindingCollisionInstantiatedExpression") == "4 * 9 * 2^128 / 2^384 = 36 * 2^-256",
+        "QROM accounting binding collision expression mismatch",
     )
     manifest_mapping = require_dict(manifest.get("ledgerTermMapping"), "QROM accounting ledgerTermMapping")
     manifest_qrom = require_dict(manifest_mapping.get("fiatShamirQROMLoss"), "QROM accounting fiatShamirQROMLoss")
     require(
-        manifest_qrom.get("sourceSymbols") == ["epsilon_fs_transform", "epsilon_qro_queries", "epsilon_proof_kind_malleability"],
+        manifest_qrom.get("sourceSymbols") == ["epsilon_compiler_overhead", "epsilon_hash_model_gap"],
         "QROM accounting must not double-count transcript collision inside epsilon_qrom",
     )
+    manifest_collision = require_dict(manifest_mapping.get("transcriptCollisionLoss"), "QROM accounting transcriptCollisionLoss")
+    require(manifest_collision.get("sourceSymbols") == ["epsilon_bind"], "QROM accounting collision source symbols mismatch")
+    legacy = require_dict(manifest.get("legacyDFM20Status"), "QROM accounting legacyDFM20Status")
+    require(legacy.get("legacyInterfaceDeprecated") is True, "legacy DFM20 status must stay deprecated")
+    require(legacy.get("decisiveLegacyFailure") == "204! / 2^256 > 1", "legacy DFM20 decisive failure mismatch")
     preconditions = read_json(ROOT / "TestVectors/product-qrom-transform-preconditions-v1.json")
     require(
-        preconditions.get("claimStatus") == "qrom-transform-precondition-dossier-not-production-claim",
+        preconditions.get("claimStatus") == "qrom-ctco-transform-precondition-contract-not-production-claim",
         "QROM transform precondition dossier claimStatus must stay precise",
     )
+    profile = require_dict(preconditions.get("selectedTransformProfile"), "QROM transform selectedTransformProfile")
+    require(profile.get("currentSelectedFamily") == "ctco", "QROM transform selected family must be ctco")
+    require(profile.get("challengeOracleBits") == 256, "QROM transform challenge bits mismatch")
+    require(profile.get("bindingOracleBits") == 384, "QROM transform binding bits mismatch")
+    require(profile.get("legacyDFM20InterfaceDeprecated") is True, "QROM transform must deprecate DFM20")
     loss_interface = require_dict(preconditions.get("lossInterface"), "QROM transform preconditions lossInterface")
     require_false(loss_interface.get("numericLossInstantiated"), "QROM transform preconditions numericLossInstantiated")
+    require(loss_interface.get("compilerOverheadSymbol") == "epsilon_compiler_overhead", "QROM transform compiler overhead symbol mismatch")
     reduction = read_json(ROOT / "TestVectors/product-qrom-interactive-reduction-v1.json")
     require(
-        reduction.get("claimStatus") == "qrom-interactive-reduction-ledger-not-production-claim",
+        reduction.get("claimStatus") == "qrom-ctco-interactive-reduction-contract-not-production-claim",
         "QROM interactive reduction claimStatus must stay precise",
     )
+    theorem_family = require_dict(reduction.get("selectedTheoremFamily"), "QROM interactive selectedTheoremFamily")
+    require(theorem_family.get("compilerFamily") == "ctco", "QROM interactive compilerFamily must be ctco")
+    require(theorem_family.get("selectedChallengeSeedBits") == 256, "QROM interactive challenge seed bits mismatch")
+    require(theorem_family.get("selectedBindingBits") == 384, "QROM interactive binding bits mismatch")
+    require(theorem_family.get("legacyDFM20InterfaceDeprecated") is True, "QROM interactive legacy DFM20 must be deprecated")
     reduction_loss = require_dict(reduction.get("qromQueryAndLossInstantiation"), "QROM interactive reduction loss")
-    require(reduction_loss.get("numiSealNumericNInstantiated") is True, "QROM interactive reduction numiSealNumericNInstantiated must be true")
+    require(reduction_loss.get("queryBoundInstantiated") is True, "QROM interactive reduction query bound must be instantiated")
+    require(reduction_loss.get("ctcoChallengeCountByKind") == {
+        "fold": 1,
+        "terminal": 1,
+        "compressed-terminal": 1,
+        "numiseal-terminal": 1,
+        "numiseal-zk-product": 1,
+    }, "QROM interactive CTCO challenge counts mismatch")
+    require(reduction_loss.get("challengeSeedBits") == 256, "QROM interactive challengeSeedBits mismatch")
+    require(reduction_loss.get("bindingDigestBits") == 384, "QROM interactive bindingDigestBits mismatch")
+    legacy_budget = require_dict(reduction_loss.get("legacyScheduleDerivedQueryBudget"), "QROM interactive legacyScheduleDerivedQueryBudget")
+    require(legacy_budget.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "legacy schedule derivation count mismatch")
     require_false(reduction_loss.get("allNumericLossTermsInstantiated"), "QROM interactive reduction allNumericLossTermsInstantiated")
     sampler = read_json(ROOT / "TestVectors/product-qrom-sampler-encoding-evidence-v1.json")
     require(
@@ -520,15 +611,27 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require_false(integration.get("productionQROMClaimAllowed"), "QROM sampler/encoding productionQROMClaimAllowed")
     collision = read_json(ROOT / "TestVectors/product-qrom-collision-malleability-evidence-v1.json")
     require(
-        collision.get("claimStatus") == "qrom-collision-malleability-structural-evidence-not-production-qrom-theorem",
+        collision.get("claimStatus") == "qrom-collision-malleability-hbind-bound-not-production-qrom-theorem",
         "QROM collision/malleability evidence claimStatus must stay precise",
     )
+    residual = require_dict(collision.get("residualEvents"), "QROM collision/malleability residualEvents")
+    require(residual.get("transcriptCollisionLossSymbol") == "epsilon_bind", "collision residual event symbol mismatch")
+    require(residual.get("proofKindMalleabilityFormula") == "0", "proof-kind malleability must be zero outside collision ledger")
+    bound = require_dict(collision.get("bindingTargetBound"), "QROM collision/malleability bindingTargetBound")
+    require(bound.get("bindingDigestBits") == 384, "collision binding digest bits mismatch")
+    require(bound.get("bindingTargetEventCount") == 9, "collision target event count mismatch")
+    require(bound.get("instantiatedExpression") == "4 * 9 * 2^128 / 2^384 = 36 * 2^-256", "collision instantiated expression mismatch")
+    require(bound.get("withinSelectedCollisionBudget") is True, "collision bound must fit selected collision budget")
     closure = require_dict(collision.get("closureStatus"), "QROM collision/malleability closureStatus")
     require(
         closure.get("structuralCollisionMalleabilityExcludedOutsideDigestCollision") is True,
         "QROM collision/malleability evidence must pin structural closure",
     )
-    require_false(closure.get("digestCollisionBoundInstantiated"), "QROM collision/malleability digestCollisionBoundInstantiated")
+    require(closure.get("digestCollisionBoundInstantiated") is True, "QROM collision/malleability digestCollisionBoundInstantiated")
+    require(closure.get("proofKindMalleabilityBoundInstantiated") is True, "QROM collision/malleability proofKindMalleabilityBoundInstantiated")
+    require(closure.get("hashQROInstantiationAssumptionPinned") is True, "QROM collision/malleability hash assumption must be pinned")
+    require_false(closure.get("hashQROInstantiationProofProvided"), "QROM collision/malleability hashQROInstantiationProofProvided")
+    require_false(closure.get("sourceHBindImplementationComplete"), "QROM collision/malleability sourceHBindImplementationComplete")
     require_false(closure.get("productionQROMClaimAllowed"), "QROM collision/malleability productionQROMClaimAllowed")
 
 

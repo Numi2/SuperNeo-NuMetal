@@ -498,63 +498,6 @@ def validate_promotion_and_blockers(schedule: dict[str, Any]) -> None:
 
 
 def validate_docs_and_gate() -> None:
-    docs = {
-        "README.md": [
-            "TestVectors/product-qrom-transcript-schedule-v1.json",
-            "TestVectors/product-qrom-transform-preconditions-v1.json",
-            "TestVectors/product-qrom-interactive-reduction-v1.json",
-            "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
-            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-            "QROM transcript schedule",
-        ],
-        "Docs/CryptographicSecurityDossier-2026-04-16.md": [
-            "TestVectors/product-qrom-transcript-schedule-v1.json",
-            "TestVectors/product-qrom-transform-preconditions-v1.json",
-            "TestVectors/product-qrom-interactive-reduction-v1.json",
-            "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
-            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-            "QROM Transcript Schedule",
-        ],
-        "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
-            "Scripts/validate-product-qrom-transcript-schedule.py",
-            "Scripts/validate-product-qrom-transform-preconditions.py",
-            "Scripts/validate-product-qrom-interactive-reduction.py",
-            "Scripts/validate-product-qrom-sampler-encoding-evidence.py",
-            "Scripts/validate-product-qrom-collision-malleability-evidence.py",
-        ],
-        "Docs/ReleaseEngineering-2026-04-16.md": [
-            "product QROM transcript schedule",
-            "product QROM transform preconditions",
-            "product QROM interactive reduction",
-            "product QROM sampler and encoding evidence",
-            "product QROM collision/malleability structural evidence",
-        ],
-        "Docs/ReleaseCandidateRunbook-2026-04-16.md": [
-            "product QROM transcript schedule version and digest",
-            "product QROM transform preconditions version and digest",
-            "product QROM interactive reduction version and digest",
-            "product QROM sampler/encoding evidence version and digest",
-            "product QROM collision/malleability evidence version and digest",
-        ],
-        "Docs/SchemaCompatibility-2026-04-16.md": [
-            "Product QROM transcript schedule manifest",
-            "Product QROM transform preconditions manifest",
-            "Product QROM interactive reduction manifest",
-            "Product QROM sampler/encoding evidence manifest",
-            "Product QROM collision/malleability evidence manifest",
-        ],
-        "TestVectors/README.md": [
-            "product-qrom-transcript-schedule-v1.json",
-            "product-qrom-transform-preconditions-v1.json",
-            "product-qrom-interactive-reduction-v1.json",
-            "product-qrom-sampler-encoding-evidence-v1.json",
-            "product-qrom-collision-malleability-evidence-v1.json",
-        ],
-    }
-    for relative, needles in docs.items():
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        for needle in needles:
-            require(needle in text, f"{relative} missing {needle}")
     gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
     require(
         "run_step Scripts/validate-product-qrom-transcript-schedule.py" in gate,

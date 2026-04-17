@@ -41,7 +41,7 @@
     "maximumAllowedTotalLoss": "2^-128",
     "requiresEveryRequiredTermInstantiated": true,
     "zeroMultiplicityTermsExcludedFromSelectedSum": true,
-    "doubleCountingPolicy": "epsilon_collision is mapped from epsilon_transcript_collision and is not included inside epsilon_qrom"
+    "doubleCountingPolicy": "epsilon_collision is mapped from epsilon_bind and is not included inside epsilon_qrom"
   },
   "componentBounds": [
     {
@@ -92,7 +92,7 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
-      "requiredEvidence": "pinned QROM transcript schedule with Q_H = 2^64 and 8755125 selected-depth protocol challenge derivations, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, code-enforced NumiSeal challenge maxima, and replacement or repair of the current DFM20 numeric finding that is outside the selected 2^-128 budget"
+      "requiredEvidence": "pinned CTCO split-QRO transcript target with Q_H = 2^64, one 256-bit challenge seed per accepted proof kind, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, CTCO move-1 root implementation, migration of acceptance-critical verifier comparisons to 384-bit H_bind, and epsilon_compiler_overhead instantiation"
     },
     {
       "id": "extractor-instantiation",
@@ -110,9 +110,9 @@
       "sourceManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
       "currentMultiplicityAtSelectedDepth": 1,
       "requiredForSelectedDepth": true,
-      "lossInstantiated": false,
-      "boundLog2": null,
-      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json structural binding plus numeric transcript collision and proof-kind malleability bound mapped from epsilon_transcript_collision"
+      "lossInstantiated": true,
+      "boundLog2": 250,
+      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json structural binding plus 384-bit H_bind target bound epsilon_bind = 36 * 2^-256; proof-kind malleability is charged inside epsilon_collision"
     },
     {
       "id": "product-ops-replay",
@@ -147,14 +147,13 @@
   ],
   "computedBudget": {
     "requiredTermCount": 9,
-    "instantiatedRequiredTermCount": 0,
+    "instantiatedRequiredTermCount": 1,
     "missingRequiredTermIDs": [
       "source-fold-knowledge",
       "terminal-numiseal-seal",
       "zk-simulator-composition",
       "fiat-shamir-qrom",
       "extractor-instantiation",
-      "transcript-collision-domain-separation",
       "product-ops-replay",
       "constant-time-side-channel",
       "release-signing-notarization"

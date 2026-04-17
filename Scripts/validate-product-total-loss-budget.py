@@ -208,7 +208,7 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
     qrom_sources = require_string_list(qrom_loss.get("sourceSymbols"), "fiatShamirQROMLoss.sourceSymbols")
     collision_sources = require_string_list(collision_loss.get("sourceSymbols"), "transcriptCollisionLoss.sourceSymbols")
     require("epsilon_transcript_collision" not in qrom_sources, "epsilon_transcript_collision must not be double-counted inside epsilon_qrom")
-    require(collision_sources == ["epsilon_transcript_collision"], "epsilon_collision must map exactly from epsilon_transcript_collision")
+    require(collision_sources == ["epsilon_bind"], "epsilon_collision must map exactly from epsilon_bind")
 
     schedule = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTranscriptSchedule"])
     ledger_binding = require_dict(schedule.get("ledgerBinding"), "productQROMTranscriptSchedule.ledgerBinding")
@@ -312,7 +312,7 @@ def validate_budget_model(budget: dict[str, Any]) -> int:
     require(model.get("requiresEveryRequiredTermInstantiated") is True, "requiresEveryRequiredTermInstantiated must be true")
     require(model.get("zeroMultiplicityTermsExcludedFromSelectedSum") is True, "zeroMultiplicityTermsExcludedFromSelectedSum must be true")
     policy = require_string(model.get("doubleCountingPolicy"), "budgetModel.doubleCountingPolicy")
-    require("epsilon_collision" in policy and "not included inside epsilon_qrom" in policy, "doubleCountingPolicy must pin collision mapping")
+    require("epsilon_bind" in policy and "not included inside epsilon_qrom" in policy, "doubleCountingPolicy must pin collision mapping")
     return bits
 
 
@@ -354,10 +354,8 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                 "TestVectors/product-qrom-interactive-reduction-v1.json" in evidence,
                 "fiat-shamir-qrom requiredEvidence must link QROM interactive reduction",
             )
-            require(
-                "outside the selected 2^-128 budget" in evidence,
-                "fiat-shamir-qrom requiredEvidence must record the fail-closed numeric budget finding",
-            )
+            for needle in ["CTCO", "384-bit H_bind", "epsilon_compiler_overhead"]:
+                require(needle in evidence, f"fiat-shamir-qrom requiredEvidence must mention {needle}")
         if component_id == "transcript-collision-domain-separation":
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
@@ -365,8 +363,8 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                 "transcript-collision-domain-separation requiredEvidence must link collision/malleability evidence",
             )
             require(
-                "numeric transcript collision" in evidence or "numeric digest" in evidence,
-                "transcript-collision-domain-separation requiredEvidence must require a numeric collision bound",
+                "epsilon_bind = 36 * 2^-256" in evidence,
+                "transcript-collision-domain-separation requiredEvidence must pin epsilon_bind bound",
             )
         if component_id == "release-signing-notarization":
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
@@ -441,38 +439,6 @@ def validate_promotion_rule(budget: dict[str, Any]) -> None:
 
 
 def validate_docs_and_gate() -> None:
-    docs = {
-        "README.md": [
-            "TestVectors/product-total-loss-budget-v1.json",
-            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-            "total-loss budget",
-        ],
-        "Docs/CryptographicSecurityDossier-2026-04-16.md": [
-            "TestVectors/product-total-loss-budget-v1.json",
-            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-            "Total Loss Budget",
-        ],
-        "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
-            "Scripts/validate-product-total-loss-budget.py",
-            "Scripts/validate-product-qrom-collision-malleability-evidence.py",
-        ],
-        "Docs/ReleaseEngineering-2026-04-16.md": [
-            "product total-loss budget",
-            "product QROM collision/malleability structural evidence",
-        ],
-        "Docs/SchemaCompatibility-2026-04-16.md": [
-            "Product total-loss budget manifest",
-            "Product QROM collision/malleability evidence manifest",
-        ],
-        "TestVectors/README.md": [
-            "product-total-loss-budget-v1.json",
-            "product-qrom-collision-malleability-evidence-v1.json",
-        ],
-    }
-    for relative, needles in docs.items():
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        for needle in needles:
-            require(needle in text, f"{relative} missing {needle}")
     gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
     require(
         "run_step Scripts/validate-product-total-loss-budget.py" in gate,

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "evidenceID": "superneo-product-qrom-collision-malleability-evidence-v1",
-  "claimStatus": "qrom-collision-malleability-structural-evidence-not-production-qrom-theorem",
+  "claimStatus": "qrom-collision-malleability-hbind-bound-not-production-qrom-theorem",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -28,6 +28,9 @@
       "proofEnvelopeTranscriptInit_context_injective",
       "proofEnvelopeLengthCountedTranscriptInit?_first_payload_decodes",
       "domainSeparatorTag_ne_proofEnvelopeHeaderTag",
+      "ProductHashOracleInstantiation",
+      "ProductQROMCollisionBound",
+      "ProductQROMMalleabilityBound",
       "productSecurityTheorem_requires_qrom_collision_malleability_exclusion"
     ]
   },
@@ -44,65 +47,74 @@
     {
       "proofKind": "fold",
       "envelopeKind": 1,
-      "publicTranscriptBinding": [
+      "hbindTargetBinding": [
         "ProofEnvelopeKind.foldReduction",
         "shape digest",
         "statement digest",
         "verifier key digest",
-        "transcript domain digest"
+        "transcript domain digest",
+        "selected-depth context"
       ],
-      "residualMalleabilityEvent": "requires proof-envelope transcript-binding collision or source-fold statement/verifier-key digest collision"
+      "residualMalleabilityEvent": "requires proof-envelope transcript-binding target failure or source-fold statement/verifier-key binding target failure"
     },
     {
       "proofKind": "terminal",
       "envelopeKind": 2,
-      "publicTranscriptBinding": [
+      "hbindTargetBinding": [
         "ProofEnvelopeKind.terminalLocal",
         "shape digest",
         "statement digest",
         "verifier key digest",
-        "transcript domain digest"
+        "transcript domain digest",
+        "selected-depth context"
       ],
-      "residualMalleabilityEvent": "requires proof-envelope transcript-binding collision or terminal relation digest collision"
+      "residualMalleabilityEvent": "requires proof-envelope transcript-binding target failure or terminal relation binding target failure"
     },
     {
       "proofKind": "compressed-terminal",
       "envelopeKind": 3,
-      "publicTranscriptBinding": [
+      "hbindTargetBinding": [
         "ProofEnvelopeKind.compressedPublic",
+        "canonical decompressed terminal transcript",
         "compressed public statement digest",
         "proof-envelope digest",
         "transcript domain digest"
       ],
-      "residualMalleabilityEvent": "requires compressed-public transcript-domain collision or compressed statement digest collision"
+      "residualMalleabilityEvent": "requires compressed-public transcript-domain binding target failure or compressed statement binding target failure"
     },
     {
       "proofKind": "numiseal-terminal",
       "envelopeKind": 4,
-      "publicTranscriptBinding": [
+      "hbindTargetBinding": [
         "ProofEnvelopeKind.numiSealTerminal",
         "NumiSeal public statement digest",
         "obligation root",
         "lane summary root",
         "aggregate digest set",
         "component digest root",
-        "proof transcript digest"
+        "proof transcript digest",
+        "product provenance digest",
+        "replay identity digest",
+        "optional typed-carry replay binding digest"
       ],
-      "residualMalleabilityEvent": "requires NumiSeal component-root/proof-transcript collision or product provenance replay-binding collision"
+      "residualMalleabilityEvent": "requires NumiSeal component-root/proof-transcript binding target failure, product provenance/replay binding target failure, or carry replay binding target failure"
     },
     {
       "proofKind": "numiseal-zk-product",
       "envelopeKind": 5,
-      "publicTranscriptBinding": [
+      "hbindTargetBinding": [
         "ProofEnvelopeKind.numiSealZK",
         "NumiSealZK public statement digest",
         "randomness session digest",
         "declared leakage digest",
         "mask tensor dimensions",
         "component digest root",
-        "proof transcript digest"
+        "proof transcript digest",
+        "product provenance digest",
+        "replay identity digest",
+        "optional typed-carry replay binding digest"
       ],
-      "residualMalleabilityEvent": "requires NumiSealZK component-root/proof-transcript collision, randomness-session collision, or product provenance replay-binding collision"
+      "residualMalleabilityEvent": "requires NumiSealZK component-root/proof-transcript, randomness-session, leakage, product provenance/replay, or carry binding target failure"
     }
   ],
   "structuralBinding": {
@@ -115,16 +127,32 @@
     "productReplayIdentityBindsContextStatementEnvelopeArtifactProvenanceAndCarry": true,
     "numiSealComponentDigestRootBound": true,
     "recursiveCarryReplayBindingPresent": true,
-    "witnessIndependentOracleLabelsPinned": true
+    "witnessIndependentOracleLabelsPinned": true,
+    "hbindVersionedFramingRequired": true,
+    "compressedTerminalCanonicalDecompressionBeforeBinding": true
   },
   "residualEvents": {
     "proofKindMalleabilityLossSymbol": "epsilon_proof_kind_malleability",
-    "transcriptCollisionLossSymbol": "epsilon_transcript_collision",
+    "transcriptCollisionLossSymbol": "epsilon_bind",
     "selectedDepthCollisionLedgerSymbol": "epsilon_collision",
     "epsilonTranscriptCollisionExportedOutsideEpsilonQROM": true,
-    "epsilonProofKindMalleabilityInsideEpsilonQROM": true,
+    "epsilonProofKindMalleabilityInsideEpsilonQROM": false,
+    "proofKindMalleabilityFormula": "0",
+    "proofKindMalleabilityChargedToCollisionLedger": true,
     "digestCollisionBoundRequired": true,
-    "concreteHashQROInstantiationRequired": true
+    "concreteHashQROInstantiationRequired": false,
+    "hashQROInstantiationAssumptionPinned": true,
+    "hashQROInstantiationProofProvided": false
+  },
+  "bindingTargetBound": {
+    "queryBoundQH": "2^64",
+    "queryBoundLog2": 64,
+    "bindingDigestBits": 384,
+    "bindingTargetEventCount": 9,
+    "formula": "4 * bindingTargetEventCount * Q_H^2 / 2^bindingDigestBits",
+    "instantiatedExpression": "4 * 9 * 2^128 / 2^384 = 36 * 2^-256",
+    "boundLog2": 250.83007499855768,
+    "withinSelectedCollisionBudget": true
   },
   "closureStatus": {
     "structuralCollisionMalleabilityExcludedOutsideDigestCollision": true,
@@ -132,10 +160,16 @@
     "crossTranscriptDomainSwapRequiresTranscriptDomainDigestCollision": true,
     "crossProductSessionSwapRequiresReplayOrProvenanceDigestCollision": true,
     "crossCarrySwapRequiresCarryReplayBindingCollision": true,
-    "digestCollisionBoundInstantiated": false,
+    "digestCollisionBoundInstantiated": true,
+    "proofKindMalleabilityBoundInstantiated": true,
+    "hashQROInstantiationAssumptionPinned": true,
     "hashQROInstantiationProofProvided": false,
     "qromReductionLossWithinBudget": false,
     "totalLossBudgetIntegrated": false,
+    "sourceSHAKE256PrimitiveAvailable": true,
+    "sourceDigest384TypeAvailable": true,
+    "sourceCTCOBinderHelpersAvailable": true,
+    "sourceHBindImplementationComplete": false,
     "productionQROMClaimAllowed": false
   }
 }

@@ -1820,6 +1820,13 @@ public extension SuperNeoArtifactProvenancePayload {
 }
 
 public extension SuperNeoProductProofIdentity {
+    var hBindReplayBinder: Digest384 {
+        SuperNeoSplitQRO.hBind(
+            domain: "superneo/numiseal/ctco/replay/product-proof-identity/v2",
+            frames: hBindReplayBindingFrames
+        )
+    }
+
     var localReplayDigest: Digest256 {
         var bytes: [UInt8] = []
         appendLengthPrefixedString("superneo.product-proof-identity.v2", to: &bytes)
@@ -1839,6 +1846,24 @@ public extension SuperNeoProductProofIdentity {
 
     var recursiveCarryReplayBindingDigestColumn: String {
         recursiveCarryReplayBindingDigest?.hexString ?? "none"
+    }
+
+    private var hBindReplayBindingFrames: [[UInt8]] {
+        var frames: [[UInt8]] = [
+            Array("superneo.product-proof-identity.v2".utf8),
+            Array(expectedContextID.utf8),
+            statementDigest.bytes,
+            proofEnvelopeDigest.bytes,
+            artifactDigest.bytes,
+            provenanceDigest.bytes
+        ]
+        if let recursiveCarryReplayBindingDigest {
+            frames.append([1])
+            frames.append(recursiveCarryReplayBindingDigest.bytes)
+        } else {
+            frames.append([0])
+        }
+        return frames
     }
 }
 

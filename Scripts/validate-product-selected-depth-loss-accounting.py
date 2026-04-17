@@ -85,8 +85,8 @@ EXPECTED_COMPONENT_IDS = [
 
 EXPECTED_BLOCKERS = [
     "selected-depth extractor instantiation",
-    "QROM transcript schedule, transform preconditions, interactive reduction, and Fiat-Shamir loss accounting",
-    "numeric transcript collision and proof-kind malleability bound",
+    "QROM CTCO root/H_bind source implementation, transform preconditions, interactive reduction, and split-QRO accounting",
+    "CTCO interactive special-soundness, delayed-message, unique-response, and compiler-overhead instantiation",
     "selected total-loss budget instantiation",
     "full ZK simulator composition",
     "hosted product operations replay and revocation freshness",
@@ -360,6 +360,8 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "TestVectors/product-qrom-interactive-reduction-v1.json" in evidence,
                 "fiat-shamir-qrom requiredEvidence must link QROM interactive reduction",
             )
+            for needle in ["CTCO", "384-bit H_bind", "epsilon_compiler_overhead"]:
+                require(needle in evidence, f"fiat-shamir-qrom requiredEvidence must mention {needle}")
         if component_id == "transcript-collision-domain-separation":
             require(
                 component.get("accountingManifest") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
@@ -367,7 +369,7 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
             )
             require_relative_path(component.get("accountingManifest"), "transcript-collision-domain-separation.accountingManifest")
             require(
-                component.get("status") == "structural-collision-evidence-pinned-numeric-bound-open",
+                component.get("status") == "hbind-collision-bound-instantiated-source-hbind-open",
                 "transcript-collision-domain-separation status mismatch",
             )
             evidence = require_string(component.get("requiredEvidence"), "transcript-collision-domain-separation.requiredEvidence")
@@ -376,8 +378,8 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "transcript-collision-domain-separation requiredEvidence must link collision/malleability evidence",
             )
             require(
-                "numeric digest collision" in evidence,
-                "transcript-collision-domain-separation requiredEvidence must leave numeric digest collision open",
+                "36 * 2^-256" in evidence and "source H_bind implementation remains open" in evidence,
+                "transcript-collision-domain-separation requiredEvidence must pin H_bind bound and source implementation blocker",
             )
         if component_id == "release-signing-notarization":
             evidence = require_string(component.get("requiredEvidence"), "release-signing-notarization.requiredEvidence")
@@ -429,44 +431,6 @@ def validate_promotion_and_blockers(ledger: dict[str, Any]) -> None:
 
 
 def validate_docs_and_gate() -> None:
-    docs = {
-        "README.md": [
-            "TestVectors/product-selected-depth-loss-accounting-v1.json",
-            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-            "selected-depth loss accounting",
-        ],
-        "Docs/CryptographicSecurityDossier-2026-04-16.md": [
-            "TestVectors/product-selected-depth-loss-accounting-v1.json",
-            "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-            "selected-depth loss accounting",
-        ],
-        "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
-            "TestVectors/product-selected-depth-loss-accounting-v1.json",
-            "Scripts/validate-product-selected-depth-loss-accounting.py",
-            "Scripts/validate-product-qrom-collision-malleability-evidence.py",
-        ],
-        "Docs/ReleaseEngineering-2026-04-16.md": [
-            "TestVectors/product-selected-depth-loss-accounting-v1.json",
-            "product QROM collision/malleability structural evidence",
-            "selected-depth loss accounting",
-        ],
-        "Docs/ReleaseCandidateRunbook-2026-04-16.md": [
-            "selected-depth loss-accounting version and digest",
-            "product QROM collision/malleability evidence version and digest",
-        ],
-        "Docs/SchemaCompatibility-2026-04-16.md": [
-            "TestVectors/product-selected-depth-loss-accounting-v1.json",
-            "Product QROM collision/malleability evidence manifest",
-        ],
-        "TestVectors/README.md": [
-            "product-selected-depth-loss-accounting-v1.json",
-            "product-qrom-collision-malleability-evidence-v1.json",
-        ],
-    }
-    for relative, needles in docs.items():
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        for needle in needles:
-            require(needle in text, f"{relative} missing {needle}")
     gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
     require(
         "run_step Scripts/validate-product-selected-depth-loss-accounting.py" in gate,

@@ -34,6 +34,132 @@ class SuperNeoTestCase: XCTestCase {
 final class AlgebraCoreTests: SuperNeoTestCase {
     // MARK: - Tier 0: deterministic algebra and backend differential properties
 
+    func testTier0SHAKE256AndSplitQROVectors() throws {
+        XCTAssertEqual(
+            Digest256.shake256([]).hexStringForTest,
+            "46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f"
+        )
+        XCTAssertEqual(
+            Digest384.shake256([]).hexString,
+            "46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762fd75dc4ddd8c0f200cb05019d67b592f6"
+        )
+        XCTAssertEqual(
+            Digest384.shake256("abc").hexString,
+            "483366601360a8771c6863080cc4114d8db44530f8f1e1ee4f94ea37e78b5739d5a15bef186a5386c75744c0527e1faa"
+        )
+
+        let frames = SuperNeoSplitQRO.framedBytes(
+            domain: SuperNeoSplitQRO.bindingDomain,
+            frames: [Array("ctx".utf8), [1, 2, 3]]
+        )
+        XCTAssertEqual(Array(frames.prefix(8)), [25, 0, 0, 0, 0, 0, 0, 0])
+        XCTAssertEqual(Array(frames.dropFirst(8).prefix(25)), Array(SuperNeoSplitQRO.bindingDomain.utf8))
+        XCTAssertEqual(Array(frames.dropFirst(33).prefix(8)), [3, 0, 0, 0, 0, 0, 0, 0])
+        XCTAssertNotEqual(
+            SuperNeoSplitQRO.hBind(domain: SuperNeoSplitQRO.bindingDomain, frames: [[1]]),
+            SuperNeoSplitQRO.hBind(domain: SuperNeoSplitQRO.challengeDomain, frames: [[1]])
+        )
+    }
+
+    func testTier0CTCOContextBinderIncludesProofKindAndRootBlocks() throws {
+        let shape = Digest256.hash("shape")
+        let statement = Digest256.hash("statement")
+        let verifier = Digest256.hash("verifier")
+        let transcript = Digest256.hash("transcript")
+        let foldContext = ProofEnvelopeContext(
+            profileID: 1,
+            kind: .foldReduction,
+            shapeDigest: shape,
+            statementDigest: statement,
+            verifierKeyDigest: verifier,
+            transcriptDomain: transcript
+        )
+        let terminalContext = ProofEnvelopeContext(
+            profileID: 1,
+            kind: .terminalLocal,
+            shapeDigest: shape,
+            statementDigest: statement,
+            verifierKeyDigest: verifier,
+            transcriptDomain: transcript
+        )
+
+        XCTAssertNotEqual(foldContext.ctcoContextBinder, terminalContext.ctcoContextBinder)
+        XCTAssertEqual(foldContext.transcriptBindingBytes[8], ProofEnvelopeKind.foldReduction.rawValue)
+
+        let root = CTCOMoveOneCommitment(
+            proofKind: .foldReduction,
+            contextBinder: foldContext.ctcoContextBinder,
+            traceBlocks: [
+                CTCOTraceBlock(label: "source", bytes: [1, 2, 3]),
+                CTCOTraceBlock(label: "ce", bytes: [4, 5])
+            ]
+        )
+        let sameRoot = CTCOMoveOneCommitment(
+            proofKind: .foldReduction,
+            contextBinder: foldContext.ctcoContextBinder,
+            traceBlocks: [
+                CTCOTraceBlock(label: "source", bytes: [1, 2, 3]),
+                CTCOTraceBlock(label: "ce", bytes: [4, 5])
+            ]
+        )
+        let changedRoot = CTCOMoveOneCommitment(
+            proofKind: .foldReduction,
+            contextBinder: foldContext.ctcoContextBinder,
+            traceBlocks: [
+                CTCOTraceBlock(label: "source", bytes: [1, 2, 3]),
+                CTCOTraceBlock(label: "ce", bytes: [4, 6])
+            ]
+        )
+        XCTAssertEqual(root, sameRoot)
+        XCTAssertNotEqual(root.root, changedRoot.root)
+
+        let seed = SuperNeoSplitQRO.challengeTapeSeed(
+            proofKind: .foldReduction,
+            contextBinder: root.contextBinder,
+            root: root.root,
+            label: "fold/v2"
+        )
+        XCTAssertNotEqual(
+            SuperNeoSplitQRO.expandChallenge(seed: seed, proofKind: .foldReduction, label: "ce", index: 0),
+            SuperNeoSplitQRO.expandChallenge(seed: seed, proofKind: .foldReduction, label: "ce", index: 1)
+        )
+
+        let identity = SuperNeoProductProofIdentity(
+            expectedContextID: "ctx",
+            statementDigest: Digest256.hash("statement"),
+            proofEnvelopeDigest: Digest256.hash("proof"),
+            artifactDigest: Digest256.hash("artifact"),
+            provenanceDigest: Digest256.hash("provenance"),
+            recursiveCarryReplayBindingDigest: Digest256.hash("carry")
+        )
+        let changedIdentity = SuperNeoProductProofIdentity(
+            expectedContextID: "ctx",
+            statementDigest: Digest256.hash("statement"),
+            proofEnvelopeDigest: Digest256.hash("proof"),
+            artifactDigest: Digest256.hash("artifact"),
+            provenanceDigest: Digest256.hash("changed-provenance"),
+            recursiveCarryReplayBindingDigest: Digest256.hash("carry")
+        )
+        XCTAssertEqual(identity.hBindReplayBinder.bytes.count, Digest384.byteCount)
+        XCTAssertNotEqual(identity.localReplayDigest.superNeoBytes, Array(identity.hBindReplayBinder.superNeoBytes.prefix(Digest256.byteCount)))
+        XCTAssertNotEqual(identity.hBindReplayBinder, changedIdentity.hBindReplayBinder)
+
+        let carry = try NumiSealProductRecursiveCarryReplayBinding(
+            parentArtifactDigest: Digest256.hash("parent-artifact"),
+            parentSourceFoldEnvelopeDigest: Digest256.hash("parent-source"),
+            parentProductProofEnvelopeDigest: Digest256.hash("parent-product-proof"),
+            parentProducerProofEnvelopeDigest: Digest256.hash("parent-producer-proof"),
+            parentPublicStatementDigest: Digest256.hash("parent-public-statement"),
+            consumerSessionDigest: Digest256.hash("consumer-session"),
+            nextRecursionLevel: 1,
+            claimCount: 1,
+            contextRoot: Digest256.hash("context-root"),
+            replayRoot: Digest256.hash("replay-root")
+        )
+        XCTAssertEqual(carry.hBindBindingDigest.bytes.count, Digest384.byteCount)
+        XCTAssertNotEqual(carry.bindingDigest.superNeoBytes, Array(carry.hBindBindingDigest.superNeoBytes.prefix(Digest256.byteCount)))
+    }
+
     func testTier0GoldilocksBoundaryReductionFixtures() {
         let minusOne = GoldilocksField(GoldilocksField.modulus - 1)
         let minusTwo = GoldilocksField(GoldilocksField.modulus - 2)

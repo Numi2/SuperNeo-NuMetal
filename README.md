@@ -1,736 +1,203 @@
-# SuperNeo NuMetal
-
-SuperNeo NuMetal is a research-grade Swift and Metal implementation of the
-SuperNeo lattice folding protocol for Customizable Constraint Systems (CCS) on
-Apple platforms.
-
-The implemented public profile is `Goldilocks/Phi81(d=54)`: Goldilocks field
-arithmetic, a degree-54 cyclotomic ring, Ajtai-style lattice commitments,
-folding protocol stages, versioned proof envelopes, checked test vectors,
-benchmark tooling, and an assumption-scoped Lean formalization track.
-
-This repository is intended for protocol research, implementation validation,
-benchmarking, and reproducibility work. It is not a production-audited
-cryptographic library.
-
-## Status
-
-| Area | Current state |
-| --- | --- |
-| Profile | `Goldilocks/Phi81(d=54)`, `profileID = 1`. |
-| Package | macOS 14+ Swift package with library product `SuperNeo_NuMetal`, CLI executable `superneo`, formal-vector helper `superneo-formal-vectors`, and constant-time observation helper `superneo-ct-observe`. |
-| Proof modes | Fold reductions, terminal proofs with public CE opening material, and compressed public terminal envelopes. |
-| Workloads | Bundled one-hot vector and 8-bit binary-addition CCS workloads. |
-| Backends | CPU reference implementation plus selected Metal acceleration. Default routing avoids Metal on small shapes and keeps Metal as an acceleration path, not a trust oracle. |
-| Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
-| Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
-| Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/`; whole-stack row coverage is checked by `TestVectors/benchmark-coverage-v1.json`. |
-| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, checked selected-depth loss accounting contract, checked extractor, QROM transcript schedule, QROM sampler/encoding evidence, QROM collision/malleability structural evidence, QROM transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir accounting contracts, checked total-loss budget and release distribution evidence contracts, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/product-selected-depth-loss-accounting-v1.json`, `TestVectors/product-extractor-loss-accounting-v1.json`, `TestVectors/product-qrom-transcript-schedule-v1.json`, `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`, `TestVectors/product-qrom-collision-malleability-evidence-v1.json`, `TestVectors/product-qrom-transform-preconditions-v1.json`, `TestVectors/product-qrom-interactive-reduction-v1.json`, `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, `TestVectors/product-total-loss-budget-v1.json`, `TestVectors/product-release-distribution-evidence-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
-| Product ops | Local signed context/provenance/revocation feed, replay ledger, audit export, and machine-readable operations readiness status for private integration work. |
-
-## Highlights
-
-- Terminal application acceptance now has a reusable policy API. Callers can
-  pin trusted statement context, reject fold reductions before terminal
-  verification, choose terminal-only, compressed-only, or either terminal proof
-  form, and set a maximum proof byte count.
-- Swift/Lean conformance bridges now compare executable Swift vectors against
-  Lean-emitted Ext2 and CE proof byte vectors in the production gate, with
-  mutation tests for fail-closed drift detection.
-- Benchmark instrumentation now splits Metal command-buffer GPU time from host
-  encode, commit, and wait time so reports can distinguish device work from
-  submission overhead.
-- Whole-stack benchmark coverage now includes source fold proving/verifying,
-  stage and kernel rows, Metal rows, NumiSeal terminal/ZK product prove/verify,
-  typed recursive carry child prove/verify, and local product-control replay
-  and audit encoding rows.
-- The Lean formal track has a conservative tagged bad-event composition layer,
-  while the full protocol theorem remains intentionally blocked on mechanized
-  probability composition and Swift equivalence proofs.
-
-## Capabilities
-
-- Goldilocks base field arithmetic and degree-2 extension arithmetic.
-- Degree-54 cyclotomic ring arithmetic for `Phi_81(X) = X^54 + X^27 + 1`.
-- Norm-preserving field-to-ring witness packing for the SuperNeo embedding.
-- Ajtai commitment profile with `kappa = 18`, decomposition length `14`, norm
-  bound `2`, and a paper-derived claimed profile security level of `129` bits.
-- `PiCCS`, `PiRLC`, `PiDEC`, fold reduction verification, terminal CE
-  verification, compressed public terminal envelopes, and opt-in CE opening
-  proofs.
-- Deterministic serialization for proof envelopes, commitments, public inputs,
-  evaluation claims, verifier-key material, and test-vector artifacts.
-- Terminal proof acceptance policy APIs for trusted verifier contexts, accepted
-  proof-kind policy, and proof byte limits.
-- R1CS-to-CCS helper surfaces for the bundled one-hot vector and binary-addition
-  workloads.
-- CPU reference execution plus Metal kernels for selected field, ring,
-  commitment, transformed-evaluation, and fused commit/evaluation workloads.
-- Adaptive Metal routing that keeps small default proofs on CPU while preserving
-  forced Metal policies for large-shape acceleration, benchmark coverage, and
-  kernel development.
-- Differential CPU/Metal checking where both paths exist.
-- Hardening around proof-envelope parsing, verifier-context binding, duplicate
-  JSON keys, artifact schemas, workload metadata, key-seed domain separation,
-  Metal workspace invariants, checked allocation sizes, and high-assurance
-  execution policies.
-- A checked constant-time source/formal scope for the first Swift Goldilocks and
-  NumiSealZK Metal slices, plus a checked Swift/LLVM/Metal lowering evidence
-  contract with explicit compiler/runtime/hardware boundaries and pinned local
-  Swift SIL/LLVM/assembly, Metal AIR/metallib, runtime allocation-review,
-  CPU/GPU observation evidence, and compiler/hardware observation lane reports.
-- A checked NumiSeal end-to-end theorem scope for the current product/carry/ZK
-  relation, with release evidence pinned while extractor, simulator, and QROM
-  instantiations remain explicit production-security boundaries.
-- Checked theorem surfaces for recursive folding knowledge soundness, typed
-  carry producer/consumer composition, and NumiSealZK simulation/privacy under
-  an explicit public-leakage model.
-- Exact rejection-sampled field mask distribution for NumiSealZK masks, with a
-  checked evidence manifest binding the sampler domain, Goldilocks acceptance
-  set, rejection count, and zero statistical distance after rejection.
-- A checked product cryptographic security dossier tying source fold, terminal
-  NumiSeal, NumiSealZK masked residual, typed carry, transcript, artifact,
-  proof-envelope, verifier-policy, and composition theorem surfaces to a
-  bounded-depth product theorem while keeping QROM, post-quantum, ZK privacy,
-  recursive carry, performance, and constant-time production claims disabled.
-- A checked selected-depth loss accounting ledger for the current depth-1
-  product claim boundary. It pins the source-fold, terminal-seal, carry,
-  ZK-simulator, QROM, extractor, transcript-collision, product-ops replay,
-  constant-time, and release distribution loss terms while keeping every hard
-  production claim disabled.
-- Checked extractor loss accounting, QROM transcript schedule, QROM
-  sampler/encoding evidence, QROM collision/malleability structural evidence,
-  QROM transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir accounting
-  contracts in
-  `TestVectors/product-extractor-loss-accounting-v1.json`,
-  `TestVectors/product-qrom-transcript-schedule-v1.json`,
-  `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`,
-  `TestVectors/product-qrom-collision-malleability-evidence-v1.json`,
-  `TestVectors/product-qrom-transform-preconditions-v1.json`,
-  `TestVectors/product-qrom-interactive-reduction-v1.json`, and
-  `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`. These pin the
-  extractor inputs, transcript rewind schedule, proof-kind transcript labels,
-  structured transcript frame encoding, exact rejection-sampling arithmetic for
-  QRO challenge samplers, structural proof-kind/domain/product-session/carry
-  binding, oracle query families, the conditional `Q_H = 2^64`
-  adversary-query cap, transform theorem-family obligations, exact PCIP
-  challenge-count formulas, code-enforced NumiSeal challenge maxima, the DFM20
-  loss multiplier, QROM symbols, and selected-depth formulas while keeping
-  concrete production reduction claims disabled.
-- A checked total-loss budget contract in
-  `TestVectors/product-total-loss-budget-v1.json` that evaluates the exact
-  selected-depth rational sum format, maps `epsilon_transcript_collision` into
-  the ledger's `epsilon_collision` term, and refuses promotion until every
-  required numeric bound is instantiated and below `2^-128`.
-- A checked release distribution evidence contract in
-  `TestVectors/product-release-distribution-evidence-v1.json` that binds the
-  release-signing/notarization loss term to required artifact families,
-  provenance fields, release evidence digests, and fail-closed signing status
-  without adding signature material to proof bytes.
-- A canonical local product operations readiness status exposed by
-  `product-status --format json` and embedded in product audit exports.
-- A required signed revocation feed for local product controls, with effective
-  revocation checked before product acceptance and feed digest bound into audit
-  decisions.
-- Depth-1 typed recursive carry product verification in local product controls,
-  with signed parent provenance, prior parent replay acceptance, recursive carry
-  replay roots, and single-use carry consumption bound into SQLite replay and
-  JSONL audit records.
-
-Core profile constants are documented in [Docs/Parameters.md](Docs/Parameters.md).
-
-## Complete Stack Snapshot
-
-The current repository stack is:
-
-- **Arithmetic and encoding:** Goldilocks base field, Goldilocks quadratic
-  extension, Phi81 cyclotomic ring, canonical byte encodings, duplicate-key JSON
-  rejection, and checked proof-envelope framing.
-- **Commitment layer:** Ajtai commitments over the pinned Goldilocks/Phi81
-  profile, deterministic key derivation, batch commitment paths, and CPU/Metal
-  differential checks.
-- **Constraint/frontend layer:** R1CS builders for checked one-hot and binary
-  addition workloads, R1CS-to-CCS preparation, paper-normalization checks, and
-  public-input packing.
-- **Folding layer:** fold-reduction envelopes, terminal and compressed-terminal
-  acceptance, CE opening proofs, transcript binding, and verifier policies that
-  keep reductions separate from terminal product acceptance.
-- **NumiSeal layer:** canonical obligations, lane aggregation, public statement
-  roots, scalarized residual checks, terminal product artifacts, strict expected
-  context pins, and a product proving API for generated R1CS programs.
-- **NumiSealZK layer:** kind-5 masked digit tensor artifacts, exact
-  rejection-sampled field masks, randomness-session binding, mask-reuse
-  rejection, ZK proof body validation, and optional signed side-channel evidence.
-- **Recursive carry layer:** typed carry statements, producer/consumer context
-  binding, parent-child product carry with `typed-required` child artifacts, and
-  local product controls that require signed parent provenance plus prior parent
-  replay acceptance for depth-1 child acceptance.
-- **Product controls:** signed trusted context packs, signed artifact provenance,
-  signed revocation feeds, local operator profiles, SQLite replay, hash-chained
-  JSONL audit, product status/export commands, local retry/readiness policy, and
-  signed side-channel certificate checking for reviewed ZK lanes.
-- **Evidence and formalization:** Lean conformance checks, Swift/Lean vector
-  bridges, theorem-scope manifests, parameter/security dossiers, constant-time
-  source/lowering evidence manifests, and benchmark/proof-size manifests,
-  including `TestVectors/product-selected-depth-loss-accounting-v1.json`,
-  `TestVectors/product-extractor-loss-accounting-v1.json`,
-  `TestVectors/product-qrom-transcript-schedule-v1.json`,
-  `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`,
-  `TestVectors/product-qrom-transform-preconditions-v1.json`,
-  `TestVectors/product-qrom-interactive-reduction-v1.json`,
-  `TestVectors/product-total-loss-budget-v1.json`,
-  `TestVectors/product-release-distribution-evidence-v1.json`, and
-  `TestVectors/benchmark-coverage-v1.json`.
-- **Acceleration:** CPU reference path, Metal kernels for selected field/ring
-  and NumiSeal workloads, adaptive routing, redundant CPU/Metal checking, and
-  pinned Metal workspace evidence for side-channel review.
-- **Benchmarking and budgets:** quick/full benchmark profiles, metadata-aware
-  baseline comparison, report rendering, proof-size budgets, NumiSeal product
-  smoke budgets, and a checked whole-stack benchmark coverage manifest.
-
-Still intentionally not claimed as complete production security: hosted product
-operations, selected-depth loss accounting is contracted but not fully
-instantiated, extractor loss accounting, QROM transcript schedule, QROM
-transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir
-accounting are contracted with the conditional query cap and challenge maxima
-instantiated but without a production-fitting transform/loss theorem, the
-total-loss budget is checked but still missing every required component bound,
-full ZK simulator composition,
-release distribution evidence is checked but unsigned, release signing and
-notarized distribution, and CPU/Swift/LLVM/Metal constant-time evidence closure
-for every production hardware lane.
-
-| Quantity | Value |
-| --- | ---: |
-| Base field modulus | `2^64 - 2^32 + 1` |
-| Extension field | `F_q[u] / (u^2 - 7)` |
-| Cyclotomic polynomial | `X^54 + X^27 + 1` |
-| Ring degree | `54` |
-| Ajtai rows | `18` |
-| Decomposition length | `14` |
-| RLC challenge coefficients | `[-2, -1, 0, 1, 2]` |
-| Challenge expansion factor | `216` |
-| Maximum fresh batch count | `61` |
-| Maximum prior CE claim count | `14` |
-
-## Scope and Trust Model
-
-Verifier acceptance is meaningful only relative to the supplied CCS shape,
-public inputs, proof kind, verifier key, proof envelope context, and terminal
-relation policy. Application code must own expected context, key distribution,
-artifact provenance, replay policy, and user-facing acceptance semantics.
-For checked NumiSeal artifacts, `SuperNeoNumiSealProductVerifier` provides a
-protocol-based integration facade for those product-owned hooks.
-
-A fold reduction verifies the public reduction and returns output
-commitment-evaluation claims. Callers that need terminal acceptance should
-verify a terminal or compressed-terminal proof and require terminal proof kind
-at the policy boundary. `SuperNeoTerminalProofAcceptancePolicy` also lets
-applications restrict accepted terminal envelope forms and reject oversized
-proof bytes before the expensive verifier path.
-
-Current boundaries:
-
-- no production deployment certification,
-- no general compiler from programs to CCS,
-- no deployed persistence layer, durable replay-protection system, or
-  user-facing verification product,
-- no production zero-knowledge claim for arbitrary application statements,
-- no production hardware constant-time certificate for Swift/LLVM/Metal
-  lowering and selected CPU/GPU lanes, and
-- no completed production-security concrete Swift extractor implementation,
-  numeric extractor loss bound, simulator coupling beyond the exact field-mask
-  distribution lemma, side-channel privacy evidence, QROM theorem
-  instantiation, numeric QROM loss bound, selected total-loss budget closure,
-  or product-level post-quantum parameter dossier that clears the conservative
-  sensitivity rows.
-
-The concise proof semantics are documented in
-[Docs/WhatThisProves.md](Docs/WhatThisProves.md), and the operational threat
-model is documented in [Docs/ThreatModel.md](Docs/ThreatModel.md). The current
-release-gate evidence and remaining production no-go items are collected in
-[Docs/ProductionReadinessAuditPacket-2026-04-16.md](Docs/ProductionReadinessAuditPacket-2026-04-16.md).
-Release discipline and public artifact compatibility are tracked in
-[Docs/ReleaseEngineering-2026-04-16.md](Docs/ReleaseEngineering-2026-04-16.md)
-and [Docs/SchemaCompatibility-2026-04-16.md](Docs/SchemaCompatibility-2026-04-16.md).
-The NumiSeal product-integration facade is recorded in
-[Docs/ProductIntegrationLayer-2026-04-16.md](Docs/ProductIntegrationLayer-2026-04-16.md).
-The product cryptographic theorem dossier is tracked in
-[Docs/CryptographicSecurityDossier-2026-04-16.md](Docs/CryptographicSecurityDossier-2026-04-16.md).
-Release candidates should follow
-[Docs/ReleaseCandidateRunbook-2026-04-16.md](Docs/ReleaseCandidateRunbook-2026-04-16.md)
-and record user-facing changes in [CHANGELOG.md](CHANGELOG.md).
-
-## Requirements
-
-- macOS 14 or newer.
-- Swift tools version 6.1 or newer through Xcode or the Xcode command-line
-  tools.
-- A Metal-capable Apple platform for GPU acceleration and Metal benchmark rows.
-  CPU tests and CPU proof paths remain available without Metal benchmark rows.
-- Lean 4 through `elan` for the optional formalization workspace.
-- SageMath plus the pinned upstream lattice-estimator checkout for full
-  estimator reproduction. Dry-run estimator parameter derivation does not
-  require SageMath.
-
-The root Swift package has no third-party package dependencies. Benchmark-only
-dependencies are isolated under [Benchmarks/Package.swift](Benchmarks/Package.swift).
-
-## Repository Layout
-
-| Path | Purpose |
-| --- | --- |
-| [SuperNeo-NuMetal](SuperNeo-NuMetal) | Main Swift library implementation. |
-| [SuperNeoCLI](SuperNeoCLI) | `superneo` command-line integration demo. |
-| [SuperNeo-NuMetalTests](SuperNeo-NuMetalTests) | XCTest coverage and usability-surface tests. |
-| [TestVectors](TestVectors) | Checked-in public proof artifacts, manifest, and JSON schema. |
-| [Benchmarks](Benchmarks) | Swift package-benchmark suite. |
-| [Scripts](Scripts) | Production gate, benchmark, validation, and reproduction scripts. |
-| [Docs](Docs) | Protocol, security, benchmark, hardening, and formalization documentation. |
-| [Formal](Formal) | Lean 4/Lake formalization workspace. |
-
-## Quick Start
-
-Run the XCTest suite:
-
-```sh
-swift test --disable-swift-testing
-```
-
-Run the fast local slice:
-
-```sh
-Scripts/test-slice.sh fast
-```
-
-Run the local release-readiness gate:
-
-```sh
-Scripts/production-gate.sh
-```
-
-Include the quick benchmark profile in the same gate:
-
-```sh
-Scripts/production-gate.sh --with-benchmarks
-```
-
-Validate the checked proof-size and product-smoke budgets:
-
-```sh
-Scripts/validate-e2e-proof-metrics.py
-```
-
-Validate checked-in test vectors:
-
-```sh
-swift Scripts/validate-test-vectors.swift
-```
-
-Run the quick benchmark profile:
-
-```sh
-Scripts/run-benchmarks.sh quick
-```
-
-Compare a benchmark run against a hardware-class baseline:
-
-```sh
-SUPERNEO_BENCHMARK_BASELINE=path/to/baseline-results.json Scripts/run-benchmarks.sh quick
-```
-
-## CLI
-
-Generate, verify, and inspect the default one-hot fold artifact:
-
-```sh
-swift run superneo prove \
-  --workload one-hot \
-  --bits 0,0,1,0,0,0,0,0 \
-  --output /tmp/one-hot-proof.json
-
-swift run superneo verify /tmp/one-hot-proof.json
-swift run superneo inspect /tmp/one-hot-proof.json
-```
-
-Generate and verify an 8-bit binary-addition fold artifact proving
-`13 + 29 = 42` without revealing the private operands:
-
-```sh
-swift run superneo prove \
-  --workload binary-add \
-  --operand-bits 8 \
-  --lhs 13 \
-  --rhs 29 \
-  --output /tmp/binary-add-proof.json
-
-swift run superneo verify /tmp/binary-add-proof.json
-```
-
-Generate a terminal proof when the verifier needs complete terminal CE
-verification instead of a fold-only reduction:
-
-```sh
-swift run superneo prove \
-  --workload one-hot \
-  --kind terminal \
-  --bits 0,0,1,0 \
-  --output /tmp/one-hot-terminal-proof.json
-
-swift run superneo verify --require-terminal /tmp/one-hot-terminal-proof.json
-```
-
-Generate a compressed terminal proof with compressed public terminal statement
-material:
-
-```sh
-swift run superneo prove \
-  --workload one-hot \
-  --kind compressed-terminal \
-  --bits 0,0,1,0 \
-  --output /tmp/one-hot-compressed-terminal-proof.json
-
-swift run superneo verify --require-terminal /tmp/one-hot-compressed-terminal-proof.json
-```
-
-Inspect and verify a checked NumiSeal terminal vector through the main
-`superneo` verifier surface:
-
-```sh
-swift run superneo inspect TestVectors/numiseal-terminal-single-aggregate-v1.json
-swift run superneo verify \
-  --require-numiseal \
-  TestVectors/numiseal-terminal-single-aggregate-v1.json
-```
-
-NumiSeal artifacts are verifier-only in `superneo`; omitting
-`--require-numiseal` fails closed so kind `4` envelopes cannot be accepted by
-legacy terminal policy by accident.
-
-The CLI proof generator uses the repository's `.highAssurance` execution
-policy. It remains an integration demo, not a production policy engine. More
-detail is available in [Docs/CLI.md](Docs/CLI.md).
-
-## Artifact Verification
-
-The short form is a local self-consistency check:
-
-```sh
-swift run superneo verify path/to/artifact.json
-```
-
-For artifacts received from another process or party, pin the expected verifier
-context outside the artifact:
-
-```sh
-swift run superneo verify \
-  --key-seed <trusted-key-seed> \
-  --expected-verifier-key-digest <trusted-verifier-key-digest-hex> \
-  --expected-shape-digest <trusted-shape-digest-hex> \
-  --expected-statement-digest <trusted-statement-digest-hex> \
-  --expected-public-inputs <trusted-public-inputs> \
-  --require-terminal \
-  path/to/artifact.json
-```
-
-For NumiSeal terminal artifacts, use `--require-numiseal` and additionally pin
-the transcript-domain, public-statement, obligation-root, lane-summary-root,
-aggregate, component-root, and proof-transcript digests when the artifact comes
-from another party. The production CLI and vector validator share the library
-`NumiSealArtifactVerifier` core for those NumiSeal artifact checks.
-
-Without trusted context arguments, the verifier reads the seed and digests from
-the artifact itself, which is useful for demos but not a policy decision. The
-proof envelope binds proof bytes to profile ID, proof kind, CCS shape digest,
-statement digest, verifier-key digest, transcript domain, and body length. See
-[Docs/ProofEnvelope.md](Docs/ProofEnvelope.md).
-
-Library integrations should prefer a terminal acceptance policy over manual
-proof-kind dispatch:
-
-```swift
-let policy = SuperNeoTerminalProofAcceptancePolicy(
-    publicInput: publicInput,
-    verifierKeyDigest: key.verifierKeyDigest,
-    proofKindPolicy: .compressedOnly,
-    maximumProofByteCount: 4 * 1024 * 1024
-)
-
-let result = verifier.verifyTerminalProofEnvelope(
-    publicInput: publicInput,
-    proofBytes: proofBytes,
-    policy: policy
-)
-```
-
-Use `.terminalOrCompressed` when both complete terminal envelope forms are
-acceptable. Use `.terminalOnly` or `.compressedOnly` when resource policy,
-artifact policy, or deployment compatibility requires one form.
-
-## Test Vectors
-
-Checked-in vectors are intended for compatibility and cross-implementation
-testing:
-
-| File | Workload | Proof kind |
-| --- | --- | --- |
-| [TestVectors/one-hot-vector-fold-v1.json](TestVectors/one-hot-vector-fold-v1.json) | one-hot vector | fold |
-| [TestVectors/one-hot-vector-terminal-v1.json](TestVectors/one-hot-vector-terminal-v1.json) | one-hot vector | terminal |
-| [TestVectors/one-hot-vector-compressed-terminal-v1.json](TestVectors/one-hot-vector-compressed-terminal-v1.json) | one-hot vector | compressed-terminal |
-| [TestVectors/binary-addition-u8-fold-v1.json](TestVectors/binary-addition-u8-fold-v1.json) | 8-bit binary addition | fold |
-| [TestVectors/binary-addition-u8-terminal-v1.json](TestVectors/binary-addition-u8-terminal-v1.json) | 8-bit binary addition | terminal |
-
-`TestVectors/manifest.json` is the trusted context for checked-in vectors:
-hashes, byte counts, public inputs, key seeds, digests, proof-kind requirements,
-and strict verification commands. `TestVectors/artifact.schema.json` is the
-machine-readable artifact schema. NumiSeal uses
-`TestVectors/numiseal-manifest.json` plus
-`TestVectors/numiseal-artifact.schema.json`, with schema and manifest mutation
-checks in the production gate.
-`TestVectors/e2e-proof-metrics-v1.json` pins exact checked-vector proof-envelope
-bytes and generated product-smoke size budgets without adding certificate or
-metrics material to proof bytes.
-`TestVectors/product-selected-depth-loss-accounting-v1.json` pins the
-selected-depth loss accounting contract for the current depth-1 product
-security boundary while keeping extractor, QROM, simulator, hosted-ops,
-release-signing, and CT evidence claims disabled.
-`TestVectors/product-extractor-loss-accounting-v1.json` pins the extractor
-loss accounting contract for source-fold extraction, terminal-seal extraction,
-product-envelope composition, and future recursive carry extraction.
-`TestVectors/product-qrom-fiat-shamir-accounting-v1.json` pins QROM
-Fiat-Shamir accounting for fold, terminal, compressed-terminal, NumiSeal
-terminal, and NumiSealZK product transcript interfaces.
-`TestVectors/product-qrom-transcript-schedule-v1.json` pins the QROM
-transcript schedule for fold, terminal, compressed-terminal, NumiSeal terminal,
-and NumiSealZK product proof kinds, including public challenge labels and
-symbolic quantum random-oracle query families. It now also pins per-kind
-protocol challenge-derivation maxima and the conditional `Q_H = 2^64`
-adversary-query cap, for `8755125` selected-depth protocol challenge
-derivations across the accepted proof-kind set.
-
-### QROM sampler and encoding evidence
-
-`TestVectors/product-qrom-sampler-encoding-evidence-v1.json` pins QROM sampler
-and encoding evidence under the QRO abstraction. It records the 64-bit
-Goldilocks rejection sampler, Ext2 product sampler, Phi81 coefficient/ring
-sampler, CE ternary sampler, NumiSealZK masked residual challenge sampler, and
-structured 64-bit length-prefixed transcript frame encoding. This closes the
-conditional challenge-space uniformity and structured transcript-oracle encoding
-evidence layer, but it does not prove the concrete hash instantiation or repair
-the out-of-budget DFM20 loss term.
-
-### QROM collision/malleability structural evidence
-
-`TestVectors/product-qrom-collision-malleability-evidence-v1.json` pins QROM
-collision/malleability structural evidence across the five accepted proof kinds.
-It binds the Swift proof-envelope kind raw values to the Lean wire model,
-proof-envelope transcript-binding injectivity, transcript-domain enforcement,
-artifact/provenance digests, product replay identity, NumiSeal component roots,
-and recursive carry replay binding. This closes structural cross-kind,
-cross-domain, cross-product-session, and cross-carry swap paths outside digest
-collision events, but it keeps the concrete hash/QRO instantiation, numeric
-digest collision/proof-kind malleability bounds, repaired QROM reduction loss,
-and total-loss budget integration disabled.
-`TestVectors/product-qrom-transform-preconditions-v1.json` pins the QROM
-transform precondition dossier for the selected fail-closed measure-and-reprogram
-profile, including theorem-family fit, interactive protocol, round schedule,
-uniform challenges, transcript encoding, the instantiated conditional
-`Q_H = 2^64` query bound, and reduction-loss obligations.
-`TestVectors/product-qrom-interactive-reduction-v1.json` pins the exact
-public-coin interactive protocol formulas, selected `Q_H = 2^64` policy, DFM20
-`((2*Q_H+n+1)^(2n)/n!)` multiplier, code-enforced NumiSeal numeric challenge
-maxima, and per-proof-kind open loss inputs. It also records the current
-fail-closed budget result: under the selected DFM20/256-bit challenge accounting,
-the `n! / 2^256` ordering term is already outside the `2^-128` budget for the
-smallest accepted proof kind, so production QROM remains disabled until the
-loss model, per-kind interactive security bounds, numeric digest
-collision/proof-kind malleability bounds, and final total-loss integration are
-repaired.
-`TestVectors/product-total-loss-budget-v1.json` pins the total-loss budget
-contract, exact rational summation rule, required selected-depth component
-bounds, and the mapping that keeps transcript collision out of the core
-`epsilon_qrom` term and into the ledger's `epsilon_collision` term.
-`TestVectors/product-release-distribution-evidence-v1.json` pins release
-distribution evidence for source archives, Swift CLI binaries, test-vector
-bundles, release-candidate evidence, benchmark/estimator artifacts, required
-provenance fields, unsigned research-artifact status, and the fail-closed
-promotion rule for `epsilon_release`.
-`TestVectors/benchmark-coverage-v1.json` pins the benchmark row families that
-must remain registered, rendered, baseline-comparable, and production-gated for
-the source fold, kernels, Metal, NumiSeal product, recursive carry, and product
-controls.
-
-```sh
-swift Scripts/validate-test-vectors.swift
-```
-
-See [TestVectors/README.md](TestVectors/README.md) for reconstruction rules and
-schema expectations.
-
-## Benchmarks
-
-Benchmark results are meaningful only with the documented correctness gates.
-The benchmark runner verifies protocol outputs before exporting results and
-compares CPU/Metal outputs where both paths exist.
-
-Current performance highlights:
-
-- Default execution uses automatic Metal routing and keeps small shapes on CPU;
-  use `.metalAccelerated` when a caller wants to force GPU work for a known
-  workload or benchmark row.
-- Generated benchmark reports now include a GPU command-buffer column for Metal
-  rows plus Metal encode, commit, and wait wall-time columns for host-side
-  submission visibility.
-- The latest Metal audit pass removed duplicate workspace CSR uploads, added
-  scratch-buffer reuse and inline dispatch parameters, introduced a
-  coefficient-parallel ring-multiply kernel, and added a narrow Ajtai
-  small-message coefficient kernel for decomposition-sized messages.
-- The row-partial sparse transformed-evaluation schedule is available for
-  tuning but remains opt-in because the local small-shape A/B run was slower
-  than the blocked baseline.
-- Quick benchmark coverage now includes NumiSeal terminal product prove/verify,
-  NumiSealZK product prove/verify, typed recursive carry child prove/verify,
-  replay identity construction, and product audit-event encoding. The coverage
-  contract is checked by `TestVectors/benchmark-coverage-v1.json` and
-  `Scripts/validate-benchmark-coverage.py`.
-
-Latest local benchmark snapshot:
-
-| Field | Value |
-| --- | --- |
-| Generated | `2026-04-16T22:33:05Z` |
-| Source commit | `6d0a85f` |
-| Source state | dirty |
-| Host | MacBook Air, Apple M4, 10 CPU cores, 24 GB memory |
-| Toolchain | Swift 6.3, Xcode 26.4 |
-| OS | macOS 26.5 build `25F5042g` |
-| Profile | `quick` |
-| Case filter | none |
-| Metal device | Apple M4 |
-
-Proof sizes for the latest quick cases:
-
-| Case | Constraints | Proof | Envelope | Sum-check | PiCCS | PiRLC | PiDEC | Output claims |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `m64-K1-k0-binary` | 64 | 321,128 B | 321,269 B | 672 B | 10,920 B | 11,352 B | 145,280 B | 152,880 B |
-| `m256-K2-k1-binary` | 256 | 344,616 B | 344,757 B | 880 B | 32,856 B | 12,248 B | 145,280 B | 153,328 B |
-
-Selected timing rows from the same run:
-
-| Row | Time | Derived rate |
-| --- | ---: | ---: |
-| `fold/cpu/m256-K2-k1-binary` | 19 ms | 52.63 folds/s, 13,474 constraints/s |
-| `fold/metal/m256-K2-k1-binary` | 58 ms | 17.24 folds/s, 4,414 constraints/s |
-| `fold/prepared/cpu/m256-K2-k1-binary` | 20 ms | 50.00 folds/s, 12,800 constraints/s |
-| `fold/prepared/metal/m256-K2-k1-binary` | 33 ms | 30.30 folds/s, 7,758 constraints/s |
-| `stage/sumcheck/m64-K1-k0-binary` | 231 us |  |
-| `stage/piCCSClaims/m64-K1-k0-binary` | 274 us |  |
-| `stage/piRLC/m64-K1-k0-binary` | 284 us |  |
-| `stage/piDEC/m64-K1-k0-binary` | 1.23 ms |  |
-| `reduceFold/cpu/m256-K2-k1-binary` | 1.79 ms |  |
-| `terminalVerify/cpu/m256-K2-k1-binary` | 3.58 ms |  |
-| `proofEnvelope/roundTrip/m256-K2-k1-binary` | 7.97 ms |  |
-| `kernel/ajtaiCommit/batch/cpu/m64-K1-k0-binary` | 677 us | 1,477.10 commitments/s |
-| `kernel/ajtaiCommit/batch/metal/m64-K1-k0-binary` | 1.84 ms | 542.89 commitments/s |
-| `kernel/transformedEvaluation/cpuSparse/m64-K1-k0-binary` | 22 us |  |
-| `kernel/transformedEvaluation/metalSparse/m64-K1-k0-binary` | 4.38 ms |  |
-| `numisealProduct/prove/cpu/one-hot-u2-terminal` | 174 ms |  |
-| `numisealProduct/verify/cpu/one-hot-u2-terminal` | 59 ms |  |
-| `numisealProduct/prove/cpu/one-hot-u2-zk` | 176 ms |  |
-| `numisealProduct/verify/cpu/one-hot-u2-zk` | 65 ms |  |
-| `numisealProduct/recursiveCarry/prove/cpu/one-hot-u2-child` | 176 ms |  |
-| `numisealProduct/recursiveCarry/verify/cpu/one-hot-u2-child` | 62 ms |  |
-| `productControls/replayIdentity/cpu/recursive-carry` | 23 us |  |
-| `productControls/auditEventEncode/cpu/recursive-carry` | 12.6 us |  |
-
-The full generated report is
-[benchmark-results/report.md](benchmark-results/report.md). Benchmark profiles,
-correctness gates, metadata-aware baseline comparison, and hardware-class report
-policy are documented in [Docs/Benchmarking.md](Docs/Benchmarking.md).
-
-Do not use these numbers for cross-generation claims. Current pinned README
-figures cover the latest local Apple M4 quick slice only.
-
-## Formalization and Reproduction
-
-Build the Lean workspace:
-
-```sh
-cd Formal
-lake build
-```
-
-Validate the formal status manifest and regression harness:
-
-```sh
-Scripts/validate-formal-status.py
-Scripts/test-formal-status-validation.py
-```
-
-Compare executable Swift formal vectors against Lean-emitted vectors:
-
-```sh
-Scripts/compare-formal-ext2-vectors.py
-Scripts/compare-formal-ce-vectors.py
-```
-
-Generate a paper-claim reproduction artifact:
-
-```sh
-Scripts/reproduce-superneo-paper.sh quick
-```
-
-Record the implemented Module-SIS estimator tuple without running SageMath:
-
-```sh
-Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/validate-lattice-estimator-artifact.py \
-  --expect-status not_run \
-  --expect-latest-status absent \
-  lattice-estimator-results/superneo-goldilocks-phi81.json
-```
-
-Full estimator reproduction requires SageMath and the pinned upstream
-`malb/lattice-estimator` source configured by the script. Latest-upstream runs
-are drift monitoring only and should not replace pinned evidence.
-
-See [Docs/FormalVerification.md](Docs/FormalVerification.md),
-[Docs/PaperReproduction.md](Docs/PaperReproduction.md), and
-[Docs/LatticeEstimatorReproduction.md](Docs/LatticeEstimatorReproduction.md).
-
-## Documentation
-
-Core references:
-
-- [Parameters](Docs/Parameters.md)
-- [Threat Model](Docs/ThreatModel.md)
-- [Proof Semantics](Docs/WhatThisProves.md)
-- [Proof Envelope](Docs/ProofEnvelope.md)
-- [Application Acceptance Policy](Docs/ApplicationAcceptancePolicy-2026-04-14.md)
-- [Product Integration Layer](Docs/ProductIntegrationLayer-2026-04-16.md)
-- [CLI](Docs/CLI.md)
-- [Benchmarking](Docs/Benchmarking.md)
-- [GPU Determinism](Docs/GPUDeterminism.md)
-- [Formal Verification](Docs/FormalVerification.md)
-- [Paper Reproduction](Docs/PaperReproduction.md)
-- [Lattice Estimator Reproduction](Docs/LatticeEstimatorReproduction.md)
-- [Roadmap Status](Docs/RoadmapStatus.md)
-
-Recent implementation and hardening notes:
-
-- [Benchmark Metadata Comparison, 2026-04-14](Docs/BenchmarkMetadataComparison-2026-04-14.md)
-- [Application Acceptance Policy, 2026-04-14](Docs/ApplicationAcceptancePolicy-2026-04-14.md)
-- [PiRLC Benchmark Isolation, 2026-04-14](Docs/BenchmarkPiRLCIsolation-2026-04-14.md)
-- [Opening Batch Parallel Threshold, 2026-04-14](Docs/BenchmarkOpeningBatchThreshold-2026-04-14.md)
-- [Relation Evaluation Plan, 2026-04-14](Docs/BenchmarkRelationEvaluationPlan-2026-04-14.md)
-- [Sum-Check Prior-Claim Evaluation Batch, 2026-04-14](Docs/BenchmarkSumcheckPriorBatch-2026-04-14.md)
-- [Sum-Check Public Precompute Cleanup, 2026-04-14](Docs/BenchmarkSumcheckPublicPrecompute-2026-04-14.md)
-- [Transformed Evaluation Fusion, 2026-04-14](Docs/BenchmarkTransformedEvaluationFusion-2026-04-14.md)
-- [Metal Performance Optimization, 2026-04-14](Docs/MetalPerformanceOptimization-2026-04-14.md)
-- [Binary Addition Terminal Vector, 2026-04-14](Docs/BinaryAdditionTerminalVector-2026-04-14.md)
-- [Compressed Terminal Vector, 2026-04-14](Docs/CompressedTerminalVector-2026-04-14.md)
-- [Vector Manifest Duplicate Key Hardening, 2026-04-14](Docs/VectorManifestDuplicateKeyHardening-2026-04-14.md)
-
-Detailed dated notes for artifact parsing, workload canonicality, key-seed
-domain separation, terminal vectors, Ajtai keys, benchmark passes, and formal
-promotion are kept under [Docs](Docs).
+I am Super math AI first ill check exact theorem and accounting surfaces, and the most relevant QROM literature, then I’ll give one directed theorem program and implementation mandate.
+
+The live manifests confirm the current DFM20 path is fundamentally broken, not just loose: Q_H = 2^64 is pinned, even the smallest kind has n = 204, and kinds 4 and 5 still carry millions of derived challenges. I’m now testing a stronger replacement theorem family—specifically the newer straight-line extractor route—against your actual transcript structure and missing per-challenge label absorption.
+
+The direction is now fixed: we should replace the current interface with a one-challenge, 3-move Merkle commit-and-open outer protocol and prove a tight QROM online-extractability theorem for that compiled form. With 384-bit commitment and seed outputs this puts transform overhead around 2^-161 even for the worst current kind, whereas 256-bit outputs remain impossible under Q_H = 2^64.
+
+I inspected the repo state. The README, the dossier, the raw QROM accounting manifest, and the collision/malleability evidence manifest all confirm the same picture: the stack is deliberately fail-closed, depth-1 only, production QROM is still disabled, the current accounting still uses the DFM20 multi-round loss interface with `Q_H = 2^64`, and the residual structural bad events are exported into `epsilon_transcript_collision` / `epsilon_collision` and `epsilon_proof_kind_malleability`. ([GitHub][1])
+
+The directive is simple.
+
+Do not salvage the current DFM20 path. The raw repo accounting still sets
+`epsilon_fs_transform = max_kind(((2*Q_H+n_kind+1)^(2*n_kind)/n_kind!) * epsilon_interactive_kind + n_kind!/2^256 + epsilon_precondition_kind)`, and the repo itself records that the smallest accepted kind already fails the budget. More generally, DFM20’s multi-round QROM loss is `O(q^(2n))` for `(2n+1)`-move public-coin protocols, and Don–Fehr–Majenz also show that this dependence is essentially optimal in the generic setting. That is the wrong theorem family for this stack. ([GitHub][2])
+
+Do not try to prove SHA-256-as-QRO for the theorem package. The clean standardized post-quantum RO story is on the sponge side, not the Merkle–Damgård side. The 2025 sponge result proves quantum indifferentiability of the sponge from a random oracle, and the 2026 Merkle–Damgård result formalizes post-quantum public indifferentiability and gives an impossibility result for Merkle–Damgård. The theorem package should therefore move to a split SHAKE256 design. ([eprint.iacr.org][3])
+
+The best route is to change the proof compiler, not to keep the current compiler and look for a miracle theorem. I am directing the team to build a new compiler that makes each accepted proof kind into a 3-move public-coin protocol with one seed challenge and late message binding. The mathematical target is a new family I will call the Challenge-Tape Commit-and-Open compiler, or CTCO. It takes the existing multi-round folding / terminal / product relations and re-expresses them as a pre-commitment to all challenge-independent algebraic objects plus a single challenge tape, followed by a full deterministic opening/consistency response. This is the correct shape for the tight QROM line on commit-and-open protocols, including Merkle-tree commitments. If any legacy subprotocol cannot be brought into CTCO form quickly, the only approved fallback is the straight-line multi-round compiler line of Rotem–Tessaro, which is the first multi-round QROM transform without the super-polynomial loss that plagues vanilla multi-round Fiat–Shamir. ([arXiv][4])
+
+That is the architectural decision. Everything else follows from it.
+
+A. The target theorem
+
+Let `K = {fold, terminal, compressed-terminal, numiseal-terminal, numiseal-zk-product}`. For each `k ∈ K`, define a new interactive protocol `Π_k^CTCO = (P1_k, V_k, P2_k)` with one verifier challenge `ρ_k ∈ {0,1}^256`. The statement `x_k` is the same acceptance context as today: proof kind, shape / statement / verifier-key / transcript-domain binding, artifact binding, provenance binding, replay binding, and, where applicable, component-root, randomness-session, leakage, and typed-carry binding. The witness `w_k` is the current witness for the corresponding product relation. The verifier’s acceptance predicate is exactly the current deterministic verifier, but executed over a challenge tape derived from `ρ_k` and against pre-committed challenge-independent objects. The only thing that changes is the compiler. The accepted semantics do not change. This matches the repo’s current theorem surface, which already isolates the product relation, transcript binding, artifact/proof-envelope binding, verifier policy, and depth-1 composition boundary. ([GitHub][5])
+
+The theorem to add is:
+
+`ProductQROMTightTransform`.
+Assume for every `k ∈ K` that `Π_k^CTCO` is complete; computationally knowledge-sound against quantum dishonest provers with extractor `X_k`; late-message / delayed-binding sound with respect to the artifact/provenance/session/carry/leakage message; and that its first prover message is binding under the declared commitment assumptions. Assume split ideal random oracles `H_chal` and `H_bind`, both queried quantumly, with framed domain separation. Then any QPT adversary that outputs an accepting depth-1 product proof without a corresponding witness succeeds with probability at most
+
+`epsilon_core_shared + epsilon_zk_sim + epsilon_extract + epsilon_bind + epsilon_replay + epsilon_ct + epsilon_release`
+
+where `epsilon_bind` is the fixed-target binding event bound below, `epsilon_core_shared` is the tagged union of the shared cryptographic bad events across fold/terminal/product, and there is no DFM20-style `q^(2n)` or factorial term. The challenge-round count of the original protocol disappears from the QROM loss because the compiler target is now 3-move. The QROM contribution is then the tight commit-and-open / straight-line compiler overhead plus the binding-target term, not a generic multi-round Fiat–Shamir penalty. This is the whole point of the refactor. The published commit-and-open line gives tight QROM online extractability for Merkleized commitments, and the multi-round straight-line line is the only acceptable fallback. ([arXiv][4])
+
+B. Exact pre-FS protocols the team should implement
+
+For all five accepted kinds, the new pre-FS protocol is 3 moves.
+
+Move 1. `P1_k(x_k, w_k)` outputs:
+`CtxBind_k`, `StmtBind_k`, `VKBind_k`, `ArtBind_k`, `ProvBind_k`, `ReplayBind_k`, and, when applicable, `CompRootBind_k`, `RandSessBind_k`, `LeakBind_k`, `CarryBind_k`; plus the commitment root `Root_k` to the challenge-independent witness objects and local opening data; plus any challenge-independent commitments already required by the current verifier. All of these are framed, length-prefixed, domain-separated objects.
+
+Move 2. `V_k` samples one 256-bit seed `ρ_k`.
+
+Move 3. `P2_k` expands `ρ_k` deterministically into the full internal challenge tape, returns all round messages and all local openings needed to prove that those messages are the correct deterministic restrictions / evaluations / decompositions / residual openings of the objects committed in move 1, and returns the final algebraic responses. The verifier recomputes the challenge tape from `ρ_k`, checks the local openings against `Root_k`, checks every binder, and runs the deterministic verifier equations.
+
+The extractor targets are fixed.
+
+For `fold`, extract the source CCS witness, fold randomness, decomposition witness, and CE-opening witness.
+
+For `terminal`, extract the terminal residual-opening witness and any terminal CE-opening witness.
+
+For `compressed-terminal`, extract the same witness as `terminal`, after canonical deterministic decompression.
+
+For `numiseal-terminal`, extract the source-fold witness, terminal residual witness, obligation witness, lane/aggregate witness, and component-root witness.
+
+For `numiseal-zk-product`, extract everything in `numiseal-terminal` plus the mask witness, randomness-session witness, and leakage witness.
+
+This is a genuine protocol refactor. The first message must contain every binding root and every challenge-independent commitment needed so that the verifier can check that the later full transcript is locked before the single seed is known. That is the precondition the current repo does not satisfy. The existing schedule pins millions of challenge derivations; after this compiler change, that number remains an implementation metric but stops being a QROM theorem parameter. The repo already records the current challenge-derivation count and the five accepted proof kinds; the compiler change is exactly where the theorem package has to intervene. ([GitHub][2])
+
+C. The hash and oracle model
+
+The theorem package should adopt a split SHAKE256 design.
+
+`H_chal := SHAKE256(dom || framed transcript prefix) -> 32 bytes`
+
+`H_bind := SHAKE256(dom || framed object) -> 48 bytes`
+
+`H_mt := SHAKE256(dom || left || right) -> 48 bytes`
+
+with strict domain separation among challenge derivation, transcript binding, artifact binding, provenance binding, replay binding, component-root binding, randomness-session binding, leakage binding, carry binding, and Merkle nodes.
+
+For the theorem itself, model `H_chal`, `H_bind`, and `H_mt` as independent ideal QROs. That is the honest theorem boundary. For the implementation recommendation, use SHAKE256 because the quantum indifferentiability story is on the sponge side, not on the Merkle–Damgård side. Do not claim a concrete SHA-256-to-QRO theorem. Do not put raw 32-byte digests directly on the theorem-critical acceptance path. ([eprint.iacr.org][3])
+
+The exact oracle grammar should be the existing framed grammar from the repo’s Lean serialization track: every absorbed item is a 64-bit length-prefixed frame, the proof kind byte is explicit, and the initial frame is a versioned domain separator. The collision/malleability evidence manifest already pins the structural injectivity of the proof-envelope kind byte and transcript-binding encoding; the new theorem should hash those framed encodings with `H_bind`, not compare raw 256-bit digests. ([GitHub][6])
+
+D. Collision and malleability closure
+
+The collision evidence manifest exposes the exact residual events: proof-envelope transcript binding, transcript-domain digest, artifact/provenance digest, replay identity, NumiSeal component-root / proof-transcript, randomness-session digest, leakage digest, and typed-carry replay binding. That is nine fixed-target binding events. Cross-proof-kind malleability is not a separate probabilistic term once the proof-kind byte is inside `CtxBind_k`; it is one of those nine target-binding failures. The manifest already states that structural cross-kind, cross-domain, cross-product-session, and cross-carry swaps are excluded except through those digest events. ([GitHub][6])
+
+Therefore the new theorem should set
+
+`epsilon_proof_kind_malleability = 0`
+
+and charge all residual structural failures into
+
+`epsilon_collision = epsilon_bind = 4 * 9 * Q_H^2 / 2^lambda_bind`.
+
+With `Q_H = 2^64` and `lambda_bind = 256`, this is `36 * 2^-128 ≈ 2^-122.83`, which does not fit the target budget. With `lambda_bind = 384`, it becomes `36 * 2^-256 ≈ 2^-250.83`, which is comfortably negligible at depth 1. The choice is therefore fixed: theorem-critical bindings must be at least 384 bits. That is not optional. It is the smallest clean choice that survives the repo’s own `Q_H = 2^64` policy with wide slack. ([GitHub][2])
+
+E. Exact loss formulas after the refactor
+
+The current `epsilon_qrom` interface should be replaced. The correct ledger split is:
+
+`epsilon_fold = epsilon_interactive_fold_CTCO`
+
+`epsilon_terminal = max(epsilon_interactive_terminal_CTCO, epsilon_interactive_compressed_terminal_CTCO)`
+
+`epsilon_zk_sim = epsilon_zk_sim_product`
+
+`epsilon_extract = epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product`
+
+`epsilon_collision = 36 * 2^-256`  using `lambda_bind = 384`
+
+`epsilon_qrom = epsilon_hash_model_gap + epsilon_compiler_overhead`
+
+where `epsilon_hash_model_gap = 0` in the ideal split-QRO theorem, and `epsilon_compiler_overhead` is the tight online-extractability overhead of the chosen CTCO compiler, which must be independent of the original micro-round count.
+
+The key point is structural: `epsilon_interactive_*` stays in the interactive layers, and `epsilon_qrom` stops re-charging it through a multi-round Fiat–Shamir reduction. That double-charging is one of the conceptual problems in the current ledger.
+
+The depth-1 cryptographic total should then be
+
+`epsilon_total_crypt(depth=1) = epsilon_core_shared + epsilon_zk_sim + epsilon_extract + epsilon_qrom + epsilon_collision`
+
+and the full repo total stays
+
+`epsilon_total(depth=1) = epsilon_total_crypt(depth=1) + epsilon_replay + epsilon_ct + epsilon_release`.
+
+The repo already notes a conservative tagged bad-event composition layer in the formal track. Extend that into the selected-depth arithmetic. Shared assumption failures, shared commitment-binding failures, and shared compiler failures must be union-tagged, not flat-summed across fold, terminal, and product rows. If the same Module-SIS bad event is charged three times at `2^-129`, the budget is already dead before QROM. With shared tagging, one shared `2^-129` core event plus the new collision term still fits; with flat addition, it does not. ([GitHub][1])
+
+F. Current pass / fail verdict
+
+For the current repo parameters and current DFM20 ledger: fail. That is already explicit in the repo and the arithmetic is immediate. The current accounting cannot be promoted. `204! / 2^256 > 1`, and 256-bit theorem-critical bindings are also too short under `Q_H = 2^64`. ([GitHub][2])
+
+For the directed refactor I am specifying: the QROM/product gap is closable. The hard conditions are these.
+
+First, move theorem-critical bindings to 384 bits with split SHAKE256 domains.
+
+Second, replace vanilla FS/DFM20 by CTCO, with the Merkleized multi-round straight-line compiler as the only fallback.
+
+Third, expose the per-kind interactive protocol data needed to prove computational special soundness, quasi-unique response, and delayed message binding. The 2026 `(Γ_1,...,Γ_μ)`-special-sound line shows exactly the right interactive extractor geometry, and the 2024–2026 transparent SNARK non-malleability line shows the right k-ZK / k-UR / delayed-message shape; neither by itself closes your QROM gap, but together they tell you what the interactive theorem objects need to look like before the QROM compiler is applied. ([ir.cwi.nl][7])
+
+G. What the developers should add in Lean
+
+Add these new theorem surfaces.
+
+`ProductHashOracleInstantiation`
+`ProductInteractiveProtocolDefinitions`
+`ProductInteractiveSpecialSoundnessData`
+`ProductInteractiveDelayedMessageData`
+`ProductInteractiveUniqueResponseData`
+`ProductChallengeTapeCommitOpenCompiler`
+`ProductQROMTightTransform`
+`ProductQROMCollisionBound`
+`ProductQROMMalleabilityBound`
+`ProductQROMTotalLossInstantiated`
+`productSecurityTheorem_from_instantiated_qrom`
+
+The key structure fields are:
+
+`challengeOracleBits : Nat`
+`bindingOracleBits : Nat`
+`splitOraclesPinned : Prop`
+`theoremCriticalBindingsUseHBind : Prop`
+`compilerFamily : ProductCompilerFamily` with values `ctco | merkle_straightline`
+`interactiveProtocolKindSpecified : Prop`
+`specialSoundnessSpecified : Prop`
+`delayedMessageSpecified : Prop`
+`uniqueResponseSpecified : Prop`
+`sharedBadEventTagsPinned : Prop`
+
+The current `ProductFiatShamirLossAccounting` should no longer contain `n_kind`-based DFM20 data as the production target. Keep it only as a deprecated legacy family with `productionTransformClaimAllowed = false`.
+
+H. Manifest updates
+
+Add:
+
+`hashModel = "ideal-split-qro"`
+`concreteHashRecommendation = "SHAKE256-domain-separated"`
+`bindingDigestBits = 384`
+`challengeDigestBits = 256`
+`compilerFamily = "ctco"`
+`sharedBadEventTagsPinned = true`
+`proofKindMalleabilityFormula = "0; charged inside epsilon_collision"`
+`collisionTargetEventCount = 9`
+`collisionFormula = "4 * 9 * Q_H^2 / 2^384"`
+`interactiveLossChargedOutsideQROM = true`
+`legacyDFM20InterfaceDeprecated = true`
+
+Set these booleans only after the refactor and theorem closure:
+
+`digestCollisionBoundInstantiated = true`
+`proofKindMalleabilityBoundInstantiated = true`
+`interactiveSecurityBoundsInstantiated = true`
+`qromReductionLossWithinBudget = true`
+`totalLossBudgetIntegrated = true`
+
+Do not set
+
+`hashQROInstantiationProofProvided = true`
+
+unless you are actually claiming a concrete hash-to-QRO proof with numeric bounds. The honest setting is:
+
+`hashQROInstantiationAssumptionPinned = true`.
+
+Bottom line
+
+The team should stop spending effort on the present DFM20 path. The best theorem path is to redesign the proof compiler so the accepted proof kinds are compiled as 3-move delayed-message commit-and-open protocols with split SHAKE256 oracles and 384-bit theorem-critical bindings. If any residual legacy subprotocol cannot be brought into that shape quickly, compile that kind with the multi-round Merkle straight-line transform, not vanilla Fiat–Shamir. The current repo is mathematically blocked exactly where it says it is blocked; the route above is the one that closes the gap instead of renaming it.
+
+[1]: https://github.com/Numi2/SuperNeo-NuMetal "https://github.com/Numi2/SuperNeo-NuMetal"
+[2]: https://raw.githubusercontent.com/Numi2/SuperNeo-NuMetal/main/TestVectors/product-qrom-fiat-shamir-accounting-v1.json "https://raw.githubusercontent.com/Numi2/SuperNeo-NuMetal/main/TestVectors/product-qrom-fiat-shamir-accounting-v1.json"
+[3]: https://eprint.iacr.org/2025/731 "https://eprint.iacr.org/2025/731"
+[4]: https://arxiv.org/abs/2202.13730 "https://arxiv.org/abs/2202.13730"
+[5]: https://github.com/Numi2/SuperNeo-NuMetal/blob/main/Docs/CryptographicSecurityDossier-2026-04-16.md "https://github.com/Numi2/SuperNeo-NuMetal/blob/main/Docs/CryptographicSecurityDossier-2026-04-16.md"
+[6]: https://raw.githubusercontent.com/Numi2/SuperNeo-NuMetal/main/TestVectors/product-qrom-collision-malleability-evidence-v1.json "https://raw.githubusercontent.com/Numi2/SuperNeo-NuMetal/main/TestVectors/product-qrom-collision-malleability-evidence-v1.json"
+[7]: https://ir.cwi.nl/pub/36358/36358.pdf "https://ir.cwi.nl/pub/36358/36358.pdf"

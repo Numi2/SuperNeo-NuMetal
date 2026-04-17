@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for product QROM collision/malleability evidence validation."""
+"""Regression tests for product QROM H_bind collision/malleability validation."""
 
 from __future__ import annotations
 
@@ -58,63 +58,72 @@ def expect_failure(
         )
 
 
-def duplicate_envelope_kind(evidence: dict[str, Any]) -> None:
-    evidence["acceptedProofKinds"][4]["envelopeKind"] = 4
+def weak_binding_bits(evidence: dict[str, Any]) -> None:
+    evidence["bindingTargetBound"]["bindingDigestBits"] = 256
 
 
-def structural_closure_removed(evidence: dict[str, Any]) -> None:
-    evidence["closureStatus"]["structuralCollisionMalleabilityExcludedOutsideDigestCollision"] = False
+def wrong_target_count(evidence: dict[str, Any]) -> None:
+    evidence["bindingTargetBound"]["bindingTargetEventCount"] = 8
 
 
-def digest_bound_prematurely_enabled(evidence: dict[str, Any]) -> None:
-    evidence["closureStatus"]["digestCollisionBoundInstantiated"] = True
+def malleability_inside_qrom(evidence: dict[str, Any]) -> None:
+    evidence["residualEvents"]["epsilonProofKindMalleabilityInsideEpsilonQROM"] = True
+
+
+def digest_bound_removed(evidence: dict[str, Any]) -> None:
+    evidence["closureStatus"]["digestCollisionBoundInstantiated"] = False
+
+
+def source_prematurely_complete(evidence: dict[str, Any]) -> None:
+    evidence["closureStatus"]["sourceHBindImplementationComplete"] = True
 
 
 def production_claim_enabled(evidence: dict[str, Any]) -> None:
     evidence["closureStatus"]["productionQROMClaimAllowed"] = True
 
 
-def missing_formal_declaration(evidence: dict[str, Any]) -> None:
-    evidence["formalSurface"]["declarations"].remove("proofEnvelopeTranscriptBindingEncode_injective")
-
-
-def missing_residual_symbol(evidence: dict[str, Any]) -> None:
-    evidence["residualEvents"]["transcriptCollisionLossSymbol"] = "epsilon_qrom"
+def missing_binding_target(evidence: dict[str, Any]) -> None:
+    evidence["acceptedProofKinds"][4]["residualMalleabilityEvent"] = "requires collision"
 
 
 def main() -> None:
     subprocess.run([str(VALIDATE)], cwd=ROOT, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     expect_failure(
-        "duplicate envelope kind",
-        duplicate_envelope_kind,
-        "acceptedProofKinds must stay in the pinned proof-kind order",
+        "weak binding bits",
+        weak_binding_bits,
+        "bindingDigestBits must be 384",
     )
     expect_failure(
-        "structural closure removed",
-        structural_closure_removed,
-        "closureStatus.structuralCollisionMalleabilityExcludedOutsideDigestCollision must be true",
+        "wrong target count",
+        wrong_target_count,
+        "bindingTargetEventCount must be 9",
     )
     expect_failure(
-        "digest bound prematurely enabled",
-        digest_bound_prematurely_enabled,
-        "closureStatus.digestCollisionBoundInstantiated must remain false",
+        "malleability inside qrom",
+        malleability_inside_qrom,
+        "epsilonProofKindMalleabilityInsideEpsilonQROM must be false",
+    )
+    expect_failure(
+        "digest bound removed",
+        digest_bound_removed,
+        "closureStatus.digestCollisionBoundInstantiated must be true",
+    )
+    expect_failure(
+        "source prematurely complete",
+        source_prematurely_complete,
+        "closureStatus.sourceHBindImplementationComplete must be false",
     )
     expect_failure(
         "production claim enabled",
         production_claim_enabled,
-        "closureStatus.productionQROMClaimAllowed must remain false",
+        "closureStatus.productionQROMClaimAllowed must be false",
     )
     expect_failure(
-        "missing formal declaration",
-        missing_formal_declaration,
-        "formalSurface.declarations mismatch",
+        "missing binding target terminology",
+        missing_binding_target,
+        "residualMalleabilityEvent must use binding-target terminology",
     )
-    expect_failure(
-        "wrong residual symbol",
-        missing_residual_symbol,
-        "transcriptCollisionLossSymbol mismatch",
-    )
-    print("product QROM collision/malleability evidence validation regression tests passed")
+    print("product QROM H_bind collision/malleability validation regression tests passed")
 
 
 if __name__ == "__main__":

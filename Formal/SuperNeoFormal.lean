@@ -17,6 +17,8 @@ import SuperNeoFormal.ChallengeSampling
 import SuperNeoFormal.PiRLC
 import SuperNeoFormal.PiRLCSoundness
 import SuperNeoFormal.Phi81Split
+import SuperNeoFormal.Phi81CRT
+import SuperNeoFormal.PiRLCConcreteCollision
 import SuperNeoFormal.PiRLCFiniteSoundness
 import SuperNeoFormal.PiCCS
 import SuperNeoFormal.CCSSemantics

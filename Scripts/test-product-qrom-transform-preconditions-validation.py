@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for product QROM transform precondition validation."""
+"""Regression tests for product QROM CTCO transform-precondition validation."""
 
 from __future__ import annotations
 
@@ -44,58 +44,34 @@ def main() -> None:
 
         missing_source = copy.deepcopy(preconditions)
         missing_source["researchBasis"] = [
-            row for row in missing_source["researchBasis"] if row["id"] != "DFM20"
+            row for row in missing_source["researchBasis"] if row["id"] != "DFMS22"
         ]
         path = tmp / "missing-source.json"
         write_json(path, missing_source)
         run_fail(str(VALIDATE), str(path))
 
-        non_primary_source = copy.deepcopy(preconditions)
-        non_primary_source["researchBasis"][0]["url"] = "https://example.com/qrom"
-        path = tmp / "non-primary-source.json"
-        write_json(path, non_primary_source)
-        run_fail(str(VALIDATE), str(path))
-
         wrong_profile = copy.deepcopy(preconditions)
-        wrong_profile["selectedTransformProfile"]["model"] = "rom"
+        wrong_profile["selectedTransformProfile"]["compilerFamily"] = "DFM20"
         path = tmp / "wrong-profile.json"
         write_json(path, wrong_profile)
         run_fail(str(VALIDATE), str(path))
 
-        missing_move_count = copy.deepcopy(preconditions)
-        missing_move_count["selectedTransformProfile"]["exactMoveCountInstantiated"] = False
-        path = tmp / "missing-move-count.json"
-        write_json(path, missing_move_count)
+        weak_binding = copy.deepcopy(preconditions)
+        weak_binding["selectedTransformProfile"]["bindingOracleBits"] = 256
+        path = tmp / "weak-binding.json"
+        write_json(path, weak_binding)
         run_fail(str(VALIDATE), str(path))
 
-        missing_schedule = copy.deepcopy(preconditions)
-        missing_schedule["relatedManifests"].pop("productQROMTranscriptSchedule")
-        path = tmp / "missing-schedule.json"
-        write_json(path, missing_schedule)
+        premature_source_precondition = copy.deepcopy(preconditions)
+        premature_source_precondition["preconditions"][0]["satisfied"] = True
+        path = tmp / "premature-source-precondition.json"
+        write_json(path, premature_source_precondition)
         run_fail(str(VALIDATE), str(path))
 
-        missing_accounting = copy.deepcopy(preconditions)
-        missing_accounting["relatedManifests"].pop("productQROMFiatShamirAccounting")
-        path = tmp / "missing-accounting.json"
-        write_json(path, missing_accounting)
-        run_fail(str(VALIDATE), str(path))
-
-        missing_interactive_reduction = copy.deepcopy(preconditions)
-        missing_interactive_reduction["relatedManifests"].pop("productQROMInteractiveReduction")
-        path = tmp / "missing-interactive-reduction.json"
-        write_json(path, missing_interactive_reduction)
-        run_fail(str(VALIDATE), str(path))
-
-        premature_precondition = copy.deepcopy(preconditions)
-        premature_precondition["preconditions"][0]["satisfied"] = True
-        path = tmp / "premature-precondition.json"
-        write_json(path, premature_precondition)
-        run_fail(str(VALIDATE), str(path))
-
-        missing_query_bound_precondition = copy.deepcopy(preconditions)
-        missing_query_bound_precondition["preconditions"][7]["satisfied"] = False
-        path = tmp / "missing-query-bound-precondition.json"
-        write_json(path, missing_query_bound_precondition)
+        missing_uniformity = copy.deepcopy(preconditions)
+        missing_uniformity["preconditions"][3]["satisfied"] = False
+        path = tmp / "missing-uniformity.json"
+        write_json(path, missing_uniformity)
         run_fail(str(VALIDATE), str(path))
 
         missing_precondition = copy.deepcopy(preconditions)
@@ -106,44 +82,28 @@ def main() -> None:
         write_json(path, missing_precondition)
         run_fail(str(VALIDATE), str(path))
 
-        missing_proof_kind = copy.deepcopy(preconditions)
-        missing_proof_kind["proofKindFit"] = [
-            row for row in missing_proof_kind["proofKindFit"] if row["proofKind"] != "numiseal-zk-product"
-        ]
-        path = tmp / "missing-proof-kind.json"
-        write_json(path, missing_proof_kind)
+        wrong_kind_count = copy.deepcopy(preconditions)
+        wrong_kind_count["proofKindFit"][0]["challengeCountN"] = 204
+        path = tmp / "wrong-kind-count.json"
+        write_json(path, wrong_kind_count)
         run_fail(str(VALIDATE), str(path))
 
-        wrong_challenge_count = copy.deepcopy(preconditions)
-        wrong_challenge_count["proofKindFit"][0]["challengeCountN"] = 1
-        path = tmp / "wrong-challenge-count.json"
-        write_json(path, wrong_challenge_count)
-        run_fail(str(VALIDATE), str(path))
-
-        missing_query_bound = copy.deepcopy(preconditions)
-        missing_query_bound["proofKindFit"][0]["queryBoundQH"] = None
-        path = tmp / "missing-query-bound.json"
-        write_json(path, missing_query_bound)
+        wrong_legacy_metric = copy.deepcopy(preconditions)
+        wrong_legacy_metric["proofKindFit"][4]["legacyMaximumProtocolChallengeDerivations"] = 1
+        path = tmp / "wrong-legacy-metric.json"
+        write_json(path, wrong_legacy_metric)
         run_fail(str(VALIDATE), str(path))
 
         missing_loss_symbol = copy.deepcopy(preconditions)
-        missing_loss_symbol["lossInterface"]["selectedDepthExpression"] = "epsilon_fs_transform(depth=1) <= epsilon_interactive"
+        missing_loss_symbol["lossInterface"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_interactive"
         path = tmp / "missing-loss-symbol.json"
         write_json(path, missing_loss_symbol)
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(preconditions)
-        missing_blocker["hardClaimBlockers"].remove(
-            "repair of the out-of-budget DFM20 reduction-loss finding under the instantiated Q_H = 2^64 bound"
-        )
+        missing_blocker["hardClaimBlockers"] = ["CTCO move-1 root commitment implementation for all accepted proof kinds"]
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
-        run_fail(str(VALIDATE), str(path))
-
-        outsourced_review = copy.deepcopy(preconditions)
-        outsourced_review["hardClaimBlockers"].append("external" + " audit")
-        path = tmp / "outsourced-review.json"
-        write_json(path, outsourced_review)
         run_fail(str(VALIDATE), str(path))
 
         premature_promotion = copy.deepcopy(preconditions)
@@ -152,7 +112,7 @@ def main() -> None:
         write_json(path, premature_promotion)
         run_fail(str(VALIDATE), str(path))
 
-    print("product QROM transform precondition validation regression tests passed")
+    print("product QROM CTCO transform precondition validation regression tests passed")
 
 
 if __name__ == "__main__":

@@ -109,10 +109,10 @@
     {
       "id": "fiat-shamir-qrom",
       "appliesPerAcceptedLayer": true,
-      "status": "qrom-accounting-and-transcript-schedule-contracts-pinned-loss-instantiation-open",
+      "status": "ctco-split-qro-contract-pinned-source-implementation-open",
       "lossSymbol": "epsilon_qrom",
-      "accountingRule": "one QROM Fiat-Shamir transform loss per accepted product transcript plus transcript collision loss",
-      "requiredEvidence": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json, TestVectors/product-qrom-transcript-schedule-v1.json, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, and TestVectors/product-qrom-collision-malleability-evidence-v1.json plus transform preconditions, per-kind interactive security bounds, a QROM reduction loss that fits the selected total-loss budget, and numeric digest collision/proof-kind malleability bound",
+      "accountingRule": "one CTCO split-QRO transform overhead per accepted product transcript; interactive soundness is charged outside epsilon_qrom and binding failures are exported to epsilon_collision",
+      "requiredEvidence": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json, TestVectors/product-qrom-transcript-schedule-v1.json, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, and TestVectors/product-qrom-collision-malleability-evidence-v1.json plus CTCO move-1 root implementation, migration of acceptance-critical verifier comparisons to 384-bit H_bind, per-kind interactive security bounds, delayed-message/unique-response data, and epsilon_compiler_overhead instantiation",
       "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
       "productionClaimAllowed": false
     },
@@ -129,10 +129,10 @@
     {
       "id": "transcript-collision-domain-separation",
       "appliesPerAcceptedLayer": false,
-      "status": "structural-collision-evidence-pinned-numeric-bound-open",
+      "status": "hbind-collision-bound-instantiated-source-hbind-open",
       "lossSymbol": "epsilon_collision",
-      "accountingRule": "one global transcript collision and proof-kind malleability exclusion term is mapped from the QROM Fiat-Shamir accounting manifest into the selected-depth total budget",
-      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json plus TestVectors/product-qrom-fiat-shamir-accounting-v1.json ledgerTermMapping and TestVectors/product-qrom-transcript-schedule-v1.json labels; structural binding is pinned and numeric digest collision/proof-kind malleability bound remains open",
+      "accountingRule": "one global 384-bit H_bind target-failure term is mapped from the QROM accounting manifest into the selected-depth total budget; proof-kind malleability is zero outside this binding-target ledger",
+      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json plus TestVectors/product-qrom-fiat-shamir-accounting-v1.json ledgerTermMapping and TestVectors/product-qrom-transcript-schedule-v1.json labels; structural binding is pinned and the H_bind target bound is 36 * 2^-256, while source H_bind implementation remains open",
       "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
       "productionClaimAllowed": false
     },
@@ -173,8 +173,8 @@
   },
   "hardClaimBlockers": [
     "selected-depth extractor instantiation",
-    "QROM transcript schedule, transform preconditions, interactive reduction, and Fiat-Shamir loss accounting",
-    "numeric transcript collision and proof-kind malleability bound",
+    "QROM CTCO root/H_bind source implementation, transform preconditions, interactive reduction, and split-QRO accounting",
+    "CTCO interactive special-soundness, delayed-message, unique-response, and compiler-overhead instantiation",
     "selected total-loss budget instantiation",
     "full ZK simulator composition",
     "hosted product operations replay and revocation freshness",

@@ -32,6 +32,31 @@
       "ProductQROMInteractiveReductionAccepted",
       "ProductFiatShamirLossAccounting",
       "ProductFiatShamirLossAccountingAccepted",
+      "ProductQROMTransformFamily",
+      "ProductCompilerFamily",
+      "ProductHashOracleInstantiation",
+      "ProductHashOracleInstantiationAccepted",
+      "ProductInteractiveProtocolDefinitions",
+      "ProductInteractiveProtocolDefinitionsAccepted",
+      "ProductInteractiveSpecialSoundnessData",
+      "ProductInteractiveSpecialSoundnessDataAccepted",
+      "ProductInteractiveDelayedMessageData",
+      "ProductInteractiveDelayedMessageDataAccepted",
+      "ProductInteractiveUniqueResponseData",
+      "ProductInteractiveUniqueResponseDataAccepted",
+      "ProductChallengeTapeCommitOpenCompiler",
+      "ProductChallengeTapeCommitOpenCompilerAccepted",
+      "ProductQROMCollisionBound",
+      "ProductQROMCollisionBoundAccepted",
+      "ProductQROMMalleabilityBound",
+      "ProductQROMMalleabilityBoundAccepted",
+      "ProductInteractiveSecurityBounds",
+      "ProductInteractiveSecurityBoundsAccepted",
+      "ProductQROMTotalLossInstantiated",
+      "ProductQROMTotalLossInstantiatedAccepted",
+      "ProductInstantiatedQROMEvidence",
+      "ProductInstantiatedQROMEvidenceAccepted",
+      "ProductQROMTightTransform",
       "ProductTotalLossBudget",
       "ProductTotalLossBudgetAccepted",
       "ProductReleaseDistributionEvidence",
@@ -48,7 +73,8 @@
       "productSecurityTheorem_requires_total_loss_budget",
       "productSecurityTheorem_requires_release_distribution_evidence",
       "productSecurityTheorem_requires_qrom_accounting",
-      "productSecurityTheorem_requires_artifact_envelope_binding"
+      "productSecurityTheorem_requires_artifact_envelope_binding",
+      "productSecurityTheorem_from_instantiated_qrom"
     ]
   },
   "relatedManifests": {
@@ -199,14 +225,19 @@
     ]
   },
   "fiatShamirQROMPosition": {
-    "model": "qrom",
+    "model": "ideal-split-qro",
     "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "transformPreconditionManifest": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "samplerEncodingEvidenceManifest": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "collisionMalleabilityEvidenceManifest": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-    "claimStatus": "qrom-fiat-shamir-loss-contract-not-production-claim",
+    "claimStatus": "qrom-ctco-split-qro-contract-not-production-claim",
+    "transformFamily": "ctco",
+    "fallbackTransformFamily": "merkle-straightline",
+    "challengeOracleBits": 256,
+    "bindingOracleBits": 384,
+    "bindingTargetEventCount": 9,
     "interactiveProtocolSpecified": true,
     "publicCoinChallengeScheduleSpecified": true,
     "transformPreconditionsSatisfied": false,
@@ -217,24 +248,29 @@
     "transcriptDomainSeparatorsBound": true,
     "proofKindSeparationBound": true,
     "structuralTranscriptCollisionMalleabilityExcluded": true,
-    "transcriptCollisionMalleabilityExcluded": false,
-    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability where epsilon_fs_transform = max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
+    "transcriptCollisionMalleabilityExcluded": true,
+    "interactiveLossChargedOutsideQROM": true,
+    "hashQROInstantiationAssumptionPinned": true,
+    "hashQROInstantiationProofProvided": false,
+    "legacyDFM20InterfaceDeprecated": true,
+    "sourceHBindImplementationComplete": false,
+    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_compiler_overhead + epsilon_hash_model_gap",
     "ledgerTermMapping": {
       "epsilon_qrom": [
-        "epsilon_fs_transform",
-        "epsilon_qro_queries",
-        "epsilon_proof_kind_malleability"
+        "epsilon_compiler_overhead",
+        "epsilon_hash_model_gap"
       ],
       "epsilon_collision": [
-        "epsilon_transcript_collision"
+        "epsilon_bind"
       ]
     },
     "productionQROMClaimAllowed": false,
     "remainingObligations": [
-      "repair or replace the DFM20 numeric reduction budget in the interactive reduction manifest now that TestVectors/product-qrom-interactive-reduction-v1.json instantiates code-enforced NumiSeal challenge-count maxima",
-      "close TestVectors/product-qrom-transform-preconditions-v1.json by proving theorem-family fit, underlying interactive security, simulator preconditions, numeric digest collision/malleability bounds, and QROM loss instantiation",
-      "repair or replace the current DFM20 QROM loss model so the instantiated quantum random-oracle bound Q_H = 2^64 and selected-depth challenge schedule fit the total-loss budget",
-      "instantiate a concrete hash/QRO collision bound for the residual events exported by TestVectors/product-qrom-collision-malleability-evidence-v1.json"
+      "implement CTCO move-1 root commitments over all challenge-independent witness-dependent trace blocks for every accepted proof kind",
+      "route every theorem-critical equality check through 384-bit H_bind over versioned framed encodings in source verifier paths",
+      "instantiate interactive special-soundness, delayed-message, and unique-response data for the CTCO product protocols",
+      "instantiate epsilon_compiler_overhead and epsilon_hash_model_gap for the selected split-QRO CTCO theorem family",
+      "keep repo-wide epsilon_replay, epsilon_ct, and epsilon_release outside the QROM theorem until their evidence closes"
     ]
   },
   "totalLossBudget": {
@@ -248,7 +284,7 @@
     "productionTotalLossClaimAllowed": false,
     "remainingObligations": [
       "instantiate numeric loss bounds for every required selected-depth term",
-      "keep epsilon_collision mapped from epsilon_transcript_collision rather than double-counted inside epsilon_qrom",
+      "keep epsilon_collision mapped from epsilon_bind rather than double-counted inside epsilon_qrom",
       "prove the exact selected-depth rational sum is at most 2^-128 before any production security claim",
       "update the selected-depth ledger and release evidence with the computed budget result"
     ]

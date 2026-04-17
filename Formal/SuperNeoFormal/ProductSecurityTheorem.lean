@@ -19,6 +19,16 @@ inductive ProductFiatShamirModel where
   | qrom
   deriving DecidableEq, Repr
 
+inductive ProductQROMTransformFamily where
+  | dfm20
+  | commitOpenTight
+  | openAndSign
+  | ctco
+  | merkleStraightline
+  deriving DecidableEq, Repr
+
+abbrev ProductCompilerFamily := ProductQROMTransformFamily
+
 inductive ProductRecursionDepthModel where
   | boundedDepth
   | polynomialDepth
@@ -126,6 +136,235 @@ def ProductExtractorLossAccountingAccepted
     ∧ accounting.rewindScheduleBoundToTranscript
     ∧ accounting.extractorFailureLossAccounted
     ∧ accounting.extractorLossWithinBudget
+
+structure ProductHashOracleInstantiation where
+  challengeOracleBits : Nat
+  bindingOracleBits : Nat
+  bindingTargetEventCount : Nat
+  splitOraclesPinned : Prop
+  theoremCriticalBindingsUseHBind : Prop
+  framedEncodingInjective : Prop
+  proofKindBytesInjective : Prop
+  challengeDomainsSeparated : Prop
+  bindingDomainsSeparated : Prop
+  bindingTargetEventCountPinned : Prop
+  concreteHashRecommendationPinned : Prop
+  hashQROInstantiationAssumptionPinned : Prop
+  hashQROInstantiationProofProvided : Prop
+
+def ProductHashOracleInstantiationAccepted
+    (hashes : ProductHashOracleInstantiation) : Prop :=
+  hashes.challengeOracleBits = 256
+    ∧ hashes.bindingOracleBits = 384
+    ∧ hashes.bindingTargetEventCount = 9
+    ∧ hashes.splitOraclesPinned
+    ∧ hashes.theoremCriticalBindingsUseHBind
+    ∧ hashes.framedEncodingInjective
+    ∧ hashes.proofKindBytesInjective
+    ∧ hashes.challengeDomainsSeparated
+    ∧ hashes.bindingDomainsSeparated
+    ∧ hashes.bindingTargetEventCountPinned
+    ∧ hashes.concreteHashRecommendationPinned
+    ∧ hashes.hashQROInstantiationAssumptionPinned
+
+structure ProductInteractiveProtocolDefinitions where
+  selectedDepth : Nat
+  acceptedProofKindsPinned : Prop
+  allKindsThreeMovePublicCoin : Prop
+  oneChallengeSeedPerKind : Prop
+  moveOneRootCommitmentSpecified : Prop
+  challengeTapeExpansionSpecified : Prop
+  verifierChecksRootOpenings : Prop
+  compressedTerminalCanonicalDecompression : Prop
+  typedCarryBinderSpecified : Prop
+  productionProtocolImplementationComplete : Prop
+
+def ProductInteractiveProtocolDefinitionsAccepted
+    (protocols : ProductInteractiveProtocolDefinitions) : Prop :=
+  (0 < protocols.selectedDepth)
+    ∧ protocols.acceptedProofKindsPinned
+    ∧ protocols.allKindsThreeMovePublicCoin
+    ∧ protocols.oneChallengeSeedPerKind
+    ∧ protocols.moveOneRootCommitmentSpecified
+    ∧ protocols.challengeTapeExpansionSpecified
+    ∧ protocols.verifierChecksRootOpenings
+    ∧ protocols.compressedTerminalCanonicalDecompression
+    ∧ protocols.typedCarryBinderSpecified
+    ∧ protocols.productionProtocolImplementationComplete
+
+structure ProductInteractiveSpecialSoundnessData where
+  foldExtractorTargetSpecified : Prop
+  terminalExtractorTargetSpecified : Prop
+  compressedTerminalExtractorTargetSpecified : Prop
+  numiSealTerminalExtractorTargetSpecified : Prop
+  numiSealZKProductExtractorTargetSpecified : Prop
+  quantumDishonestProverBoundInstantiated : Prop
+
+def ProductInteractiveSpecialSoundnessDataAccepted
+    (data : ProductInteractiveSpecialSoundnessData) : Prop :=
+  data.foldExtractorTargetSpecified
+    ∧ data.terminalExtractorTargetSpecified
+    ∧ data.compressedTerminalExtractorTargetSpecified
+    ∧ data.numiSealTerminalExtractorTargetSpecified
+    ∧ data.numiSealZKProductExtractorTargetSpecified
+    ∧ data.quantumDishonestProverBoundInstantiated
+
+structure ProductInteractiveDelayedMessageData where
+  artifactBindingDelayedMessageSound : Prop
+  provenanceBindingDelayedMessageSound : Prop
+  replayBindingDelayedMessageSound : Prop
+  componentRootDelayedMessageSound : Prop
+  randomnessSessionDelayedMessageSound : Prop
+  leakageDelayedMessageSound : Prop
+  carryDelayedMessageSound : Prop
+
+def ProductInteractiveDelayedMessageDataAccepted
+    (data : ProductInteractiveDelayedMessageData) : Prop :=
+  data.artifactBindingDelayedMessageSound
+    ∧ data.provenanceBindingDelayedMessageSound
+    ∧ data.replayBindingDelayedMessageSound
+    ∧ data.componentRootDelayedMessageSound
+    ∧ data.randomnessSessionDelayedMessageSound
+    ∧ data.leakageDelayedMessageSound
+    ∧ data.carryDelayedMessageSound
+
+structure ProductInteractiveUniqueResponseData where
+  foldUniqueResponseSpecified : Prop
+  terminalUniqueResponseSpecified : Prop
+  compressedTerminalUniqueResponseSpecified : Prop
+  numiSealTerminalUniqueResponseSpecified : Prop
+  numiSealZKProductUniqueResponseSpecified : Prop
+
+def ProductInteractiveUniqueResponseDataAccepted
+    (data : ProductInteractiveUniqueResponseData) : Prop :=
+  data.foldUniqueResponseSpecified
+    ∧ data.terminalUniqueResponseSpecified
+    ∧ data.compressedTerminalUniqueResponseSpecified
+    ∧ data.numiSealTerminalUniqueResponseSpecified
+    ∧ data.numiSealZKProductUniqueResponseSpecified
+
+structure ProductChallengeTapeCommitOpenCompiler where
+  compilerFamily : ProductCompilerFamily
+  challengeSeedBits : Nat
+  bindingDigestBits : Nat
+  merkleNodeDigestBits : Nat
+  compilerFamilyPinned : Prop
+  firstMessageBindsAllChallengeIndependentMaterial : Prop
+  singleSeedChallengeTapePinned : Prop
+  lateMessageBindingPinned : Prop
+  tightQROMTransformBounded : Prop
+  legacyDFM20InterfaceDeprecated : Prop
+
+def ProductChallengeTapeCommitOpenCompilerAccepted
+    (compiler : ProductChallengeTapeCommitOpenCompiler) : Prop :=
+  (compiler.compilerFamily = ProductQROMTransformFamily.ctco
+      ∨ compiler.compilerFamily = ProductQROMTransformFamily.merkleStraightline)
+    ∧ compiler.challengeSeedBits = 256
+    ∧ compiler.bindingDigestBits = 384
+    ∧ compiler.merkleNodeDigestBits = 384
+    ∧ compiler.compilerFamilyPinned
+    ∧ compiler.firstMessageBindsAllChallengeIndependentMaterial
+    ∧ compiler.singleSeedChallengeTapePinned
+    ∧ compiler.lateMessageBindingPinned
+    ∧ compiler.tightQROMTransformBounded
+    ∧ compiler.legacyDFM20InterfaceDeprecated
+
+structure ProductQROMCollisionBound where
+  queryBoundQHLog2 : Nat
+  bindingDigestBits : Nat
+  bindingTargetEventCount : Nat
+  collisionFormulaPinned : Prop
+  collisionBoundInstantiated : Prop
+  collisionBoundWithinBudget : Prop
+
+def ProductQROMCollisionBoundAccepted
+    (bound : ProductQROMCollisionBound) : Prop :=
+  bound.queryBoundQHLog2 = 64
+    ∧ bound.bindingDigestBits = 384
+    ∧ bound.bindingTargetEventCount = 9
+    ∧ bound.collisionFormulaPinned
+    ∧ bound.collisionBoundInstantiated
+    ∧ bound.collisionBoundWithinBudget
+
+structure ProductQROMMalleabilityBound where
+  proofKindMalleabilityChargedToCollisionLedger : Prop
+  proofKindMalleabilityFormulaZero : Prop
+  crossKindSwapsRequireBindingTargetEvent : Prop
+  crossDomainSwapsRequireBindingTargetEvent : Prop
+  crossSessionSwapsRequireBindingTargetEvent : Prop
+  crossCarrySwapsRequireBindingTargetEvent : Prop
+
+def ProductQROMMalleabilityBoundAccepted
+    (bound : ProductQROMMalleabilityBound) : Prop :=
+  bound.proofKindMalleabilityChargedToCollisionLedger
+    ∧ bound.proofKindMalleabilityFormulaZero
+    ∧ bound.crossKindSwapsRequireBindingTargetEvent
+    ∧ bound.crossDomainSwapsRequireBindingTargetEvent
+    ∧ bound.crossSessionSwapsRequireBindingTargetEvent
+    ∧ bound.crossCarrySwapsRequireBindingTargetEvent
+
+structure ProductInteractiveSecurityBounds where
+  interactiveLossChargedOutsideQROM : Prop
+  sharedBadEventTagsPinned : Prop
+  moduleSISSharedEventDeduplicated : Prop
+  foldInteractiveBoundInstantiated : Prop
+  terminalInteractiveBoundInstantiated : Prop
+  compressedTerminalInteractiveBoundInstantiated : Prop
+  numiSealTerminalInteractiveBoundInstantiated : Prop
+  numiSealZKProductInteractiveBoundInstantiated : Prop
+
+def ProductInteractiveSecurityBoundsAccepted
+    (bounds : ProductInteractiveSecurityBounds) : Prop :=
+  bounds.interactiveLossChargedOutsideQROM
+    ∧ bounds.sharedBadEventTagsPinned
+    ∧ bounds.moduleSISSharedEventDeduplicated
+    ∧ bounds.foldInteractiveBoundInstantiated
+    ∧ bounds.terminalInteractiveBoundInstantiated
+    ∧ bounds.compressedTerminalInteractiveBoundInstantiated
+    ∧ bounds.numiSealTerminalInteractiveBoundInstantiated
+    ∧ bounds.numiSealZKProductInteractiveBoundInstantiated
+
+structure ProductQROMTotalLossInstantiated where
+  hashModelGapZeroInIdealSplitQRO : Prop
+  compilerOverheadWithinBudget : Prop
+  qromExtraLossOnly : Prop
+  collisionLedgerIntegrated : Prop
+  cryptographicSliceWithinBudget : Prop
+  repoWideNonMathTermsClosed : Prop
+
+def ProductQROMTotalLossInstantiatedAccepted
+    (loss : ProductQROMTotalLossInstantiated) : Prop :=
+  loss.hashModelGapZeroInIdealSplitQRO
+    ∧ loss.compilerOverheadWithinBudget
+    ∧ loss.qromExtraLossOnly
+    ∧ loss.collisionLedgerIntegrated
+    ∧ loss.cryptographicSliceWithinBudget
+    ∧ loss.repoWideNonMathTermsClosed
+
+structure ProductInstantiatedQROMEvidence where
+  hashInstantiation : ProductHashOracleInstantiation
+  protocolDefinitions : ProductInteractiveProtocolDefinitions
+  specialSoundnessData : ProductInteractiveSpecialSoundnessData
+  delayedMessageData : ProductInteractiveDelayedMessageData
+  uniqueResponseData : ProductInteractiveUniqueResponseData
+  compiler : ProductChallengeTapeCommitOpenCompiler
+  collisionBound : ProductQROMCollisionBound
+  malleabilityBound : ProductQROMMalleabilityBound
+  interactiveBounds : ProductInteractiveSecurityBounds
+  totalLoss : ProductQROMTotalLossInstantiated
+
+def ProductInstantiatedQROMEvidenceAccepted
+    (evidence : ProductInstantiatedQROMEvidence) : Prop :=
+  ProductHashOracleInstantiationAccepted evidence.hashInstantiation
+    ∧ ProductInteractiveProtocolDefinitionsAccepted evidence.protocolDefinitions
+    ∧ ProductInteractiveSpecialSoundnessDataAccepted evidence.specialSoundnessData
+    ∧ ProductInteractiveDelayedMessageDataAccepted evidence.delayedMessageData
+    ∧ ProductInteractiveUniqueResponseDataAccepted evidence.uniqueResponseData
+    ∧ ProductChallengeTapeCommitOpenCompilerAccepted evidence.compiler
+    ∧ ProductQROMCollisionBoundAccepted evidence.collisionBound
+    ∧ ProductQROMMalleabilityBoundAccepted evidence.malleabilityBound
+    ∧ ProductInteractiveSecurityBoundsAccepted evidence.interactiveBounds
+    ∧ ProductQROMTotalLossInstantiatedAccepted evidence.totalLoss
 
 structure ProductFiatShamirTranscriptSchedule where
   selectedDepth : Nat
@@ -454,6 +693,97 @@ theorem productSecurityTheorem_requires_extractor_loss_accounting
       hExtractorLoss,
       hBudget⟩
   exact ⟨hSourceFold, hTerminalSeal, hProductEnvelope, hExtractorLoss, hBudget⟩
+
+theorem ProductQROMTightTransform
+    {evidence : ProductInstantiatedQROMEvidence}
+    (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence) :
+    evidence.compiler.tightQROMTransformBounded
+      ∧ evidence.hashInstantiation.splitOraclesPinned
+      ∧ evidence.hashInstantiation.theoremCriticalBindingsUseHBind
+      ∧ evidence.interactiveBounds.interactiveLossChargedOutsideQROM
+      ∧ evidence.malleabilityBound.proofKindMalleabilityChargedToCollisionLedger
+      ∧ evidence.collisionBound.collisionBoundWithinBudget := by
+  rcases hEvidence with
+    ⟨hHash,
+      _,
+      _,
+      _,
+      _,
+      hCompiler,
+      hCollision,
+      hMalleability,
+      hInteractive,
+      _⟩
+  rcases hHash with
+    ⟨_,
+      _,
+      _,
+      hSplit,
+      hHBind,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _⟩
+  rcases hCompiler with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hTight,
+      _⟩
+  rcases hCollision with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      hCollisionBudget⟩
+  rcases hMalleability with
+    ⟨hMalleabilityCharged, _, _, _, _, _⟩
+  rcases hInteractive with
+    ⟨hInteractiveOutside, _, _, _, _, _, _, _⟩
+  exact
+    ⟨hTight,
+      hSplit,
+      hHBind,
+      hInteractiveOutside,
+      hMalleabilityCharged,
+      hCollisionBudget⟩
+
+theorem productSecurityTheorem_from_instantiated_qrom
+    {evidence : ProductInstantiatedQROMEvidence}
+    (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence) :
+    evidence.totalLoss.cryptographicSliceWithinBudget
+      ∧ evidence.totalLoss.collisionLedgerIntegrated
+      ∧ evidence.interactiveBounds.sharedBadEventTagsPinned := by
+  rcases hEvidence with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hInteractive,
+      hLoss⟩
+  rcases hInteractive with
+    ⟨_, hSharedTags, _, _, _, _, _, _⟩
+  rcases hLoss with
+    ⟨_,
+      _,
+      _,
+      hCollisionIntegrated,
+      hCryptographicBudget,
+      _⟩
+  exact ⟨hCryptographicBudget, hCollisionIntegrated, hSharedTags⟩
 
 theorem productSecurityTheorem_requires_qrom_loss_accounting
     {accounting : ProductFiatShamirLossAccounting}

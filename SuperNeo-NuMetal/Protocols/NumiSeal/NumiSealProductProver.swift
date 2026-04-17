@@ -547,6 +547,25 @@ public struct NumiSealProductRecursiveCarryReplayBinding: Equatable, Hashable, S
         return Digest256.hash(bytes)
     }
 
+    public var hBindBindingDigest: Digest384 {
+        SuperNeoSplitQRO.hBind(
+            domain: "superneo/numiseal/ctco/carry/replay-binding/v2",
+            frames: [
+                Array("SuperNeo-NuMetal.numiseal.product.recursive-carry.replay-binding.v1".utf8),
+                parentArtifactDigest.superNeoBytes,
+                parentSourceFoldEnvelopeDigest.superNeoBytes,
+                parentProductProofEnvelopeDigest.superNeoBytes,
+                parentProducerProofEnvelopeDigest.superNeoBytes,
+                parentPublicStatementDigest.superNeoBytes,
+                consumerSessionDigest.superNeoBytes,
+                numiSealEncodeCount(nextRecursionLevel),
+                numiSealEncodeCount(claimCount),
+                contextRoot.superNeoBytes,
+                replayRoot.superNeoBytes
+            ]
+        )
+    }
+
     init(metadata: [String: String]) throws {
         try self.init(
             parentArtifactDigest: Self.digest(

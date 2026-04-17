@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "preconditionID": "superneo-product-qrom-transform-preconditions-v1",
-  "claimStatus": "qrom-transform-precondition-dossier-not-production-claim",
+  "claimStatus": "qrom-ctco-transform-precondition-contract-not-production-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -20,46 +20,22 @@
     "declarations": [
       "ProductFiatShamirTransformPreconditions",
       "ProductFiatShamirTransformPreconditionsAccepted",
+      "ProductQROMTransformFamily",
+      "ProductCompilerFamily",
+      "ProductChallengeTapeCommitOpenCompiler",
+      "ProductChallengeTapeCommitOpenCompilerAccepted",
+      "ProductInteractiveProtocolDefinitions",
+      "ProductInteractiveProtocolDefinitionsAccepted",
+      "ProductInteractiveSpecialSoundnessData",
+      "ProductInteractiveSpecialSoundnessDataAccepted",
+      "ProductInteractiveDelayedMessageData",
+      "ProductInteractiveDelayedMessageDataAccepted",
+      "ProductInteractiveUniqueResponseData",
+      "ProductInteractiveUniqueResponseDataAccepted",
       "productSecurityTheorem_requires_qrom_transform_preconditions"
     ]
   },
   "researchBasis": [
-    {
-      "id": "DFMS19",
-      "title": "Security of the Fiat-Shamir Transformation in the Quantum Random-Oracle Model",
-      "authors": "Jelle Don, Serge Fehr, Christian Majenz, Christian Schaffner",
-      "venue": "IACR Cryptology ePrint Archive 2019/190",
-      "url": "https://eprint.iacr.org/2019/190",
-      "usedFor": [
-        "three-round Sigma-protocol QROM preservation target",
-        "proof-of-knowledge against quantum dishonest provers",
-        "natural-property checklist for Fiat-Shamir signatures and proofs"
-      ]
-    },
-    {
-      "id": "DFM20",
-      "title": "The Measure-and-Reprogram Technique 2.0: Multi-Round Fiat-Shamir and More",
-      "authors": "Jelle Don, Serge Fehr, Christian Majenz",
-      "venue": "IACR Cryptology ePrint Archive 2020/282",
-      "url": "https://eprint.iacr.org/2020/282",
-      "usedFor": [
-        "constant-round public-coin multi-round Fiat-Shamir target",
-        "O(q^(2n)) multiplicative QROM loss shape for (2n + 1)-move protocols",
-        "multi-input reprogramming and ordered transcript extraction obligations"
-      ]
-    },
-    {
-      "id": "Unruh17",
-      "title": "Post-Quantum Security of Fiat-Shamir",
-      "authors": "Dominique Unruh",
-      "venue": "IACR Cryptology ePrint Archive 2017/398",
-      "url": "https://eprint.iacr.org/2017/398",
-      "usedFor": [
-        "post-quantum Fiat-Shamir caution boundary",
-        "computational zero-knowledge and statistical soundness requirement variants",
-        "explicit extractability caveat for Fiat-Shamir proof systems"
-      ]
-    },
     {
       "id": "DFMS22",
       "title": "Efficient NIZKs and Signatures from Commit-and-Open Protocols in the QROM",
@@ -67,47 +43,96 @@
       "venue": "arXiv:2202.13730",
       "url": "https://arxiv.org/abs/2202.13730",
       "usedFor": [
-        "commit-and-open QROM online-extractability comparison target",
-        "future tighter extractor track if product proofs are recast as commit-and-open Sigma protocols"
+        "commit-and-open QROM online-extractability target",
+        "tight transform family after a binding first message"
+      ]
+    },
+    {
+      "id": "RotemTessaro",
+      "title": "Straight-line multi-round QROM transform fallback",
+      "authors": "Rotem and Tessaro",
+      "venue": "arXiv-linked straight-line QROM literature",
+      "url": "https://arxiv.org/abs/2202.13730",
+      "usedFor": [
+        "fallback compiler for legacy subprotocols that cannot be converted to CTCO quickly",
+        "avoid vanilla multi-round Fiat-Shamir q^(2n) loss"
+      ]
+    },
+    {
+      "id": "SpongeQRO",
+      "title": "Quantum indifferentiability basis for sponge-style random oracles",
+      "authors": "primary sponge/QRO literature",
+      "venue": "IACR ePrint 2025/731",
+      "url": "https://eprint.iacr.org/2025/731",
+      "usedFor": [
+        "SHAKE256-domain-separated implementation recommendation",
+        "avoid SHA-256-as-QRO production theorem claim"
+      ]
+    },
+    {
+      "id": "DFM20-legacy",
+      "title": "The Measure-and-Reprogram Technique 2.0: Multi-Round Fiat-Shamir and More",
+      "authors": "Jelle Don, Serge Fehr, Christian Majenz",
+      "venue": "IACR Cryptology ePrint Archive 2020/282",
+      "url": "https://eprint.iacr.org/2020/282",
+      "usedFor": [
+        "legacy fail-closed comparison",
+        "documents why DFM20 is not the selected production theorem family"
       ]
     }
   ],
   "selectedTransformProfile": {
-    "model": "qrom",
-    "profile": "constant-round public-coin interactive proof via measure-and-reprogram",
+    "model": "ideal-split-qro",
+    "profile": "challenge-tape commit-and-open with delayed message binding",
+    "compilerFamily": "ctco",
+    "fallbackFamily": "merkle-straightline",
     "selectedDepth": 1,
     "acceptedTheoremFamilies": [
-      "three-round Sigma protocol with O(Q_H^2) QROM loss when every accepted product proof kind is proven to fit the Sigma-protocol hypotheses",
-      "multi-round public-coin interactive proof with DFM20 ((2*Q_H+n+1)^(2n) / n!) QROM loss for a (2n + 1)-move schedule when exact round count and ordered extraction are instantiated"
+      "CTCO 3-move public-coin commit-and-open protocol with one 256-bit seed challenge",
+      "Merkle straight-line multi-round compiler only as fallback for legacy subprotocols"
     ],
-    "currentSelectedFamily": "multi-round-public-coin-fail-closed",
+    "currentSelectedFamily": "ctco",
     "exactMoveCountInstantiated": true,
-    "challengeCountSymbol": "n",
+    "challengeCountSymbol": "one-seed",
     "quantumOracleQuerySymbol": "Q_H",
-    "selectedLossShape": "epsilon_fs_transform <= ((2*Q_H+n+1)^(2n) / n!) * epsilon_interactive + n! / 2^256 + epsilon_precondition",
-    "exactConstantInstantiated": true,
+    "selectedLossShape": "epsilon_qrom = epsilon_compiler_overhead + epsilon_hash_model_gap; no DFM20 q^(2n) or factorial term",
+    "challengeOracleBits": 256,
+    "bindingOracleBits": 384,
+    "merkleNodeBits": 384,
+    "interactiveLossChargedOutsideQROM": true,
+    "legacyDFM20InterfaceDeprecated": true,
     "productionTransformClaimAllowed": false
   },
   "preconditions": [
     {
-      "id": "public-coin-interactive-protocol",
-      "status": "interactive-reduction-pinned-proof-open",
+      "id": "ctco-public-coin-protocol",
+      "status": "target-specified-source-implementation-open",
       "required": true,
       "satisfied": false,
-      "evidence": "TestVectors/product-qrom-interactive-reduction-v1.json pins the public-coin prover-message, verifier-coin, and verifier-check schedule for every accepted proof kind; theorem-family fit proof remains open",
+      "evidence": "TestVectors/product-qrom-interactive-reduction-v1.json specifies the 3-move CTCO target, but source proof bodies do not yet include Root_k for all challenge-independent witness-dependent trace blocks",
       "sourceBasis": [
-        "DFMS19",
-        "DFM20"
+        "DFMS22"
       ]
     },
     {
-      "id": "constant-round-odd-message-schedule",
-      "status": "interactive-reduction-pinned-proof-open",
+      "id": "single-seed-challenge-tape",
+      "status": "target-specified-source-implementation-open",
       "required": true,
       "satisfied": false,
-      "evidence": "TestVectors/product-qrom-interactive-reduction-v1.json pins the exact (2n + 1)-move formulas and numeric challenge-count upper bounds for each accepted proof kind; constant-round theorem fit proof remains open",
+      "evidence": "each accepted proof kind has n_kind_ctco = 1 in the target, but source challenge derivation still follows the legacy micro-challenge transcript schedule",
       "sourceBasis": [
-        "DFM20"
+        "DFMS22",
+        "RotemTessaro"
+      ]
+    },
+    {
+      "id": "hbind-384-acceptance-bindings",
+      "status": "theorem-requirement-pinned-source-primitive-available-acceptance-paths-open",
+      "required": true,
+      "satisfied": false,
+      "evidence": "SuperNeoHashOracles.swift provides SHAKE256, Digest384, H_bind, H_chal, H_mt, CTCO context/root helpers, and replay/carry H_bind projections; acceptance-critical verifier paths still carry raw Digest256 equality checks and must migrate before this precondition is satisfied",
+      "sourceBasis": [
+        "SpongeQRO"
       ]
     },
     {
@@ -115,11 +140,9 @@
       "status": "conditional-sampler-uniformity-instantiated",
       "required": true,
       "satisfied": true,
-      "evidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json pins exact rejection-sampling arithmetic for Goldilocks field, Ext2, Phi81 coefficient/ring, CE ternary, and NumiSealZK masked-residual challenge samplers under the QRO abstraction",
+      "evidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json pins rejection-sampling arithmetic under the QRO abstraction; CTCO keeps a 256-bit seed and deterministic counter expansion",
       "sourceBasis": [
-        "DFMS19",
-        "DFM20",
-        "Unruh17"
+        "DFMS22"
       ]
     },
     {
@@ -127,21 +150,30 @@
       "status": "structured-frame-encoding-injectivity-pinned",
       "required": true,
       "satisfied": true,
-      "evidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json links the Swift 64-bit length-frame implementation to Lean transcript frame injectivity for structured transcript frames",
+      "evidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json links the Swift 64-bit length-frame implementation to Lean transcript frame injectivity for structured frames",
       "sourceBasis": [
-        "DFMS19",
-        "DFM20"
+        "DFMS22"
       ]
     },
     {
-      "id": "witness-independent-oracle-labels",
-      "status": "domain-labels-public-and-witness-independent",
+      "id": "delayed-message-binding",
+      "status": "open",
       "required": true,
-      "satisfied": true,
-      "evidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json and TestVectors/product-qrom-transcript-schedule-v1.json pin public domain separators, proof-kind labels, schedule identifiers, and append-only challenge positions; witness influence is only through committed prover messages",
+      "satisfied": false,
+      "evidence": "artifact, provenance, replay, component-root, randomness-session, leakage, and carry binders need delayed-message soundness data",
       "sourceBasis": [
-        "DFMS19",
-        "DFM20"
+        "DFMS22",
+        "RotemTessaro"
+      ]
+    },
+    {
+      "id": "unique-response-data",
+      "status": "open",
+      "required": true,
+      "satisfied": false,
+      "evidence": "each accepted proof kind needs unique or quasi-unique response data for the CTCO extractor target",
+      "sourceBasis": [
+        "DFMS22"
       ]
     },
     {
@@ -149,11 +181,10 @@
       "status": "open",
       "required": true,
       "satisfied": false,
-      "evidence": "knowledge soundness or soundness bound for the exact interactive product protocol against quantum dishonest provers",
+      "evidence": "knowledge soundness or soundness bound for the exact CTCO product protocol against quantum dishonest provers",
       "sourceBasis": [
-        "DFMS19",
-        "DFM20",
-        "Unruh17"
+        "DFMS22",
+        "RotemTessaro"
       ]
     },
     {
@@ -161,9 +192,8 @@
       "status": "open",
       "required": true,
       "satisfied": false,
-      "evidence": "HVZK/computational ZK/statistical soundness requirements selected per proof kind, plus simulator composition for NumiSealZK",
+      "evidence": "NumiSealZK requires simulator composition for the masked residual relation after CTCO root binding",
       "sourceBasis": [
-        "Unruh17",
         "DFMS22"
       ]
     },
@@ -172,31 +202,31 @@
       "status": "conditional-query-bound-instantiated",
       "required": true,
       "satisfied": true,
-      "evidence": "TestVectors/product-qrom-transcript-schedule-v1.json and TestVectors/product-qrom-interactive-reduction-v1.json pin the selected-depth adversary cap Q_H = 2^64 and per-kind schedule-derived challenge-derivation maxima; this is a conditional theorem parameter, not a throughput benchmark",
+      "evidence": "TestVectors/product-qrom-transcript-schedule-v1.json pins Q_H = 2^64; CTCO uses this as the adversary oracle-query cap, not as a micro-round count",
       "sourceBasis": [
-        "DFMS19",
-        "DFM20"
+        "DFMS22"
       ]
     },
     {
-      "id": "qrom-reduction-loss-instantiation",
+      "id": "qrom-compiler-overhead-instantiation",
       "status": "open",
       "required": true,
       "satisfied": false,
-      "evidence": "exact DFM20 ((2*Q_H+n+1)^(2n) / n!) multiplier, selected n, Q_H bound, and resulting epsilon_fs_transform contribution carried into the total-loss budget",
+      "evidence": "epsilon_compiler_overhead must be instantiated for CTCO or the merkle-straightline fallback and integrated into epsilon_qrom",
       "sourceBasis": [
-        "DFM20"
+        "DFMS22",
+        "RotemTessaro"
       ]
     },
     {
       "id": "collision-and-malleability-exclusion",
-      "status": "structural-exclusion-pinned-digest-bound-open",
+      "status": "binding-target-bound-instantiated-for-H_bind",
       "required": true,
-      "satisfied": false,
-      "evidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json pins structural proof-kind/domain/product-session/carry binding; concrete digest-collision and proof-kind malleability bound remains open",
+      "satisfied": true,
+      "evidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json pins nine structural binding-target events and the 4 * 9 * Q_H^2 / 2^384 bound; source H_bind implementation remains a separate CTCO precondition",
       "sourceBasis": [
-        "DFMS19",
-        "DFM20"
+        "DFMS22",
+        "SpongeQRO"
       ]
     }
   ],
@@ -205,12 +235,12 @@
       "proofKind": "fold",
       "envelopeKind": 1,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
-      "candidateFamily": "multi-round public-coin",
+      "candidateFamily": "ctco 3-move public-coin",
       "exactInteractiveProtocolSpecified": true,
-      "challengeCountN": 204,
+      "challengeCountN": 1,
+      "legacyMaximumProtocolChallengeDerivations": 204,
       "queryBoundQH": "2^64",
       "queryBoundLog2": 64,
-      "maximumProtocolChallengeDerivations": 204,
       "transformPreconditionsSatisfied": false,
       "productionQROMClaimAllowed": false
     },
@@ -218,12 +248,12 @@
       "proofKind": "terminal",
       "envelopeKind": 2,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
-      "candidateFamily": "multi-round public-coin",
+      "candidateFamily": "ctco 3-move public-coin",
       "exactInteractiveProtocolSpecified": true,
-      "challengeCountN": 423,
+      "challengeCountN": 1,
+      "legacyMaximumProtocolChallengeDerivations": 423,
       "queryBoundQH": "2^64",
       "queryBoundLog2": 64,
-      "maximumProtocolChallengeDerivations": 423,
       "transformPreconditionsSatisfied": false,
       "productionQROMClaimAllowed": false
     },
@@ -231,12 +261,12 @@
       "proofKind": "compressed-terminal",
       "envelopeKind": 3,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
-      "candidateFamily": "multi-round public-coin",
+      "candidateFamily": "ctco 3-move public-coin after canonical decompression",
       "exactInteractiveProtocolSpecified": true,
-      "challengeCountN": 423,
+      "challengeCountN": 1,
+      "legacyMaximumProtocolChallengeDerivations": 423,
       "queryBoundQH": "2^64",
       "queryBoundLog2": 64,
-      "maximumProtocolChallengeDerivations": 423,
       "transformPreconditionsSatisfied": false,
       "productionQROMClaimAllowed": false
     },
@@ -244,12 +274,12 @@
       "proofKind": "numiseal-terminal",
       "envelopeKind": 4,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
-      "candidateFamily": "multi-round public-coin",
+      "candidateFamily": "ctco 3-move public-coin with delayed message binders",
       "exactInteractiveProtocolSpecified": true,
-      "challengeCountN": 4376925,
+      "challengeCountN": 1,
+      "legacyMaximumProtocolChallengeDerivations": 4376925,
       "queryBoundQH": "2^64",
       "queryBoundLog2": 64,
-      "maximumProtocolChallengeDerivations": 4376925,
       "transformPreconditionsSatisfied": false,
       "productionQROMClaimAllowed": false
     },
@@ -257,12 +287,12 @@
       "proofKind": "numiseal-zk-product",
       "envelopeKind": 5,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
-      "candidateFamily": "multi-round public-coin plus ZK simulator composition",
+      "candidateFamily": "ctco 3-move public-coin with masked-residual simulator composition",
       "exactInteractiveProtocolSpecified": true,
-      "challengeCountN": 4377150,
+      "challengeCountN": 1,
+      "legacyMaximumProtocolChallengeDerivations": 4377150,
       "queryBoundQH": "2^64",
       "queryBoundLog2": 64,
-      "maximumProtocolChallengeDerivations": 4377150,
       "transformPreconditionsSatisfied": false,
       "productionQROMClaimAllowed": false
     }
@@ -274,36 +304,35 @@
     "collisionMalleabilityEvidenceManifest": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "totalLossBudgetManifest": "TestVectors/product-total-loss-budget-v1.json",
     "qromLossSymbol": "epsilon_qrom",
-    "fiatShamirTransformLossSymbol": "epsilon_fs_transform",
-    "quantumOracleQueryLossSymbol": "epsilon_qro_queries",
-    "preconditionFailureSymbol": "epsilon_precondition",
-    "selectedDepthExpression": "epsilon_fs_transform(depth=1) <= max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
-    "recursivePromotionExpression": "epsilon_fs_transform(depth=d) <= d * max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
+    "compilerOverheadSymbol": "epsilon_compiler_overhead",
+    "hashModelGapSymbol": "epsilon_hash_model_gap",
+    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_compiler_overhead + epsilon_hash_model_gap",
+    "recursivePromotionExpression": "epsilon_qrom(depth=d) = d * (epsilon_compiler_overhead + epsilon_hash_model_gap)",
     "numericLossInstantiated": false,
     "qromLossWithinBudget": false
   },
   "hardClaimBlockers": [
-    "proof that the pinned public-coin interactive schedules satisfy the selected theorem family",
-    "underlying interactive knowledge-soundness or soundness bound against quantum dishonest provers",
-    "zero-knowledge or simulator preconditions for the accepted NumiSealZK proof kind",
-    "numeric digest collision and proof-kind malleability bound for the structurally pinned residual event",
-    "repair of the out-of-budget DFM20 reduction-loss finding under the instantiated Q_H = 2^64 bound",
-    "integration of epsilon_fs_transform and epsilon_precondition into QROM accounting and the selected total-loss budget"
+    "CTCO move-1 root commitment implementation for all accepted proof kinds",
+    "384-bit H_bind acceptance-critical binder implementation",
+    "interactive special-soundness bounds for every accepted proof kind",
+    "delayed-message binding data for artifact/provenance/replay/session/leakage/carry binders",
+    "unique-response or quasi-unique-response data for CTCO extraction",
+    "epsilon_compiler_overhead instantiation and selected total-loss budget integration"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
-    "requiresInteractiveProtocol": false,
-    "requiresRoundSchedule": false,
+    "requiresInteractiveProtocolImplementation": true,
+    "requiresHBind384Implementation": true,
+    "requiresUnderlyingInteractiveSecurity": true,
+    "requiresDelayedMessageData": true,
+    "requiresUniqueResponseData": true,
+    "requiresQROMLossInstantiation": true,
+    "requiresTotalLossBudgetUpdate": true,
     "requiresChallengeUniformity": false,
     "requiresTranscriptEncodingProof": false,
-    "requiresUnderlyingInteractiveSecurity": true,
-    "requiresCollisionMalleabilityExclusion": true,
     "requiresStructuralCollisionMalleabilityEvidence": false,
-    "requiresDigestCollisionBound": true,
-    "requiresQuantumOracleQueryBound": false,
-    "requiresQROMLossInstantiation": true,
-    "requiresTotalLossBudgetUpdate": true
+    "requiresQuantumOracleQueryBound": false
   }
 }

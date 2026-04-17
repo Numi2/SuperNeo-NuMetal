@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for product QROM Fiat-Shamir accounting validation."""
+"""Regression tests for product QROM CTCO accounting validation."""
 
 from __future__ import annotations
 
@@ -42,22 +42,34 @@ def main() -> None:
         write_json(path, wrong_claim)
         run_fail(str(VALIDATE), str(path))
 
-        premature_depth = copy.deepcopy(accounting)
-        premature_depth["selectedDepth"]["selectedMaximumDepth"] = 2
-        path = tmp / "premature-depth.json"
-        write_json(path, premature_depth)
+        wrong_hash_model = copy.deepcopy(accounting)
+        wrong_hash_model["hashModel"]["model"] = "qrom"
+        path = tmp / "wrong-hash-model.json"
+        write_json(path, wrong_hash_model)
         run_fail(str(VALIDATE), str(path))
 
-        missing_interactive = copy.deepcopy(accounting)
-        missing_interactive["fiatShamirModel"]["interactiveProtocolSpecified"] = False
-        path = tmp / "missing-interactive.json"
-        write_json(path, missing_interactive)
+        weak_binding = copy.deepcopy(accounting)
+        weak_binding["hashModel"]["bindingOracle"]["outputBits"] = 256
+        path = tmp / "weak-binding.json"
+        write_json(path, weak_binding)
         run_fail(str(VALIDATE), str(path))
 
-        missing_query_bound_accounting = copy.deepcopy(accounting)
-        missing_query_bound_accounting["fiatShamirModel"]["quantumOracleQueryBoundAccounted"] = False
-        path = tmp / "missing-query-bound-accounting.json"
-        write_json(path, missing_query_bound_accounting)
+        concrete_hash_proof = copy.deepcopy(accounting)
+        concrete_hash_proof["hashModel"]["hashQROInstantiationProofProvided"] = True
+        path = tmp / "concrete-hash-proof.json"
+        write_json(path, concrete_hash_proof)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_transform = copy.deepcopy(accounting)
+        wrong_transform["fiatShamirModel"]["transformFamily"] = "DFM20"
+        path = tmp / "wrong-transform.json"
+        write_json(path, wrong_transform)
+        run_fail(str(VALIDATE), str(path))
+
+        premature_source = copy.deepcopy(accounting)
+        premature_source["fiatShamirModel"]["sourceImplementationComplete"] = True
+        path = tmp / "premature-source.json"
+        write_json(path, premature_source)
         run_fail(str(VALIDATE), str(path))
 
         missing_kind = copy.deepcopy(accounting)
@@ -68,98 +80,30 @@ def main() -> None:
         write_json(path, missing_kind)
         run_fail(str(VALIDATE), str(path))
 
-        missing_schedule = copy.deepcopy(accounting)
-        missing_schedule["relatedManifests"].pop("productQROMTranscriptSchedule")
-        path = tmp / "missing-schedule.json"
-        write_json(path, missing_schedule)
+        wrong_ctco_count = copy.deepcopy(accounting)
+        wrong_ctco_count["transcriptInterfaces"][0]["ctcoChallengeCount"] = 2
+        path = tmp / "wrong-ctco-count.json"
+        write_json(path, wrong_ctco_count)
         run_fail(str(VALIDATE), str(path))
 
-        missing_transform_preconditions = copy.deepcopy(accounting)
-        missing_transform_preconditions["relatedManifests"].pop("productQROMTransformPreconditions")
-        path = tmp / "missing-transform-preconditions.json"
-        write_json(path, missing_transform_preconditions)
-        run_fail(str(VALIDATE), str(path))
-
-        missing_interactive_reduction = copy.deepcopy(accounting)
-        missing_interactive_reduction["relatedManifests"].pop("productQROMInteractiveReduction")
-        path = tmp / "missing-interactive-reduction.json"
-        write_json(path, missing_interactive_reduction)
-        run_fail(str(VALIDATE), str(path))
-
-        wrong_schedule_manifest = copy.deepcopy(accounting)
-        wrong_schedule_manifest["fiatShamirModel"]["transcriptScheduleManifest"] = "TestVectors/product-qrom-fiat-shamir-accounting-v1.json"
-        path = tmp / "wrong-schedule-manifest.json"
-        write_json(path, wrong_schedule_manifest)
-        run_fail(str(VALIDATE), str(path))
-
-        wrong_transform_manifest = copy.deepcopy(accounting)
-        wrong_transform_manifest["fiatShamirModel"]["transformPreconditionManifest"] = "TestVectors/product-qrom-transcript-schedule-v1.json"
-        path = tmp / "wrong-transform-manifest.json"
-        write_json(path, wrong_transform_manifest)
-        run_fail(str(VALIDATE), str(path))
-
-        wrong_envelope_kind = copy.deepcopy(accounting)
-        wrong_envelope_kind["transcriptInterfaces"][0]["envelopeKind"] = 5
-        path = tmp / "wrong-envelope-kind.json"
-        write_json(path, wrong_envelope_kind)
-        run_fail(str(VALIDATE), str(path))
-
-        premature_budget = copy.deepcopy(accounting)
-        premature_budget["lossRule"]["qromLossWithinBudget"] = True
-        path = tmp / "premature-budget.json"
-        write_json(path, premature_budget)
-        run_fail(str(VALIDATE), str(path))
-
-        missing_query_symbol = copy.deepcopy(accounting)
-        missing_query_symbol["lossRule"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_fs_transform"
-        path = tmp / "missing-query-symbol.json"
-        write_json(path, missing_query_symbol)
-        run_fail(str(VALIDATE), str(path))
-
-        wrong_query_budget = copy.deepcopy(accounting)
-        wrong_query_budget["lossRule"]["selectedDepthProtocolChallengeDerivations"] = 1
-        path = tmp / "wrong-query-budget.json"
-        write_json(path, wrong_query_budget)
-        run_fail(str(VALIDATE), str(path))
-
-        missing_precondition_symbol = copy.deepcopy(accounting)
-        missing_precondition_symbol["lossRule"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability"
-        path = tmp / "missing-precondition-symbol.json"
-        write_json(path, missing_precondition_symbol)
-        run_fail(str(VALIDATE), str(path))
-
-        double_counted_collision = copy.deepcopy(accounting)
-        double_counted_collision["lossRule"]["selectedDepthExpression"] += " + epsilon_transcript_collision"
-        path = tmp / "double-counted-collision.json"
-        write_json(path, double_counted_collision)
-        run_fail(str(VALIDATE), str(path))
-
-        missing_mapping = copy.deepcopy(accounting)
-        missing_mapping.pop("ledgerTermMapping")
-        path = tmp / "missing-mapping.json"
-        write_json(path, missing_mapping)
+        legacy_formula = copy.deepcopy(accounting)
+        legacy_formula["lossRule"]["selectedDepthExpression"] += " + n_kind!"
+        path = tmp / "legacy-formula.json"
+        write_json(path, legacy_formula)
         run_fail(str(VALIDATE), str(path))
 
         wrong_collision_mapping = copy.deepcopy(accounting)
-        wrong_collision_mapping["ledgerTermMapping"]["fiatShamirQROMLoss"]["sourceSymbols"].append(
+        wrong_collision_mapping["ledgerTermMapping"]["transcriptCollisionLoss"]["sourceSymbols"] = [
             "epsilon_transcript_collision"
-        )
+        ]
         path = tmp / "wrong-collision-mapping.json"
         write_json(path, wrong_collision_mapping)
         run_fail(str(VALIDATE), str(path))
 
-        missing_blocker = copy.deepcopy(accounting)
-        missing_blocker["hardClaimBlockers"].remove(
-            "numeric digest collision and proof-kind malleability bound for the residual events exported by TestVectors/product-qrom-collision-malleability-evidence-v1.json"
-        )
-        path = tmp / "missing-blocker.json"
-        write_json(path, missing_blocker)
-        run_fail(str(VALIDATE), str(path))
-
-        outsourced_review = copy.deepcopy(accounting)
-        outsourced_review["hardClaimBlockers"].append("external" + " audit")
-        path = tmp / "outsourced-review.json"
-        write_json(path, outsourced_review)
+        missing_legacy_failure = copy.deepcopy(accounting)
+        missing_legacy_failure["legacyDFM20Status"]["decisiveLegacyFailure"] = "deprecated"
+        path = tmp / "missing-legacy-failure.json"
+        write_json(path, missing_legacy_failure)
         run_fail(str(VALIDATE), str(path))
 
         premature_promotion = copy.deepcopy(accounting)
@@ -168,7 +112,7 @@ def main() -> None:
         write_json(path, premature_promotion)
         run_fail(str(VALIDATE), str(path))
 
-    print("product QROM Fiat-Shamir accounting validation regression tests passed")
+    print("product QROM CTCO accounting validation regression tests passed")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "reductionID": "superneo-product-qrom-interactive-reduction-v1",
-  "claimStatus": "qrom-interactive-reduction-ledger-not-production-claim",
+  "claimStatus": "qrom-ctco-interactive-reduction-contract-not-production-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -20,52 +20,62 @@
     "declarations": [
       "ProductQROMInteractiveReduction",
       "ProductQROMInteractiveReductionAccepted",
+      "ProductInteractiveProtocolDefinitions",
+      "ProductInteractiveProtocolDefinitionsAccepted",
+      "ProductInteractiveSpecialSoundnessData",
+      "ProductInteractiveSpecialSoundnessDataAccepted",
+      "ProductInteractiveDelayedMessageData",
+      "ProductInteractiveDelayedMessageDataAccepted",
+      "ProductInteractiveUniqueResponseData",
+      "ProductInteractiveUniqueResponseDataAccepted",
+      "ProductChallengeTapeCommitOpenCompiler",
+      "ProductChallengeTapeCommitOpenCompilerAccepted",
       "productSecurityTheorem_requires_qrom_interactive_reduction"
     ]
   },
   "researchBasis": [
     {
-      "id": "DFM20",
+      "id": "DFMS22",
+      "title": "Efficient NIZKs and Signatures from Commit-and-Open Protocols in the QROM",
+      "url": "https://arxiv.org/abs/2202.13730",
+      "usedFor": [
+        "tight commit-and-open online-extractability target",
+        "one challenge seed after a binding first message"
+      ]
+    },
+    {
+      "id": "RotemTessaro",
+      "title": "Straight-line multi-round QROM transform fallback",
+      "url": "https://arxiv.org/abs/2202.13730",
+      "usedFor": [
+        "approved fallback when a legacy subprotocol cannot be brought into CTCO form quickly",
+        "avoid vanilla multi-round Fiat-Shamir super-polynomial loss"
+      ]
+    },
+    {
+      "id": "DFM20-legacy",
       "title": "The Measure-and-Reprogram Technique 2.0: Multi-Round Fiat-Shamir and More",
       "url": "https://eprint.iacr.org/2020/282",
       "usedFor": [
-        "constant-round public-coin interactive protocol reduction target",
-        "exact (2n + 1)-move schedule contract",
-        "loss shape ((2*Q_H+n+1)^(2n)/n!) plus additive ordering term"
-      ]
-    },
-    {
-      "id": "DFMS19",
-      "title": "Security of the Fiat-Shamir Transformation in the Quantum Random-Oracle Model",
-      "url": "https://eprint.iacr.org/2019/190",
-      "usedFor": [
-        "three-round Sigma comparison target",
-        "quantum dishonest prover proof-of-knowledge boundary",
-        "Fiat-Shamir natural-property checklist"
-      ]
-    },
-    {
-      "id": "Unruh17",
-      "title": "Post-Quantum Security of Fiat-Shamir",
-      "url": "https://eprint.iacr.org/2017/398",
-      "usedFor": [
-        "post-quantum Fiat-Shamir caveat boundary",
-        "extractability and zero-knowledge precondition split"
+        "legacy fail-closed comparison only",
+        "documents why the old n_kind factorial and q^(2n) interface is not the production target"
       ]
     }
   ],
   "selectedTheoremFamily": {
-    "model": "qrom",
-    "selectedFamily": "DFM20 constant-round public-coin interactive proof",
-    "moveShape": "2n + 1",
-    "verifierChallengeCountSymbol": "n",
+    "model": "ideal-split-qro",
+    "selectedFamily": "challenge-tape-commit-open",
+    "compilerFamily": "ctco",
+    "fallbackFamily": "merkle-straightline",
+    "moveShape": "3",
+    "verifierChallengeCountSymbol": "one 256-bit seed per proof kind",
     "adversaryQuantumOracleQuerySymbol": "Q_H",
-    "lossMultiplier": "((2*Q_H + n + 1)^(2*n)) / n!",
-    "additiveOrderingTerm": "n! / 2^lambda_challenge",
-    "selectedChallengeRangeBits": 256,
+    "selectedChallengeSeedBits": 256,
+    "selectedBindingBits": 384,
+    "selectedMerkleNodeBits": 384,
     "selectedQHBound": "2^64",
     "selectedQHLog2": 64,
-    "exactTheoremConstantPinned": true,
+    "legacyDFM20InterfaceDeprecated": true,
     "numericSelectedLossInstantiated": false,
     "productionQROMTheoremClaimAllowed": false
   },
@@ -81,8 +91,9 @@
     ],
     "acceptedProofKindOrderPinned": true,
     "protocolMessageAlgorithmsPinned": true,
-    "exactChallengeCountFormulasPinned": true,
-    "allNumericChallengeCountsInstantiated": true,
+    "ctcoProtocolDefinitionsPinned": true,
+    "allKindsThreeMovePublicCoin": true,
+    "oneSeedChallengePerKind": true,
     "selectedProductTheoremLimits": {
       "codeSurface": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductTheoremLimits.swift",
       "theoremID": "numiseal-product-qrom-selected-depth-1-v1",
@@ -116,30 +127,25 @@
       "proofKind": "fold",
       "envelopeKind": 1,
       "sourceReferences": [
-        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:1523",
-        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:3415",
-        "SuperNeo-NuMetal/Transcript/SumCheckTranscript.swift:167"
+        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift",
+        "SuperNeo-NuMetal/Transcript/SumCheckTranscript.swift"
       ],
-      "interactiveProtocol": [
-        "P0/V0 absorb makeFoldTranscript public input, shape digest, instances, prior claims, and transcript seed",
-        "V1 derive piCCS alpha[0..log2(shape.m)-1] and gamma from makeQOracle",
-        "P1 send sum-check claimed sum and one polynomial message per Boolean variable",
-        "V2 derive one Ext2 challenge after each sum-check polynomial message",
-        "P2 send piCCS final evaluation claims at the sum-check final point",
-        "V3 derive one Phi81 ring random-linear-combination challenge per piCCS final claim",
-        "P3 send folded claim plus deterministic PiDEC decomposition commitments/evaluations",
-        "V4 verify sum-check, piRLC recomposition, and PiDEC recomposition"
+      "ctcoInteractiveProtocol": [
+        "P1 sends public commitments, Root_fold, CtxBind_fold, and challenge-independent fold trace commitments",
+        "V samples rho_fold in {0,1}^256",
+        "P2 opens challenge-tape-selected trace blocks and algebraic responses; V recomputes the tape and checks Root_fold"
       ],
-      "challengeCountFormula": "n_fold = 2*log2(shape.m) + 1 + piCCSClaimCount",
-      "moveCountFormula": "moves_fold = 2*n_fold + 1",
-      "instantiatedUpperBoundN": 204,
-      "upperBoundJustification": "log2(shape.m) <= 64 from proof decoding limits; piCCSClaimCount <= maxFreshBatchCount + maxPriorClaimCount = 61 + 14",
+      "extractorTarget": "source CCS witness, fold randomness, decomposition witness, and CE-opening witness",
+      "challengeCountFormula": "n_fold_ctco = 1",
+      "moveCountFormula": "moves_fold_ctco = 3",
+      "ctcoChallengeCount": 1,
+      "legacyScheduleChallengeDerivations": 204,
       "queryBoundQH": "2^64",
-      "numericLossExpression": "epsilon_fs_fold <= ((2*2^64 + 204 + 1)^(408) / 204!) * epsilon_interactive_fold + 204! / 2^256 + epsilon_precondition_fold",
+      "numericLossExpression": "epsilon_qrom_extra_fold is independent of legacy n_fold once CTCO preconditions hold",
       "numericLossInstantiated": false,
       "openInputs": [
-        "epsilon_interactive_fold against quantum dishonest provers",
-        "challenge sampler uniformity proof for Ext2 and Phi81 ring challenges"
+        "move-1 Root_fold implementation over all witness-dependent trace blocks",
+        "quantum dishonest-prover special-soundness bound for the CTCO fold protocol"
       ],
       "productionQROMClaimAllowed": false
     },
@@ -147,27 +153,25 @@
       "proofKind": "terminal",
       "envelopeKind": 2,
       "sourceReferences": [
-        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:390",
-        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:532",
-        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:4765"
+        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTerminalSeal.swift"
       ],
-      "interactiveProtocol": [
-        "Run the fold public-coin protocol",
-        "P sends TerminalCEStatement and 219 Stern CE-opening commitment rounds",
-        "V derives one rejection-sampled ternary CE challenge per CE-opening round",
-        "P sends the challenge-selected CE-opening response for each round",
-        "V verifies every CE-opening response and terminal CE relation"
+      "ctcoInteractiveProtocol": [
+        "P1 sends terminal public commitments, Root_terminal, CtxBind_terminal, and terminal residual/obligation trace commitments",
+        "V samples rho_terminal in {0,1}^256",
+        "P2 opens selected terminal CE and local-relation blocks; V checks Root_terminal and deterministic terminal equations"
       ],
-      "challengeCountFormula": "n_terminal = n_fold + CEOpeningProof.roundCount",
-      "moveCountFormula": "moves_terminal = 2*n_terminal + 1",
-      "instantiatedUpperBoundN": 423,
-      "upperBoundJustification": "n_fold <= 204 and CEOpeningProof.roundCount = 219",
+      "extractorTarget": "terminal residual-opening witness, terminal obligation witness, and CE-opening witness",
+      "challengeCountFormula": "n_terminal_ctco = 1",
+      "moveCountFormula": "moves_terminal_ctco = 3",
+      "ctcoChallengeCount": 1,
+      "legacyScheduleChallengeDerivations": 423,
       "queryBoundQH": "2^64",
-      "numericLossExpression": "epsilon_fs_terminal <= ((2*2^64 + 423 + 1)^(846) / 423!) * epsilon_interactive_terminal + 423! / 2^256 + epsilon_precondition_terminal",
+      "numericLossExpression": "epsilon_qrom_extra_terminal is independent of legacy n_terminal once CTCO preconditions hold",
       "numericLossInstantiated": false,
       "openInputs": [
-        "epsilon_interactive_terminal for fold plus CE-opening composition",
-        "ternary rejection-sampling uniformity and exact transcript-query accounting"
+        "move-1 Root_terminal implementation over terminal residual-opening material",
+        "quantum dishonest-prover special-soundness bound for terminal CTCO"
       ],
       "productionQROMClaimAllowed": false
     },
@@ -175,24 +179,26 @@
       "proofKind": "compressed-terminal",
       "envelopeKind": 3,
       "sourceReferences": [
-        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:2550",
-        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift:3260"
+        "SuperNeo-NuMetal/SuperNeoSerialization.swift",
+        "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift"
       ],
-      "interactiveProtocol": [
-        "Run the terminal public-coin protocol",
-        "Bind compressed public statement digest and compressed proof-envelope context before verification",
-        "V verifies decompression binding and terminal CE relation under the compressed envelope"
+      "ctcoInteractiveProtocol": [
+        "Verifier first deterministically decompresses to the unique canonical terminal transcript",
+        "P1 sends Root_compressed_terminal and CtxBind_compressed_terminal over the canonical decompressed transcript",
+        "V samples rho_compressed_terminal in {0,1}^256",
+        "P2 follows the terminal CTCO response shape; V rejects if compressed bytes do not decompress to the unique transcript before any binding comparison"
       ],
-      "challengeCountFormula": "n_compressed_terminal = n_terminal",
-      "moveCountFormula": "moves_compressed_terminal = 2*n_compressed_terminal + 1",
-      "instantiatedUpperBoundN": 423,
-      "upperBoundJustification": "compressed-terminal adds public digest binding but no extra public-coin challenge beyond terminal",
+      "extractorTarget": "same as terminal, after canonical deterministic decompression",
+      "challengeCountFormula": "n_compressed_terminal_ctco = 1",
+      "moveCountFormula": "moves_compressed_terminal_ctco = 3",
+      "ctcoChallengeCount": 1,
+      "legacyScheduleChallengeDerivations": 423,
       "queryBoundQH": "2^64",
-      "numericLossExpression": "epsilon_fs_compressed_terminal <= ((2*2^64 + 423 + 1)^(846) / 423!) * epsilon_interactive_compressed_terminal + 423! / 2^256 + epsilon_precondition_compressed_terminal",
+      "numericLossExpression": "epsilon_qrom_extra_compressed_terminal is independent of legacy n_compressed_terminal once CTCO preconditions hold",
       "numericLossInstantiated": false,
       "openInputs": [
-        "epsilon_interactive_compressed_terminal",
-        "compressed statement collision/malleability exclusion bound"
+        "canonical decompression uniqueness proof bound to H_bind",
+        "compressed-terminal CTCO special-soundness bound"
       ],
       "productionQROMClaimAllowed": false
     },
@@ -200,28 +206,26 @@
       "proofKind": "numiseal-terminal",
       "envelopeKind": 4,
       "sourceReferences": [
-        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealLaneAggregation.swift:313",
-        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealScalarization.swift:239",
-        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealSumcheck.swift:217"
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealLaneAggregation.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealScalarization.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealSumcheck.swift"
       ],
-      "interactiveProtocol": [
-        "P sends public statement, lane summaries, aggregate digests, scalarization commitments, residual openings, and lane sum-check messages",
-        "V derives lane aggregation Phi81 challenges from public statement, lane key, aggregate index, and obligation digests",
-        "V derives scalarization Ext2 weights for commitments, decomposition commitments, public input, and matrix evaluations",
-        "V derives NumiSeal language and padding Ext2 weights",
-        "V derives one Ext2 sum-check challenge per lane proof variable",
-        "V verifies lane aggregation, scalarized residual opening, sum-check, and terminal NumiSeal relation"
+      "ctcoInteractiveProtocol": [
+        "P1 sends public statement binders, Root_numiseal_terminal, component-root binder, replay/provenance binders, and challenge-independent lane/aggregate trace commitments",
+        "V samples rho_numiseal_terminal in {0,1}^256",
+        "P2 opens challenge-tape-selected residual, lane aggregation, scalarization, and component-root material; V checks Root_numiseal_terminal and deterministic verifier equations"
       ],
-      "challengeCountFormula": "n_numiseal_terminal = sum_aggregates(obligationCount + aggregateCommitmentCount + decompositionCommitmentCount + publicInputCount + matrixEvaluationCount + 2 + variableCount)",
-      "moveCountFormula": "moves_numiseal_terminal = 2*n_numiseal_terminal + 1",
-      "instantiatedUpperBoundN": 4376925,
-      "upperBoundJustification": "NumiSealProductTheoremLimits enforces one product lane, at most 75 source-fold output claims, at most 75 obligations per aggregate, at most 75 aggregates per lane, 1024 public inputs, 1024 matrix evaluations, and 18 sum-check variables; per aggregate n <= 75 + 972 + 972 + 1024 + 55296 + 2 + 18 = 58359, so terminal n <= 75 * 58359 = 4376925",
+      "extractorTarget": "source-fold witness, terminal witness, product obligation witness, lane/aggregate witness, component-root witness, and optional carry witness",
+      "challengeCountFormula": "n_numiseal_terminal_ctco = 1",
+      "moveCountFormula": "moves_numiseal_terminal_ctco = 3",
+      "ctcoChallengeCount": 1,
+      "legacyScheduleChallengeDerivations": 4376925,
       "queryBoundQH": "2^64",
-      "numericLossExpression": "epsilon_fs_numiseal_terminal <= ((2*2^64 + 4376925 + 1)^(8753850) / 4376925!) * epsilon_interactive_numiseal_terminal + 4376925! / 2^256 + epsilon_precondition_numiseal_terminal",
+      "numericLossExpression": "epsilon_qrom_extra_numiseal_terminal is independent of legacy n_numiseal_terminal once CTCO preconditions hold",
       "numericLossInstantiated": false,
       "openInputs": [
-        "epsilon_interactive_numiseal_terminal",
-        "sum-check, scalarization, lane aggregation, and residual-opening uniformity proofs"
+        "move-1 root over all lane, aggregate, scalarization, residual, and component-root trace blocks",
+        "delayed-message binding for artifact, provenance, replay, and optional carry binders"
       ],
       "productionQROMClaimAllowed": false
     },
@@ -229,26 +233,25 @@
       "proofKind": "numiseal-zk-product",
       "envelopeKind": 5,
       "sourceReferences": [
-        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift:797",
-        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift:1141",
-        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift:921"
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift",
+        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift"
       ],
-      "interactiveProtocol": [
-        "Run the NumiSeal terminal public-coin protocol as the base proof",
-        "P binds randomness session digest, mask statements, masked residual statements, and component digest root",
-        "V derives three masked-residual accumulation field challenges per lane proof",
-        "V verifies randomness-session binding, mask tensor commitments, masked residual equation, and base proof acceptance"
+      "ctcoInteractiveProtocol": [
+        "P1 extends the NumiSeal terminal CTCO first message with randomness-session and leakage binders plus mask trace commitments",
+        "V samples rho_numiseal_zk_product in {0,1}^256",
+        "P2 opens selected masked residual, mask tensor, session, and leakage consistency material; V checks Root_numiseal_zk_product and deterministic ZK product equations"
       ],
-      "challengeCountFormula": "n_numiseal_zk_product = n_numiseal_terminal + 3*laneProofCount",
-      "moveCountFormula": "moves_numiseal_zk_product = 2*n_numiseal_zk_product + 1",
-      "instantiatedUpperBoundN": 4377150,
-      "upperBoundJustification": "NumiSealProductTheoremLimits gives n_numiseal_terminal <= 4376925 and at most 75 lane proofs, while NumiSealZK adds three masked-residual accumulation challenges per lane proof: 4376925 + 3*75 = 4377150",
+      "extractorTarget": "everything in numiseal-terminal plus mask witness, randomness-session witness, and leakage witness",
+      "challengeCountFormula": "n_numiseal_zk_product_ctco = 1",
+      "moveCountFormula": "moves_numiseal_zk_product_ctco = 3",
+      "ctcoChallengeCount": 1,
+      "legacyScheduleChallengeDerivations": 4377150,
       "queryBoundQH": "2^64",
-      "numericLossExpression": "epsilon_fs_numiseal_zk <= ((2*2^64 + 4377150 + 1)^(8754300) / 4377150!) * epsilon_interactive_numiseal_zk + 4377150! / 2^256 + epsilon_precondition_numiseal_zk",
+      "numericLossExpression": "epsilon_qrom_extra_numiseal_zk_product is independent of legacy n_numiseal_zk_product once CTCO preconditions hold",
       "numericLossInstantiated": false,
       "openInputs": [
-        "epsilon_interactive_numiseal_zk",
-        "ZK simulator composition and masked-residual challenge uniformity proof"
+        "move-1 root over mask, session, leakage, and masked residual trace blocks",
+        "CTCO special-soundness plus ZK simulator composition for the masked residual relation"
       ],
       "productionQROMClaimAllowed": false
     }
@@ -257,10 +260,10 @@
     "encoding": "append-only 64-bit little-endian length-delimited transcript frames",
     "samplerEncodingEvidenceManifest": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "collisionMalleabilityEvidenceManifest": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-    "domainSeparation": "domain separator, proof kind, schedule id, context/session digests, statement digests, verifier key digest, and artifact/proof-envelope digests are public inputs to the transcript",
+    "domainSeparation": "versioned first frame, explicit proof kind byte, selected-depth context, CtxBind, Root_k, and challenge tape label",
     "injectivityProofStatus": "structured-frame-injectivity-pinned",
     "samplerUniformityProofStatus": "conditional-qro-rejection-sampling-arithmetic-pinned",
-    "structuralCollisionMalleabilityStatus": "structural-exclusion-pinned-digest-bound-open",
+    "structuralCollisionMalleabilityStatus": "structural-exclusion-pinned-binding-bound-instantiated-for-H_bind",
     "witnessIndependentLabelsPinned": true,
     "failurePathScheduleIndependent": true,
     "productionEncodingClaimAllowed": false
@@ -269,8 +272,8 @@
     "queryBoundQH": "2^64",
     "queryBoundLog2": 64,
     "queryBoundInstantiated": true,
-    "queryBoundScope": "candidate adversarial quantum random-oracle query cap for concrete selected-depth accounting; not a throughput benchmark and not a production theorem by itself",
-    "scheduleDerivedQueryBudget": {
+    "queryBoundScope": "candidate adversarial quantum random-oracle query cap for selected-depth accounting; not a throughput benchmark and not a production theorem by itself",
+    "legacyScheduleDerivedQueryBudget": {
       "fold": 204,
       "terminal": 423,
       "compressed-terminal": 423,
@@ -279,22 +282,26 @@
       "selectedDepthProtocolChallengeDerivations": 8755125,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json"
     },
-    "challengeRangeBits": 256,
-    "dfm20SelectedDepthExpression": "epsilon_fs_transform(depth=1) <= max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
-    "recursivePromotionExpression": "epsilon_fs_transform(depth=d) <= d * max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
-    "foldTerminalCompressedNumericNInstantiated": true,
-    "numiSealNumericNInstantiated": true,
-    "numericBudgetFinding": {
+    "ctcoChallengeCountByKind": {
+      "fold": 1,
+      "terminal": 1,
+      "compressed-terminal": 1,
+      "numiseal-terminal": 1,
+      "numiseal-zk-product": 1
+    },
+    "challengeSeedBits": 256,
+    "bindingDigestBits": 384,
+    "merkleNodeDigestBits": 384,
+    "ctcoSelectedDepthExpression": "epsilon_compiler_overhead is independent of legacy micro-round count once CTCO preconditions hold",
+    "legacyDFM20SelectedDepthExpression": "epsilon_fs_transform(depth=1) <= max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
+    "legacyNumericBudgetFinding": {
       "status": "instantiated-outside-selected-budget",
       "selectedSecurityBudgetBits": 128,
       "decisiveTerm": "n_kind! / 2^256",
       "smallestAcceptedProofKind": "fold",
       "smallestAcceptedChallengeCountN": 204,
       "smallestAcceptedOrderingTermLog2LowerBound": "> 1020",
-      "smallestAcceptedOrderingTermConclusion": "204! / 2^256 is greater than 1, so the selected DFM20 accounting cannot fit a 2^-128 total-loss budget for any accepted proof kind without changing the theorem family, challenge accounting, or protocol challenge schedule",
-      "numiSealTerminalOrderingTermLog2LowerBound": "> 90246658",
-      "numiSealZKProductOrderingTermLog2LowerBound": "> 90251622",
-      "productionConsequence": "production QROM theorem claim remains disabled even though NumiSeal numeric challenge maxima are now code-enforced"
+      "smallestAcceptedOrderingTermConclusion": "204! / 2^256 is greater than 1, so the legacy DFM20 accounting is deprecated and cannot be promoted"
     },
     "allInteractiveSecurityBoundsInstantiated": false,
     "allNumericLossTermsInstantiated": false,
@@ -308,29 +315,29 @@
     "totalLossBudgetManifest": "TestVectors/product-total-loss-budget-v1.json",
     "ledgerSymbol": "epsilon_qrom",
     "sourceSymbols": [
-      "epsilon_fs_transform",
-      "epsilon_qro_queries",
-      "epsilon_proof_kind_malleability"
+      "epsilon_compiler_overhead",
+      "epsilon_hash_model_gap"
     ],
     "qromLossWithinBudget": false,
     "totalLossBudgetUpdated": true
   },
   "hardClaimBlockers": [
-    "DFM20 numeric reduction terms exceed the selected 2^-128 total-loss budget under Q_H = 2^64 and 256-bit challenge accounting",
-    "underlying interactive knowledge-soundness or soundness bounds for every accepted proof kind against quantum dishonest provers",
-    "numeric epsilon_interactive_kind bounds for every accepted proof kind",
-    "numeric digest collision and proof-kind malleability bound for the accepted transcript domains",
-    "final epsilon_fs_transform boundLog2 integration into epsilon_qrom and the selected total-loss budget"
+    "CTCO move-1 root commitments are not implemented for all accepted proof kinds",
+    "384-bit H_bind theorem-critical acceptance binders are not implemented in source verifier paths",
+    "interactive special-soundness bounds against quantum dishonest provers remain open",
+    "delayed-message binding data remains open for artifact, provenance, replay, session, leakage, and carry binders",
+    "unique-response or quasi-unique response data remains open for each accepted kind",
+    "epsilon_compiler_overhead has not been numerically instantiated for the selected CTCO theorem family"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
-    "requiresNumericNumiSealChallengeBounds": false,
-    "requiresChallengeUniformityProofs": false,
-    "requiresStructuralCollisionMalleabilityEvidence": false,
+    "requiresCTCORootCommitments": true,
+    "requiresHBind384SourceImplementation": true,
     "requiresInteractiveSecurityBounds": true,
-    "requiresCollisionMalleabilityBound": true,
+    "requiresDelayedMessageData": true,
+    "requiresUniqueResponseData": true,
     "requiresQROMLossWithinBudget": true,
     "requiresTotalLossBudgetUpdate": true
   }
