@@ -22,6 +22,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
     "supportedProductDepth",
     "latticeAssumptionDossier",
     "normGrowthAndFailureBudget",
+    "extractorLossAccounting",
     "fiatShamirQROMPosition",
     "zkPrivacyProofStatus",
     "carryRecursionClosure",
@@ -58,9 +59,15 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductSecurityTheoremEvidence",
     "ProductSelectedDepthLossLedger",
     "ProductSelectedDepthLossLedgerAccepted",
+    "ProductExtractorLossAccounting",
+    "ProductExtractorLossAccountingAccepted",
+    "ProductFiatShamirLossAccounting",
+    "ProductFiatShamirLossAccountingAccepted",
     "productSecurityTheorem_from_evidence",
     "productSecurityTheorem_requires_bounded_depth",
     "productSecurityTheorem_requires_selected_depth_loss_accounting",
+    "productSecurityTheorem_requires_extractor_loss_accounting",
+    "productSecurityTheorem_requires_qrom_loss_accounting",
     "productSecurityTheorem_requires_qrom_accounting",
     "productSecurityTheorem_requires_artifact_envelope_binding",
 }
@@ -75,6 +82,8 @@ EXPECTED_MANIFESTS = {
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
     "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+    "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
+    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json",
 }
 
@@ -229,6 +238,15 @@ def validate_depth(dossier: dict[str, Any]) -> None:
     blockers = " ".join(require_string_list(loss_ledger.get("hardClaimBlockers"), "selectedDepthLossAccounting.hardClaimBlockers")).lower()
     for needle in ["extractor", "qrom", "simulator", "hosted product operations", "release signing", "swift/llvm/metal"]:
         require(needle in blockers, f"selected-depth loss ledger blockers must mention {needle}")
+    ledger_related = require_dict(loss_ledger.get("relatedManifests"), "selectedDepthLossAccounting.relatedManifests")
+    require(
+        ledger_related.get("productExtractorLossAccounting") == "TestVectors/product-extractor-loss-accounting-v1.json",
+        "selected-depth ledger must link extractor accounting",
+    )
+    require(
+        ledger_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+        "selected-depth ledger must link QROM Fiat-Shamir accounting",
+    )
 
 
 def validate_lattice(dossier: dict[str, Any]) -> None:
@@ -285,9 +303,57 @@ def validate_norm_budget(dossier: dict[str, Any]) -> None:
         require(needle in obligations, f"norm-growth obligations must mention {needle}")
 
 
+def validate_extractor_loss_accounting(dossier: dict[str, Any]) -> None:
+    extractor = require_dict(dossier.get("extractorLossAccounting"), "extractorLossAccounting")
+    require(
+        extractor.get("accountingManifest") == "TestVectors/product-extractor-loss-accounting-v1.json",
+        "extractorLossAccounting.accountingManifest mismatch",
+    )
+    require_relative_path("TestVectors/product-extractor-loss-accounting-v1.json", "extractorLossAccounting.accountingManifest")
+    require(
+        extractor.get("claimStatus") == "extractor-loss-contract-not-production-claim",
+        "extractorLossAccounting.claimStatus must stay precise",
+    )
+    selected = require_string(extractor.get("selectedDepthExpression"), "extractorLossAccounting.selectedDepthExpression")
+    recursive = require_string(extractor.get("recursivePromotionExpression"), "extractorLossAccounting.recursivePromotionExpression")
+    for symbol in ["epsilon_extract_source_fold", "epsilon_extract_terminal", "epsilon_extract_product"]:
+        require(symbol in selected, f"extractor selected-depth expression must include {symbol}")
+    require("epsilon_extract_carry" in recursive and "max(d - 1, 0)" in recursive, "extractor recursive expression must include carry-hop loss")
+    for key in [
+        "sourceFoldExtractorSpecified",
+        "terminalSealExtractorSpecified",
+        "productEnvelopeExtractorSpecified",
+        "recursiveCarryExtractorSpecified",
+        "extractorLossWithinBudget",
+        "productionExtractorClaimAllowed",
+    ]:
+        require_false(extractor.get(key), f"extractorLossAccounting.{key}")
+    obligations = " ".join(require_string_list(extractor.get("remainingObligations"), "extractorLossAccounting.remainingObligations")).lower()
+    for needle in ["swift source fold extractor", "terminal seal extractor", "product envelope", "recursive carry", "numeric extractor"]:
+        require(needle in obligations, f"extractor loss obligations must mention {needle}")
+
+    manifest = read_json(ROOT / "TestVectors/product-extractor-loss-accounting-v1.json")
+    require(manifest.get("schemaVersion") == 1, "extractor accounting schemaVersion must be 1")
+    require(
+        manifest.get("claimStatus") == "extractor-loss-contract-not-production-claim",
+        "extractor accounting claimStatus must stay precise",
+    )
+    loss_rule = require_dict(manifest.get("lossRule"), "extractor accounting lossRule")
+    require_false(loss_rule.get("productionExtractorClaimAllowed"), "extractor accounting productionExtractorClaimAllowed")
+
+
 def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     qrom = require_dict(dossier.get("fiatShamirQROMPosition"), "fiatShamirQROMPosition")
     require(qrom.get("model") == "qrom", "Fiat-Shamir model must be qrom")
+    require(
+        qrom.get("accountingManifest") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+        "fiatShamirQROMPosition.accountingManifest mismatch",
+    )
+    require_relative_path("TestVectors/product-qrom-fiat-shamir-accounting-v1.json", "fiatShamirQROMPosition.accountingManifest")
+    require(
+        qrom.get("claimStatus") == "qrom-fiat-shamir-loss-contract-not-production-claim",
+        "fiatShamirQROMPosition.claimStatus must stay precise",
+    )
     for key in [
         "interactiveProtocolSpecified",
         "transformPreconditionsSatisfied",
@@ -296,11 +362,23 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         "productionQROMClaimAllowed",
     ]:
         require_false(qrom.get(key), f"fiatShamirQROMPosition.{key}")
+    require(qrom.get("publicCoinChallengeScheduleSpecified") is True, "public coin challenge schedule must be recorded")
     require(qrom.get("transcriptDomainSeparatorsBound") is True, "transcript domain separator binding must be recorded")
     require(qrom.get("proofKindSeparationBound") is True, "proof kind separation binding must be recorded")
+    expression = require_string(qrom.get("selectedDepthExpression"), "fiatShamirQROMPosition.selectedDepthExpression")
+    for symbol in ["epsilon_fs_transform", "epsilon_qro_queries", "epsilon_transcript_collision", "epsilon_proof_kind_malleability"]:
+        require(symbol in expression, f"QROM selected-depth expression must include {symbol}")
     obligations = " ".join(require_string_list(qrom.get("remainingObligations"), "fiatShamirQROMPosition.remainingObligations")).lower()
     for needle in ["interactive protocol", "preconditions", "quantum random-oracle", "collision", "malleability"]:
         require(needle in obligations, f"QROM obligations must mention {needle}")
+    manifest = read_json(ROOT / "TestVectors/product-qrom-fiat-shamir-accounting-v1.json")
+    require(manifest.get("schemaVersion") == 1, "QROM accounting schemaVersion must be 1")
+    require(
+        manifest.get("claimStatus") == "qrom-fiat-shamir-loss-contract-not-production-claim",
+        "QROM accounting claimStatus must stay precise",
+    )
+    loss_rule = require_dict(manifest.get("lossRule"), "QROM accounting lossRule")
+    require_false(loss_rule.get("productionQROMClaimAllowed"), "QROM accounting productionQROMClaimAllowed")
 
 
 def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
@@ -434,6 +512,7 @@ def validate_dossier(path: Path) -> None:
     validate_depth(dossier)
     validate_lattice(dossier)
     validate_norm_budget(dossier)
+    validate_extractor_loss_accounting(dossier)
     validate_fiat_shamir(dossier)
     validate_zk_and_carry(dossier)
     validate_performance_and_hardening(dossier)

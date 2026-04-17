@@ -35,12 +35,20 @@ EXPECTED_MANIFESTS = {
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
     "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
+    "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
+    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
 }
 
 EXPECTED_FORMAL_DECLARATIONS = {
     "ProductSelectedDepthLossLedger",
     "ProductSelectedDepthLossLedgerAccepted",
+    "ProductExtractorLossAccounting",
+    "ProductExtractorLossAccountingAccepted",
+    "ProductFiatShamirLossAccounting",
+    "ProductFiatShamirLossAccountingAccepted",
     "productSecurityTheorem_requires_selected_depth_loss_accounting",
+    "productSecurityTheorem_requires_extractor_loss_accounting",
+    "productSecurityTheorem_requires_qrom_loss_accounting",
 }
 
 EXPECTED_COMPONENT_IDS = [
@@ -139,6 +147,14 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
     )
     depth = require_dict(dossier.get("supportedProductDepth"), "productCryptoSecurityDossier.supportedProductDepth")
     require(depth.get("theoremMaximumDepth") == 1, "product crypto security dossier maximum theorem depth must stay 1")
+    require(
+        dossier_related.get("productExtractorLossAccounting") == "TestVectors/product-extractor-loss-accounting-v1.json",
+        "product crypto security dossier must link extractor loss accounting",
+    )
+    require(
+        dossier_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+        "product crypto security dossier must link QROM Fiat-Shamir accounting",
+    )
 
 
 def validate_formal_surface(ledger: dict[str, Any]) -> None:
@@ -198,6 +214,18 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
         require_string(component.get("accountingRule"), f"{component_id}.accountingRule")
         require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
         require_false(component.get("productionClaimAllowed"), f"{component_id}.productionClaimAllowed")
+        if component_id == "extractor-instantiation":
+            require(
+                component.get("accountingManifest") == "TestVectors/product-extractor-loss-accounting-v1.json",
+                "extractor-instantiation must link product extractor loss accounting",
+            )
+            require_relative_path(component.get("accountingManifest"), "extractor-instantiation.accountingManifest")
+        if component_id == "fiat-shamir-qrom":
+            require(
+                component.get("accountingManifest") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+                "fiat-shamir-qrom must link product QROM Fiat-Shamir accounting",
+            )
+            require_relative_path(component.get("accountingManifest"), "fiat-shamir-qrom.accountingManifest")
         component_text.append(json.dumps(component, sort_keys=True).lower())
     require(seen_ids == EXPECTED_COMPONENT_IDS, "componentLosses must stay in the pinned accounting order")
     joined = " ".join(component_text)

@@ -29,7 +29,8 @@ true:
   operations readiness status semantics and signed revocation feed semantics.
 - `Docs/CryptographicSecurityDossier-2026-04-16.md` reflects the current
   bounded-depth product security theorem, Fiat-Shamir/QROM position, Module-SIS
-  parameter dossier, selected-depth loss accounting, and production-claim
+  parameter dossier, selected-depth loss accounting, product extractor loss
+  accounting, product QROM Fiat-Shamir accounting, and production-claim
   boundaries.
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
@@ -52,10 +53,11 @@ At minimum, this requires:
   smoke corpus,
 - product integration policy for trusted context, replay protection,
   provenance, and signed revocation feeds,
-- NumiSeal conformance-scope promotion plus concrete Swift extractor evidence,
-  product recursive typed carry vectors, simulator coupling beyond the exact
-  rejection-sampled field mask distribution, QROM loss instantiations, and
-  product cryptographic security dossier promotion beyond depth 1,
+- NumiSeal conformance-scope promotion plus concrete Swift extractor
+  implementation and numeric extractor loss accounting, product recursive
+  typed carry vectors, simulator coupling beyond the exact rejection-sampled
+  field mask distribution, numeric QROM loss instantiations, and product
+  cryptographic security dossier promotion beyond depth 1,
 - selected-depth loss accounting instantiated for extractor, QROM,
   ZK-simulator, hosted product-ops replay, constant-time side-channel, and
   signed release-distribution terms,
@@ -86,6 +88,8 @@ Each release candidate should record:
 - product cryptographic security dossier digest.
 - bounded-depth product security theorem status.
 - selected-depth loss accounting digest.
+- product extractor loss accounting digest.
+- product QROM Fiat-Shamir accounting digest.
 - constant-time source/formal scope digest.
 - constant-time lowering evidence digest.
 - constant-time release evidence digest.
@@ -122,6 +126,14 @@ current depth-1 loss expression, the recursive promotion expression, the nine
 component loss terms, and the fail-closed blockers for extractor, QROM,
 ZK-simulator, hosted product operations, release signing/notarization, and
 CPU/Swift/LLVM/Metal constant-time evidence closure.
+`Scripts/validate-product-extractor-loss-accounting.py` checks
+`TestVectors/product-extractor-loss-accounting-v1.json`, including source-fold
+extractor, terminal-seal extractor, product-envelope composition extractor,
+future recursive carry extractor, and the fail-closed numeric loss budget.
+`Scripts/validate-product-qrom-fiat-shamir-accounting.py` checks
+`TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, including
+proof-kind transcript interfaces, QROM loss symbols, challenge families,
+domain separation, and the fail-closed quantum random-oracle loss budget.
 `Scripts/validate-constant-time-scope.py` checks the constant-time
 source/formal scope manifest and the formal declarations recorded in
 `Docs/ConstantTimeEvidence-2026-04-16.md`.

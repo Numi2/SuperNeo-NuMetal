@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "accountingID": "superneo-product-extractor-loss-accounting-v1",
+  "claimStatus": "extractor-loss-contract-not-production-claim",
+  "relatedManifests": {
+    "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+    "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+    "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+    "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json"
+  },
+  "formalSurface": {
+    "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
+    "declarations": [
+      "ProductExtractorLossAccounting",
+      "ProductExtractorLossAccountingAccepted",
+      "productSecurityTheorem_requires_extractor_loss_accounting"
+    ]
+  },
+  "selectedDepth": {
+    "depthModel": "bounded-depth",
+    "selectedMaximumDepth": 1,
+    "acceptedProductLayers": 1,
+    "selectedRecursiveCarryHops": 0,
+    "extractorPromotionAllowed": false
+  },
+  "extractorInterface": {
+    "target": "accepted product proof envelopes and their bound source fold, terminal seal, ZK residual, and recursive carry context material",
+    "rewindingModel": "public-coin transcript forking schedule over Fiat-Shamir challenge labels",
+    "extractorImplementationLanguage": "Swift",
+    "concreteExtractorImplemented": false,
+    "extractorSchedulePinned": true,
+    "acceptedInputBindings": [
+      "proof envelope header bytes",
+      "source fold envelope bytes",
+      "NumiSeal product proof envelope bytes",
+      "terminal proof envelope kind",
+      "transcript domain digest",
+      "verifier key digest",
+      "shape digest",
+      "statement digest",
+      "public statement digest",
+      "obligation root",
+      "lane summary root",
+      "component digest root",
+      "recursive carry context root when carry mode is typed-required"
+    ]
+  },
+  "componentLosses": [
+    {
+      "id": "source-fold-extractor",
+      "lossSymbol": "epsilon_extract_source_fold",
+      "appliesPerAcceptedLayer": true,
+      "currentMultiplicityAtSelectedDepth": 1,
+      "status": "schedule-pinned-concrete-extractor-open",
+      "accountingRule": "one extractor failure term for the accepted source fold transcript and CE-opening outputs",
+      "requiredEvidence": "concrete extractor over source fold proof-envelope bytes, transcript challenge labels, CE-opening responses, and public output claims",
+      "lossInstantiated": false
+    },
+    {
+      "id": "terminal-seal-extractor",
+      "lossSymbol": "epsilon_extract_terminal",
+      "appliesPerAcceptedLayer": true,
+      "currentMultiplicityAtSelectedDepth": 1,
+      "status": "schedule-pinned-concrete-extractor-open",
+      "accountingRule": "one extractor failure term for the accepted NumiSeal terminal or product seal transcript",
+      "requiredEvidence": "concrete extractor over terminal aggregation, residual opening, lane proof, and component-root transcript bytes",
+      "lossInstantiated": false
+    },
+    {
+      "id": "product-envelope-composition-extractor",
+      "lossSymbol": "epsilon_extract_product",
+      "appliesPerAcceptedLayer": true,
+      "currentMultiplicityAtSelectedDepth": 1,
+      "status": "envelope-binding-pinned-concrete-extractor-open",
+      "accountingRule": "one composition failure term for binding source fold extraction to the accepted product proof envelope and verifier policy",
+      "requiredEvidence": "extractor evidence that artifact metadata, proof envelope headers, verifier policy, and product public statement roots select the same witness relation",
+      "lossInstantiated": false
+    },
+    {
+      "id": "recursive-carry-extractor",
+      "lossSymbol": "epsilon_extract_carry",
+      "appliesPerAcceptedLayer": true,
+      "currentMultiplicityAtSelectedDepth": 0,
+      "status": "zero-hop-at-selected-depth-promotion-open",
+      "accountingRule": "zero at selected depth 1; one extractor failure term per typed recursive carry hop after depth promotion",
+      "requiredEvidence": "concrete extractor for typed carry producer/consumer context bytes and parent-child replay bindings before any depth promotion",
+      "lossInstantiated": false
+    }
+  ],
+  "lossRule": {
+    "selectedDepthExpression": "epsilon_extract(depth=1) = epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product",
+    "recursivePromotionExpression": "epsilon_extract(depth=d) = d * (epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product) + max(d - 1, 0) * epsilon_extract_carry",
+    "allExtractorTermsInstantiated": false,
+    "extractorLossWithinBudget": false,
+    "productionExtractorClaimAllowed": false
+  },
+  "hardClaimBlockers": [
+    "Swift source fold extractor implementation",
+    "terminal NumiSeal extractor implementation",
+    "product envelope composition extractor",
+    "recursive carry extractor for promoted depth",
+    "numeric extractor failure bound inside the selected total loss budget"
+  ],
+  "promotionRule": {
+    "productionProductSecurityClaimAllowed": false,
+    "productionExtractorClaimAllowed": false,
+    "requiresConcreteExtractorImplementation": true,
+    "requiresExtractorLossWithinBudget": true,
+    "requiresSelectedDepthLedgerUpdate": true
+  }
+}

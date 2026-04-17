@@ -62,6 +62,18 @@ def main() -> None:
         write_json(path, missing_extractor)
         run_fail(str(VALIDATE), str(path))
 
+        missing_extractor_accounting = copy.deepcopy(ledger)
+        missing_extractor_accounting["relatedManifests"].pop("productExtractorLossAccounting")
+        path = tmp / "missing-extractor-accounting.json"
+        write_json(path, missing_extractor_accounting)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_qrom_accounting = copy.deepcopy(ledger)
+        missing_qrom_accounting["relatedManifests"].pop("productQROMFiatShamirAccounting")
+        path = tmp / "missing-qrom-accounting.json"
+        write_json(path, missing_qrom_accounting)
+        run_fail(str(VALIDATE), str(path))
+
         reordered_components = copy.deepcopy(ledger)
         reordered_components["componentLosses"][0], reordered_components["componentLosses"][1] = (
             reordered_components["componentLosses"][1],

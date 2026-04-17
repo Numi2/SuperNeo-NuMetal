@@ -22,9 +22,15 @@
       "ProductSecurityTheoremEvidence",
       "ProductSelectedDepthLossLedger",
       "ProductSelectedDepthLossLedgerAccepted",
+      "ProductExtractorLossAccounting",
+      "ProductExtractorLossAccountingAccepted",
+      "ProductFiatShamirLossAccounting",
+      "ProductFiatShamirLossAccountingAccepted",
       "productSecurityTheorem_from_evidence",
       "productSecurityTheorem_requires_bounded_depth",
       "productSecurityTheorem_requires_selected_depth_loss_accounting",
+      "productSecurityTheorem_requires_extractor_loss_accounting",
+      "productSecurityTheorem_requires_qrom_loss_accounting",
       "productSecurityTheorem_requires_qrom_accounting",
       "productSecurityTheorem_requires_artifact_envelope_binding"
     ]
@@ -39,6 +45,8 @@
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
     "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+    "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
+    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json"
   },
   "productTheoremCoverage": [
@@ -148,14 +156,37 @@
       "compose folding, carry, ZK masking, Fiat-Shamir, and extraction losses inside the declared depth budget"
     ]
   },
+  "extractorLossAccounting": {
+    "accountingManifest": "TestVectors/product-extractor-loss-accounting-v1.json",
+    "claimStatus": "extractor-loss-contract-not-production-claim",
+    "selectedDepthExpression": "epsilon_extract(depth=1) = epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product",
+    "recursivePromotionExpression": "epsilon_extract(depth=d) = d * (epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product) + max(d - 1, 0) * epsilon_extract_carry",
+    "sourceFoldExtractorSpecified": false,
+    "terminalSealExtractorSpecified": false,
+    "productEnvelopeExtractorSpecified": false,
+    "recursiveCarryExtractorSpecified": false,
+    "extractorLossWithinBudget": false,
+    "productionExtractorClaimAllowed": false,
+    "remainingObligations": [
+      "instantiate the Swift source fold extractor over proof-envelope bytes and transcript challenge labels",
+      "instantiate the NumiSeal terminal seal extractor over lane aggregation, residual opening, and component-root transcript bytes",
+      "prove product envelope composition extraction binds the source fold witness to the accepted product public statement and verifier policy",
+      "instantiate recursive carry extraction before any selected-depth promotion",
+      "record a numeric extractor failure bound inside the selected total loss budget"
+    ]
+  },
   "fiatShamirQROMPosition": {
     "model": "qrom",
+    "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "claimStatus": "qrom-fiat-shamir-loss-contract-not-production-claim",
     "interactiveProtocolSpecified": false,
+    "publicCoinChallengeScheduleSpecified": true,
     "transformPreconditionsSatisfied": false,
     "quantumOracleQueryBoundAccounted": false,
     "transcriptDomainSeparatorsBound": true,
     "proofKindSeparationBound": true,
     "transcriptCollisionMalleabilityExcluded": false,
+    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_transcript_collision + epsilon_proof_kind_malleability",
     "productionQROMClaimAllowed": false,
     "remainingObligations": [
       "define the exact public-coin interactive protocol before Fiat-Shamir for each accepted product proof kind",

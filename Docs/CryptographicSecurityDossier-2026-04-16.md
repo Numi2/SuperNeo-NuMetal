@@ -8,9 +8,13 @@ Machine-readable scope:
 
 - `TestVectors/product-crypto-security-dossier-v1.json`
 - `TestVectors/product-selected-depth-loss-accounting-v1.json`
+- `TestVectors/product-extractor-loss-accounting-v1.json`
+- `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
 - `Formal/SuperNeoFormal/ProductSecurityTheorem.lean`
 - `Scripts/validate-product-crypto-security-dossier.py`
 - `Scripts/validate-product-selected-depth-loss-accounting.py`
+- `Scripts/validate-product-extractor-loss-accounting.py`
+- `Scripts/validate-product-qrom-fiat-shamir-accounting.py`
 
 The current status is a bounded-depth product security theorem at depth 1.
 All production claims remain disabled until the listed extractor, QROM,
@@ -107,6 +111,43 @@ budget. `ProductSecurityTheorem` now exposes
 `productSecurityTheorem_requires_selected_depth_loss_accounting` so the formal
 surface cannot skip extractor, QROM, simulator, and total-loss gates.
 
+## Extractor Loss Accounting
+
+`TestVectors/product-extractor-loss-accounting-v1.json` is the checked
+extractor loss accounting contract. It pins the selected depth, accepted input
+bindings, transcript rewind model, and four extractor loss terms:
+
+- source fold extractor loss,
+- terminal NumiSeal seal extractor loss,
+- product envelope composition extractor loss, and
+- recursive carry extractor loss for future depth promotion.
+
+At the current depth, the extractor contract records:
+
+```text
+epsilon_extract(depth=1) =
+  epsilon_extract_source_fold
+  + epsilon_extract_terminal
+  + epsilon_extract_product
+```
+
+For future recursive promotion, it records:
+
+```text
+epsilon_extract(depth=d) =
+  d * (epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product)
+  + max(d - 1, 0) * epsilon_extract_carry
+```
+
+This is not a completed extractor proof. It deliberately keeps
+`concreteExtractorImplemented = false`, `extractorLossWithinBudget = false`,
+and `productionExtractorClaimAllowed = false` until the Swift extractor is
+implemented over the actual proof-envelope bytes and the numeric loss is inside
+the selected total budget. `ProductSecurityTheorem` exposes
+`ProductExtractorLossAccounting`,
+`ProductExtractorLossAccountingAccepted`, and
+`productSecurityTheorem_requires_extractor_loss_accounting`.
+
 ## Lattice Assumption Dossier
 
 The pinned assumption is Module-SIS over Goldilocks/Phi81 Ajtai commitments:
@@ -138,10 +179,25 @@ parameter sets and category claims; this repo keeps the current claim
 assumption-scoped until the reduction-loss and parameter story survives that
 style of scrutiny.
 
-## Fiat-Shamir/QROM
+## QROM Fiat-Shamir Accounting
 
-The Fiat-Shamir/QROM target is recorded, but the production QROM claim is
-disabled.
+The Fiat-Shamir/QROM target is recorded, and
+`TestVectors/product-qrom-fiat-shamir-accounting-v1.json` now pins the QROM
+Fiat-Shamir accounting contract. The manifest records the selected depth,
+proof-kind transcript interfaces, challenge families, and the selected-depth
+loss expression:
+
+```text
+epsilon_qrom(depth=1) =
+  epsilon_fs_transform
+  + epsilon_qro_queries
+  + epsilon_transcript_collision
+  + epsilon_proof_kind_malleability
+```
+
+It covers the current envelope kinds for fold, terminal, compressed-terminal,
+NumiSeal terminal, and NumiSealZK product proofs. The production QROM claim is
+still disabled.
 
 Remaining work:
 
@@ -153,6 +209,12 @@ Remaining work:
 - bind every domain separator and transcript label in the theorem, and
 - prove no transcript collision or malleability across fold, terminal,
   compressed-terminal, NumiSeal terminal, and NumiSealZK envelopes.
+
+`ProductSecurityTheorem` exposes `ProductFiatShamirLossAccounting`,
+`ProductFiatShamirLossAccountingAccepted`, and
+`productSecurityTheorem_requires_qrom_loss_accounting` so future theorem
+promotion cannot bypass interactive-protocol, challenge-schedule,
+precondition, quantum-query, collision, malleability, or budget evidence.
 
 Relevant QROM literature includes Don, Fehr, Majenz, and Schaffner,
 `Security of the Fiat-Shamir Transformation in the Quantum Random-Oracle

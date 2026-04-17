@@ -179,6 +179,56 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "product selected-depth loss accounting must pin nine component losses",
     )
     require(
+        require_int(
+            surfaces.get("productExtractorLossAccountingVersion"),
+            "productExtractorLossAccountingVersion",
+        ) == 1,
+        "product extractor loss accounting version must be 1",
+    )
+    require_string(
+        surfaces.get("productExtractorLossAccountingDigestHex"),
+        "productExtractorLossAccountingDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productExtractorLossAccountingClaimStatus"),
+            "productExtractorLossAccountingClaimStatus",
+        ) == "extractor-loss-contract-not-production-claim",
+        "product extractor loss accounting claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("productExtractorLossComponentCount"),
+            "productExtractorLossComponentCount",
+        ) == 4,
+        "product extractor loss accounting must pin four component losses",
+    )
+    require(
+        require_int(
+            surfaces.get("productQROMFiatShamirAccountingVersion"),
+            "productQROMFiatShamirAccountingVersion",
+        ) == 1,
+        "product QROM Fiat-Shamir accounting version must be 1",
+    )
+    require_string(
+        surfaces.get("productQROMFiatShamirAccountingDigestHex"),
+        "productQROMFiatShamirAccountingDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productQROMFiatShamirAccountingClaimStatus"),
+            "productQROMFiatShamirAccountingClaimStatus",
+        ) == "qrom-fiat-shamir-loss-contract-not-production-claim",
+        "product QROM Fiat-Shamir accounting claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("productQROMFiatShamirTranscriptInterfaceCount"),
+            "productQROMFiatShamirTranscriptInterfaceCount",
+        ) == 5,
+        "product QROM Fiat-Shamir accounting must pin five transcript interfaces",
+    )
+    require(
         require_int(surfaces.get("constantTimeScopeVersion"), "constantTimeScopeVersion") == 1,
         "constant-time scope version must be 1",
     )
@@ -285,6 +335,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "productCryptoSecurityDossier",
         "productCryptoSecurityDossierPolicy",
         "productSelectedDepthLossAccounting",
+        "productExtractorLossAccounting",
+        "productQROMFiatShamirAccounting",
         "constantTimeEvidence",
         "constantTimeScope",
         "constantTimeLoweringEvidence",
@@ -319,6 +371,14 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(
         any("selected-depth loss-accounting" in str(boundary).lower() for boundary in boundaries),
         "productionSecurityBoundaries must mention selected-depth loss accounting",
+    )
+    require(
+        any("extractor loss accounting" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention extractor loss accounting",
+    )
+    require(
+        any("qrom fiat-shamir accounting" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention QROM Fiat-Shamir accounting",
     )
 
 

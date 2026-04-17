@@ -25,7 +25,7 @@ cryptographic library.
 | Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
 | Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/`; whole-stack row coverage is checked by `TestVectors/benchmark-coverage-v1.json`. |
-| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, checked selected-depth loss accounting contract, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/product-selected-depth-loss-accounting-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
+| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, checked selected-depth loss accounting contract, checked extractor and QROM Fiat-Shamir accounting contracts, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/product-selected-depth-loss-accounting-v1.json`, `TestVectors/product-extractor-loss-accounting-v1.json`, `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
 | Product ops | Local signed context/provenance/revocation feed, replay ledger, audit export, and machine-readable operations readiness status for private integration work. |
 
 ## Highlights
@@ -97,6 +97,12 @@ cryptographic library.
   product claim boundary. It pins the source-fold, terminal-seal, carry,
   ZK-simulator, QROM, extractor, product-ops replay, constant-time, and release
   distribution loss terms while keeping every hard production claim disabled.
+- Checked extractor loss accounting and QROM Fiat-Shamir accounting contracts
+  in `TestVectors/product-extractor-loss-accounting-v1.json` and
+  `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`. These pin the
+  extractor inputs, transcript rewind schedule, proof-kind transcript
+  interfaces, QROM symbols, and selected-depth formulas while keeping concrete
+  reduction claims disabled.
 - A canonical local product operations readiness status exposed by
   `product-status --format json` and embedded in product audit exports.
 - A required signed revocation feed for local product controls, with effective
@@ -142,7 +148,9 @@ The current repository stack is:
 - **Evidence and formalization:** Lean conformance checks, Swift/Lean vector
   bridges, theorem-scope manifests, parameter/security dossiers, constant-time
   source/lowering evidence manifests, and benchmark/proof-size manifests,
-  including `TestVectors/product-selected-depth-loss-accounting-v1.json` and
+  including `TestVectors/product-selected-depth-loss-accounting-v1.json`,
+  `TestVectors/product-extractor-loss-accounting-v1.json`,
+  `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, and
   `TestVectors/benchmark-coverage-v1.json`.
 - **Acceleration:** CPU reference path, Metal kernels for selected field/ring
   and NumiSeal workloads, adaptive routing, redundant CPU/Metal checking, and
@@ -152,8 +160,9 @@ The current repository stack is:
   smoke budgets, and a checked whole-stack benchmark coverage manifest.
 
 Still intentionally not claimed as complete production security: hosted product
-operations, selected-depth loss accounting is contracted but not instantiated,
-extractor instantiation, QROM loss accounting, full ZK simulator composition,
+operations, selected-depth loss accounting is contracted but not fully
+instantiated, extractor loss accounting and QROM Fiat-Shamir accounting are
+contracted but not numerically instantiated, full ZK simulator composition,
 release signing/notarized distribution, and CPU/Swift/LLVM/Metal constant-time
 evidence closure for every production hardware lane.
 
@@ -195,10 +204,11 @@ Current boundaries:
 - no production zero-knowledge claim for arbitrary application statements,
 - no production hardware constant-time certificate for Swift/LLVM/Metal
   lowering and selected CPU/GPU lanes, and
-- no completed production-security concrete Swift extractor evidence,
-  simulator coupling beyond the exact field-mask distribution lemma,
-  side-channel privacy evidence, QROM theorem instantiation, or product-level
-  post-quantum parameter dossier that clears the conservative sensitivity rows.
+- no completed production-security concrete Swift extractor implementation,
+  numeric extractor loss bound, simulator coupling beyond the exact field-mask
+  distribution lemma, side-channel privacy evidence, QROM theorem
+  instantiation, numeric QROM loss bound, or product-level post-quantum
+  parameter dossier that clears the conservative sensitivity rows.
 
 The concise proof semantics are documented in
 [Docs/WhatThisProves.md](Docs/WhatThisProves.md), and the operational threat
@@ -449,6 +459,12 @@ metrics material to proof bytes.
 selected-depth loss accounting contract for the current depth-1 product
 security boundary while keeping extractor, QROM, simulator, hosted-ops,
 release-signing, and CT evidence claims disabled.
+`TestVectors/product-extractor-loss-accounting-v1.json` pins the extractor
+loss accounting contract for source-fold extraction, terminal-seal extraction,
+product-envelope composition, and future recursive carry extraction.
+`TestVectors/product-qrom-fiat-shamir-accounting-v1.json` pins QROM
+Fiat-Shamir accounting for fold, terminal, compressed-terminal, NumiSeal
+terminal, and NumiSealZK product transcript interfaces.
 `TestVectors/benchmark-coverage-v1.json` pins the benchmark row families that
 must remain registered, rendered, baseline-comparable, and production-gated for
 the source fold, kernels, Metal, NumiSeal product, recursive carry, and product

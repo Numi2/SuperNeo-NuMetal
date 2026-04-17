@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "accountingID": "superneo-product-qrom-fiat-shamir-accounting-v1",
+  "claimStatus": "qrom-fiat-shamir-loss-contract-not-production-claim",
+  "relatedManifests": {
+    "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+    "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+    "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
+    "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+    "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json"
+  },
+  "formalSurface": {
+    "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
+    "declarations": [
+      "ProductFiatShamirLossAccounting",
+      "ProductFiatShamirLossAccountingAccepted",
+      "productSecurityTheorem_requires_qrom_loss_accounting"
+    ]
+  },
+  "selectedDepth": {
+    "depthModel": "bounded-depth",
+    "selectedMaximumDepth": 1,
+    "acceptedProductLayers": 1,
+    "selectedRecursiveCarryHops": 0,
+    "qromPromotionAllowed": false
+  },
+  "fiatShamirModel": {
+    "model": "qrom",
+    "interactiveProtocolSpecified": false,
+    "publicCoinChallengeScheduleSpecified": true,
+    "transformPreconditionsSatisfied": false,
+    "quantumOracleQueryBoundAccounted": false,
+    "transcriptDomainSeparatorsBound": true,
+    "proofKindSeparationBound": true,
+    "transcriptCollisionMalleabilityExcluded": false,
+    "productionQROMClaimAllowed": false
+  },
+  "transcriptInterfaces": [
+    {
+      "proofKind": "fold",
+      "envelopeKind": 1,
+      "domainBinding": "proof envelope transcript domain plus source fold statement and verifier key digests",
+      "challengeFamilies": [
+        "sumcheck round challenges",
+        "piCCS linear-combination challenges",
+        "piRLC challenges",
+        "piDEC decomposition challenges"
+      ]
+    },
+    {
+      "proofKind": "terminal",
+      "envelopeKind": 2,
+      "domainBinding": "terminal proof envelope domain plus public CE-opening relation digest",
+      "challengeFamilies": [
+        "terminal CE-opening challenges",
+        "terminal local relation challenge material"
+      ]
+    },
+    {
+      "proofKind": "compressed-terminal",
+      "envelopeKind": 3,
+      "domainBinding": "compressed terminal envelope domain plus compressed public statement digest",
+      "challengeFamilies": [
+        "compressed terminal CE-opening challenges",
+        "compressed statement binding challenges"
+      ]
+    },
+    {
+      "proofKind": "numiseal-terminal",
+      "envelopeKind": 4,
+      "domainBinding": "NumiSeal public statement digest, obligation root, lane summary root, aggregate digests, component digest root, and proof transcript digest",
+      "challengeFamilies": [
+        "NumiSeal residual-opening challenges",
+        "lane aggregation challenges",
+        "component-root binding challenges"
+      ]
+    },
+    {
+      "proofKind": "numiseal-zk-product",
+      "envelopeKind": 5,
+      "domainBinding": "NumiSealZK public statement digest, randomness session digest, declared leakage digest, component digest root, and proof transcript digest",
+      "challengeFamilies": [
+        "masked residual challenges",
+        "mask tensor commitment challenges",
+        "ZK randomness-session binding challenges"
+      ]
+    }
+  ],
+  "lossRule": {
+    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_transcript_collision + epsilon_proof_kind_malleability",
+    "recursivePromotionExpression": "epsilon_qrom(depth=d) = d * (epsilon_fs_transform + epsilon_qro_queries) + epsilon_transcript_collision + epsilon_proof_kind_malleability",
+    "quantumOracleQuerySymbol": "Q_H",
+    "challengeForkingLossSymbol": "epsilon_fs_transform",
+    "transcriptCollisionLossSymbol": "epsilon_transcript_collision",
+    "proofKindMalleabilityLossSymbol": "epsilon_proof_kind_malleability",
+    "allQROMLossTermsInstantiated": false,
+    "qromLossWithinBudget": false,
+    "productionQROMClaimAllowed": false
+  },
+  "hardClaimBlockers": [
+    "exact public-coin interactive protocol for every accepted product proof kind",
+    "proof that the selected Fiat-Shamir transform preconditions hold",
+    "quantum random-oracle query bound",
+    "numeric QROM reduction loss inside the selected total loss budget",
+    "proof that proof-kind and transcript-domain separation exclude collision and malleability"
+  ],
+  "promotionRule": {
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
+    "requiresInteractiveProtocol": true,
+    "requiresTransformPreconditions": true,
+    "requiresQuantumOracleQueryBound": true,
+    "requiresQROMLossWithinBudget": true,
+    "requiresSelectedDepthLedgerUpdate": true
+  }
+}

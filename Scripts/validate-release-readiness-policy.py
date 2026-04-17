@@ -77,6 +77,8 @@ def validate_docs() -> None:
             "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
             "TestVectors/product-crypto-security-dossier-v1.json",
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
+            "TestVectors/product-extractor-loss-accounting-v1.json",
+            "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -94,6 +96,10 @@ def validate_docs() -> None:
             "Scripts/test-product-crypto-security-dossier-validation.py",
             "Scripts/validate-product-selected-depth-loss-accounting.py",
             "Scripts/test-product-selected-depth-loss-accounting-validation.py",
+            "Scripts/validate-product-extractor-loss-accounting.py",
+            "Scripts/test-product-extractor-loss-accounting-validation.py",
+            "Scripts/validate-product-qrom-fiat-shamir-accounting.py",
+            "Scripts/test-product-qrom-fiat-shamir-accounting-validation.py",
             "Scripts/validate-e2e-proof-metrics.py",
             "Scripts/test-e2e-proof-metrics-validation.py",
             "Scripts/validate-benchmark-coverage.py",
@@ -110,6 +116,8 @@ def validate_docs() -> None:
             "exact rejection-sampled field mask distribution",
             "bounded-depth product security theorem",
             "selected-depth loss accounting",
+            "extractor loss-accounting validation",
+            "QROM Fiat-Shamir accounting validation",
             "ProductSecurityTheorem",
             "Fiat-Shamir/QROM",
             "Module-SIS",
@@ -132,6 +140,8 @@ def validate_docs() -> None:
             "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
             "TestVectors/product-crypto-security-dossier-v1.json",
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
+            "TestVectors/product-extractor-loss-accounting-v1.json",
+            "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "Docs/CryptographicSecurityDossier-2026-04-16.md",
             "Scripts/validate-constant-time-scope.py",
             "Scripts/validate-constant-time-lowering-evidence.py",
@@ -146,6 +156,8 @@ def validate_docs() -> None:
             "exact rejection-sampled field mask distribution",
             "product cryptographic security dossier digest",
             "bounded-depth product security theorem",
+            "product extractor loss accounting",
+            "product QROM Fiat-Shamir accounting",
             "signed revocation feed",
             "E2E proof metrics digest",
             "constant-time release evidence digest",
@@ -164,11 +176,16 @@ def validate_docs() -> None:
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
             "TestVectors/product-crypto-security-dossier-v1.json",
+            "TestVectors/product-selected-depth-loss-accounting-v1.json",
+            "TestVectors/product-extractor-loss-accounting-v1.json",
+            "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
             "TestVectors/e2e-proof-metrics-v1.json",
             "TestVectors/benchmark-coverage-v1.json",
+            "Product extractor loss accounting manifest",
+            "Product QROM Fiat-Shamir accounting manifest",
             "Version Bump Checklist",
         ],
     )
@@ -185,6 +202,8 @@ def validate_docs() -> None:
             "NumiSealZK mask-distribution evidence version and digest",
             "product cryptographic security dossier version and digest",
             "selected-depth loss-accounting version and digest",
+            "product extractor loss-accounting version and digest",
+            "product QROM Fiat-Shamir accounting version and digest",
             "constant-time source/formal scope version and digest",
             "constant-time lowering evidence version and digest",
             "constant-time release evidence version and digest",
@@ -210,6 +229,8 @@ def validate_docs() -> None:
             "product cryptographic security dossier",
             "bounded-depth product security theorem",
             "selected-depth loss accounting",
+            "extractor loss accounting",
+            "QROM Fiat-Shamir accounting",
             "constant-time release evidence",
         ],
     )
@@ -320,6 +341,16 @@ def validate_schema_versions() -> None:
         product_dossier.get("claimStatus") == "evidence-parametric-product-security-theorem-dossier",
         "product crypto security dossier claimStatus must stay precise",
     )
+    dossier_related = product_dossier.get("relatedManifests")
+    require(isinstance(dossier_related, dict), "product crypto security dossier relatedManifests must be an object")
+    require(
+        dossier_related.get("productExtractorLossAccounting") == "TestVectors/product-extractor-loss-accounting-v1.json",
+        "product crypto security dossier must link extractor accounting",
+    )
+    require(
+        dossier_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+        "product crypto security dossier must link QROM Fiat-Shamir accounting",
+    )
     dossier_depth = product_dossier.get("supportedProductDepth")
     require(isinstance(dossier_depth, dict), "product crypto security dossier supportedProductDepth must be an object")
     require(dossier_depth.get("depthModel") == "bounded-depth", "product security theorem must stay bounded-depth")
@@ -366,6 +397,42 @@ def validate_schema_versions() -> None:
     )
     blockers = selected_depth_loss.get("hardClaimBlockers")
     require(isinstance(blockers, list) and len(blockers) == 6, "selected-depth loss-accounting must pin six hard blockers")
+    selected_related = selected_depth_loss.get("relatedManifests")
+    require(isinstance(selected_related, dict), "selected-depth loss-accounting relatedManifests must be an object")
+    require(
+        selected_related.get("productExtractorLossAccounting") == "TestVectors/product-extractor-loss-accounting-v1.json",
+        "selected-depth loss-accounting must link extractor accounting",
+    )
+    require(
+        selected_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+        "selected-depth loss-accounting must link QROM Fiat-Shamir accounting",
+    )
+    extractor_loss = read_json("TestVectors/product-extractor-loss-accounting-v1.json")
+    require(isinstance(extractor_loss, dict), "extractor loss-accounting root must be an object")
+    require(extractor_loss.get("schemaVersion") == 1, "extractor loss-accounting schemaVersion must be 1")
+    require(
+        extractor_loss.get("claimStatus") == "extractor-loss-contract-not-production-claim",
+        "extractor loss-accounting claimStatus must stay precise",
+    )
+    extractor_rule = extractor_loss.get("lossRule")
+    require(isinstance(extractor_rule, dict), "extractor loss-accounting lossRule must be an object")
+    require(
+        extractor_rule.get("productionExtractorClaimAllowed") is False,
+        "extractor loss-accounting must not prematurely allow extractor claims",
+    )
+    qrom_accounting = read_json("TestVectors/product-qrom-fiat-shamir-accounting-v1.json")
+    require(isinstance(qrom_accounting, dict), "QROM Fiat-Shamir accounting root must be an object")
+    require(qrom_accounting.get("schemaVersion") == 1, "QROM Fiat-Shamir accounting schemaVersion must be 1")
+    require(
+        qrom_accounting.get("claimStatus") == "qrom-fiat-shamir-loss-contract-not-production-claim",
+        "QROM Fiat-Shamir accounting claimStatus must stay precise",
+    )
+    qrom_rule = qrom_accounting.get("lossRule")
+    require(isinstance(qrom_rule, dict), "QROM Fiat-Shamir accounting lossRule must be an object")
+    require(
+        qrom_rule.get("productionQROMClaimAllowed") is False,
+        "QROM Fiat-Shamir accounting must not prematurely allow QROM claims",
+    )
     constant_time_scope = read_json("TestVectors/constant-time-scope-v1.json")
     require(isinstance(constant_time_scope, dict), "constant-time scope root must be an object")
     require(constant_time_scope.get("schemaVersion") == 1, "constant-time scope schemaVersion must be 1")
@@ -515,6 +582,22 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/test-product-selected-depth-loss-accounting-validation.py" in gate,
         "production gate must run selected-depth loss-accounting regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-extractor-loss-accounting.py" in gate,
+        "production gate must run validate-product-extractor-loss-accounting.py",
+    )
+    require(
+        "run_step Scripts/test-product-extractor-loss-accounting-validation.py" in gate,
+        "production gate must run extractor loss-accounting regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-qrom-fiat-shamir-accounting.py" in gate,
+        "production gate must run validate-product-qrom-fiat-shamir-accounting.py",
+    )
+    require(
+        "run_step Scripts/test-product-qrom-fiat-shamir-accounting-validation.py" in gate,
+        "production gate must run QROM Fiat-Shamir accounting regression tests",
     )
     require(
         "run_step Scripts/validate-constant-time-scope.py" in gate,

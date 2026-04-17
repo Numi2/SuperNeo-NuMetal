@@ -103,6 +103,54 @@ def ProductSelectedDepthLossLedgerAccepted
     ∧ ledger.releaseSigningEvidenceClosed
     ∧ ledger.totalLossWithinBudget
 
+structure ProductExtractorLossAccounting where
+  selectedDepth : Nat
+  selectedDepthPositive : 0 < selectedDepth
+  acceptedLayerBounded : Prop
+  sourceFoldExtractorSpecified : Prop
+  terminalSealExtractorSpecified : Prop
+  productEnvelopeExtractorSpecified : Prop
+  recursiveCarryExtractorSpecified : Prop
+  rewindScheduleBoundToTranscript : Prop
+  extractorFailureLossAccounted : Prop
+  extractorLossWithinBudget : Prop
+
+def ProductExtractorLossAccountingAccepted
+    (accounting : ProductExtractorLossAccounting) : Prop :=
+  (0 < accounting.selectedDepth)
+    ∧ accounting.acceptedLayerBounded
+    ∧ accounting.sourceFoldExtractorSpecified
+    ∧ accounting.terminalSealExtractorSpecified
+    ∧ accounting.productEnvelopeExtractorSpecified
+    ∧ accounting.recursiveCarryExtractorSpecified
+    ∧ accounting.rewindScheduleBoundToTranscript
+    ∧ accounting.extractorFailureLossAccounted
+    ∧ accounting.extractorLossWithinBudget
+
+structure ProductFiatShamirLossAccounting where
+  selectedDepth : Nat
+  selectedDepthPositive : 0 < selectedDepth
+  interactiveProtocolSpecified : Prop
+  publicCoinChallengeScheduleSpecified : Prop
+  qromTransformPreconditionsSatisfied : Prop
+  quantumOracleQueryBoundAccounted : Prop
+  transcriptDomainSeparatorsBound : Prop
+  proofKindSeparationBound : Prop
+  transcriptCollisionMalleabilityExcluded : Prop
+  qromLossWithinBudget : Prop
+
+def ProductFiatShamirLossAccountingAccepted
+    (accounting : ProductFiatShamirLossAccounting) : Prop :=
+  (0 < accounting.selectedDepth)
+    ∧ accounting.interactiveProtocolSpecified
+    ∧ accounting.publicCoinChallengeScheduleSpecified
+    ∧ accounting.qromTransformPreconditionsSatisfied
+    ∧ accounting.quantumOracleQueryBoundAccounted
+    ∧ accounting.transcriptDomainSeparatorsBound
+    ∧ accounting.proofKindSeparationBound
+    ∧ accounting.transcriptCollisionMalleabilityExcluded
+    ∧ accounting.qromLossWithinBudget
+
 structure ProductLatticeAssumptionDossier where
   moduleSISStatementPinned : Prop
   qRingDimensionAndNormPinned : Prop
@@ -257,6 +305,53 @@ theorem productSecurityTheorem_requires_selected_depth_loss_accounting
       _,
       hTotal⟩
   exact ⟨hExtractor, hQROM, hZKSimulator, hTotal⟩
+
+theorem productSecurityTheorem_requires_extractor_loss_accounting
+    {accounting : ProductExtractorLossAccounting}
+    (hAccounting : ProductExtractorLossAccountingAccepted accounting) :
+    accounting.sourceFoldExtractorSpecified
+      ∧ accounting.terminalSealExtractorSpecified
+      ∧ accounting.productEnvelopeExtractorSpecified
+      ∧ accounting.extractorFailureLossAccounted
+      ∧ accounting.extractorLossWithinBudget := by
+  rcases hAccounting with
+    ⟨_,
+      _,
+      hSourceFold,
+      hTerminalSeal,
+      hProductEnvelope,
+      _,
+      _,
+      hExtractorLoss,
+      hBudget⟩
+  exact ⟨hSourceFold, hTerminalSeal, hProductEnvelope, hExtractorLoss, hBudget⟩
+
+theorem productSecurityTheorem_requires_qrom_loss_accounting
+    {accounting : ProductFiatShamirLossAccounting}
+    (hAccounting : ProductFiatShamirLossAccountingAccepted accounting) :
+    accounting.interactiveProtocolSpecified
+      ∧ accounting.publicCoinChallengeScheduleSpecified
+      ∧ accounting.qromTransformPreconditionsSatisfied
+      ∧ accounting.quantumOracleQueryBoundAccounted
+      ∧ accounting.transcriptCollisionMalleabilityExcluded
+      ∧ accounting.qromLossWithinBudget := by
+  rcases hAccounting with
+    ⟨_,
+      hInteractive,
+      hChallengeSchedule,
+      hPreconditions,
+      hQuantumQueries,
+      _,
+      _,
+      hCollision,
+      hBudget⟩
+  exact
+    ⟨hInteractive,
+      hChallengeSchedule,
+      hPreconditions,
+      hQuantumQueries,
+      hCollision,
+      hBudget⟩
 
 theorem productSecurityTheorem_requires_qrom_accounting
     {fiatShamir : ProductFiatShamirQROMEvidence}

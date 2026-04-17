@@ -84,6 +84,30 @@ def main() -> None:
         write_json(path, missing_loss_ledger)
         run_fail(str(VALIDATE), str(path))
 
+        missing_extractor_accounting = copy.deepcopy(dossier)
+        del missing_extractor_accounting["relatedManifests"]["productExtractorLossAccounting"]
+        path = tmp / "missing-extractor-accounting.json"
+        write_json(path, missing_extractor_accounting)
+        run_fail(str(VALIDATE), str(path))
+
+        premature_extractor = copy.deepcopy(dossier)
+        premature_extractor["extractorLossAccounting"]["productionExtractorClaimAllowed"] = True
+        path = tmp / "premature-extractor.json"
+        write_json(path, premature_extractor)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_qrom_accounting = copy.deepcopy(dossier)
+        del missing_qrom_accounting["relatedManifests"]["productQROMFiatShamirAccounting"]
+        path = tmp / "missing-qrom-accounting.json"
+        write_json(path, missing_qrom_accounting)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_qrom_expression = copy.deepcopy(dossier)
+        missing_qrom_expression["fiatShamirQROMPosition"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_fs_transform"
+        path = tmp / "missing-qrom-expression.json"
+        write_json(path, missing_qrom_expression)
+        run_fail(str(VALIDATE), str(path))
+
         outsourced_review = copy.deepcopy(dossier)
         outsourced_review["supportedProductDepth"]["remainingForDepthPromotion"].append("External" + " audit required.")
         path = tmp / "outsourced-review.json"

@@ -31,6 +31,13 @@ candidate. It does not authorize production-security release claims.
 - `TestVectors/product-selected-depth-loss-accounting-v1.json` reflects any
   selected-depth loss-accounting changes for extractor, QROM, ZK simulator,
   product-ops replay, CT, or release-distribution terms.
+- `TestVectors/product-extractor-loss-accounting-v1.json` reflects any
+  extractor input, rewind schedule, source-fold extractor, terminal-seal
+  extractor, product-envelope composition, or recursive carry extractor changes.
+- `TestVectors/product-qrom-fiat-shamir-accounting-v1.json` reflects any
+  QROM Fiat-Shamir accounting changes for proof-kind transcript interfaces,
+  challenge families, domain separation, quantum random-oracle queries, or
+  transcript collision/malleability terms.
 - `elan`, Swift, and the pinned Lean toolchain are available.
 
 ## Candidate Gate
@@ -89,6 +96,8 @@ The generated evidence records:
 - product cryptographic security dossier version and digest,
 - bounded-depth product security theorem status,
 - selected-depth loss-accounting version and digest,
+- product extractor loss-accounting version and digest,
+- product QROM Fiat-Shamir accounting version and digest,
 - constant-time source/formal scope version and digest,
 - constant-time lowering evidence version and digest,
 - constant-time release evidence version and digest,

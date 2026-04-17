@@ -138,6 +138,42 @@ def main() -> None:
         write_json(path, missing_selected_loss_component)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_extractor_loss = copy.deepcopy(evidence)
+        wrong_extractor_loss["publicSurfaces"]["productExtractorLossAccountingVersion"] = 2
+        path = tmp / "wrong-extractor-loss.json"
+        write_json(path, wrong_extractor_loss)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_extractor_loss = copy.deepcopy(evidence)
+        vague_extractor_loss["publicSurfaces"]["productExtractorLossAccountingClaimStatus"] = "production-extractor-proof"
+        path = tmp / "vague-extractor-loss.json"
+        write_json(path, vague_extractor_loss)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_extractor_component = copy.deepcopy(evidence)
+        missing_extractor_component["publicSurfaces"]["productExtractorLossComponentCount"] = 3
+        path = tmp / "missing-extractor-component.json"
+        write_json(path, missing_extractor_component)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        wrong_qrom_accounting = copy.deepcopy(evidence)
+        wrong_qrom_accounting["publicSurfaces"]["productQROMFiatShamirAccountingVersion"] = 2
+        path = tmp / "wrong-qrom-accounting.json"
+        write_json(path, wrong_qrom_accounting)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_qrom_accounting = copy.deepcopy(evidence)
+        vague_qrom_accounting["publicSurfaces"]["productQROMFiatShamirAccountingClaimStatus"] = "production-qrom-proof"
+        path = tmp / "vague-qrom-accounting.json"
+        write_json(path, vague_qrom_accounting)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_qrom_interface = copy.deepcopy(evidence)
+        missing_qrom_interface["publicSurfaces"]["productQROMFiatShamirTranscriptInterfaceCount"] = 4
+        path = tmp / "missing-qrom-interface.json"
+        write_json(path, missing_qrom_interface)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_constant_time_scope = copy.deepcopy(evidence)
         wrong_constant_time_scope["publicSurfaces"]["constantTimeScopeVersion"] = 2
         path = tmp / "wrong-constant-time-scope.json"

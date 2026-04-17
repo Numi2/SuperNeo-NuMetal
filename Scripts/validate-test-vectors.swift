@@ -692,6 +692,8 @@ do {
                 && !$0.hasPrefix("constant-time-lowering-evidence-")
                 && $0 != "product-crypto-security-dossier-v1.json"
                 && $0 != "product-selected-depth-loss-accounting-v1.json"
+                && $0 != "product-extractor-loss-accounting-v1.json"
+                && $0 != "product-qrom-fiat-shamir-accounting-v1.json"
                 && $0 != "e2e-proof-metrics-v1.json"
                 && $0 != "benchmark-coverage-v1.json"
         }

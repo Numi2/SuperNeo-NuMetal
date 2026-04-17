@@ -20,6 +20,8 @@ manifests, and binary proof envelopes.
 | NumiSealZK mask-distribution evidence manifest | `schemaVersion = 1` |
 | Product cryptographic security dossier manifest | `schemaVersion = 1` |
 | Product selected-depth loss accounting manifest | `schemaVersion = 1` |
+| Product extractor loss accounting manifest | `schemaVersion = 1` |
+| Product QROM Fiat-Shamir accounting manifest | `schemaVersion = 1` |
 | Constant-time source/formal scope manifest | `schemaVersion = 1` |
 | Constant-time Swift/LLVM/Metal lowering evidence manifest | `schemaVersion = 1` |
 | Constant-time release evidence manifest | `schemaVersion = 1` |
@@ -161,6 +163,22 @@ ZK-simulator, QROM, extractor, product-ops replay, constant-time, and
 release-distribution loss terms, and the promotion rule that keeps production
 product-security claims disabled until all terms are instantiated and inside
 budget.
+
+`TestVectors/product-extractor-loss-accounting-v1.json` is the checked product
+extractor loss accounting manifest. It is not a proof artifact schema and does
+not affect proof bytes. It pins source-fold extractor, terminal-seal extractor,
+product-envelope composition extractor, future recursive carry extractor,
+accepted input bindings, rewind model, and the promotion rule that keeps
+production extractor claims disabled until a concrete extractor and numeric
+loss budget are instantiated.
+
+`TestVectors/product-qrom-fiat-shamir-accounting-v1.json` is the checked
+Product QROM Fiat-Shamir accounting manifest. It is not a proof artifact schema
+and does not affect proof bytes. It pins proof-kind transcript interfaces,
+challenge families, domain separation, QROM loss symbols, and the promotion
+rule that keeps production QROM claims disabled until the interactive protocol,
+transform preconditions, quantum random-oracle query bound, and numeric loss
+budget are instantiated.
 
 `TestVectors/constant-time-scope-v1.json` is the checked constant-time
 source/formal scope manifest. It is not a proof artifact schema; it pins audited
