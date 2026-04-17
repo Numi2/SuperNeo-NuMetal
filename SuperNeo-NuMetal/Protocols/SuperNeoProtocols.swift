@@ -3432,7 +3432,13 @@ private func makeFoldTranscript(input: SuperNeoFoldInput, transcriptSeed: [UInt8
 }
 
 private func makeFoldTranscript(input: SuperNeoPublicFoldInput, transcriptSeed: [UInt8]) -> SumCheckTranscript {
-    var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.fold", seed: transcriptSeed)
+    let contextSeed = transcriptSeed
+        + input.shape.shapeDigest.superNeoBytes
+        + transcriptEncodeCount(input.instances.count)
+        + input.instances.flatMap(\.superNeoBytes)
+        + transcriptEncodeCount(input.priorClaims.count)
+        + input.priorClaims.flatMap(\.superNeoBytes)
+    var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.fold", seed: contextSeed)
     transcript.absorb(input.shape.shapeDigest.superNeoBytes)
     transcript.absorb(transcriptEncodeCount(input.instances.count))
     input.instances.forEach { transcript.absorb($0.superNeoBytes) }
@@ -4757,7 +4763,11 @@ private func isValidPrivateVectorLength(_ privateCount: Int, publicInputCount: I
 }
 
 private func makeCEOpeningTranscript(statement: TerminalCEStatement) -> SumCheckTranscript {
-    var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.ce-opening.stern")
+    var transcript = SumCheckTranscript(
+        domainSeparator: "SuperNeo-NuMetal.ce-opening.stern",
+        seed: statement.superNeoBytes,
+        proofKind: .terminalLocal
+    )
     transcript.absorb(statement.superNeoBytes)
     return transcript
 }

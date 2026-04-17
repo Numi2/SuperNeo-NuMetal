@@ -80,11 +80,29 @@ public struct DeterministicRNG: Sendable {
 }
 
 public struct SumCheckTranscript: Sendable {
-    private var rng: DeterministicRNG
+    public let proofKind: ProofEnvelopeKind
+    public let challengeTapeSeed: Digest256
+
+    private var tape: SuperNeoChallengeTape
     private var absorbed: [UInt8]
 
-    public init(domainSeparator: String, seed: [UInt8] = []) {
-        self.rng = DeterministicRNG(seed: [])
+    public init(domainSeparator: String, seed: [UInt8] = [], proofKind: ProofEnvelopeKind? = nil) {
+        let resolvedProofKind = proofKind ?? Self.inferProofKind(from: seed) ?? .foldReduction
+        let seedDigest = SuperNeoSplitQRO.hChal(
+            domain: "\(SuperNeoSplitQRO.challengeDomain)/sumcheck-transcript-seed",
+            frames: [
+                [resolvedProofKind.rawValue],
+                Array(domainSeparator.utf8),
+                seed
+            ]
+        )
+        self.proofKind = resolvedProofKind
+        self.challengeTapeSeed = seedDigest
+        self.tape = SuperNeoChallengeTape(
+            seed: seedDigest,
+            proofKind: resolvedProofKind,
+            label: domainSeparator
+        )
         self.absorbed = []
         absorb(Array(domainSeparator.utf8))
         absorb(seed)
@@ -94,23 +112,48 @@ public struct SumCheckTranscript: Sendable {
         absorbed.reserveCapacity(absorbed.count + 8 + bytes.count)
         absorbed.append(contentsOf: Self.frameLength(bytes.count))
         absorbed.append(contentsOf: bytes)
-        rng = DeterministicRNG(seed: absorbed)
     }
 
     public mutating func challengeField() -> GoldilocksField {
-        rng.nextField()
+        tape.nextField()
     }
 
     public mutating func challengeExt2() -> GoldilocksExt2 {
-        rng.nextExt2()
+        tape.nextExt2()
     }
 
     public mutating func challengeRing(parameters: SuperNeoParameters = .goldilocks) -> CyclotomicRing54 {
-        rng.nextChallengeRing(parameters: parameters)
+        tape.nextRing(parameters: parameters)
     }
 
     private static func frameLength(_ value: Int) -> [UInt8] {
         withUnsafeBytes(of: UInt64(value).littleEndian, Array.init)
+    }
+
+    private static func inferProofKind(from seed: [UInt8]) -> ProofEnvelopeKind? {
+        guard seed.count > 8,
+              readUInt32LE(seed, offset: 0) == ProofEnvelopeHeader.magic,
+              readUInt16LE(seed, offset: 4) == ProofEnvelopeHeader.version else {
+            return nil
+        }
+        return ProofEnvelopeKind(rawValue: seed[8])
+    }
+
+    private static func readUInt16LE(_ bytes: [UInt8], offset: Int) -> UInt16? {
+        guard bytes.count >= offset + 2 else {
+            return nil
+        }
+        return UInt16(bytes[offset]) | (UInt16(bytes[offset + 1]) << 8)
+    }
+
+    private static func readUInt32LE(_ bytes: [UInt8], offset: Int) -> UInt32? {
+        guard bytes.count >= offset + 4 else {
+            return nil
+        }
+        return UInt32(bytes[offset])
+            | (UInt32(bytes[offset + 1]) << 8)
+            | (UInt32(bytes[offset + 2]) << 16)
+            | (UInt32(bytes[offset + 3]) << 24)
     }
 }
 

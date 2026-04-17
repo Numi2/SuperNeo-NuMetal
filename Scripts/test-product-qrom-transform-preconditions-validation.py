@@ -62,10 +62,10 @@ def main() -> None:
         write_json(path, weak_binding)
         run_fail(str(VALIDATE), str(path))
 
-        premature_seed_precondition = copy.deepcopy(preconditions)
-        premature_seed_precondition["preconditions"][1]["satisfied"] = True
-        path = tmp / "premature-seed-precondition.json"
-        write_json(path, premature_seed_precondition)
+        missing_seed_precondition = copy.deepcopy(preconditions)
+        missing_seed_precondition["preconditions"][1]["satisfied"] = False
+        path = tmp / "missing-seed-precondition.json"
+        write_json(path, missing_seed_precondition)
         run_fail(str(VALIDATE), str(path))
 
         missing_uniformity = copy.deepcopy(preconditions)

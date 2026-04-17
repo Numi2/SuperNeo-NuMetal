@@ -216,8 +216,8 @@ def validate_precondition_rows(preconditions: dict[str, Any]) -> None:
         else:
             fail(f"{row_id}.satisfied must be boolean")
     require(seen == EXPECTED_PRECONDITION_IDS, "preconditions order mismatch")
-    require({"ctco-public-coin-protocol", "hbind-384-acceptance-bindings", "challenge-space-uniformity", "transcript-oracle-input-encoding", "quantum-query-bound", "collision-and-malleability-exclusion"}.issubset(satisfied), "closed structural preconditions mismatch")
-    require({"single-seed-challenge-tape", "delayed-message-binding", "unique-response-data", "underlying-interactive-security", "zero-knowledge-or-simulator-preconditions", "qrom-compiler-overhead-instantiation"}.issubset(unsatisfied), "open CTCO implementation/security preconditions mismatch")
+    require({"ctco-public-coin-protocol", "single-seed-challenge-tape", "hbind-384-acceptance-bindings", "challenge-space-uniformity", "transcript-oracle-input-encoding", "quantum-query-bound", "collision-and-malleability-exclusion"}.issubset(satisfied), "closed structural preconditions mismatch")
+    require({"delayed-message-binding", "unique-response-data", "underlying-interactive-security", "zero-knowledge-or-simulator-preconditions", "qrom-compiler-overhead-instantiation"}.issubset(unsatisfied), "open CTCO implementation/security preconditions mismatch")
 
 
 def validate_proof_kind_fit(preconditions: dict[str, Any]) -> None:

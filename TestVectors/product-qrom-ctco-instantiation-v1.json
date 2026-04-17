@@ -9,6 +9,7 @@
   },
   "implementationSurfaces": {
     "splitOracle": "SuperNeo-NuMetal/SuperNeoHashOracles.swift",
+    "transcript": "SuperNeo-NuMetal/Transcript/SumCheckTranscript.swift",
     "productAPI": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductAPI.swift",
     "productProver": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
     "tests": "SuperNeo-NuMetalTests/SuperNeoNuMetalTests.swift"

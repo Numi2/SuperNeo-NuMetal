@@ -236,7 +236,21 @@ public struct NumiSealScalarizationWeights: Equatable, Sendable, SuperNeoByteEnc
         let publicInputCount = aggregate.aggregatePublicInputEncoding.field.count
         let matrixEvaluationCount = aggregate.aggregateMatrixEvaluations.count * CyclotomicRing54.degree
 
-        var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.numiseal.scalarization.v1")
+        let seed = statement.statementDigest.superNeoBytes
+            + statement.publicStatementDigest.superNeoBytes
+            + aggregate.aggregateDigest.superNeoBytes
+            + decomposition.commitmentDigest.superNeoBytes
+            + statement.laneKey.superNeoBytes
+            + numiSealEncodeCount(statement.aggregateIndex)
+            + numiSealEncodeCount(aggregateCommitmentCount)
+            + numiSealEncodeCount(decompositionCommitmentCount)
+            + numiSealEncodeCount(publicInputCount)
+            + numiSealEncodeCount(matrixEvaluationCount)
+        var transcript = SumCheckTranscript(
+            domainSeparator: "SuperNeo-NuMetal.numiseal.scalarization.v1",
+            seed: seed,
+            proofKind: .numiSealTerminal
+        )
         transcript.absorb(statement.statementDigest.superNeoBytes)
         transcript.absorb(statement.publicStatementDigest.superNeoBytes)
         transcript.absorb(aggregate.aggregateDigest.superNeoBytes)

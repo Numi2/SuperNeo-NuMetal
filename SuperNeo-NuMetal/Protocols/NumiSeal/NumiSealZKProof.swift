@@ -796,10 +796,13 @@ public struct NumiSealZKMaskedResidualStatement: Equatable, Sendable, SuperNeoBy
         laneProof: NumiSealLaneProof,
         maskStatement: NumiSealZKMaskStatement
     ) -> [GoldilocksField] {
+        let bindingBytes = accumulationChallengeBindingBytes(laneProof: laneProof, maskStatement: maskStatement)
         var transcript = SumCheckTranscript(
-            domainSeparator: "SuperNeo-NuMetal.numiseal.zk.masked-residual-accumulation.v1"
+            domainSeparator: "SuperNeo-NuMetal.numiseal.zk.masked-residual-accumulation.v1",
+            seed: bindingBytes,
+            proofKind: .numiSealZK
         )
-        transcript.absorb(accumulationChallengeBindingBytes(laneProof: laneProof, maskStatement: maskStatement))
+        transcript.absorb(bindingBytes)
         return (0..<3).map { _ in transcript.challengeField() }
     }
 

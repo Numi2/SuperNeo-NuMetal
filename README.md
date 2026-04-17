@@ -15,11 +15,12 @@ Current safe claim:
 > acceptance-critical Swift paths now compare theorem-critical public metadata
 > through 384-bit H_bind binders. Product proof-envelope paths now have
 > Merkle-style CTCO root coverage and a source H_chal challenge-tape expansion
-> primitive. Some theorem-critical integrations remain open: wiring the
-> algebraic verifier subprotocols to consume the CTCO tape, instantiating
-> constructive terminal CE localization evidence, completing CRT-based PiRLC
-> finite soundness, and full wiring of exact finite probability into the
-> top-level product theorem.
+> primitive used by the algebraic transcript challenge paths. Some
+> theorem-critical integrations remain open: delayed-message and unique-response
+> CTCO data, underlying interactive security bounds, ZK simulator loss,
+> epsilon_compiler_overhead, constructive terminal CE localization evidence,
+> CRT-based PiRLC finite soundness, and full wiring of exact finite probability
+> into the top-level product theorem.
 
 This is not a production-security claim. The repo does not claim production
 post-quantum security, production QROM security, whole-stack constant-time
@@ -140,6 +141,10 @@ The active theorem target is:
 
 Production QROM language stays disabled until the explicit product/QROM evidence
 records and total-loss bounds are instantiated.
+The extractor loss accounting ledger is pinned at
+`TestVectors/product-extractor-loss-accounting-v1.json`.
+The release distribution evidence ledger is pinned at
+`TestVectors/product-release-distribution-evidence-v1.json`.
 
 ## Important Docs
 

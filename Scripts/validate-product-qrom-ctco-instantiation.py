@@ -70,10 +70,11 @@ def validate(path: Path) -> None:
 
     surfaces = require_dict(manifest.get("implementationSurfaces"), "implementationSurfaces")
     split_oracle = require_relative_path(surfaces.get("splitOracle"), "implementationSurfaces.splitOracle")
+    transcript = require_relative_path(surfaces.get("transcript"), "implementationSurfaces.transcript")
     product_api = require_relative_path(surfaces.get("productAPI"), "implementationSurfaces.productAPI")
     product_prover = require_relative_path(surfaces.get("productProver"), "implementationSurfaces.productProver")
     tests = require_relative_path(surfaces.get("tests"), "implementationSurfaces.tests")
-    source = split_oracle.read_text(encoding="utf-8") + "\n" + product_api.read_text(encoding="utf-8") + "\n" + product_prover.read_text(encoding="utf-8")
+    source = split_oracle.read_text(encoding="utf-8") + "\n" + transcript.read_text(encoding="utf-8") + "\n" + product_api.read_text(encoding="utf-8") + "\n" + product_prover.read_text(encoding="utf-8")
 
     compiler = require_dict(manifest.get("ctcoCompiler"), "ctcoCompiler")
     require(compiler.get("family") == "ctco", "CTCO family mismatch")
@@ -93,6 +94,7 @@ def validate(path: Path) -> None:
     for needle in [
         "SuperNeoSplitQRO",
         "SuperNeoChallengeTape",
+        "SumCheckTranscript",
         "CTCOMoveOneCommitment",
         "CTCOMerkleOpening",
         "ProofEnvelopeCTCOVerifier",

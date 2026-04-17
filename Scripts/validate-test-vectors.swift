@@ -691,12 +691,14 @@ do {
                 && !$0.hasSuffix("-scope-v1.json")
                 && !$0.hasPrefix("constant-time-lowering-evidence-")
                 && $0 != "product-crypto-security-dossier-v1.json"
+                && $0 != "product-swift-trace-extractor-evidence-v1.json"
                 && $0 != "product-selected-depth-loss-accounting-v1.json"
                 && $0 != "product-extractor-loss-accounting-v1.json"
                 && $0 != "product-qrom-fiat-shamir-accounting-v1.json"
                 && $0 != "product-qrom-transcript-schedule-v1.json"
                 && $0 != "product-qrom-sampler-encoding-evidence-v1.json"
                 && $0 != "product-qrom-collision-malleability-evidence-v1.json"
+                && $0 != "product-qrom-ctco-instantiation-v1.json"
                 && $0 != "product-qrom-transform-preconditions-v1.json"
                 && $0 != "product-qrom-interactive-reduction-v1.json"
                 && $0 != "product-total-loss-budget-v1.json"

@@ -310,7 +310,16 @@ public enum NumiSealLaneAggregation {
         obligationDigests: [Digest256],
         parameters: SuperNeoParameters
     ) -> [CyclotomicRing54] {
-        var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.numiseal.rlc.v1")
+        let seed = publicStatement.digest.superNeoBytes
+            + laneKey.superNeoBytes
+            + numiSealEncodeCount(aggregateIndex)
+            + numiSealEncodeCount(obligationDigests.count)
+            + obligationDigests.flatMap(\.superNeoBytes)
+        var transcript = SumCheckTranscript(
+            domainSeparator: "SuperNeo-NuMetal.numiseal.rlc.v1",
+            seed: seed,
+            proofKind: .numiSealTerminal
+        )
         transcript.absorb(publicStatement.digest.superNeoBytes)
         transcript.absorb(laneKey.superNeoBytes)
         transcript.absorb(numiSealEncodeCount(aggregateIndex))

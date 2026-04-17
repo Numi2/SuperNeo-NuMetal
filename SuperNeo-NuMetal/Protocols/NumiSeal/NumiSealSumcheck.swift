@@ -176,7 +176,19 @@ public enum NumiSealSumcheckOracle {
         variableCount: Int,
         weightDigest: Digest256
     ) -> SumCheckTranscript {
-        var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.numiseal.sumcheck.v1")
+        let seed = linearResidualDigest.superNeoBytes
+            + scalarizationStatementDigest.superNeoBytes
+            + digitTensorDigest.superNeoBytes
+            + laneKey.superNeoBytes
+            + numiSealEncodeCount(aggregateIndex)
+            + numiSealEncodeCount(paddedSlotCount)
+            + numiSealEncodeCount(variableCount)
+            + weightDigest.superNeoBytes
+        var transcript = SumCheckTranscript(
+            domainSeparator: "SuperNeo-NuMetal.numiseal.sumcheck.v1",
+            seed: seed,
+            proofKind: .numiSealTerminal
+        )
         transcript.absorb(linearResidualDigest.superNeoBytes)
         transcript.absorb(scalarizationStatementDigest.superNeoBytes)
         transcript.absorb(digitTensorDigest.superNeoBytes)
@@ -214,7 +226,20 @@ public enum NumiSealSumcheckOracle {
         paddedSlotCount: Int,
         variableCount: Int
     ) -> (language: GoldilocksExt2, padding: GoldilocksExt2, digest: Digest256) {
-        var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.numiseal.sumcheck-weights.v1")
+        let seed = linearResidualDigest.superNeoBytes
+            + scalarizationStatementDigest.superNeoBytes
+            + digitTensorDigest.superNeoBytes
+            + laneKey.superNeoBytes
+            + numiSealEncodeCount(aggregateIndex)
+            + numiSealEncodeCount(columnCount)
+            + numiSealEncodeCount(activeDigitCount)
+            + numiSealEncodeCount(paddedSlotCount)
+            + numiSealEncodeCount(variableCount)
+        var transcript = SumCheckTranscript(
+            domainSeparator: "SuperNeo-NuMetal.numiseal.sumcheck-weights.v1",
+            seed: seed,
+            proofKind: .numiSealTerminal
+        )
         transcript.absorb(linearResidualDigest.superNeoBytes)
         transcript.absorb(scalarizationStatementDigest.superNeoBytes)
         transcript.absorb(digitTensorDigest.superNeoBytes)

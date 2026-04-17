@@ -465,7 +465,7 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         XCTAssertEqual(try CEInstance(bytes: ceInstance.superNeoBytes), ceInstance)
     }
 
-    func testTier0DeterministicRNGAndTranscriptMatchSHA256CounterReference() throws {
+    func testTier0DeterministicRNGAndTranscriptChallengeTapeReference() throws {
         let seed = Array("deterministic-rng-byte-stream".utf8)
         var rng = DeterministicRNG(seed: seed)
         var reference = ReferenceDeterministicRNG(seed: seed)
@@ -483,12 +483,14 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         var transcript = SumCheckTranscript(domainSeparator: transcriptDomain, seed: transcriptSeed)
         transcript.absorb(payload)
 
-        var transcriptReference = ReferenceDeterministicRNG(
-            seed: referenceTranscriptSeed(domain: transcriptDomain, seed: transcriptSeed, payloads: [payload])
+        var transcriptReference = SuperNeoChallengeTape(
+            seed: transcript.challengeTapeSeed,
+            proofKind: transcript.proofKind,
+            label: transcriptDomain
         )
         XCTAssertEqual(transcript.challengeField(), transcriptReference.nextField())
         XCTAssertEqual(transcript.challengeExt2(), transcriptReference.nextExt2())
-        XCTAssertEqual(transcript.challengeRing(), transcriptReference.nextChallengeRing())
+        XCTAssertEqual(transcript.challengeRing(), transcriptReference.nextRing())
     }
 
     func testTier0CyclotomicRingSeededLawsAndEmbedding() throws {
@@ -8930,21 +8932,6 @@ private struct ReferenceDeterministicRNG {
     }
 }
 
-private func referenceTranscriptSeed(domain: String, seed: [UInt8], payloads: [[UInt8]]) -> [UInt8] {
-    var bytes: [UInt8] = []
-    appendReferenceTranscriptFrame(Array(domain.utf8), to: &bytes)
-    appendReferenceTranscriptFrame(seed, to: &bytes)
-    for payload in payloads {
-        appendReferenceTranscriptFrame(payload, to: &bytes)
-    }
-    return bytes
-}
-
-private func appendReferenceTranscriptFrame(_ payload: [UInt8], to bytes: inout [UInt8]) {
-    bytes.append(contentsOf: withUnsafeBytes(of: UInt64(payload.count).littleEndian, Array.init))
-    bytes.append(contentsOf: payload)
-}
-
 extension SuperNeoTestCase {
 
     func directMultilinearEvaluation(_ vector: [GoldilocksField], at point: [GoldilocksExt2]) -> GoldilocksExt2 {
@@ -9686,7 +9673,13 @@ extension SuperNeoTestCase {
     }
 
     func makePublicFoldTranscript(input: SuperNeoPublicFoldInput, seed: [UInt8]) -> SumCheckTranscript {
-        var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.fold", seed: seed)
+        let contextSeed = seed
+            + input.shape.shapeDigest.superNeoBytes
+            + transcriptEncodeCount(input.instances.count)
+            + input.instances.flatMap(\.superNeoBytes)
+            + transcriptEncodeCount(input.priorClaims.count)
+            + input.priorClaims.flatMap(\.superNeoBytes)
+        var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.fold", seed: contextSeed)
         transcript.absorb(input.shape.shapeDigest.superNeoBytes)
         transcript.absorb(transcriptEncodeCount(input.instances.count))
         input.instances.forEach { transcript.absorb($0.superNeoBytes) }

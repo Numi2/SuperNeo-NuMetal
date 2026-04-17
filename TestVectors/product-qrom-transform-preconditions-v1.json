@@ -119,10 +119,10 @@
     },
     {
       "id": "single-seed-challenge-tape",
-      "status": "source-expansion-primitive-implemented-algebraic-integration-open",
+      "status": "source-algebraic-challenge-tape-implemented",
       "required": true,
-      "satisfied": false,
-      "evidence": "ProofEnvelopeCTCOVerifier derives one 256-bit proof-envelope challenge seed per accepted proof kind, and SuperNeoChallengeTape expands that seed through H_chal into labelled digest, field, extension-field, and ring challenges; the algebraic subprotocol verifier paths still need to consume this tape instead of the legacy micro-challenge transcript schedule",
+      "satisfied": true,
+      "evidence": "ProofEnvelopeCTCOVerifier derives one 256-bit proof-envelope challenge seed per accepted proof kind; SuperNeoChallengeTape expands H_chal seeds into labelled digest, field, extension-field, and ring challenges; SumCheckTranscript and the fold, terminal CE, NumiSeal aggregation, scalarization, residual sum-check, and NumiSealZK masked-residual accumulation paths consume that tape instead of the legacy SHA256-counter micro-challenge schedule",
       "sourceBasis": [
         "DFMS22",
         "RotemTessaro"
