@@ -241,14 +241,16 @@ Artifacts:
   semantics, and lane separation.
 - `Formal/` provides a Lean 4/Lake workspace for the conditional formal
   protocol track. The current dependency path uses certified Ajtai keys and
-  finite bad-challenge/bad-seed certificates for PiRLC, PiCCS/sum-check, and
-  terminal CE proof soundness, alongside the closed deterministic cores for
+  finite bad-challenge/bad-seed evidence for PiRLC, constructive PiCCS
+  sum-check soundness, and constructive terminal CE proof soundness, alongside
+  the closed deterministic cores for
   profile constants, concrete Goldilocks/Phi81 algebra, GoldilocksExt2 wire
   operations, Phi81 splitting, field-to-ring packing, concrete Ajtai
   instantiation, PiDEC recomposition, PiRLC weighted-claim recomposition,
-  transcript-bound challenge scheduling, public-Q reduction, low-degree
-  root-counting, sum-check prefix bad-challenge aggregation, terminal CE local
-  algebra, finite error-ledger bookkeeping, and verifier composition.
+  well-formed transcript-bound challenge scheduling, 384-bit theorem-critical
+  binding, public-Q reduction, low-degree root-counting, sum-check prefix
+  bad-challenge aggregation, terminal CE local algebra, finite-uniform
+  error-ledger bookkeeping, and verifier composition.
 - `Docs/FormalStatus.json` and `Scripts/validate-formal-status.py` gate
   documentation labels against named theorem groups and verify that closed
   groups reference declarations present in the claimed Lean module without
@@ -258,8 +260,9 @@ Artifacts:
   label is active.
 - `Scripts/test-formal-status-validation.py` regression-tests the formal-status
   gate by mutating temporary manifests and requiring fail-closed behavior.
-- `Docs/FormalStatusPromotion-2026-04-13.md` records the partial-formalization
-  promotion, validation commands, and remaining formal boundaries.
+- `Docs/FormalStatusPromotion-2026-04-13.md` records the historical
+  partial-formalization promotion, validation commands, and boundaries that were
+  later superseded by the completed formal protocol theorem label.
 - `Docs/FormalAjtaiBinding-2026-04-13.md` records the Ajtai binding-equivalence
   formalization pass and remaining quotient-ring/protocol boundaries.
 - `Docs/FormalPiDECRecomposition-2026-04-13.md` records the abstract PiDEC

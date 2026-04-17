@@ -6,6 +6,12 @@ This pass replaces the remaining planned Lean roadmap markers with explicit
 assumption-scoped theorem surfaces for PiRLC, PiCCS/sum-check, terminal CE, and
 the top-level SuperNeo verifier composition.
 
+Historical note, 2026-04-17: this pass is superseded by the completed formal
+protocol theorem label. The newer theorem path uses constructive PiCCS finite
+soundness, constructive terminal CE finite soundness, well-formed transcript
+injectivity, 384-bit theorem-critical binding, and finite-uniform probability
+composition.
+
 ## Work Completed
 
 - `Formal/SuperNeoFormal/Sumcheck.lean` models the verifier's sum-check round
@@ -49,16 +55,14 @@ separates their deterministic cores from the remaining boundaries:
   `superneo-ce-opening-composition-boundary`, which depends directly on the CE
   opening soundness boundary rather than a separate aggregate stage assumption.
 
-The manifest current label is `conditional protocol formalization`.
-Documentation still must not claim the full formal protocol theorem because
-that stricter label now requires every required theorem group to have status
-`closed`, not merely `closed_under_*`.
+The historical manifest label for this pass was `conditional protocol
+formalization`. The current manifest label is the completed formal protocol
+theorem for the corrected finite model.
 
 ## Trust Boundary
 
-This is a real Lean formalization layer, not a roadmap marker. It is still
-not an unconditional concrete cryptographic proof of the deployed system. The
-Fiat-Shamir/random-linear-combination analysis, concrete sum-check soundness
-probability, concrete CE opening proof soundness, and quotient-ring
-instantiation remain represented as explicit assumptions rather than fully
-mechanized probability and algebra proofs.
+This is a real Lean formalization layer, not a roadmap marker. It is no longer
+the endpoint for the formal track: later modules mechanize the finite
+sum-check/PiCCS, terminal CE, transcript, and probability layers used by the
+completed finite theorem. It still is not a production cryptographic proof of
+the deployed system or a QROM theorem.

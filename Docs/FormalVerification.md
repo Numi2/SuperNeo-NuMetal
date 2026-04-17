@@ -11,23 +11,28 @@ separate from the Sage/lattice-estimator workflow:
   reductions, and finite bad-challenge/bad-seed exclusions.
 
 The current Lean milestone is the completed formal protocol theorem label for
-the corrected model. Ajtai binding is consumed through certified verifier keys,
-and probabilistic PiRLC, PiCCS/sum-check, transcript-stage, and terminal CE proof
-soundness are composed outside explicitly finite bad challenge/seed sets. The
-checked declaration set covers profile constants, derived parameter equalities,
-the strong-sampling inequality, concrete Goldilocks/Phi81 algebra,
-GoldilocksExt2 wire operations, Ext2 caller byte surfaces, CE opening proof byte
-grammar, Phi81 factorization, field-to-ring packing, the complete Lean
+the corrected finite model. Ajtai binding is consumed through certified
+verifier keys, transcript byte injectivity is theorem-facing only for
+well-formed length-counted transcript states, theorem-critical bindings use the
+384-bit binding companion, and probabilistic PiRLC, constructive PiCCS
+/ sum-check, transcript-stage, and constructive terminal CE proof soundness are
+composed outside explicitly finite bad challenge/seed sets. The checked
+declaration set covers profile constants, derived parameter equalities, the
+strong-sampling inequality, concrete Goldilocks/Phi81 algebra, GoldilocksExt2
+wire operations, Ext2 caller byte surfaces, CE opening proof byte grammar,
+Phi81 factorization, field-to-ring packing, the complete Lean
 `GoldilocksExt2` field instance, concrete and certified Ajtai instantiation,
 PiDEC recomposition, PiRLC weighted-claim recomposition, finite-support
-counting, scalar and quotient-ring-safe collision facts, transcript-bound
-finite challenge scheduling, PiCCS acceptance projections, the PiCCS exact
-public-Q bridge, finite-field low-degree root counting, sum-check prefix
-bad-challenge aggregation, finite bad-challenge PiCCS soundness, terminal CE
-statement and local batch algebra, finite bad-seed terminal CE proof soundness,
-Swift/Lean GoldilocksExt2 serialization equivalence, Swift/Lean CE verifier-byte
-equivalence, distinct-witness-to-short-kernel reductions, and the full rational
-probability composition theorem over the finite Fiat-Shamir seed product.
+counting, scalar and quotient-ring-safe collision facts, well-formed transcript
+injection, 384-bit proof-envelope binding injection, transcript-bound finite
+challenge scheduling, PiCCS acceptance projections, the PiCCS exact public-Q
+bridge, finite-field low-degree root counting, sum-check prefix bad-challenge
+aggregation, constructive finite bad-challenge PiCCS soundness, terminal CE
+statement and local batch algebra, constructive finite bad-seed terminal CE
+proof soundness, Swift/Lean GoldilocksExt2 serialization equivalence,
+Swift/Lean CE verifier-byte equivalence, distinct-witness-to-short-kernel
+reductions, and exact finite-uniform rational probability composition over the
+finite Fiat-Shamir seed product.
 
 The historical `closed_under_*` groups remain documented for auditability, but
 the manifest now uses closed replacement group IDs and closed promotion blocker
@@ -80,6 +85,15 @@ Recent formal pass:
 - `Formal/SuperNeoFormal/NumiSealSumcheckTranscript.lean` now names the dense
   NumiSeal sum-check transcript domain and absorb-frame order used by the Swift
   prover/verifier.
+- `Formal/SuperNeoFormal/WellFormedTranscript.lean` now provides the
+  theorem-facing transcript object and byte-injectivity theorem for
+  length-counted transcript states.
+- `Formal/SuperNeoFormal/Digest384Serialization.lean` and
+  `Formal/SuperNeoFormal/TypedDigestSemantics.lean` now provide 384-bit
+  theorem-critical binding encodings and typed digest-domain separation.
+- `Formal/SuperNeoFormal/PiCCSConstructiveFiniteSoundness.lean` and
+  `Formal/SuperNeoFormal/TerminalCEConstructiveFiniteSoundness.lean` are the
+  constructive finite bad-set theorem surfaces for PiCCS and terminal CE.
 - `Formal/SuperNeoFormal/ConstantTime.lean` now defines the conditional
   constant-trace model used by `TestVectors/constant-time-scope-v1.json` and
   proves trace independence for the checked fixed schedules.

@@ -54,13 +54,15 @@ candidate. It does not authorize production-security release claims.
   NumiSeal component-root binding, typed carry replay binding, or residual
   digest-collision and proof-kind malleability event mapping.
 - `TestVectors/product-qrom-transform-preconditions-v1.json` reflects any
-  product QROM transform precondition changes for theorem-family fit,
-  pinned public-coin protocol schedules, challenge uniformity, transcript
-  encoding, `Q_H` query bounds, or reduction-loss accounting.
+  product QROM transform precondition changes for CTCO/Merkle-straightline
+  theorem-family fit, challenge uniformity, well-formed transcript encoding,
+  `Q_H` query bounds, or reduction-loss accounting.
 - `TestVectors/product-qrom-interactive-reduction-v1.json` reflects any
-  product QROM interactive reduction changes for public-coin protocol formulas,
-  selected `Q_H` policy, DFM20 loss multiplier, challenge-count maxima, or
-  per-kind interactive-security obligations.
+  product QROM interactive reduction diagnostic changes for public-coin protocol
+  formulas, selected `Q_H` policy, legacy DFM20 loss multiplier, challenge-count
+  maxima, or per-kind interactive-security obligations. The release theorem
+  route remains split-oracle CTCO or Merkle-straightline with 384-bit binding
+  digests.
 - `TestVectors/product-total-loss-budget-v1.json` reflects any selected-depth
   total-loss budget, exact rational summation, required component bounds, or
   `2^-128` threshold changes.

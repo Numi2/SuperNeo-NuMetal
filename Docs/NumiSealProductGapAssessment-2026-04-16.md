@@ -52,9 +52,12 @@ corrected model. What remains is NumiSeal-specific product formalization.
 - [ ] Product operations: hosted context storage, deployed key distribution,
   tenant authz, hosted audit retention, hosted revocation feed distribution, and
   signed releases.
-- [ ] NumiSeal-specific formalization: promote the checked end-to-end theorem
-  scope with concrete Swift extractor, typed carry vector, simulator, and QROM
-  evidence.
+- [ ] NumiSeal-specific product evidence: the corrected finite Lean theorem
+  stack is current, including well-formed transcripts, 384-bit theorem-critical
+  bindings, constructive PiCCS/terminal CE finite bad sets, and the finite
+  probability ledger. Remaining NumiSeal-specific work is release-grade Swift
+  extractor/trace equivalence, typed carry product evidence, simulator
+  coupling evidence, and product/QROM compiler evidence.
 - [ ] Self-owned review: cryptographic review, implementation review, and
   side-channel assessment recorded in repository evidence.
 

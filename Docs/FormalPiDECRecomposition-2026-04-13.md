@@ -36,4 +36,5 @@ This is not a full PiDEC soundness theorem by itself and does not close an
 unconditional full SuperNeo protocol theorem. It closes the commitment
 recomposition algebra over the current abstract ring model. A later
 2026-04-13 pass added assumption-scoped PiRLC, PiCCS, terminal CE, and verifier
-composition theorem surfaces.
+composition theorem surfaces, and the 2026-04-17 formal cleanup superseded that
+intermediate status with the completed finite formal protocol theorem label.

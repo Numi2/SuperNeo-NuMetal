@@ -30,7 +30,7 @@ concrete model:
   the explicit inverse-certificate surface is populated from the real field
   proof.
 
-This does not close Swift serialization equivalence. Lean now proves that the
-field exists and that its operations match the modeled formulas, but the
-byte-for-byte Swift caller graph and CE verifier parser equivalence remain
-separate planned blockers.
+This field-instance slice is not itself the Swift serialization proof. The
+later formal cleanup connects the byte-for-byte Swift caller graph and CE
+verifier parser/branch surfaces through the closed formal-status groups, while
+this note remains the audit record for the Ext2 field construction.

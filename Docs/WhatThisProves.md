@@ -118,6 +118,14 @@ The Fiat-Shamir transcript seed uses the same context except `bodyLength`: the
 the 137-byte prefix ending at `transcriptDomain`. The parser still enforces the
 body length before proof verification.
 
+The theorem-critical formal transcript object is the well-formed,
+length-counted transcript layer in Lean. Arbitrary `(count, payload)` transcript
+states are still available as a low-level model, but byte-level injectivity
+claims are made only for well-formed transcript states. The formal binding path
+also has a 384-bit proof-envelope companion for theorem-critical comparisons;
+raw 256-bit digest fields remain compatibility metadata, not the final
+theorem-critical binding width.
+
 The envelope does not define the application-level meaning of a statement. That
 meaning comes from the CCS encoder and the application that chooses the public
 inputs.
@@ -144,11 +152,17 @@ status is the completed formal protocol theorem label for the corrected model:
 - Ajtai binding is certified-key binding, not arbitrary-matrix binding.
 - PiRLC, PiCCS/sum-check, and terminal CE proof soundness are finite
   bad-challenge/bad-seed statements, not zero-error deterministic statements.
+  PiCCS now uses a constructed prefix bad-challenge set, and terminal CE has a
+  constructive finite bad-seed theorem over the concrete extraction-failure set.
+- Transcript and binding claims use well-formed transcript injectivity,
+  384-bit theorem-critical proof-envelope binding, and typed digest domain
+  separation.
 - Swift `GoldilocksField`/`GoldilocksExt2` byte surfaces and Swift CE proof
   parser/verifier branch selection are connected to the Lean byte grammars and
   terminal CE verifier trace model.
 - The finite PiRLC, PiCCS/sum-check, transcript-stage, terminal CE, and error
-  ledgers are composed into the final rational protocol soundness bound.
+  ledgers are composed into the final finite-uniform rational protocol
+  soundness bound.
 
 Historical assumption-boundary IDs remain documented for auditability, but they
 are not active manifest groups. The Lean `GoldilocksExt2` field instance is

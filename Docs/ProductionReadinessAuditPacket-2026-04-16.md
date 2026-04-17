@@ -298,11 +298,10 @@ These are the remaining blockers before using production-security language:
    `TestVectors/product-release-distribution-evidence-v1.json`, but concrete Swift
    extractor implementation, product recursive typed carry depth/loss
    accounting beyond the checked parent-child handoff, simulator coupling
-   evidence beyond the exact mask-distribution lemma, repair of the current
-   out-of-budget DFM20 numeric QROM reduction finding, QROM
-   transform-precondition closure, numeric digest collision and proof-kind
-   malleability bounds over the structurally pinned residual events,
-   interactive-security bounds, total-loss budget instantiation, and
+   evidence beyond the exact mask-distribution lemma, split-oracle CTCO or
+   Merkle-straightline product QROM evidence, numeric 384-bit binding collision
+   and proof-kind malleability bounds over the structurally pinned residual
+   events, interactive-security bounds, total-loss budget instantiation, and
    side-channel evidence still have
    to be supplied before production-security NumiSeal theorem language is
    allowed.

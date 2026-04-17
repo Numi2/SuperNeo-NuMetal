@@ -184,10 +184,10 @@ Product QROM Fiat-Shamir accounting manifest. It is not a proof artifact schema
 and does not affect proof bytes. It pins proof-kind transcript interfaces,
 challenge families, domain separation, QROM loss symbols, the mapping from
 `epsilon_transcript_collision` to the ledger's `epsilon_collision`, and the
-promotion rule that keeps production QROM claims disabled until the interactive
-protocol, transform preconditions, concrete hash/QRO instantiation, numeric
-digest collision and proof-kind malleability bounds, and numeric loss budget
-are instantiated.
+promotion rule that keeps production QROM claims disabled until split-oracle
+CTCO or Merkle-straightline product evidence, concrete hash/QRO assumptions,
+numeric 384-bit binding collision and proof-kind malleability bounds, and the
+numeric loss budget are instantiated.
 
 `TestVectors/product-qrom-transcript-schedule-v1.json` is the checked Product
 QROM transcript schedule manifest. It is not a proof artifact schema and does
@@ -195,19 +195,21 @@ not affect proof bytes. It pins proof-kind order, envelope kinds, public
 challenge labels, transcript bindings, symbolic quantum random-oracle query
 families, per-kind protocol challenge-derivation maxima, the conditional
 `Q_H = 2^64` query cap, and the promotion rule that keeps production QROM
-claims disabled until transform-precondition closure and repaired QROM loss
-accounting, numeric digest collision bounds, and proof-kind malleability bounds
-are instantiated.
+claims disabled until product compiler evidence, numeric 384-bit binding
+collision bounds, proof-kind malleability bounds, and total-loss integration are
+instantiated.
 
 `TestVectors/product-qrom-sampler-encoding-evidence-v1.json` is the checked
 Product QROM sampler/encoding evidence manifest. It is not a proof artifact
 schema and does not affect proof bytes. It pins exact rejection-sampling
 arithmetic for Goldilocks, Ext2, Phi81, terminal CE ternary, and NumiSealZK
 masked-residual challenges under the QRO abstraction, plus structured
-64-bit-length-prefixed transcript frame encoding. The promotion rule keeps
-production QROM claims disabled until hash instantiation,
-numeric digest collision bounds, proof-kind malleability bounds, QROM reduction
-loss, and total-loss integration close.
+64-bit-length-prefixed transcript frame encoding. The Lean theorem path now
+uses the well-formed transcript object and 384-bit theorem-critical binding
+digests. The promotion rule keeps production QROM claims disabled until hash
+instantiation, numeric 384-bit binding collision bounds, proof-kind
+malleability bounds, product QROM compiler evidence, and total-loss integration
+close.
 
 `TestVectors/product-qrom-collision-malleability-evidence-v1.json` is the
 checked Product QROM collision/malleability evidence manifest. It is not a
@@ -217,28 +219,27 @@ transcript-domain enforcement, proof-kind acceptance policy,
 artifact/provenance digest binding, product replay identity, NumiSeal component
 root binding, and typed carry replay binding. The promotion rule keeps
 production QROM claims disabled until concrete hash/QRO instantiation, numeric
-digest collision bounds, proof-kind malleability bounds, repaired QROM
-reduction loss, and total-loss integration are supplied.
+384-bit binding collision bounds, proof-kind malleability bounds, product QROM
+compiler evidence, and total-loss integration are supplied.
 
 `TestVectors/product-qrom-transform-preconditions-v1.json` is the checked
 Product QROM transform preconditions manifest. It is not a proof artifact
 schema and does not affect proof bytes. It pins primary QROM Fiat-Shamir
-source references, the selected fail-closed measure-and-reprogram profile,
-proof-kind theorem-family fit, precondition rows, symbolic loss interface, and
-the promotion rule that keeps production QROM claims disabled until
-transform-precondition proofs, numeric digest collision and proof-kind
-malleability bounds,
-interactive-security bounds, and repaired QROM reduction-loss terms are
-instantiated.
+source references, the legacy fail-closed measure-and-reprogram diagnostic
+profile, proof-kind theorem-family fit, CTCO/Merkle-straightline replacement
+target, precondition rows, symbolic loss interface, and the promotion rule that
+keeps production QROM claims disabled until product compiler evidence, numeric
+384-bit binding collision and proof-kind malleability bounds,
+interactive-security bounds, and total-loss terms are instantiated.
 
 `TestVectors/product-qrom-interactive-reduction-v1.json` is the checked
 Product QROM interactive reduction manifest. It is not a proof artifact schema
 and does not affect proof bytes. It pins public-coin protocol formulas, the
 selected `Q_H = 2^64` policy, DFM20 reduction multiplier, per-proof-kind
 challenge-count formulas, selected-depth protocol challenge-derivation budget,
-and the promotion rule that keeps production QROM claims disabled until the
-current out-of-budget DFM20 numeric finding, numeric digest collision and
-proof-kind malleability bounds, and interactive-security bounds are repaired.
+and the promotion rule that keeps production QROM claims disabled. The DFM20 row
+is retained as a legacy diagnostic; the active theorem path is split-oracle CTCO
+or Merkle-straightline with 384-bit binding digests.
 
 `TestVectors/product-total-loss-budget-v1.json` is the checked product
 total-loss budget manifest. It is not a proof artifact schema and does not

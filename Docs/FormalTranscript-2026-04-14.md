@@ -5,6 +5,12 @@ Formal status: completed formal protocol theorem.
 This note records the April 14, 2026 transcript absorption work in
 `Formal/SuperNeoFormal/Transcript.lean`.
 
+2026-04-17 update: theorem-facing transcript byte injectivity now lives in
+`Formal/SuperNeoFormal/WellFormedTranscript.lean`, which restricts byte
+injectivity to well-formed length-counted transcript states. The generic
+`TranscriptState` object remains the low-level ordered-frame representation, not
+the canonical theorem object by itself.
+
 ## What closed
 
 - Added a formal `TranscriptFrame` matching Swift's absorb shape: an eight-byte
@@ -47,9 +53,10 @@ This note records the April 14, 2026 transcript absorption work in
 
 This is not a Fiat-Shamir proof and does not model SHA-256 as a random oracle.
 It proves deterministic transcript-state consistency for the ordered absorption
-surface, including the proof-envelope binding payload.  Challenge uniformity,
-random-oracle programming, and full byte-level Swift compatibility for every
-serialized proof object remain separate formal work.
+surface, including the proof-envelope binding payload. The newer
+`WellFormedTranscript` layer supplies the canonical byte-injectivity theorem
+for length-counted states. Challenge uniformity, random-oracle programming, and
+production QROM claims remain separate evidence/theorem work.
 
 ## Verification
 

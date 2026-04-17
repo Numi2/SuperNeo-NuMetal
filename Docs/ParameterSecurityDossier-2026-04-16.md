@@ -182,6 +182,10 @@ Component budgets currently exposed by Lean include:
   `maxDegreePerRound = max(shape.relationDegree, 3) + 1 = 4`.
 - Terminal CE finite bad-seed budget:
   `219 * 3 = 657` over the modeled seed type.
+- The theorem-facing PiCCS and terminal CE paths are now constructive:
+  `PiCCSConstructiveFiniteSoundness.lean` consumes the sum-check bad-set proofs
+  directly, and `TerminalCEConstructiveFiniteSoundness.lean` derives the
+  `roundCount * 3` budget from concrete extraction-failure localization.
 - PiRLC finite bad-seed soundness requires the explicit split/finite bad-seed
   certificate; this dossier does not replace that certificate with a one-line
   field Schwartz-Zippel claim.
@@ -276,9 +280,10 @@ accounting, not as a QROM reduction. For concrete audit packets, record:
   used; and
 - all proof-kind and transcript labels listed below.
 
-The deterministic transcript work proves length-framed, ordered absorb
-consistency. It does not prove SHA-256 collision resistance, indifferentiability,
-or random-oracle programmability.
+The deterministic transcript work now proves byte injectivity only for
+well-formed length-counted transcript states, and the theorem-critical binding
+surface uses 384-bit typed binding digests. This does not prove SHA-256
+collision resistance, indifferentiability, or random-oracle programmability.
 
 ## Fiat-Shamir / QROM Position
 
@@ -298,26 +303,28 @@ The interactive protocol before Fiat-Shamir is:
 
 The implementation applies Fiat-Shamir with SHA-256-derived deterministic
 transcripts. The safe model statement today is ROM/heuristic FS plus the finite
-bad-seed ledger. It is not QROM.
+bad-seed ledger over well-formed transcripts. It is not QROM.
 
-To claim QROM security, a future theorem must:
+To claim QROM security, the active theorem route must instantiate the split-QRO
+product surface:
 
-- identify which subprotocols are public-coin three-round sigma protocols and
-  which are multi-round sum-check protocols needing a different transform
-  theorem;
-- prove the conditions required by the cited QROM Fiat-Shamir theorem, including
+- use 256-bit challenge seeds and a separate 384-bit binding oracle;
+- fit the accepted proof kinds to CTCO or Merkle-straightline compiler evidence;
+- prove the conditions required by the selected QROM compiler theorem, including
   special soundness/extractability and the additional natural properties required
   by that result;
 - include a quantum random-oracle query parameter `Q_H` in the reduction loss;
 - bind every proof kind, transcript label, shape digest, statement digest,
-  verifier-key digest, and policy digest in the theorem statement; and
+  verifier-key digest, policy digest, and 384-bit theorem-critical binding
+  digest in the theorem statement; and
 - prove that cross-kind transcript replay is impossible except through a
   collision in the named digest/hash surface.
 
 Don, Fehr, Majenz, and Schaffner give a QROM Fiat-Shamir reduction for
 sigma-protocols and explicitly handle adversaries making quantum random-oracle
 queries. That is relevant literature, not a drop-in proof for this protocol
-stack as implemented.
+stack as implemented. The old DFM20 multi-round accounting remains a
+fail-closed diagnostic, not the active production theorem route.
 
 ## Transcript Labels And Cross-Kind Separation
 
@@ -367,11 +374,12 @@ Cross-kind non-malleability currently rests on:
 - proof kind in the envelope transcript-binding context;
 - caller-supplied policy checks for expected kind/domain/digests;
 - disjoint NumiSeal terminal and ZK proof kinds;
-- length-framed transcript absorbs; and
+- well-formed length-framed transcript absorbs;
+- 384-bit theorem-critical binding digests for acceptance-critical equality; and
 - digest roots for compressed and NumiSeal component bodies.
 
 This is a deterministic domain-separation argument plus ordinary hash-collision
-assumptions. It is not yet a QROM transcript-collision theorem.
+assumptions. It is not yet a concrete-hash QROM transcript-collision theorem.
 
 ## Why These Parameters
 
@@ -396,8 +404,10 @@ appropriate for a production PQ claim without at least:
 - a stronger parameter profile, likely increasing `kappa`;
 - an estimator artifact that records classical and quantum cost lanes;
 - a distributional key-generation-to-Module-SIS theorem;
-- a complete ROM theorem over the implemented transcripts; and
-- a separate QROM proof or an explicit decision not to claim QROM security.
+- release-grade ROM/finite-seed evidence over the implemented transcript path;
+  and
+- instantiated split-oracle CTCO or Merkle-straightline QROM evidence, or an
+  explicit decision not to claim QROM security.
 
 ## Sources
 

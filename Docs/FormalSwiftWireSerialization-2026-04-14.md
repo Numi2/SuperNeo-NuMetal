@@ -57,8 +57,9 @@ This note records the April 14, 2026 concrete wire-format additions in
   point-evaluation surfaces after opaque non-Ext2 prefixes.
 - Proved round-trip parser facts for counted Ext2 vectors, counted
   `CyclotomicExt2Ring54` vectors, and sum-check Ext2 rounds. The larger
-  variable-length proof-object parsers are present as grammar nodes, but their
-  executable Swift equivalence remains a separate planned blocker.
+  variable-length proof-object parsers are present as grammar nodes. The later
+  formal cleanup connects the theorem-facing Swift/Lean byte and CE branch
+  equivalence surfaces through the closed formal-status groups.
 
 ## Boundary kept explicit
 
@@ -66,9 +67,11 @@ This slice proves canonical byte layout and injectivity for concrete public wire
 objects, exact Goldilocks/GoldilocksExt2 decode round trips, round-trip parsing
 for the proof-envelope transcript-binding prefix, a Lean CE opening proof byte
 grammar, and Lean Ext2 caller-surface grammar nodes for higher proof objects.
-It does not prove SHA-256 collision resistance, Fiat-Shamir random-oracle
-soundness, complete executable Swift parser equivalence for every proof object,
-or Swift CE verifier equivalence to `TerminalCEVerifierTrace`.
+The current theorem path extends this with well-formed transcript injectivity,
+384-bit proof-envelope binding, typed digest-domain separation, and the
+closed Swift/Lean CE verifier-byte equivalence surface. It does not prove
+SHA-256 collision resistance, Fiat-Shamir random-oracle soundness, or a
+production QROM theorem.
 
 ## Verification
 

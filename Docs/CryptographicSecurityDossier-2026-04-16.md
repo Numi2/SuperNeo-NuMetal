@@ -197,71 +197,54 @@ style of scrutiny.
 
 ## QROM Fiat-Shamir Accounting
 
-The Fiat-Shamir/QROM target is recorded, and
-`TestVectors/product-qrom-fiat-shamir-accounting-v1.json` now pins the QROM
-Fiat-Shamir accounting contract. The accounting manifest links to
-`TestVectors/product-qrom-transcript-schedule-v1.json` and
+The Fiat-Shamir/QROM target is no longer the old DFM20 multi-round production
+route. The current theorem path is the split-oracle product surface in
+`ProductSecurityTheorem.lean`: 256-bit challenge seeds, 384-bit
+theorem-critical binding digests, well-formed framed transcripts, CTCO as the
+preferred compiler family, and Merkle-straightline as the fallback compiler
+family. Interactive soundness is charged outside the QROM transform term, and
+shared bad events are carried through the selected-depth ledger instead of being
+duplicated under flat rows.
+
+`TestVectors/product-qrom-fiat-shamir-accounting-v1.json`,
+`TestVectors/product-qrom-transcript-schedule-v1.json`,
 `TestVectors/product-qrom-transform-preconditions-v1.json`, and
-`TestVectors/product-qrom-interactive-reduction-v1.json`, which pin the QROM
-transcript schedule, transform-precondition obligations, and selected DFM20
-interactive-reduction loss interface separately from the
-numeric loss formula. The manifest records the selected depth, proof-kind
-transcript interfaces, challenge families, and the selected-depth loss
-expression:
+`TestVectors/product-qrom-interactive-reduction-v1.json` remain useful
+fail-closed manifests. They record the older DFM20 diagnostic accounting, the
+historical schedule pressure, and the executable reason production QROM claims
+stay disabled. They are not the target theorem package.
 
-```text
-epsilon_qrom(depth=1) =
-  max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!)
-    * epsilon_interactive_kind
-    + n_kind! / 2^256
-    + epsilon_precondition_kind)
-  + epsilon_qro_queries
-  + epsilon_proof_kind_malleability
-```
+The current Lean surface exposes the theorem-critical replacement objects:
 
-`epsilon_transcript_collision` is exported separately into the selected-depth
-ledger as `epsilon_collision`; it is not counted inside `epsilon_qrom`. This
-prevents a later budget evaluator from silently double-counting or dropping the
-collision term. The manifest covers the current envelope kinds for fold,
-terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK product
-proofs. The production QROM claim is still disabled.
+- `ProductQROMTransformFamily.ctco`
+- `ProductQROMTransformFamily.merkleStraightline`
+- `ProductHashOracleInstantiationAccepted`, requiring split oracles and
+  `bindingOracleBits = 384`
+- `ProductCTCOCompilerEvidenceAccepted`, requiring 384-bit binding and Merkle
+  node digests
+- `ProductQROMCollisionBoundAccepted`
+- `ProductQROMMalleabilityBoundAccepted`
+- `ProductQROMTotalLossInstantiatedAccepted`
+- `ProductFiatShamirQROMAccepted`
+- `ProductQROMTightTransform`
 
-Remaining work:
+Remaining QROM work is therefore:
 
-- repair or replace the current DFM20 numeric reduction budget: the checked
-  interactive-reduction manifest now instantiates NumiSeal challenge-count
-  maxima, but the selected `n! / 2^256` ordering term is already outside the
-  `2^-128` budget for the smallest accepted proof kind,
-- close `TestVectors/product-qrom-transform-preconditions-v1.json` by proving
-  the selected transform preconditions or explicitly narrow the theorem to ROM,
-- bind every domain separator and transcript label in the theorem, and
-- instantiate numeric digest collision and proof-kind malleability bounds for
-  the residual events exported by
-  `TestVectors/product-qrom-collision-malleability-evidence-v1.json`.
-
-`ProductSecurityTheorem` exposes `ProductFiatShamirTranscriptSchedule`,
-`ProductFiatShamirTranscriptScheduleAccepted`,
-`productSecurityTheorem_requires_qrom_transcript_schedule`,
-`ProductFiatShamirTransformPreconditions`,
-`ProductFiatShamirTransformPreconditionsAccepted`,
-`productSecurityTheorem_requires_qrom_transform_preconditions`,
-`ProductQROMInteractiveReduction`, `ProductQROMInteractiveReductionAccepted`,
-`productSecurityTheorem_requires_qrom_interactive_reduction`,
-`ProductFiatShamirLossAccounting`, `ProductFiatShamirLossAccountingAccepted`,
-`productSecurityTheorem_requires_qrom_loss_accounting`, and
-`productSecurityTheorem_requires_qrom_collision_malleability_exclusion` so
-future theorem promotion cannot bypass interactive-protocol, challenge-schedule,
-precondition, quantum-query, collision, malleability, or budget evidence.
+- instantiate the selected CTCO or Merkle-straightline compiler evidence;
+- prove or otherwise pin the release-grade trace/extractor equivalences consumed
+  by the product theorem surface;
+- instantiate concrete hash/QRO assumptions, 384-bit binding collision bounds,
+  proof-kind malleability bounds, and total-loss integration; and
+- keep production QROM claims disabled until those evidence objects are present.
 
 ## QROM Transform Preconditions
 
 `TestVectors/product-qrom-transform-preconditions-v1.json` is the checked QROM
 Transform Preconditions manifest. It is not a production QROM theorem; it is a
-fail-closed checklist that makes the missing Fiat-Shamir transform proof
-obligations executable. It pins primary sources, the selected
-measure-and-reprogram profile, the proof-kind fit table, the symbolic
-`((2*Q_H+n+1)^(2n)/n!)` DFM20 loss interface, and the blockers that keep the
-production claim disabled.
+fail-closed checklist and historical diagnostic for the older
+measure-and-reprogram route. The active theorem target is the split-oracle
+CTCO/Merkle-straightline surface in `ProductSecurityTheorem.lean`, not promotion
+of the DFM20 loss formula.
 
 The manifest follows the QROM Fiat-Shamir literature most relevant to this
 stack:
@@ -281,16 +264,14 @@ stack:
   for the future tighter commit-and-open extractor track if product proofs are
   refactored to fit that family.
 
-Promotion requires the exact `(2n + 1)` theorem fit for the pinned interactive
-public-coin protocol, underlying interactive security against quantum dishonest
-provers, repaired numeric QROM loss accounting under the instantiated
-`Q_H = 2^64` bound, per-kind `epsilon_interactive` bounds,
-numeric digest collision and proof-kind malleability bounds over the
-structurally pinned residual events, and integration of
-`epsilon_fs_transform` and `epsilon_precondition` into the selected total-loss
-budget. Uniform
-challenge-space and structured transcript-oracle input encoding are now
-conditionally pinned by the sampler/encoding evidence under the QRO abstraction.
+Promotion now requires CTCO or Merkle-straightline compiler evidence, underlying
+interactive security against quantum dishonest provers, a split-challenge/binding
+oracle instantiation, 384-bit binding collision accounting, proof-kind
+malleability accounting, and integration into the selected total-loss budget.
+Uniform challenge-space and well-formed structured transcript-oracle input
+encoding are pinned by the sampler/encoding evidence plus the Lean
+`WellFormedTranscript` and `Digest384Serialization` layers, while concrete
+hash/QRO instantiation remains outside the Lean finite model.
 
 ## QROM Sampler And Encoding Evidence
 
@@ -304,15 +285,15 @@ Phi81 coefficient sampling accepts `2^64 - 1` values divisible by `5`, and CE
 ternary sampling rejects the single Goldilocks field value needed for a
 multiple-of-3 support.
 
-The same manifest pins the structured transcript-oracle encoding: each
-absorbed frame is a 64-bit little-endian length followed by payload bytes, the
-transcript state is append-only, and the Lean transcript lemmas record frame
-injectivity for structured inputs. This evidence closes the conditional
-challenge-space uniformity and transcript-oracle encoding obligations used by
-the transform-precondition and interactive-reduction ledgers. It does not prove
-the concrete hash instantiation as a QRO, instantiate the residual digest
-collision bound, repair the DFM20 numeric loss, or instantiate the final
-total-loss budget.
+The same manifest pins the structured transcript-oracle encoding. The Lean
+theorem path now strengthens this with `WellFormedTranscript.lean`: byte
+injectivity is theorem-facing only for length-counted transcript states whose
+frame counters agree with payload lengths. `Digest384Serialization.lean` and
+`TypedDigestSemantics.lean` add the 384-bit theorem-critical binding layer used
+by the product theorem surface. This closes the old canonical-transcript and
+binding-width documentation gap. It does not prove a concrete hash
+instantiation as a QRO, instantiate the product compiler evidence, or close the
+final total-loss budget.
 
 ## QROM Collision/Malleability Structural Evidence
 
@@ -325,22 +306,25 @@ binding, product replay identity, NumiSeal component-root binding, and typed
 carry replay binding.
 
 This evidence closes structural cross-kind, cross-domain, cross-product-session,
-and cross-carry swap paths outside digest collision events. It intentionally
-does not instantiate a concrete hash/QRO proof, a numeric transcript collision
-bound, a numeric proof-kind malleability bound, repaired DFM20 reduction loss,
-or total-loss budget integration. Those residual events remain mapped into
+and cross-carry swap paths outside digest collision events. The theorem-critical
+digest taxonomy is now parameterized and includes explicit 384-bit binding
+domains for artifact, provenance, replay, component root, randomness session,
+leakage, and carry. It intentionally does not instantiate a concrete hash/QRO
+proof, numeric 384-bit binding collision bounds, numeric proof-kind
+malleability bounds, product compiler evidence, or total-loss budget
+integration. Those residual events remain mapped into
 `epsilon_transcript_collision`, `epsilon_proof_kind_malleability`, and the
 selected-depth `epsilon_collision`/`epsilon_qrom` ledger terms.
 
 ## QROM Interactive Reduction
 
 `TestVectors/product-qrom-interactive-reduction-v1.json` is the checked QROM
-Interactive Reduction ledger. It records the selected DFM20 constant-round
-public-coin theorem family, `Q_H = 2^64` candidate query policy, 256-bit
-challenge-range accounting, exact challenge-count formulas for fold, terminal,
-compressed-terminal, NumiSeal terminal, and NumiSealZK product proofs, and the
-exact DFM20 multiplier `((2*Q_H+n+1)^(2n)/n!)` plus the additive
-`n! / 2^256` ordering term.
+Interactive Reduction ledger for the legacy DFM20 diagnostic route. It records
+the historical constant-round public-coin theorem family, `Q_H = 2^64`
+candidate query policy, 256-bit challenge-range accounting, exact
+challenge-count formulas for fold, terminal, compressed-terminal, NumiSeal
+terminal, and NumiSealZK product proofs, and the exact DFM20 multiplier
+`((2*Q_H+n+1)^(2n)/n!)` plus the additive `n! / 2^256` ordering term.
 
 The ledger instantiates conservative numeric `n` upper bounds for every
 accepted proof kind. Fold, terminal, and compressed-terminal use the checked
@@ -353,13 +337,12 @@ per lane, at most 1024 public inputs, at most 1024 matrix evaluations, and at
 most 18 sum-check variables. This yields `n_numiseal_terminal <= 4,376,925`
 and `n_numiseal_zk_product <= 4,377,150`.
 
-The ledger also records the decisive fail-closed budget result. Under the
-selected DFM20/256-bit challenge accounting, `log2(204!)` is already greater
-than 1276, so the additive `204! / 2^256` ordering term is greater than 1 for
-the smallest accepted proof kind. The QROM theorem therefore remains disabled
-until the loss model, challenge accounting, per-kind `epsilon_interactive`
-bounds, numeric digest collision/proof-kind malleability bounds, and total-loss
-budget integration are repaired.
+The ledger also records the decisive fail-closed budget result. Under the legacy
+DFM20/256-bit challenge accounting, `log2(204!)` is already greater than 1276,
+so the additive `204! / 2^256` ordering term is greater than 1 for the smallest
+accepted proof kind. That route is not being promoted. The active route is to
+instantiate CTCO or Merkle-straightline product compiler evidence with 384-bit
+binding digests and separate interactive soundness from QROM transform loss.
 
 ## QROM Transcript Schedule
 
@@ -370,13 +353,11 @@ random-oracle query families, and schedule-to-ledger binding for fold,
 terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK product proof
 kinds. It also pins the conditional `Q_H = 2^64` adversary-query cap and
 `8755125` selected-depth protocol challenge derivations. It is intentionally
-not a production QROM proof: theorem-family fit, transform preconditions, the
-repaired QROM loss model, numeric digest collision/proof-kind malleability
-bounds, and integration into the total-loss budget remain open. Sampler
-uniformity and structured transcript encoding are conditionally pinned by
-`TestVectors/product-qrom-sampler-encoding-evidence-v1.json`; structural
-collision/malleability evidence is pinned by
-`TestVectors/product-qrom-collision-malleability-evidence-v1.json`.
+not a production QROM proof. The transcript-canonicality gap is now closed by
+the well-formed Lean transcript object, and the binding-width gap is closed by
+the 384-bit digest layer. Remaining QROM work is product compiler evidence,
+concrete hash/QRO assumptions, numeric collision/malleability bounds, and
+integration into the total-loss budget.
 
 ## Total Loss Budget
 

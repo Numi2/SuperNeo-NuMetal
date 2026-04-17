@@ -60,8 +60,9 @@ Production-security wording remains blocked by:
 2. formal constant-time or side-channel certification,
 3. deployed product implementations for trusted context, provenance, replay,
    access control, persistence, and audit logging,
-4. completion or explicit theorem-scope narrowing for the three remaining
-   formal blocker groups,
+4. instantiated product/QROM evidence records for the selected split-oracle
+   CTCO or Merkle-straightline compiler family, plus release-grade Swift
+   trace/extractor equivalence evidence,
 5. release signing plus hosted branch-protection enforcement, and
 6. broader benchmark evidence before cross-generation performance claims.
 

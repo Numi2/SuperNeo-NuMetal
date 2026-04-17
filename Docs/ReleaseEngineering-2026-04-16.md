@@ -59,10 +59,9 @@ At minimum, this requires:
 - NumiSeal conformance-scope promotion plus concrete Swift extractor
   implementation and numeric extractor loss accounting, product recursive
   typed carry vectors, simulator coupling beyond the exact rejection-sampled
-  field mask distribution, numeric digest collision and proof-kind
-  malleability bounds over the structurally pinned QROM residual events, repair
-  of the current out-of-budget DFM20 QROM numeric loss finding, selected
-  total-loss budget closure, and product
+  field mask distribution, split-oracle CTCO or Merkle-straightline product
+  QROM evidence, numeric 384-bit binding collision and proof-kind malleability
+  bounds, selected total-loss budget closure, and product
   cryptographic security dossier promotion beyond depth 1,
 - selected-depth loss accounting instantiated for extractor, QROM,
   ZK-simulator, hosted product-ops replay, constant-time side-channel, and
@@ -158,28 +157,31 @@ fail-closed QROM promotion rule.
 `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`, including
 product QROM sampler and encoding evidence, exact rejection-sampling arithmetic
 for Goldilocks, Ext2, Phi81, CE ternary, and NumiSealZK masked-residual
-challenges, structured transcript frame injectivity, and the fail-closed QROM
-promotion rule.
+challenges, well-formed structured transcript frame injectivity, and the
+fail-closed QROM promotion rule.
 `Scripts/validate-product-qrom-collision-malleability-evidence.py` checks
 `TestVectors/product-qrom-collision-malleability-evidence-v1.json`, including
 product QROM collision/malleability structural evidence, accepted proof-kind
 separation, proof-envelope transcript-binding injectivity, artifact/provenance
 digest binding, product replay identity binding, NumiSeal component-root
 binding, typed carry replay binding, and the fail-closed boundary that keeps
-concrete hash/QRO instantiation, numeric digest collision bounds, proof-kind
-malleability bounds, QROM reduction repair, and total-loss integration open.
+concrete hash/QRO instantiation, numeric 384-bit binding collision bounds,
+proof-kind malleability bounds, product QROM compiler evidence, and total-loss
+integration open.
 `Scripts/validate-product-qrom-transform-preconditions.py` checks
 `TestVectors/product-qrom-transform-preconditions-v1.json`, including the
 product QROM transform preconditions, primary QROM Fiat-Shamir source basis,
-selected measure-and-reprogram profile, per-proof-kind theorem-family fit,
-DFM20 `((2*Q_H+n+1)^(2n)/n!)` loss interface, and fail-closed production
+legacy measure-and-reprogram diagnostic profile, per-proof-kind theorem-family
+fit, CTCO/Merkle-straightline replacement target, and fail-closed production
 QROM promotion rule.
 `Scripts/validate-product-qrom-interactive-reduction.py` checks
 `TestVectors/product-qrom-interactive-reduction-v1.json`, including the
 product QROM interactive reduction ledger, public-coin protocol formulas,
 selected `Q_H = 2^64` policy, code-enforced NumiSeal challenge maxima, DFM20
 loss multiplier, selected-depth protocol challenge-derivation budget,
-out-of-budget numeric finding, and fail-closed production QROM promotion rule.
+legacy out-of-budget numeric finding, and fail-closed production QROM promotion
+rule. The DFM20 row is retained as a diagnostic and is not the active theorem
+target.
 `Scripts/validate-product-total-loss-budget.py` checks
 `TestVectors/product-total-loss-budget-v1.json`, including exact rational
 summation, the `2^-128` selected threshold, ten component bounds, nine

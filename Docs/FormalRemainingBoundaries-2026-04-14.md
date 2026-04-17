@@ -3,8 +3,9 @@
 Formal status: completed formal protocol theorem.
 
 This note records the boundary-closure pass after the earlier assumption-surface
-deepening work. The previous eight `*-boundary` groups have been replaced in the
-manifest by certified-key or finite bad-challenge/bad-seed theorem groups.
+deepening work. It has been updated for the 2026-04-17 formal cleanup: the old
+transcript, 384-bit binding, constructive PiCCS, constructive terminal CE, and
+finite probability-ledger gaps are no longer open boundary items.
 
 ## Closed During This Pass
 
@@ -22,18 +23,26 @@ manifest by certified-key or finite bad-challenge/bad-seed theorem groups.
   inputs are sound outside the finite certified bad-seed set. The certificate
   carries the Phi81 split, and the file records projected component deltas and a
   one-bad-value theorem for nonzero projected pivots.
-- PiCCS/sum-check now has a GoldilocksExt2 wire model and
-  `PiCCSFiniteBadChallengeCertificate`, replacing deterministic
-  `accepts -> sound` with soundness outside a finite bad-challenge set. The
-  certificate also carries public-Q oracle semantics and max-degree-bounded
-  round-polynomial witnesses.
-- Terminal CE proof soundness now has `TerminalCEFiniteBadSeedCertificate` and
-  Stern-round special-soundness surfaces, replacing deterministic proof
-  soundness with extraction outside a finite bad-seed set. The file also models
-  the three-symbol verifier challenge domain, parsed verifier-round traces, and
-  branch-derived local batch extraction.
+- PiCCS/sum-check now has a GoldilocksExt2 wire model and a constructive finite
+  bad-challenge path. `PiCCSConstructiveFiniteSoundness.lean` constructs the
+  bad set directly from `SumcheckSoundness.lean` and
+  `SumcheckPrefixSoundness.lean`, proving the `numVars * maxDegreePerRound`
+  cardinality budget without relying on a certificate-first endpoint.
+- Terminal CE proof soundness now has concrete Stern-round special-soundness
+  surfaces and a constructive finite bad-seed endpoint.
+  `TerminalCEConstructiveFiniteSoundness.lean` uses the concrete
+  extraction-failure bad-seed set and derives the `roundCount * 3` budget from
+  an injective bad-seed localization. `TerminalCEFiniteSoundness.lean` remains
+  as a compatibility wrapper.
 - SuperNeo composition now has `superneo_end_to_end_outside_ce_badSeeds`, which
   composes terminal verifier acceptance with the finite CE bad-seed certificate.
+- Transcript binding now has a theorem-facing well-formed layer:
+  `WellFormedTranscript.lean` proves byte injectivity for length-counted
+  transcript states and provides 384-bit proof-envelope transcript separation.
+- Theorem-critical digest binding now has a 384-bit companion:
+  `Digest384Serialization.lean` and `TypedDigestSemantics.lean` provide
+  parameterized digest wires, 384-bit proof-envelope binding records, and typed
+  digest-domain separation.
 - Probability composition now has a conservative tagged finite-event layer:
   `SuperNeoFormal.ProbabilityComposition` tags PiRLC, PiCCS/sum-check, terminal
   CE, and transcript bad-event sets, proves the aggregate finite-cardinality
@@ -110,8 +119,9 @@ proof bytes, response tags, commitments, responses, rounds, and complete proof
 objects. The Ext2 caller byte surface remains the supporting grammar for counted
 Ext2 vectors, counted Ext2 ring vectors, sum-check Ext2 proof fragments, and
 CCS/CE point-evaluation caller bytes. The tagged bad-event, error-ledger, and
-Fiat-Shamir finite-seed accounting groups remain the supporting probability
-bookkeeping layers used by the completed composition theorem.
+Fiat-Shamir finite-seed accounting groups are now connected to an exact
+finite-uniform probability bridge and selected-depth numerator arithmetic used
+by the completed composition theorem.
 
 The Lean `goldilocks-ext2-field-instance` group is now closed by transferring
 mathlib's root-free quadratic-algebra field instance onto the existing
@@ -120,5 +130,5 @@ Goldilocks base field.
 
 The historical closure plan for the three blockers is recorded in
 [Formal Completion Research Plan, 2026-04-14](FormalCompletionResearchPlan-2026-04-14.md).
-It now serves as an audit trail for the declarations and validation gates that
-closed the promotion.
+It now serves only as an audit trail. The current solution is summarized in the
+root [`math-audit.md`](../math-audit.md).

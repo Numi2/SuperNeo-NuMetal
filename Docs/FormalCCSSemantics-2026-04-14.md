@@ -2,8 +2,9 @@
 
 Formal status: completed formal protocol theorem.
 
-This pass adds the algebraic CCS relation layer that PiCCS and terminal CE
-claims need to target.  It does not claim final protocol soundness.
+This pass added the algebraic CCS relation layer that PiCCS and terminal CE
+claims target. Later formal cleanup connected this layer into the constructive
+PiCCS finite soundness path and the completed finite protocol theorem.
 
 ## Added Lean module
 
@@ -23,9 +24,10 @@ claims need to target.  It does not claim final protocol soundness.
   - Defines and proves the hadamard-product relation polynomial, including its
     degree bound and row-wise CCS satisfaction equivalence.
 
-## What remains open
+## Later Closure
 
-The new module gives CCS a real algebraic meaning, but the PiCCS public-Q oracle
-still needs to be constructed from fresh CCS claims, prior CE claims, equality
-polynomials, and final claims.  Serialization injectivity and Fiat-Shamir
-binding remain separate formal trust boundaries.
+The newer formal path now includes the PiCCS exact public-Q bridge,
+constructive sum-check/PiCCS bad-challenge construction, well-formed transcript
+injectivity, and the 384-bit theorem-critical binding companion. Product QROM
+compiler evidence and concrete hash/QRO assumptions remain outside this CCS
+semantics note.

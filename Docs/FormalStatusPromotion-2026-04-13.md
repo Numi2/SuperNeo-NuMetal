@@ -1,5 +1,10 @@
 # Formal Status Promotion, 2026-04-13
 
+Historical note, 2026-04-17: this document is retained as the audit record for
+the original partial-formalization promotion. It is superseded by the completed
+formal protocol theorem label described in `Docs/FormalVerification.md` and
+root `math-audit.md`.
+
 This pass promotes the repository's formal track from `bounded formalization` to
 `partial formalization`.
 

@@ -44,9 +44,10 @@ Machine-readable files:
   terminal, and NumiSealZK product transcript interfaces. It records QROM loss
   symbols, proof-kind separation, and the mapping from
   `epsilon_transcript_collision` to ledger `epsilon_collision`. The
-  conditional `Q_H = 2^64` query cap is instantiated; transform-precondition
-  closure, the repaired QROM loss budget, and the production QROM loss claim
-  remain open.
+  conditional `Q_H = 2^64` query cap is instantiated; split-oracle
+  CTCO/Merkle-straightline product evidence, numeric 384-bit binding collision
+  bounds, total-loss integration, and the production QROM loss claim remain
+  open.
 - `product-qrom-transcript-schedule-v1.json`: checked QROM transcript schedule
   contract for fold, terminal, compressed-terminal, NumiSeal terminal, and
   NumiSealZK product proof kinds. It pins public challenge labels, transcript
@@ -56,28 +57,30 @@ Machine-readable files:
 - `product-qrom-sampler-encoding-evidence-v1.json`: checked QROM sampler and
   transcript-encoding evidence under the QRO abstraction. It pins the exact
   rejection-sampling arithmetic for Goldilocks, Ext2, Phi81, CE ternary, and
-  NumiSealZK masked-residual challenges, plus structured 64-bit length-prefixed
-  transcript frame injectivity, while keeping hash instantiation, numeric
-  digest collision bounds, proof-kind malleability bounds, and production QROM
-  claims disabled.
+  NumiSealZK masked-residual challenges, plus well-formed 64-bit
+  length-prefixed transcript frame injectivity, while keeping hash
+  instantiation, numeric 384-bit binding collision bounds, proof-kind
+  malleability bounds, and production QROM claims disabled.
 - `product-qrom-collision-malleability-evidence-v1.json`: checked QROM
   collision/malleability structural evidence. It pins accepted proof-kind
   separation, proof-envelope transcript-binding injectivity, transcript-domain
   enforcement, proof-kind acceptance policy, artifact/provenance digest
   binding, product replay identity, NumiSeal component-root binding, typed
-  carry replay binding, and the fail-closed residual event mapping for numeric
-  digest collision and proof-kind malleability bounds.
+  carry replay binding, 384-bit theorem-critical binding domains, and the
+  fail-closed residual event mapping for numeric binding collision and
+  proof-kind malleability bounds.
 - `product-qrom-transform-preconditions-v1.json`: checked QROM transform
-  precondition dossier for the selected fail-closed measure-and-reprogram
-  profile. It pins primary research sources, theorem-family fit,
-  pinned public-coin protocol schedules, challenge uniformity, transcript
-  encoding, `Q_H` query-bound, and reduction-loss obligations while keeping
-  production QROM claims disabled.
+  precondition dossier. It retains the legacy fail-closed
+  measure-and-reprogram diagnostic profile and pins the active
+  CTCO/Merkle-straightline replacement target, theorem-family fit, challenge
+  uniformity, transcript encoding, `Q_H` query-bound, and reduction-loss
+  obligations while keeping production QROM claims disabled.
 - `product-qrom-interactive-reduction-v1.json`: checked QROM interactive
   reduction ledger. It pins the product public-coin protocol formulas,
   selected `Q_H = 2^64` policy, code-enforced NumiSeal numeric challenge
-  maxima, DFM20 loss multiplier, and the current out-of-budget numeric finding
-  while keeping production QROM claims disabled.
+  maxima, DFM20 loss multiplier, and the legacy out-of-budget numeric finding
+  while keeping production QROM claims disabled. The active theorem route is
+  split-oracle CTCO or Merkle-straightline with 384-bit binding digests.
 - `product-total-loss-budget-v1.json`: checked total-loss budget contract for
   the current selected-depth security boundary. It records exact rational
   summation, the `2^-128` selected threshold, ten component bounds, nine

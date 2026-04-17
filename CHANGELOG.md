@@ -8,6 +8,11 @@ claims remain blocked by the release packet no-go items.
 
 ### Production Readiness
 
+- Added the 2026-04-17 formal cleanup: well-formed transcript byte
+  injectivity, 384-bit theorem-critical digest serialization, parameterized
+  typed digest domains, constructive PiCCS finite soundness, constructive
+  terminal CE finite soundness, and the finite-uniform Fiat-Shamir probability
+  bridge into the selected-depth error ledger.
 - Added an audit/blocker-narrowing packet covering side-channel posture,
   product integration requirements, formal blocker status, and the successful
   pinned Sage estimator run.
@@ -51,16 +56,16 @@ claims remain blocked by the release packet no-go items.
   families, the conditional `Q_H = 2^64` adversary-query cap, selected-depth
   protocol challenge-derivation budget, transform theorem-family obligations,
   public-coin protocol formulas, code-enforced NumiSeal challenge maxima,
-  DFM20 QROM loss multiplier, QROM loss contract, and collision-to-ledger
-  mapping while keeping concrete extractor and production QROM loss claims
-  disabled.
+  legacy DFM20 diagnostic rows, the split-oracle CTCO/Merkle-straightline
+  replacement target, QROM loss contract, and collision-to-ledger mapping while
+  keeping concrete extractor and production QROM loss claims disabled.
 - Added checked QROM sampler/encoding evidence, validator, mutation tests,
   release-evidence wiring, and production-gate coverage. The evidence pins
   exact rejection-sampling arithmetic for Goldilocks, Ext2, Phi81, CE ternary,
-  and NumiSealZK masked-residual challenges plus structured transcript frame
+  and NumiSealZK masked-residual challenges plus well-formed transcript frame
   injectivity under the QRO abstraction, while leaving hash instantiation,
-  numeric digest collision bounds, proof-kind malleability bounds, the
-  out-of-budget DFM20 loss repair, and the final production QROM theorem
+  numeric 384-bit binding collision bounds, proof-kind malleability bounds,
+  product QROM compiler evidence, and the final production QROM theorem
   disabled.
 - Added checked QROM collision/malleability evidence, validator, mutation
   tests, release-evidence wiring, production-gate coverage, and Lean
@@ -68,8 +73,8 @@ claims remain blocked by the release packet no-go items.
   kinds. The evidence pins structural cross-kind, cross-domain,
   cross-product-session, and cross-carry binding outside digest collision
   events while keeping concrete hash/QRO instantiation, numeric digest
-  collision bounds, proof-kind malleability bounds, QROM loss repair, and
-  total-loss integration disabled.
+  collision bounds, proof-kind malleability bounds, product QROM compiler
+  evidence, and total-loss integration disabled.
 - Added a checked total-loss budget manifest, validator, mutation tests,
   release-evidence wiring, and Lean theorem hook. The budget pins exact
   rational selected-depth summation, ten component bounds, nine required
@@ -143,11 +148,10 @@ claims remain blocked by the release packet no-go items.
   concrete Swift extractor implementation, numeric extractor loss
   instantiation, product recursive typed carry vectors, selected total-loss
   budget instantiation, simulator coupling beyond the exact field-mask
-  distribution lemma, QROM transform precondition closure,
-  numeric digest collision and proof-kind malleability bounds over the
-  structurally pinned residual events, per-kind interactive security bounds,
-  repair of the current
-  out-of-budget DFM20 QROM numeric loss finding, conservative
+  distribution lemma, split-oracle CTCO or Merkle-straightline product QROM
+  evidence, numeric 384-bit binding collision and proof-kind malleability bounds
+  over the structurally pinned residual events, per-kind interactive security
+  bounds, conservative
   post-quantum parameter closure, competitive proof-size/latency evidence, and
   side-channel evidence.
 - Signed artifacts, signed provenance, notarization/publication proof, archived
