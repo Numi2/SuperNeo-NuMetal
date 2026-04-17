@@ -80,6 +80,7 @@ def validate_docs() -> None:
             "TestVectors/product-extractor-loss-accounting-v1.json",
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "TestVectors/product-qrom-transcript-schedule-v1.json",
+            "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-qrom-interactive-reduction-v1.json",
             "TestVectors/product-total-loss-budget-v1.json",
@@ -106,6 +107,8 @@ def validate_docs() -> None:
             "Scripts/test-product-qrom-fiat-shamir-accounting-validation.py",
             "Scripts/validate-product-qrom-transcript-schedule.py",
             "Scripts/test-product-qrom-transcript-schedule-validation.py",
+            "Scripts/validate-product-qrom-sampler-encoding-evidence.py",
+            "Scripts/test-product-qrom-sampler-encoding-evidence-validation.py",
             "Scripts/validate-product-qrom-transform-preconditions.py",
             "Scripts/test-product-qrom-transform-preconditions-validation.py",
             "Scripts/validate-product-qrom-interactive-reduction.py",
@@ -131,6 +134,7 @@ def validate_docs() -> None:
             "extractor loss-accounting validation",
             "QROM Fiat-Shamir accounting validation",
             "QROM transcript schedule validation",
+            "QROM sampler/encoding evidence validation",
             "QROM interactive reduction validation",
             "QROM transform precondition validation",
             "total-loss budget validation",
@@ -159,6 +163,7 @@ def validate_docs() -> None:
             "TestVectors/product-extractor-loss-accounting-v1.json",
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "TestVectors/product-qrom-transcript-schedule-v1.json",
+            "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-qrom-interactive-reduction-v1.json",
             "TestVectors/product-total-loss-budget-v1.json",
@@ -179,6 +184,7 @@ def validate_docs() -> None:
             "product extractor loss accounting",
             "product QROM Fiat-Shamir accounting",
             "product QROM transcript schedule",
+            "product QROM sampler and encoding evidence",
             "product QROM transform preconditions",
             "product QROM interactive reduction",
             "product total-loss budget",
@@ -204,6 +210,7 @@ def validate_docs() -> None:
             "TestVectors/product-extractor-loss-accounting-v1.json",
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "TestVectors/product-qrom-transcript-schedule-v1.json",
+            "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-qrom-interactive-reduction-v1.json",
             "TestVectors/product-total-loss-budget-v1.json",
@@ -215,6 +222,7 @@ def validate_docs() -> None:
             "Product extractor loss accounting manifest",
             "Product QROM Fiat-Shamir accounting manifest",
             "Product QROM transcript schedule manifest",
+            "Product QROM sampler/encoding evidence manifest",
             "Product QROM transform preconditions manifest",
             "Product QROM interactive reduction manifest",
             "Product total-loss budget manifest",
@@ -237,6 +245,7 @@ def validate_docs() -> None:
             "product extractor loss-accounting version and digest",
             "product QROM Fiat-Shamir accounting version and digest",
             "product QROM transcript schedule version and digest",
+            "product QROM sampler/encoding evidence version and digest",
             "product QROM transform preconditions version and digest",
             "product total-loss budget version and digest",
             "constant-time source/formal scope version and digest",
@@ -267,6 +276,7 @@ def validate_docs() -> None:
             "extractor loss accounting",
             "QROM Fiat-Shamir accounting",
             "QROM transcript schedule",
+            "QROM sampler/encoding evidence",
             "QROM transform preconditions",
             "total-loss budget",
             "constant-time release evidence",
@@ -394,6 +404,10 @@ def validate_schema_versions() -> None:
         "product crypto security dossier must link QROM transcript schedule",
     )
     require(
+        dossier_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "product crypto security dossier must link QROM sampler/encoding evidence",
+    )
+    require(
         dossier_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "product crypto security dossier must link QROM transform preconditions",
     )
@@ -436,6 +450,10 @@ def validate_schema_versions() -> None:
         "product crypto security dossier must link QROM interactive reduction in the QROM position",
     )
     require(
+        qrom_position.get("samplerEncodingEvidenceManifest") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "product crypto security dossier must link sampler/encoding evidence in the QROM position",
+    )
+    require(
         qrom_position.get("productionQROMClaimAllowed") is False,
         "product crypto security dossier must not prematurely allow production QROM claims",
     )
@@ -476,6 +494,10 @@ def validate_schema_versions() -> None:
     require(
         selected_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
         "selected-depth loss-accounting must link QROM transcript schedule",
+    )
+    require(
+        selected_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "selected-depth loss-accounting must link QROM sampler/encoding evidence",
     )
     require(
         selected_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
@@ -536,6 +558,10 @@ def validate_schema_versions() -> None:
         "QROM Fiat-Shamir accounting must link QROM transcript schedule",
     )
     require(
+        qrom_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "QROM Fiat-Shamir accounting must link QROM sampler/encoding evidence",
+    )
+    require(
         qrom_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "QROM Fiat-Shamir accounting must link QROM transform preconditions",
     )
@@ -561,6 +587,10 @@ def validate_schema_versions() -> None:
         qrom_model.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
         "QROM Fiat-Shamir accounting must link interactive reduction in the model",
     )
+    require(
+        qrom_model.get("samplerEncodingEvidenceManifest") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "QROM Fiat-Shamir accounting must link sampler/encoding evidence in the model",
+    )
     qrom_schedule = read_json("TestVectors/product-qrom-transcript-schedule-v1.json")
     require(isinstance(qrom_schedule, dict), "QROM transcript schedule root must be an object")
     require(qrom_schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
@@ -583,6 +613,10 @@ def validate_schema_versions() -> None:
         oracle_model.get("quantumOracleQueryBoundInstantiated") is True,
         "QROM transcript schedule must record the instantiated conditional Q_H bound",
     )
+    require(
+        oracle_model.get("samplerEncodingEvidenceManifest") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "QROM transcript schedule must link sampler/encoding evidence in the oracle model",
+    )
     ledger_binding = qrom_schedule.get("ledgerBinding")
     require(isinstance(ledger_binding, dict), "QROM transcript schedule ledgerBinding must be an object")
     require(
@@ -599,6 +633,39 @@ def validate_schema_versions() -> None:
     require(
         schedule_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
         "QROM transcript schedule must link QROM interactive reduction",
+    )
+    require(
+        schedule_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "QROM transcript schedule must link QROM sampler/encoding evidence",
+    )
+    sampler_encoding_evidence = read_json("TestVectors/product-qrom-sampler-encoding-evidence-v1.json")
+    require(isinstance(sampler_encoding_evidence, dict), "QROM sampler/encoding evidence root must be an object")
+    require(
+        sampler_encoding_evidence.get("schemaVersion") == 1,
+        "QROM sampler/encoding evidence schemaVersion must be 1",
+    )
+    require(
+        sampler_encoding_evidence.get("claimStatus")
+        == "qrom-sampler-encoding-evidence-conditional-not-production-qrom-theorem",
+        "QROM sampler/encoding evidence claimStatus must stay precise",
+    )
+    sampler_uniformity = sampler_encoding_evidence.get("samplerUniformity")
+    require(isinstance(sampler_uniformity, dict), "QROM sampler/encoding evidence samplerUniformity must be an object")
+    require(
+        sampler_uniformity.get("samplerUniformityProofPinned") is True,
+        "QROM sampler/encoding evidence must pin sampler uniformity under the QRO abstraction",
+    )
+    transcript_encoding = sampler_encoding_evidence.get("transcriptEncoding")
+    require(isinstance(transcript_encoding, dict), "QROM sampler/encoding evidence transcriptEncoding must be an object")
+    require(
+        transcript_encoding.get("structuredFrameInjective") is True,
+        "QROM sampler/encoding evidence must pin structured-frame injectivity",
+    )
+    sampler_integration = sampler_encoding_evidence.get("integrationStatus")
+    require(isinstance(sampler_integration, dict), "QROM sampler/encoding evidence integrationStatus must be an object")
+    require(
+        sampler_integration.get("productionQROMClaimAllowed") is False,
+        "QROM sampler/encoding evidence must not prematurely allow production QROM claims",
     )
     qrom_preconditions = read_json("TestVectors/product-qrom-transform-preconditions-v1.json")
     require(isinstance(qrom_preconditions, dict), "QROM transform preconditions root must be an object")
@@ -617,6 +684,18 @@ def validate_schema_versions() -> None:
     require(
         precondition_promotion.get("productionQROMClaimAllowed") is False,
         "QROM transform preconditions must not prematurely allow QROM claims",
+    )
+    require(
+        precondition_promotion.get("requiresChallengeUniformity") is False,
+        "QROM transform preconditions must consume the sampler uniformity evidence instead of keeping it open",
+    )
+    require(
+        precondition_promotion.get("requiresTranscriptEncodingProof") is False,
+        "QROM transform preconditions must consume the transcript encoding evidence instead of keeping it open",
+    )
+    require(
+        precondition_promotion.get("requiresCollisionMalleabilityExclusion") is True,
+        "QROM transform preconditions must keep collision/malleability closure open",
     )
     transform_profile = qrom_preconditions.get("selectedTransformProfile")
     require(isinstance(transform_profile, dict), "QROM transform preconditions selectedTransformProfile must be an object")
@@ -645,6 +724,28 @@ def validate_schema_versions() -> None:
         reduction_loss.get("queryBoundQH") == "2^64",
         "QROM interactive reduction must pin the selected Q_H policy bound",
     )
+    protocol_model = qrom_reduction.get("productProtocolModel")
+    require(isinstance(protocol_model, dict), "QROM interactive reduction productProtocolModel must be an object")
+    require(
+        protocol_model.get("allUniformityProofsInstantiated") is True,
+        "QROM interactive reduction must consume sampler uniformity evidence",
+    )
+    encoding_proof = qrom_reduction.get("transcriptOracleEncodingProof")
+    require(isinstance(encoding_proof, dict), "QROM interactive reduction transcriptOracleEncodingProof must be an object")
+    require(
+        encoding_proof.get("samplerEncodingEvidenceManifest") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "QROM interactive reduction must link sampler/encoding evidence in transcriptOracleEncodingProof",
+    )
+    reduction_promotion = qrom_reduction.get("promotionRule")
+    require(isinstance(reduction_promotion, dict), "QROM interactive reduction promotionRule must be an object")
+    require(
+        reduction_promotion.get("requiresChallengeUniformityProofs") is False,
+        "QROM interactive reduction must consume sampler uniformity evidence",
+    )
+    require(
+        reduction_promotion.get("requiresCollisionMalleabilityBound") is True,
+        "QROM interactive reduction must keep collision/malleability bound open",
+    )
     total_budget = read_json("TestVectors/product-total-loss-budget-v1.json")
     require(isinstance(total_budget, dict), "total-loss budget root must be an object")
     require(total_budget.get("schemaVersion") == 1, "total-loss budget schemaVersion must be 1")
@@ -667,6 +768,10 @@ def validate_schema_versions() -> None:
     require(
         total_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
         "total-loss budget must link QROM transcript schedule",
+    )
+    require(
+        total_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "total-loss budget must link QROM sampler/encoding evidence",
     )
     require(
         total_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
@@ -849,6 +954,14 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/test-product-qrom-transcript-schedule-validation.py" in gate,
         "production gate must run QROM transcript schedule regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-qrom-sampler-encoding-evidence.py" in gate,
+        "production gate must run QROM sampler/encoding evidence validation",
+    )
+    require(
+        "run_step Scripts/test-product-qrom-sampler-encoding-evidence-validation.py" in gate,
+        "production gate must run QROM sampler/encoding evidence regression tests",
     )
     require(
         "run_step Scripts/validate-product-qrom-transform-preconditions.py" in gate,

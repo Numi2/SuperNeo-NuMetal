@@ -40,6 +40,7 @@ EXPECTED_MANIFESTS = {
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
 }
 
@@ -187,6 +188,10 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         "product crypto security dossier must link QROM interactive reduction",
     )
     require(
+        dossier_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "product crypto security dossier must link sampler/encoding evidence",
+    )
+    require(
         dossier_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "product crypto security dossier must link the total loss budget",
     )
@@ -208,6 +213,10 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         total_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
         "total loss budget must link QROM interactive reduction",
     )
+    require(
+        total_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "total loss budget must link sampler/encoding evidence",
+    )
 
     preconditions = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTransformPreconditions"])
     precondition_related = require_dict(preconditions.get("relatedManifests"), "productQROMTransformPreconditions.relatedManifests")
@@ -219,12 +228,20 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         precondition_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
         "QROM transform preconditions must link interactive reduction",
     )
+    require(
+        precondition_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "QROM transform preconditions must link sampler/encoding evidence",
+    )
 
     reduction = read_json(ROOT / EXPECTED_MANIFESTS["productQROMInteractiveReduction"])
     reduction_related = require_dict(reduction.get("relatedManifests"), "productQROMInteractiveReduction.relatedManifests")
     require(
         reduction_related.get("selectedDepthLossAccounting") == "TestVectors/product-selected-depth-loss-accounting-v1.json",
         "QROM interactive reduction must link selected-depth loss accounting",
+    )
+    require(
+        reduction_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "QROM interactive reduction must link sampler/encoding evidence",
     )
 
 

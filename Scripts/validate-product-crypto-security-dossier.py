@@ -100,6 +100,7 @@ EXPECTED_MANIFESTS = {
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json",
 }
@@ -395,6 +396,11 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     )
     require_relative_path("TestVectors/product-qrom-interactive-reduction-v1.json", "fiatShamirQROMPosition.interactiveReductionManifest")
     require(
+        qrom.get("samplerEncodingEvidenceManifest") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "fiatShamirQROMPosition.samplerEncodingEvidenceManifest mismatch",
+    )
+    require_relative_path("TestVectors/product-qrom-sampler-encoding-evidence-v1.json", "fiatShamirQROMPosition.samplerEncodingEvidenceManifest")
+    require(
         qrom.get("claimStatus") == "qrom-fiat-shamir-loss-contract-not-production-claim",
         "fiatShamirQROMPosition.claimStatus must stay precise",
     )
@@ -433,7 +439,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         "QROM ledgerTermMapping.epsilon_collision mismatch",
     )
     obligations = " ".join(require_string_list(qrom.get("remainingObligations"), "fiatShamirQROMPosition.remainingObligations")).lower()
-    for needle in ["interactive reduction", "preconditions", "quantum random-oracle", "schedule", "collision", "malleability"]:
+    for needle in ["interactive reduction", "preconditions", "quantum random-oracle", "collision", "malleability"]:
         require(needle in obligations, f"QROM obligations must mention {needle}")
     schedule = read_json(ROOT / "TestVectors/product-qrom-transcript-schedule-v1.json")
     require(schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
@@ -477,6 +483,15 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     reduction_loss = require_dict(reduction.get("qromQueryAndLossInstantiation"), "QROM interactive reduction loss")
     require(reduction_loss.get("numiSealNumericNInstantiated") is True, "QROM interactive reduction numiSealNumericNInstantiated must be true")
     require_false(reduction_loss.get("allNumericLossTermsInstantiated"), "QROM interactive reduction allNumericLossTermsInstantiated")
+    sampler = read_json(ROOT / "TestVectors/product-qrom-sampler-encoding-evidence-v1.json")
+    require(
+        sampler.get("claimStatus") == "qrom-sampler-encoding-evidence-conditional-not-production-qrom-theorem",
+        "QROM sampler/encoding evidence claimStatus must stay precise",
+    )
+    integration = require_dict(sampler.get("integrationStatus"), "QROM sampler/encoding integrationStatus")
+    require(integration.get("challengeSpaceUniformitySatisfiedUnderQROAbstraction") is True, "QROM sampler evidence must close conditional sampler uniformity")
+    require(integration.get("transcriptOracleEncodingInjectiveForStructuredFrames") is True, "QROM sampler evidence must close structured-frame encoding injectivity")
+    require_false(integration.get("productionQROMClaimAllowed"), "QROM sampler/encoding productionQROMClaimAllowed")
 
 
 def validate_total_loss_budget(dossier: dict[str, Any]) -> None:

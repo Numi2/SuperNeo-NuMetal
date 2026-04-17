@@ -43,6 +43,10 @@ candidate. It does not authorize production-security release claims.
   QROM transcript schedule changes for proof-kind order, public challenge
   labels, symbolic `Q_H` query families, per-kind protocol challenge
   derivation maxima, or schedule-to-ledger binding.
+- `TestVectors/product-qrom-sampler-encoding-evidence-v1.json` reflects any
+  product QROM sampler/encoding evidence changes for rejection-sampling
+  arithmetic, transcript frame encoding, domain separators, or QRO abstraction
+  boundaries.
 - `TestVectors/product-qrom-transform-preconditions-v1.json` reflects any
   product QROM transform precondition changes for theorem-family fit,
   pinned public-coin protocol schedules, challenge uniformity, transcript
@@ -115,6 +119,7 @@ The generated evidence records:
 - product extractor loss-accounting version and digest,
 - product QROM Fiat-Shamir accounting version and digest,
 - product QROM transcript schedule version and digest,
+- product QROM sampler/encoding evidence version and digest,
 - product QROM transform preconditions version and digest,
 - product QROM interactive reduction version and digest,
 - product total-loss budget version and digest,

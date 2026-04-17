@@ -158,6 +158,8 @@ run_step Scripts/validate-product-extractor-loss-accounting.py
 run_step Scripts/test-product-extractor-loss-accounting-validation.py
 run_step Scripts/validate-product-qrom-transcript-schedule.py
 run_step Scripts/test-product-qrom-transcript-schedule-validation.py
+run_step Scripts/validate-product-qrom-sampler-encoding-evidence.py
+run_step Scripts/test-product-qrom-sampler-encoding-evidence-validation.py
 run_step Scripts/validate-product-qrom-transform-preconditions.py
 run_step Scripts/test-product-qrom-transform-preconditions-validation.py
 run_step Scripts/validate-product-qrom-interactive-reduction.py

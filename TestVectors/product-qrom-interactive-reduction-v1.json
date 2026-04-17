@@ -8,6 +8,7 @@
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
+    "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -106,7 +107,7 @@
       ]
     },
     "allInteractiveSecurityBoundsInstantiated": false,
-    "allUniformityProofsInstantiated": false,
+    "allUniformityProofsInstantiated": true,
     "productionProtocolClaimAllowed": false
   },
   "proofKindProtocols": [
@@ -253,8 +254,10 @@
   ],
   "transcriptOracleEncodingProof": {
     "encoding": "append-only 64-bit little-endian length-delimited transcript frames",
+    "samplerEncodingEvidenceManifest": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "domainSeparation": "domain separator, proof kind, schedule id, context/session digests, statement digests, verifier key digest, and artifact/proof-envelope digests are public inputs to the transcript",
-    "injectivityProofStatus": "pinned-definition-proof-open",
+    "injectivityProofStatus": "structured-frame-injectivity-pinned",
+    "samplerUniformityProofStatus": "conditional-qro-rejection-sampling-arithmetic-pinned",
     "witnessIndependentLabelsPinned": true,
     "failurePathScheduleIndependent": true,
     "productionEncodingClaimAllowed": false
@@ -311,9 +314,9 @@
   },
   "hardClaimBlockers": [
     "DFM20 numeric reduction terms exceed the selected 2^-128 total-loss budget under Q_H = 2^64 and 256-bit challenge accounting",
-    "uniformity proof for Ext2, Phi81 ring, ternary CE, and masked-residual field challenge samplers",
     "underlying interactive knowledge-soundness or soundness bounds for every accepted proof kind against quantum dishonest provers",
     "numeric epsilon_interactive_kind bounds for every accepted proof kind",
+    "collision and proof-kind malleability exclusion bound for the accepted transcript domains",
     "final epsilon_fs_transform boundLog2 integration into epsilon_qrom and the selected total-loss budget"
   ],
   "promotionRule": {
@@ -321,8 +324,9 @@
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
     "requiresNumericNumiSealChallengeBounds": false,
-    "requiresChallengeUniformityProofs": true,
+    "requiresChallengeUniformityProofs": false,
     "requiresInteractiveSecurityBounds": true,
+    "requiresCollisionMalleabilityBound": true,
     "requiresQROMLossWithinBudget": true,
     "requiresTotalLossBudgetUpdate": true
   }

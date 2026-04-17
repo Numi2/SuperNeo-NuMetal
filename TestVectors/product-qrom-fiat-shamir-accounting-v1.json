@@ -9,6 +9,7 @@
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json"
   },
@@ -32,6 +33,7 @@
     "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "transformPreconditionManifest": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "samplerEncodingEvidenceManifest": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "interactiveProtocolSpecified": true,
     "publicCoinChallengeScheduleSpecified": true,
     "transformPreconditionsSatisfied": false,
@@ -128,7 +130,6 @@
   "hardClaimBlockers": [
     "proof that the selected Fiat-Shamir transform preconditions hold",
     "DFM20 numeric reduction terms exceed the selected total-loss budget under the current challenge accounting",
-    "challenge sampler uniformity and transcript-oracle encoding proof",
     "proof that proof-kind and transcript-domain separation exclude collision and malleability"
   ],
   "promotionRule": {

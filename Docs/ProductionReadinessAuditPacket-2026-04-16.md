@@ -29,6 +29,7 @@ Coverage included:
 - selected-depth product loss-accounting validation,
 - product extractor loss-accounting validation,
 - product QROM transcript schedule validation,
+- product QROM sampler/encoding evidence validation,
 - product QROM transform precondition validation,
 - product QROM interactive reduction validation,
 - product QROM Fiat-Shamir accounting validation,
@@ -127,6 +128,7 @@ Release and validation gates:
 - `TestVectors/product-extractor-loss-accounting-v1.json`
 - `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
 - `TestVectors/product-qrom-transcript-schedule-v1.json`
+- `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`
 - `TestVectors/product-qrom-transform-preconditions-v1.json`
 - `TestVectors/product-qrom-interactive-reduction-v1.json`
 - `TestVectors/product-total-loss-budget-v1.json`
@@ -151,6 +153,8 @@ Release and validation gates:
 - `Scripts/test-product-qrom-fiat-shamir-accounting-validation.py`
 - `Scripts/validate-product-qrom-transcript-schedule.py`
 - `Scripts/test-product-qrom-transcript-schedule-validation.py`
+- `Scripts/validate-product-qrom-sampler-encoding-evidence.py`
+- `Scripts/test-product-qrom-sampler-encoding-evidence-validation.py`
 - `Scripts/validate-product-qrom-transform-preconditions.py`
 - `Scripts/test-product-qrom-transform-preconditions-validation.py`
 - `Scripts/validate-product-qrom-interactive-reduction.py`
@@ -271,11 +275,13 @@ These are the remaining blockers before using production-security language:
    terminal-seal, recursive-knowledge, typed-carry, masked-residual ZK,
    simulation/privacy, and product-policy obligations imply the composed
    relation. Product extractor loss accounting, QROM transcript schedule, QROM
-   transform preconditions, QROM interactive reduction, QROM Fiat-Shamir
-   accounting, and the total-loss budget are now checked in
+   sampler/encoding evidence, QROM transform preconditions, QROM interactive
+   reduction, QROM Fiat-Shamir accounting, and the total-loss budget are now
+   checked in
    `TestVectors/product-extractor-loss-accounting-v1.json`,
    `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`,
    `TestVectors/product-qrom-transcript-schedule-v1.json`,
+   `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`,
    `TestVectors/product-qrom-transform-preconditions-v1.json`,
    `TestVectors/product-qrom-interactive-reduction-v1.json`, and
    `TestVectors/product-total-loss-budget-v1.json`, but concrete Swift
@@ -283,7 +289,7 @@ These are the remaining blockers before using production-security language:
    accounting beyond the checked parent-child handoff, simulator coupling
    evidence beyond the exact mask-distribution lemma, repair of the current
    out-of-budget DFM20 numeric QROM reduction finding, QROM
-   transform-precondition closure, sampler uniformity and
+   transform-precondition closure, collision/malleability closure,
    interactive-security bounds, total-loss budget instantiation, and
    side-channel evidence still have
    to be supplied before production-security NumiSeal theorem language is

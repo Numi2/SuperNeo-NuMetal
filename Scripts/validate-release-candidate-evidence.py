@@ -262,6 +262,32 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require(
         require_int(
+            surfaces.get("productQROMSamplerEncodingEvidenceVersion"),
+            "productQROMSamplerEncodingEvidenceVersion",
+        ) == 1,
+        "product QROM sampler/encoding evidence version must be 1",
+    )
+    require_hex_digest(
+        surfaces.get("productQROMSamplerEncodingEvidenceDigestHex"),
+        "productQROMSamplerEncodingEvidenceDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productQROMSamplerEncodingEvidenceClaimStatus"),
+            "productQROMSamplerEncodingEvidenceClaimStatus",
+        ) == "qrom-sampler-encoding-evidence-conditional-not-production-qrom-theorem",
+        "product QROM sampler/encoding evidence claim status must stay precise",
+    )
+    require(
+        surfaces.get("productQROMSamplerEncodingEvidenceUniformityPinned") is True,
+        "product QROM sampler/encoding evidence must pin sampler uniformity under the QRO abstraction",
+    )
+    require(
+        surfaces.get("productQROMSamplerEncodingEvidenceStructuredFrameInjective") is True,
+        "product QROM sampler/encoding evidence must pin structured-frame injectivity",
+    )
+    require(
+        require_int(
             surfaces.get("productQROMTransformPreconditionsVersion"),
             "productQROMTransformPreconditionsVersion",
         ) == 1,
@@ -463,6 +489,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "productExtractorLossAccounting",
         "productQROMFiatShamirAccounting",
         "productQROMTranscriptSchedule",
+        "productQROMSamplerEncodingEvidence",
         "productQROMTransformPreconditions",
         "productQROMInteractiveReduction",
         "productTotalLossBudget",
@@ -512,6 +539,10 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(
         any("qrom transcript schedule" in str(boundary).lower() for boundary in boundaries),
         "productionSecurityBoundaries must mention QROM transcript schedule",
+    )
+    require(
+        any("qrom sampler/encoding evidence" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention QROM sampler/encoding evidence",
     )
     require(
         any("qrom transform preconditions" in str(boundary).lower() for boundary in boundaries),

@@ -192,6 +192,36 @@ def main() -> None:
         write_json(path, missing_qrom_schedule_entry)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_qrom_sampler_encoding = copy.deepcopy(evidence)
+        wrong_qrom_sampler_encoding["publicSurfaces"]["productQROMSamplerEncodingEvidenceVersion"] = 2
+        path = tmp / "wrong-qrom-sampler-encoding.json"
+        write_json(path, wrong_qrom_sampler_encoding)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_qrom_sampler_encoding = copy.deepcopy(evidence)
+        vague_qrom_sampler_encoding["publicSurfaces"][
+            "productQROMSamplerEncodingEvidenceClaimStatus"
+        ] = "production-qrom-proof"
+        path = tmp / "vague-qrom-sampler-encoding.json"
+        write_json(path, vague_qrom_sampler_encoding)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_qrom_sampler_uniformity = copy.deepcopy(evidence)
+        missing_qrom_sampler_uniformity["publicSurfaces"][
+            "productQROMSamplerEncodingEvidenceUniformityPinned"
+        ] = False
+        path = tmp / "missing-qrom-sampler-uniformity.json"
+        write_json(path, missing_qrom_sampler_uniformity)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_qrom_frame_injectivity = copy.deepcopy(evidence)
+        missing_qrom_frame_injectivity["publicSurfaces"][
+            "productQROMSamplerEncodingEvidenceStructuredFrameInjective"
+        ] = False
+        path = tmp / "missing-qrom-frame-injectivity.json"
+        write_json(path, missing_qrom_frame_injectivity)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_qrom_transform_preconditions = copy.deepcopy(evidence)
         wrong_qrom_transform_preconditions["publicSurfaces"]["productQROMTransformPreconditionsVersion"] = 2
         path = tmp / "wrong-qrom-transform-preconditions.json"

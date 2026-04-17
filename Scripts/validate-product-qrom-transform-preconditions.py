@@ -33,6 +33,7 @@ EXPECTED_MANIFESTS = {
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -70,8 +71,9 @@ EXPECTED_PROOF_KINDS = [
 
 EXPECTED_BLOCKERS = [
     "proof that the pinned public-coin interactive schedules satisfy the selected theorem family",
-    "challenge-space uniformity and transcript-oracle encoding proof",
     "underlying interactive knowledge-soundness or soundness bound against quantum dishonest provers",
+    "zero-knowledge or simulator preconditions for the accepted NumiSealZK proof kind",
+    "collision and malleability exclusion for domain-separated proof kinds",
     "repair of the out-of-budget DFM20 reduction-loss finding under the instantiated Q_H = 2^64 bound",
     "integration of epsilon_fs_transform and epsilon_precondition into QROM accounting and the selected total-loss budget",
 ]
@@ -143,6 +145,10 @@ def validate_related_manifests(preconditions: dict[str, Any]) -> None:
         qrom_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "QROM accounting must link the transform precondition dossier",
     )
+    require(
+        qrom_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "QROM accounting must link sampler/encoding evidence",
+    )
     qrom_model = require_dict(qrom.get("fiatShamirModel"), "productQROMFiatShamirAccounting.fiatShamirModel")
     require(
         qrom_model.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
@@ -151,6 +157,10 @@ def validate_related_manifests(preconditions: dict[str, Any]) -> None:
     require(
         qrom_model.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
         "QROM accounting model must point at the interactive reduction manifest",
+    )
+    require(
+        qrom_model.get("samplerEncodingEvidenceManifest") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "QROM accounting model must point at sampler/encoding evidence",
     )
 
     schedule = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTranscriptSchedule"])
@@ -163,12 +173,20 @@ def validate_related_manifests(preconditions: dict[str, Any]) -> None:
         schedule_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
         "QROM transcript schedule must link the interactive reduction manifest",
     )
+    require(
+        schedule_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "QROM transcript schedule must link sampler/encoding evidence",
+    )
 
     dossier = read_json(ROOT / EXPECTED_MANIFESTS["productCryptoSecurityDossier"])
     dossier_related = require_dict(dossier.get("relatedManifests"), "productCryptoSecurityDossier.relatedManifests")
     require(
         dossier_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "product crypto security dossier must link the transform precondition dossier",
+    )
+    require(
+        dossier_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "product crypto security dossier must link sampler/encoding evidence",
     )
     qrom_position = require_dict(dossier.get("fiatShamirQROMPosition"), "productCryptoSecurityDossier.fiatShamirQROMPosition")
     require(
@@ -178,6 +196,10 @@ def validate_related_manifests(preconditions: dict[str, Any]) -> None:
     require(
         qrom_position.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
         "dossier Fiat-Shamir/QROM position must point at the interactive reduction manifest",
+    )
+    require(
+        qrom_position.get("samplerEncodingEvidenceManifest") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "dossier Fiat-Shamir/QROM position must point at sampler/encoding evidence",
     )
 
     ledger = read_json(ROOT / EXPECTED_MANIFESTS["selectedDepthLossAccounting"])
@@ -190,6 +212,10 @@ def validate_related_manifests(preconditions: dict[str, Any]) -> None:
         ledger_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
         "selected-depth ledger must link the interactive reduction manifest",
     )
+    require(
+        ledger_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "selected-depth ledger must link sampler/encoding evidence",
+    )
 
     budget = read_json(ROOT / EXPECTED_MANIFESTS["productTotalLossBudget"])
     budget_related = require_dict(budget.get("relatedManifests"), "productTotalLossBudget.relatedManifests")
@@ -201,12 +227,20 @@ def validate_related_manifests(preconditions: dict[str, Any]) -> None:
         budget_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
         "total-loss budget must link the interactive reduction manifest",
     )
+    require(
+        budget_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "total-loss budget must link sampler/encoding evidence",
+    )
 
     reduction = read_json(ROOT / EXPECTED_MANIFESTS["productQROMInteractiveReduction"])
     reduction_related = require_dict(reduction.get("relatedManifests"), "productQROMInteractiveReduction.relatedManifests")
     require(
         reduction_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "interactive reduction manifest must link this transform precondition dossier",
+    )
+    require(
+        reduction_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
+        "interactive reduction manifest must link sampler/encoding evidence",
     )
 
 
@@ -280,6 +314,23 @@ def validate_precondition_rows(preconditions: dict[str, Any]) -> None:
         if row_id == "quantum-query-bound":
             require_true(row.get("satisfied"), f"{row_id}.satisfied")
             require(row.get("status") == "conditional-query-bound-instantiated", f"{row_id}.status mismatch")
+        elif row_id == "challenge-space-uniformity":
+            require_true(row.get("satisfied"), f"{row_id}.satisfied")
+            require(row.get("status") == "conditional-sampler-uniformity-instantiated", f"{row_id}.status mismatch")
+            require(
+                "product-qrom-sampler-encoding-evidence-v1.json" in require_string(row.get("evidence"), f"{row_id}.evidence"),
+                f"{row_id}.evidence must link sampler/encoding evidence",
+            )
+        elif row_id == "transcript-oracle-input-encoding":
+            require_true(row.get("satisfied"), f"{row_id}.satisfied")
+            require(row.get("status") == "structured-frame-encoding-injectivity-pinned", f"{row_id}.status mismatch")
+            require(
+                "Lean transcript frame injectivity" in require_string(row.get("evidence"), f"{row_id}.evidence"),
+                f"{row_id}.evidence must cite Lean injectivity",
+            )
+        elif row_id == "witness-independent-oracle-labels":
+            require_true(row.get("satisfied"), f"{row_id}.satisfied")
+            require(row.get("status") == "domain-labels-public-and-witness-independent", f"{row_id}.status mismatch")
         else:
             require_false(row.get("satisfied"), f"{row_id}.satisfied")
         require_string(row.get("evidence"), f"{row_id}.evidence")
@@ -369,13 +420,17 @@ def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
     require(promotion.get("requiresInteractiveProtocol") is False, "promotionRule.requiresInteractiveProtocol must be false after interactive schedule pinning")
     require(promotion.get("requiresRoundSchedule") is False, "promotionRule.requiresRoundSchedule must be false after challenge-count pinning")
     for key in [
-        "requiresChallengeUniformity",
-        "requiresTranscriptEncodingProof",
         "requiresUnderlyingInteractiveSecurity",
+        "requiresCollisionMalleabilityExclusion",
         "requiresQROMLossInstantiation",
         "requiresTotalLossBudgetUpdate",
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    for key in [
+        "requiresChallengeUniformity",
+        "requiresTranscriptEncodingProof",
+    ]:
+        require(promotion.get(key) is False, f"promotionRule.{key} must be false after sampler/encoding evidence closure")
     require(promotion.get("requiresQuantumOracleQueryBound") is False, "promotionRule.requiresQuantumOracleQueryBound must be false after Q_H bound instantiation")
 
 
@@ -384,30 +439,37 @@ def validate_docs_and_gate() -> None:
         "README.md": [
             "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-qrom-interactive-reduction-v1.json",
+            "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             "QROM transform preconditions",
         ],
         "Docs/CryptographicSecurityDossier-2026-04-16.md": [
             "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-qrom-interactive-reduction-v1.json",
+            "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             "QROM Transform Preconditions",
             "QROM Interactive Reduction",
         ],
         "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
             "Scripts/validate-product-qrom-transform-preconditions.py",
             "Scripts/validate-product-qrom-interactive-reduction.py",
+            "Scripts/validate-product-qrom-sampler-encoding-evidence.py",
         ],
         "Docs/ReleaseEngineering-2026-04-16.md": [
             "product QROM transform preconditions",
+            "product QROM sampler and encoding evidence",
         ],
         "Docs/ReleaseCandidateRunbook-2026-04-16.md": [
             "product QROM transform preconditions version and digest",
+            "product QROM sampler/encoding evidence version and digest",
         ],
         "Docs/SchemaCompatibility-2026-04-16.md": [
             "Product QROM transform preconditions manifest",
+            "Product QROM sampler/encoding evidence manifest",
         ],
         "TestVectors/README.md": [
             "product-qrom-transform-preconditions-v1.json",
             "product-qrom-interactive-reduction-v1.json",
+            "product-qrom-sampler-encoding-evidence-v1.json",
         ],
     }
     for relative, needles in docs.items():

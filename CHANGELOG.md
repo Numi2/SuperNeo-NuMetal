@@ -54,6 +54,13 @@ claims remain blocked by the release packet no-go items.
   DFM20 QROM loss multiplier, QROM loss contract, and collision-to-ledger
   mapping while keeping concrete extractor and production QROM loss claims
   disabled.
+- Added checked QROM sampler/encoding evidence, validator, mutation tests,
+  release-evidence wiring, and production-gate coverage. The evidence pins
+  exact rejection-sampling arithmetic for Goldilocks, Ext2, Phi81, CE ternary,
+  and NumiSealZK masked-residual challenges plus structured transcript frame
+  injectivity under the QRO abstraction, while leaving hash instantiation,
+  collision/malleability closure, the out-of-budget DFM20 loss repair, and the
+  final production QROM theorem disabled.
 - Added a checked total-loss budget manifest, validator, mutation tests,
   release-evidence wiring, and Lean theorem hook. The budget pins exact
   rational selected-depth summation, ten component bounds, nine required
@@ -120,8 +127,9 @@ claims remain blocked by the release packet no-go items.
   concrete Swift extractor implementation, numeric extractor loss
   instantiation, product recursive typed carry vectors, selected total-loss
   budget instantiation, simulator coupling beyond the exact field-mask
-  distribution lemma, QROM transform precondition closure, sampler uniformity
-  proofs, per-kind interactive security bounds, repair of the current
+  distribution lemma, QROM transform precondition closure,
+  collision/malleability closure, per-kind interactive security bounds, repair
+  of the current
   out-of-budget DFM20 QROM numeric loss finding, conservative
   post-quantum parameter closure, competitive proof-size/latency evidence, and
   side-channel evidence.

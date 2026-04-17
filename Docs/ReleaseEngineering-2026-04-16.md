@@ -30,7 +30,8 @@ true:
 - `Docs/CryptographicSecurityDossier-2026-04-16.md` reflects the current
   bounded-depth product security theorem, Fiat-Shamir/QROM position, Module-SIS
   parameter dossier, selected-depth loss accounting, product extractor loss
-  accounting, product QROM transcript schedule, product QROM transform
+  accounting, product QROM transcript schedule, product QROM sampler and
+  encoding evidence, product QROM transform
   preconditions, product QROM interactive reduction, product QROM
   Fiat-Shamir accounting, product total-loss
   budget, and production-claim boundaries.
@@ -93,6 +94,7 @@ Each release candidate should record:
 - selected-depth loss accounting digest.
 - product extractor loss accounting digest.
 - product QROM transcript schedule digest.
+- product QROM sampler and encoding evidence digest.
 - product QROM transform preconditions digest.
 - product QROM interactive reduction digest.
 - product QROM Fiat-Shamir accounting digest.
@@ -148,6 +150,12 @@ fail-closed quantum random-oracle loss budget.
 QROM transcript schedule, proof-kind order, public challenge labels, symbolic
 `Q_H` query families, per-kind protocol challenge-derivation maxima, and the
 fail-closed QROM promotion rule.
+`Scripts/validate-product-qrom-sampler-encoding-evidence.py` checks
+`TestVectors/product-qrom-sampler-encoding-evidence-v1.json`, including
+product QROM sampler and encoding evidence, exact rejection-sampling arithmetic
+for Goldilocks, Ext2, Phi81, CE ternary, and NumiSealZK masked-residual
+challenges, structured transcript frame injectivity, and the fail-closed QROM
+promotion rule.
 `Scripts/validate-product-qrom-transform-preconditions.py` checks
 `TestVectors/product-qrom-transform-preconditions-v1.json`, including the
 product QROM transform preconditions, primary QROM Fiat-Shamir source basis,

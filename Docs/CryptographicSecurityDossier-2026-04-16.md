@@ -11,6 +11,7 @@ Machine-readable scope:
 - `TestVectors/product-extractor-loss-accounting-v1.json`
 - `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
 - `TestVectors/product-qrom-transcript-schedule-v1.json`
+- `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`
 - `TestVectors/product-qrom-transform-preconditions-v1.json`
 - `TestVectors/product-qrom-interactive-reduction-v1.json`
 - `TestVectors/product-total-loss-budget-v1.json`
@@ -20,6 +21,7 @@ Machine-readable scope:
 - `Scripts/validate-product-extractor-loss-accounting.py`
 - `Scripts/validate-product-qrom-fiat-shamir-accounting.py`
 - `Scripts/validate-product-qrom-transcript-schedule.py`
+- `Scripts/validate-product-qrom-sampler-encoding-evidence.py`
 - `Scripts/validate-product-qrom-transform-preconditions.py`
 - `Scripts/validate-product-qrom-interactive-reduction.py`
 - `Scripts/validate-product-total-loss-budget.py`
@@ -227,8 +229,6 @@ Remaining work:
   `2^-128` budget for the smallest accepted proof kind,
 - close `TestVectors/product-qrom-transform-preconditions-v1.json` by proving
   the selected transform preconditions or explicitly narrow the theorem to ROM,
-- prove challenge sampler uniformity and transcript-oracle encoding injectivity
-  for every accepted proof kind,
 - bind every domain separator and transcript label in the theorem, and
 - prove no transcript collision or malleability across fold, terminal,
   compressed-terminal, NumiSeal terminal, and NumiSealZK envelopes.
@@ -275,12 +275,35 @@ stack:
   refactored to fit that family.
 
 Promotion requires the exact `(2n + 1)` theorem fit for the pinned interactive
-public-coin protocol, uniform challenge-space proofs, injective
-transcript-oracle input encoding, underlying interactive security against
-quantum dishonest provers, repaired numeric QROM loss accounting under the
-instantiated `Q_H = 2^64` bound, sampler-uniformity, per-kind
-`epsilon_interactive` bounds, and integration of `epsilon_fs_transform` and
-`epsilon_precondition` into the selected total-loss budget.
+public-coin protocol, underlying interactive security against quantum dishonest
+provers, repaired numeric QROM loss accounting under the instantiated
+`Q_H = 2^64` bound, per-kind `epsilon_interactive` bounds,
+collision/malleability closure, and integration of `epsilon_fs_transform` and
+`epsilon_precondition` into the selected total-loss budget. Uniform
+challenge-space and structured transcript-oracle input encoding are now
+conditionally pinned by the sampler/encoding evidence under the QRO abstraction.
+
+## QROM Sampler And Encoding Evidence
+
+`TestVectors/product-qrom-sampler-encoding-evidence-v1.json` is the checked
+QROM sampler and transcript-encoding evidence manifest. It pins the current
+Goldilocks rejection sampler, Ext2 product sampler, Phi81 coefficient and ring
+sampler, terminal CE ternary sampler, and NumiSealZK masked-residual field
+challenge sampler. The arithmetic is exact under the QRO abstraction:
+Goldilocks accepts `2^64 - 2^32 + 1` values and rejects `2^32 - 1`,
+Phi81 coefficient sampling accepts `2^64 - 1` values divisible by `5`, and CE
+ternary sampling rejects the single Goldilocks field value needed for a
+multiple-of-3 support.
+
+The same manifest pins the structured transcript-oracle encoding: each
+absorbed frame is a 64-bit little-endian length followed by payload bytes, the
+transcript state is append-only, and the Lean transcript lemmas record frame
+injectivity for structured inputs. This evidence closes the conditional
+challenge-space uniformity and transcript-oracle encoding obligations used by
+the transform-precondition and interactive-reduction ledgers. It does not prove
+the concrete hash instantiation as a QRO, exclude transcript collision or
+malleability, repair the DFM20 numeric loss, or instantiate the final total-loss
+budget.
 
 ## QROM Interactive Reduction
 
@@ -307,8 +330,8 @@ The ledger also records the decisive fail-closed budget result. Under the
 selected DFM20/256-bit challenge accounting, `log2(204!)` is already greater
 than 1276, so the additive `204! / 2^256` ordering term is greater than 1 for
 the smallest accepted proof kind. The QROM theorem therefore remains disabled
-until the loss model, challenge accounting, sampler-uniformity proofs,
-per-kind `epsilon_interactive` bounds, and total-loss budget integration are
+until the loss model, challenge accounting, per-kind `epsilon_interactive`
+bounds, collision/malleability closure, and total-loss budget integration are
 repaired.
 
 ## QROM Transcript Schedule
@@ -320,9 +343,11 @@ random-oracle query families, and schedule-to-ledger binding for fold,
 terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK product proof
 kinds. It also pins the conditional `Q_H = 2^64` adversary-query cap and
 `8755125` selected-depth protocol challenge derivations. It is intentionally
-not a production QROM proof: theorem-family fit, transform preconditions,
-sampler uniformity, transcript encoding, the repaired QROM loss model, and
-integration into the total-loss budget remain open.
+not a production QROM proof: theorem-family fit, transform preconditions, the
+repaired QROM loss model, collision/malleability closure, and integration into
+the total-loss budget remain open. Sampler uniformity and structured transcript
+encoding are conditionally pinned by
+`TestVectors/product-qrom-sampler-encoding-evidence-v1.json`.
 
 ## Total Loss Budget
 

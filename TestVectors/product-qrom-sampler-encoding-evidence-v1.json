@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "evidenceID": "superneo-product-qrom-sampler-encoding-evidence-v1",
+  "claimStatus": "qrom-sampler-encoding-evidence-conditional-not-production-qrom-theorem",
+  "relatedManifests": {
+    "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+    "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+    "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
+    "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json"
+  },
+  "formalSurface": {
+    "transcriptModule": "Formal/SuperNeoFormal/Transcript.lean",
+    "challengeSamplingModule": "Formal/SuperNeoFormal/ChallengeSampling.lean",
+    "transcriptChallengeModule": "Formal/SuperNeoFormal/TranscriptChallenge.lean",
+    "terminalCEModule": "Formal/SuperNeoFormal/TerminalCEFiniteSoundness.lean",
+    "declarations": [
+      "transcriptFrameEncode_injective",
+      "transcriptInit_injective",
+      "transcriptBytes_absorb",
+      "challengeCoefficientSet_card",
+      "phi81ChallengeSeed_card",
+      "phi81ExpandedChallengeSeed_card",
+      "transcriptPhi81ChallengeElement_mem_support",
+      "ceOpeningChallengeDomain_card",
+      "ceOpeningChallengeFromSymbol_mem_domain"
+    ]
+  },
+  "sourceSurfaces": {
+    "transcript": "SuperNeo-NuMetal/Transcript/SumCheckTranscript.swift",
+    "terminalCE": "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift",
+    "numiSealLaneAggregation": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealLaneAggregation.swift",
+    "numiSealScalarization": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealScalarization.swift",
+    "numiSealSumcheck": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealSumcheck.swift",
+    "numiSealZK": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift",
+    "wireEncoding": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypes.swift"
+  },
+  "transcriptEncoding": {
+    "frameEncoding": "64-bit little-endian byte length followed by payload bytes",
+    "frameLengthBytes": 8,
+    "appendOnlyState": true,
+    "structuredFrameInjective": true,
+    "leanInjectivityProofsPinned": true,
+    "byteReaderRejectsTrailingBytes": true,
+    "challengeLabelMode": "component domain separator plus append-only challenge position; manifest labels name theorem families and must remain public",
+    "domainSeparatorExamples": [
+      "SuperNeo-NuMetal.fold",
+      "SuperNeo-NuMetal.ce-opening.stern",
+      "SuperNeo-NuMetal.numiseal.rlc.v1",
+      "SuperNeo-NuMetal.numiseal.scalarization.v1",
+      "SuperNeo-NuMetal.numiseal.sumcheck.v1",
+      "SuperNeo-NuMetal.numiseal.sumcheck-weights.v1",
+      "SuperNeo-NuMetal.numiseal.zk.masked-residual-statement.v2",
+      "SuperNeo-NuMetal.numiseal.zk.masked-residual-accumulation.v1"
+    ],
+    "witnessIndependentDomainLabels": true,
+    "randomOracleInputEncodingInjectiveForStructuredFrames": true,
+    "explicitPerChallengeLabelsAbsorbedByImplementation": false,
+    "productionEncodingClaimAllowed": false
+  },
+  "samplerUniformity": {
+    "randomOracleModel": "conditional on 64-bit blocks from the quantum random-oracle abstraction being uniform and independent for each transcript state/counter pair",
+    "goldilocksFieldSampler": {
+      "sourceBits": 64,
+      "sourceValues": "2^64",
+      "modulus": 18446744069414584321,
+      "acceptedValues": 18446744069414584321,
+      "rejectedValues": 4294967295,
+      "rejectionProbabilityUpperBound": "2^-32",
+      "conditionalDistribution": "exactly uniform on GoldilocksField"
+    },
+    "goldilocksExt2Sampler": {
+      "coordinateSamplers": 2,
+      "sourceBitsPerCoordinate": 64,
+      "conditionalDistribution": "product of two independent uniform GoldilocksField samples"
+    },
+    "phi81CoefficientSampler": {
+      "choiceSet": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "choiceCount": 5,
+      "sourceBits": 64,
+      "limit": 18446744073709551615,
+      "acceptedValues": 18446744073709551615,
+      "rejectedValues": 1,
+      "acceptedValuesDivisibleByChoiceCount": true,
+      "conditionalDistribution": "exactly uniform on {-2,-1,0,1,2}"
+    },
+    "phi81RingSampler": {
+      "degree": 54,
+      "supportSizeExpression": "5^54",
+      "conditionalDistribution": "product distribution over 54 independent uniform coefficient choices"
+    },
+    "terminalCETernarySampler": {
+      "challengeDomainSize": 3,
+      "fieldModulusRemainderModuloDomain": 1,
+      "acceptedFieldValues": 18446744069414584320,
+      "rejectedFieldValues": 1,
+      "acceptedValuesDivisibleByChallengeDomain": true,
+      "conditionalDistribution": "exactly uniform on CE challenge tags {0,1,2}"
+    },
+    "numiSealZKMaskedResidualSampler": {
+      "fieldChallengesPerLaneProof": 3,
+      "source": "GoldilocksField sampler",
+      "conditionalDistribution": "product of three independent uniform field challenges per lane proof"
+    },
+    "samplerUniformityProofPinned": true
+  },
+  "integrationStatus": {
+    "challengeSpaceUniformitySatisfiedUnderQROAbstraction": true,
+    "transcriptOracleEncodingInjectiveForStructuredFrames": true,
+    "witnessIndependentOracleLabelsPinned": true,
+    "hashInstantiationProofProvided": false,
+    "collisionMalleabilityExcluded": false,
+    "qromReductionLossWithinBudget": false,
+    "productionQROMClaimAllowed": false
+  }
+}

@@ -62,6 +62,7 @@
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json"
   },
@@ -197,6 +198,7 @@
     "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "transformPreconditionManifest": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "samplerEncodingEvidenceManifest": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "claimStatus": "qrom-fiat-shamir-loss-contract-not-production-claim",
     "interactiveProtocolSpecified": true,
     "publicCoinChallengeScheduleSpecified": true,
@@ -222,7 +224,7 @@
     "productionQROMClaimAllowed": false,
     "remainingObligations": [
       "repair or replace the DFM20 numeric reduction budget in the interactive reduction manifest now that TestVectors/product-qrom-interactive-reduction-v1.json instantiates code-enforced NumiSeal challenge-count maxima",
-    "close TestVectors/product-qrom-transform-preconditions-v1.json by proving theorem-family fit, challenge uniformity, transcript encoding injectivity, underlying interactive security, and QROM loss instantiation",
+      "close TestVectors/product-qrom-transform-preconditions-v1.json by proving theorem-family fit, underlying interactive security, simulator preconditions, collision/malleability exclusion, and QROM loss instantiation",
     "repair or replace the current DFM20 QROM loss model so the instantiated quantum random-oracle bound Q_H = 2^64 and selected-depth challenge schedule fit the total-loss budget",
       "prove proof-kind domain separation prevents transcript collision and malleability across fold, terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK envelopes"
     ]

@@ -9,6 +9,7 @@
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "proofEnvelopePolicy": "Docs/ProofEnvelope.md"
@@ -34,6 +35,7 @@
     "hashInstantiationProofProvided": false,
     "interactiveProtocolFullySpecified": true,
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "samplerEncodingEvidenceManifest": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "quantumOracleQueryBoundInstantiated": true,
     "transformPreconditionsSatisfied": false,
     "productionQROMClaimAllowed": false

@@ -149,7 +149,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(accounting)
-        missing_blocker["hardClaimBlockers"].remove("challenge sampler uniformity and transcript-oracle encoding proof")
+        missing_blocker["hardClaimBlockers"].remove("proof that proof-kind and transcript-domain separation exclude collision and malleability")
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))

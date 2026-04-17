@@ -8,6 +8,7 @@
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -110,10 +111,10 @@
     },
     {
       "id": "challenge-space-uniformity",
-      "status": "open",
+      "status": "conditional-sampler-uniformity-instantiated",
       "required": true,
-      "satisfied": false,
-      "evidence": "uniform public-coin challenge distributions, rejection/expansion bias bounds, and field-encoding canonicality for every challenge label",
+      "satisfied": true,
+      "evidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json pins exact rejection-sampling arithmetic for Goldilocks field, Ext2, Phi81 coefficient/ring, CE ternary, and NumiSealZK masked-residual challenge samplers under the QRO abstraction",
       "sourceBasis": [
         "DFMS19",
         "DFM20",
@@ -122,10 +123,10 @@
     },
     {
       "id": "transcript-oracle-input-encoding",
-      "status": "schedule-pinned-proof-open",
+      "status": "structured-frame-encoding-injectivity-pinned",
       "required": true,
-      "satisfied": false,
-      "evidence": "length-delimited transcript encoding, domain separators, proof-kind labels, and injectivity proof for random-oracle input bytes",
+      "satisfied": true,
+      "evidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json links the Swift 64-bit length-frame implementation to Lean transcript frame injectivity for structured transcript frames",
       "sourceBasis": [
         "DFMS19",
         "DFM20"
@@ -133,10 +134,10 @@
     },
     {
       "id": "witness-independent-oracle-labels",
-      "status": "schedule-pinned-proof-open",
+      "status": "domain-labels-public-and-witness-independent",
       "required": true,
-      "satisfied": false,
-      "evidence": "proof that oracle labels, schedule identifiers, envelope kinds, and challenge family labels are public and witness independent",
+      "satisfied": true,
+      "evidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json and TestVectors/product-qrom-transcript-schedule-v1.json pin public domain separators, proof-kind labels, schedule identifiers, and append-only challenge positions; witness influence is only through committed prover messages",
       "sourceBasis": [
         "DFMS19",
         "DFM20"
@@ -281,8 +282,9 @@
   },
   "hardClaimBlockers": [
     "proof that the pinned public-coin interactive schedules satisfy the selected theorem family",
-    "challenge-space uniformity and transcript-oracle encoding proof",
     "underlying interactive knowledge-soundness or soundness bound against quantum dishonest provers",
+    "zero-knowledge or simulator preconditions for the accepted NumiSealZK proof kind",
+    "collision and malleability exclusion for domain-separated proof kinds",
     "repair of the out-of-budget DFM20 reduction-loss finding under the instantiated Q_H = 2^64 bound",
     "integration of epsilon_fs_transform and epsilon_precondition into QROM accounting and the selected total-loss budget"
   ],
@@ -292,9 +294,10 @@
     "productionQROMClaimAllowed": false,
     "requiresInteractiveProtocol": false,
     "requiresRoundSchedule": false,
-    "requiresChallengeUniformity": true,
-    "requiresTranscriptEncodingProof": true,
+    "requiresChallengeUniformity": false,
+    "requiresTranscriptEncodingProof": false,
     "requiresUnderlyingInteractiveSecurity": true,
+    "requiresCollisionMalleabilityExclusion": true,
     "requiresQuantumOracleQueryBound": false,
     "requiresQROMLossInstantiation": true,
     "requiresTotalLossBudgetUpdate": true

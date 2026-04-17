@@ -44,15 +44,21 @@ Machine-readable files:
   terminal, and NumiSealZK product transcript interfaces. It records QROM loss
   symbols, proof-kind separation, and the mapping from
   `epsilon_transcript_collision` to ledger `epsilon_collision`. The
-  conditional `Q_H = 2^64` query cap is instantiated; transform preconditions,
-  sampler uniformity, the repaired QROM loss budget, and the production QROM
-  loss claim remain open.
+  conditional `Q_H = 2^64` query cap is instantiated; transform-precondition
+  closure, the repaired QROM loss budget, and the production QROM loss claim
+  remain open.
 - `product-qrom-transcript-schedule-v1.json`: checked QROM transcript schedule
   contract for fold, terminal, compressed-terminal, NumiSeal terminal, and
   NumiSealZK product proof kinds. It pins public challenge labels, transcript
   bindings, symbolic `Q_H` query families, per-kind protocol
   challenge-derivation maxima, the conditional `Q_H = 2^64` adversary-query
   cap, and the fail-closed promotion rule.
+- `product-qrom-sampler-encoding-evidence-v1.json`: checked QROM sampler and
+  transcript-encoding evidence under the QRO abstraction. It pins the exact
+  rejection-sampling arithmetic for Goldilocks, Ext2, Phi81, CE ternary, and
+  NumiSealZK masked-residual challenges, plus structured 64-bit length-prefixed
+  transcript frame injectivity, while keeping hash instantiation,
+  collision/malleability, and production QROM claims disabled.
 - `product-qrom-transform-preconditions-v1.json`: checked QROM transform
   precondition dossier for the selected fail-closed measure-and-reprogram
   profile. It pins primary research sources, theorem-family fit,
@@ -107,6 +113,8 @@ Scripts/validate-product-qrom-fiat-shamir-accounting.py
 Scripts/test-product-qrom-fiat-shamir-accounting-validation.py
 Scripts/validate-product-qrom-transcript-schedule.py
 Scripts/test-product-qrom-transcript-schedule-validation.py
+Scripts/validate-product-qrom-sampler-encoding-evidence.py
+Scripts/test-product-qrom-sampler-encoding-evidence-validation.py
 Scripts/validate-product-qrom-transform-preconditions.py
 Scripts/test-product-qrom-transform-preconditions-validation.py
 Scripts/validate-product-qrom-interactive-reduction.py

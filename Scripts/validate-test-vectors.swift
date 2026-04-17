@@ -695,6 +695,7 @@ do {
                 && $0 != "product-extractor-loss-accounting-v1.json"
                 && $0 != "product-qrom-fiat-shamir-accounting-v1.json"
                 && $0 != "product-qrom-transcript-schedule-v1.json"
+                && $0 != "product-qrom-sampler-encoding-evidence-v1.json"
                 && $0 != "product-qrom-transform-preconditions-v1.json"
                 && $0 != "product-qrom-interactive-reduction-v1.json"
                 && $0 != "product-total-loss-budget-v1.json"
