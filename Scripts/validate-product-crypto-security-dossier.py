@@ -72,6 +72,8 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductFiatShamirLossAccountingAccepted",
     "ProductTotalLossBudget",
     "ProductTotalLossBudgetAccepted",
+    "ProductReleaseDistributionEvidence",
+    "ProductReleaseDistributionEvidenceAccepted",
     "productSecurityTheorem_from_evidence",
     "productSecurityTheorem_requires_bounded_depth",
     "productSecurityTheorem_requires_selected_depth_loss_accounting",
@@ -82,6 +84,7 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "productSecurityTheorem_requires_qrom_loss_accounting",
     "productSecurityTheorem_requires_qrom_collision_malleability_exclusion",
     "productSecurityTheorem_requires_total_loss_budget",
+    "productSecurityTheorem_requires_release_distribution_evidence",
     "productSecurityTheorem_requires_qrom_accounting",
     "productSecurityTheorem_requires_artifact_envelope_binding",
 }
@@ -104,6 +107,7 @@ EXPECTED_MANIFESTS = {
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json",
 }
 
@@ -649,6 +653,7 @@ def validate_promotion(dossier: dict[str, Any]) -> None:
         "productionRecursiveCarryClaimAllowed",
         "productionPerformanceClaimAllowed",
         "productionConstantTimeClaimAllowed",
+        "productionReleaseDistributionClaimAllowed",
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
     require(promotion.get("requiresAllRemainingObligationsClosed") is True, "promotion rule must require all remaining obligations closed")

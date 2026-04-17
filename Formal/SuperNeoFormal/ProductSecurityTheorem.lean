@@ -261,6 +261,25 @@ def ProductTotalLossBudgetAccepted
     ∧ budget.selectedDepthLossWithinBudget
     ∧ budget.productionTotalLossClaimAllowed
 
+structure ProductReleaseDistributionEvidence where
+  releaseSigningKeyPinned : Prop
+  signedArtifactsProduced : Prop
+  signedProvenanceFormatPinned : Prop
+  notarizationOrPublicationProofPinned : Prop
+  hostedBranchProtectionEvidencePinned : Prop
+  archivedReleaseEvidencePinned : Prop
+  releaseDistributionLossWithinBudget : Prop
+
+def ProductReleaseDistributionEvidenceAccepted
+    (evidence : ProductReleaseDistributionEvidence) : Prop :=
+  evidence.releaseSigningKeyPinned
+    ∧ evidence.signedArtifactsProduced
+    ∧ evidence.signedProvenanceFormatPinned
+    ∧ evidence.notarizationOrPublicationProofPinned
+    ∧ evidence.hostedBranchProtectionEvidencePinned
+    ∧ evidence.archivedReleaseEvidencePinned
+    ∧ evidence.releaseDistributionLossWithinBudget
+
 structure ProductLatticeAssumptionDossier where
   moduleSISStatementPinned : Prop
   qRingDimensionAndNormPinned : Prop
@@ -613,6 +632,18 @@ theorem productSecurityTheorem_requires_total_loss_budget
       hWithin,
       hPromotion⟩
   exact ⟨hArithmetic, hQROM, hExtractor, hAll, hMissing, hWithin, hPromotion⟩
+
+theorem productSecurityTheorem_requires_release_distribution_evidence
+    {evidence : ProductReleaseDistributionEvidence}
+    (hEvidence : ProductReleaseDistributionEvidenceAccepted evidence) :
+    evidence.releaseSigningKeyPinned
+      ∧ evidence.signedArtifactsProduced
+      ∧ evidence.signedProvenanceFormatPinned
+      ∧ evidence.notarizationOrPublicationProofPinned
+      ∧ evidence.hostedBranchProtectionEvidencePinned
+      ∧ evidence.archivedReleaseEvidencePinned
+      ∧ evidence.releaseDistributionLossWithinBudget := by
+  exact hEvidence
 
 theorem productSecurityTheorem_requires_qrom_accounting
     {fiatShamir : ProductFiatShamirQROMEvidence}

@@ -18,7 +18,8 @@
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json"
+    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json"
   },
   "formalSurface": {
     "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
@@ -159,7 +160,7 @@
       "status": "unsigned-research-artifact",
       "lossSymbol": "epsilon_release",
       "accountingRule": "release distribution is outside the proof until signed artifacts, provenance, notarization, and branch-protection evidence are pinned",
-      "requiredEvidence": "release signing key, signed release provenance, notarization/publication path, branch protections, and archived release evidence",
+      "requiredEvidence": "TestVectors/product-release-distribution-evidence-v1.json plus release signing key, signed release provenance, notarization/publication path, hosted branch-protection evidence, archived release evidence, and numeric epsilon_release bound",
       "productionClaimAllowed": false
     }
   ],

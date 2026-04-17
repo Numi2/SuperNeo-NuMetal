@@ -320,6 +320,38 @@ def main() -> None:
         write_json(path, premature_total_loss_budget)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_release_distribution = copy.deepcopy(evidence)
+        wrong_release_distribution["publicSurfaces"]["productReleaseDistributionEvidenceVersion"] = 2
+        path = tmp / "wrong-release-distribution.json"
+        write_json(path, wrong_release_distribution)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_release_distribution = copy.deepcopy(evidence)
+        vague_release_distribution["publicSurfaces"][
+            "productReleaseDistributionEvidenceClaimStatus"
+        ] = "production-release-proof"
+        path = tmp / "vague-release-distribution.json"
+        write_json(path, vague_release_distribution)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        premature_release_signing_key = copy.deepcopy(evidence)
+        premature_release_signing_key["publicSurfaces"]["productReleaseDistributionSigningKeySelected"] = True
+        path = tmp / "premature-release-signing-key.json"
+        write_json(path, premature_release_signing_key)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        premature_release_loss = copy.deepcopy(evidence)
+        premature_release_loss["publicSurfaces"]["productReleaseDistributionLossInstantiated"] = True
+        path = tmp / "premature-release-loss.json"
+        write_json(path, premature_release_loss)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        premature_release_claim = copy.deepcopy(evidence)
+        premature_release_claim["publicSurfaces"]["productReleaseDistributionProductionClaimAllowed"] = True
+        path = tmp / "premature-release-claim.json"
+        write_json(path, premature_release_claim)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_constant_time_scope = copy.deepcopy(evidence)
         wrong_constant_time_scope["publicSurfaces"]["constantTimeScopeVersion"] = 2
         path = tmp / "wrong-constant-time-scope.json"
@@ -408,6 +440,34 @@ def main() -> None:
         vague_signing["signing"]["status"] = "unsigned"
         path = tmp / "vague-signing.json"
         write_json(path, vague_signing)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        premature_signing_key = copy.deepcopy(evidence)
+        premature_signing_key["signing"]["releaseSigningKeySelected"] = True
+        path = tmp / "premature-signing-key.json"
+        write_json(path, premature_signing_key)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        premature_signing_loss = copy.deepcopy(evidence)
+        premature_signing_loss["signing"]["releaseDistributionLossInstantiated"] = True
+        path = tmp / "premature-signing-loss.json"
+        write_json(path, premature_signing_loss)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        mismatched_signing_release_digest = copy.deepcopy(evidence)
+        mismatched_signing_release_digest["signing"][
+            "releaseDistributionEvidenceDigestHex"
+        ] = "0" * 64
+        path = tmp / "mismatched-signing-release-digest.json"
+        write_json(path, mismatched_signing_release_digest)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_release_distribution_doc = copy.deepcopy(evidence)
+        missing_release_distribution_doc["documentation"][
+            "productReleaseDistributionEvidence"
+        ] = "TestVectors/missing-product-release-distribution-evidence-v1.json"
+        path = tmp / "missing-release-distribution-doc.json"
+        write_json(path, missing_release_distribution_doc)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
     print("release candidate evidence validation regression tests passed")

@@ -75,6 +75,11 @@ claims remain blocked by the release packet no-go items.
   rational selected-depth summation, ten component bounds, nine required
   selected-depth numeric terms, and the `2^-128` threshold while keeping
   production claims disabled.
+- Added a checked release distribution evidence manifest, validator, mutation
+  tests, release-evidence wiring, and Lean theorem hook. The evidence pins
+  required artifact families, provenance fields, unsigned research-artifact
+  status, signing/notarization/branch-protection promotion flags, and the
+  `epsilon_release` loss hook while keeping production release claims disabled.
 - Added a checked constant-time source/formal scope manifest, validator, and
   Lean trace-independence model for the first Swift/Metal secret-bearing slices.
 - Added a checked Swift/LLVM/Metal lowering evidence manifest, validator,
@@ -121,6 +126,7 @@ claims remain blocked by the release packet no-go items.
 - The QROM transform preconditions manifest starts at `schemaVersion = 1`.
 - The QROM interactive reduction manifest starts at `schemaVersion = 1`.
 - The total-loss budget manifest starts at `schemaVersion = 1`.
+- The release distribution evidence manifest starts at `schemaVersion = 1`.
 - Proof envelopes remain at `ProofEnvelopeHeader.version = 4`.
 
 ### Remaining Production-Security Blockers
@@ -144,4 +150,6 @@ claims remain blocked by the release packet no-go items.
   out-of-budget DFM20 QROM numeric loss finding, conservative
   post-quantum parameter closure, competitive proof-size/latency evidence, and
   side-channel evidence.
-- Signed artifacts and repository branch-protection enforcement.
+- Signed artifacts, signed provenance, notarization/publication proof, archived
+  release evidence, numeric `epsilon_release` budget instantiation, and
+  repository branch-protection enforcement.

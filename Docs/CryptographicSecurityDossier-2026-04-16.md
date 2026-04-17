@@ -16,6 +16,7 @@ Machine-readable scope:
 - `TestVectors/product-qrom-transform-preconditions-v1.json`
 - `TestVectors/product-qrom-interactive-reduction-v1.json`
 - `TestVectors/product-total-loss-budget-v1.json`
+- `TestVectors/product-release-distribution-evidence-v1.json`
 - `Formal/SuperNeoFormal/ProductSecurityTheorem.lean`
 - `Scripts/validate-product-crypto-security-dossier.py`
 - `Scripts/validate-product-selected-depth-loss-accounting.py`
@@ -27,10 +28,12 @@ Machine-readable scope:
 - `Scripts/validate-product-qrom-transform-preconditions.py`
 - `Scripts/validate-product-qrom-interactive-reduction.py`
 - `Scripts/validate-product-total-loss-budget.py`
+- `Scripts/validate-product-release-distribution-evidence.py`
 
 The current status is a bounded-depth product security theorem at depth 1.
 All production claims remain disabled until the listed extractor, QROM,
-parameter, carry, ZK, side-channel, and benchmark obligations are instantiated.
+parameter, carry, ZK, side-channel, release distribution, and benchmark
+obligations are instantiated.
 
 ## Theorem Scope
 
@@ -406,6 +409,21 @@ claim from bypassing numeric extractor, QROM, ZK, operations, constant-time,
 and release-distribution loss terms or from double-counting
 `epsilon_transcript_collision` inside `epsilon_qrom`.
 
+## Release Distribution Evidence
+
+`TestVectors/product-release-distribution-evidence-v1.json` is the checked
+release distribution evidence contract. It binds the `epsilon_release` loss
+term to required source archives, Swift CLI binaries, test-vector bundles,
+release-candidate evidence, benchmark/estimator artifacts, provenance fields,
+unsigned research-artifact status, release evidence digests, and fail-closed
+signing/notarization/branch-protection flags.
+
+The manifest intentionally records that no release signing key, signed
+provenance format, notarization/publication path, hosted branch-protection
+evidence, archived release evidence, or numeric `epsilon_release` bound has
+been instantiated. Production release distribution remains outside the theorem
+claim until those fields are supplied and folded into the total-loss budget.
+
 ## NumiSealZK Privacy
 
 The masked residual language and leakage surface are recorded in the NumiSealZK
@@ -502,7 +520,8 @@ The machine-readable dossier fails closed:
 - no production QROM claim,
 - no production ZK privacy claim,
 - no production recursive carry claim,
-- no production performance claim, and
+- no production performance claim,
+- no production release distribution claim, and
 - no production constant-time claim.
 
 Those claims become eligible only after the remaining obligations are closed in

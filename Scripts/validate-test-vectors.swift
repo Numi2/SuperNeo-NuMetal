@@ -700,6 +700,7 @@ do {
                 && $0 != "product-qrom-transform-preconditions-v1.json"
                 && $0 != "product-qrom-interactive-reduction-v1.json"
                 && $0 != "product-total-loss-budget-v1.json"
+                && $0 != "product-release-distribution-evidence-v1.json"
                 && $0 != "e2e-proof-metrics-v1.json"
                 && $0 != "benchmark-coverage-v1.json"
         }

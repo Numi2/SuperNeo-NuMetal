@@ -64,6 +64,10 @@ candidate. It does not authorize production-security release claims.
 - `TestVectors/product-total-loss-budget-v1.json` reflects any selected-depth
   total-loss budget, exact rational summation, required component bounds, or
   `2^-128` threshold changes.
+- `TestVectors/product-release-distribution-evidence-v1.json` reflects any
+  release signing, signed provenance, notarization/publication,
+  branch-protection, archived-evidence, or `epsilon_release` budget-boundary
+  change.
 - `elan`, Swift, and the pinned Lean toolchain are available.
 
 ## Candidate Gate
@@ -130,6 +134,7 @@ The generated evidence records:
 - product QROM transform preconditions version and digest,
 - product QROM interactive reduction version and digest,
 - product total-loss budget version and digest,
+- product release distribution evidence version and digest,
 - constant-time source/formal scope version and digest,
 - constant-time lowering evidence version and digest,
 - constant-time release evidence version and digest,
@@ -148,7 +153,9 @@ The generated evidence records:
 Until a repository signing key and provenance format are selected, generated
 artifacts must be published as unsigned research artifacts. Production-security
 release language remains blocked until signed artifacts and verification
-instructions are available.
+instructions are available. The product release distribution evidence manifest
+must remain attached to the release evidence packet so reviewers can see the
+unsigned status and the still-false promotion flags.
 
 For a research/integration tag:
 

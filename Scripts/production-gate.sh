@@ -170,6 +170,8 @@ run_step Scripts/validate-product-qrom-fiat-shamir-accounting.py
 run_step Scripts/test-product-qrom-fiat-shamir-accounting-validation.py
 run_step Scripts/validate-product-total-loss-budget.py
 run_step Scripts/test-product-total-loss-budget-validation.py
+run_step Scripts/validate-product-release-distribution-evidence.py
+run_step Scripts/test-product-release-distribution-evidence-validation.py
 run_step Scripts/validate-constant-time-scope.py
 run_step Scripts/test-constant-time-scope-validation.py
 run_step Scripts/validate-constant-time-lowering-evidence.py

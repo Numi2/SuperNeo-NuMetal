@@ -28,6 +28,7 @@ manifests, and binary proof envelopes.
 | Product QROM transform preconditions manifest | `schemaVersion = 1` |
 | Product QROM interactive reduction manifest | `schemaVersion = 1` |
 | Product total-loss budget manifest | `schemaVersion = 1` |
+| Product release distribution evidence manifest | `schemaVersion = 1` |
 | Constant-time source/formal scope manifest | `schemaVersion = 1` |
 | Constant-time Swift/LLVM/Metal lowering evidence manifest | `schemaVersion = 1` |
 | Constant-time release evidence manifest | `schemaVersion = 1` |
@@ -245,6 +246,16 @@ affect proof bytes. It pins exact rational selected-depth summation,
 `2^-128` budget threshold, ten component bounds, nine required selected-depth
 terms, and the promotion rule that keeps production product-security claims
 disabled until all required numeric bounds are instantiated and inside budget.
+
+`TestVectors/product-release-distribution-evidence-v1.json` is the checked
+Product release distribution evidence manifest. It is not a proof artifact
+schema and does not affect proof bytes. It pins required release artifact
+families, provenance fields, release evidence binding, unsigned research
+artifact status, the `epsilon_release` loss symbol, and the promotion rule that
+keeps production release distribution claims disabled until a release signing
+key, signed artifacts, signed provenance, notarization/publication proof,
+hosted branch-protection evidence, archived release evidence, and numeric loss
+budget are instantiated.
 
 `TestVectors/constant-time-scope-v1.json` is the checked constant-time
 source/formal scope manifest. It is not a proof artifact schema; it pins audited

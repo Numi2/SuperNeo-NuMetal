@@ -85,6 +85,7 @@ def validate_docs() -> None:
             "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-qrom-interactive-reduction-v1.json",
             "TestVectors/product-total-loss-budget-v1.json",
+            "TestVectors/product-release-distribution-evidence-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -118,6 +119,8 @@ def validate_docs() -> None:
             "Scripts/test-product-qrom-interactive-reduction-validation.py",
             "Scripts/validate-product-total-loss-budget.py",
             "Scripts/test-product-total-loss-budget-validation.py",
+            "Scripts/validate-product-release-distribution-evidence.py",
+            "Scripts/test-product-release-distribution-evidence-validation.py",
             "Scripts/validate-e2e-proof-metrics.py",
             "Scripts/test-e2e-proof-metrics-validation.py",
             "Scripts/validate-benchmark-coverage.py",
@@ -142,6 +145,7 @@ def validate_docs() -> None:
             "QROM interactive reduction validation",
             "QROM transform precondition validation",
             "total-loss budget validation",
+            "release distribution evidence validation",
             "ProductSecurityTheorem",
             "Fiat-Shamir/QROM",
             "Module-SIS",
@@ -172,6 +176,7 @@ def validate_docs() -> None:
             "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-qrom-interactive-reduction-v1.json",
             "TestVectors/product-total-loss-budget-v1.json",
+            "TestVectors/product-release-distribution-evidence-v1.json",
             "Docs/CryptographicSecurityDossier-2026-04-16.md",
             "Scripts/validate-constant-time-scope.py",
             "Scripts/validate-constant-time-lowering-evidence.py",
@@ -194,6 +199,7 @@ def validate_docs() -> None:
             "product QROM transform preconditions",
             "product QROM interactive reduction",
             "product total-loss budget",
+            "product release distribution evidence",
             "signed revocation feed",
             "E2E proof metrics digest",
             "constant-time release evidence digest",
@@ -221,6 +227,7 @@ def validate_docs() -> None:
             "TestVectors/product-qrom-transform-preconditions-v1.json",
             "TestVectors/product-qrom-interactive-reduction-v1.json",
             "TestVectors/product-total-loss-budget-v1.json",
+            "TestVectors/product-release-distribution-evidence-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -234,6 +241,7 @@ def validate_docs() -> None:
             "Product QROM transform preconditions manifest",
             "Product QROM interactive reduction manifest",
             "Product total-loss budget manifest",
+            "Product release distribution evidence manifest",
             "Version Bump Checklist",
         ],
     )
@@ -257,6 +265,7 @@ def validate_docs() -> None:
             "product QROM collision/malleability evidence version and digest",
             "product QROM transform preconditions version and digest",
             "product total-loss budget version and digest",
+            "product release distribution evidence version and digest",
             "constant-time source/formal scope version and digest",
             "constant-time lowering evidence version and digest",
             "constant-time release evidence version and digest",
@@ -289,6 +298,7 @@ def validate_docs() -> None:
             "QROM collision/malleability evidence",
             "QROM transform preconditions",
             "total-loss budget",
+            "release distribution evidence",
             "constant-time release evidence",
         ],
     )
@@ -433,6 +443,10 @@ def validate_schema_versions() -> None:
         dossier_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "product crypto security dossier must link total-loss budget",
     )
+    require(
+        dossier_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
+        "product crypto security dossier must link release distribution evidence",
+    )
     dossier_depth = product_dossier.get("supportedProductDepth")
     require(isinstance(dossier_depth, dict), "product crypto security dossier supportedProductDepth must be an object")
     require(dossier_depth.get("depthModel") == "bounded-depth", "product security theorem must stay bounded-depth")
@@ -536,6 +550,10 @@ def validate_schema_versions() -> None:
     require(
         selected_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "selected-depth loss-accounting must link total-loss budget",
+    )
+    require(
+        selected_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
+        "selected-depth loss-accounting must link release distribution evidence",
     )
     extractor_loss = read_json("TestVectors/product-extractor-loss-accounting-v1.json")
     require(isinstance(extractor_loss, dict), "extractor loss-accounting root must be an object")
@@ -876,6 +894,68 @@ def validate_schema_versions() -> None:
         total_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
         "total-loss budget must link QROM interactive reduction",
     )
+    require(
+        total_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
+        "total-loss budget must link release distribution evidence",
+    )
+    release_distribution = read_json("TestVectors/product-release-distribution-evidence-v1.json")
+    require(isinstance(release_distribution, dict), "release distribution evidence root must be an object")
+    require(release_distribution.get("schemaVersion") == 1, "release distribution evidence schemaVersion must be 1")
+    require(
+        release_distribution.get("claimStatus") == "release-distribution-evidence-contract-not-production-claim",
+        "release distribution evidence claimStatus must stay precise",
+    )
+    release_related = release_distribution.get("relatedManifests")
+    require(isinstance(release_related, dict), "release distribution evidence relatedManifests must be an object")
+    require(
+        release_related.get("productCryptoSecurityDossier") == "TestVectors/product-crypto-security-dossier-v1.json",
+        "release distribution evidence must link product crypto security dossier",
+    )
+    require(
+        release_related.get("selectedDepthLossAccounting") == "TestVectors/product-selected-depth-loss-accounting-v1.json",
+        "release distribution evidence must link selected-depth loss accounting",
+    )
+    require(
+        release_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
+        "release distribution evidence must link total-loss budget",
+    )
+    release_policy = release_distribution.get("releaseClassPolicy")
+    require(isinstance(release_policy, dict), "release distribution evidence releaseClassPolicy must be an object")
+    require(
+        release_policy.get("releaseDistributionLossSymbol") == "epsilon_release",
+        "release distribution evidence must bind epsilon_release",
+    )
+    require(
+        release_policy.get("selectedDepthLedgerComponent") == "release-signing-notarization",
+        "release distribution evidence must bind the selected-depth release component",
+    )
+    require(
+        release_policy.get("totalLossBudgetComponent") == "release-signing-notarization",
+        "release distribution evidence must bind the total-loss release component",
+    )
+    release_signing_status = release_distribution.get("signingStatus")
+    require(isinstance(release_signing_status, dict), "release distribution evidence signingStatus must be an object")
+    for key in [
+        "releaseSigningKeySelected",
+        "artifactSigningImplemented",
+        "signedProvenanceFormatPinned",
+        "notarizationOrPublicationPathPinned",
+        "hostedBranchProtectionEvidencePinned",
+        "archivedReleaseEvidencePinned",
+        "releaseDistributionLossInstantiated",
+        "releaseDistributionLossWithinBudget",
+        "productionReleaseDistributionClaimAllowed",
+    ]:
+        require(
+            release_signing_status.get(key) is False,
+            f"release distribution evidence {key} must remain false",
+        )
+    release_promotion = release_distribution.get("promotionRule")
+    require(isinstance(release_promotion, dict), "release distribution evidence promotionRule must be an object")
+    require(
+        release_promotion.get("productionReleaseDistributionClaimAllowed") is False,
+        "release distribution evidence must not prematurely allow production release claims",
+    )
     constant_time_scope = read_json("TestVectors/constant-time-scope-v1.json")
     require(isinstance(constant_time_scope, dict), "constant-time scope root must be an object")
     require(constant_time_scope.get("schemaVersion") == 1, "constant-time scope schemaVersion must be 1")
@@ -1089,6 +1169,14 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/test-product-total-loss-budget-validation.py" in gate,
         "production gate must run total-loss budget regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-release-distribution-evidence.py" in gate,
+        "production gate must run release distribution evidence validation",
+    )
+    require(
+        "run_step Scripts/test-product-release-distribution-evidence-validation.py" in gate,
+        "production gate must run release distribution evidence regression tests",
     )
     require(
         "run_step Scripts/validate-constant-time-scope.py" in gate,

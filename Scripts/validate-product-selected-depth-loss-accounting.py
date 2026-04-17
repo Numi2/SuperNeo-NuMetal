@@ -43,6 +43,7 @@ EXPECTED_MANIFESTS = {
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json",
 }
 
 EXPECTED_FORMAL_DECLARATIONS = {
@@ -200,6 +201,10 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         dossier_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "product crypto security dossier must link the total loss budget",
     )
+    require(
+        dossier_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
+        "product crypto security dossier must link release distribution evidence",
+    )
     total_budget = read_json(ROOT / EXPECTED_MANIFESTS["productTotalLossBudget"])
     total_related = require_dict(total_budget.get("relatedManifests"), "productTotalLossBudget.relatedManifests")
     require(
@@ -225,6 +230,21 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
     require(
         total_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
         "total loss budget must link collision/malleability evidence",
+    )
+    require(
+        total_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
+        "total loss budget must link release distribution evidence",
+    )
+    release_distribution = read_json(ROOT / EXPECTED_MANIFESTS["productReleaseDistributionEvidence"])
+    release_related = require_dict(release_distribution.get("relatedManifests"), "productReleaseDistributionEvidence.relatedManifests")
+    require(
+        release_related.get("selectedDepthLossAccounting") == "TestVectors/product-selected-depth-loss-accounting-v1.json",
+        "release distribution evidence must link selected-depth loss accounting",
+    )
+    release_policy = require_dict(release_distribution.get("releaseClassPolicy"), "productReleaseDistributionEvidence.releaseClassPolicy")
+    require(
+        release_policy.get("releaseDistributionLossSymbol") == "epsilon_release",
+        "release distribution evidence must bind epsilon_release",
     )
 
     preconditions = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTransformPreconditions"])
@@ -358,6 +378,16 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
             require(
                 "numeric digest collision" in evidence,
                 "transcript-collision-domain-separation requiredEvidence must leave numeric digest collision open",
+            )
+        if component_id == "release-signing-notarization":
+            evidence = require_string(component.get("requiredEvidence"), "release-signing-notarization.requiredEvidence")
+            require(
+                "TestVectors/product-release-distribution-evidence-v1.json" in evidence,
+                "release-signing-notarization requiredEvidence must link release distribution evidence",
+            )
+            require(
+                "numeric epsilon_release bound" in evidence,
+                "release-signing-notarization requiredEvidence must require numeric epsilon_release bound",
             )
         component_text.append(json.dumps(component, sort_keys=True).lower())
     require(seen_ids == EXPECTED_COMPONENT_IDS, "componentLosses must stay in the pinned accounting order")

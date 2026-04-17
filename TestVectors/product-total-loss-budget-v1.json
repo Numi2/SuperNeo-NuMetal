@@ -16,7 +16,8 @@
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
-    "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json"
+    "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
+    "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json"
   },
   "formalSurface": {
     "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
@@ -136,12 +137,12 @@
     {
       "id": "release-signing-notarization",
       "ledgerSymbol": "epsilon_release",
-      "sourceManifest": "Docs/ReleaseEngineering-2026-04-16.md",
+      "sourceManifest": "TestVectors/product-release-distribution-evidence-v1.json",
       "currentMultiplicityAtSelectedDepth": 1,
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
-      "requiredEvidence": "signed artifacts, release provenance, notarization, and branch protection evidence"
+      "requiredEvidence": "TestVectors/product-release-distribution-evidence-v1.json plus signed artifacts, signed release provenance, notarization/publication proof, hosted branch-protection evidence, archived release evidence, and numeric epsilon_release bound"
     }
   ],
   "computedBudget": {

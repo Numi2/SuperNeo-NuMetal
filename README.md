@@ -25,7 +25,7 @@ cryptographic library.
 | Assurance policies | `.highAssurance` for covered constant-work CPU paths, `.cpuRedundantMetal` for covered CPU-rechecked Metal outputs, and terminal proof acceptance policies for application verifier contexts. |
 | Test vectors | Fold, terminal, and compressed-terminal artifacts with manifest-bound trusted context. |
 | Benchmarks | Latest local Apple M4 quick slice is pinned under `benchmark-results/`; whole-stack row coverage is checked by `TestVectors/benchmark-coverage-v1.json`. |
-| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, checked selected-depth loss accounting contract, checked extractor, QROM transcript schedule, QROM sampler/encoding evidence, QROM collision/malleability structural evidence, QROM transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir accounting contracts, checked total-loss budget contract, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/product-selected-depth-loss-accounting-v1.json`, `TestVectors/product-extractor-loss-accounting-v1.json`, `TestVectors/product-qrom-transcript-schedule-v1.json`, `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`, `TestVectors/product-qrom-collision-malleability-evidence-v1.json`, `TestVectors/product-qrom-transform-preconditions-v1.json`, `TestVectors/product-qrom-interactive-reduction-v1.json`, `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, `TestVectors/product-total-loss-budget-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
+| Formalization | Completed protocol theorem track, checked NumiSeal end-to-end theorem scope, checked bounded-depth product cryptographic security dossier, checked selected-depth loss accounting contract, checked extractor, QROM transcript schedule, QROM sampler/encoding evidence, QROM collision/malleability structural evidence, QROM transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir accounting contracts, checked total-loss budget and release distribution evidence contracts, and conditional constant-trace plus Swift/LLVM/Metal lowering evidence models in Lean 4, tracked by `Docs/FormalStatus.json`, `TestVectors/numiseal-conformance-scope-v1.json`, `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`, `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, `TestVectors/product-crypto-security-dossier-v1.json`, `TestVectors/product-selected-depth-loss-accounting-v1.json`, `TestVectors/product-extractor-loss-accounting-v1.json`, `TestVectors/product-qrom-transcript-schedule-v1.json`, `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`, `TestVectors/product-qrom-collision-malleability-evidence-v1.json`, `TestVectors/product-qrom-transform-preconditions-v1.json`, `TestVectors/product-qrom-interactive-reduction-v1.json`, `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, `TestVectors/product-total-loss-budget-v1.json`, `TestVectors/product-release-distribution-evidence-v1.json`, `TestVectors/constant-time-scope-v1.json`, `TestVectors/constant-time-lowering-evidence-v1.json`, and `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. |
 | Product ops | Local signed context/provenance/revocation feed, replay ledger, audit export, and machine-readable operations readiness status for private integration work. |
 
 ## Highlights
@@ -122,6 +122,11 @@ cryptographic library.
   selected-depth rational sum format, maps `epsilon_transcript_collision` into
   the ledger's `epsilon_collision` term, and refuses promotion until every
   required numeric bound is instantiated and below `2^-128`.
+- A checked release distribution evidence contract in
+  `TestVectors/product-release-distribution-evidence-v1.json` that binds the
+  release-signing/notarization loss term to required artifact families,
+  provenance fields, release evidence digests, and fail-closed signing status
+  without adding signature material to proof bytes.
 - A canonical local product operations readiness status exposed by
   `product-status --format json` and embedded in product audit exports.
 - A required signed revocation feed for local product controls, with effective
@@ -173,7 +178,8 @@ The current repository stack is:
   `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`,
   `TestVectors/product-qrom-transform-preconditions-v1.json`,
   `TestVectors/product-qrom-interactive-reduction-v1.json`,
-  `TestVectors/product-total-loss-budget-v1.json`, and
+  `TestVectors/product-total-loss-budget-v1.json`,
+  `TestVectors/product-release-distribution-evidence-v1.json`, and
   `TestVectors/benchmark-coverage-v1.json`.
 - **Acceleration:** CPU reference path, Metal kernels for selected field/ring
   and NumiSeal workloads, adaptive routing, redundant CPU/Metal checking, and
@@ -190,8 +196,9 @@ accounting are contracted with the conditional query cap and challenge maxima
 instantiated but without a production-fitting transform/loss theorem, the
 total-loss budget is checked but still missing every required component bound,
 full ZK simulator composition,
-release signing/notarized distribution, and CPU/Swift/LLVM/Metal constant-time
-evidence closure for every production hardware lane.
+release distribution evidence is checked but unsigned, release signing and
+notarized distribution, and CPU/Swift/LLVM/Metal constant-time evidence closure
+for every production hardware lane.
 
 | Quantity | Value |
 | --- | ---: |
@@ -543,6 +550,11 @@ repaired.
 contract, exact rational summation rule, required selected-depth component
 bounds, and the mapping that keeps transcript collision out of the core
 `epsilon_qrom` term and into the ledger's `epsilon_collision` term.
+`TestVectors/product-release-distribution-evidence-v1.json` pins release
+distribution evidence for source archives, Swift CLI binaries, test-vector
+bundles, release-candidate evidence, benchmark/estimator artifacts, required
+provenance fields, unsigned research-artifact status, and the fail-closed
+promotion rule for `epsilon_release`.
 `TestVectors/benchmark-coverage-v1.json` pins the benchmark row families that
 must remain registered, rendered, baseline-comparable, and production-gated for
 the source fold, kernels, Metal, NumiSeal product, recursive carry, and product

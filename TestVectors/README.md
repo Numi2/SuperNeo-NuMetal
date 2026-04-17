@@ -82,6 +82,11 @@ Machine-readable files:
   the current selected-depth security boundary. It records exact rational
   summation, the `2^-128` selected threshold, ten component bounds, nine
   selected-depth required terms, and the fail-closed promotion rule.
+- `product-release-distribution-evidence-v1.json`: checked release
+  distribution evidence contract for source archives, Swift CLI binaries, test
+  vector bundles, release-candidate evidence, benchmark/estimator artifacts,
+  required provenance fields, unsigned research-artifact status, and fail-closed
+  signing/notarization/branch-protection promotion.
 - `numiseal-typed-carry-conformance-v1.json`: typed carry positive/negative
   conformance descriptor.
 - `numiseal-zk-masked-residual-conformance-v1.json`: masked residual ZK
@@ -131,6 +136,8 @@ Scripts/validate-product-qrom-interactive-reduction.py
 Scripts/test-product-qrom-interactive-reduction-validation.py
 Scripts/validate-product-total-loss-budget.py
 Scripts/test-product-total-loss-budget-validation.py
+Scripts/validate-product-release-distribution-evidence.py
+Scripts/test-product-release-distribution-evidence-validation.py
 Scripts/validate-constant-time-scope.py
 Scripts/validate-constant-time-lowering-evidence.py
 Scripts/generate-constant-time-release-evidence.py --skip-build

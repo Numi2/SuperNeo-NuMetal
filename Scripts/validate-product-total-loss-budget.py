@@ -41,6 +41,7 @@ EXPECTED_MANIFESTS = {
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
     "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
+    "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json",
 }
 
 EXPECTED_FORMAL_DECLARATIONS = {
@@ -188,6 +189,10 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
         ledger_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
         "selected-depth ledger must link collision/malleability evidence",
     )
+    require(
+        ledger_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
+        "selected-depth ledger must link release distribution evidence",
+    )
     component_ids = [
         require_string(row.get("id"), f"selectedDepthLossAccounting.componentLosses[{index}].id")
         for index, row in enumerate(ledger.get("componentLosses", []))
@@ -224,6 +229,18 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
         require_dict(schedule.get("relatedManifests"), "productQROMTranscriptSchedule.relatedManifests").get("productQROMCollisionMalleabilityEvidence")
         == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
         "QROM transcript schedule must link collision/malleability evidence",
+    )
+
+    release_distribution = read_json(ROOT / EXPECTED_MANIFESTS["productReleaseDistributionEvidence"])
+    release_related = require_dict(release_distribution.get("relatedManifests"), "productReleaseDistributionEvidence.relatedManifests")
+    require(
+        release_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
+        "release distribution evidence must link total-loss budget",
+    )
+    release_policy = require_dict(release_distribution.get("releaseClassPolicy"), "productReleaseDistributionEvidence.releaseClassPolicy")
+    require(
+        release_policy.get("totalLossBudgetComponent") == "release-signing-notarization",
+        "release distribution evidence must bind total-loss release component",
     )
 
     preconditions = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTransformPreconditions"])
@@ -350,6 +367,20 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
             require(
                 "numeric transcript collision" in evidence or "numeric digest" in evidence,
                 "transcript-collision-domain-separation requiredEvidence must require a numeric collision bound",
+            )
+        if component_id == "release-signing-notarization":
+            evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
+            require(
+                component.get("sourceManifest") == "TestVectors/product-release-distribution-evidence-v1.json",
+                "release-signing-notarization sourceManifest must be release distribution evidence",
+            )
+            require(
+                "TestVectors/product-release-distribution-evidence-v1.json" in evidence,
+                "release-signing-notarization requiredEvidence must link release distribution evidence",
+            )
+            require(
+                "numeric epsilon_release bound" in evidence,
+                "release-signing-notarization requiredEvidence must require numeric epsilon_release bound",
             )
 
         if required:

@@ -34,7 +34,7 @@ true:
   encoding evidence, product QROM collision/malleability structural evidence,
   product QROM transform preconditions, product QROM interactive reduction,
   product QROM Fiat-Shamir accounting, product total-loss budget, and
-  production-claim boundaries.
+  product release distribution evidence boundaries.
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
 - Release notes explicitly use research/integration wording and do not claim
@@ -102,6 +102,7 @@ Each release candidate should record:
 - product QROM interactive reduction digest.
 - product QROM Fiat-Shamir accounting digest.
 - product total-loss budget digest.
+- product release distribution evidence digest.
 - constant-time source/formal scope digest.
 - constant-time lowering evidence digest.
 - constant-time release evidence digest.
@@ -183,6 +184,12 @@ out-of-budget numeric finding, and fail-closed production QROM promotion rule.
 `TestVectors/product-total-loss-budget-v1.json`, including exact rational
 summation, the `2^-128` selected threshold, ten component bounds, nine
 selected-depth required terms, and the fail-closed total-loss budget validation.
+`Scripts/validate-product-release-distribution-evidence.py` checks
+`TestVectors/product-release-distribution-evidence-v1.json`, including product
+release distribution evidence for required artifact families, provenance
+fields, unsigned research-artifact status, signing/notarization/branch-protection
+promotion flags, the `epsilon_release` loss symbol, and release-evidence
+packet binding.
 `Scripts/validate-constant-time-scope.py` checks the constant-time
 source/formal scope manifest and the formal declarations recorded in
 `Docs/ConstantTimeEvidence-2026-04-16.md`.
@@ -213,7 +220,11 @@ production-gate wiring recorded in
 
 Release artifacts should be signed before distribution. Until signed artifacts
 are implemented, published artifacts must be treated as unsigned research
-artifacts.
+artifacts. `TestVectors/product-release-distribution-evidence-v1.json` is the
+fail-closed contract for this state: it records that no release signing key,
+signed provenance format, notarization/publication path, hosted branch-protection
+evidence, archived release evidence, or numeric `epsilon_release` bound is
+instantiated yet.
 
 Required future provenance fields:
 
@@ -223,7 +234,19 @@ Required future provenance fields:
 - Swift toolchain version,
 - Lean toolchain version,
 - production-gate result,
-- artifact hash.
+- artifact hash,
+- artifact signature digest,
+- release signing key digest,
+- provenance format version,
+- release evidence digest,
+- product cryptographic security dossier digest,
+- selected-depth loss accounting digest,
+- product total-loss budget digest,
+- constant-time release evidence digest,
+- benchmark coverage digest,
+- notarization or publication proof digest,
+- hosted branch-protection evidence digest,
+- archived release evidence digest.
 
 ## Branch Protection
 

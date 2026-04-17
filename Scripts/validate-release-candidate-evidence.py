@@ -406,6 +406,36 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "product total-loss budget must not prematurely claim the selected loss is within budget",
     )
     require(
+        require_int(
+            surfaces.get("productReleaseDistributionEvidenceVersion"),
+            "productReleaseDistributionEvidenceVersion",
+        ) == 1,
+        "product release distribution evidence version must be 1",
+    )
+    require_hex_digest(
+        surfaces.get("productReleaseDistributionEvidenceDigestHex"),
+        "productReleaseDistributionEvidenceDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productReleaseDistributionEvidenceClaimStatus"),
+            "productReleaseDistributionEvidenceClaimStatus",
+        ) == "release-distribution-evidence-contract-not-production-claim",
+        "product release distribution evidence claim status must stay precise",
+    )
+    require(
+        surfaces.get("productReleaseDistributionSigningKeySelected") is False,
+        "product release distribution evidence must not pretend a signing key is selected",
+    )
+    require(
+        surfaces.get("productReleaseDistributionLossInstantiated") is False,
+        "product release distribution evidence must not pretend epsilon_release is instantiated",
+    )
+    require(
+        surfaces.get("productReleaseDistributionProductionClaimAllowed") is False,
+        "product release distribution evidence must not prematurely allow production release claims",
+    )
+    require(
         require_int(surfaces.get("constantTimeScopeVersion"), "constantTimeScopeVersion") == 1,
         "constant-time scope version must be 1",
     )
@@ -520,6 +550,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "productQROMTransformPreconditions",
         "productQROMInteractiveReduction",
         "productTotalLossBudget",
+        "productReleaseDistributionEvidence",
         "constantTimeEvidence",
         "constantTimeScope",
         "constantTimeLoweringEvidence",
@@ -540,6 +571,35 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(
         signing.get("signedArtifactsRequiredForProductionSecurity") is True,
         "production-security signing requirement must be explicit",
+    )
+    require(
+        signing.get("releaseDistributionEvidenceManifest") == "TestVectors/product-release-distribution-evidence-v1.json",
+        "signing must link product release distribution evidence",
+    )
+    require_hex_digest(
+        signing.get("releaseDistributionEvidenceDigestHex"),
+        "signing.releaseDistributionEvidenceDigestHex",
+    )
+    require(
+        signing.get("releaseDistributionEvidenceDigestHex")
+        == surfaces.get("productReleaseDistributionEvidenceDigestHex"),
+        "signing release distribution digest must match public surface digest",
+    )
+    require(
+        signing.get("releaseDistributionClaimStatus") == "release-distribution-evidence-contract-not-production-claim",
+        "signing.releaseDistributionClaimStatus must stay precise",
+    )
+    require(
+        signing.get("releaseSigningKeySelected") is False,
+        "signing.releaseSigningKeySelected must remain false until a release signing key is pinned",
+    )
+    require(
+        signing.get("releaseDistributionLossInstantiated") is False,
+        "signing.releaseDistributionLossInstantiated must remain false until epsilon_release is instantiated",
+    )
+    require(
+        signing.get("productionReleaseDistributionClaimAllowed") is False,
+        "signing.productionReleaseDistributionClaimAllowed must remain false until release distribution evidence closes",
     )
     boundaries = evidence.get("productionSecurityBoundaries")
     require(isinstance(boundaries, list) and len(boundaries) >= 3, "productionSecurityBoundaries must list residual boundaries")
@@ -586,6 +646,10 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(
         any("total-loss budget" in str(boundary).lower() for boundary in boundaries),
         "productionSecurityBoundaries must mention total-loss budget",
+    )
+    require(
+        any("release distribution evidence" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention release distribution evidence",
     )
 
 

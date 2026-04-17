@@ -110,6 +110,9 @@ def build_evidence(args: argparse.Namespace) -> dict:
     product_qrom_interactive_reduction = read_json("TestVectors/product-qrom-interactive-reduction-v1.json")
     product_total_loss_budget = read_json("TestVectors/product-total-loss-budget-v1.json")
     product_total_loss_computed = product_total_loss_budget["computedBudget"]
+    product_release_distribution_evidence = read_json("TestVectors/product-release-distribution-evidence-v1.json")
+    product_release_distribution_signing = product_release_distribution_evidence["signingStatus"]
+    product_release_distribution_promotion = product_release_distribution_evidence["promotionRule"]
 
     return {
         "schemaVersion": 1,
@@ -317,6 +320,24 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "productTotalLossBudgetWithinBudget": bool(
                 product_total_loss_computed["selectedDepthLossWithinBudget"]
             ),
+            "productReleaseDistributionEvidenceVersion": int(
+                product_release_distribution_evidence["schemaVersion"]
+            ),
+            "productReleaseDistributionEvidenceDigestHex": sha256_hex(
+                "TestVectors/product-release-distribution-evidence-v1.json"
+            ),
+            "productReleaseDistributionEvidenceClaimStatus": str(
+                product_release_distribution_evidence["claimStatus"]
+            ),
+            "productReleaseDistributionSigningKeySelected": bool(
+                product_release_distribution_signing["releaseSigningKeySelected"]
+            ),
+            "productReleaseDistributionLossInstantiated": bool(
+                product_release_distribution_signing["releaseDistributionLossInstantiated"]
+            ),
+            "productReleaseDistributionProductionClaimAllowed": bool(
+                product_release_distribution_promotion["productionReleaseDistributionClaimAllowed"]
+            ),
             "constantTimeScopeVersion": int(read_json("TestVectors/constant-time-scope-v1.json")["schemaVersion"]),
             "constantTimeScopeDigestHex": sha256_hex("TestVectors/constant-time-scope-v1.json"),
             "constantTimeLoweringEvidenceVersion": int(lowering_evidence["schemaVersion"]),
@@ -378,6 +399,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
             "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
             "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+            "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json",
             "constantTimeEvidence": "Docs/ConstantTimeEvidence-2026-04-16.md",
             "constantTimeScope": "TestVectors/constant-time-scope-v1.json",
             "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
@@ -397,12 +419,26 @@ def build_evidence(args: argparse.Namespace) -> dict:
         "signing": {
             "status": "unsigned_research_artifact",
             "signedArtifactsRequiredForProductionSecurity": True,
+            "releaseDistributionEvidenceManifest": "TestVectors/product-release-distribution-evidence-v1.json",
+            "releaseDistributionEvidenceDigestHex": sha256_hex(
+                "TestVectors/product-release-distribution-evidence-v1.json"
+            ),
+            "releaseDistributionClaimStatus": str(product_release_distribution_evidence["claimStatus"]),
+            "releaseSigningKeySelected": bool(
+                product_release_distribution_signing["releaseSigningKeySelected"]
+            ),
+            "releaseDistributionLossInstantiated": bool(
+                product_release_distribution_signing["releaseDistributionLossInstantiated"]
+            ),
+            "productionReleaseDistributionClaimAllowed": bool(
+                product_release_distribution_promotion["productionReleaseDistributionClaimAllowed"]
+            ),
         },
         "productionSecurityBoundaries": [
             "A conditional source/formal constant-time trace scope and Swift/LLVM/Metal lowering proof contract are recorded; local Swift SIL/LLVM/assembly artifacts, Metal AIR/metallib artifacts, runtime allocation/COW review, CPU/GPU smoke corpora, and compiler/hardware observation lane reports are pinned, while scoped emitted-code review, hardware counters, power/contention, and broader device lanes remain explicit evidence boundaries.",
             "E2E proof-size budgets are checked for deterministic vectors and local product smokes; whole-stack benchmark row coverage is checked, but hardware latency claims still require fresh benchmark evidence.",
             "Local product-ops readiness and signed revocation-feed verification are machine-readable and audit-exported; no hosted product replay-protection, provenance, persistence, revocation-distribution, or access-control service is recorded.",
-            "NumiSeal product, carry, and ZK formalization has a checked evidence-parametric end-to-end theorem scope, exact rejection-sampled field mask distribution evidence, a selected-depth loss-accounting ledger, extractor loss accounting, QROM Fiat-Shamir accounting with explicit collision mapping and an instantiated conditional Q_H = 2^64 query cap, a QROM transcript schedule, conditional QROM sampler/encoding evidence under the QRO abstraction, QROM collision/malleability structural evidence, QROM transform preconditions, a QROM interactive reduction ledger with code-enforced NumiSeal challenge maxima, a total-loss budget contract, and a product cryptographic security dossier pinned to bounded depth 1; concrete extractor implementation, per-kind interactive security bounds, numeric digest collision/proof-kind malleability bounds, repair of the current out-of-budget DFM20 QROM numeric loss finding, recursive product carry flow, ZK simulator coupling, side-channel evidence, post-quantum parameter tightening, hosted operations, release signing, and numeric loss instantiations remain production-security boundaries.",
+            "NumiSeal product, carry, and ZK formalization has a checked evidence-parametric end-to-end theorem scope, exact rejection-sampled field mask distribution evidence, a selected-depth loss-accounting ledger, extractor loss accounting, QROM Fiat-Shamir accounting with explicit collision mapping and an instantiated conditional Q_H = 2^64 query cap, a QROM transcript schedule, conditional QROM sampler/encoding evidence under the QRO abstraction, QROM collision/malleability structural evidence, QROM transform preconditions, a QROM interactive reduction ledger with code-enforced NumiSeal challenge maxima, a total-loss budget contract, a product release distribution evidence contract, and a product cryptographic security dossier pinned to bounded depth 1; concrete extractor implementation, per-kind interactive security bounds, numeric digest collision/proof-kind malleability bounds, repair of the current out-of-budget DFM20 QROM numeric loss finding, recursive product carry flow, ZK simulator coupling, side-channel evidence, post-quantum parameter tightening, hosted operations, release signing, notarization/publication proof, hosted branch-protection evidence, archived release evidence, and numeric loss instantiations remain production-security boundaries.",
         ],
     }
 

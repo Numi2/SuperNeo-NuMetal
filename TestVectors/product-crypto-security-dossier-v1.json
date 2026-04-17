@@ -34,6 +34,8 @@
       "ProductFiatShamirLossAccountingAccepted",
       "ProductTotalLossBudget",
       "ProductTotalLossBudgetAccepted",
+      "ProductReleaseDistributionEvidence",
+      "ProductReleaseDistributionEvidenceAccepted",
       "productSecurityTheorem_from_evidence",
       "productSecurityTheorem_requires_bounded_depth",
       "productSecurityTheorem_requires_selected_depth_loss_accounting",
@@ -44,6 +46,7 @@
       "productSecurityTheorem_requires_qrom_loss_accounting",
       "productSecurityTheorem_requires_qrom_collision_malleability_exclusion",
       "productSecurityTheorem_requires_total_loss_budget",
+      "productSecurityTheorem_requires_release_distribution_evidence",
       "productSecurityTheorem_requires_qrom_accounting",
       "productSecurityTheorem_requires_artifact_envelope_binding"
     ]
@@ -66,6 +69,7 @@
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json"
   },
   "productTheoremCoverage": [
@@ -330,6 +334,7 @@
     "productionRecursiveCarryClaimAllowed": false,
     "productionPerformanceClaimAllowed": false,
     "productionConstantTimeClaimAllowed": false,
+    "productionReleaseDistributionClaimAllowed": false,
     "requiresAllRemainingObligationsClosed": true
   }
 }

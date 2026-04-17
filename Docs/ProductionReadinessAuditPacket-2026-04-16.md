@@ -35,6 +35,7 @@ Coverage included:
 - product QROM interactive reduction validation,
 - product QROM Fiat-Shamir accounting validation,
 - product total-loss budget validation,
+- product release distribution evidence validation,
 - constant-time source/formal scope validation,
 - constant-time Swift/LLVM/Metal lowering and pinned release evidence
   validation,
@@ -134,6 +135,7 @@ Release and validation gates:
 - `TestVectors/product-qrom-transform-preconditions-v1.json`
 - `TestVectors/product-qrom-interactive-reduction-v1.json`
 - `TestVectors/product-total-loss-budget-v1.json`
+- `TestVectors/product-release-distribution-evidence-v1.json`
 - `TestVectors/constant-time-scope-v1.json`
 - `TestVectors/constant-time-lowering-evidence-v1.json`
 - `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
@@ -165,6 +167,8 @@ Release and validation gates:
 - `Scripts/test-product-qrom-interactive-reduction-validation.py`
 - `Scripts/validate-product-total-loss-budget.py`
 - `Scripts/test-product-total-loss-budget-validation.py`
+- `Scripts/validate-product-release-distribution-evidence.py`
+- `Scripts/test-product-release-distribution-evidence-validation.py`
 - `Scripts/validate-constant-time-scope.py`
 - `Scripts/test-constant-time-scope-validation.py`
 - `Scripts/validate-constant-time-lowering-evidence.py`
@@ -289,7 +293,9 @@ These are the remaining blockers before using production-security language:
    `TestVectors/product-qrom-collision-malleability-evidence-v1.json`,
    `TestVectors/product-qrom-transform-preconditions-v1.json`,
    `TestVectors/product-qrom-interactive-reduction-v1.json`, and
-   `TestVectors/product-total-loss-budget-v1.json`, but concrete Swift
+   `TestVectors/product-total-loss-budget-v1.json`. Product release
+   distribution evidence is now checked in
+   `TestVectors/product-release-distribution-evidence-v1.json`, but concrete Swift
    extractor implementation, product recursive typed carry depth/loss
    accounting beyond the checked parent-child handoff, simulator coupling
    evidence beyond the exact mask-distribution lemma, repair of the current
@@ -320,11 +326,13 @@ These are the remaining blockers before using production-security language:
    coverage for source fold, kernels, Metal, NumiSeal product, recursive carry,
    and product controls. Hardware latency and competitor claims still need
    fresh benchmark evidence.
-6. Release engineering execution: signed artifacts and hosted branch-protection
-   enforcement requiring the full production gate. The changelog, reproducible
-   release instructions, release evidence tooling, and schema compatibility
-   policies now exist and are checked by
-   `Scripts/validate-release-readiness-policy.py`.
+6. Release engineering execution: signed artifacts, signed provenance,
+   notarization/publication proof, hosted branch-protection enforcement
+   requiring the full production gate, archived release evidence, and numeric
+   `epsilon_release` budget instantiation. The changelog, reproducible release
+   instructions, release evidence tooling, product release distribution
+   evidence contract, and schema compatibility policies now exist and are
+   checked by `Scripts/validate-release-readiness-policy.py`.
 
 ## Next Engineering Slice
 
