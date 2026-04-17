@@ -629,22 +629,24 @@ private func proveNumiSealProduct(
         maximumObligationsPerAggregate: options.maximumObligationsPerAggregate
             ?? NumiSealAggregationLimits.defaultLimits().maximumObligationsPerAggregate
     )
-    let artifact = try NumiSealProductProver().prove(
-        NumiSealProvingRequest(
-            preparedR1CS: prepared,
-            workload: workload,
-            bitCount: bitCount,
-            publicInputs: publicInputs,
-            keySeedUTF8: keySeed,
-            workloadParameters: workloadParameters,
-            sourceApplicationPathUTF8: options.sourceApplicationPath ?? FileManager.default.currentDirectoryPath,
-            laneID: try NumiSealLaneID("product"),
-            executionPolicy: options.numiSealExecutionPolicy,
-            zkMode: options.numiSealZKMode,
-            aggregationLimits: aggregationLimits,
-            metalContext: metalContext
-        )
+    let trustedContext = try NumiSealProductTrustedContext(
+        workload: workload,
+        bitCount: bitCount,
+        publicInputs: publicInputs,
+        workloadParameters: workloadParameters,
+        sourceApplicationPathUTF8: options.sourceApplicationPath ?? FileManager.default.currentDirectoryPath,
+        laneID: .product
     )
+    let output = try NumiSealProductAPI.provePreparedR1CS(
+        preparedR1CS: prepared,
+        trustedContext: trustedContext,
+        keySeedUTF8: keySeed,
+        executionPolicy: options.numiSealExecutionPolicy,
+        zkMode: options.numiSealZKMode,
+        aggregationLimits: aggregationLimits,
+        metalContext: metalContext
+    )
+    let artifact = output.artifact
     let envelopeBytes = try artifact.proofEnvelopeBytes()
     let sourceFoldBytes = try artifact.sourceFoldEnvelopeBytes()
     let encoder = JSONEncoder()
@@ -665,6 +667,9 @@ private func proveNumiSealProduct(
     print("proof envelope bytes: \(envelopeBytes.count)")
     print("product artifact bytes: \(data.count)")
     print("proof envelope digest: \(artifact.proofEnvelopeDigestHex)")
+    print("frontend context digest: \(output.trustedContext.contextDigest.hexString)")
+    print("trace extractor evidence digest: \(output.traceExtractorEvidence.evidenceDigest.hexString)")
+    print("qrom evidence digest: \(output.qromEvidence.evidenceDigest.hexString)")
     print(String(format: "prove time: %.3f s", Date().timeIntervalSince(started)))
 }
 
@@ -673,7 +678,7 @@ private func makeNumiSealMetalContext(policy: NumiSealProvingExecutionPolicy) th
     case .zkHighAssuranceCPU:
         return nil
     case .defaultProduct:
-        return try? MetalExecutionContext()
+        return nil
     case .zkMetalAccelerated, .zkRedundantMetal:
         do {
             return try MetalExecutionContext()
@@ -899,13 +904,9 @@ private func makeProductRecursiveCarryParentIfNeeded(
         parentArtifact,
         context: context,
         sideChannelCertificate: controls.sideChannelCertificate,
-        recursiveCarryParent: nil
+        recursiveCarryParent: nil,
+        allowAcceptedRecursiveParentWithoutContext: true
     )
-    guard parentMaterial.recursiveCarryReplayBinding == nil else {
-        throw SuperNeoProductIntegrationError.invalidRequest(
-            "product controls currently accept one recursive carry parent edge per verification"
-        )
-    }
     try controls.effectiveRevocation.requireNotRevoked(
         contextID: context.contextID,
         artifactDigest: parentRawArtifactDigest,
@@ -941,18 +942,29 @@ private func makeProductRecursiveCarryParentIfNeeded(
             "recursive carry parent proof identity must be accepted before child verification"
         )
     }
-    let parentOutput = try parentMaterial.verify()
-    guard case .numiSealProduct(let parentResult) = parentOutput else {
-        throw SuperNeoProductIntegrationError.verificationFailed(
-            "recursive carry parent verification did not produce a NumiSeal product result"
+    let parent: NumiSealProductRecursiveCarryParent
+    if parentMaterial.recursiveCarryReplayBinding == nil {
+        let parentOutput = try parentMaterial.verify()
+        guard case .numiSealProduct(let parentResult) = parentOutput else {
+            throw SuperNeoProductIntegrationError.verificationFailed(
+                "recursive carry parent verification did not produce a NumiSeal product result"
+            )
+        }
+        parent = try NumiSealProductRecursiveCarryParent(
+            artifact: parentArtifact,
+            verificationResult: parentResult,
+            consumerSessionDigest: childBinding.consumerSessionDigest,
+            nextRecursionLevel: childBinding.nextRecursionLevel
+        )
+    } else {
+        let parentEnvelope = try NumiSealProductRecursiveCarryParent.acceptedProducerEnvelope(from: parentArtifact)
+        parent = try NumiSealProductRecursiveCarryParent(
+            acceptedArtifact: parentArtifact,
+            acceptedProducerEnvelope: parentEnvelope,
+            consumerSessionDigest: childBinding.consumerSessionDigest,
+            nextRecursionLevel: childBinding.nextRecursionLevel
         )
     }
-    let parent = try NumiSealProductRecursiveCarryParent(
-        artifact: parentArtifact,
-        verificationResult: parentResult,
-        consumerSessionDigest: childBinding.consumerSessionDigest,
-        nextRecursionLevel: childBinding.nextRecursionLevel
-    )
     guard parent.parentProductArtifactDigest == childBinding.parentArtifactDigest else {
         throw SuperNeoProductIntegrationError.verificationFailed(
             "recursive carry parent artifact digest does not match child metadata"
@@ -1682,7 +1694,8 @@ private func makeProductNumiSealProductArtifactMaterial(
     _ artifact: NumiSealProductArtifact,
     context: SuperNeoTrustedContextPayload,
     sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?,
-    recursiveCarryParent: NumiSealProductRecursiveCarryParent?
+    recursiveCarryParent: NumiSealProductRecursiveCarryParent?,
+    allowAcceptedRecursiveParentWithoutContext: Bool = false
 ) throws -> ProductArtifactMaterial {
     let productKind: SuperNeoProductProofKind
     let expectedEnvelopeKind: ProofEnvelopeKind
@@ -1780,7 +1793,7 @@ private func makeProductNumiSealProductArtifactMaterial(
             "recursive carry parent supplied for a non-recursive NumiSeal product artifact"
         )
     }
-    if recursiveCarryBinding != nil, recursiveCarryParent == nil {
+    if recursiveCarryBinding != nil, recursiveCarryParent == nil, !allowAcceptedRecursiveParentWithoutContext {
         throw SuperNeoProductIntegrationError.missingExpectedContext(
             "typed-required NumiSeal product artifact requires --recursive-carry-parent"
         )

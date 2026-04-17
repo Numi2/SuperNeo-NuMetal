@@ -18,13 +18,16 @@ manifests, and binary proof envelopes.
 | NumiSeal manifest | `manifestVersion = 1` |
 | NumiSeal end-to-end theorem scope manifest | `schemaVersion = 1` |
 | NumiSealZK mask-distribution evidence manifest | `schemaVersion = 1` |
+| NumiSealZK simulator-coupling evidence manifest | `schemaVersion = 1` |
 | Product cryptographic security dossier manifest | `schemaVersion = 1` |
 | Product selected-depth loss accounting manifest | `schemaVersion = 1` |
+| Product Swift trace/extractor evidence manifest | `schemaVersion = 1` |
 | Product extractor loss accounting manifest | `schemaVersion = 1` |
 | Product QROM Fiat-Shamir accounting manifest | `schemaVersion = 1` |
 | Product QROM transcript schedule manifest | `schemaVersion = 1` |
 | Product QROM sampler/encoding evidence manifest | `schemaVersion = 1` |
 | Product QROM collision/malleability evidence manifest | `schemaVersion = 1` |
+| Product QROM CTCO instantiation manifest | `schemaVersion = 1` |
 | Product QROM transform preconditions manifest | `schemaVersion = 1` |
 | Product QROM interactive reduction manifest | `schemaVersion = 1` |
 | Product total-loss budget manifest | `schemaVersion = 1` |
@@ -164,8 +167,8 @@ promotion rule that keeps production product-security claims disabled.
 
 `TestVectors/product-selected-depth-loss-accounting-v1.json` is the checked
 selected-depth loss accounting manifest. It is not a proof artifact schema and
-does not affect proof bytes. It pins the current depth-1 loss expression,
-future recursive-promotion loss expression, source-fold, terminal-seal, carry,
+does not affect proof bytes. It pins the selected-depth loss expression,
+recursive-promotion loss expression, source-fold, terminal-seal, carry,
 ZK-simulator, QROM, extractor, transcript collision, product-ops replay,
 constant-time, and release-distribution loss terms, and the promotion rule that
 keeps production product-security claims disabled until all terms are

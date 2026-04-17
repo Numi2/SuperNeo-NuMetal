@@ -30,10 +30,11 @@ Machine-readable scope:
 - `Scripts/validate-product-total-loss-budget.py`
 - `Scripts/validate-product-release-distribution-evidence.py`
 
-The current status is a bounded-depth product security theorem at depth 1.
-All production claims remain disabled until the listed extractor, QROM,
-parameter, carry, ZK, side-channel, release distribution, and benchmark
-obligations are instantiated.
+The current status is an evidence-parametric bounded-depth product security
+theorem surface with local typed parent-child carry evidence. All production
+claims remain disabled until the listed extractor, QROM, parameter, hosted
+carry-depth, ZK, side-channel, release distribution, and benchmark obligations
+are instantiated.
 
 ## Theorem Scope
 
@@ -57,15 +58,17 @@ simulator-coupling, QROM, or side-channel evidence.
 
 ## Recursion And Knowledge Soundness
 
-The current supported product depth is exactly 1. Polynomial-depth knowledge
-soundness is not claimed.
+The current executable product path supports a local typed parent-child carry
+handoff when a verified parent is supplied. Polynomial-depth knowledge
+soundness and hosted selected-depth recursive carry are not claimed.
 
 Depth promotion requires:
 
 - concrete Swift extractor evidence for every accepted source fold and terminal
   NumiSeal layer,
-- typed-required recursive child product carry extended from the checked
-  parent-child handoff to the selected production depth with replay semantics,
+- typed-required recursive child product carry extended from the local checked
+  parent-child handoff to the selected hosted production depth with replay
+  semantics,
 - explicit per-layer loss accounting for folding, terminal sealing, carry, ZK,
   and Fiat-Shamir, and
 - either a bounded-depth theorem for the chosen production depth or a
@@ -74,9 +77,9 @@ Depth promotion requires:
 ## Selected-Depth Loss Accounting
 
 `TestVectors/product-selected-depth-loss-accounting-v1.json` is the checked
-selected-depth loss accounting ledger for the current depth-1 product boundary.
-It is a contract for what must be instantiated before production claims can be
-made, not a production loss proof.
+selected-depth loss accounting ledger for the product theorem boundary. It is a
+contract for what must be instantiated before production claims can be made, not
+a production loss proof.
 
 The ledger pins these loss terms:
 
@@ -434,8 +437,8 @@ fold, product proof envelope, producer proof envelope, lane, aggregate, child
 session, and next recursion level. Base artifacts still use `carryMode = none`;
 recursive child artifacts with a verified parent use `carryMode =
 typed-required`. The local product-control path now reconstructs the same
-depth-1 parent edge, verifies the parent artifact under the signed context, and
-binds the recursive carry context root and replay root into durable SQLite
+typed parent-child edge, verifies the parent artifact under the signed context,
+and binds the recursive carry context root and replay root into durable SQLite
 replay identity and JSONL audit evidence. The child path also requires signed
 parent provenance and prior parent replay-ledger acceptance, and SQLite enforces
 single-use local acceptance for each recursive carry replay-binding digest.

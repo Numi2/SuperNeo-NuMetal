@@ -123,6 +123,24 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require(
         require_int(
+            surfaces.get("numiSealZKSimulatorCouplingEvidenceVersion"),
+            "numiSealZKSimulatorCouplingEvidenceVersion",
+        ) == 1,
+        "NumiSealZK simulator-coupling evidence version must be 1",
+    )
+    require_hex_digest(
+        surfaces.get("numiSealZKSimulatorCouplingEvidenceDigestHex"),
+        "numiSealZKSimulatorCouplingEvidenceDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("numiSealZKSimulatorCouplingEvidenceClaimStatus"),
+            "numiSealZKSimulatorCouplingEvidenceClaimStatus",
+        ) == "product-simulator-coupling-surface-pinned-not-production-zk-privacy",
+        "NumiSealZK simulator-coupling evidence claim status must stay precise",
+    )
+    require(
+        require_int(
             surfaces.get("productCryptoSecurityDossierVersion"),
             "productCryptoSecurityDossierVersion",
         ) == 1,
@@ -187,6 +205,24 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require(
         require_int(
+            surfaces.get("productSwiftTraceExtractorEvidenceVersion"),
+            "productSwiftTraceExtractorEvidenceVersion",
+        ) == 1,
+        "product Swift trace/extractor evidence version must be 1",
+    )
+    require_hex_digest(
+        surfaces.get("productSwiftTraceExtractorEvidenceDigestHex"),
+        "productSwiftTraceExtractorEvidenceDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productSwiftTraceExtractorEvidenceClaimStatus"),
+            "productSwiftTraceExtractorEvidenceClaimStatus",
+        ) == "swift-executable-trace-surface-pinned-not-production-extractor-theorem",
+        "product Swift trace/extractor evidence claim status must stay precise",
+    )
+    require(
+        require_int(
             surfaces.get("productExtractorLossAccountingVersion"),
             "productExtractorLossAccountingVersion",
         ) == 1,
@@ -225,7 +261,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMFiatShamirAccountingClaimStatus"),
             "productQROMFiatShamirAccountingClaimStatus",
-        ) == "qrom-fiat-shamir-loss-contract-not-production-claim",
+        ) == "qrom-ctco-split-qro-contract-not-production-claim",
         "product QROM Fiat-Shamir accounting claim status must stay precise",
     )
     require(
@@ -301,7 +337,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMCollisionMalleabilityEvidenceClaimStatus"),
             "productQROMCollisionMalleabilityEvidenceClaimStatus",
-        ) == "qrom-collision-malleability-structural-evidence-not-production-qrom-theorem",
+        ) == "qrom-collision-malleability-hbind-bound-not-production-qrom-theorem",
         "product QROM collision/malleability evidence claim status must stay precise",
     )
     require(
@@ -309,8 +345,40 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "product QROM collision/malleability evidence must pin structural closure",
     )
     require(
-        surfaces.get("productQROMCollisionMalleabilityDigestBoundInstantiated") is False,
-        "product QROM collision/malleability evidence must not pretend the digest bound is instantiated",
+        surfaces.get("productQROMCollisionMalleabilityDigestBoundInstantiated") is True,
+        "product QROM collision/malleability evidence must pin the instantiated digest bound",
+    )
+    require(
+        require_int(
+            surfaces.get("productQROMCTCOInstantiationVersion"),
+            "productQROMCTCOInstantiationVersion",
+        ) == 1,
+        "product QROM CTCO instantiation version must be 1",
+    )
+    require_hex_digest(
+        surfaces.get("productQROMCTCOInstantiationDigestHex"),
+        "productQROMCTCOInstantiationDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productQROMCTCOInstantiationClaimStatus"),
+            "productQROMCTCOInstantiationClaimStatus",
+        ) == "ctco-split-oracle-instantiation-pinned-not-production-qrom-theorem",
+        "product QROM CTCO instantiation claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("productQROMCTCOBindingDigestBits"),
+            "productQROMCTCOBindingDigestBits",
+        ) == 384,
+        "product QROM CTCO binding digest width must be 384",
+    )
+    require(
+        require_int(
+            surfaces.get("productQROMCTCOBindingCollisionBoundLog2Floor"),
+            "productQROMCTCOBindingCollisionBoundLog2Floor",
+        ) == 250,
+        "product QROM CTCO binding collision bound floor must be 250",
     )
     require(
         require_int(
@@ -327,15 +395,15 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMTransformPreconditionsClaimStatus"),
             "productQROMTransformPreconditionsClaimStatus",
-        ) == "qrom-transform-precondition-dossier-not-production-claim",
+        ) == "qrom-ctco-transform-precondition-contract-not-production-claim",
         "product QROM transform preconditions claim status must stay precise",
     )
     require(
         require_int(
             surfaces.get("productQROMTransformPreconditionCount"),
             "productQROMTransformPreconditionCount",
-        ) == 10,
-        "product QROM transform preconditions must pin ten preconditions",
+        ) == 12,
+        "product QROM transform preconditions must pin twelve preconditions",
     )
     require(
         require_int(
@@ -352,7 +420,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMInteractiveReductionClaimStatus"),
             "productQROMInteractiveReductionClaimStatus",
-        ) == "qrom-interactive-reduction-ledger-not-production-claim",
+        ) == "qrom-ctco-interactive-reduction-contract-not-production-claim",
         "product QROM interactive reduction claim status must stay precise",
     )
     require(
@@ -398,8 +466,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_int(
             surfaces.get("productTotalLossBudgetInstantiatedRequiredTermCount"),
             "productTotalLossBudgetInstantiatedRequiredTermCount",
-        ) == 0,
-        "product total-loss budget must not pretend required terms are instantiated",
+        ) == 1,
+        "product total-loss budget must only instantiate the collision term",
     )
     require(
         surfaces.get("productTotalLossBudgetWithinBudget") is False,
@@ -539,14 +607,17 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "numiSealConformanceScope",
         "numiSealEndToEndTheoremScope",
         "numiSealZKMaskDistributionEvidence",
+        "numiSealZKSimulatorCouplingEvidence",
         "productCryptoSecurityDossier",
         "productCryptoSecurityDossierPolicy",
         "productSelectedDepthLossAccounting",
+        "productSwiftTraceExtractorEvidence",
         "productExtractorLossAccounting",
         "productQROMFiatShamirAccounting",
         "productQROMTranscriptSchedule",
         "productQROMSamplerEncodingEvidence",
         "productQROMCollisionMalleabilityEvidence",
+        "productQROMCTCOInstantiation",
         "productQROMTransformPreconditions",
         "productQROMInteractiveReduction",
         "productTotalLossBudget",

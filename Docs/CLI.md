@@ -147,10 +147,12 @@ swift run superneo verify \
 `--seal numiseal` emits `artifactVersion = 2`. The artifact contains both the
 source fold envelope and the NumiSeal kind `4` terminal seal. Verification first
 reduces the source fold envelope, reconstructs source output-claim digests, then
-reconstructs NumiSeal obligations and verifies the terminal seal. The public API
-is `NumiSealProductProver`, `NumiSealProvingRequest`,
+reconstructs NumiSeal obligations and verifies the terminal seal. The supported
+public proving API is `NumiSealProductAPI`,
+`NumiSealProductTrustedContext`, `NumiSealProductProvingOutput`,
 `NumiSealProductArtifact`, `NumiSealProductVerifier`, and
-`SuperNeoR1CSProgram.proveNumiSeal(...)`.
+`SuperNeoR1CSProgram.proveNumiSealProduct(...)`. Product artifacts also carry
+frontend-context, Swift trace/extractor, CTCO, and QROM evidence metadata.
 
 To emit a masked NumiSealZK product artifact, request the ZK mode explicitly:
 
@@ -230,7 +232,9 @@ revocation feed, audit-retention, and retry policy fields.
 Available NumiSeal execution policies are:
 
 - `default-product`: uses CPU-redundant Metal when a Metal context is available,
-  otherwise CPU reference.
+  otherwise CPU reference. The CLI keeps this policy on CPU reference by
+  default; callers that want Metal coverage should request an explicit Metal
+  policy.
 - `zk-redundant-metal`: requires Metal and cross-checks covered Metal outputs
   against CPU.
 - `zk-metal-accelerated`: requires Metal and treats it as the primary prover

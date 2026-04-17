@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "evidenceID": "superneo-product-swift-trace-extractor-evidence-v1",
+  "claimStatus": "swift-executable-trace-surface-pinned-not-production-extractor-theorem",
+  "relatedManifests": {
+    "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+    "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+    "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
+    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json"
+  },
+  "implementationSurfaces": {
+    "productAPI": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductAPI.swift",
+    "productProver": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
+    "productVerifier": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
+    "tests": "SuperNeo-NuMetalTests/SuperNeoNuMetalTests.swift"
+  },
+  "traceSurface": {
+    "frontendContextDigestLabel": "numiseal.product.frontend-context.v1",
+    "frontendObligationPath": "r1cs-prepared-to-source-fold-output-claims-v1",
+    "swiftTraceExtractorSurface": "source-fold-output-claims-to-numiseal-obligations-v1",
+    "evidenceDigestLabel": "numiseal.product.trace-extractor-equivalence.v1",
+    "ctcoChallengeTapeLabel": "numiseal-product-api-trace",
+    "traceBlocks": [
+      "frontend-context",
+      "source-fold-envelope",
+      "source-fold-output-claims",
+      "product-proof-envelope",
+      "public-statement",
+      "obligation-root",
+      "lane-summary-root",
+      "aggregate-digests",
+      "component-root",
+      "proof-transcript"
+    ]
+  },
+  "extractorBinding": {
+    "sourceFoldEnvelopeDigestBound": true,
+    "sourceFoldOutputClaimDigestFunction": "NumiSealProductProver.sourceFoldOutputClaimDigest",
+    "proofEnvelopeHeaderParser": "ProofEnvelopeHeader.parsePrefix",
+    "publicStatementDigestBound": true,
+    "obligationRootBound": true,
+    "laneSummaryRootBound": true,
+    "aggregateDigestSetBound": true,
+    "componentDigestRootBound": true,
+    "proofTranscriptDigestBound": true,
+    "ctcoContextBinder384Bound": true,
+    "challengeTapeSeedBound": true
+  },
+  "coveredByTests": [
+    "testPublicNumiSealProductAPIGeneratesOneHotArtifactWithTraceAndQROMEvidence",
+    "testPublicNumiSealProductAPIGeneratesBinaryAdditionArtifact",
+    "testNumiSealProductProverEmitsVerifiableV2Artifact"
+  ],
+  "promotionRule": {
+    "productionExtractorClaimAllowed": false,
+    "releaseEvidenceOnly": true,
+    "remainingBoundaries": [
+      "release-grade code review must confirm this Swift trace surface is the theorem-consumed extractor surface",
+      "numeric extractor failure loss remains in TestVectors/product-extractor-loss-accounting-v1.json",
+      "selected total-loss promotion remains disabled until extractor loss is instantiated"
+    ]
+  }
+}

@@ -23,9 +23,9 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - checked-in NumiSeal schema and vector validation
   - NumiSeal product/carry/ZK conformance-scope validation
   - NumiSeal end-to-end theorem-scope validation
-  - NumiSealZK mask-distribution evidence validation
+  - NumiSealZK mask-distribution and simulator-coupling evidence validation
   - product cryptographic security theorem dossier validation
-  - product extractor, QROM transcript schedule, QROM transform preconditions, QROM interactive reduction, QROM Fiat-Shamir, and total-loss budget validation
+  - product Swift trace/extractor, extractor accounting, QROM transcript schedule, QROM transform preconditions, QROM interactive reduction, QROM Fiat-Shamir, CTCO instantiation, and total-loss budget validation
   - production NumiSeal CLI adversarial matrix
   - optional signed NumiSealZK side-channel certificate binding tests
   - release policy, schema compatibility, and CI gate drift validation
@@ -150,10 +150,14 @@ run_step Scripts/validate-numiseal-conformance-scope.py
 run_step Scripts/test-numiseal-conformance-scope-validation.py
 run_step Scripts/validate-numiseal-zk-mask-distribution-evidence.py
 run_step Scripts/test-numiseal-zk-mask-distribution-evidence-validation.py
+run_step Scripts/validate-numiseal-zk-simulator-coupling-evidence.py
+run_step Scripts/test-numiseal-zk-simulator-coupling-evidence-validation.py
 run_step Scripts/validate-product-crypto-security-dossier.py
 run_step Scripts/test-product-crypto-security-dossier-validation.py
 run_step Scripts/validate-product-selected-depth-loss-accounting.py
 run_step Scripts/test-product-selected-depth-loss-accounting-validation.py
+run_step Scripts/validate-product-swift-trace-extractor-evidence.py
+run_step Scripts/test-product-swift-trace-extractor-evidence-validation.py
 run_step Scripts/validate-product-extractor-loss-accounting.py
 run_step Scripts/test-product-extractor-loss-accounting-validation.py
 run_step Scripts/validate-product-qrom-transcript-schedule.py
@@ -162,6 +166,8 @@ run_step Scripts/validate-product-qrom-sampler-encoding-evidence.py
 run_step Scripts/test-product-qrom-sampler-encoding-evidence-validation.py
 run_step Scripts/validate-product-qrom-collision-malleability-evidence.py
 run_step Scripts/test-product-qrom-collision-malleability-evidence-validation.py
+run_step Scripts/validate-product-qrom-ctco-instantiation.py
+run_step Scripts/test-product-qrom-ctco-instantiation-validation.py
 run_step Scripts/validate-product-qrom-transform-preconditions.py
 run_step Scripts/test-product-qrom-transform-preconditions-validation.py
 run_step Scripts/validate-product-qrom-interactive-reduction.py

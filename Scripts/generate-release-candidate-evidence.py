@@ -93,10 +93,16 @@ def build_evidence(args: argparse.Namespace) -> dict:
     compiler_observation_lanes = read_json(constant_time_compiler_observation_lanes)
     hardware_observation_lanes = read_json(constant_time_hardware_observation_lanes)
     numiseal_mask_distribution_evidence = read_json("TestVectors/numiseal-zk-mask-distribution-evidence-v1.json")
+    numiseal_zk_simulator_coupling_evidence = read_json(
+        "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json"
+    )
     product_crypto_security_dossier = read_json("TestVectors/product-crypto-security-dossier-v1.json")
     product_crypto_depth = product_crypto_security_dossier["supportedProductDepth"]
     product_selected_depth_loss = read_json("TestVectors/product-selected-depth-loss-accounting-v1.json")
     product_selected_depth = product_selected_depth_loss["selectedDepth"]
+    product_swift_trace_extractor_evidence = read_json(
+        "TestVectors/product-swift-trace-extractor-evidence-v1.json"
+    )
     product_extractor_loss = read_json("TestVectors/product-extractor-loss-accounting-v1.json")
     product_qrom_accounting = read_json("TestVectors/product-qrom-fiat-shamir-accounting-v1.json")
     product_qrom_transcript_schedule = read_json("TestVectors/product-qrom-transcript-schedule-v1.json")
@@ -106,6 +112,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
     product_qrom_collision_malleability_evidence = read_json(
         "TestVectors/product-qrom-collision-malleability-evidence-v1.json"
     )
+    product_qrom_ctco_instantiation = read_json("TestVectors/product-qrom-ctco-instantiation-v1.json")
     product_qrom_transform_preconditions = read_json("TestVectors/product-qrom-transform-preconditions-v1.json")
     product_qrom_interactive_reduction = read_json("TestVectors/product-qrom-interactive-reduction-v1.json")
     product_total_loss_budget = read_json("TestVectors/product-total-loss-budget-v1.json")
@@ -166,6 +173,15 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "numiSealZKMaskDistributionEvidenceClaimStatus": str(
                 numiseal_mask_distribution_evidence["claimStatus"]
             ),
+            "numiSealZKSimulatorCouplingEvidenceVersion": int(
+                numiseal_zk_simulator_coupling_evidence["schemaVersion"]
+            ),
+            "numiSealZKSimulatorCouplingEvidenceDigestHex": sha256_hex(
+                "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json"
+            ),
+            "numiSealZKSimulatorCouplingEvidenceClaimStatus": str(
+                numiseal_zk_simulator_coupling_evidence["claimStatus"]
+            ),
             "productCryptoSecurityDossierVersion": int(
                 product_crypto_security_dossier["schemaVersion"]
             ),
@@ -194,6 +210,15 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "productSelectedDepthLossComponentCount": list_count(
                 "TestVectors/product-selected-depth-loss-accounting-v1.json",
                 "componentLosses",
+            ),
+            "productSwiftTraceExtractorEvidenceVersion": int(
+                product_swift_trace_extractor_evidence["schemaVersion"]
+            ),
+            "productSwiftTraceExtractorEvidenceDigestHex": sha256_hex(
+                "TestVectors/product-swift-trace-extractor-evidence-v1.json"
+            ),
+            "productSwiftTraceExtractorEvidenceClaimStatus": str(
+                product_swift_trace_extractor_evidence["claimStatus"]
             ),
             "productExtractorLossAccountingVersion": int(
                 product_extractor_loss["schemaVersion"]
@@ -271,6 +296,21 @@ def build_evidence(args: argparse.Namespace) -> dict:
                 product_qrom_collision_malleability_evidence["closureStatus"][
                     "digestCollisionBoundInstantiated"
                 ]
+            ),
+            "productQROMCTCOInstantiationVersion": int(
+                product_qrom_ctco_instantiation["schemaVersion"]
+            ),
+            "productQROMCTCOInstantiationDigestHex": sha256_hex(
+                "TestVectors/product-qrom-ctco-instantiation-v1.json"
+            ),
+            "productQROMCTCOInstantiationClaimStatus": str(
+                product_qrom_ctco_instantiation["claimStatus"]
+            ),
+            "productQROMCTCOBindingDigestBits": int(
+                product_qrom_ctco_instantiation["numericBounds"]["bindingDigestBits"]
+            ),
+            "productQROMCTCOBindingCollisionBoundLog2Floor": int(
+                product_qrom_ctco_instantiation["numericBounds"]["bindingCollisionBoundLog2Floor"]
             ),
             "productQROMTransformPreconditionsVersion": int(
                 product_qrom_transform_preconditions["schemaVersion"]
@@ -388,14 +428,17 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "numiSealConformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
             "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
             "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+            "numiSealZKSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
             "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
             "productCryptoSecurityDossierPolicy": "Docs/CryptographicSecurityDossier-2026-04-16.md",
             "productSelectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+            "productSwiftTraceExtractorEvidence": "TestVectors/product-swift-trace-extractor-evidence-v1.json",
             "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
             "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
             "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
             "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+            "productQROMCTCOInstantiation": "TestVectors/product-qrom-ctco-instantiation-v1.json",
             "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
             "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
             "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",

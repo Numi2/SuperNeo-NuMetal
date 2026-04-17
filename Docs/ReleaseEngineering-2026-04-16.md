@@ -126,6 +126,9 @@ in `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`.
 promotion guards.
 `Scripts/validate-numiseal-zk-mask-distribution-evidence.py` checks the concrete
 NumiSealZK mask sampler arithmetic and promotion boundary.
+`Scripts/validate-numiseal-zk-simulator-coupling-evidence.py` checks the
+NumiSealZK product simulator-coupling digest surface, product-sized benchmark
+row pins, and side-channel promotion boundary.
 `Scripts/validate-product-crypto-security-dossier.py` checks
 `TestVectors/product-crypto-security-dossier-v1.json`, including the
 bounded-depth product security theorem surface, ProductSecurityTheorem import,
@@ -134,10 +137,14 @@ tuple, conservative post-quantum boundary, proof-size/latency boundary, and
 implementation-hardening boundary.
 `Scripts/validate-product-selected-depth-loss-accounting.py` checks
 `TestVectors/product-selected-depth-loss-accounting-v1.json`, including the
-current depth-1 loss expression, the recursive promotion expression, the ten
+selected-depth loss expression, the recursive promotion expression, the ten
 component loss terms, and the fail-closed blockers for extractor, QROM,
 transcript collision, ZK-simulator, hosted product operations, release
 signing/notarization, and CPU/Swift/LLVM/Metal constant-time evidence closure.
+`Scripts/validate-product-swift-trace-extractor-evidence.py` checks
+`TestVectors/product-swift-trace-extractor-evidence-v1.json`, including the
+Swift executable trace surface, source-fold output claim binding, CTCO trace
+block order, and fail-closed extractor promotion rule.
 `Scripts/validate-product-extractor-loss-accounting.py` checks
 `TestVectors/product-extractor-loss-accounting-v1.json`, including source-fold
 extractor, terminal-seal extractor, product-envelope composition extractor,
@@ -165,9 +172,15 @@ product QROM collision/malleability structural evidence, accepted proof-kind
 separation, proof-envelope transcript-binding injectivity, artifact/provenance
 digest binding, product replay identity binding, NumiSeal component-root
 binding, typed carry replay binding, and the fail-closed boundary that keeps
-concrete hash/QRO instantiation, numeric 384-bit binding collision bounds,
-proof-kind malleability bounds, product QROM compiler evidence, and total-loss
-integration open.
+concrete hash/QRO instantiation and total-loss integration open. Numeric
+384-bit binding collision arithmetic, proof-kind malleability, and the CTCO
+source instantiation are checked by
+`Scripts/validate-product-qrom-ctco-instantiation.py`.
+`Scripts/validate-product-qrom-ctco-instantiation.py` checks
+`TestVectors/product-qrom-ctco-instantiation-v1.json`, including split-oracle
+CTCO source bindings, 256-bit challenge seeds, 384-bit H_bind roots, `Q_H =
+2^64`, `36 * 2^-256` binding arithmetic, proof-kind malleability `0`, and the
+fail-closed QROM promotion rule.
 `Scripts/validate-product-qrom-transform-preconditions.py` checks
 `TestVectors/product-qrom-transform-preconditions-v1.json`, including the
 product QROM transform preconditions, primary QROM Fiat-Shamir source basis,

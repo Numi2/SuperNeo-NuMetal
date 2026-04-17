@@ -5,9 +5,9 @@ loading older long-form roadmap notes.
 
 ## Verdict
 
-Mostly true: NumiSeal has production-facing inspection and verification for
-checked immediate-residual artifacts. It is not a complete production NumiSeal
-product.
+Mostly true: NumiSeal has production-facing inspection, verification, and local
+product artifact generation for checked immediate-residual artifacts. It is not
+a complete hosted production NumiSeal product.
 
 Correction: repository-level SuperNeo formal status is completed for the
 corrected model. What remains is NumiSeal-specific product formalization.
@@ -34,21 +34,28 @@ corrected model. What remains is NumiSeal-specific product formalization.
 - [x] Product recursive carry now has a typed-required parent-child path: a
   verified parent product can produce carry claims for a child artifact, and the
   product verifier requires the matching parent context for `typed-required`.
+- [x] `NumiSealProductAPI` exposes product artifact generation outside
+  deterministic vector tooling for prepared R1CS, one-hot vectors, and binary
+  addition workloads.
+- [x] Supported frontend outputs are now bound into
+  `NumiSealProductTrustedContext`, which derives the frontend context digest
+  carried by product artifacts.
+- [x] Product artifacts emit pinned Swift trace/extractor metadata, CTCO
+  context/root/challenge-tape metadata, 384-bit binding-width QROM metadata,
+  and ZK simulator-coupling evidence metadata when ZK mode is selected.
+- [x] Checked repository manifests now pin Swift trace/extractor evidence, ZK
+  simulator-coupling evidence, and CTCO/QROM instantiation evidence with
+  validators and production-gate coverage.
+- [x] Local product controls can consume an already accepted recursive parent,
+  including a parent that is itself recursive, through the replay ledger and
+  carry replay roots.
 
 ## Remaining Work
 
-- [ ] Public proving/product API: expose NumiSeal artifact generation outside
-  deterministic vector tooling.
-- [ ] General frontend: create NumiSeal obligations from real supported
-  frontend outputs and trusted context packs.
-- [ ] Recursive carry: local product controls now verify a depth-1 parent edge,
-  require signed parent provenance and prior parent replay acceptance, and bind
-  recursive carry replay roots into SQLite/audit with single-use local carry
-  consumption; extend this to the selected production depth with hosted replay
-  policy and formal loss accounting.
-- [ ] ZK: add simulator coupling evidence beyond the exact field-mask
-  distribution lemma, product-sized hardware benchmark evidence, and
-  side-channel review before changing product defaults.
+- [ ] Recursive carry: promote the checked local chain replay policy to hosted
+  selected-depth replay semantics and formal loss accounting.
+- [ ] ZK: refresh product-sized hardware benchmark evidence on release hardware
+  and finish side-channel review before changing product defaults.
 - [ ] Product operations: hosted context storage, deployed key distribution,
   tenant authz, hosted audit retention, hosted revocation feed distribution, and
   signed releases.
@@ -56,8 +63,10 @@ corrected model. What remains is NumiSeal-specific product formalization.
   stack is current, including well-formed transcripts, 384-bit theorem-critical
   bindings, constructive PiCCS/terminal CE finite bad sets, and the finite
   probability ledger. Remaining NumiSeal-specific work is release-grade Swift
-  extractor/trace equivalence, typed carry product evidence, simulator
-  coupling evidence, and product/QROM compiler evidence.
+  review of the pinned Swift extractor/trace surface, hosted selected-depth
+  typed carry policy, release-hardware simulator-coupling evidence, and numeric
+  total-loss instantiation for extractor, QROM compiler overhead, ZK simulator,
+  product operations, side-channel, and release terms.
 - [ ] Self-owned review: cryptographic review, implementation review, and
   side-channel assessment recorded in repository evidence.
 
@@ -65,6 +74,7 @@ corrected model. What remains is NumiSeal-specific product formalization.
 
 Use:
 
-> NumiSeal currently verifies checked immediate-residual artifacts. It is not
-> yet a public proving, recursive-by-default, zero-knowledge-by-default, or
-> deployed production product.
+> NumiSeal currently generates and verifies checked immediate-residual product
+> artifacts through supported Swift and CLI surfaces. It is not yet
+> recursive-by-default, zero-knowledge-by-default, or a deployed production
+> product.

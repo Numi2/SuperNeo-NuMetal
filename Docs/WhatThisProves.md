@@ -94,11 +94,15 @@ An accepted NumiSeal terminal artifact means:
 > NumiSeal statement, aggregate policy, shape, verifier key, transcript domain,
 > and immediate residual CE openings.
 
-This is not a zero-knowledge claim, not a recursive NumiSeal product claim, and
-not a general `superneo prove --seal numiseal` interface. The deterministic
-NumiSeal vector generator remains test-vector tooling. External callers must
-pin expected NumiSeal context outside the artifact before treating CLI
-acceptance as a policy decision.
+`superneo prove --seal numiseal` and `NumiSealProductAPI` can generate public
+product artifacts for supported frontend outputs. Those artifacts bind a
+trusted frontend context digest, Swift trace/extractor evidence digest, CTCO
+root/challenge-tape metadata, and 384-bit binding-width QROM evidence metadata.
+
+This is not a production zero-knowledge claim and not a deployed recursive
+NumiSeal product claim. The deterministic NumiSeal vector generator remains
+test-vector tooling. External callers must pin expected NumiSeal context outside
+the artifact before treating CLI acceptance as a policy decision.
 
 ## What The Envelope Adds
 

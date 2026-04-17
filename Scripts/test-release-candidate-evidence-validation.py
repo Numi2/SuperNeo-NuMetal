@@ -96,6 +96,18 @@ def main() -> None:
         write_json(path, vague_numiseal_mask_distribution)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_numiseal_zk_coupling = copy.deepcopy(evidence)
+        wrong_numiseal_zk_coupling["publicSurfaces"]["numiSealZKSimulatorCouplingEvidenceVersion"] = 2
+        path = tmp / "wrong-numiseal-zk-coupling.json"
+        write_json(path, wrong_numiseal_zk_coupling)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_numiseal_zk_coupling = copy.deepcopy(evidence)
+        vague_numiseal_zk_coupling["publicSurfaces"]["numiSealZKSimulatorCouplingEvidenceClaimStatus"] = "production-zk-privacy"
+        path = tmp / "vague-numiseal-zk-coupling.json"
+        write_json(path, vague_numiseal_zk_coupling)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_product_crypto_dossier = copy.deepcopy(evidence)
         wrong_product_crypto_dossier["publicSurfaces"]["productCryptoSecurityDossierVersion"] = 2
         path = tmp / "wrong-product-crypto-dossier.json"
@@ -136,6 +148,18 @@ def main() -> None:
         missing_selected_loss_component["publicSurfaces"]["productSelectedDepthLossComponentCount"] = 8
         path = tmp / "missing-selected-loss-component.json"
         write_json(path, missing_selected_loss_component)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        wrong_trace_extractor = copy.deepcopy(evidence)
+        wrong_trace_extractor["publicSurfaces"]["productSwiftTraceExtractorEvidenceVersion"] = 2
+        path = tmp / "wrong-trace-extractor.json"
+        write_json(path, wrong_trace_extractor)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_trace_extractor = copy.deepcopy(evidence)
+        vague_trace_extractor["publicSurfaces"]["productSwiftTraceExtractorEvidenceClaimStatus"] = "production-extractor-theorem"
+        path = tmp / "vague-trace-extractor.json"
+        write_json(path, vague_trace_extractor)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         wrong_extractor_loss = copy.deepcopy(evidence)
@@ -246,12 +270,30 @@ def main() -> None:
         write_json(path, missing_qrom_collision_malleability_structural)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
-        premature_qrom_collision_malleability_digest = copy.deepcopy(evidence)
-        premature_qrom_collision_malleability_digest["publicSurfaces"][
+        missing_qrom_collision_malleability_digest = copy.deepcopy(evidence)
+        missing_qrom_collision_malleability_digest["publicSurfaces"][
             "productQROMCollisionMalleabilityDigestBoundInstantiated"
-        ] = True
-        path = tmp / "premature-qrom-collision-malleability-digest.json"
-        write_json(path, premature_qrom_collision_malleability_digest)
+        ] = False
+        path = tmp / "missing-qrom-collision-malleability-digest.json"
+        write_json(path, missing_qrom_collision_malleability_digest)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        wrong_qrom_ctco = copy.deepcopy(evidence)
+        wrong_qrom_ctco["publicSurfaces"]["productQROMCTCOInstantiationVersion"] = 2
+        path = tmp / "wrong-qrom-ctco.json"
+        write_json(path, wrong_qrom_ctco)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_qrom_ctco = copy.deepcopy(evidence)
+        vague_qrom_ctco["publicSurfaces"]["productQROMCTCOInstantiationClaimStatus"] = "production-qrom-proof"
+        path = tmp / "vague-qrom-ctco.json"
+        write_json(path, vague_qrom_ctco)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        weak_qrom_ctco_binding = copy.deepcopy(evidence)
+        weak_qrom_ctco_binding["publicSurfaces"]["productQROMCTCOBindingDigestBits"] = 256
+        path = tmp / "weak-qrom-ctco-binding.json"
+        write_json(path, weak_qrom_ctco_binding)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         wrong_qrom_transform_preconditions = copy.deepcopy(evidence)
@@ -309,7 +351,7 @@ def main() -> None:
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         premature_total_loss_instantiation = copy.deepcopy(evidence)
-        premature_total_loss_instantiation["publicSurfaces"]["productTotalLossBudgetInstantiatedRequiredTermCount"] = 1
+        premature_total_loss_instantiation["publicSurfaces"]["productTotalLossBudgetInstantiatedRequiredTermCount"] = 2
         path = tmp / "premature-total-loss-instantiation.json"
         write_json(path, premature_total_loss_instantiation)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))

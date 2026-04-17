@@ -35,6 +35,10 @@ candidate. It does not authorize production-security release claims.
 - `TestVectors/product-extractor-loss-accounting-v1.json` reflects any
   extractor input, rewind schedule, source-fold extractor, terminal-seal
   extractor, product-envelope composition, or recursive carry extractor changes.
+- `TestVectors/product-swift-trace-extractor-evidence-v1.json` reflects any
+  executable Swift trace surface, frontend-context binding, source-fold output
+  claim binding, CTCO trace block, or theorem-consumed extractor surface
+  change.
 - `TestVectors/product-qrom-fiat-shamir-accounting-v1.json` reflects any
   QROM Fiat-Shamir accounting changes for proof-kind transcript interfaces,
   challenge families, domain separation, quantum random-oracle queries, or
@@ -53,6 +57,13 @@ candidate. It does not authorize production-security release claims.
   injectivity, artifact/provenance digest binding, product replay identity,
   NumiSeal component-root binding, typed carry replay binding, or residual
   digest-collision and proof-kind malleability event mapping.
+- `TestVectors/product-qrom-ctco-instantiation-v1.json` reflects any
+  split-oracle CTCO source binding, 256-bit challenge seed, 384-bit H_bind
+  root, `Q_H = 2^64`, binding-collision arithmetic, or proof-kind
+  malleability-bound change.
+- `TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json` reflects any
+  NumiSealZK simulator-coupling digest field, product benchmark pin, or
+  side-channel promotion-boundary change.
 - `TestVectors/product-qrom-transform-preconditions-v1.json` reflects any
   product QROM transform precondition changes for CTCO/Merkle-straightline
   theorem-family fit, challenge uniformity, well-formed transcript encoding,
@@ -124,15 +135,18 @@ The generated evidence records:
 - recursive folding knowledge, typed carry producer/consumer, and NumiSealZK
   simulation/privacy theorem-surface digests inside the theorem-scope manifest,
 - NumiSealZK mask-distribution evidence version and digest,
+- NumiSealZK simulator-coupling evidence version and digest,
 - exact rejection-sampled field mask distribution evidence status,
 - product cryptographic security dossier version and digest,
 - bounded-depth product security theorem status,
 - selected-depth loss-accounting version and digest,
+- product Swift trace/extractor evidence version and digest,
 - product extractor loss-accounting version and digest,
 - product QROM Fiat-Shamir accounting version and digest,
 - product QROM transcript schedule version and digest,
 - product QROM sampler/encoding evidence version and digest,
 - product QROM collision/malleability evidence version and digest,
+- product QROM CTCO instantiation evidence version and digest,
 - product QROM transform preconditions version and digest,
 - product QROM interactive reduction version and digest,
 - product total-loss budget version and digest,

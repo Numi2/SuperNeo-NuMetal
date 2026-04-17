@@ -670,7 +670,7 @@ public final class NumiSealProductRecursiveCarryParent: @unchecked Sendable {
             && equalLaneID(lhs.laneID, rhs.laneID)
     }
 
-    public init(
+    public convenience init(
         artifact: NumiSealProductArtifact,
         verificationResult: NumiSealProductVerificationResult,
         consumerSessionDigest: Digest256,
@@ -683,6 +683,20 @@ public final class NumiSealProductRecursiveCarryParent: @unchecked Sendable {
               let parentEnvelope = verificationResult.numiSealResult.envelope else {
             throw SuperNeoError.verificationFailed("NumiSeal recursive carry parent proof is not accepted")
         }
+        try self.init(
+            acceptedArtifact: artifact,
+            acceptedProducerEnvelope: parentEnvelope,
+            consumerSessionDigest: consumerSessionDigest,
+            nextRecursionLevel: nextRecursionLevel
+        )
+    }
+
+    public init(
+        acceptedArtifact artifact: NumiSealProductArtifact,
+        acceptedProducerEnvelope parentEnvelope: NumiSealProofEnvelope,
+        consumerSessionDigest: Digest256,
+        nextRecursionLevel: Int
+    ) throws {
         guard nextRecursionLevel > 0 else {
             throw SuperNeoError.invalidParameter("NumiSeal recursive carry next recursion level must be positive")
         }
@@ -719,6 +733,30 @@ public final class NumiSealProductRecursiveCarryParent: @unchecked Sendable {
         self.consumerSessionDigest = consumerSessionDigest
         self.nextRecursionLevel = nextRecursionLevel
         self.acceptedProducerEnvelope = parentEnvelope
+    }
+
+    public static func acceptedProducerEnvelope(
+        from artifact: NumiSealProductArtifact,
+        parameters: SuperNeoParameters = .goldilocks
+    ) throws -> NumiSealProofEnvelope {
+        let proofBytes = try artifact.proofEnvelopeBytes()
+        switch artifact.zkMode {
+        case NumiSealZK.nonZKMode:
+            return try NumiSealProofEnvelope(bytes: proofBytes, parameters: parameters)
+        case NumiSealZK.maskedDigitTensorMode:
+            let zkEnvelope = try NumiSealZKProofEnvelope(bytes: proofBytes, parameters: parameters)
+            let terminalContext = ProofEnvelopeContext(
+                profileID: zkEnvelope.header.profileID,
+                kind: .numiSealTerminal,
+                shapeDigest: zkEnvelope.header.shapeDigest,
+                statementDigest: zkEnvelope.header.statementDigest,
+                verifierKeyDigest: zkEnvelope.header.verifierKeyDigest,
+                transcriptDomain: zkEnvelope.header.transcriptDomain
+            )
+            return try NumiSealProofEnvelope(context: terminalContext, proof: zkEnvelope.proof.baseProof)
+        default:
+            throw SuperNeoError.invalidEncoding("unsupported NumiSeal product ZK mode")
+        }
     }
 
     @inline(never)
@@ -956,6 +994,15 @@ public final class NumiSealProductProver: @unchecked Sendable {
                 provingWorkspace: provingWorkspace
             )
             let bytes = zkEnvelope.superNeoBytes
+            let zkSimulatorCouplingDigest = NumiSealEncoding.digest(
+                label: "numiseal.zk.product.simulator-coupling.v1",
+                bytes: Digest256.hash(numiSealEnvelope.superNeoBytes).superNeoBytes
+                    + zkEnvelope.proof.randomnessSessionDigest.superNeoBytes
+                    + zkEnvelope.proof.leakageDigest.superNeoBytes
+                    + numiSealEncodeCount(zkEnvelope.proof.maskedResidualStatements.count)
+                    + zkEnvelope.proof.componentDigestRoot.superNeoBytes
+                    + zkEnvelope.proof.transcriptDigest.superNeoBytes
+            )
             numiSealProductProof = (
                 proofKind: NumiSealProductArtifact.zkProofKind,
                 sealMode: NumiSealZK.sealMode,
@@ -969,17 +1016,78 @@ public final class NumiSealProductProver: @unchecked Sendable {
                     "zkMaskedResidualStatementVersion": "\(NumiSealZKMaskedResidualStatement.version)",
                     "zkRandomnessSessionDigest": zkEnvelope.proof.randomnessSessionDigest.hexString,
                     "zkLeakageDigest": zkEnvelope.proof.leakageDigest.hexString,
-                    "zkMaskedResidualStatementCount": "\(zkEnvelope.proof.maskedResidualStatements.count)"
+                    "zkMaskedResidualStatementCount": "\(zkEnvelope.proof.maskedResidualStatements.count)",
+                    "zkSimulatorCouplingSurface": "terminal-base-proof-to-masked-residual-session-v1",
+                    "zkSimulatorCouplingEvidenceDigest": zkSimulatorCouplingDigest.hexString
                 ]
             )
         default:
             throw SuperNeoError.invalidParameter("unsupported NumiSeal product ZK mode")
         }
         let productCarryMode = request.recursiveCarryParent == nil ? "none" : "typed-required"
+        let sourceApplicationPath = request.sourceApplicationPathUTF8 ?? "unbound"
+        let frontendContext = try NumiSealProductTrustedContext(
+            workload: request.workload,
+            bitCount: request.bitCount,
+            publicInputs: request.publicInputs,
+            workloadParameters: request.workloadParameters,
+            sourceApplicationPathUTF8: sourceApplicationPath,
+            laneID: request.laneID
+        )
+        let productProofHeader = try ProofEnvelopeHeader.parsePrefix(from: numiSealProductProof.envelopeBytes)
+        let traceBlocks = NumiSealProductTraceExtractorEvidence.ctcoTraceBlocks(
+            frontendContextDigest: frontendContext.contextDigest,
+            sourceFoldEnvelopeDigest: sourceEnvelopeDigest,
+            sourceFoldOutputClaimDigests: outputClaimDigests,
+            proofEnvelopeDigest: numiSealProductProof.envelopeDigest,
+            publicStatementDigest: numiSealEnvelope.proof.publicStatement.digest,
+            obligationRoot: numiSealEnvelope.proof.publicStatement.obligationRoot,
+            laneSummaryRoot: numiSealEnvelope.proof.publicStatement.laneSummaryRoot,
+            aggregateDigests: numiSealEnvelope.proof.laneProofs.map(\.aggregateDigest),
+            componentDigestRoot: numiSealProductProof.componentDigestRoot,
+            proofTranscriptDigest: numiSealProductProof.transcriptDigest
+        )
+        let ctcoCommitment = CTCOMoveOneCommitment(
+            proofKind: productProofHeader.kind,
+            contextBinder: productProofHeader.ctcoContextBinder,
+            traceBlocks: traceBlocks
+        )
+        let ctcoChallengeSeed = SuperNeoSplitQRO.challengeTapeSeed(
+            proofKind: productProofHeader.kind,
+            contextBinder: productProofHeader.ctcoContextBinder,
+            root: ctcoCommitment.root,
+            label: "numiseal-product-api-trace"
+        )
+        let traceEvidenceDigest = NumiSealProductTraceExtractorEvidence.evidenceDigest(
+            traceBlocks: traceBlocks,
+            contextBinder: productProofHeader.ctcoContextBinder,
+            ctcoRoot: ctcoCommitment.root,
+            challengeTapeSeed: ctcoChallengeSeed
+        )
+        let qromEvidenceDigest = NumiSealProductQROMEvidence.ctcoDigest(
+            contextBinder: productProofHeader.ctcoContextBinder,
+            root: ctcoCommitment.root,
+            challengeTapeSeed: ctcoChallengeSeed,
+            traceEvidenceDigest: traceEvidenceDigest
+        )
         var policyMetadata = [
             "sourceFoldKind": "fold-reduction",
             "numiSealProofKind": numiSealProductProof.proofKind,
             "digitTensorDerivation": "aggregate-witness-digest-ternary-v1",
+            "frontendObligationPath": "r1cs-prepared-to-source-fold-output-claims-v1",
+            "frontendContextDigest": frontendContext.contextDigest.hexString,
+            "swiftTraceExtractorSurface": "source-fold-output-claims-to-numiseal-obligations-v1",
+            "swiftTraceExtractorEvidenceDigest": traceEvidenceDigest.hexString,
+            "ctcoCompilerFamily": "ctco",
+            "ctcoContextBinder384Hex": productProofHeader.ctcoContextBinder.hexString,
+            "ctcoRoot384Hex": ctcoCommitment.root.hexString,
+            "ctcoChallengeTapeSeedHex": ctcoChallengeSeed.hexString,
+            "qromChallengeOracleBits": "\(Digest256.byteCount * 8)",
+            "qromBindingOracleBits": "\(Digest384.byteCount * 8)",
+            "qromBindingTargetEventCount": "9",
+            "qromQueryCapLog2": "64",
+            "qromEvidenceDigest": qromEvidenceDigest.hexString,
+            "recursiveCarryMaximumSupportedDepth": "\(max(1, request.recursiveCarryParent?.nextRecursionLevel ?? 1))",
             "terminalCarryPolicy": productCarryMode,
             "metalWorkspaceFeatureDigest": metalWorkspace.map { workspace in
                 NumiSealMetalProvingWorkspace(
@@ -1006,7 +1114,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
             bitCount: request.bitCount,
             keySeedUTF8: request.keySeedUTF8,
             workloadParameters: request.workloadParameters,
-            sourceApplicationPathUTF8: request.sourceApplicationPathUTF8 ?? "unbound",
+            sourceApplicationPathUTF8: sourceApplicationPath,
             publicInputs: request.publicInputs,
             commitmentBase64: Data(publicInput.instances[0].commitment.littleEndianBytes).base64EncodedString(),
             sourceFoldEnvelopeBase64: Data(sourceEnvelopeBytes).base64EncodedString(),

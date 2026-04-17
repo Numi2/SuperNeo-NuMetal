@@ -42,7 +42,8 @@ Artifacts:
 - `SuperNeoR1CSAssignment`, `SuperNeoR1CSWitnessGenerator`,
   `SuperNeoR1CSProgram`, and `SuperNeoR1CSProvingStack` provide a public
   hand-authored R1CS frontend path from generated witness assignment to
-  fold/terminal/compressed proof envelope and terminal verifier policy.
+  fold/terminal/compressed proof envelope, terminal verifier policy, and
+  NumiSeal product artifacts through `NumiSealProductAPI`.
 - `Docs/R1CSFrontendAPI-2026-04-15.md` records the frontend API boundary,
   validation path, and non-claims.
 - `SuperNeoCCSNormalizer` prepares arbitrary serializable CCS inputs for the
@@ -51,6 +52,9 @@ Artifacts:
 - `SuperNeoBinaryAdditionWorkload` provides a second workload with public sum
   bits, private operands, and private carries.
 - The `superneo` executable supports `prove`, `verify`, and `inspect`.
+- `superneo prove --seal numiseal` routes through the supported public
+  NumiSeal product API and emits trusted-context, trace/extractor, CTCO, QROM,
+  and optional ZK simulator-coupling metadata.
 - `SuperNeoTerminalProofAcceptancePolicy` gives application code a reusable
   terminal-only envelope acceptance surface for terminal and compressed-terminal
   proof bytes, rejecting fold reductions before terminal verification. It also
@@ -73,9 +77,9 @@ Remaining boundary:
 - The CLI is still a local integration surface, not a hosted verifier service,
   wallet, durable replay-protection layer, or application policy engine.
   NumiSeal acceptance is exposed through the explicit `--require-numiseal`
-  verifier path for checked immediate-residual artifacts and through the
-  protocol-based `SuperNeoNumiSealProductVerifier` facade for product
-  integration experiments.
+  verifier path for checked immediate-residual artifacts, the public
+  `NumiSealProductAPI` generation path, and the protocol-based
+  `SuperNeoNumiSealProductVerifier` facade for product integration experiments.
 
 ## Third Priority: Credibility
 
@@ -305,14 +309,23 @@ Status:
   decomposition, scalarization, sum-check, immediate residual CE opening,
   checked vectors, CLI verification, and product verifier facade exist.
 - [x] Corrected SuperNeo formal protocol theorem label is completed.
+- [x] Public NumiSeal proving/product exposure exists through
+  `NumiSealProductAPI` and `superneo prove --seal numiseal`.
+- [x] Supported frontend-to-NumiSeal obligation path exists for prepared R1CS,
+  one-hot, binary-addition, and hand-authored R1CS programs with trusted context
+  packs.
+- [x] Swift trace/extractor, ZK simulator-coupling, and CTCO/QROM instantiation
+  evidence manifests are checked and production-gated.
+- [x] Local recursive carry can continue through previously accepted recursive
+  parents using signed provenance, replay-ledger acceptance, and carry replay
+  roots.
 - [ ] Complete NumiSeal production product.
 
 Remaining checklist:
 
-- [ ] Public NumiSeal proving/product exposure.
-- [ ] General frontend-to-NumiSeal obligation path.
-- [ ] Typed recursive carry semantics and carry consumer.
-- [ ] Separate `NumiSealZK` design and proof story.
+- [ ] Hosted selected-depth recursive carry policy and loss accounting.
+- [ ] Release-hardware `NumiSealZK` benchmark refresh and side-channel evidence
+  before default promotion.
 - [ ] Deployed product operations: context storage, keys, provenance, replay,
   authz, hosted audit retention, hosted revocation feed distribution, release
   signing.
@@ -322,6 +335,6 @@ Remaining checklist:
 
 Safe wording:
 
-> NumiSeal verifies checked immediate-residual artifacts through an explicit
-> kind `4` policy path. It is not yet a public proving, recursive,
-> zero-knowledge-by-default, deployed production product.
+> NumiSeal generates and verifies checked immediate-residual product artifacts
+> through supported Swift and CLI surfaces. It is not yet a
+> recursive-by-default, zero-knowledge-by-default, deployed production product.

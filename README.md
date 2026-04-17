@@ -33,8 +33,15 @@ formal solution is built around:
 The remaining gaps are product/security evidence gaps, not the old Lean
 interface gaps:
 
-- instantiate split-oracle CTCO or Merkle-straightline QROM compiler evidence;
-- provide release-grade Swift trace/extractor equivalence evidence;
+- instantiate numeric extractor, QROM compiler-overhead, ZK-simulator,
+  operations, side-channel, and release-distribution loss terms in the selected
+  total-loss budget;
+- complete release-grade Swift trace/extractor equivalence review for the
+  pinned executable trace evidence;
+- extend recursive carry from checked local chain replay into the selected
+  hosted production-depth policy;
+- record release-hardware ZK simulator-coupling benchmarks and side-channel
+  review before default promotion;
 - close hosted product operations evidence for context, provenance, replay,
   authorization, audit retention, and signed distribution;
 - finish independent cryptographic, implementation, and side-channel review.

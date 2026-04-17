@@ -24,6 +24,14 @@ programs.
   through `SuperNeoTerminalProofAcceptancePolicy`.
 - `reduceFoldProof` exposes the non-product fold-reduction path separately and
   preserves the rule that reductions still require terminal CE verification.
+- `NumiSealProductAPI.provePreparedR1CS` lifts a prepared R1CS frontend output
+  into a NumiSeal product artifact under a caller-supplied
+  `NumiSealProductTrustedContext`.
+- `NumiSealProductAPI.proveOneHotVector`,
+  `NumiSealProductAPI.proveBinaryAddition`, and
+  `SuperNeoR1CSProgram.proveNumiSealProduct` provide supported
+  frontend-to-NumiSeal paths for current public workloads and hand-authored R1CS
+  programs.
 
 ## Non-Claims
 
@@ -32,6 +40,9 @@ programs.
   side-channel boundary.
 - Fold-reduction envelopes remain non-terminal. The high-level terminal verifier
   rejects them before reduction verification.
+- NumiSeal product context is caller-owned policy data. The API binds it into
+  the artifact and evidence digests, but does not decide application
+  authorization, hosted replay policy, or key distribution.
 
 ## Validation
 

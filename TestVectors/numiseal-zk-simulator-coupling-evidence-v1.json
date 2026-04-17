@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "evidenceID": "numiseal-zk-simulator-coupling-evidence-v1",
+  "claimStatus": "product-simulator-coupling-surface-pinned-not-production-zk-privacy",
+  "relatedManifests": {
+    "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
+    "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json"
+  },
+  "implementationSurfaces": {
+    "productProver": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
+    "zkProof": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift",
+    "sideChannelCertificate": "SuperNeo-NuMetal/ProductIntegration/NumiSealZKSideChannelCertification.swift",
+    "tests": "SuperNeo-NuMetalTests/SuperNeoNuMetalTests.swift"
+  },
+  "couplingSurface": {
+    "digestLabel": "numiseal.zk.product.simulator-coupling.v1",
+    "metadataSurface": "terminal-base-proof-to-masked-residual-session-v1",
+    "metadataDigestKey": "zkSimulatorCouplingEvidenceDigest",
+    "boundFields": [
+      "base terminal proof digest",
+      "randomness session digest",
+      "declared leakage digest",
+      "masked residual statement count",
+      "ZK component digest root",
+      "ZK proof transcript digest"
+    ]
+  },
+  "benchmarkAndSideChannelPins": {
+    "productSizedBenchmarkRowsPinned": true,
+    "benchmarkRows": [
+      "numisealProduct/prove/cpu/",
+      "numisealProduct/verify/cpu/"
+    ],
+    "sideChannelCertificateRequiredBeforeDefaultPromotion": true,
+    "hardwareSideChannelsOutsideMaskDistributionLemma": true
+  },
+  "coveredByTests": [
+    "testNumiSealProductProverEmitsVerifiableZKV2Artifact",
+    "testNumiSealZKMaskSamplerUsesExactFieldRejectionSampling",
+    "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse"
+  ],
+  "promotionRule": {
+    "productionZKPrivacyClaimAllowed": false,
+    "zkDefaultPromotionAllowed": false,
+    "remainingBoundaries": [
+      "product-sized benchmark rows must remain current for release hardware",
+      "side-channel review must cover CPU, Swift, LLVM, allocator, Metal, GPU, and failure paths",
+      "selected total-loss promotion remains disabled until epsilon_zk_sim is instantiated"
+    ]
+  }
+}

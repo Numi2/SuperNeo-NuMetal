@@ -6881,6 +6881,85 @@ private final class ProductAuditSink: SuperNeoVerificationAuditSink {
 }
 
 final class UsabilitySurfaceTests: SuperNeoTestCase {
+    func testPublicNumiSealProductAPIGeneratesOneHotArtifactWithTraceAndQROMEvidence() throws {
+        let output = try NumiSealProductAPI.proveOneHotVector(
+            bits: [false, true],
+            keySeedUTF8: "numiseal-product-public-api-key",
+            sourceApplicationPathUTF8: "app://public-api/one-hot",
+            executionPolicy: .zkHighAssuranceCPU,
+            aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
+        )
+
+        let artifact = output.artifact
+        XCTAssertEqual(artifact.workload, "one-hot-vector-v1")
+        XCTAssertEqual(artifact.bitCount, 2)
+        XCTAssertEqual(artifact.publicInputs, [1])
+        XCTAssertEqual(artifact.workloadParameters["selectedCount"], "1")
+        XCTAssertEqual(artifact.sourceApplicationPathUTF8, "app://public-api/one-hot")
+        XCTAssertEqual(artifact.executionPolicyMetadata["frontendObligationPath"], "r1cs-prepared-to-source-fold-output-claims-v1")
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["frontendContextDigest"],
+            output.trustedContext.contextDigest.hexString
+        )
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["swiftTraceExtractorEvidenceDigest"],
+            output.traceExtractorEvidence.evidenceDigest.hexString
+        )
+        XCTAssertEqual(artifact.executionPolicyMetadata["ctcoCompilerFamily"], "ctco")
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["ctcoContextBinder384Hex"],
+            output.traceExtractorEvidence.ctcoContextBinder.hexString
+        )
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["ctcoRoot384Hex"],
+            output.traceExtractorEvidence.ctcoRoot.hexString
+        )
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["qromEvidenceDigest"],
+            output.qromEvidence.evidenceDigest.hexString
+        )
+        XCTAssertEqual(output.qromEvidence.challengeOracleBits, 256)
+        XCTAssertEqual(output.qromEvidence.bindingOracleBits, 384)
+
+        let verified = try NumiSealProductVerifier().verify(
+            artifact: artifact,
+            sourcePublicInput: output.sourcePublicInput,
+            key: output.verifierKey,
+            executionPolicy: .highAssurance
+        )
+        XCTAssertTrue(verified.sourceFoldResult.isReductionAccepted, verified.sourceFoldResult.reason ?? "")
+        XCTAssertTrue(verified.numiSealResult.isValid, verified.numiSealResult.reason ?? "")
+    }
+
+    func testPublicNumiSealProductAPIGeneratesBinaryAdditionArtifact() throws {
+        let output = try NumiSealProductAPI.proveBinaryAddition(
+            left: 1,
+            right: 2,
+            operandBits: 2,
+            keySeedUTF8: "numiseal-product-public-binary-api-key",
+            executionPolicy: .zkHighAssuranceCPU,
+            aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
+        )
+
+        XCTAssertEqual(output.artifact.workload, "binary-addition-v1")
+        XCTAssertEqual(output.artifact.bitCount, 2)
+        XCTAssertEqual(output.artifact.workloadParameters["leftBitCount"], "2")
+        XCTAssertEqual(output.artifact.workloadParameters["publicSum"], "3")
+        XCTAssertEqual(
+            output.artifact.executionPolicyMetadata["frontendContextDigest"],
+            output.trustedContext.contextDigest.hexString
+        )
+
+        let verified = try NumiSealProductVerifier().verify(
+            artifact: output.artifact,
+            sourcePublicInput: output.sourcePublicInput,
+            key: output.verifierKey,
+            executionPolicy: .highAssurance
+        )
+        XCTAssertTrue(verified.sourceFoldResult.isReductionAccepted, verified.sourceFoldResult.reason ?? "")
+        XCTAssertTrue(verified.numiSealResult.isValid, verified.numiSealResult.reason ?? "")
+    }
+
     func testNumiSealProductProverEmitsVerifiableV2Artifact() throws {
         let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
         let prepared = try workload.prepareForFolding(
@@ -6909,6 +6988,9 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(artifact.sourceFoldOutputClaimCount, 14)
         XCTAssertEqual(artifact.aggregateDigestsHex.count, 1)
         XCTAssertEqual(artifact.executionPolicyMetadata["terminalCarryPolicy"], "none")
+        XCTAssertEqual(artifact.executionPolicyMetadata["ctcoCompilerFamily"], "ctco")
+        XCTAssertEqual(artifact.executionPolicyMetadata["qromBindingOracleBits"], "384")
+        XCTAssertNotNil(artifact.executionPolicyMetadata["swiftTraceExtractorEvidenceDigest"])
         XCTAssertLessThanOrEqual(
             artifact.sourceFoldOutputClaimCount,
             NumiSealProductTheoremLimits.maximumSourceFoldOutputClaimCount
@@ -7326,7 +7408,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: parentArtifact,
                 verificationResult: parentResult,
                 consumerSessionDigest: Digest256.hash("numiseal-product-recursive-child-session"),
-                nextRecursionLevel: 1
+                nextRecursionLevel: 2
             )
         )
         guard let recursiveParent else {
@@ -7361,7 +7443,8 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(recursiveBinding?.parentArtifactDigest, recursiveParent.parentProductArtifactDigest)
         XCTAssertEqual(recursiveBinding?.parentProducerProofEnvelopeDigest, recursiveParent.parentProducerProofEnvelopeDigest)
         XCTAssertEqual(recursiveBinding?.consumerSessionDigest, recursiveParent.consumerSessionDigest)
-        XCTAssertEqual(recursiveBinding?.nextRecursionLevel, 1)
+        XCTAssertEqual(recursiveBinding?.nextRecursionLevel, 2)
+        XCTAssertEqual(childArtifact.executionPolicyMetadata["recursiveCarryMaximumSupportedDepth"], "2")
         XCTAssertNotNil(recursiveBinding?.bindingDigest)
 
         #if DEBUG
@@ -7380,9 +7463,49 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             XCTFail("NumiSeal recursive carry typed-required child proof is missing typed carry")
             return
         }
-        XCTAssertEqual(typedCarry.recursionLevel, 1)
+        XCTAssertEqual(typedCarry.recursionLevel, 2)
         XCTAssertEqual(typedCarry.producerProofEnvelopeDigest, recursiveParent.parentProducerProofEnvelopeDigest)
         XCTAssertEqual(typedCarry.parentPublicStatementDigest, recursiveParent.parentPublicStatementDigest)
+
+        let grandchildParent = try! makeNumiSealRecursiveCarryParentFixture(
+            artifact: childArtifact,
+            verificationResult: childResult,
+            consumerSessionDigest: Digest256.hash("numiseal-product-recursive-grandchild-session"),
+            nextRecursionLevel: 3
+        )
+        let grandchildRequest = NumiSealProvingRequest(
+            preparedR1CS: childPrepared,
+            workload: "one-hot-vector-v1",
+            bitCount: 2,
+            publicInputs: [1],
+            keySeedUTF8: "numiseal-product-recursive-parent-key",
+            workloadParameters: ["selectedCount": "1"],
+            laneID: laneID,
+            executionPolicy: .zkHighAssuranceCPU,
+            aggregationLimits: aggregationLimits,
+            recursiveCarryParent: grandchildParent
+        )
+        let grandchildArtifact = try! proveNumiSealProductRecursiveCarryFixture(request: grandchildRequest)
+        XCTAssertEqual(grandchildArtifact.executionPolicyMetadata["recursiveCarryNextRecursionLevel"], "3")
+        XCTAssertEqual(grandchildArtifact.executionPolicyMetadata["recursiveCarryMaximumSupportedDepth"], "3")
+        guard let grandchildResult = try? verifyNumiSealRecursiveCarryChildFixture(
+            artifact: grandchildArtifact,
+            prepared: childPrepared,
+            recursiveCarryParent: grandchildParent
+        ) else {
+            XCTFail("NumiSeal recursive carry depth-3 child verification failed")
+            return
+        }
+        XCTAssertTrue(grandchildResult.numiSealResult.isValid, grandchildResult.numiSealResult.reason ?? "")
+        guard let grandchildEnvelope = grandchildResult.numiSealResult.envelope,
+              let grandchildLaneProof = grandchildEnvelope.proof.laneProofs.first,
+              let grandchildCarry = grandchildLaneProof.optionalCarryClaim?.typedStatement else {
+            XCTFail("NumiSeal recursive carry depth-3 proof is missing typed carry")
+            return
+        }
+        XCTAssertEqual(grandchildCarry.recursionLevel, 3)
+        XCTAssertEqual(grandchildCarry.producerProofEnvelopeDigest, grandchildParent.parentProducerProofEnvelopeDigest)
+        XCTAssertEqual(grandchildCarry.parentPublicStatementDigest, grandchildParent.parentPublicStatementDigest)
 
         XCTAssertThrowsSuperNeoError(
             try verifier.verify(
@@ -7400,7 +7523,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: parentArtifact,
                 verificationResult: parentResult,
                 consumerSessionDigest: Digest256.hash("different-numiseal-product-recursive-child-session"),
-                nextRecursionLevel: 1
+                nextRecursionLevel: 2
             )
         )
         guard let swappedParent else {
@@ -7439,7 +7562,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             XCTFail("NumiSeal recursive carry typed-required child proof is missing typed carry")
             return
         }
-        XCTAssertEqual(typedCarry.recursionLevel, 1)
+        XCTAssertEqual(typedCarry.recursionLevel, 2)
         XCTAssertEqual(typedCarry.producerProofEnvelopeDigest, recursiveParent.parentProducerProofEnvelopeDigest)
         XCTAssertEqual(typedCarry.parentPublicStatementDigest, recursiveParent.parentPublicStatementDigest)
         #endif
@@ -7483,6 +7606,16 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(artifact.executionPolicyMetadata["zkMaskedResidualStatementCount"], "1")
         XCTAssertNotNil(artifact.executionPolicyMetadata["zkRandomnessSessionDigest"])
         XCTAssertNotNil(artifact.executionPolicyMetadata["zkLeakageDigest"])
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["zkSimulatorCouplingSurface"],
+            "terminal-base-proof-to-masked-residual-session-v1"
+        )
+        XCTAssertNoThrow(
+            try Digest256(
+                hexDigest: artifact.executionPolicyMetadata["zkSimulatorCouplingEvidenceDigest"] ?? "",
+                name: "NumiSeal ZK simulator coupling evidence digest"
+            )
+        )
 
         let proofBytes = try artifact.proofEnvelopeBytes()
         let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)

@@ -8,6 +8,22 @@ claims remain blocked by the release packet no-go items.
 
 ### Production Readiness
 
+- Added the public NumiSeal product proving API, including trusted frontend
+  context binding, supported one-hot and binary-addition frontend helpers,
+  Swift trace/extractor evidence digests, CTCO/QROM evidence metadata, and CLI
+  routing through the supported product API for `superneo prove --seal
+  numiseal`.
+- Added checked product Swift trace/extractor evidence, NumiSealZK
+  simulator-coupling evidence, and CTCO/QROM instantiation evidence manifests
+  with validators, mutation tests, and production-gate coverage. These pin the
+  executable trace surface, simulator-coupling digest fields, split-oracle CTCO
+  roots, 384-bit binding collision arithmetic, and proof-kind malleability
+  bound while keeping production extractor, ZK, QROM, and total-loss claims
+  disabled.
+- Extended local product recursive carry handling beyond the first parent edge:
+  product controls can now consume an already accepted recursive parent through
+  the replay ledger, parse its accepted producer envelope, and verify the next
+  typed-required child with carry replay roots.
 - Added the 2026-04-17 formal cleanup: well-formed transcript byte
   injectivity, 384-bit theorem-critical digest serialization, parameterized
   typed digest domains, constructive PiCCS finite soundness, constructive
@@ -43,10 +59,10 @@ claims remain blocked by the release packet no-go items.
   Fiat-Shamir/QROM, proof-size, and side-channel-hardening obligations while
   keeping production claims disabled.
 - Added a checked selected-depth loss accounting ledger and validator for the
-  current depth-1 product theorem boundary, pinning source-fold, terminal-seal,
-  carry, ZK simulator, QROM, extractor, transcript-collision, product-ops
-  replay, constant-time, and release-distribution loss terms while keeping
-  production claims disabled.
+  product theorem boundary, pinning source-fold, terminal-seal, carry, ZK
+  simulator, QROM, extractor, transcript-collision, product-ops replay,
+  constant-time, and release-distribution loss terms while keeping production
+  claims disabled.
 - Added checked extractor loss accounting, QROM transcript schedule, QROM
   transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir
   accounting manifests,

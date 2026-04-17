@@ -26,11 +26,18 @@ terminal vector artifacts.
   a direct production CLI negative matrix for missing `--require-numiseal`,
   legacy terminal policy, wrong pins, wrong public input, and proof-kind/header
   mismatch.
+- `superneo prove --seal numiseal` now routes through
+  `NumiSealProductAPI.provePreparedR1CS`, so CLI product artifacts and Swift API
+  product artifacts share the same trusted-context, trace-extractor, and CTCO
+  evidence metadata path.
 
 ## Security Boundary
 
-This is verifier exposure for the checked immediate-residual artifact family. It
-does not make `superneo-numiseal-vectors` a production prover, does not add a
-general `superneo prove --seal numiseal` interface, and does not change the
-non-ZK default. External callers still need policy-owned expected context
-outside the artifact before treating CLI acceptance as an authorization decision.
+This is verifier and local proving exposure for the checked immediate-residual
+artifact family. `superneo-numiseal-vectors` remains test-vector tooling, while
+`superneo prove --seal numiseal` and `NumiSealProductAPI` are the supported
+local product artifact-generation surfaces. The default remains non-ZK.
+External callers still need policy-owned expected context outside the artifact
+before treating CLI acceptance as an authorization decision, and production
+security language still requires the remaining product/QROM, ZK, operations,
+review, and side-channel evidence.

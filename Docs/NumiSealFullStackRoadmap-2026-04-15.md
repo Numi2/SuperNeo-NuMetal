@@ -6,8 +6,9 @@ work is actually merged and validated.
 
 ## Current Status
 
-NumiSeal has a production-facing inspection and verification surface for checked
-immediate-residual artifacts. It is not a complete production NumiSeal product.
+NumiSeal has production-facing inspection, verification, and local product
+artifact-generation surfaces for checked immediate-residual artifacts. It is not
+a complete hosted production NumiSeal product.
 
 Formal wording: the corrected SuperNeo formal protocol theorem label is
 completed. NumiSeal-specific product claims remain scoped to the checklist
@@ -46,26 +47,29 @@ below.
   guard, and exact rejection-sampled field mask distribution evidence.
 - [x] Typed carry statement, consumer relation, and producer API for accepted
   parent NumiSeal proof envelopes.
+- [x] Public `NumiSealProductAPI` for prepared R1CS, one-hot vectors, and
+  binary addition workloads, plus `SuperNeoR1CSProgram.proveNumiSealProduct`.
+- [x] `superneo prove --seal numiseal` uses the supported product API and emits
+  trusted-context, trace/extractor, CTCO, and QROM evidence metadata.
+- [x] Product artifacts bind supported frontend outputs through
+  `NumiSealProductTrustedContext` instead of vector-only metadata.
+- [x] ZK product artifacts emit a simulator-coupling evidence digest in addition
+  to the exact field-mask distribution evidence.
+- [x] Checked Swift trace/extractor, ZK simulator-coupling, and CTCO/QROM
+  instantiation evidence manifests with validators and production-gate coverage.
+- [x] Local product controls accept recursive carry chains when each recursive
+  parent has prior replay-ledger acceptance and matching signed provenance.
 
 ## Not Done
 
-- [ ] Public NumiSeal proving/product exposure.
-  Done when `superneo prove --seal numiseal` or equivalent product API emits
-  schema-valid randomized NumiSeal artifacts, has negative tests, and is
-  documented as non-ZK/non-recursive unless those modes are explicitly selected.
-
-- [ ] General statement/frontend integration.
-  Done when hand-authored R1CS or the next frontend can create NumiSeal
-  obligations and trusted context packs for more than checked identity-style
-  fixtures.
-
-- [ ] Product recursive carry promotion.
+- [ ] Hosted product recursive carry promotion.
   Parent-child product carry now uses `typed-required` when a verified recursive
-  parent is supplied, and local product controls bind the depth-1 carry replay
+  parent is supplied, and local product controls bind the carry replay
   roots into SQLite replay identity and audit records while requiring signed
   parent provenance, prior parent replay acceptance, and single-use local carry
-  replay binding. Done when that checked handoff is extended to the selected
-  production depth with hosted replay policy and loss accounting.
+  replay binding. Local chains can continue through previously accepted
+  recursive parents. Done when that checked handoff is deployed as the selected
+  hosted production-depth replay policy with loss accounting.
 
 - [ ] `NumiSealZK` production privacy promotion.
   Done when simulator coupling evidence beyond the exact field-mask
@@ -80,9 +84,9 @@ below.
   product-ops readiness status are implemented.
 
 - [ ] NumiSeal-specific end-to-end product formalization promotion.
-  Done when the checked end-to-end theorem scope has concrete Swift extractor,
-  typed carry vector, simulator, and QROM evidence sufficient for production
-  theorem language.
+  Done when release review accepts the pinned Swift trace/extractor evidence,
+  hosted selected-depth typed carry evidence, simulator-coupling evidence,
+  CTCO/QROM evidence, and numeric selected total-loss budget.
 
 - [ ] Self-owned cryptographic and implementation review.
   Done when review evidence is recorded in the repository and findings are
@@ -96,11 +100,10 @@ below.
 
 Use:
 
-> NumiSeal verifies checked immediate-residual artifacts through an explicit
-> kind `4` policy path. Public proving, recursive-by-default carry,
+> NumiSeal generates and verifies checked immediate-residual product artifacts
+> through explicit kind `4`/kind `5` policy paths. Recursive-by-default carry,
 > zero-knowledge-by-default privacy, deployed product operations,
-> NumiSeal-specific product formalization promotion, and self-owned review
-> closure remain.
+> selected-depth theorem promotion, and self-owned review closure remain.
 
 Do not say:
 

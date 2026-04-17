@@ -216,6 +216,8 @@ Within the repository's stated scope, the code is ready for:
 - implementation research,
 - reproducibility review,
 - verifier integration experiments with caller-owned trusted context,
+- local NumiSeal product artifact generation through `NumiSealProductAPI` and
+  `superneo prove --seal numiseal`,
 - checked terminal, compressed-terminal, and NumiSeal artifact verification
   using explicit policy gates,
 - NumiSeal product-integration experiments using protocol hooks for trusted
@@ -226,11 +228,13 @@ Within the repository's stated scope, the code is ready for:
 - signed local revocation-feed verification and audit binding for product
   controls.
 
-For NumiSeal, the production-facing surface is verification and inspection of
-the checked immediate-residual artifact family. The shared
-`NumiSealArtifactVerifier` is the library boundary for metadata validation,
-public obligation reconstruction, policy construction, envelope checks, caller
-trust-pin checks, and final verifier dispatch.
+For NumiSeal, the production-facing local surface is artifact generation,
+verification, and inspection of the checked immediate-residual artifact family.
+`NumiSealProductAPI` is the supported proving boundary for prepared R1CS and
+current frontend helpers. The shared `NumiSealArtifactVerifier` is the library
+boundary for metadata validation, public obligation reconstruction, policy
+construction, envelope checks, caller trust-pin checks, and final verifier
+dispatch.
 
 ## Not Yet Production-Ready For
 
@@ -243,9 +247,9 @@ The repository must not yet be presented as:
 - a formally constant-time implementation,
 - a Swift/LLVM/Metal hardware constant-time certificate,
 - a general program-to-CCS compiler,
-- a general NumiSeal production proving product.
+- a hosted NumiSeal production proving product,
 - a production product-security theorem beyond the checked bounded-depth
-  product security theorem surface.
+  product security theorem surface,
 - a self-owned production-hardening record for all NumiSeal product, carry,
   ZK, side-channel, and release-operation lanes.
 
@@ -275,33 +279,35 @@ These are the remaining blockers before using production-security language:
    surfaces and conformance vectors, and
    `TestVectors/numiseal-end-to-end-theorem-scope-v1.json` pins the checked
    NumiSeal end-to-end theorem scope. That scope now includes checked Lean
-   surfaces for recursive folding knowledge soundness, typed carry producer/consumer
-   composition, and NumiSealZK simulation/privacy under the
-   declared public-leakage model. The scope now also pins the exact rejection-sampled field mask distribution evidence in
-   `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`. The current
-   theorem is still evidence-parametric: accepted product gates plus named source-fold,
-   terminal-seal, recursive-knowledge, typed-carry, masked-residual ZK,
-   simulation/privacy, and product-policy obligations imply the composed
-   relation. Product extractor loss accounting, QROM transcript schedule, QROM
-   sampler/encoding evidence, QROM transform preconditions, QROM interactive
-   reduction, QROM Fiat-Shamir accounting, and the total-loss budget are now
-   checked in
+   surfaces for recursive folding knowledge soundness, typed carry
+   producer/consumer composition, and NumiSealZK simulation/privacy under the
+   declared public-leakage model. The scope now also pins exact
+   rejection-sampled field mask distribution evidence, product Swift
+   trace/extractor evidence, NumiSealZK simulator-coupling evidence, and CTCO
+   instantiation evidence. The current theorem is still evidence-parametric:
+   accepted product gates plus named source-fold, terminal-seal,
+   recursive-knowledge, typed-carry, masked-residual ZK, simulation/privacy, and
+   product-policy obligations imply the composed relation. Product extractor
+   loss accounting, QROM transcript schedule, QROM sampler/encoding evidence,
+   QROM transform preconditions, QROM interactive reduction, QROM Fiat-Shamir
+   accounting, and the total-loss budget are now checked in
+   `TestVectors/product-swift-trace-extractor-evidence-v1.json`,
    `TestVectors/product-extractor-loss-accounting-v1.json`,
    `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`,
    `TestVectors/product-qrom-transcript-schedule-v1.json`,
    `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`,
    `TestVectors/product-qrom-collision-malleability-evidence-v1.json`,
+   `TestVectors/product-qrom-ctco-instantiation-v1.json`,
    `TestVectors/product-qrom-transform-preconditions-v1.json`,
    `TestVectors/product-qrom-interactive-reduction-v1.json`, and
    `TestVectors/product-total-loss-budget-v1.json`. Product release
    distribution evidence is now checked in
-   `TestVectors/product-release-distribution-evidence-v1.json`, but concrete Swift
-   extractor implementation, product recursive typed carry depth/loss
-   accounting beyond the checked parent-child handoff, simulator coupling
-   evidence beyond the exact mask-distribution lemma, split-oracle CTCO or
-   Merkle-straightline product QROM evidence, numeric 384-bit binding collision
-   and proof-kind malleability bounds over the structurally pinned residual
-   events, interactive-security bounds, total-loss budget instantiation, and
+   `TestVectors/product-release-distribution-evidence-v1.json`, and
+   simulator-coupling evidence is checked in
+   `TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json`. Hosted
+   selected-depth carry/loss accounting, release-grade Swift trace/extractor
+   review, QROM compiler-overhead loss, interactive-security bounds,
+   total-loss budget instantiation, release-hardware ZK benchmark refresh, and
    side-channel evidence still have
    to be supplied before production-security NumiSeal theorem language is
    allowed.
@@ -311,7 +317,7 @@ These are the remaining blockers before using production-security language:
    position, Module-SIS parameter dossier, proof-size/latency boundary, and
    implementation-hardening boundary.
    `TestVectors/product-selected-depth-loss-accounting-v1.json` now pins the
-   selected-depth loss accounting contract for the current depth-1 boundary,
+   selected-depth loss accounting contract for the product theorem boundary,
    including source fold, terminal seal, carry, ZK simulator, QROM, extractor,
    transcript collision, product-ops replay, constant-time, and
    release-distribution loss terms. The checked dossier, ledger, extractor
