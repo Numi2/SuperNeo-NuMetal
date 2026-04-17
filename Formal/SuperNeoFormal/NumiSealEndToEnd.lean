@@ -1,5 +1,6 @@
 import SuperNeoFormal.Composition
 import SuperNeoFormal.NumiSealSumcheckTranscript
+import SuperNeoFormal.TheoremObligationStatus
 
 /-!
 NumiSeal product/carry/ZK end-to-end theorem scope.
@@ -124,6 +125,25 @@ def NumiSealEndToEndRelationHolds (relation : NumiSealEndToEndRelation) : Prop :
     ∧ relation.typedCarryRelation
     ∧ relation.zkMaskedResidualRelation
     ∧ relation.productPolicyRelation
+
+structure NumiSealEndToEndObligationStatus where
+  sourceFold : TheoremObligationStatus
+  obligationReconstruction : TheoremObligationStatus
+  terminalSeal : TheoremObligationStatus
+  typedCarry : TheoremObligationStatus
+  zkMaskedResidual : TheoremObligationStatus
+  productPolicy : TheoremObligationStatus
+  transcriptSchedule : TheoremObligationStatus
+
+def NumiSealEndToEndObligationStatus.FullyInstantiated
+    (status : NumiSealEndToEndObligationStatus) : Prop :=
+  status.sourceFold.Accepted
+    ∧ status.obligationReconstruction.Accepted
+    ∧ status.terminalSeal.Accepted
+    ∧ status.typedCarry.Accepted
+    ∧ status.zkMaskedResidual.Accepted
+    ∧ status.productPolicy.Accepted
+    ∧ status.transcriptSchedule.Accepted
 
 structure NumiSealEndToEndEvidence
     (gates : NumiSealProductVerifierGates)

@@ -151,6 +151,75 @@ theorem terminalCEVerifierTrace_extract_batch_from_round_certificates
   intro index
   exact (certificate.branchCertificates index).extracted_opens
 
+def TerminalCEConstructedSeedExtracts
+    {Claim Proof Witness Seed : Type}
+    {count : Nat}
+    (verifyProof : TerminalCEStatement Claim count → Proof → Prop)
+    (opens : Claim → Witness → Prop)
+    (proofSeed : Proof → Seed)
+    (seed : Seed) : Prop :=
+  ∀ statement proof,
+    verifyProof statement proof →
+      proofSeed proof = seed →
+        ∃ witnesses : Fin count → Witness,
+          TerminalLocalBatchRelation statement witnesses opens
+
+def TerminalCEConstructedBadSeeds
+    {Claim Proof Witness Seed : Type}
+    [Fintype Seed] [DecidableEq Seed]
+    {count : Nat}
+    (verifyProof : TerminalCEStatement Claim count → Proof → Prop)
+    (opens : Claim → Witness → Prop)
+    (proofSeed : Proof → Seed)
+    [DecidablePred
+      (TerminalCEConstructedSeedExtracts verifyProof opens proofSeed)] :
+    Finset Seed :=
+  Finset.univ.filter fun seed =>
+    ¬ TerminalCEConstructedSeedExtracts verifyProof opens proofSeed seed
+
+theorem TerminalCEConstructedBadSeeds_mem_iff
+    {Claim Proof Witness Seed : Type}
+    [Fintype Seed] [DecidableEq Seed]
+    {count : Nat}
+    (verifyProof : TerminalCEStatement Claim count → Proof → Prop)
+    (opens : Claim → Witness → Prop)
+    (proofSeed : Proof → Seed)
+    [DecidablePred
+      (TerminalCEConstructedSeedExtracts verifyProof opens proofSeed)]
+    (seed : Seed) :
+    seed ∈ TerminalCEConstructedBadSeeds verifyProof opens proofSeed ↔
+      ¬ TerminalCEConstructedSeedExtracts verifyProof opens proofSeed seed := by
+  simp [TerminalCEConstructedBadSeeds]
+
+theorem terminalCEConstructed_extract_of_seed_not_bad
+    {Claim Proof Witness Seed : Type}
+    [Fintype Seed] [DecidableEq Seed]
+    {count : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → Seed}
+    [DecidablePred
+      (TerminalCEConstructedSeedExtracts verifyProof opens proofSeed)]
+    {statement : TerminalCEStatement Claim count}
+    {proof : Proof}
+    (hVerify : verifyProof statement proof)
+    (hSeed :
+      proofSeed proof ∉
+        TerminalCEConstructedBadSeeds verifyProof opens proofSeed) :
+    ∃ witnesses : Fin count → Witness,
+      TerminalLocalBatchRelation statement witnesses opens := by
+  have hExtracts :
+      TerminalCEConstructedSeedExtracts
+        verifyProof
+        opens
+        proofSeed
+        (proofSeed proof) := by
+    by_contra hNoExtracts
+    exact hSeed (by
+      rw [TerminalCEConstructedBadSeeds_mem_iff]
+      exact hNoExtracts)
+  exact hExtracts statement proof hVerify rfl
+
 structure TerminalCEFiniteBadSeedCertificate
     {Claim Proof Witness Seed : Type}
     [DecidableEq Seed]
@@ -167,6 +236,45 @@ structure TerminalCEFiniteBadSeedCertificate
         proofSeed proof ∉ badSeeds →
           ∃ witnesses : Fin count → Witness,
             TerminalLocalBatchRelation statement witnesses opens
+
+def terminalCEFiniteBadSeedCertificate_constructed
+    {Claim Proof Witness Seed : Type}
+    [Fintype Seed] [DecidableEq Seed]
+    {count : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → Seed}
+    [DecidablePred
+      (TerminalCEConstructedSeedExtracts verifyProof opens proofSeed)] :
+    TerminalCEFiniteBadSeedCertificate
+      verifyProof
+      opens
+      proofSeed
+      (Fintype.card Seed) where
+  badSeeds := TerminalCEConstructedBadSeeds verifyProof opens proofSeed
+  card_le := by
+    simpa using
+      (Finset.card_le_univ
+        (TerminalCEConstructedBadSeeds verifyProof opens proofSeed))
+  extract_outside_bad := by
+    intro statement proof hVerify hSeed
+    exact terminalCEConstructed_extract_of_seed_not_bad hVerify hSeed
+
+theorem terminal_ce_constructed_badSeedCount_le_univ
+    {Claim Proof Witness Seed : Type}
+    [Fintype Seed] [DecidableEq Seed]
+    {count : Nat}
+    (verifyProof : TerminalCEStatement Claim count → Proof → Prop)
+    (opens : Claim → Witness → Prop)
+    (proofSeed : Proof → Seed)
+    [DecidablePred
+      (TerminalCEConstructedSeedExtracts verifyProof opens proofSeed)] :
+    (TerminalCEConstructedBadSeeds verifyProof opens proofSeed).card ≤
+      Fintype.card Seed := by
+  exact (terminalCEFiniteBadSeedCertificate_constructed
+    (verifyProof := verifyProof)
+    (opens := opens)
+    (proofSeed := proofSeed)).card_le
 
 structure TerminalCEFiniteVerifierCertificate
     {Claim Proof Witness Seed Commitment Response : Type}
@@ -253,6 +361,67 @@ def TerminalCEProofBadSeedBudget
     (roundCount : Nat)
     (challengeCount : Nat := 3) : Nat :=
   roundCount * challengeCount
+
+def terminalCESwiftRoundCount : Nat :=
+  219
+
+def terminalCESwiftProofBadSeedBudget : Nat :=
+  TerminalCEProofBadSeedBudget terminalCESwiftRoundCount
+
+theorem terminalCESwiftRoundCount_positive :
+    0 < terminalCESwiftRoundCount := by
+  native_decide
+
+theorem terminalCESwiftProofBadSeedBudget_eq :
+    terminalCESwiftProofBadSeedBudget = 657 := by
+  native_decide
+
+abbrev TerminalCESwiftVerifierTrace
+    (Commitment Response Witness Seed : Type) :=
+  TerminalCEVerifierTrace
+    Commitment
+    Response
+    Witness
+    Seed
+    terminalCESwiftRoundCount
+
+structure TerminalCESwiftVerifierExtractionCertificate
+    {Claim Commitment Response Witness Seed : Type}
+    {count : Nat}
+    (trace : TerminalCESwiftVerifierTrace Commitment Response Witness Seed)
+    (statement : TerminalCEStatement Claim count)
+    (opens : Claim → Witness → Prop) where
+  roundForOutput : Fin count → Fin terminalCESwiftRoundCount
+  branchCertificates :
+    ∀ index,
+      CEOpeningRoundSpecialSoundnessCertificate
+        (trace.rounds (roundForOutput index))
+        (fun witness => opens (statement.outputClaim index) witness)
+
+def terminalCESwiftVerifierExtractionCertificate_to_generic
+    {Claim Commitment Response Witness Seed : Type}
+    {count : Nat}
+    {trace : TerminalCESwiftVerifierTrace Commitment Response Witness Seed}
+    {statement : TerminalCEStatement Claim count}
+    {opens : Claim → Witness → Prop}
+    (certificate :
+      TerminalCESwiftVerifierExtractionCertificate trace statement opens) :
+    TerminalCEVerifierExtractionCertificate trace statement opens where
+  roundForOutput := certificate.roundForOutput
+  branchCertificates := certificate.branchCertificates
+
+theorem terminalCESwiftVerifierTrace_extract_batch_from_round_certificates
+    {Claim Commitment Response Witness Seed : Type}
+    {count : Nat}
+    {trace : TerminalCESwiftVerifierTrace Commitment Response Witness Seed}
+    {statement : TerminalCEStatement Claim count}
+    {opens : Claim → Witness → Prop}
+    (certificate :
+      TerminalCESwiftVerifierExtractionCertificate trace statement opens) :
+    ∃ witnesses : Fin count → Witness,
+      TerminalLocalBatchRelation statement witnesses opens :=
+  terminalCEVerifierTrace_extract_batch_from_round_certificates
+    (terminalCESwiftVerifierExtractionCertificate_to_generic certificate)
 
 theorem terminal_ce_badSeedBudget_profile
     {Claim Proof Witness Seed : Type}

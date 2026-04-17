@@ -33,6 +33,19 @@ def NumiSealProductKnowledgeCarryPrivacyHolds
     ∧ NumiSealTypedCarryProducerConsumerRelationHolds relations.typedCarryRelation
     ∧ NumiSealZKSimulationPrivacyHolds relations.zkPrivacyClaim
 
+structure NumiSealProductTheoremObligationStatus where
+  endToEnd : NumiSealEndToEndObligationStatus
+  recursiveKnowledge : RecursiveFoldingKnowledgeObligationStatus
+  typedCarry : NumiSealTypedCarryObligationStatus
+  zkPrivacy : NumiSealZKPrivacyObligationStatus
+
+def NumiSealProductTheoremObligationStatus.FullyInstantiated
+    (status : NumiSealProductTheoremObligationStatus) : Prop :=
+  status.endToEnd.FullyInstantiated
+    ∧ status.recursiveKnowledge.FullyInstantiated
+    ∧ status.typedCarry.FullyInstantiated
+    ∧ status.zkPrivacy.FullyInstantiated
+
 theorem numiSealProductKnowledgeCarryPrivacy_composition
     {depth : Nat}
     {View Leakage : Type}

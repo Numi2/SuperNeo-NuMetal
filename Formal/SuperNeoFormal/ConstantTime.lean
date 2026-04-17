@@ -1,4 +1,5 @@
 import Mathlib
+import SuperNeoFormal.TheoremObligationStatus
 
 /-!
 Constant-trace model for the implementation side-channel track.
@@ -160,6 +161,21 @@ structure SwiftLLVMMetalStackEvidence where
   compiler : CompilerLoweringEvidence
   runtime : RuntimeBoundaryEvidence
   hardware : HardwareObservationEvidence
+
+structure ConstantTimeObligationStatus where
+  sourceSchedule : TheoremObligationStatus
+  compilerLowering : TheoremObligationStatus
+  runtimeBoundary : TheoremObligationStatus
+  hardwareObservation : TheoremObligationStatus
+  wholeStackClaim : TheoremObligationStatus
+
+def ConstantTimeObligationStatus.FullyInstantiated
+    (status : ConstantTimeObligationStatus) : Prop :=
+  status.sourceSchedule.Accepted
+    ∧ status.compilerLowering.Accepted
+    ∧ status.runtimeBoundary.Accepted
+    ∧ status.hardwareObservation.Accepted
+    ∧ status.wholeStackClaim.Accepted
 
 def SourceRegionConstantTrace {α : Type}
     (evidence : ConstantTimeSourceEvidence)

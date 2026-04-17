@@ -572,6 +572,38 @@ def ProductCompletenessSoundnessZKHolds
     ∧ claim.zeroKnowledge
     ∧ claim.composition
 
+structure ProductSecurityTheoremObligationStatus where
+  numiSealProduct : NumiSealProductTheoremObligationStatus
+  systemBindings : TheoremObligationStatus
+  boundedDepthLoss : TheoremObligationStatus
+  selectedDepthLossLedger : TheoremObligationStatus
+  extractorLossAccounting : TheoremObligationStatus
+  latticeAssumptionDossier : TheoremObligationStatus
+  fiatShamirQROM : TheoremObligationStatus
+  totalLossBudget : TheoremObligationStatus
+  releaseDistribution : TheoremObligationStatus
+  completeness : TheoremObligationStatus
+  knowledgeSoundness : TheoremObligationStatus
+  zeroKnowledge : TheoremObligationStatus
+  composition : TheoremObligationStatus
+
+def ProductSecurityTheoremObligationStatus.FullyInstantiated
+    (status : ProductSecurityTheoremObligationStatus) :
+    Prop :=
+  status.numiSealProduct.FullyInstantiated
+    ∧ status.systemBindings.Accepted
+    ∧ status.boundedDepthLoss.Accepted
+    ∧ status.selectedDepthLossLedger.Accepted
+    ∧ status.extractorLossAccounting.Accepted
+    ∧ status.latticeAssumptionDossier.Accepted
+    ∧ status.fiatShamirQROM.Accepted
+    ∧ status.totalLossBudget.Accepted
+    ∧ status.releaseDistribution.Accepted
+    ∧ status.completeness.Accepted
+    ∧ status.knowledgeSoundness.Accepted
+    ∧ status.zeroKnowledge.Accepted
+    ∧ status.composition.Accepted
+
 structure ProductSecurityTheoremEvidence
     {depth : Nat}
     {View Leakage : Type}

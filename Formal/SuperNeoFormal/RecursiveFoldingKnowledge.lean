@@ -1,4 +1,5 @@
 import SuperNeoFormal.Composition
+import SuperNeoFormal.TheoremObligationStatus
 
 /-!
 Recursive folding knowledge-soundness surface.
@@ -41,6 +42,21 @@ def RecursiveFoldingKnowledgeStepRelationHolds
     ∧ relation.accumulatorConsistent
     ∧ relation.priorCarryConsistent
     ∧ relation.transcriptConsistent
+
+structure RecursiveFoldingKnowledgeObligationStatus where
+  localFoldExtractor : TheoremObligationStatus
+  terminalCEExtractor : TheoremObligationStatus
+  transcriptBadSetBound : TheoremObligationStatus
+  chainDigestBinding : TheoremObligationStatus
+  finalAccumulatorRelation : TheoremObligationStatus
+
+def RecursiveFoldingKnowledgeObligationStatus.FullyInstantiated
+    (status : RecursiveFoldingKnowledgeObligationStatus) : Prop :=
+  status.localFoldExtractor.Accepted
+    ∧ status.terminalCEExtractor.Accepted
+    ∧ status.transcriptBadSetBound.Accepted
+    ∧ status.chainDigestBinding.Accepted
+    ∧ status.finalAccumulatorRelation.Accepted
 
 structure RecursiveFoldingKnowledgeStepEvidence
     (gates : RecursiveFoldingKnowledgeStepGates)

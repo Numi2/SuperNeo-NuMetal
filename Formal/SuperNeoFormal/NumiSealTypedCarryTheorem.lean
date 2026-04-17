@@ -88,6 +88,25 @@ def NumiSealTypedCarryProducerConsumerRelationHolds
     ∧ relation.recursionLevelMonotone
     ∧ relation.replayIdentityFresh
 
+structure NumiSealTypedCarryObligationStatus where
+  producerAcceptedParent : TheoremObligationStatus
+  consumerExpectedChild : TheoremObligationStatus
+  digestAgreement : TheoremObligationStatus
+  residualCarryBinding : TheoremObligationStatus
+  productCarryContext : TheoremObligationStatus
+  recursionLevel : TheoremObligationStatus
+  replayFreshness : TheoremObligationStatus
+
+def NumiSealTypedCarryObligationStatus.FullyInstantiated
+    (status : NumiSealTypedCarryObligationStatus) : Prop :=
+  status.producerAcceptedParent.Accepted
+    ∧ status.consumerExpectedChild.Accepted
+    ∧ status.digestAgreement.Accepted
+    ∧ status.residualCarryBinding.Accepted
+    ∧ status.productCarryContext.Accepted
+    ∧ status.recursionLevel.Accepted
+    ∧ status.replayFreshness.Accepted
+
 structure NumiSealTypedCarryProducerConsumerEvidence
     (producer : NumiSealTypedCarryProducerGates)
     (consumer : NumiSealTypedCarryConsumerGates)

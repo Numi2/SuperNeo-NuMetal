@@ -186,7 +186,15 @@ cd Formal
 lake build SuperNeoFormal
 ```
 
-Result: build completed successfully for the full `SuperNeoFormal` import wall.
+Result: build completed successfully for the full `SuperNeoFormal` import wall
+after the remaining-work pass (`7797` jobs).
+
+### Finished in the remaining-work pass
+
+- `PiRLCFiniteSoundness.lean` no longer stops at the legacy `Phi81SplitCertificate` surface. It now imports the CRT collision layer and defines `PiRLCUnitPivotCollisionBadSeeds` directly over the actual coefficient challenge domain `PiRLCChallengeSeed count`. The new theorem `PiRLCUnitPivotCollisionBadSeeds_card_le_actualCoefficientSupport` proves the concrete count bound `(5 ^ phi81Degree) ^ (count - 1)` for a unit pivot, using `phi81ChallengeElement_injective` and the real challenge support rather than an abstract certificate set.
+- `TerminalCEFiniteSoundness.lean` now has a constructive finite bad-seed path. It defines `TerminalCEConstructedSeedExtracts`, `TerminalCEConstructedBadSeeds`, `terminalCEFiniteBadSeedCertificate_constructed`, and the extraction theorem outside the constructed bad set. It also fixes the production Swift CE schedule constant `terminalCESwiftRoundCount = 219`, the corresponding budget `657`, and a `TerminalCESwiftVerifierTrace` / extraction certificate wrapper for the concrete proof schedule.
+- `ErrorLedger.lean` now contains a concrete finite-uniform error ledger in addition to the compatibility abstract model. `SuperNeoFiniteUniformErrorEvents` and `SuperNeoFiniteUniformComponentCardBounds` connect finite component bad-set counts to the exact rational union bound `finiteUniformProbability support any <= totalBadCount / support.card`.
+- The upper theorem surfaces now expose explicit instantiated/not-instantiated obligation records through `TheoremObligationStatus.lean`. Status records were added for recursive folding knowledge, NumiSeal end-to-end, typed carry, ZK privacy, product composition, product security, and constant trace. The theorem surfaces remain evidence-parametric, but their imported obligations are now machine-readable status fields instead of implicit prose.
 
 ### Finished in this pass
 
@@ -200,12 +208,12 @@ Result: build completed successfully for the full `SuperNeoFormal` import wall.
 - `ProductBadEventLedger.lean` is present and imported. It defines a shared-tag product bad-event ledger across fold / terminal / product / carry / ZK / transcript sources and proves the aggregate charged tag set is bounded by the flat component charge while de-duplicating shared tags by construction.
 - `TypedDigestSemantics.lean` is present and imported. It defines typed digest kinds, `TypedDigestWire`, injective typed digest byte encoding, framed typed digest encoding, and binding lemmas from encoded equality.
 
-### Still compatibility surfaces, not completed cryptographic proofs
+### Remaining external evidence, not Lean interface debt
 
-- `PiRLCFiniteSoundness.lean` still contains the older `Phi81SplitCertificate` compatibility interface. The concrete CRT collision lemmas now live below it in `Phi81CRT.lean` and `PiRLCConcreteCollision.lean`, but a full finite bad-seed count over the actual coefficient challenge support remains future work.
-- `TerminalCEFiniteSoundness.lean` remains a certificate-oriented surface. `TerminalCEConcreteSpecialSoundness.lean` adds constructed semantics and an exact finite bad-set definition, but the production Stern extractor for the concrete Swift proof schedule is not yet instantiated.
-- `ErrorLedger.lean` still exposes `AbstractProbabilityModel`. The finite-uniform model now exists separately in `FiniteUniformProbability.lean`; replacing or parameter-specializing `ErrorLedger.lean` is still open.
-- The upper theorem files remain evidence-parametric theorem surfaces: `RecursiveFoldingKnowledge.lean`, `NumiSealEndToEnd.lean`, `NumiSealTypedCarryTheorem.lean`, `NumiSealZKPrivacy.lean`, `NumiSealProductTheorem.lean`, `ProductSecurityTheorem.lean`, and `ConstantTime.lean`.
+- `PiRLCFiniteSoundness.lean` keeps the older `Phi81SplitCertificate` definitions only as compatibility wrappers. The concrete path is now CRT-backed plus actual coefficient-domain counting; future strengthening can replace the unit-pivot finite theorem with a tighter one-component CRT fiber bound if that becomes necessary for the final product loss ledger.
+- `TerminalCEFiniteSoundness.lean` now constructs bad seeds and records the Swift 219-round schedule. What remains outside Lean is the operational evidence that the shipped Swift verifier/prover implementation is exactly the schedule represented by the formal trace wrapper.
+- `ErrorLedger.lean` still keeps `AbstractProbabilityModel` for callers that need an abstract union-bound interface, but a concrete finite-uniform ledger theorem is now present. QROM/oracle-game semantics remain a separate cryptographic model, not a missing finite-count theorem.
+- The upper theorem files remain theorem surfaces by design. They now expose explicit obligation-status records, so production claims can distinguish instantiated lower mathematics from not-yet-instantiated release or cryptographic evidence.
 
 This audit classifies the current Lean files into four buckets:
 

@@ -45,6 +45,21 @@ def NumiSealZKSimulationPrivacyHolds
   claim.leakageFunction claim.realView = claim.declaredLeakage
     ∧ claim.indistinguishable claim.realView claim.simulatedView
 
+structure NumiSealZKPrivacyObligationStatus where
+  leakageFunction : TheoremObligationStatus
+  simulatorConstruction : TheoremObligationStatus
+  randomnessFreshness : TheoremObligationStatus
+  declaredLeakageDigest : TheoremObligationStatus
+  hardwareSideChannelExclusion : TheoremObligationStatus
+
+def NumiSealZKPrivacyObligationStatus.FullyInstantiated
+    (status : NumiSealZKPrivacyObligationStatus) : Prop :=
+  status.leakageFunction.Accepted
+    ∧ status.simulatorConstruction.Accepted
+    ∧ status.randomnessFreshness.Accepted
+    ∧ status.declaredLeakageDigest.Accepted
+    ∧ status.hardwareSideChannelExclusion.Accepted
+
 structure NumiSealZKSimulationEvidence
     {View Leakage : Type}
     (zk : NumiSealZKGates)

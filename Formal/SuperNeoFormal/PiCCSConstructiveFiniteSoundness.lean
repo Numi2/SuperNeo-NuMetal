@@ -1,4 +1,5 @@
-import SuperNeoFormal.PiCCSFiniteSoundness
+import SuperNeoFormal.PiCCSSoundness
+import SuperNeoFormal.SumcheckSoundness
 import SuperNeoFormal.SumcheckPrefixSoundness
 
 /-!
@@ -6,7 +7,8 @@ Constructive finite PiCCS bad-challenge set.
 
 This module names the concrete bad set obtained from the per-round low-degree
 sum-check mismatch theorem.  Unlike `PiCCSFiniteSoundness.lean`, this file does
-not take the bad set as a certificate field.
+not take the bad set as a certificate field and does not import the certificate
+layer.
 -/
 
 noncomputable section
@@ -23,6 +25,10 @@ def PiCCSBadChallengeSetConstructed
     (prover exact : Nat → Polynomial F) :
     Finset (Nat × F) :=
   sumcheckPrefixBadChallenges numVars support prover exact
+
+def PiCCSConstructiveSumcheckBadChallengeBudget
+    (numVars maxDegreePerRound : Nat) : Nat :=
+  sumcheckPrefixBadChallengeBudget numVars maxDegreePerRound
 
 theorem PiCCSBadChallengeSetConstructed_mem_iff
     (numVars : Nat)
@@ -95,8 +101,11 @@ theorem PiCCSBadChallengeSetConstructed_card_le_budget
       support
       prover
       exact).card ≤
-        PiCCSSumcheckBadChallengeBudget numVars maxDegreePerRound := by
-  simpa [PiCCSSumcheckBadChallengeBudget] using
+        PiCCSConstructiveSumcheckBadChallengeBudget
+          numVars
+          maxDegreePerRound := by
+  simpa [PiCCSConstructiveSumcheckBadChallengeBudget,
+    sumcheckPrefixBadChallengeBudget] using
     PiCCSBadChallengeSetConstructed_card_le
       numVars
       maxDegreePerRound
@@ -105,5 +114,61 @@ theorem PiCCSBadChallengeSetConstructed_card_le_budget
       exact
       hProverDegree
       hExactDegree
+
+theorem PiCCSBadChallengeSetConstructed_contains_trace_challenge
+    (support : Finset F)
+    (prover exact : Nat → Polynomial F)
+    {trace : SumcheckVerifierTrace F}
+    {round : Nat}
+    (hRound : round < trace.rounds)
+    (hMismatch : prover round ≠ exact round)
+    (hChallenge : trace.challenge round ∈ support)
+    (hEval :
+      (prover round).eval (trace.challenge round) =
+        (exact round).eval (trace.challenge round)) :
+    (round, trace.challenge round) ∈
+      PiCCSBadChallengeSetConstructed trace.rounds support prover exact := by
+  exact
+    sumcheckPrefixBadChallenges_contains_round_agreement
+      trace.rounds
+      support
+      prover
+      exact
+      hRound
+      hMismatch
+      hChallenge
+      hEval
+
+def PiCCSTraceChallengeFailureCovered
+    (support : Finset F)
+    (prover exact : Nat → Polynomial F)
+    (trace : SumcheckVerifierTrace F) : Prop :=
+  ∃ round, round < trace.rounds ∧
+    prover round ≠ exact round ∧
+      trace.challenge round ∈ support ∧
+        (prover round).eval (trace.challenge round) =
+          (exact round).eval (trace.challenge round)
+
+theorem PiCCSTraceChallengeFailureCovered_mem_constructed_bad_set
+    (support : Finset F)
+    (prover exact : Nat → Polynomial F)
+    {trace : SumcheckVerifierTrace F}
+    (hFailure :
+      PiCCSTraceChallengeFailureCovered support prover exact trace) :
+    ∃ badChallenge,
+      badChallenge ∈
+        PiCCSBadChallengeSetConstructed trace.rounds support prover exact := by
+  rcases hFailure with
+    ⟨round, hRound, hMismatch, hChallenge, hEval⟩
+  exact
+    ⟨(round, trace.challenge round),
+      PiCCSBadChallengeSetConstructed_contains_trace_challenge
+        support
+        prover
+        exact
+        hRound
+        hMismatch
+        hChallenge
+        hEval⟩
 
 end SuperNeoFormal
