@@ -74,8 +74,8 @@ def digest_bound_removed(evidence: dict[str, Any]) -> None:
     evidence["closureStatus"]["digestCollisionBoundInstantiated"] = False
 
 
-def source_prematurely_complete(evidence: dict[str, Any]) -> None:
-    evidence["closureStatus"]["sourceHBindImplementationComplete"] = True
+def source_hbind_removed(evidence: dict[str, Any]) -> None:
+    evidence["closureStatus"]["sourceHBindImplementationComplete"] = False
 
 
 def production_claim_enabled(evidence: dict[str, Any]) -> None:
@@ -109,9 +109,9 @@ def main() -> None:
         "closureStatus.digestCollisionBoundInstantiated must be true",
     )
     expect_failure(
-        "source prematurely complete",
-        source_prematurely_complete,
-        "closureStatus.sourceHBindImplementationComplete must be false",
+        "source hbind removed",
+        source_hbind_removed,
+        "closureStatus.sourceHBindImplementationComplete must be true",
     )
     expect_failure(
         "production claim enabled",

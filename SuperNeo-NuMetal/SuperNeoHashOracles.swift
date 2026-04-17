@@ -82,8 +82,12 @@ public enum SuperNeoSplitQRO {
         Digest384.shake256(framedBytes(domain: domain, frames: frames))
     }
 
+    public static func hMerkleLeaf(domain: String = merkleDomain, frames: [[UInt8]]) -> Digest384 {
+        hBind(domain: "\(domain)/leaf", frames: frames)
+    }
+
     public static func hMerkleNode(domain: String = merkleDomain, left: Digest384, right: Digest384) -> Digest384 {
-        hBind(domain: domain, frames: [left.superNeoBytes, right.superNeoBytes])
+        hBind(domain: "\(domain)/node", frames: [left.superNeoBytes, right.superNeoBytes])
     }
 
     public static func challengeTapeSeed(
@@ -124,6 +128,130 @@ public enum SuperNeoSplitQRO {
     }
 }
 
+public struct SuperNeoChallengeTape: Sendable {
+    public let seed: Digest256
+    public let proofKind: ProofEnvelopeKind
+    public let label: String
+
+    private var digestIndex: UInt64
+    private var buffer: [UInt8]
+    private var offset: Int
+
+    public init(seed: Digest256, proofKind: ProofEnvelopeKind, label: String) {
+        self.seed = seed
+        self.proofKind = proofKind
+        self.label = label
+        self.digestIndex = 0
+        self.buffer = []
+        self.offset = 0
+    }
+
+    public mutating func nextDigest(label elementLabel: String? = nil) -> Digest256 {
+        let digest = SuperNeoSplitQRO.expandChallenge(
+            seed: seed,
+            proofKind: proofKind,
+            label: Self.composedLabel(base: label, element: elementLabel),
+            index: digestIndex
+        )
+        digestIndex &+= 1
+        buffer = []
+        offset = 0
+        return digest
+    }
+
+    public mutating func nextField() -> GoldilocksField {
+        var value = nextUInt64()
+        while value >= GoldilocksField.modulus {
+            value = nextUInt64()
+        }
+        return GoldilocksField(value)
+    }
+
+    public mutating func nextExt2() -> GoldilocksExt2 {
+        GoldilocksExt2(nextField(), nextField())
+    }
+
+    public mutating func nextRing(parameters: SuperNeoParameters = .goldilocks) -> CyclotomicRing54 {
+        let choices = parameters.challengeCoefficients
+        var coeffs = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+        for coefficientIndex in 0..<CyclotomicRing54.degree {
+            let index = nextUniformIndex(upperBound: choices.count)
+            let value = choices[index]
+            coeffs[coefficientIndex] = value >= 0
+                ? GoldilocksField(UInt64(value))
+                : -GoldilocksField(UInt64(-value))
+        }
+        return CyclotomicRing54(coeffs)
+    }
+
+    public static func expansionDigest(
+        seed: Digest256,
+        proofKind: ProofEnvelopeKind,
+        label: String,
+        digestCount: Int
+    ) -> Digest256 {
+        precondition(digestCount >= 0, "challenge tape digest count must be nonnegative")
+        var bytes = SuperNeoSplitQRO.encodeUInt64(UInt64(digestCount))
+        for index in 0..<digestCount {
+            bytes.append(
+                contentsOf: SuperNeoSplitQRO.expandChallenge(
+                    seed: seed,
+                    proofKind: proofKind,
+                    label: label,
+                    index: UInt64(index)
+                ).superNeoBytes
+            )
+        }
+        return SuperNeoSplitQRO.hChal(
+            domain: "\(SuperNeoSplitQRO.challengeDomain)/tape-digest",
+            frames: [[proofKind.rawValue], seed.superNeoBytes, Array(label.utf8), bytes]
+        )
+    }
+
+    private mutating func nextUInt64() -> UInt64 {
+        var value = UInt64(0)
+        var shift = UInt64(0)
+        var remaining = 8
+        while remaining > 0 {
+            if offset == buffer.count {
+                refill()
+            }
+            let take = min(remaining, buffer.count - offset)
+            for byteIndex in 0..<take {
+                value |= UInt64(buffer[offset + byteIndex]) << shift
+                shift += 8
+            }
+            offset += take
+            remaining -= take
+        }
+        return value
+    }
+
+    private mutating func refill() {
+        buffer = nextDigest().superNeoBytes
+        offset = 0
+    }
+
+    private mutating func nextUniformIndex(upperBound: Int) -> Int {
+        guard upperBound > 1 else { return 0 }
+        let bound = UInt64(upperBound)
+        let limit = UInt64.max - (UInt64.max % bound)
+        while true {
+            let value = nextUInt64()
+            if value < limit {
+                return Int(value % bound)
+            }
+        }
+    }
+
+    private static func composedLabel(base: String, element: String?) -> String {
+        guard let element, !element.isEmpty else {
+            return base
+        }
+        return "\(base)/\(element)"
+    }
+}
+
 public struct CTCOTraceBlock: Equatable, Sendable {
     public let label: String
     public let bytes: [UInt8]
@@ -138,31 +266,321 @@ public struct CTCOMoveOneCommitment: Equatable, Sendable {
     public let proofKind: ProofEnvelopeKind
     public let contextBinder: Digest384
     public let root: Digest384
+    public let leafCount: Int
 
     public init(proofKind: ProofEnvelopeKind, contextBinder: Digest384, traceBlocks: [CTCOTraceBlock]) {
         self.proofKind = proofKind
         self.contextBinder = contextBinder
-        self.root = SuperNeoSplitQRO.hBind(
-            domain: "superneo/numiseal/ctco/root/\(proofKind.ctcoDomainComponent)/v2",
-            frames: Self.rootFrames(proofKind: proofKind, contextBinder: contextBinder, traceBlocks: traceBlocks)
-        )
+        self.root = Self.root(proofKind: proofKind, contextBinder: contextBinder, traceBlocks: traceBlocks)
+        self.leafCount = traceBlocks.count
     }
 
-    private static func rootFrames(
+    public static func root(
         proofKind: ProofEnvelopeKind,
         contextBinder: Digest384,
         traceBlocks: [CTCOTraceBlock]
-    ) -> [[UInt8]] {
-        var frames: [[UInt8]] = [
-            [proofKind.rawValue],
-            contextBinder.superNeoBytes,
-            SuperNeoSplitQRO.encodeUInt64(UInt64(traceBlocks.count))
-        ]
-        for block in traceBlocks {
-            frames.append(Array(block.label.utf8))
-            frames.append(block.bytes)
+    ) -> Digest384 {
+        guard !traceBlocks.isEmpty else {
+            return SuperNeoSplitQRO.hMerkleLeaf(
+                domain: merkleDomain(proofKind: proofKind),
+                frames: [
+                    [proofKind.rawValue],
+                    contextBinder.superNeoBytes,
+                    SuperNeoSplitQRO.encodeUInt64(0)
+                ]
+            )
         }
-        return frames
+        var level = traceBlocks.enumerated().map { index, block in
+            leafDigest(
+                proofKind: proofKind,
+                contextBinder: contextBinder,
+                leafIndex: index,
+                leafCount: traceBlocks.count,
+                block: block
+            )
+        }
+        while level.count > 1 {
+            var next: [Digest384] = []
+            next.reserveCapacity((level.count + 1) / 2)
+            var index = 0
+            while index < level.count {
+                let left = level[index]
+                let right = index + 1 < level.count ? level[index + 1] : left
+                next.append(
+                    SuperNeoSplitQRO.hMerkleNode(
+                        domain: merkleDomain(proofKind: proofKind),
+                        left: left,
+                        right: right
+                    )
+                )
+                index += 2
+            }
+            level = next
+        }
+        return level[0]
+    }
+
+    public static func leafDigest(
+        proofKind: ProofEnvelopeKind,
+        contextBinder: Digest384,
+        leafIndex: Int,
+        leafCount: Int,
+        block: CTCOTraceBlock
+    ) -> Digest384 {
+        SuperNeoSplitQRO.hMerkleLeaf(
+            domain: merkleDomain(proofKind: proofKind),
+            frames: [
+                [proofKind.rawValue],
+                contextBinder.superNeoBytes,
+                SuperNeoSplitQRO.encodeUInt64(UInt64(leafIndex)),
+                SuperNeoSplitQRO.encodeUInt64(UInt64(leafCount)),
+                Array(block.label.utf8),
+                block.bytes
+            ]
+        )
+    }
+
+    public static func merkleOpening(
+        proofKind: ProofEnvelopeKind,
+        contextBinder: Digest384,
+        traceBlocks: [CTCOTraceBlock],
+        leafIndex: Int
+    ) throws -> CTCOMerkleOpening {
+        guard traceBlocks.indices.contains(leafIndex) else {
+            throw SuperNeoError.invalidParameter("CTCO Merkle opening index out of range")
+        }
+        var level = traceBlocks.enumerated().map { index, block in
+            leafDigest(
+                proofKind: proofKind,
+                contextBinder: contextBinder,
+                leafIndex: index,
+                leafCount: traceBlocks.count,
+                block: block
+            )
+        }
+        var index = leafIndex
+        var siblings: [CTCOMerkleSibling] = []
+        while level.count > 1 {
+            if index % 2 == 0 {
+                let siblingIndex = index + 1 < level.count ? index + 1 : index
+                siblings.append(CTCOMerkleSibling(position: .right, digest: level[siblingIndex]))
+            } else {
+                siblings.append(CTCOMerkleSibling(position: .left, digest: level[index - 1]))
+            }
+            var next: [Digest384] = []
+            next.reserveCapacity((level.count + 1) / 2)
+            var pair = 0
+            while pair < level.count {
+                let left = level[pair]
+                let right = pair + 1 < level.count ? level[pair + 1] : left
+                next.append(
+                    SuperNeoSplitQRO.hMerkleNode(
+                        domain: merkleDomain(proofKind: proofKind),
+                        left: left,
+                        right: right
+                    )
+                )
+                pair += 2
+            }
+            index /= 2
+            level = next
+        }
+        return CTCOMerkleOpening(
+            proofKind: proofKind,
+            contextBinder: contextBinder,
+            leafIndex: leafIndex,
+            leafCount: traceBlocks.count,
+            block: traceBlocks[leafIndex],
+            siblings: siblings
+        )
+    }
+
+    private static func merkleDomain(proofKind: ProofEnvelopeKind) -> String {
+        "superneo/numiseal/ctco/root/\(proofKind.ctcoDomainComponent)/v2"
+    }
+}
+
+public struct CTCOMerkleSibling: Equatable, Sendable {
+    public enum Position: UInt8, Equatable, Sendable {
+        case left = 0
+        case right = 1
+    }
+
+    public let position: Position
+    public let digest: Digest384
+
+    public init(position: Position, digest: Digest384) {
+        self.position = position
+        self.digest = digest
+    }
+}
+
+public struct CTCOMerkleOpening: Equatable, Sendable {
+    public let proofKind: ProofEnvelopeKind
+    public let contextBinder: Digest384
+    public let leafIndex: Int
+    public let leafCount: Int
+    public let block: CTCOTraceBlock
+    public let siblings: [CTCOMerkleSibling]
+
+    public init(
+        proofKind: ProofEnvelopeKind,
+        contextBinder: Digest384,
+        leafIndex: Int,
+        leafCount: Int,
+        block: CTCOTraceBlock,
+        siblings: [CTCOMerkleSibling]
+    ) {
+        self.proofKind = proofKind
+        self.contextBinder = contextBinder
+        self.leafIndex = leafIndex
+        self.leafCount = leafCount
+        self.block = block
+        self.siblings = siblings
+    }
+
+    public func verifies(root: Digest384) -> Bool {
+        guard leafIndex >= 0, leafIndex < leafCount else {
+            return false
+        }
+        var digest = CTCOMoveOneCommitment.leafDigest(
+            proofKind: proofKind,
+            contextBinder: contextBinder,
+            leafIndex: leafIndex,
+            leafCount: leafCount,
+            block: block
+        )
+        for sibling in siblings {
+            switch sibling.position {
+            case .left:
+                digest = SuperNeoSplitQRO.hMerkleNode(
+                    domain: "superneo/numiseal/ctco/root/\(proofKind.ctcoDomainComponent)/v2",
+                    left: sibling.digest,
+                    right: digest
+                )
+            case .right:
+                digest = SuperNeoSplitQRO.hMerkleNode(
+                    domain: "superneo/numiseal/ctco/root/\(proofKind.ctcoDomainComponent)/v2",
+                    left: digest,
+                    right: sibling.digest
+                )
+            }
+        }
+        return digest == root
+    }
+}
+
+public struct ProofEnvelopeCTCOReport: Equatable, Sendable {
+    public let proofKind: ProofEnvelopeKind
+    public let contextBinder: Digest384
+    public let root: Digest384
+    public let challengeTapeSeed: Digest256
+    public let bodyDigest: Digest256
+    public let traceBlockCount: Int
+}
+
+public enum ProofEnvelopeCTCOVerifier {
+    public static let challengeTapeLabel = "proof-envelope-body"
+
+    public static func verify(
+        envelopeBytes: [UInt8],
+        expectedRoot: Digest384? = nil,
+        expectedChallengeTapeSeed: Digest256? = nil
+    ) throws -> ProofEnvelopeCTCOReport {
+        let header = try ProofEnvelopeHeader.parsePrefix(from: envelopeBytes)
+        try header.validateEnvelopeLength(totalByteCount: envelopeBytes.count)
+        let body = Array(envelopeBytes.dropFirst(ProofEnvelopeHeader.byteCount))
+        let traceBlocks = traceBlocks(header: header, body: body)
+        let commitment = CTCOMoveOneCommitment(
+            proofKind: header.kind,
+            contextBinder: header.ctcoContextBinder,
+            traceBlocks: traceBlocks
+        )
+        for index in traceBlocks.indices {
+            let opening = try CTCOMoveOneCommitment.merkleOpening(
+                proofKind: header.kind,
+                contextBinder: header.ctcoContextBinder,
+                traceBlocks: traceBlocks,
+                leafIndex: index
+            )
+            guard opening.verifies(root: commitment.root) else {
+                throw SuperNeoError.verificationFailed("proof envelope CTCO Merkle opening mismatch")
+            }
+        }
+        if let expectedRoot, expectedRoot != commitment.root {
+            throw SuperNeoError.verificationFailed("proof envelope CTCO root mismatch")
+        }
+        let challengeTapeSeed = SuperNeoSplitQRO.challengeTapeSeed(
+            proofKind: header.kind,
+            contextBinder: header.ctcoContextBinder,
+            root: commitment.root,
+            label: challengeTapeLabel
+        )
+        if let expectedChallengeTapeSeed, expectedChallengeTapeSeed != challengeTapeSeed {
+            throw SuperNeoError.verificationFailed("proof envelope CTCO challenge seed mismatch")
+        }
+        return ProofEnvelopeCTCOReport(
+            proofKind: header.kind,
+            contextBinder: header.ctcoContextBinder,
+            root: commitment.root,
+            challengeTapeSeed: challengeTapeSeed,
+            bodyDigest: Digest256.hash(body),
+            traceBlockCount: traceBlocks.count
+        )
+    }
+
+    public static func traceBlocks(header: ProofEnvelopeHeader, body: [UInt8]) -> [CTCOTraceBlock] {
+        [
+            CTCOTraceBlock(label: "envelope-transcript-prefix", bytes: header.transcriptBindingBytes),
+            CTCOTraceBlock(label: "envelope-body-length", bytes: SuperNeoSplitQRO.encodeUInt64(UInt64(body.count))),
+            CTCOTraceBlock(label: "envelope-body-digest", bytes: Digest256.hash(body).superNeoBytes),
+            CTCOTraceBlock(label: "\(header.kind.ctcoDomainComponent)-body-commitment", bytes: bodyCommitment(header: header, body: body).superNeoBytes)
+        ]
+    }
+
+    private static func bodyCommitment(header: ProofEnvelopeHeader, body: [UInt8]) -> Digest384 {
+        SuperNeoSplitQRO.hMerkleLeaf(
+            domain: "superneo/numiseal/ctco/body/\(header.kind.ctcoDomainComponent)/v2",
+            frames: [
+                [header.kind.rawValue],
+                header.ctcoContextBinder.superNeoBytes,
+                SuperNeoSplitQRO.encodeUInt64(UInt64(body.count)),
+                body
+            ]
+        )
+    }
+}
+
+public enum SuperNeoTheoremBinding {
+    public static func digestBinder(
+        kind: ProofEnvelopeKind,
+        label: String,
+        digest: Digest256
+    ) -> Digest384 {
+        SuperNeoSplitQRO.hBind(
+            domain: "superneo/numiseal/bind/target/\(kind.ctcoDomainComponent)/v2",
+            frames: [
+                [kind.rawValue],
+                Array(label.utf8),
+                digest.superNeoBytes
+            ]
+        )
+    }
+
+    public static func digestListBinder(
+        kind: ProofEnvelopeKind,
+        label: String,
+        digests: [Digest256]
+    ) -> Digest384 {
+        SuperNeoSplitQRO.hBind(
+            domain: "superneo/numiseal/bind/target-list/\(kind.ctcoDomainComponent)/v2",
+            frames: [
+                [kind.rawValue],
+                Array(label.utf8),
+                SuperNeoSplitQRO.encodeUInt64(UInt64(digests.count)),
+                digests.flatMap(\.superNeoBytes)
+            ]
+        )
     }
 }
 

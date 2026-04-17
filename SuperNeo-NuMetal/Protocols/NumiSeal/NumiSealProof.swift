@@ -1219,22 +1219,7 @@ public struct NumiSealTerminalProofAcceptancePolicy: Equatable, Sendable {
         guard header.kind == .numiSealTerminal else {
             throw SuperNeoError.verificationFailed("NumiSeal terminal proof required")
         }
-        guard header.profileID == profileID else {
-            throw SuperNeoError.verificationFailed("NumiSeal profile mismatch")
-        }
-        guard header.shapeDigest == shapeDigest else {
-            throw SuperNeoError.verificationFailed("NumiSeal shape digest mismatch")
-        }
-        guard header.statementDigest == statementDigest else {
-            throw SuperNeoError.verificationFailed("NumiSeal statement digest mismatch")
-        }
-        guard header.verifierKeyDigest == verifierKeyDigest else {
-            throw SuperNeoError.verificationFailed("NumiSeal verifier key digest mismatch")
-        }
-        guard header.transcriptDomain == transcriptDomain else {
-            throw SuperNeoError.verificationFailed("NumiSeal transcript domain mismatch")
-        }
-        return ProofEnvelopeContext(
+        let expectedContext = ProofEnvelopeContext(
             profileID: profileID,
             kind: .numiSealTerminal,
             shapeDigest: shapeDigest,
@@ -1242,6 +1227,10 @@ public struct NumiSealTerminalProofAcceptancePolicy: Equatable, Sendable {
             verifierKeyDigest: verifierKeyDigest,
             transcriptDomain: transcriptDomain
         )
+        guard header.ctcoContextBinder == expectedContext.ctcoContextBinder else {
+            throw SuperNeoError.verificationFailed("NumiSeal CTCO context binder mismatch")
+        }
+        return expectedContext
     }
 
     public func validate(proof: NumiSealProof) throws {

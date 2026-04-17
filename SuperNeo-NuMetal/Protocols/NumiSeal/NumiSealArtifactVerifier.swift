@@ -358,6 +358,7 @@ public enum NumiSealArtifactVerifier {
         parameters: SuperNeoParameters = .goldilocks
     ) throws -> NumiSealProofEnvelope {
         let proofBytes = try artifact.proofEnvelopeBytes()
+        _ = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: proofBytes)
         let envelope = try NumiSealProofEnvelope(bytes: proofBytes, parameters: parameters)
         try validateEnvelope(envelope, artifact: artifact)
         return envelope
@@ -461,28 +462,60 @@ public enum NumiSealArtifactVerifier {
         _ material: NumiSealArtifactVerificationMaterial,
         against artifact: NumiSealArtifact
     ) throws {
-        guard material.shape.shapeDigest.hexString == artifact.shapeDigestHex else {
+        try requireBoundDigest(
+            material.shape.shapeDigest,
+            matchesHex: artifact.shapeDigestHex,
+            label: "shape"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal artifact shape digest does not match reconstructed material")
         }
-        guard material.policy.statementDigest.hexString == artifact.statementDigestHex else {
+        try requireBoundDigest(
+            material.policy.statementDigest,
+            matchesHex: artifact.statementDigestHex,
+            label: "statement"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal artifact statement digest does not match reconstructed material")
         }
-        guard material.key.verifierKeyDigest.hexString == artifact.verifierKeyDigestHex else {
+        try requireBoundDigest(
+            material.key.verifierKeyDigest,
+            matchesHex: artifact.verifierKeyDigestHex,
+            label: "verifier-key"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal artifact verifier key digest does not match regenerated key")
         }
-        guard material.policy.transcriptDomain.hexString == artifact.transcriptDomainHex else {
+        try requireBoundDigest(
+            material.policy.transcriptDomain,
+            matchesHex: artifact.transcriptDomainHex,
+            label: "transcript-domain"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal artifact transcript domain does not match verification policy")
         }
-        guard material.plan.publicStatement.digest.hexString == artifact.publicStatementDigestHex else {
+        try requireBoundDigest(
+            material.plan.publicStatement.digest,
+            matchesHex: artifact.publicStatementDigestHex,
+            label: "public-statement"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal public statement digest does not match reconstructed obligations")
         }
-        guard material.plan.publicStatement.obligationRoot.hexString == artifact.obligationRootHex else {
+        try requireBoundDigest(
+            material.plan.publicStatement.obligationRoot,
+            matchesHex: artifact.obligationRootHex,
+            label: "obligation-root"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal obligation root does not match reconstructed obligations")
         }
-        guard material.plan.publicStatement.laneSummaryRoot.hexString == artifact.laneSummaryRootHex else {
+        try requireBoundDigest(
+            material.plan.publicStatement.laneSummaryRoot,
+            matchesHex: artifact.laneSummaryRootHex,
+            label: "lane-summary-root"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal lane summary root does not match reconstructed obligations")
         }
-        guard material.plan.aggregateDigests.map(\.hexString) == artifact.aggregateDigestsHex else {
+        try requireBoundDigestList(
+            material.plan.aggregateDigests,
+            matchesHex: artifact.aggregateDigestsHex,
+            label: "aggregate-digests"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal aggregate digests do not match reconstructed obligations")
         }
         guard material.plan.aggregateCount == artifact.ceRandomSeedsUTF8.count else {
@@ -497,37 +530,57 @@ public enum NumiSealArtifactVerifier {
         guard envelope.header.kind == .numiSealTerminal else {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal proof envelope kind mismatch")
         }
-        guard envelope.header.profileID == SuperNeoParameterProfile.goldilocksPhi81.profileID else {
-            throw NumiSealArtifactVerificationError.invalid("NumiSeal proof envelope profile mismatch")
+        let artifactContext = try ProofEnvelopeContext(
+            profileID: SuperNeoParameterProfile.goldilocksPhi81.profileID,
+            kind: .numiSealTerminal,
+            shapeDigest: Digest256(hexDigest: artifact.shapeDigestHex, name: "NumiSeal shape digest"),
+            statementDigest: Digest256(hexDigest: artifact.statementDigestHex, name: "NumiSeal statement digest"),
+            verifierKeyDigest: Digest256(hexDigest: artifact.verifierKeyDigestHex, name: "NumiSeal verifier key digest"),
+            transcriptDomain: Digest256(hexDigest: artifact.transcriptDomainHex, name: "NumiSeal transcript domain")
+        )
+        guard envelope.header.ctcoContextBinder == artifactContext.ctcoContextBinder else {
+            throw NumiSealArtifactVerificationError.invalid("NumiSeal proof envelope CTCO context binder mismatch")
         }
-        guard envelope.header.shapeDigest.hexString == artifact.shapeDigestHex else {
-            throw NumiSealArtifactVerificationError.invalid("NumiSeal proof envelope shape digest mismatch")
-        }
-        guard envelope.header.statementDigest.hexString == artifact.statementDigestHex else {
-            throw NumiSealArtifactVerificationError.invalid("NumiSeal proof envelope statement digest mismatch")
-        }
-        guard envelope.header.verifierKeyDigest.hexString == artifact.verifierKeyDigestHex else {
-            throw NumiSealArtifactVerificationError.invalid("NumiSeal proof envelope verifier key digest mismatch")
-        }
-        guard envelope.header.transcriptDomain.hexString == artifact.transcriptDomainHex else {
-            throw NumiSealArtifactVerificationError.invalid("NumiSeal proof envelope transcript domain mismatch")
-        }
-        guard envelope.proof.publicStatement.digest.hexString == artifact.publicStatementDigestHex else {
+        try requireBoundDigest(
+            envelope.proof.publicStatement.digest,
+            matchesHex: artifact.publicStatementDigestHex,
+            label: "public-statement"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal proof public statement digest mismatch")
         }
-        guard envelope.proof.publicStatement.obligationRoot.hexString == artifact.obligationRootHex else {
+        try requireBoundDigest(
+            envelope.proof.publicStatement.obligationRoot,
+            matchesHex: artifact.obligationRootHex,
+            label: "obligation-root"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal proof obligation root mismatch")
         }
-        guard envelope.proof.publicStatement.laneSummaryRoot.hexString == artifact.laneSummaryRootHex else {
+        try requireBoundDigest(
+            envelope.proof.publicStatement.laneSummaryRoot,
+            matchesHex: artifact.laneSummaryRootHex,
+            label: "lane-summary-root"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal proof lane summary root mismatch")
         }
-        guard envelope.proof.laneProofs.map(\.aggregateDigest.hexString) == artifact.aggregateDigestsHex else {
+        try requireBoundDigestList(
+            envelope.proof.laneProofs.map(\.aggregateDigest),
+            matchesHex: artifact.aggregateDigestsHex,
+            label: "aggregate-digests"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal proof aggregate digest mismatch")
         }
-        guard envelope.proof.componentDigestRoot.hexString == artifact.componentDigestRootHex else {
+        try requireBoundDigest(
+            envelope.proof.componentDigestRoot,
+            matchesHex: artifact.componentDigestRootHex,
+            label: "component-root"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal proof component digest root mismatch")
         }
-        guard envelope.proof.transcriptDigest.hexString == artifact.proofTranscriptDigestHex else {
+        try requireBoundDigest(
+            envelope.proof.transcriptDigest,
+            matchesHex: artifact.proofTranscriptDigestHex,
+            label: "proof-transcript"
+        ) {
             throw NumiSealArtifactVerificationError.invalid("NumiSeal proof transcript digest mismatch")
         }
     }
@@ -538,52 +591,56 @@ public enum NumiSealArtifactVerifier {
         expectedContext: NumiSealArtifactExpectedContext
     ) throws {
         if let shapeDigest = expectedContext.shapeDigest {
-            guard material.shape.shapeDigest == shapeDigest else {
+            guard boundDigest(material.shape.shapeDigest, label: "expected-shape")
+                    == boundDigest(shapeDigest, label: "expected-shape") else {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal shape digest does not match expected shape digest")
             }
         }
         if let statementDigest = expectedContext.statementDigest {
-            guard material.policy.statementDigest == statementDigest else {
+            guard boundDigest(material.policy.statementDigest, label: "expected-statement")
+                    == boundDigest(statementDigest, label: "expected-statement") else {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal statement digest does not match expected statement digest")
             }
         }
         if let verifierKeyDigest = expectedContext.verifierKeyDigest {
-            guard material.key.verifierKeyDigest == verifierKeyDigest else {
+            guard boundDigest(material.key.verifierKeyDigest, label: "expected-verifier-key")
+                    == boundDigest(verifierKeyDigest, label: "expected-verifier-key") else {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal verifier key digest does not match expected verifier key digest")
             }
         }
         if let transcriptDomainDigest = expectedContext.transcriptDomainDigest {
-            guard material.policy.transcriptDomain == transcriptDomainDigest else {
+            guard boundDigest(material.policy.transcriptDomain, label: "expected-transcript-domain")
+                    == boundDigest(transcriptDomainDigest, label: "expected-transcript-domain") else {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal transcript domain does not match expected transcript domain")
             }
         }
         if let publicStatementDigest = expectedContext.publicStatementDigest {
-            guard artifact.publicStatementDigestHex == publicStatementDigest.hexString else {
+            try requireBoundDigest(publicStatementDigest, matchesHex: artifact.publicStatementDigestHex, label: "expected-public-statement") {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal public statement digest does not match expected public statement digest")
             }
         }
         if let obligationRoot = expectedContext.obligationRoot {
-            guard artifact.obligationRootHex == obligationRoot.hexString else {
+            try requireBoundDigest(obligationRoot, matchesHex: artifact.obligationRootHex, label: "expected-obligation-root") {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal obligation root does not match expected obligation root")
             }
         }
         if let laneSummaryRoot = expectedContext.laneSummaryRoot {
-            guard artifact.laneSummaryRootHex == laneSummaryRoot.hexString else {
+            try requireBoundDigest(laneSummaryRoot, matchesHex: artifact.laneSummaryRootHex, label: "expected-lane-summary-root") {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal lane summary root does not match expected lane summary root")
             }
         }
         if let aggregateDigests = expectedContext.aggregateDigests {
-            guard artifact.aggregateDigestsHex == aggregateDigests.map(\.hexString) else {
+            try requireBoundDigestList(aggregateDigests, matchesHex: artifact.aggregateDigestsHex, label: "expected-aggregate-digests") {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal aggregate digests do not match expected aggregate digests")
             }
         }
         if let componentDigestRoot = expectedContext.componentDigestRoot {
-            guard artifact.componentDigestRootHex == componentDigestRoot.hexString else {
+            try requireBoundDigest(componentDigestRoot, matchesHex: artifact.componentDigestRootHex, label: "expected-component-root") {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal component digest root does not match expected component digest root")
             }
         }
         if let proofTranscriptDigest = expectedContext.proofTranscriptDigest {
-            guard artifact.proofTranscriptDigestHex == proofTranscriptDigest.hexString else {
+            try requireBoundDigest(proofTranscriptDigest, matchesHex: artifact.proofTranscriptDigestHex, label: "expected-proof-transcript") {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal proof transcript digest does not match expected proof transcript digest")
             }
         }
@@ -610,6 +667,38 @@ public enum NumiSealArtifactVerifier {
                 throw NumiSealArtifactVerificationError.invalid("public input field element is not canonical")
             }
             return GoldilocksField(value)
+        }
+    }
+
+    private static func boundDigest(_ digest: Digest256, label: String) -> Digest384 {
+        SuperNeoTheoremBinding.digestBinder(kind: .numiSealTerminal, label: label, digest: digest)
+    }
+
+    private static func boundDigestList(_ digests: [Digest256], label: String) -> Digest384 {
+        SuperNeoTheoremBinding.digestListBinder(kind: .numiSealTerminal, label: label, digests: digests)
+    }
+
+    private static func requireBoundDigest(
+        _ actual: Digest256,
+        matchesHex expectedHex: String,
+        label: String,
+        onMismatch: () throws -> Never
+    ) throws {
+        let expected = try Digest256(hexDigest: expectedHex, name: "NumiSeal \(label)")
+        guard boundDigest(actual, label: label) == boundDigest(expected, label: label) else {
+            try onMismatch()
+        }
+    }
+
+    private static func requireBoundDigestList(
+        _ actual: [Digest256],
+        matchesHex expectedHex: [String],
+        label: String,
+        onMismatch: () throws -> Never
+    ) throws {
+        let expected = try expectedHex.map { try Digest256(hexDigest: $0, name: "NumiSeal \(label)") }
+        guard boundDigestList(actual, label: label) == boundDigestList(expected, label: label) else {
+            try onMismatch()
         }
     }
 }

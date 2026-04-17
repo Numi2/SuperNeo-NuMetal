@@ -43,17 +43,54 @@ def require_contains(relative_path: str, needles: list[str]) -> None:
 
 def validate_workflow() -> None:
     workflow = read_text(".github/workflows/production-gate.yml")
+    formal_workflow = read_text(".github/workflows/formal-status.yml")
+    benchmark_workflow = read_text(".github/workflows/superneo-benchmarks.yml")
+    lattice_workflow = read_text(".github/workflows/lattice-estimator.yml")
+    for path, text in [
+        (".github/workflows/production-gate.yml", workflow),
+        (".github/workflows/formal-status.yml", formal_workflow),
+        (".github/workflows/superneo-benchmarks.yml", benchmark_workflow),
+        (".github/workflows/lattice-estimator.yml", lattice_workflow),
+    ]:
+        require("concurrency:" in text, f"{path} must cancel superseded runs")
+        require("cancel-in-progress: true" in text, f"{path} must cancel in-progress duplicate runs")
+    require("name: PR smoke" in workflow, "production workflow must use a short PR smoke job")
+    require(
+        "if: ${{ github.event_name == 'pull_request' }}" in workflow,
+        "PR smoke job must be limited to pull requests",
+    )
+    require(
+        "run: swift test --disable-swift-testing" in workflow,
+        "PR smoke job must run the XCTest smoke suite",
+    )
     require("name: Full production gate" in workflow, "macOS CI job is not named as the full production gate")
+    require(
+        "if: ${{ github.event_name != 'pull_request' }}" in workflow,
+        "full production gate must not run on pull requests",
+    )
     require("runs-on: macos-latest" in workflow, "full production gate must run on macOS")
     require("run: Scripts/production-gate.sh\n" in workflow, "full production gate must run Scripts/production-gate.sh")
     require("--skip-formal" not in workflow, "CI workflow must not skip formal checks in the full gate")
+    require(
+        "Lean formal Linux cross-check" not in workflow,
+        "production workflow must not duplicate the formal-status workflow",
+    )
+    require("pull_request:" not in benchmark_workflow, "benchmark workflow must not run automatically on pull requests")
+    require("push:" not in benchmark_workflow, "benchmark workflow must not run automatically on pushes")
+    require("workflow_dispatch:" in benchmark_workflow, "benchmark workflow must remain manually dispatchable")
     for command in [
+        "Scripts/validate-formal-status.py",
+        "Scripts/test-formal-status-validation.py",
+        "Scripts/validate-formal-profile-constants.py",
+        "Scripts/test-formal-profile-constants-validation.py",
         "Scripts/validate-formal-ext2-serialization.py",
         "Scripts/test-formal-ext2-serialization-validation.py",
+        "Scripts/test-formal-ext2-vector-bridge.py",
         "Scripts/validate-formal-ce-byte-serialization.py",
         "Scripts/test-formal-ce-byte-serialization-validation.py",
+        "Scripts/test-formal-ce-vector-bridge.py",
     ]:
-        require(command in workflow, f"formal Linux cross-check missing {command}")
+        require(command in formal_workflow, f"formal-status workflow missing {command}")
 
 
 def validate_docs() -> None:
@@ -803,7 +840,6 @@ def validate_schema_versions() -> None:
     )
     for key in [
         "requiresInteractiveProtocolImplementation",
-        "requiresHBind384Implementation",
         "requiresUnderlyingInteractiveSecurity",
         "requiresDelayedMessageData",
         "requiresUniqueResponseData",
@@ -814,6 +850,10 @@ def validate_schema_versions() -> None:
             precondition_promotion.get(key) is True,
             f"QROM transform preconditions must keep {key} open",
         )
+    require(
+        precondition_promotion.get("requiresHBind384Implementation") is False,
+        "QROM transform preconditions must consume H_bind source implementation evidence",
+    )
     require(
         precondition_promotion.get("productionProductSecurityClaimAllowed") is False,
         "QROM transform preconditions must not prematurely allow product-security claims",
@@ -880,9 +920,11 @@ def validate_schema_versions() -> None:
             reduction_promotion.get(key) is False,
             f"QROM interactive reduction must not prematurely allow {key}",
         )
+    require(
+        reduction_promotion.get("requiresCTCORootCommitments") is False,
+        "QROM interactive reduction must consume CTCO root commitment implementation evidence",
+    )
     for key in [
-        "requiresCTCORootCommitments",
-        "requiresHBind384SourceImplementation",
         "requiresInteractiveSecurityBounds",
         "requiresDelayedMessageData",
         "requiresUniqueResponseData",
@@ -893,6 +935,10 @@ def validate_schema_versions() -> None:
             reduction_promotion.get(key) is True,
             f"QROM interactive reduction must keep {key} open",
         )
+    require(
+        reduction_promotion.get("requiresHBind384SourceImplementation") is False,
+        "QROM interactive reduction must consume H_bind source implementation evidence",
+    )
     total_budget = read_json("TestVectors/product-total-loss-budget-v1.json")
     require(isinstance(total_budget, dict), "total-loss budget root must be an object")
     require(total_budget.get("schemaVersion") == 1, "total-loss budget schemaVersion must be 1")

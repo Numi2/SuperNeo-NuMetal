@@ -1563,9 +1563,28 @@ private func makeProductDemoArtifactMaterial(
         }
     }
     let proofBytes = try artifact.proofEnvelopeBytes()
+    _ = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: proofBytes)
     let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
-    let policy = try context.terminalPolicy()
-    let envelopeContext = try policy.context(for: header, totalByteCount: proofBytes.count)
+    let envelopeContext: ProofEnvelopeContext
+    if demoKind == .fold {
+        try header.validateEnvelopeLength(totalByteCount: proofBytes.count)
+        envelopeContext = ProofEnvelopeContext(
+            profileID: SuperNeoParameterProfile.goldilocksPhi81.profileID,
+            kind: .foldReduction,
+            shapeDigest: try context.expectedShapeDigest,
+            statementDigest: try context.expectedStatementDigest,
+            verifierKeyDigest: try context.expectedVerifierKeyDigest,
+            transcriptDomain: try context.expectedTranscriptDomainDigest
+        )
+        guard header.ctcoContextBinder == envelopeContext.ctcoContextBinder else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext(
+                "fold proof envelope CTCO context binder does not match trusted context"
+            )
+        }
+    } else {
+        let policy = try context.terminalPolicy()
+        envelopeContext = try policy.context(for: header, totalByteCount: proofBytes.count)
+    }
     try validateArtifactEnvelopeHeader(try parseEnvelopeHeader(proofBytes), artifact: artifact, kind: demoKind)
 
     let publicInput = try makePublicInput(from: artifact)
@@ -1603,7 +1622,16 @@ private func makeProductDemoArtifactMaterial(
         verify: {
             switch demoKind {
             case .fold:
-                throw SuperNeoProductIntegrationError.invalidRequest("fold reductions are not product-accepted proofs")
+                let result = verifier.reduceFoldEnvelope(
+                    publicInput: publicInput,
+                    proofBytes: proofBytes,
+                    context: envelopeContext
+                )
+                guard result.isReductionAccepted else {
+                    throw SuperNeoProductIntegrationError.verificationFailed(
+                        "fold reduction rejected: \(result.reason ?? "unknown reason")"
+                    )
+                }
             case .terminal:
                 let result = verifier.verifyTerminalFoldEnvelope(
                     publicInput: publicInput,
@@ -1644,6 +1672,7 @@ private func makeProductNumiSealArtifactMaterial(
         throw SuperNeoProductIntegrationError.missingExpectedContext("artifact workload is not allowed by trusted context")
     }
     let proofBytes = try artifact.proofEnvelopeBytes()
+    _ = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: proofBytes)
     if let maximumProofEnvelopeByteCount = context.maximumProofEnvelopeByteCount {
         guard proofBytes.count <= maximumProofEnvelopeByteCount else {
             throw SuperNeoProductIntegrationError.invalidRequest("proof envelope byte count exceeds trusted context maximum")
@@ -1654,23 +1683,20 @@ private func makeProductNumiSealArtifactMaterial(
     guard header.kind == .numiSealTerminal else {
         throw SuperNeoProductIntegrationError.invalidRequest("NumiSeal product context requires a NumiSeal terminal proof")
     }
-    let expectedShapeDigest = try context.expectedShapeDigest
-    let expectedStatementDigest = try context.expectedStatementDigest
-    let expectedVerifierKeyDigest = try context.expectedVerifierKeyDigest
-    let expectedTranscriptDomainDigest = try context.expectedTranscriptDomainDigest
-    guard header.shapeDigest == expectedShapeDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal shape digest does not match trusted context")
+    let expectedContext = ProofEnvelopeContext(
+        profileID: SuperNeoParameterProfile.goldilocksPhi81.profileID,
+        kind: .numiSealTerminal,
+        shapeDigest: try context.expectedShapeDigest,
+        statementDigest: try context.expectedStatementDigest,
+        verifierKeyDigest: try context.expectedVerifierKeyDigest,
+        transcriptDomain: try context.expectedTranscriptDomainDigest
+    )
+    guard header.ctcoContextBinder == expectedContext.ctcoContextBinder else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "NumiSeal CTCO context binder does not match trusted context"
+        )
     }
-    guard header.statementDigest == expectedStatementDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal statement digest does not match trusted context")
-    }
-    guard header.verifierKeyDigest == expectedVerifierKeyDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal verifier key digest does not match trusted context")
-    }
-    guard header.transcriptDomain == expectedTranscriptDomainDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal transcript domain does not match trusted context")
-    }
-    let expectedContext = try context.numiSealExpectedContext()
+    let expectedNumiSealContext = try context.numiSealExpectedContext()
     return ProductArtifactMaterial(
         proofKind: productKind,
         workload: artifact.workload,
@@ -1682,7 +1708,7 @@ private func makeProductNumiSealArtifactMaterial(
         verify: {
             _ = try NumiSealArtifactVerifier.verify(
                 artifact: artifact,
-                expectedContext: expectedContext,
+                expectedContext: expectedNumiSealContext,
                 executionPolicy: .highAssurance
             )
             return .accepted
@@ -1734,6 +1760,8 @@ private func makeProductNumiSealProductArtifactMaterial(
         }
     }
     let proofBytes = try artifact.proofEnvelopeBytes()
+    _ = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: artifact.sourceFoldEnvelopeBytes())
+    _ = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: proofBytes)
     if let maximumProofEnvelopeByteCount = context.maximumProofEnvelopeByteCount {
         guard proofBytes.count <= maximumProofEnvelopeByteCount else {
             throw SuperNeoProductIntegrationError.invalidRequest("proof envelope byte count exceeds trusted context maximum")
@@ -1750,17 +1778,18 @@ private func makeProductNumiSealProductArtifactMaterial(
     let expectedStatementDigest = try context.expectedStatementDigest
     let expectedVerifierKeyDigest = try context.expectedVerifierKeyDigest
     let expectedTranscriptDomainDigest = try context.expectedTranscriptDomainDigest
-    guard header.shapeDigest == expectedShapeDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product envelope shape digest does not match trusted context")
-    }
-    guard header.statementDigest == expectedStatementDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product envelope statement digest does not match trusted context")
-    }
-    guard header.verifierKeyDigest == expectedVerifierKeyDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product envelope verifier key digest does not match trusted context")
-    }
-    guard header.transcriptDomain == expectedTranscriptDomainDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product envelope transcript domain does not match trusted context")
+    let expectedContext = ProofEnvelopeContext(
+        profileID: SuperNeoParameterProfile.goldilocksPhi81.profileID,
+        kind: expectedEnvelopeKind,
+        shapeDigest: expectedShapeDigest,
+        statementDigest: expectedStatementDigest,
+        verifierKeyDigest: expectedVerifierKeyDigest,
+        transcriptDomain: expectedTranscriptDomainDigest
+    )
+    guard header.ctcoContextBinder == expectedContext.ctcoContextBinder else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "NumiSeal product CTCO context binder does not match trusted context"
+        )
     }
     guard artifact.shapeDigestHex == expectedShapeDigest.hexString else {
         throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product shape digest does not match trusted context")

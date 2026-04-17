@@ -4,6 +4,7 @@ import Foundation
 import SQLite3
 
 public enum SuperNeoProductProofKind: String, Codable, Equatable, Sendable {
+    case fold
     case terminal
     case compressedTerminal = "compressed-terminal"
     case numiSealTerminal = "numiseal-terminal"
@@ -11,6 +12,8 @@ public enum SuperNeoProductProofKind: String, Codable, Equatable, Sendable {
 
     public init(envelopeKind: ProofEnvelopeKind) throws {
         switch envelopeKind {
+        case .foldReduction:
+            self = .fold
         case .terminalLocal:
             self = .terminal
         case .compressedPublic:
@@ -19,8 +22,6 @@ public enum SuperNeoProductProofKind: String, Codable, Equatable, Sendable {
             self = .numiSealTerminal
         case .numiSealZK:
             self = .numiSealZK
-        case .foldReduction:
-            throw SuperNeoProductIntegrationError.invalidRequest("fold reductions are not product-accepted proofs")
         }
     }
 }
@@ -1828,20 +1829,7 @@ public extension SuperNeoProductProofIdentity {
     }
 
     var localReplayDigest: Digest256 {
-        var bytes: [UInt8] = []
-        appendLengthPrefixedString("superneo.product-proof-identity.v2", to: &bytes)
-        appendLengthPrefixedString(expectedContextID, to: &bytes)
-        bytes += statementDigest.bytes
-        bytes += proofEnvelopeDigest.bytes
-        bytes += artifactDigest.bytes
-        bytes += provenanceDigest.bytes
-        if let recursiveCarryReplayBindingDigest {
-            bytes.append(1)
-            bytes += recursiveCarryReplayBindingDigest.bytes
-        } else {
-            bytes.append(0)
-        }
-        return Digest256.hash(bytes)
+        Digest256.shake256(hBindReplayBinder.superNeoBytes)
     }
 
     var recursiveCarryReplayBindingDigestColumn: String {

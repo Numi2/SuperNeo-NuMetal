@@ -10,8 +10,28 @@ on:
       - "Docs/WhatThisProves.md"
       - "Docs/FormalVerification.md"
       - "Docs/FormalStatusPromotion-2026-04-13.md"
+      - "Package.swift"
+      - "SuperNeo-NuMetal/Fields/GoldilocksField.swift"
+      - "SuperNeo-NuMetal/Rings/CyclotomicRing54.swift"
+      - "SuperNeo-NuMetal/SuperNeoSerialization.swift"
+      - "SuperNeo-NuMetal/CCS/CCS.swift"
+      - "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift"
+      - "SuperNeo-NuMetalTests/SuperNeoNuMetalTests.swift"
+      - "Tools/FormalVectorCLI/**"
       - "Scripts/validate-formal-status.py"
       - "Scripts/test-formal-status-validation.py"
+      - "Scripts/validate-formal-profile-constants.py"
+      - "Scripts/test-formal-profile-constants-validation.py"
+      - "Scripts/validate-formal-ext2-serialization.py"
+      - "Scripts/test-formal-ext2-serialization-validation.py"
+      - "Scripts/validate-formal-ce-byte-serialization.py"
+      - "Scripts/test-formal-ce-byte-serialization-validation.py"
+      - "Scripts/emit-formal-ext2-vectors.lean"
+      - "Scripts/emit-formal-ce-vectors.lean"
+      - "Scripts/compare-formal-ext2-vectors.py"
+      - "Scripts/test-formal-ext2-vector-bridge.py"
+      - "Scripts/compare-formal-ce-vectors.py"
+      - "Scripts/test-formal-ce-vector-bridge.py"
       - ".github/workflows/formal-status.yml"
   push:
     branches:
@@ -24,17 +44,41 @@ on:
       - "Docs/WhatThisProves.md"
       - "Docs/FormalVerification.md"
       - "Docs/FormalStatusPromotion-2026-04-13.md"
+      - "Package.swift"
+      - "SuperNeo-NuMetal/Fields/GoldilocksField.swift"
+      - "SuperNeo-NuMetal/Rings/CyclotomicRing54.swift"
+      - "SuperNeo-NuMetal/SuperNeoSerialization.swift"
+      - "SuperNeo-NuMetal/CCS/CCS.swift"
+      - "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift"
+      - "SuperNeo-NuMetalTests/SuperNeoNuMetalTests.swift"
+      - "Tools/FormalVectorCLI/**"
       - "Scripts/validate-formal-status.py"
       - "Scripts/test-formal-status-validation.py"
+      - "Scripts/validate-formal-profile-constants.py"
+      - "Scripts/test-formal-profile-constants-validation.py"
+      - "Scripts/validate-formal-ext2-serialization.py"
+      - "Scripts/test-formal-ext2-serialization-validation.py"
+      - "Scripts/validate-formal-ce-byte-serialization.py"
+      - "Scripts/test-formal-ce-byte-serialization-validation.py"
+      - "Scripts/emit-formal-ext2-vectors.lean"
+      - "Scripts/emit-formal-ce-vectors.lean"
+      - "Scripts/compare-formal-ext2-vectors.py"
+      - "Scripts/test-formal-ext2-vector-bridge.py"
+      - "Scripts/compare-formal-ce-vectors.py"
+      - "Scripts/test-formal-ce-vector-bridge.py"
       - ".github/workflows/formal-status.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   formal:
-    name: Lean build and formal status validation
+    name: Lean formal validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -63,3 +107,27 @@ jobs:
 
       - name: Regression-test formal status validator
         run: Scripts/test-formal-status-validation.py
+
+      - name: Validate formal profile constants
+        run: Scripts/validate-formal-profile-constants.py
+
+      - name: Regression-test formal profile constants validator
+        run: Scripts/test-formal-profile-constants-validation.py
+
+      - name: Validate formal Ext2 serialization surface
+        run: Scripts/validate-formal-ext2-serialization.py
+
+      - name: Regression-test formal Ext2 serialization validator
+        run: Scripts/test-formal-ext2-serialization-validation.py
+
+      - name: Regression-test formal Ext2 vector bridge
+        run: Scripts/test-formal-ext2-vector-bridge.py
+
+      - name: Validate formal CE byte serialization surface
+        run: Scripts/validate-formal-ce-byte-serialization.py
+
+      - name: Regression-test formal CE byte serialization validator
+        run: Scripts/test-formal-ce-byte-serialization-validation.py
+
+      - name: Regression-test formal CE vector bridge
+        run: Scripts/test-formal-ce-vector-bridge.py

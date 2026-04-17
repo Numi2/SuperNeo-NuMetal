@@ -23,11 +23,16 @@
     "ctcoRootBits": 384,
     "challengeSeedBits": 256,
     "challengeTapeLabel": "numiseal-product-api-trace",
+    "challengeTapeExpansion": "SuperNeoChallengeTape expands one H_chal seed into labelled digest, field, extension-field, and ring challenges via SuperNeoSplitQRO.expandChallenge",
     "metadataKeys": [
       "ctcoCompilerFamily",
       "ctcoContextBinder384Hex",
       "ctcoRoot384Hex",
       "ctcoChallengeTapeSeedHex",
+      "sourceFoldCTCORoot384Hex",
+      "sourceFoldCTCOChallengeTapeSeedHex",
+      "proofEnvelopeCTCORoot384Hex",
+      "proofEnvelopeCTCOChallengeTapeSeedHex",
       "qromEvidenceDigest"
     ]
   },
@@ -43,6 +48,7 @@
     "proofKindMalleabilityChargedToCollisionLedger": true
   },
   "coveredByTests": [
+    "testTier0CTCOContextBinderIncludesProofKindAndRootBlocks",
     "testPublicNumiSealProductAPIGeneratesOneHotArtifactWithTraceAndQROMEvidence",
     "testNumiSealProductProverEmitsVerifiableV2Artifact"
   ],

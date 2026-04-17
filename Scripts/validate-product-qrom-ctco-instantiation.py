@@ -85,15 +85,23 @@ def validate(path: Path) -> None:
     require(compiler.get("ctcoRootBits") == 384, "CTCO root width mismatch")
     require(compiler.get("challengeSeedBits") == 256, "challenge seed width mismatch")
     require(compiler.get("challengeTapeLabel") == "numiseal-product-api-trace", "challenge tape label mismatch")
+    expansion = require_string(compiler.get("challengeTapeExpansion"), "ctcoCompiler.challengeTapeExpansion")
+    for needle in ["SuperNeoChallengeTape", "one H_chal seed", "SuperNeoSplitQRO.expandChallenge"]:
+        require(needle in expansion, f"challengeTapeExpansion must mention {needle}")
     for key in require_string_list(compiler.get("metadataKeys"), "ctcoCompiler.metadataKeys"):
         require(key in source, f"metadata key missing from source: {key}")
     for needle in [
         "SuperNeoSplitQRO",
+        "SuperNeoChallengeTape",
         "CTCOMoveOneCommitment",
+        "CTCOMerkleOpening",
+        "ProofEnvelopeCTCOVerifier",
         "hChal",
         "hBind",
+        "hMerkleLeaf",
         "Digest384",
         "challengeTapeSeed",
+        "expansionDigest",
         "numiseal.product.qrom.ctco.evidence.v1",
     ]:
         require(needle in source, f"source missing {needle}")

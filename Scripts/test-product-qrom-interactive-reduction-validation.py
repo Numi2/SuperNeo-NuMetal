@@ -99,7 +99,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(reduction)
-        missing_blocker["hardClaimBlockers"] = ["CTCO move-1 root commitments are not implemented for all accepted proof kinds"]
+        missing_blocker["hardClaimBlockers"] = ["interactive special-soundness bounds against quantum dishonest provers remain open"]
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))

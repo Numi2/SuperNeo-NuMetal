@@ -269,6 +269,25 @@ def ProductChallengeTapeCommitOpenCompilerAccepted
     ∧ compiler.tightQROMTransformBounded
     ∧ compiler.legacyDFM20InterfaceDeprecated
 
+structure ProductChallengeTapeExpansion where
+  challengeSeedBits : Nat
+  challengeOraclePinned : Prop
+  proofKindLabelSeparated : Prop
+  deterministicExpansionPinned : Prop
+  fieldSamplerPinned : Prop
+  extensionFieldSamplerPinned : Prop
+  ringSamplerPinned : Prop
+
+def ProductChallengeTapeExpansionAccepted
+    (expansion : ProductChallengeTapeExpansion) : Prop :=
+  expansion.challengeSeedBits = 256
+    ∧ expansion.challengeOraclePinned
+    ∧ expansion.proofKindLabelSeparated
+    ∧ expansion.deterministicExpansionPinned
+    ∧ expansion.fieldSamplerPinned
+    ∧ expansion.extensionFieldSamplerPinned
+    ∧ expansion.ringSamplerPinned
+
 structure ProductQROMCollisionBound where
   queryBoundQHLog2 : Nat
   bindingDigestBits : Nat
@@ -861,6 +880,18 @@ theorem productSecurityTheorem_requires_qrom_collision_malleability_exclusion
       hCollision,
       _⟩
   exact ⟨hTranscriptDomain, hProofKind, hCollision⟩
+
+theorem productSecurityTheorem_requires_challenge_tape_expansion
+    {expansion : ProductChallengeTapeExpansion}
+    (hExpansion : ProductChallengeTapeExpansionAccepted expansion) :
+    expansion.challengeSeedBits = 256
+      ∧ expansion.challengeOraclePinned
+      ∧ expansion.proofKindLabelSeparated
+      ∧ expansion.deterministicExpansionPinned
+      ∧ expansion.fieldSamplerPinned
+      ∧ expansion.extensionFieldSamplerPinned
+      ∧ expansion.ringSamplerPinned := by
+  exact hExpansion
 
 theorem productSecurityTheorem_requires_qrom_transcript_schedule
     {schedule : ProductFiatShamirTranscriptSchedule}

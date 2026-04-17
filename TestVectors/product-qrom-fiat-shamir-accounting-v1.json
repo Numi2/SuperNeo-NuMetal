@@ -68,7 +68,7 @@
     "sourceSHAKE256PrimitiveAvailable": true,
     "sourceDigest384TypeAvailable": true,
     "sourceCTCOBinderHelpersAvailable": true,
-    "sourceAcceptancePathsUseHBind": false,
+    "sourceAcceptancePathsUseHBind": true,
     "hashQROInstantiationAssumptionPinned": true,
     "hashQROInstantiationProofProvided": false
   },
@@ -205,8 +205,6 @@
     "legacyLossExpression": "max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)"
   },
   "hardClaimBlockers": [
-    "source verifier/prover implementation must add the CTCO move-1 root commitment over all challenge-independent witness-dependent trace blocks",
-    "source verifier/prover implementation must compare every theorem-critical binding through 384-bit H_bind over versioned framed encodings",
     "interactive special-soundness, delayed-message, and unique-response data must be instantiated for every accepted proof kind",
     "epsilon_compiler_overhead must be instantiated for the selected CTCO or merkle-straightline theorem family",
     "the selected-depth ledger must deduplicate shared Module-SIS and shared commitment bad-event tags",
@@ -217,7 +215,7 @@
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
     "requiresCTCOProtocolImplementation": true,
-    "requiresHBind384Implementation": true,
+    "requiresHBind384Implementation": false,
     "requiresInteractiveSecurityBounds": true,
     "requiresCompilerOverheadInstantiation": true,
     "requiresSharedBadEventDeduplication": true,

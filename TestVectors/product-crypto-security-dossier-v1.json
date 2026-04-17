@@ -253,7 +253,7 @@
     "hashQROInstantiationAssumptionPinned": true,
     "hashQROInstantiationProofProvided": false,
     "legacyDFM20InterfaceDeprecated": true,
-    "sourceHBindImplementationComplete": false,
+    "sourceHBindImplementationComplete": true,
     "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_compiler_overhead + epsilon_hash_model_gap",
     "ledgerTermMapping": {
       "epsilon_qrom": [
@@ -266,8 +266,6 @@
     },
     "productionQROMClaimAllowed": false,
     "remainingObligations": [
-      "implement CTCO move-1 root commitments over all challenge-independent witness-dependent trace blocks for every accepted proof kind",
-      "route every theorem-critical equality check through 384-bit H_bind over versioned framed encodings in source verifier paths",
       "instantiate interactive special-soundness, delayed-message, and unique-response data for the CTCO product protocols",
       "instantiate epsilon_compiler_overhead and epsilon_hash_model_gap for the selected split-QRO CTCO theorem family",
       "keep repo-wide epsilon_replay, epsilon_ct, and epsilon_release outside the QROM theorem until their evidence closes"

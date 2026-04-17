@@ -889,6 +889,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
         let sourceEnvelope = try FoldProofEnvelope(context: sourceContext, proof: sourceFold.proof)
         let sourceEnvelopeBytes = sourceEnvelope.superNeoBytes
         let sourceEnvelopeDigest = Digest256.hash(sourceEnvelopeBytes)
+        let sourceEnvelopeCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: sourceEnvelopeBytes)
         let outputClaimDigests = try sourceFold.outputClaims.enumerated().map { index, claim in
             try Self.sourceFoldOutputClaimDigest(
                 sourceFoldEnvelopeDigest: sourceEnvelopeDigest,
@@ -1035,6 +1036,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
             laneID: request.laneID
         )
         let productProofHeader = try ProofEnvelopeHeader.parsePrefix(from: numiSealProductProof.envelopeBytes)
+        let productProofEnvelopeCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: numiSealProductProof.envelopeBytes)
         let traceBlocks = NumiSealProductTraceExtractorEvidence.ctcoTraceBlocks(
             frontendContextDigest: frontendContext.contextDigest,
             sourceFoldEnvelopeDigest: sourceEnvelopeDigest,
@@ -1082,6 +1084,10 @@ public final class NumiSealProductProver: @unchecked Sendable {
             "ctcoContextBinder384Hex": productProofHeader.ctcoContextBinder.hexString,
             "ctcoRoot384Hex": ctcoCommitment.root.hexString,
             "ctcoChallengeTapeSeedHex": ctcoChallengeSeed.hexString,
+            "sourceFoldCTCORoot384Hex": sourceEnvelopeCTCO.root.hexString,
+            "sourceFoldCTCOChallengeTapeSeedHex": sourceEnvelopeCTCO.challengeTapeSeed.hexString,
+            "proofEnvelopeCTCORoot384Hex": productProofEnvelopeCTCO.root.hexString,
+            "proofEnvelopeCTCOChallengeTapeSeedHex": productProofEnvelopeCTCO.challengeTapeSeed.hexString,
             "qromChallengeOracleBits": "\(Digest256.byteCount * 8)",
             "qromBindingOracleBits": "\(Digest384.byteCount * 8)",
             "qromBindingTargetEventCount": "9",
@@ -1399,11 +1405,24 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         try Self.validateMetadata(artifact)
         let sourceBytes = try artifact.sourceFoldEnvelopeBytes()
         let numiSealBytes = try artifact.proofEnvelopeBytes()
+        _ = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: sourceBytes)
+        _ = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: numiSealBytes)
         let sourceDigest = Digest256.hash(sourceBytes)
-        guard sourceDigest.hexString == artifact.sourceFoldEnvelopeDigestHex else {
+        try Self.requireBoundDigest(
+            sourceDigest,
+            matchesHex: artifact.sourceFoldEnvelopeDigestHex,
+            kind: .foldReduction,
+            label: "source-fold-envelope"
+        ) {
             throw SuperNeoError.verificationFailed("NumiSeal product source fold digest mismatch")
         }
-        guard Digest256.hash(numiSealBytes).hexString == artifact.proofEnvelopeDigestHex else {
+        let proofKind = try ProofEnvelopeHeader.parsePrefix(from: numiSealBytes).kind
+        try Self.requireBoundDigest(
+            Digest256.hash(numiSealBytes),
+            matchesHex: artifact.proofEnvelopeDigestHex,
+            kind: proofKind,
+            label: "product-proof-envelope"
+        ) {
             throw SuperNeoError.verificationFailed("NumiSeal product proof envelope digest mismatch")
         }
 
@@ -1412,14 +1431,26 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             ccsInstances: sourcePublicInput.instances,
             priorCEInstances: sourcePublicInput.priorClaims.map { CEInstance($0) }
         )
-        guard sourceStatement.shapeDigest.hexString == artifact.shapeDigestHex else {
+        try Self.requireBoundDigest(sourceStatement.shapeDigest, matchesHex: artifact.shapeDigestHex, kind: .foldReduction, label: "shape") {
             throw SuperNeoError.verificationFailed("NumiSeal product shape digest mismatch")
         }
-        guard sourceStatement.statementDigest.hexString == artifact.sourceStatementDigestHex,
-              sourceStatement.statementDigest.hexString == artifact.statementDigestHex else {
+        try Self.requireBoundDigest(
+            sourceStatement.statementDigest,
+            matchesHex: artifact.sourceStatementDigestHex,
+            kind: .foldReduction,
+            label: "source-statement"
+        ) {
             throw SuperNeoError.verificationFailed("NumiSeal product source statement digest mismatch")
         }
-        guard key.verifierKeyDigest.hexString == artifact.verifierKeyDigestHex else {
+        try Self.requireBoundDigest(
+            sourceStatement.statementDigest,
+            matchesHex: artifact.statementDigestHex,
+            kind: proofKind,
+            label: "product-statement"
+        ) {
+            throw SuperNeoError.verificationFailed("NumiSeal product source statement digest mismatch")
+        }
+        try Self.requireBoundDigest(key.verifierKeyDigest, matchesHex: artifact.verifierKeyDigestHex, kind: proofKind, label: "verifier-key") {
             throw SuperNeoError.verificationFailed("NumiSeal product verifier key digest mismatch")
         }
 
@@ -1455,7 +1486,12 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
                 outputIndex: index
             )
         }
-        guard outputDigests.map(\.hexString) == artifact.sourceFoldOutputClaimDigestsHex else {
+        try Self.requireBoundDigestList(
+            outputDigests,
+            matchesHex: artifact.sourceFoldOutputClaimDigestsHex,
+            kind: .foldReduction,
+            label: "source-fold-output-claims"
+        ) {
             throw SuperNeoError.verificationFailed("NumiSeal product source output claim digest mismatch")
         }
         guard let laneIDValue = artifact.laneIDsUTF8.first, artifact.laneIDsUTF8.count == 1 else {
@@ -1540,22 +1576,22 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         default:
             throw SuperNeoError.invalidEncoding("unsupported NumiSeal product ZK mode")
         }
-        guard publicProof.publicStatement.digest.hexString == artifact.publicStatementDigestHex else {
+        try Self.requireBoundDigest(publicProof.publicStatement.digest, matchesHex: artifact.publicStatementDigestHex, kind: proofKind, label: "public-statement") {
             throw SuperNeoError.verificationFailed("NumiSeal product public statement digest mismatch")
         }
-        guard publicProof.publicStatement.obligationRoot.hexString == artifact.obligationRootHex else {
+        try Self.requireBoundDigest(publicProof.publicStatement.obligationRoot, matchesHex: artifact.obligationRootHex, kind: proofKind, label: "obligation-root") {
             throw SuperNeoError.verificationFailed("NumiSeal product obligation root mismatch")
         }
-        guard publicProof.publicStatement.laneSummaryRoot.hexString == artifact.laneSummaryRootHex else {
+        try Self.requireBoundDigest(publicProof.publicStatement.laneSummaryRoot, matchesHex: artifact.laneSummaryRootHex, kind: proofKind, label: "lane-summary-root") {
             throw SuperNeoError.verificationFailed("NumiSeal product lane summary root mismatch")
         }
-        guard publicProof.laneProofs.map(\.aggregateDigest.hexString) == artifact.aggregateDigestsHex else {
+        try Self.requireBoundDigestList(publicProof.laneProofs.map(\.aggregateDigest), matchesHex: artifact.aggregateDigestsHex, kind: proofKind, label: "aggregate-digests") {
             throw SuperNeoError.verificationFailed("NumiSeal product aggregate digest mismatch")
         }
-        guard componentDigestRoot.hexString == artifact.componentDigestRootHex else {
+        try Self.requireBoundDigest(componentDigestRoot, matchesHex: artifact.componentDigestRootHex, kind: proofKind, label: "component-root") {
             throw SuperNeoError.verificationFailed("NumiSeal product component root mismatch")
         }
-        guard proofTranscriptDigest.hexString == artifact.proofTranscriptDigestHex else {
+        try Self.requireBoundDigest(proofTranscriptDigest, matchesHex: artifact.proofTranscriptDigestHex, kind: proofKind, label: "proof-transcript") {
             throw SuperNeoError.verificationFailed("NumiSeal product transcript digest mismatch")
         }
         try Self.validateRecursiveCarryBindings(
@@ -1647,6 +1683,40 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         }
     }
 
+    private static func boundDigest(_ digest: Digest256, kind: ProofEnvelopeKind, label: String) -> Digest384 {
+        SuperNeoTheoremBinding.digestBinder(kind: kind, label: label, digest: digest)
+    }
+
+    private static func boundDigestList(_ digests: [Digest256], kind: ProofEnvelopeKind, label: String) -> Digest384 {
+        SuperNeoTheoremBinding.digestListBinder(kind: kind, label: label, digests: digests)
+    }
+
+    private static func requireBoundDigest(
+        _ actual: Digest256,
+        matchesHex expectedHex: String,
+        kind: ProofEnvelopeKind,
+        label: String,
+        onMismatch: () throws -> Never
+    ) throws {
+        let expected = try Digest256(hexDigest: expectedHex, name: "NumiSeal product \(label)")
+        guard boundDigest(actual, kind: kind, label: label) == boundDigest(expected, kind: kind, label: label) else {
+            try onMismatch()
+        }
+    }
+
+    private static func requireBoundDigestList(
+        _ actual: [Digest256],
+        matchesHex expectedHex: [String],
+        kind: ProofEnvelopeKind,
+        label: String,
+        onMismatch: () throws -> Never
+    ) throws {
+        let expected = try expectedHex.map { try Digest256(hexDigest: $0, name: "NumiSeal product \(label)") }
+        guard boundDigestList(actual, kind: kind, label: label) == boundDigestList(expected, kind: kind, label: label) else {
+            try onMismatch()
+        }
+    }
+
     @inline(never)
     private static func validateRecursiveCarryParentMetadata(
         artifact: NumiSealProductArtifact,
@@ -1711,6 +1781,7 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             throw SuperNeoError.invalidEncoding("NumiSeal product aggregate limit must be positive")
         }
         try NumiSealProductTheoremLimits.validate(artifact: artifact)
+        try validateCTCOMetadata(artifact)
         _ = try Digest256(hexDigest: artifact.shapeDigestHex, name: "NumiSeal shape digest")
         _ = try Digest256(hexDigest: artifact.sourceStatementDigestHex, name: "NumiSeal source statement digest")
         _ = try Digest256(hexDigest: artifact.statementDigestHex, name: "NumiSeal statement digest")
@@ -1729,6 +1800,188 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         for digest in artifact.aggregateDigestsHex {
             _ = try Digest256(hexDigest: digest, name: "NumiSeal aggregate digest")
         }
+    }
+
+    private static func validateCTCOMetadata(_ artifact: NumiSealProductArtifact) throws {
+        let expected = try ctcoEvidence(for: artifact)
+        let sourceEnvelopeCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: artifact.sourceFoldEnvelopeBytes())
+        let proofEnvelopeCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: artifact.proofEnvelopeBytes())
+        let metadata = artifact.executionPolicyMetadata
+        guard metadata["ctcoCompilerFamily"] == "ctco" else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product CTCO compiler metadata mismatch")
+        }
+        let contextBinder = try Digest384(
+            hexDigest: requiredMetadata(metadata, "ctcoContextBinder384Hex"),
+            name: "NumiSeal product CTCO context binder"
+        )
+        guard contextBinder == expected.contextBinder else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product CTCO context binder mismatch")
+        }
+        let root = try Digest384(
+            hexDigest: requiredMetadata(metadata, "ctcoRoot384Hex"),
+            name: "NumiSeal product CTCO root"
+        )
+        guard root == expected.root else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product CTCO root mismatch")
+        }
+        let challengeSeed = try Digest256(
+            hexDigest: requiredMetadata(metadata, "ctcoChallengeTapeSeedHex"),
+            name: "NumiSeal product CTCO challenge seed"
+        )
+        guard challengeSeed == expected.challengeTapeSeed else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product CTCO challenge seed mismatch")
+        }
+        let sourceRoot = try Digest384(
+            hexDigest: requiredMetadata(metadata, "sourceFoldCTCORoot384Hex"),
+            name: "NumiSeal product source-fold CTCO root"
+        )
+        guard sourceRoot == sourceEnvelopeCTCO.root else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product source-fold CTCO root mismatch")
+        }
+        let sourceSeed = try Digest256(
+            hexDigest: requiredMetadata(metadata, "sourceFoldCTCOChallengeTapeSeedHex"),
+            name: "NumiSeal product source-fold CTCO challenge seed"
+        )
+        guard sourceSeed == sourceEnvelopeCTCO.challengeTapeSeed else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product source-fold CTCO challenge seed mismatch")
+        }
+        let proofRoot = try Digest384(
+            hexDigest: requiredMetadata(metadata, "proofEnvelopeCTCORoot384Hex"),
+            name: "NumiSeal product proof-envelope CTCO root"
+        )
+        guard proofRoot == proofEnvelopeCTCO.root else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product proof-envelope CTCO root mismatch")
+        }
+        let proofSeed = try Digest256(
+            hexDigest: requiredMetadata(metadata, "proofEnvelopeCTCOChallengeTapeSeedHex"),
+            name: "NumiSeal product proof-envelope CTCO challenge seed"
+        )
+        guard proofSeed == proofEnvelopeCTCO.challengeTapeSeed else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product proof-envelope CTCO challenge seed mismatch")
+        }
+        guard metadata["qromChallengeOracleBits"] == "\(Digest256.byteCount * 8)",
+              metadata["qromBindingOracleBits"] == "\(Digest384.byteCount * 8)",
+              metadata["qromBindingTargetEventCount"] == "9",
+              metadata["qromQueryCapLog2"] == "64" else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product QROM width metadata mismatch")
+        }
+        let qromEvidenceDigest = try Digest256(
+            hexDigest: requiredMetadata(metadata, "qromEvidenceDigest"),
+            name: "NumiSeal product QROM evidence digest"
+        )
+        guard SuperNeoTheoremBinding.digestBinder(
+            kind: expected.proofKind,
+            label: "qrom-evidence-digest",
+            digest: qromEvidenceDigest
+        ) == SuperNeoTheoremBinding.digestBinder(
+            kind: expected.proofKind,
+            label: "qrom-evidence-digest",
+            digest: expected.qromEvidenceDigest
+        ) else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product QROM evidence digest mismatch")
+        }
+    }
+
+    private static func ctcoEvidence(
+        for artifact: NumiSealProductArtifact
+    ) throws -> (
+        proofKind: ProofEnvelopeKind,
+        contextBinder: Digest384,
+        root: Digest384,
+        challengeTapeSeed: Digest256,
+        qromEvidenceDigest: Digest256
+    ) {
+        let proofBytes = try artifact.proofEnvelopeBytes()
+        let proofHeader = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
+        let frontendContext = try productTrustedContext(from: artifact)
+        let traceBlocks = try NumiSealProductTraceExtractorEvidence.ctcoTraceBlocks(
+            frontendContextDigest: frontendContext.contextDigest,
+            sourceFoldEnvelopeDigest: Digest256(
+                hexDigest: artifact.sourceFoldEnvelopeDigestHex,
+                name: "NumiSeal product CTCO source fold envelope digest"
+            ),
+            sourceFoldOutputClaimDigests: artifact.sourceFoldOutputClaimDigestsHex.map {
+                try Digest256(hexDigest: $0, name: "NumiSeal product CTCO source output claim digest")
+            },
+            proofEnvelopeDigest: Digest256(
+                hexDigest: artifact.proofEnvelopeDigestHex,
+                name: "NumiSeal product CTCO proof envelope digest"
+            ),
+            publicStatementDigest: Digest256(
+                hexDigest: artifact.publicStatementDigestHex,
+                name: "NumiSeal product CTCO public statement digest"
+            ),
+            obligationRoot: Digest256(
+                hexDigest: artifact.obligationRootHex,
+                name: "NumiSeal product CTCO obligation root"
+            ),
+            laneSummaryRoot: Digest256(
+                hexDigest: artifact.laneSummaryRootHex,
+                name: "NumiSeal product CTCO lane summary root"
+            ),
+            aggregateDigests: artifact.aggregateDigestsHex.map {
+                try Digest256(hexDigest: $0, name: "NumiSeal product CTCO aggregate digest")
+            },
+            componentDigestRoot: Digest256(
+                hexDigest: artifact.componentDigestRootHex,
+                name: "NumiSeal product CTCO component root"
+            ),
+            proofTranscriptDigest: Digest256(
+                hexDigest: artifact.proofTranscriptDigestHex,
+                name: "NumiSeal product CTCO proof transcript digest"
+            )
+        )
+        let commitment = CTCOMoveOneCommitment(
+            proofKind: proofHeader.kind,
+            contextBinder: proofHeader.ctcoContextBinder,
+            traceBlocks: traceBlocks
+        )
+        let challengeSeed = SuperNeoSplitQRO.challengeTapeSeed(
+            proofKind: proofHeader.kind,
+            contextBinder: proofHeader.ctcoContextBinder,
+            root: commitment.root,
+            label: "numiseal-product-api-trace"
+        )
+        let traceEvidenceDigest = NumiSealProductTraceExtractorEvidence.evidenceDigest(
+            traceBlocks: traceBlocks,
+            contextBinder: proofHeader.ctcoContextBinder,
+            ctcoRoot: commitment.root,
+            challengeTapeSeed: challengeSeed
+        )
+        let qromEvidenceDigest = NumiSealProductQROMEvidence.ctcoDigest(
+            contextBinder: proofHeader.ctcoContextBinder,
+            root: commitment.root,
+            challengeTapeSeed: challengeSeed,
+            traceEvidenceDigest: traceEvidenceDigest
+        )
+        return (
+            proofHeader.kind,
+            proofHeader.ctcoContextBinder,
+            commitment.root,
+            challengeSeed,
+            qromEvidenceDigest
+        )
+    }
+
+    private static func productTrustedContext(from artifact: NumiSealProductArtifact) throws -> NumiSealProductTrustedContext {
+        guard let laneIDValue = artifact.laneIDsUTF8.first, artifact.laneIDsUTF8.count == 1 else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product CTCO metadata requires exactly one lane id")
+        }
+        return try NumiSealProductTrustedContext(
+            workload: artifact.workload,
+            bitCount: artifact.bitCount,
+            publicInputs: artifact.publicInputs,
+            workloadParameters: artifact.workloadParameters,
+            sourceApplicationPathUTF8: artifact.sourceApplicationPathUTF8 ?? "unbound",
+            laneID: NumiSealLaneID(laneIDValue)
+        )
+    }
+
+    private static func requiredMetadata(_ metadata: [String: String], _ key: String) throws -> String {
+        guard let value = metadata[key], !value.isEmpty else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product CTCO metadata is incomplete")
+        }
+        return value
     }
 
     private static func validateRecursiveCarryMetadata(_ metadata: [String: String]) throws {

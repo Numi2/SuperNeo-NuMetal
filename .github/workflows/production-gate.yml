@@ -2,17 +2,51 @@ name: Production Gate
 
 on:
   pull_request:
+    paths:
+      - ".github/workflows/production-gate.yml"
+      - "Package.swift"
+      - "SuperNeo-NuMetal/**"
+      - "SuperNeo-NuMetalTests/**"
+      - "SuperNeoCLI/**"
+      - "Tools/**"
+      - "Scripts/**"
+      - "TestVectors/**"
   push:
     branches:
       - main
+    paths:
+      - ".github/workflows/production-gate.yml"
+      - "Package.swift"
+      - "SuperNeo-NuMetal/**"
+      - "SuperNeo-NuMetalTests/**"
+      - "SuperNeoCLI/**"
+      - "Tools/**"
+      - "Scripts/**"
+      - "TestVectors/**"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  smoke:
+    name: PR smoke
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run XCTest smoke
+        run: swift test --disable-swift-testing
+
   swift:
     name: Full production gate
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -26,52 +60,3 @@ jobs:
 
       - name: Run production gate
         run: Scripts/production-gate.sh
-
-  formal:
-    name: Lean formal Linux cross-check
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install elan
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
-            | sh -s -- -y --default-toolchain none
-          echo "${HOME}/.elan/bin" >> "${GITHUB_PATH}"
-
-      - name: Build Lean workspace
-        run: |
-          cd Formal
-          lake build
-
-      - name: Run formal executable gates
-        run: |
-          cd Formal
-          lake build SuperNeoFormal.VectorChecks
-          lake env lean --run ProofImportWall.lean
-          lake env lean --run SuperNeoFormalVectorCheck.lean
-
-      - name: Validate formal status manifest
-        run: Scripts/validate-formal-status.py
-
-      - name: Regression-test formal status validator
-        run: Scripts/test-formal-status-validation.py
-
-      - name: Validate formal profile constants
-        run: Scripts/validate-formal-profile-constants.py
-
-      - name: Regression-test formal profile constants validator
-        run: Scripts/test-formal-profile-constants-validation.py
-
-      - name: Validate formal Ext2 serialization surface
-        run: Scripts/validate-formal-ext2-serialization.py
-
-      - name: Regression-test formal Ext2 serialization validator
-        run: Scripts/test-formal-ext2-serialization-validation.py
-
-      - name: Validate formal CE byte serialization surface
-        run: Scripts/validate-formal-ce-byte-serialization.py
-
-      - name: Regression-test formal CE byte serialization validator
-        run: Scripts/test-formal-ce-byte-serialization-validation.py

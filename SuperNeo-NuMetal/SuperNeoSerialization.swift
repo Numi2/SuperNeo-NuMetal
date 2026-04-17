@@ -145,9 +145,10 @@ public struct ProofEnvelopeContext: Equatable, Sendable {
 
 /// Trusted context for accepting complete terminal proofs.
 ///
-/// This policy is intentionally terminal-only: it rejects fold-reduction
-/// envelopes before proof verification. Applications still own artifact
-/// provenance, replay policy, key distribution, and statement semantics.
+/// The policy gates accepted terminal proof kinds and compares the public
+/// proof-envelope context through the 384-bit CTCO/H_bind context binder.
+/// Applications still own artifact provenance, replay policy, key
+/// distribution, and statement semantics.
 public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
     public enum ProofKindPolicy: Equatable, Sendable {
         case terminalOrCompressed
@@ -254,31 +255,13 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
             }
         }
         try header.validateEnvelopeLength(totalByteCount: totalByteCount)
-        guard header.profileID == profileID else {
-            throw SuperNeoError.verificationFailed("profile mismatch")
-        }
-        guard header.shapeDigest == shapeDigest else {
-            throw SuperNeoError.verificationFailed("shape digest mismatch")
-        }
-        guard header.statementDigest == statementDigest else {
-            throw SuperNeoError.verificationFailed("statement digest mismatch")
-        }
-        guard header.verifierKeyDigest == verifierKeyDigest else {
-            throw SuperNeoError.verificationFailed("verifier key digest mismatch")
-        }
-        guard header.transcriptDomain == transcriptDomain else {
-            throw SuperNeoError.verificationFailed("transcript domain mismatch")
-        }
         guard header.kind != .foldReduction else {
             throw SuperNeoError.verificationFailed("terminal proof required")
-        }
-        guard header.kind == .terminalLocal || header.kind == .compressedPublic else {
-            throw SuperNeoError.verificationFailed("proof kind not accepted by policy")
         }
         guard proofKindPolicy.accepts(header.kind) else {
             throw SuperNeoError.verificationFailed("proof kind not accepted by policy")
         }
-        return ProofEnvelopeContext(
+        let expectedContext = ProofEnvelopeContext(
             profileID: profileID,
             kind: header.kind,
             shapeDigest: shapeDigest,
@@ -286,6 +269,10 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
             verifierKeyDigest: verifierKeyDigest,
             transcriptDomain: transcriptDomain
         )
+        guard header.ctcoContextBinder == expectedContext.ctcoContextBinder else {
+            throw SuperNeoError.verificationFailed("proof envelope CTCO context binder mismatch")
+        }
+        return expectedContext
     }
 }
 

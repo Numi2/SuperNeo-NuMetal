@@ -62,10 +62,10 @@ def main() -> None:
         write_json(path, weak_binding)
         run_fail(str(VALIDATE), str(path))
 
-        premature_source_precondition = copy.deepcopy(preconditions)
-        premature_source_precondition["preconditions"][0]["satisfied"] = True
-        path = tmp / "premature-source-precondition.json"
-        write_json(path, premature_source_precondition)
+        premature_seed_precondition = copy.deepcopy(preconditions)
+        premature_seed_precondition["preconditions"][1]["satisfied"] = True
+        path = tmp / "premature-seed-precondition.json"
+        write_json(path, premature_seed_precondition)
         run_fail(str(VALIDATE), str(path))
 
         missing_uniformity = copy.deepcopy(preconditions)
@@ -101,7 +101,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(preconditions)
-        missing_blocker["hardClaimBlockers"] = ["CTCO move-1 root commitment implementation for all accepted proof kinds"]
+        missing_blocker["hardClaimBlockers"] = ["interactive special-soundness bounds for every accepted proof kind"]
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))

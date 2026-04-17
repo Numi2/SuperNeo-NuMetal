@@ -24,6 +24,8 @@
       "ProductCompilerFamily",
       "ProductChallengeTapeCommitOpenCompiler",
       "ProductChallengeTapeCommitOpenCompilerAccepted",
+      "ProductChallengeTapeExpansion",
+      "ProductChallengeTapeExpansionAccepted",
       "ProductInteractiveProtocolDefinitions",
       "ProductInteractiveProtocolDefinitionsAccepted",
       "ProductInteractiveSpecialSoundnessData",
@@ -32,6 +34,7 @@
       "ProductInteractiveDelayedMessageDataAccepted",
       "ProductInteractiveUniqueResponseData",
       "ProductInteractiveUniqueResponseDataAccepted",
+      "productSecurityTheorem_requires_challenge_tape_expansion",
       "productSecurityTheorem_requires_qrom_transform_preconditions"
     ]
   },
@@ -106,20 +109,20 @@
   "preconditions": [
     {
       "id": "ctco-public-coin-protocol",
-      "status": "target-specified-source-implementation-open",
+      "status": "source-root-coverage-implemented-security-preconditions-open",
       "required": true,
-      "satisfied": false,
-      "evidence": "TestVectors/product-qrom-interactive-reduction-v1.json specifies the 3-move CTCO target, but source proof bodies do not yet include Root_k for all challenge-independent witness-dependent trace blocks",
+      "satisfied": true,
+      "evidence": "SuperNeoHashOracles.swift implements Merkle-style CTCOMoveOneCommitment roots with local opening verification, and ProofEnvelopeCTCOVerifier recomputes Root_k and the proof-envelope challenge seed for fold, terminal, compressed-terminal, NumiSeal-terminal, and NumiSealZK product proof envelopes",
       "sourceBasis": [
         "DFMS22"
       ]
     },
     {
       "id": "single-seed-challenge-tape",
-      "status": "target-specified-source-implementation-open",
+      "status": "source-expansion-primitive-implemented-algebraic-integration-open",
       "required": true,
       "satisfied": false,
-      "evidence": "each accepted proof kind has n_kind_ctco = 1 in the target, but source challenge derivation still follows the legacy micro-challenge transcript schedule",
+      "evidence": "ProofEnvelopeCTCOVerifier derives one 256-bit proof-envelope challenge seed per accepted proof kind, and SuperNeoChallengeTape expands that seed through H_chal into labelled digest, field, extension-field, and ring challenges; the algebraic subprotocol verifier paths still need to consume this tape instead of the legacy micro-challenge transcript schedule",
       "sourceBasis": [
         "DFMS22",
         "RotemTessaro"
@@ -127,10 +130,10 @@
     },
     {
       "id": "hbind-384-acceptance-bindings",
-      "status": "theorem-requirement-pinned-source-primitive-available-acceptance-paths-open",
+      "status": "source-acceptance-paths-use-384-bit-hbind",
       "required": true,
-      "satisfied": false,
-      "evidence": "SuperNeoHashOracles.swift provides SHAKE256, Digest384, H_bind, H_chal, H_mt, CTCO context/root helpers, and replay/carry H_bind projections; acceptance-critical verifier paths still carry raw Digest256 equality checks and must migrate before this precondition is satisfied",
+      "satisfied": true,
+      "evidence": "SuperNeoHashOracles.swift provides SHAKE256, Digest384, H_bind, H_chal, H_mt, CTCO context/root helpers, and replay/carry H_bind projections; SuperNeoSerialization.swift, NumiSealProof.swift, NumiSealArtifactVerifier.swift, NumiSealProductProver.swift, LocalProductControls.swift, and product CLI paths now route theorem-critical context, artifact/root, transcript, and replay acceptance comparisons through 384-bit H_bind binders",
       "sourceBasis": [
         "SpongeQRO"
       ]
@@ -223,7 +226,7 @@
       "status": "binding-target-bound-instantiated-for-H_bind",
       "required": true,
       "satisfied": true,
-      "evidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json pins nine structural binding-target events and the 4 * 9 * Q_H^2 / 2^384 bound; source H_bind implementation remains a separate CTCO precondition",
+      "evidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json pins nine structural binding-target events and the 4 * 9 * Q_H^2 / 2^384 bound; source H_bind acceptance binding is implemented and tracked by the hbind-384-acceptance-bindings precondition",
       "sourceBasis": [
         "DFMS22",
         "SpongeQRO"
@@ -312,8 +315,6 @@
     "qromLossWithinBudget": false
   },
   "hardClaimBlockers": [
-    "CTCO move-1 root commitment implementation for all accepted proof kinds",
-    "384-bit H_bind acceptance-critical binder implementation",
     "interactive special-soundness bounds for every accepted proof kind",
     "delayed-message binding data for artifact/provenance/replay/session/leakage/carry binders",
     "unique-response or quasi-unique-response data for CTCO extraction",
@@ -324,7 +325,7 @@
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
     "requiresInteractiveProtocolImplementation": true,
-    "requiresHBind384Implementation": true,
+    "requiresHBind384Implementation": false,
     "requiresUnderlyingInteractiveSecurity": true,
     "requiresDelayedMessageData": true,
     "requiresUniqueResponseData": true,

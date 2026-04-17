@@ -32,7 +32,7 @@
   },
   "oracleModel": {
     "model": "qrom",
-    "randomOracleAbstraction": "SHA-256 transcript bytes are treated as the quantum random-oracle interface for the proof obligation only",
+    "randomOracleAbstraction": "Split H_chal/H_bind/H_mt SHAKE256-framed transcript bytes are treated as the quantum random-oracle interface for the proof obligation only; SuperNeoChallengeTape is the source challenge-tape expansion primitive",
     "hashInstantiationProofProvided": false,
     "interactiveProtocolFullySpecified": true,
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
@@ -45,7 +45,7 @@
   },
   "transcriptState": {
     "initialBinding": "ProofEnvelopeHeader.version, ProofEnvelopeKind, transcript domain separator, public statement digest, verifier key digest, artifact digest, and proof-envelope digest are absorbed before challenge derivation",
-    "stateTransitionPolicy": "append-only length-delimited transcript fields with challenge labels that include proof kind, schedule id, and challenge family",
+    "stateTransitionPolicy": "append-only length-delimited transcript fields with challenge labels that include proof kind, schedule id, and challenge family; CTCO tape expansion uses one H_chal seed with labelled deterministic expansion",
     "witnessIndependencePolicy": "oracle labels, field encodings, proof-kind bytes, and schedule metadata are public and witness independent; witness influence is allowed only through committed proof messages",
     "domainSeparatorPolicy": "proof kind raw value, product session/context digests, and superneo-product-qrom-transcript-schedule-v1 are absorbed before the first challenge",
     "failurePathPolicy": "the schedule is independent of verifier success or failure; failure-path constant behavior remains covered by the CT evidence manifests"

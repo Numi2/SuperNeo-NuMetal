@@ -247,6 +247,7 @@ def validate_closure_status(evidence: dict[str, Any]) -> None:
         "sourceSHAKE256PrimitiveAvailable",
         "sourceDigest384TypeAvailable",
         "sourceCTCOBinderHelpersAvailable",
+        "sourceHBindImplementationComplete",
     ]:
         require_true(closure.get(key), f"closureStatus.{key}")
     source_paths = [
@@ -261,7 +262,6 @@ def validate_closure_status(evidence: dict[str, Any]) -> None:
         "hashQROInstantiationProofProvided",
         "qromReductionLossWithinBudget",
         "totalLossBudgetIntegrated",
-        "sourceHBindImplementationComplete",
         "productionQROMClaimAllowed",
     ]:
         require_false(closure.get(key), f"closureStatus.{key}")

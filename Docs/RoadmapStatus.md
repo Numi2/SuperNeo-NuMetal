@@ -181,9 +181,10 @@ Artifacts:
 - `Docs/WorkloadParameterCanonicality-2026-04-13.md` records exact
   workload-parameter validation for one-hot and binary-addition artifacts across
   the CLI, vector schema, vector validator, and production gate.
-- `.github/workflows/production-gate.yml` runs the release build, debug and
-  release XCTest suites, vector validation, and strict release CLI smoke tests
-  on pull requests and `main`.
+- `.github/workflows/production-gate.yml` runs a short XCTest smoke job on
+  pull requests, while the full release build, debug and release XCTest suites,
+  vector validation, and strict release CLI smoke tests run on `main` and
+  manual dispatch.
 - `Scripts/production-gate.sh` provides the same local release-readiness gate,
   including positive terminal and compressed-terminal proof smoke checks and an
   opt-in quick benchmark pass.

@@ -169,7 +169,7 @@
     "sourceSHAKE256PrimitiveAvailable": true,
     "sourceDigest384TypeAvailable": true,
     "sourceCTCOBinderHelpersAvailable": true,
-    "sourceHBindImplementationComplete": false,
+    "sourceHBindImplementationComplete": true,
     "productionQROMClaimAllowed": false
   }
 }

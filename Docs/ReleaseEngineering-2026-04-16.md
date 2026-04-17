@@ -13,8 +13,9 @@ true:
 
 - `Scripts/production-gate.sh` passes locally without `--skip-formal`.
 - `.github/workflows/production-gate.yml` runs the full macOS production gate
-  without `--skip-formal`.
-- The Ubuntu formal cross-check passes.
+  without `--skip-formal` on `main` or manual dispatch.
+- The pull-request macOS smoke job and Ubuntu formal-status workflow pass for
+  their path-filtered scopes.
 - `Docs/ProductionReadinessAuditPacket-2026-04-16.md` is current.
 - `CHANGELOG.md` records user-facing changes and residual
   production-security blockers.

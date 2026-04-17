@@ -92,7 +92,7 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
-      "requiredEvidence": "pinned CTCO split-QRO transcript target with Q_H = 2^64, one 256-bit challenge seed per accepted proof kind, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, CTCO move-1 root implementation, migration of acceptance-critical verifier comparisons to 384-bit H_bind, and epsilon_compiler_overhead instantiation"
+      "requiredEvidence": "pinned CTCO split-QRO transcript target with Q_H = 2^64, one 256-bit challenge seed per accepted proof kind, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, implemented 384-bit H_bind acceptance binders, implemented CTCO move-1 root coverage for all accepted proof-kind trace bodies, and epsilon_compiler_overhead instantiation"
     },
     {
       "id": "extractor-instantiation",

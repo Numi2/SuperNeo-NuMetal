@@ -186,6 +186,7 @@ def validate_protocol_model(reduction: dict[str, Any]) -> None:
         "ctcoProtocolDefinitionsPinned",
         "allKindsThreeMovePublicCoin",
         "oneSeedChallengePerKind",
+        "ctcoRootCommitmentsImplemented",
     ]:
         require_true(model.get(key), f"productProtocolModel.{key}")
     limits = require_dict(model.get("selectedProductTheoremLimits"), "selectedProductTheoremLimits")
@@ -256,7 +257,7 @@ def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
     require_false(ledger.get("qromLossWithinBudget"), "ledgerIntegration.qromLossWithinBudget")
     require_true(ledger.get("totalLossBudgetUpdated"), "ledgerIntegration.totalLossBudgetUpdated")
     blockers = " ".join(require_string_list(reduction.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["ctco", "384-bit h_bind", "special-soundness", "delayed-message", "unique-response"]:
+    for needle in ["special-soundness", "delayed-message", "unique-response"]:
         require(needle in blockers, f"hardClaimBlockers must mention {needle}")
     promotion = require_dict(reduction.get("promotionRule"), "promotionRule")
     for key in [
@@ -265,9 +266,8 @@ def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
         "productionQROMClaimAllowed",
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
+    require_false(promotion.get("requiresCTCORootCommitments"), "promotionRule.requiresCTCORootCommitments")
     for key in [
-        "requiresCTCORootCommitments",
-        "requiresHBind384SourceImplementation",
         "requiresInteractiveSecurityBounds",
         "requiresDelayedMessageData",
         "requiresUniqueResponseData",
@@ -275,6 +275,7 @@ def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
         "requiresTotalLossBudgetUpdate",
     ]:
         require_true(promotion.get(key), f"promotionRule.{key}")
+    require_false(promotion.get("requiresHBind384SourceImplementation"), "promotionRule.requiresHBind384SourceImplementation")
 
 
 def validate_reduction(path: Path) -> None:

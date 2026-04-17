@@ -179,7 +179,7 @@ def validate_hash_model(accounting: dict[str, Any]) -> None:
         "hashQROInstantiationAssumptionPinned",
     ]:
         require_true(model.get(key), f"hashModel.{key}")
-    require_false(model.get("sourceAcceptancePathsUseHBind"), "hashModel.sourceAcceptancePathsUseHBind")
+    require_true(model.get("sourceAcceptancePathsUseHBind"), "hashModel.sourceAcceptancePathsUseHBind")
     require_false(model.get("hashQROInstantiationProofProvided"), "hashModel.hashQROInstantiationProofProvided")
     source = (ROOT / "SuperNeo-NuMetal" / "SuperNeoHashOracles.swift").read_text(encoding="utf-8")
     for needle in ["SuperNeoSHAKE256", "Digest384", "SuperNeoSplitQRO", "CTCOMoveOneCommitment"]:
@@ -283,7 +283,7 @@ def validate_legacy_status(accounting: dict[str, Any]) -> None:
 
 def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
     blockers = " ".join(require_string_list(accounting.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["ctco", "384-bit h_bind", "special-soundness", "compiler_overhead", "epsilon_replay"]:
+    for needle in ["ctco", "special-soundness", "compiler_overhead", "epsilon_replay"]:
         require(needle in blockers, f"hardClaimBlockers must mention {needle}")
     promotion = require_dict(accounting.get("promotionRule"), "promotionRule")
     for key in [
@@ -294,13 +294,13 @@ def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
         require_false(promotion.get(key), f"promotionRule.{key}")
     for key in [
         "requiresCTCOProtocolImplementation",
-        "requiresHBind384Implementation",
         "requiresInteractiveSecurityBounds",
         "requiresCompilerOverheadInstantiation",
         "requiresSharedBadEventDeduplication",
         "requiresSelectedDepthLedgerUpdate",
     ]:
         require_true(promotion.get(key), f"promotionRule.{key}")
+    require_false(promotion.get("requiresHBind384Implementation"), "promotionRule.requiresHBind384Implementation")
 
 
 def validate_accounting(path: Path) -> None:

@@ -94,6 +94,7 @@
     "ctcoProtocolDefinitionsPinned": true,
     "allKindsThreeMovePublicCoin": true,
     "oneSeedChallengePerKind": true,
+    "ctcoRootCommitmentsImplemented": true,
     "selectedProductTheoremLimits": {
       "codeSurface": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductTheoremLimits.swift",
       "theoremID": "numiseal-product-qrom-selected-depth-1-v1",
@@ -144,7 +145,6 @@
       "numericLossExpression": "epsilon_qrom_extra_fold is independent of legacy n_fold once CTCO preconditions hold",
       "numericLossInstantiated": false,
       "openInputs": [
-        "move-1 Root_fold implementation over all witness-dependent trace blocks",
         "quantum dishonest-prover special-soundness bound for the CTCO fold protocol"
       ],
       "productionQROMClaimAllowed": false
@@ -170,7 +170,6 @@
       "numericLossExpression": "epsilon_qrom_extra_terminal is independent of legacy n_terminal once CTCO preconditions hold",
       "numericLossInstantiated": false,
       "openInputs": [
-        "move-1 Root_terminal implementation over terminal residual-opening material",
         "quantum dishonest-prover special-soundness bound for terminal CTCO"
       ],
       "productionQROMClaimAllowed": false
@@ -224,7 +223,6 @@
       "numericLossExpression": "epsilon_qrom_extra_numiseal_terminal is independent of legacy n_numiseal_terminal once CTCO preconditions hold",
       "numericLossInstantiated": false,
       "openInputs": [
-        "move-1 root over all lane, aggregate, scalarization, residual, and component-root trace blocks",
         "delayed-message binding for artifact, provenance, replay, and optional carry binders"
       ],
       "productionQROMClaimAllowed": false
@@ -250,7 +248,6 @@
       "numericLossExpression": "epsilon_qrom_extra_numiseal_zk_product is independent of legacy n_numiseal_zk_product once CTCO preconditions hold",
       "numericLossInstantiated": false,
       "openInputs": [
-        "move-1 root over mask, session, leakage, and masked residual trace blocks",
         "CTCO special-soundness plus ZK simulator composition for the masked residual relation"
       ],
       "productionQROMClaimAllowed": false
@@ -322,8 +319,6 @@
     "totalLossBudgetUpdated": true
   },
   "hardClaimBlockers": [
-    "CTCO move-1 root commitments are not implemented for all accepted proof kinds",
-    "384-bit H_bind theorem-critical acceptance binders are not implemented in source verifier paths",
     "interactive special-soundness bounds against quantum dishonest provers remain open",
     "delayed-message binding data remains open for artifact, provenance, replay, session, leakage, and carry binders",
     "unique-response or quasi-unique response data remains open for each accepted kind",
@@ -333,8 +328,8 @@
     "productionProductSecurityClaimAllowed": false,
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
-    "requiresCTCORootCommitments": true,
-    "requiresHBind384SourceImplementation": true,
+    "requiresCTCORootCommitments": false,
+    "requiresHBind384SourceImplementation": false,
     "requiresInteractiveSecurityBounds": true,
     "requiresDelayedMessageData": true,
     "requiresUniqueResponseData": true,

@@ -73,17 +73,17 @@ tracked audit disposition is in `Docs/AuditBlockerNarrowing-2026-04-16.md`.
 
 ## CI Policy
 
-`.github/workflows/production-gate.yml` runs the full macOS production gate on
-pull requests, `main`, and manual dispatch. That job installs the pinned Lean
-toolchain through `elan` and runs `Scripts/production-gate.sh` without
-`--skip-formal`, so the Swift/Lean vector bridges are checked in the same job as
-the release Swift CLI and XCTest gates.
+`.github/workflows/production-gate.yml` runs a short macOS XCTest smoke job on
+pull requests that touch Swift, scripts, tools, or checked vectors. The full
+macOS production gate now runs on `main` and manual dispatch, installs the
+pinned Lean toolchain through `elan`, and runs `Scripts/production-gate.sh`
+without `--skip-formal`, so the Swift/Lean vector bridges remain part of the
+release gate.
 
-The workflow also keeps an Ubuntu Lean cross-check for the formal workspace,
-formal executable gates, status manifest, profile constants, Ext2 serialization
-surface, and CE byte-serialization surface. That second job is not a replacement
-for the full macOS production gate; it is an additional platform check for the
-formal side of the repository.
+`.github/workflows/formal-status.yml` owns the path-filtered Ubuntu Lean lane
+for pull requests and `main`: formal workspace build, executable gates, status
+manifest, profile constants, Ext2 serialization surface, CE byte-serialization
+surface, and the vector-bridge regression harnesses.
 
 ## Evidence Map
 

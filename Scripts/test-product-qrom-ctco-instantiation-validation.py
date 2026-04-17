@@ -67,6 +67,11 @@ def main() -> None:
         "challenge domain mismatch",
     )
     expect_failure(
+        "missing challenge tape expansion",
+        lambda manifest: manifest["ctcoCompiler"].__setitem__("challengeTapeExpansion", "legacy transcript rng"),
+        "challengeTapeExpansion must mention SuperNeoChallengeTape",
+    )
+    expect_failure(
         "premature qrom promotion",
         lambda manifest: manifest["promotionRule"].__setitem__("productionQROMClaimAllowed", True),
         "productionQROMClaimAllowed must be false",

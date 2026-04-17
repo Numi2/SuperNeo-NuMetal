@@ -11,11 +11,15 @@ Current safe claim:
 > well-formed transcript injectivity, 384-bit proof-envelope context
 > serialization, Phi81 CRT decomposition, constructive PiCCS bad-challenge
 > accounting, and exact finite-support probability modules. The product/QROM
-> theorem surface has been upgraded to the split-oracle/CTCO design. Some
-> theorem-critical integrations remain open: wiring the 384-bit typed-digest
-> binding layer into the upper theorem boundary, instantiating constructive
-> terminal CE localization evidence, completing CRT-based PiRLC finite soundness,
-> and full wiring of exact finite probability into the top-level product theorem.
+> theorem surface has been upgraded to the split-oracle/CTCO design, and
+> acceptance-critical Swift paths now compare theorem-critical public metadata
+> through 384-bit H_bind binders. Product proof-envelope paths now have
+> Merkle-style CTCO root coverage and a source H_chal challenge-tape expansion
+> primitive. Some theorem-critical integrations remain open: wiring the
+> algebraic verifier subprotocols to consume the CTCO tape, instantiating
+> constructive terminal CE localization evidence, completing CRT-based PiRLC
+> finite soundness, and full wiring of exact finite probability into the
+> top-level product theorem.
 
 This is not a production-security claim. The repo does not claim production
 post-quantum security, production QROM security, whole-stack constant-time
@@ -23,7 +27,7 @@ certification, or independent cryptographic audit completion.
 
 ## Current Status
 
-As of 2026-04-17, the formal layer has made real lower-level progress, but the
+As of 2026-04-18, the formal layer has made real lower-level progress, but the
 full-theorem blocker list remains open at the integration level. The current
 formal solution is built around:
 
@@ -125,8 +129,10 @@ DFM20 records remain as fail-closed diagnostics only.
 The active theorem target is:
 
 - split ideal oracles for challenge and binding roles;
-- 256-bit challenge seeds with deterministic expansion;
+- 256-bit challenge seeds with deterministic H_chal challenge-tape expansion;
 - 384-bit theorem-critical binding digests;
+- depth-1 product policy over fold, terminal, compressed-terminal,
+  NumiSeal-terminal, and NumiSealZK product proof kinds;
 - CTCO as the preferred compiler family;
 - Merkle-straightline as the fallback compiler family;
 - interactive soundness charged outside the QROM transform term;

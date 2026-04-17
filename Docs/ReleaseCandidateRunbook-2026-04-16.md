@@ -187,8 +187,10 @@ For a research/integration tag:
 
 Protected release branches should require:
 
-- `.github/workflows/production-gate.yml` macOS full production gate,
-- `.github/workflows/production-gate.yml` Ubuntu Lean formal cross-check,
+- `.github/workflows/production-gate.yml` macOS PR smoke,
+- `.github/workflows/formal-status.yml` Ubuntu Lean formal validation,
+- `.github/workflows/production-gate.yml` macOS full production gate before
+  tagging or promoting a release,
 - review for changes under `SuperNeo-NuMetal/`, `SuperNeoCLI/`, `Tools/`,
   `Scripts/`, `Formal/`, `.github/workflows/`, `TestVectors/`, and `Docs/`.
 

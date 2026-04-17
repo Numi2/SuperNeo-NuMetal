@@ -59,6 +59,55 @@ final class AlgebraCoreTests: SuperNeoTestCase {
             SuperNeoSplitQRO.hBind(domain: SuperNeoSplitQRO.bindingDomain, frames: [[1]]),
             SuperNeoSplitQRO.hBind(domain: SuperNeoSplitQRO.challengeDomain, frames: [[1]])
         )
+
+        let tapeSeed = SuperNeoSplitQRO.hChal(frames: [Array("seed".utf8)])
+        var foldDigestTape = SuperNeoChallengeTape(
+            seed: tapeSeed,
+            proofKind: .foldReduction,
+            label: "unit/challenge-tape"
+        )
+        var foldFieldTape = SuperNeoChallengeTape(
+            seed: tapeSeed,
+            proofKind: .foldReduction,
+            label: "unit/challenge-tape"
+        )
+        var sameFoldFieldTape = SuperNeoChallengeTape(
+            seed: tapeSeed,
+            proofKind: .foldReduction,
+            label: "unit/challenge-tape"
+        )
+        var terminalTape = SuperNeoChallengeTape(
+            seed: tapeSeed,
+            proofKind: .terminalLocal,
+            label: "unit/challenge-tape"
+        )
+        XCTAssertEqual(
+            foldDigestTape.nextDigest(),
+            SuperNeoSplitQRO.expandChallenge(
+                seed: tapeSeed,
+                proofKind: .foldReduction,
+                label: "unit/challenge-tape",
+                index: 0
+            )
+        )
+        XCTAssertEqual(foldFieldTape.nextField(), sameFoldFieldTape.nextField())
+        XCTAssertEqual(foldFieldTape.nextExt2(), sameFoldFieldTape.nextExt2())
+        XCTAssertEqual(foldFieldTape.nextRing().coefficients, sameFoldFieldTape.nextRing().coefficients)
+        XCTAssertNotEqual(foldDigestTape.nextDigest(label: "round"), terminalTape.nextDigest(label: "round"))
+        XCTAssertNotEqual(
+            SuperNeoChallengeTape.expansionDigest(
+                seed: tapeSeed,
+                proofKind: .foldReduction,
+                label: "unit/challenge-tape",
+                digestCount: 2
+            ),
+            SuperNeoChallengeTape.expansionDigest(
+                seed: tapeSeed,
+                proofKind: .foldReduction,
+                label: "unit/challenge-tape",
+                digestCount: 3
+            )
+        )
     }
 
     func testTier0CTCOContextBinderIncludesProofKindAndRootBlocks() throws {
@@ -124,6 +173,44 @@ final class AlgebraCoreTests: SuperNeoTestCase {
             SuperNeoSplitQRO.expandChallenge(seed: seed, proofKind: .foldReduction, label: "ce", index: 1)
         )
 
+        for kind in [
+            ProofEnvelopeKind.foldReduction,
+            .terminalLocal,
+            .compressedPublic,
+            .numiSealTerminal,
+            .numiSealZK
+        ] {
+            let body = Array("ctco-body-\(kind.rawValue)".utf8)
+            let header = ProofEnvelopeHeader(
+                profileID: 1,
+                kind: kind,
+                shapeDigest: shape,
+                statementDigest: statement,
+                verifierKeyDigest: verifier,
+                transcriptDomain: transcript,
+                bodyLength: UInt32(body.count)
+            )
+            let envelopeBytes = header.superNeoBytes + body
+            let report = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: envelopeBytes)
+            XCTAssertEqual(report.proofKind, kind)
+            XCTAssertEqual(report.contextBinder, header.ctcoContextBinder)
+            XCTAssertEqual(report.traceBlockCount, 4)
+            XCTAssertEqual(report.bodyDigest, Digest256.hash(body))
+            XCTAssertNoThrow(
+                try ProofEnvelopeCTCOVerifier.verify(
+                    envelopeBytes: envelopeBytes,
+                    expectedRoot: report.root,
+                    expectedChallengeTapeSeed: report.challengeTapeSeed
+                )
+            )
+            var tampered = envelopeBytes
+            tampered[tampered.count - 1] ^= 0x01
+            XCTAssertThrowsSuperNeoError(
+                try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: tampered, expectedRoot: report.root),
+                .verificationFailed("proof envelope CTCO root mismatch")
+            )
+        }
+
         let identity = SuperNeoProductProofIdentity(
             expectedContextID: "ctx",
             statementDigest: Digest256.hash("statement"),
@@ -143,6 +230,7 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         XCTAssertEqual(identity.hBindReplayBinder.bytes.count, Digest384.byteCount)
         XCTAssertNotEqual(identity.localReplayDigest.superNeoBytes, Array(identity.hBindReplayBinder.superNeoBytes.prefix(Digest256.byteCount)))
         XCTAssertNotEqual(identity.hBindReplayBinder, changedIdentity.hBindReplayBinder)
+        XCTAssertEqual(try SuperNeoProductProofKind(envelopeKind: .foldReduction), .fold)
 
         let carry = try NumiSealProductRecursiveCarryReplayBinding(
             parentArtifactDigest: Digest256.hash("parent-artifact"),
@@ -6914,6 +7002,16 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             artifact.executionPolicyMetadata["ctcoRoot384Hex"],
             output.traceExtractorEvidence.ctcoRoot.hexString
         )
+        let sourceCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: artifact.sourceFoldEnvelopeBytes())
+        let proofCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: artifact.proofEnvelopeBytes())
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["sourceFoldCTCORoot384Hex"],
+            sourceCTCO.root.hexString
+        )
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["proofEnvelopeCTCORoot384Hex"],
+            proofCTCO.root.hexString
+        )
         XCTAssertEqual(
             artifact.executionPolicyMetadata["qromEvidenceDigest"],
             output.qromEvidence.evidenceDigest.hexString
@@ -6990,6 +7088,10 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(artifact.executionPolicyMetadata["terminalCarryPolicy"], "none")
         XCTAssertEqual(artifact.executionPolicyMetadata["ctcoCompilerFamily"], "ctco")
         XCTAssertEqual(artifact.executionPolicyMetadata["qromBindingOracleBits"], "384")
+        XCTAssertNotNil(artifact.executionPolicyMetadata["sourceFoldCTCORoot384Hex"])
+        XCTAssertNotNil(artifact.executionPolicyMetadata["sourceFoldCTCOChallengeTapeSeedHex"])
+        XCTAssertNotNil(artifact.executionPolicyMetadata["proofEnvelopeCTCORoot384Hex"])
+        XCTAssertNotNil(artifact.executionPolicyMetadata["proofEnvelopeCTCOChallengeTapeSeedHex"])
         XCTAssertNotNil(artifact.executionPolicyMetadata["swiftTraceExtractorEvidenceDigest"])
         XCTAssertLessThanOrEqual(
             artifact.sourceFoldOutputClaimCount,
@@ -7023,7 +7125,31 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 key: prepared.key,
                 executionPolicy: .highAssurance
             ),
-            .verificationFailed("NumiSeal product source fold digest mismatch")
+            .invalidEncoding("NumiSeal product CTCO root mismatch")
+        )
+
+        var tamperedRoot = artifact
+        tamperedRoot.executionPolicyMetadata["ctcoRoot384Hex"] = String(repeating: "0", count: 96)
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tamperedRoot,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product CTCO root mismatch")
+        )
+
+        var tamperedSourceRoot = artifact
+        tamperedSourceRoot.executionPolicyMetadata["sourceFoldCTCORoot384Hex"] = String(repeating: "0", count: 96)
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tamperedSourceRoot,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product source-fold CTCO root mismatch")
         )
     }
 
@@ -8071,7 +8197,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             policy: wrongStatementPolicy
         )
         XCTAssertFalse(wrongStatementResult.isValid)
-        XCTAssertTrue(wrongStatementResult.reason?.contains("statement digest mismatch") ?? false)
+        XCTAssertTrue(wrongStatementResult.reason?.contains("CTCO context binder mismatch") ?? false)
     }
 
     func testGoldenBinaryAdditionFoldVectorVerifies() throws {

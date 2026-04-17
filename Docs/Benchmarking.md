@@ -434,7 +434,9 @@ Ajtai small-message coefficient kernel. Details are recorded in
 
 CI:
 
-- `.github/workflows/superneo-benchmarks.yml` runs the quick profile on macOS and uploads `benchmark-results`.
+- `.github/workflows/superneo-benchmarks.yml` is manual-only. Use it when a PR
+  needs fresh shared-runner timing artifacts; routine PRs should not spend macOS
+  minutes on benchmarks.
 - Add hardware-class baselines before enabling threshold failures in CI; otherwise public macOS runner variance will produce noisy failures.
 - Until a pinned runner class has a stable baseline, CI can set
   `SUPERNEO_BENCHMARK_COMPARE_WARN_ONLY=1` to upload `comparison.md` without

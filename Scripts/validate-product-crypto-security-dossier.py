@@ -463,10 +463,10 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(qrom.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "fiatShamirQROMPosition.selectedDepthProtocolChallengeDerivations mismatch")
     for key in [
         "transformPreconditionsSatisfied",
-        "sourceHBindImplementationComplete",
         "productionQROMClaimAllowed",
     ]:
         require_false(qrom.get(key), f"fiatShamirQROMPosition.{key}")
+    require(qrom.get("sourceHBindImplementationComplete") is True, "fiatShamirQROMPosition.sourceHBindImplementationComplete")
     require(qrom.get("publicCoinChallengeScheduleSpecified") is True, "public coin challenge schedule must be recorded")
     require(qrom.get("transcriptDomainSeparatorsBound") is True, "transcript domain separator binding must be recorded")
     require(qrom.get("proofKindSeparationBound") is True, "proof kind separation binding must be recorded")
@@ -495,7 +495,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         "QROM ledgerTermMapping.epsilon_collision mismatch",
     )
     obligations = " ".join(require_string_list(qrom.get("remainingObligations"), "fiatShamirQROMPosition.remainingObligations")).lower()
-    for needle in ["ctco", "h_bind", "special-soundness", "epsilon_compiler_overhead", "epsilon_replay"]:
+    for needle in ["ctco", "special-soundness", "epsilon_compiler_overhead", "epsilon_replay"]:
         require(needle in obligations, f"QROM obligations must mention {needle}")
     schedule = read_json(ROOT / "TestVectors/product-qrom-transcript-schedule-v1.json")
     require(schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
@@ -631,7 +631,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(closure.get("proofKindMalleabilityBoundInstantiated") is True, "QROM collision/malleability proofKindMalleabilityBoundInstantiated")
     require(closure.get("hashQROInstantiationAssumptionPinned") is True, "QROM collision/malleability hash assumption must be pinned")
     require_false(closure.get("hashQROInstantiationProofProvided"), "QROM collision/malleability hashQROInstantiationProofProvided")
-    require_false(closure.get("sourceHBindImplementationComplete"), "QROM collision/malleability sourceHBindImplementationComplete")
+    require(closure.get("sourceHBindImplementationComplete") is True, "QROM collision/malleability sourceHBindImplementationComplete")
     require_false(closure.get("productionQROMClaimAllowed"), "QROM collision/malleability productionQROMClaimAllowed")
 
 

@@ -46,10 +46,13 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductQROMTransformFamily",
     "ProductCompilerFamily",
     "ProductChallengeTapeCommitOpenCompiler",
+    "ProductChallengeTapeExpansion",
+    "ProductChallengeTapeExpansionAccepted",
     "ProductInteractiveProtocolDefinitions",
     "ProductInteractiveSpecialSoundnessData",
     "ProductInteractiveDelayedMessageData",
     "ProductInteractiveUniqueResponseData",
+    "productSecurityTheorem_requires_challenge_tape_expansion",
     "productSecurityTheorem_requires_qrom_transform_preconditions",
 }
 
@@ -213,8 +216,8 @@ def validate_precondition_rows(preconditions: dict[str, Any]) -> None:
         else:
             fail(f"{row_id}.satisfied must be boolean")
     require(seen == EXPECTED_PRECONDITION_IDS, "preconditions order mismatch")
-    require({"challenge-space-uniformity", "transcript-oracle-input-encoding", "quantum-query-bound", "collision-and-malleability-exclusion"}.issubset(satisfied), "closed structural preconditions mismatch")
-    require({"ctco-public-coin-protocol", "single-seed-challenge-tape", "hbind-384-acceptance-bindings", "delayed-message-binding", "unique-response-data", "underlying-interactive-security", "zero-knowledge-or-simulator-preconditions", "qrom-compiler-overhead-instantiation"}.issubset(unsatisfied), "open CTCO implementation/security preconditions mismatch")
+    require({"ctco-public-coin-protocol", "hbind-384-acceptance-bindings", "challenge-space-uniformity", "transcript-oracle-input-encoding", "quantum-query-bound", "collision-and-malleability-exclusion"}.issubset(satisfied), "closed structural preconditions mismatch")
+    require({"single-seed-challenge-tape", "delayed-message-binding", "unique-response-data", "underlying-interactive-security", "zero-knowledge-or-simulator-preconditions", "qrom-compiler-overhead-instantiation"}.issubset(unsatisfied), "open CTCO implementation/security preconditions mismatch")
 
 
 def validate_proof_kind_fit(preconditions: dict[str, Any]) -> None:
@@ -259,7 +262,7 @@ def validate_loss_interface(preconditions: dict[str, Any]) -> None:
 
 def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
     blockers = " ".join(require_string_list(preconditions.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["ctco", "h_bind", "special-soundness", "delayed-message", "unique-response", "compiler_overhead"]:
+    for needle in ["special-soundness", "delayed-message", "unique-response", "compiler_overhead"]:
         require(needle in blockers, f"hardClaimBlockers must mention {needle}")
     promotion = require_dict(preconditions.get("promotionRule"), "promotionRule")
     for key in [
@@ -270,7 +273,6 @@ def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
         require_false(promotion.get(key), f"promotionRule.{key}")
     for key in [
         "requiresInteractiveProtocolImplementation",
-        "requiresHBind384Implementation",
         "requiresUnderlyingInteractiveSecurity",
         "requiresDelayedMessageData",
         "requiresUniqueResponseData",
@@ -278,6 +280,7 @@ def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
         "requiresTotalLossBudgetUpdate",
     ]:
         require_true(promotion.get(key), f"promotionRule.{key}")
+    require_false(promotion.get("requiresHBind384Implementation"), "promotionRule.requiresHBind384Implementation")
     for key in [
         "requiresChallengeUniformity",
         "requiresTranscriptEncodingProof",

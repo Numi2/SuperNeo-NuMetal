@@ -85,7 +85,7 @@ EXPECTED_COMPONENT_IDS = [
 
 EXPECTED_BLOCKERS = [
     "selected-depth extractor instantiation",
-    "QROM CTCO root/H_bind source implementation, transform preconditions, interactive reduction, and split-QRO accounting",
+    "QROM transform preconditions, interactive reduction, and split-QRO accounting",
     "CTCO interactive special-soundness, delayed-message, unique-response, and compiler-overhead instantiation",
     "selected total-loss budget instantiation",
     "full ZK simulator composition",
@@ -378,8 +378,8 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "transcript-collision-domain-separation requiredEvidence must link collision/malleability evidence",
             )
             require(
-                "36 * 2^-256" in evidence and "source H_bind implementation remains open" in evidence,
-                "transcript-collision-domain-separation requiredEvidence must pin H_bind bound and source implementation blocker",
+                "36 * 2^-256" in evidence and "source H_bind acceptance binding is implemented" in evidence,
+                "transcript-collision-domain-separation requiredEvidence must pin H_bind bound and source implementation status",
             )
         if component_id == "release-signing-notarization":
             evidence = require_string(component.get("requiredEvidence"), "release-signing-notarization.requiredEvidence")
