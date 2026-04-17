@@ -79,20 +79,20 @@
       "multi-round public-coin interactive proof with DFM20 ((2*Q_H+n+1)^(2n) / n!) QROM loss for a (2n + 1)-move schedule when exact round count and ordered extraction are instantiated"
     ],
     "currentSelectedFamily": "multi-round-public-coin-fail-closed",
-    "exactMoveCountInstantiated": false,
+    "exactMoveCountInstantiated": true,
     "challengeCountSymbol": "n",
     "quantumOracleQuerySymbol": "Q_H",
     "selectedLossShape": "epsilon_fs_transform <= ((2*Q_H+n+1)^(2n) / n!) * epsilon_interactive + n! / 2^256 + epsilon_precondition",
-    "exactConstantInstantiated": false,
+    "exactConstantInstantiated": true,
     "productionTransformClaimAllowed": false
   },
   "preconditions": [
     {
       "id": "public-coin-interactive-protocol",
-      "status": "open",
+      "status": "interactive-reduction-pinned-proof-open",
       "required": true,
       "satisfied": false,
-      "evidence": "exact interactive algorithms for prover messages, verifier public coins, and verifier checks for every accepted proof kind",
+      "evidence": "TestVectors/product-qrom-interactive-reduction-v1.json pins the public-coin prover-message, verifier-coin, and verifier-check schedule for every accepted proof kind; theorem-family fit proof remains open",
       "sourceBasis": [
         "DFMS19",
         "DFM20"
@@ -100,10 +100,10 @@
     },
     {
       "id": "constant-round-odd-message-schedule",
-      "status": "open",
+      "status": "interactive-reduction-pinned-proof-open",
       "required": true,
       "satisfied": false,
-      "evidence": "exact (2n + 1)-move schedule, prover-speaks-first/prover-speaks-last convention, and challenge count n for each accepted proof kind",
+      "evidence": "TestVectors/product-qrom-interactive-reduction-v1.json pins the exact (2n + 1)-move formulas and numeric challenge-count upper bounds for each accepted proof kind; constant-round theorem fit proof remains open",
       "sourceBasis": [
         "DFM20"
       ]
@@ -167,10 +167,10 @@
     },
     {
       "id": "quantum-query-bound",
-      "status": "open",
+      "status": "conditional-query-bound-instantiated",
       "required": true,
-      "satisfied": false,
-      "evidence": "numeric bound on adversarial quantum random-oracle queries Q_H for the selected hardware/product threat model",
+      "satisfied": true,
+      "evidence": "TestVectors/product-qrom-transcript-schedule-v1.json and TestVectors/product-qrom-interactive-reduction-v1.json pin the selected-depth adversary cap Q_H = 2^64 and per-kind schedule-derived challenge-derivation maxima; this is a conditional theorem parameter, not a throughput benchmark",
       "sourceBasis": [
         "DFMS19",
         "DFM20"
@@ -204,9 +204,11 @@
       "envelopeKind": 1,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
       "candidateFamily": "multi-round public-coin",
-      "exactInteractiveProtocolSpecified": false,
-      "challengeCountN": null,
-      "queryBoundQH": null,
+      "exactInteractiveProtocolSpecified": true,
+      "challengeCountN": 204,
+      "queryBoundQH": "2^64",
+      "queryBoundLog2": 64,
+      "maximumProtocolChallengeDerivations": 204,
       "transformPreconditionsSatisfied": false,
       "productionQROMClaimAllowed": false
     },
@@ -215,9 +217,11 @@
       "envelopeKind": 2,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
       "candidateFamily": "multi-round public-coin",
-      "exactInteractiveProtocolSpecified": false,
-      "challengeCountN": null,
-      "queryBoundQH": null,
+      "exactInteractiveProtocolSpecified": true,
+      "challengeCountN": 423,
+      "queryBoundQH": "2^64",
+      "queryBoundLog2": 64,
+      "maximumProtocolChallengeDerivations": 423,
       "transformPreconditionsSatisfied": false,
       "productionQROMClaimAllowed": false
     },
@@ -226,9 +230,11 @@
       "envelopeKind": 3,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
       "candidateFamily": "multi-round public-coin",
-      "exactInteractiveProtocolSpecified": false,
-      "challengeCountN": null,
-      "queryBoundQH": null,
+      "exactInteractiveProtocolSpecified": true,
+      "challengeCountN": 423,
+      "queryBoundQH": "2^64",
+      "queryBoundLog2": 64,
+      "maximumProtocolChallengeDerivations": 423,
       "transformPreconditionsSatisfied": false,
       "productionQROMClaimAllowed": false
     },
@@ -237,9 +243,11 @@
       "envelopeKind": 4,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
       "candidateFamily": "multi-round public-coin",
-      "exactInteractiveProtocolSpecified": false,
-      "challengeCountN": null,
-      "queryBoundQH": null,
+      "exactInteractiveProtocolSpecified": true,
+      "challengeCountN": 4376925,
+      "queryBoundQH": "2^64",
+      "queryBoundLog2": 64,
+      "maximumProtocolChallengeDerivations": 4376925,
       "transformPreconditionsSatisfied": false,
       "productionQROMClaimAllowed": false
     },
@@ -248,9 +256,11 @@
       "envelopeKind": 5,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
       "candidateFamily": "multi-round public-coin plus ZK simulator composition",
-      "exactInteractiveProtocolSpecified": false,
-      "challengeCountN": null,
-      "queryBoundQH": null,
+      "exactInteractiveProtocolSpecified": true,
+      "challengeCountN": 4377150,
+      "queryBoundQH": "2^64",
+      "queryBoundLog2": 64,
+      "maximumProtocolChallengeDerivations": 4377150,
       "transformPreconditionsSatisfied": false,
       "productionQROMClaimAllowed": false
     }
@@ -270,23 +280,22 @@
     "qromLossWithinBudget": false
   },
   "hardClaimBlockers": [
-    "exact public-coin interactive protocol for every accepted product proof kind",
-    "exact constant-round odd-message schedule and challenge count n",
+    "proof that the pinned public-coin interactive schedules satisfy the selected theorem family",
     "challenge-space uniformity and transcript-oracle encoding proof",
     "underlying interactive knowledge-soundness or soundness bound against quantum dishonest provers",
-    "numeric Q_H query bound and DFM20 ((2*Q_H+n+1)^(2n)/n!) reduction-loss instantiation",
+    "repair of the out-of-budget DFM20 reduction-loss finding under the instantiated Q_H = 2^64 bound",
     "integration of epsilon_fs_transform and epsilon_precondition into QROM accounting and the selected total-loss budget"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
-    "requiresInteractiveProtocol": true,
-    "requiresRoundSchedule": true,
+    "requiresInteractiveProtocol": false,
+    "requiresRoundSchedule": false,
     "requiresChallengeUniformity": true,
     "requiresTranscriptEncodingProof": true,
     "requiresUnderlyingInteractiveSecurity": true,
-    "requiresQuantumOracleQueryBound": true,
+    "requiresQuantumOracleQueryBound": false,
     "requiresQROMLossInstantiation": true,
     "requiresTotalLossBudgetUpdate": true
   }

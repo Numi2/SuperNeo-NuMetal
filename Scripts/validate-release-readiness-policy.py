@@ -546,6 +546,14 @@ def validate_schema_versions() -> None:
     qrom_model = qrom_accounting.get("fiatShamirModel")
     require(isinstance(qrom_model, dict), "QROM Fiat-Shamir accounting fiatShamirModel must be an object")
     require(
+        qrom_model.get("interactiveProtocolSpecified") is True,
+        "QROM Fiat-Shamir accounting must record pinned interactive protocol schedules",
+    )
+    require(
+        qrom_model.get("quantumOracleQueryBoundAccounted") is True,
+        "QROM Fiat-Shamir accounting must account the instantiated conditional Q_H bound",
+    )
+    require(
         qrom_model.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
         "QROM Fiat-Shamir accounting must link transform preconditions in the model",
     )
@@ -564,6 +572,23 @@ def validate_schema_versions() -> None:
     require(
         isinstance(schedule_entries, list) and len(schedule_entries) == 5,
         "QROM transcript schedule must pin five schedule entries",
+    )
+    oracle_model = qrom_schedule.get("oracleModel")
+    require(isinstance(oracle_model, dict), "QROM transcript schedule oracleModel must be an object")
+    require(
+        oracle_model.get("interactiveProtocolFullySpecified") is True,
+        "QROM transcript schedule must record pinned interactive protocol schedules",
+    )
+    require(
+        oracle_model.get("quantumOracleQueryBoundInstantiated") is True,
+        "QROM transcript schedule must record the instantiated conditional Q_H bound",
+    )
+    ledger_binding = qrom_schedule.get("ledgerBinding")
+    require(isinstance(ledger_binding, dict), "QROM transcript schedule ledgerBinding must be an object")
+    require(
+        ledger_binding.get("selectedQHLog2") == 64
+        and ledger_binding.get("selectedDepthProtocolChallengeDerivations") == 8_755_125,
+        "QROM transcript schedule must pin Q_H=2^64 and the selected-depth challenge derivation budget",
     )
     schedule_related = qrom_schedule.get("relatedManifests")
     require(isinstance(schedule_related, dict), "QROM transcript schedule relatedManifests must be an object")
@@ -593,6 +618,12 @@ def validate_schema_versions() -> None:
         precondition_promotion.get("productionQROMClaimAllowed") is False,
         "QROM transform preconditions must not prematurely allow QROM claims",
     )
+    transform_profile = qrom_preconditions.get("selectedTransformProfile")
+    require(isinstance(transform_profile, dict), "QROM transform preconditions selectedTransformProfile must be an object")
+    require(
+        transform_profile.get("exactMoveCountInstantiated") is True,
+        "QROM transform preconditions must record exact move-count instantiation",
+    )
     qrom_reduction = read_json("TestVectors/product-qrom-interactive-reduction-v1.json")
     require(isinstance(qrom_reduction, dict), "QROM interactive reduction root must be an object")
     require(qrom_reduction.get("schemaVersion") == 1, "QROM interactive reduction schemaVersion must be 1")
@@ -605,6 +636,10 @@ def validate_schema_versions() -> None:
     require(
         reduction_loss.get("allNumericLossTermsInstantiated") is False,
         "QROM interactive reduction must not prematurely instantiate all numeric loss terms",
+    )
+    require(
+        reduction_loss.get("numiSealNumericNInstantiated") is True,
+        "QROM interactive reduction must instantiate NumiSeal numeric challenge bounds",
     )
     require(
         reduction_loss.get("queryBoundQH") == "2^64",

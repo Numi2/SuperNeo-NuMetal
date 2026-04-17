@@ -48,10 +48,16 @@ def main() -> None:
         write_json(path, premature_depth)
         run_fail(str(VALIDATE), str(path))
 
-        premature_interactive = copy.deepcopy(accounting)
-        premature_interactive["fiatShamirModel"]["interactiveProtocolSpecified"] = True
-        path = tmp / "premature-interactive.json"
-        write_json(path, premature_interactive)
+        missing_interactive = copy.deepcopy(accounting)
+        missing_interactive["fiatShamirModel"]["interactiveProtocolSpecified"] = False
+        path = tmp / "missing-interactive.json"
+        write_json(path, missing_interactive)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_query_bound_accounting = copy.deepcopy(accounting)
+        missing_query_bound_accounting["fiatShamirModel"]["quantumOracleQueryBoundAccounted"] = False
+        path = tmp / "missing-query-bound-accounting.json"
+        write_json(path, missing_query_bound_accounting)
         run_fail(str(VALIDATE), str(path))
 
         missing_kind = copy.deepcopy(accounting)
@@ -110,6 +116,12 @@ def main() -> None:
         write_json(path, missing_query_symbol)
         run_fail(str(VALIDATE), str(path))
 
+        wrong_query_budget = copy.deepcopy(accounting)
+        wrong_query_budget["lossRule"]["selectedDepthProtocolChallengeDerivations"] = 1
+        path = tmp / "wrong-query-budget.json"
+        write_json(path, wrong_query_budget)
+        run_fail(str(VALIDATE), str(path))
+
         missing_precondition_symbol = copy.deepcopy(accounting)
         missing_precondition_symbol["lossRule"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability"
         path = tmp / "missing-precondition-symbol.json"
@@ -137,7 +149,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(accounting)
-        missing_blocker["hardClaimBlockers"].remove("quantum random-oracle query bound and interactive reduction manifest")
+        missing_blocker["hardClaimBlockers"].remove("challenge sampler uniformity and transcript-oracle encoding proof")
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))

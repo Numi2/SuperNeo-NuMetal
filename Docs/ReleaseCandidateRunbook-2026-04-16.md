@@ -41,11 +41,12 @@ candidate. It does not authorize production-security release claims.
   transcript collision/malleability terms.
 - `TestVectors/product-qrom-transcript-schedule-v1.json` reflects any product
   QROM transcript schedule changes for proof-kind order, public challenge
-  labels, symbolic `Q_H` query families, or schedule-to-ledger binding.
+  labels, symbolic `Q_H` query families, per-kind protocol challenge
+  derivation maxima, or schedule-to-ledger binding.
 - `TestVectors/product-qrom-transform-preconditions-v1.json` reflects any
   product QROM transform precondition changes for theorem-family fit,
-  public-coin protocol obligations, round schedule, challenge uniformity,
-  transcript encoding, `Q_H` query bounds, or reduction-loss accounting.
+  pinned public-coin protocol schedules, challenge uniformity, transcript
+  encoding, `Q_H` query bounds, or reduction-loss accounting.
 - `TestVectors/product-qrom-interactive-reduction-v1.json` reflects any
   product QROM interactive reduction changes for public-coin protocol formulas,
   selected `Q_H` policy, DFM20 loss multiplier, challenge-count maxima, or

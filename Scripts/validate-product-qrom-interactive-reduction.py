@@ -51,17 +51,35 @@ EXPECTED_PROOF_KINDS = [
     ("fold", 1, 204, "n_fold"),
     ("terminal", 2, 423, "n_terminal"),
     ("compressed-terminal", 3, 423, "n_compressed_terminal"),
-    ("numiseal-terminal", 4, None, "n_numiseal_terminal"),
-    ("numiseal-zk-product", 5, None, "n_numiseal_zk_product"),
+    ("numiseal-terminal", 4, 4_376_925, "n_numiseal_terminal"),
+    ("numiseal-zk-product", 5, 4_377_150, "n_numiseal_zk_product"),
 ]
 
 EXPECTED_BLOCKERS = [
-    "numeric NumiSeal terminal and NumiSealZK challenge-count maxima under hosted product policy",
+    "DFM20 numeric reduction terms exceed the selected 2^-128 total-loss budget under Q_H = 2^64 and 256-bit challenge accounting",
     "uniformity proof for Ext2, Phi81 ring, ternary CE, and masked-residual field challenge samplers",
     "underlying interactive knowledge-soundness or soundness bounds for every accepted proof kind against quantum dishonest provers",
     "numeric epsilon_interactive_kind bounds for every accepted proof kind",
     "final epsilon_fs_transform boundLog2 integration into epsilon_qrom and the selected total-loss budget",
 ]
+
+EXPECTED_PRODUCT_THEOREM_LIMITS = {
+    "theoremID": "numiseal-product-qrom-selected-depth-1-v1",
+    "maximumLaneCount": 1,
+    "maximumSourceFoldOutputClaimCount": 75,
+    "maximumObligationsPerAggregate": 75,
+    "maximumAggregatesPerLane": 75,
+    "maximumPublicInputCount": 1024,
+    "maximumMatrixEvaluationCount": 1024,
+    "maximumDigitTensorColumnCount": 4096,
+    "maximumSumcheckVariableCount": 18,
+    "scalarizationCommitmentWeightCount": 972,
+    "scalarizationDecompositionCommitmentWeightCount": 972,
+    "maximumMatrixEvaluationWeightCount": 55296,
+    "maximumChallengesPerAggregate": 58359,
+    "maximumNumiSealTerminalChallengeCount": 4_376_925,
+    "maximumNumiSealZKProductChallengeCount": 4_377_150,
+}
 
 
 def fail(message: str) -> None:
@@ -90,6 +108,11 @@ def require_dict(value: Any, label: str) -> dict[str, Any]:
 
 def require_string(value: Any, label: str) -> str:
     require(isinstance(value, str) and value, f"{label} must be a non-empty string")
+    return value
+
+
+def require_int(value: Any, label: str) -> int:
+    require(type(value) is int, f"{label} must be an integer")
     return value
 
 
@@ -203,8 +226,48 @@ def validate_protocol_model(reduction: dict[str, Any]) -> None:
     require(model.get("acceptedProofKinds") == [kind for kind, _, _, _ in EXPECTED_PROOF_KINDS], "acceptedProofKinds order mismatch")
     for key in ["acceptedProofKindOrderPinned", "protocolMessageAlgorithmsPinned", "exactChallengeCountFormulasPinned"]:
         require_true(model.get(key), f"productProtocolModel.{key}")
+    require_true(model.get("allNumericChallengeCountsInstantiated"), "productProtocolModel.allNumericChallengeCountsInstantiated")
+    limits = require_dict(model.get("selectedProductTheoremLimits"), "productProtocolModel.selectedProductTheoremLimits")
+    code_surface = require_relative_path(limits.get("codeSurface"), "selectedProductTheoremLimits.codeSurface")
+    source = code_surface.read_text(encoding="utf-8")
+    for name, expected in EXPECTED_PRODUCT_THEOREM_LIMITS.items():
+        if isinstance(expected, str):
+            require(limits.get(name) == expected, f"selectedProductTheoremLimits.{name} mismatch")
+        else:
+            require(require_int(limits.get(name), f"selectedProductTheoremLimits.{name}") == expected, f"selectedProductTheoremLimits.{name} mismatch")
+            require(str(expected) in json.dumps(limits), f"selectedProductTheoremLimits must encode {expected}")
+    for symbol in [
+        "NumiSealProductTheoremLimits",
+        "maximumNumiSealTerminalChallengeCount",
+        "maximumNumiSealZKProductChallengeCount",
+        "validate(request:",
+        "validate(artifact:",
+    ]:
+        require(symbol in source, f"theorem limit source missing {symbol}")
+    require(
+        limits.get("maximumChallengesPerAggregate")
+        == limits.get("maximumObligationsPerAggregate")
+        + limits.get("scalarizationCommitmentWeightCount")
+        + limits.get("scalarizationDecompositionCommitmentWeightCount")
+        + limits.get("maximumPublicInputCount")
+        + limits.get("maximumMatrixEvaluationWeightCount")
+        + 2
+        + limits.get("maximumSumcheckVariableCount"),
+        "maximumChallengesPerAggregate formula mismatch",
+    )
+    require(
+        limits.get("maximumNumiSealTerminalChallengeCount")
+        == limits.get("maximumLaneCount") * limits.get("maximumAggregatesPerLane") * limits.get("maximumChallengesPerAggregate"),
+        "maximumNumiSealTerminalChallengeCount formula mismatch",
+    )
+    require(
+        limits.get("maximumNumiSealZKProductChallengeCount")
+        == limits.get("maximumNumiSealTerminalChallengeCount") + (3 * limits.get("maximumLaneCount") * limits.get("maximumAggregatesPerLane")),
+        "maximumNumiSealZKProductChallengeCount formula mismatch",
+    )
+    enforced_by = require_string_list(limits.get("enforcedBy"), "selectedProductTheoremLimits.enforcedBy")
+    require(len(enforced_by) >= 4, "selectedProductTheoremLimits.enforcedBy must include prover and verifier enforcement points")
     for key in [
-        "allNumericChallengeCountsInstantiated",
         "allInteractiveSecurityBoundsInstantiated",
         "allUniformityProofsInstantiated",
         "productionProtocolClaimAllowed",
@@ -232,14 +295,12 @@ def validate_proof_kind_protocols(reduction: dict[str, Any]) -> None:
         loss_expression = require_string(row.get("numericLossExpression"), f"{expected_kind}.numericLossExpression")
         for token in ["epsilon_fs", "2^64", "2^256", "epsilon_interactive", "epsilon_precondition"]:
             require(token in loss_expression, f"{expected_kind}.numericLossExpression must contain {token}")
-        if expected_n is None:
-            require(symbol in loss_expression, f"{expected_kind}.numericLossExpression must stay symbolic in {symbol}")
-        else:
-            require(str(expected_n) in loss_expression, f"{expected_kind}.numericLossExpression must contain {expected_n}")
+        require(str(expected_n) in loss_expression, f"{expected_kind}.numericLossExpression must contain {expected_n}")
         require_false(row.get("numericLossInstantiated"), f"{expected_kind}.numericLossInstantiated")
         require_false(row.get("productionQROMClaimAllowed"), f"{expected_kind}.productionQROMClaimAllowed")
         open_inputs = require_string_list(row.get("openInputs"), f"{expected_kind}.openInputs")
         require("epsilon_interactive" in json.dumps(open_inputs), f"{expected_kind}.openInputs must mention epsilon_interactive")
+        require("numeric upper bound" not in json.dumps(open_inputs).lower(), f"{expected_kind}.openInputs must not keep closed numeric-bound blocker")
 
 
 def validate_encoding_and_loss(reduction: dict[str, Any]) -> None:
@@ -253,13 +314,30 @@ def validate_encoding_and_loss(reduction: dict[str, Any]) -> None:
     require(loss.get("queryBoundQH") == "2^64", "queryBoundQH mismatch")
     require(loss.get("queryBoundLog2") == 64, "queryBoundLog2 mismatch")
     require_true(loss.get("queryBoundInstantiated"), "queryBoundInstantiated")
+    schedule_budget = require_dict(loss.get("scheduleDerivedQueryBudget"), "qromQueryAndLossInstantiation.scheduleDerivedQueryBudget")
+    expected_budget = {kind: n for kind, _, n, _ in EXPECTED_PROOF_KINDS}
+    for proof_kind, expected in expected_budget.items():
+        require(schedule_budget.get(proof_kind) == expected, f"scheduleDerivedQueryBudget.{proof_kind} mismatch")
+    require(schedule_budget.get("selectedDepthProtocolChallengeDerivations") == sum(expected_budget.values()), "scheduleDerivedQueryBudget.selectedDepthProtocolChallengeDerivations mismatch")
+    require(
+        schedule_budget.get("scheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "scheduleDerivedQueryBudget.scheduleManifest mismatch",
+    )
     require(loss.get("challengeRangeBits") == 256, "challengeRangeBits mismatch")
     selected = require_string(loss.get("dfm20SelectedDepthExpression"), "dfm20SelectedDepthExpression")
     for token in ["max_kind", "2*Q_H", "n_kind!", "epsilon_interactive_kind", "epsilon_precondition_kind"]:
         require(token in selected, f"dfm20SelectedDepthExpression must contain {token}")
     require_true(loss.get("foldTerminalCompressedNumericNInstantiated"), "foldTerminalCompressedNumericNInstantiated")
+    require_true(loss.get("numiSealNumericNInstantiated"), "numiSealNumericNInstantiated")
+    finding = require_dict(loss.get("numericBudgetFinding"), "qromQueryAndLossInstantiation.numericBudgetFinding")
+    require(finding.get("status") == "instantiated-outside-selected-budget", "numericBudgetFinding.status mismatch")
+    require(finding.get("selectedSecurityBudgetBits") == 128, "numericBudgetFinding.selectedSecurityBudgetBits mismatch")
+    require(finding.get("decisiveTerm") == "n_kind! / 2^256", "numericBudgetFinding.decisiveTerm mismatch")
+    require(finding.get("smallestAcceptedProofKind") == "fold", "numericBudgetFinding.smallestAcceptedProofKind mismatch")
+    require(finding.get("smallestAcceptedChallengeCountN") == 204, "numericBudgetFinding.smallestAcceptedChallengeCountN mismatch")
+    conclusion = require_string(finding.get("smallestAcceptedOrderingTermConclusion"), "numericBudgetFinding.smallestAcceptedOrderingTermConclusion")
+    require("greater than 1" in conclusion and "2^-128" in conclusion, "numericBudgetFinding must fail closed on the ordering term")
     for key in [
-        "numiSealNumericNInstantiated",
         "allInteractiveSecurityBoundsInstantiated",
         "allNumericLossTermsInstantiated",
         "qromLossWithinBudget",
@@ -295,8 +373,8 @@ def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
         "productionQROMClaimAllowed",
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
+    require(promotion.get("requiresNumericNumiSealChallengeBounds") is False, "promotionRule.requiresNumericNumiSealChallengeBounds must be false after code-enforced numeric bounds")
     for key in [
-        "requiresNumericNumiSealChallengeBounds",
         "requiresChallengeUniformityProofs",
         "requiresInteractiveSecurityBounds",
         "requiresQROMLossWithinBudget",

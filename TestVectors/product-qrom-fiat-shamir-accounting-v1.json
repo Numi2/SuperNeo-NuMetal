@@ -32,10 +32,10 @@
     "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "transformPreconditionManifest": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
-    "interactiveProtocolSpecified": false,
+    "interactiveProtocolSpecified": true,
     "publicCoinChallengeScheduleSpecified": true,
     "transformPreconditionsSatisfied": false,
-    "quantumOracleQueryBoundAccounted": false,
+    "quantumOracleQueryBoundAccounted": true,
     "transcriptDomainSeparatorsBound": true,
     "proofKindSeparationBound": true,
     "transcriptCollisionMalleabilityExcluded": false,
@@ -99,6 +99,10 @@
     "challengeForkingLossSymbol": "epsilon_fs_transform",
     "transcriptCollisionLossSymbol": "epsilon_transcript_collision",
     "proofKindMalleabilityLossSymbol": "epsilon_proof_kind_malleability",
+    "queryBoundQH": "2^64",
+    "queryBoundLog2": 64,
+    "selectedDepthProtocolChallengeDerivations": 8755125,
+    "queryBoundAccountingSource": "TestVectors/product-qrom-transcript-schedule-v1.json ledgerBinding and TestVectors/product-qrom-interactive-reduction-v1.json qromQueryAndLossInstantiation",
     "allQROMLossTermsInstantiated": false,
     "qromLossWithinBudget": false,
     "productionQROMClaimAllowed": false
@@ -122,19 +126,18 @@
     }
   },
   "hardClaimBlockers": [
-    "exact public-coin interactive protocol for every accepted product proof kind",
     "proof that the selected Fiat-Shamir transform preconditions hold",
-    "quantum random-oracle query bound and interactive reduction manifest",
-    "numeric QROM reduction loss inside the selected total loss budget",
+    "DFM20 numeric reduction terms exceed the selected total-loss budget under the current challenge accounting",
+    "challenge sampler uniformity and transcript-oracle encoding proof",
     "proof that proof-kind and transcript-domain separation exclude collision and malleability"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
-    "requiresInteractiveProtocol": true,
+    "requiresInteractiveProtocol": false,
     "requiresTransformPreconditions": true,
-    "requiresQuantumOracleQueryBound": true,
+    "requiresQuantumOracleQueryBound": false,
     "requiresQROMLossWithinBudget": true,
     "requiresSelectedDepthLedgerUpdate": true
   }

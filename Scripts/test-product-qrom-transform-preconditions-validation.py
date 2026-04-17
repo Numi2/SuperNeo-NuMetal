@@ -62,10 +62,10 @@ def main() -> None:
         write_json(path, wrong_profile)
         run_fail(str(VALIDATE), str(path))
 
-        premature_move_count = copy.deepcopy(preconditions)
-        premature_move_count["selectedTransformProfile"]["exactMoveCountInstantiated"] = True
-        path = tmp / "premature-move-count.json"
-        write_json(path, premature_move_count)
+        missing_move_count = copy.deepcopy(preconditions)
+        missing_move_count["selectedTransformProfile"]["exactMoveCountInstantiated"] = False
+        path = tmp / "missing-move-count.json"
+        write_json(path, missing_move_count)
         run_fail(str(VALIDATE), str(path))
 
         missing_schedule = copy.deepcopy(preconditions)
@@ -92,6 +92,12 @@ def main() -> None:
         write_json(path, premature_precondition)
         run_fail(str(VALIDATE), str(path))
 
+        missing_query_bound_precondition = copy.deepcopy(preconditions)
+        missing_query_bound_precondition["preconditions"][7]["satisfied"] = False
+        path = tmp / "missing-query-bound-precondition.json"
+        write_json(path, missing_query_bound_precondition)
+        run_fail(str(VALIDATE), str(path))
+
         missing_precondition = copy.deepcopy(preconditions)
         missing_precondition["preconditions"] = [
             row for row in missing_precondition["preconditions"] if row["id"] != "quantum-query-bound"
@@ -108,10 +114,16 @@ def main() -> None:
         write_json(path, missing_proof_kind)
         run_fail(str(VALIDATE), str(path))
 
-        premature_challenge_count = copy.deepcopy(preconditions)
-        premature_challenge_count["proofKindFit"][0]["challengeCountN"] = 1
-        path = tmp / "premature-challenge-count.json"
-        write_json(path, premature_challenge_count)
+        wrong_challenge_count = copy.deepcopy(preconditions)
+        wrong_challenge_count["proofKindFit"][0]["challengeCountN"] = 1
+        path = tmp / "wrong-challenge-count.json"
+        write_json(path, wrong_challenge_count)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_query_bound = copy.deepcopy(preconditions)
+        missing_query_bound["proofKindFit"][0]["queryBoundQH"] = None
+        path = tmp / "missing-query-bound.json"
+        write_json(path, missing_query_bound)
         run_fail(str(VALIDATE), str(path))
 
         missing_loss_symbol = copy.deepcopy(preconditions)
@@ -122,7 +134,7 @@ def main() -> None:
 
         missing_blocker = copy.deepcopy(preconditions)
         missing_blocker["hardClaimBlockers"].remove(
-            "numeric Q_H query bound and DFM20 ((2*Q_H+n+1)^(2n)/n!) reduction-loss instantiation"
+            "repair of the out-of-budget DFM20 reduction-loss finding under the instantiated Q_H = 2^64 bound"
         )
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)

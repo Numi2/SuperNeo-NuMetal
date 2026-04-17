@@ -182,32 +182,36 @@ and does not affect proof bytes. It pins proof-kind transcript interfaces,
 challenge families, domain separation, QROM loss symbols, the mapping from
 `epsilon_transcript_collision` to the ledger's `epsilon_collision`, and the
 promotion rule that keeps production QROM claims disabled until the interactive
-protocol, transform preconditions, quantum random-oracle query bound, and
+protocol, transform preconditions, sampler uniformity, transcript encoding, and
 numeric loss budget are instantiated.
 
 `TestVectors/product-qrom-transcript-schedule-v1.json` is the checked Product
 QROM transcript schedule manifest. It is not a proof artifact schema and does
 not affect proof bytes. It pins proof-kind order, envelope kinds, public
 challenge labels, transcript bindings, symbolic quantum random-oracle query
-families, and the promotion rule that keeps production QROM claims disabled
-until interactive protocol closure and numeric query bounds are instantiated.
+families, per-kind protocol challenge-derivation maxima, the conditional
+`Q_H = 2^64` query cap, and the promotion rule that keeps production QROM
+claims disabled until transform-precondition closure and repaired QROM loss
+accounting are instantiated.
 
 `TestVectors/product-qrom-transform-preconditions-v1.json` is the checked
 Product QROM transform preconditions manifest. It is not a proof artifact
 schema and does not affect proof bytes. It pins primary QROM Fiat-Shamir
 source references, the selected fail-closed measure-and-reprogram profile,
 proof-kind theorem-family fit, precondition rows, symbolic loss interface, and
-the promotion rule that keeps production QROM claims disabled until exact
-interactive protocols, transform preconditions, numeric quantum query bounds,
-and QROM reduction-loss terms are instantiated.
+the promotion rule that keeps production QROM claims disabled until
+transform-precondition proofs, sampler uniformity, transcript encoding,
+interactive-security bounds, and repaired QROM reduction-loss terms are
+instantiated.
 
 `TestVectors/product-qrom-interactive-reduction-v1.json` is the checked
 Product QROM interactive reduction manifest. It is not a proof artifact schema
 and does not affect proof bytes. It pins public-coin protocol formulas, the
 selected `Q_H = 2^64` policy, DFM20 reduction multiplier, per-proof-kind
-challenge-count formulas, and the promotion rule that keeps production QROM
-claims disabled until NumiSeal numeric challenge maxima, sampler-uniformity
-proofs, and interactive-security bounds are instantiated.
+challenge-count formulas, selected-depth protocol challenge-derivation budget,
+and the promotion rule that keeps production QROM claims disabled until the
+current out-of-budget DFM20 numeric finding, sampler-uniformity proofs, and
+interactive-security bounds are repaired.
 
 `TestVectors/product-total-loss-budget-v1.json` is the checked product
 total-loss budget manifest. It is not a proof artifact schema and does not

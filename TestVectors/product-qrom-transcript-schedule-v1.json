@@ -32,9 +32,9 @@
     "model": "qrom",
     "randomOracleAbstraction": "SHA-256 transcript bytes are treated as the quantum random-oracle interface for the proof obligation only",
     "hashInstantiationProofProvided": false,
-    "interactiveProtocolFullySpecified": false,
+    "interactiveProtocolFullySpecified": true,
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
-    "quantumOracleQueryBoundInstantiated": false,
+    "quantumOracleQueryBoundInstantiated": true,
     "transformPreconditionsSatisfied": false,
     "productionQROMClaimAllowed": false
   },
@@ -67,8 +67,11 @@
         "Q_H_fold_absorb_prover_message",
         "Q_H_fold_derive_public_coin_challenge"
       ],
-      "maximumQuantumOracleQueries": null,
-      "queryBoundInstantiated": false,
+      "maximumProtocolChallengeDerivations": 204,
+      "maximumQuantumOracleQueries": "2^64",
+      "maximumQuantumOracleQueriesLog2": 64,
+      "queryBoundSource": "conditional adversary QROM query cap from product-qrom-interactive-reduction-v1 plus schedule-derived challenge derivation count",
+      "queryBoundInstantiated": true,
       "transformPreconditionsSatisfied": false,
       "productionScheduleClaimAllowed": false
     },
@@ -90,8 +93,11 @@
         "Q_H_terminal_absorb_opening_message",
         "Q_H_terminal_derive_public_coin_challenge"
       ],
-      "maximumQuantumOracleQueries": null,
-      "queryBoundInstantiated": false,
+      "maximumProtocolChallengeDerivations": 423,
+      "maximumQuantumOracleQueries": "2^64",
+      "maximumQuantumOracleQueriesLog2": 64,
+      "queryBoundSource": "conditional adversary QROM query cap from product-qrom-interactive-reduction-v1 plus schedule-derived challenge derivation count",
+      "queryBoundInstantiated": true,
       "transformPreconditionsSatisfied": false,
       "productionScheduleClaimAllowed": false
     },
@@ -113,8 +119,11 @@
         "Q_H_compressed_terminal_absorb_opening_message",
         "Q_H_compressed_terminal_derive_public_coin_challenge"
       ],
-      "maximumQuantumOracleQueries": null,
-      "queryBoundInstantiated": false,
+      "maximumProtocolChallengeDerivations": 423,
+      "maximumQuantumOracleQueries": "2^64",
+      "maximumQuantumOracleQueriesLog2": 64,
+      "queryBoundSource": "conditional adversary QROM query cap from product-qrom-interactive-reduction-v1 plus schedule-derived challenge derivation count",
+      "queryBoundInstantiated": true,
       "transformPreconditionsSatisfied": false,
       "productionScheduleClaimAllowed": false
     },
@@ -140,8 +149,11 @@
         "Q_H_numiseal_terminal_absorb_component_digest_root",
         "Q_H_numiseal_terminal_derive_public_coin_challenge"
       ],
-      "maximumQuantumOracleQueries": null,
-      "queryBoundInstantiated": false,
+      "maximumProtocolChallengeDerivations": 4376925,
+      "maximumQuantumOracleQueries": "2^64",
+      "maximumQuantumOracleQueriesLog2": 64,
+      "queryBoundSource": "conditional adversary QROM query cap from product-qrom-interactive-reduction-v1 plus schedule-derived challenge derivation count",
+      "queryBoundInstantiated": true,
       "transformPreconditionsSatisfied": false,
       "productionScheduleClaimAllowed": false
     },
@@ -168,8 +180,11 @@
         "Q_H_numiseal_zk_product_absorb_declared_leakage",
         "Q_H_numiseal_zk_product_derive_public_coin_challenge"
       ],
-      "maximumQuantumOracleQueries": null,
-      "queryBoundInstantiated": false,
+      "maximumProtocolChallengeDerivations": 4377150,
+      "maximumQuantumOracleQueries": "2^64",
+      "maximumQuantumOracleQueriesLog2": 64,
+      "queryBoundSource": "conditional adversary QROM query cap from product-qrom-interactive-reduction-v1 plus schedule-derived challenge derivation count",
+      "queryBoundInstantiated": true,
       "transformPreconditionsSatisfied": false,
       "productionScheduleClaimAllowed": false
     }
@@ -181,24 +196,25 @@
     "qromLossSymbol": "epsilon_qrom",
     "transcriptCollisionLossSymbol": "epsilon_collision",
     "quantumOracleQuerySymbol": "Q_H",
-    "selectedDepthQueryExpression": "Q_H(depth=1) = Q_H_fold + Q_H_terminal + Q_H_compressed_terminal + Q_H_numiseal_terminal + Q_H_numiseal_zk_product",
-    "numericQueryBoundInstantiated": false,
+    "selectedDepthQueryExpression": "Q_H_adversary(depth=1) = 2^64 with schedule-derived challenge derivations Q_H_schedule = Q_H_fold + Q_H_terminal + Q_H_compressed_terminal + Q_H_numiseal_terminal + Q_H_numiseal_zk_product = 8755125",
+    "selectedDepthProtocolChallengeDerivations": 8755125,
+    "selectedQHBound": "2^64",
+    "selectedQHLog2": 64,
+    "numericQueryBoundInstantiated": true,
     "qromLossWithinBudget": false
   },
   "hardClaimBlockers": [
-    "exact interactive public-coin message algorithms for every accepted proof kind",
     "Fiat-Shamir transform precondition proof for the pinned transcript schedule",
-    "numeric quantum random-oracle query bound for every schedule entry",
     "domain-separation collision and proof-kind malleability exclusion proof",
-    "integration of schedule-derived Q_H into QROM accounting and the selected total-loss budget"
+    "integration of the instantiated Q_H bound into a repaired QROM loss model that fits the selected total-loss budget"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
-    "requiresInteractiveProtocol": true,
+    "requiresInteractiveProtocol": false,
     "requiresTransformPreconditions": true,
-    "requiresQuantumOracleQueryBound": true,
+    "requiresQuantumOracleQueryBound": false,
     "requiresQROMAccountingUpdate": true,
     "requiresTotalLossBudgetUpdate": true
   }

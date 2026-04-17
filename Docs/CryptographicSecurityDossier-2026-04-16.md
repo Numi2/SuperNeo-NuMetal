@@ -221,14 +221,14 @@ proofs. The production QROM claim is still disabled.
 
 Remaining work:
 
-- close `TestVectors/product-qrom-interactive-reduction-v1.json` by
-  instantiating numeric NumiSeal challenge-count maxima, sampler uniformity,
-  and per-kind interactive security bounds,
-- instantiate the pinned QROM transcript schedule with per-kind `Q_H` query
-  bounds,
+- repair or replace the current DFM20 numeric reduction budget: the checked
+  interactive-reduction manifest now instantiates NumiSeal challenge-count
+  maxima, but the selected `n! / 2^256` ordering term is already outside the
+  `2^-128` budget for the smallest accepted proof kind,
 - close `TestVectors/product-qrom-transform-preconditions-v1.json` by proving
   the selected transform preconditions or explicitly narrow the theorem to ROM,
-- account quantum random-oracle query bounds in the soundness loss,
+- prove challenge sampler uniformity and transcript-oracle encoding injectivity
+  for every accepted proof kind,
 - bind every domain separator and transcript label in the theorem, and
 - prove no transcript collision or malleability across fold, terminal,
   compressed-terminal, NumiSeal terminal, and NumiSealZK envelopes.
@@ -274,13 +274,13 @@ stack:
   for the future tighter commit-and-open extractor track if product proofs are
   refactored to fit that family.
 
-Promotion requires the exact interactive public-coin protocol for every
-accepted proof kind, the exact `(2n + 1)` schedule, uniform challenge-space
-proofs, injective transcript-oracle input encoding, underlying interactive
-security against quantum dishonest provers, numeric `Q_H`, numeric `n_kind`,
-sampler-uniformity, and per-kind `epsilon_interactive` bounds, and integration
-of `epsilon_fs_transform` and `epsilon_precondition` into the selected
-total-loss budget.
+Promotion requires the exact `(2n + 1)` theorem fit for the pinned interactive
+public-coin protocol, uniform challenge-space proofs, injective
+transcript-oracle input encoding, underlying interactive security against
+quantum dishonest provers, repaired numeric QROM loss accounting under the
+instantiated `Q_H = 2^64` bound, sampler-uniformity, per-kind
+`epsilon_interactive` bounds, and integration of `epsilon_fs_transform` and
+`epsilon_precondition` into the selected total-loss budget.
 
 ## QROM Interactive Reduction
 
@@ -292,15 +292,24 @@ compressed-terminal, NumiSeal terminal, and NumiSealZK product proofs, and the
 exact DFM20 multiplier `((2*Q_H+n+1)^(2n)/n!)` plus the additive
 `n! / 2^256` ordering term.
 
-The ledger instantiates conservative numeric `n` upper bounds for fold,
-terminal, and compressed-terminal using the checked profile limits
-`log2(shape.m) <= 64`, `maxFreshBatchCount = 61`, `maxPriorClaimCount = 14`,
-and `CEOpeningProof.roundCount = 219`. It deliberately does not instantiate
-numeric `n` for NumiSeal terminal or NumiSealZK product because those require
-hosted product-policy maxima for lane count, aggregate count, obligation count,
-lane proof count, and proof byte count. It also keeps every per-kind
-`epsilon_interactive` bound, sampler-uniformity proof, and final total-loss
-budget term open, so it is not a production QROM theorem.
+The ledger instantiates conservative numeric `n` upper bounds for every
+accepted proof kind. Fold, terminal, and compressed-terminal use the checked
+profile limits `log2(shape.m) <= 64`, `maxFreshBatchCount = 61`,
+`maxPriorClaimCount = 14`, and `CEOpeningProof.roundCount = 219`.
+NumiSeal terminal and NumiSealZK product now use the code-enforced
+`NumiSealProductTheoremLimits` surface: one product lane, at most 75 source
+fold output claims, at most 75 obligations per aggregate, at most 75 aggregates
+per lane, at most 1024 public inputs, at most 1024 matrix evaluations, and at
+most 18 sum-check variables. This yields `n_numiseal_terminal <= 4,376,925`
+and `n_numiseal_zk_product <= 4,377,150`.
+
+The ledger also records the decisive fail-closed budget result. Under the
+selected DFM20/256-bit challenge accounting, `log2(204!)` is already greater
+than 1276, so the additive `204! / 2^256` ordering term is greater than 1 for
+the smallest accepted proof kind. The QROM theorem therefore remains disabled
+until the loss model, challenge accounting, sampler-uniformity proofs,
+per-kind `epsilon_interactive` bounds, and total-loss budget integration are
+repaired.
 
 ## QROM Transcript Schedule
 
@@ -309,9 +318,11 @@ Transcript Schedule contract. It pins the accepted proof-kind order, envelope
 kinds, public challenge labels, transcript bindings, symbolic quantum
 random-oracle query families, and schedule-to-ledger binding for fold,
 terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK product proof
-kinds. It is intentionally not a production QROM proof: interactive protocol
-closure, transform preconditions, numeric quantum random-oracle query bounds,
-and integration into the total-loss budget remain open.
+kinds. It also pins the conditional `Q_H = 2^64` adversary-query cap and
+`8755125` selected-depth protocol challenge derivations. It is intentionally
+not a production QROM proof: theorem-family fit, transform preconditions,
+sampler uniformity, transcript encoding, the repaired QROM loss model, and
+integration into the total-loss budget remain open.
 
 ## Total Loss Budget
 

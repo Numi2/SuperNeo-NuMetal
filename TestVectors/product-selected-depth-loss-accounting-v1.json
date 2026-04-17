@@ -109,7 +109,7 @@
       "status": "qrom-accounting-and-transcript-schedule-contracts-pinned-loss-instantiation-open",
       "lossSymbol": "epsilon_qrom",
       "accountingRule": "one QROM Fiat-Shamir transform loss per accepted product transcript plus transcript collision loss",
-      "requiredEvidence": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json, TestVectors/product-qrom-transcript-schedule-v1.json, TestVectors/product-qrom-transform-preconditions-v1.json, and TestVectors/product-qrom-interactive-reduction-v1.json plus public-coin interactive protocol, transform preconditions, quantum random-oracle query bound, numeric QROM reduction loss, and collision/malleability proof",
+      "requiredEvidence": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json, TestVectors/product-qrom-transcript-schedule-v1.json, TestVectors/product-qrom-transform-preconditions-v1.json, and TestVectors/product-qrom-interactive-reduction-v1.json plus transform preconditions, challenge sampler uniformity, per-kind interactive security bounds, a QROM reduction loss that fits the selected total-loss budget, and collision/malleability proof",
       "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
       "productionClaimAllowed": false
     },

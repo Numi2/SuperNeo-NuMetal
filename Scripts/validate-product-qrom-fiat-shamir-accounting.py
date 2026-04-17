@@ -53,10 +53,9 @@ EXPECTED_PROOF_KINDS = [
 ]
 
 EXPECTED_BLOCKERS = [
-    "exact public-coin interactive protocol for every accepted product proof kind",
     "proof that the selected Fiat-Shamir transform preconditions hold",
-    "quantum random-oracle query bound and interactive reduction manifest",
-    "numeric QROM reduction loss inside the selected total loss budget",
+    "DFM20 numeric reduction terms exceed the selected total-loss budget under the current challenge accounting",
+    "challenge sampler uniformity and transcript-oracle encoding proof",
     "proof that proof-kind and transcript-domain separation exclude collision and malleability",
 ]
 
@@ -100,6 +99,10 @@ def require_string_list(value: Any, label: str) -> list[str]:
 
 def require_false(value: Any, label: str) -> None:
     require(value is False, f"{label} must be false until QROM evidence is instantiated")
+
+
+def require_true(value: Any, label: str) -> None:
+    require(value is True, f"{label} must be true")
 
 
 def require_relative_path(value: Any, label: str) -> Path:
@@ -239,10 +242,10 @@ def validate_fiat_shamir_model(accounting: dict[str, Any]) -> None:
         "fiatShamirModel.interactiveReductionManifest mismatch",
     )
     require_relative_path(model.get("interactiveReductionManifest"), "fiatShamirModel.interactiveReductionManifest")
-    require_false(model.get("interactiveProtocolSpecified"), "fiatShamirModel.interactiveProtocolSpecified")
+    require(model.get("interactiveProtocolSpecified") is True, "fiatShamirModel.interactiveProtocolSpecified must be true")
     require(model.get("publicCoinChallengeScheduleSpecified") is True, "publicCoinChallengeScheduleSpecified must be true")
     require_false(model.get("transformPreconditionsSatisfied"), "fiatShamirModel.transformPreconditionsSatisfied")
-    require_false(model.get("quantumOracleQueryBoundAccounted"), "fiatShamirModel.quantumOracleQueryBoundAccounted")
+    require_true(model.get("quantumOracleQueryBoundAccounted"), "fiatShamirModel.quantumOracleQueryBoundAccounted")
     require(model.get("transcriptDomainSeparatorsBound") is True, "transcriptDomainSeparatorsBound must be true")
     require(model.get("proofKindSeparationBound") is True, "proofKindSeparationBound must be true")
     require_false(model.get("transcriptCollisionMalleabilityExcluded"), "fiatShamirModel.transcriptCollisionMalleabilityExcluded")
@@ -300,6 +303,15 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
         "proofKindMalleabilityLossSymbol",
     ]:
         require_string(rule.get(key), f"lossRule.{key}")
+    require(rule.get("queryBoundQH") == "2^64", "lossRule.queryBoundQH must be 2^64")
+    require(rule.get("queryBoundLog2") == 64, "lossRule.queryBoundLog2 must be 64")
+    require(rule.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "lossRule.selectedDepthProtocolChallengeDerivations mismatch")
+    source = require_string(rule.get("queryBoundAccountingSource"), "lossRule.queryBoundAccountingSource")
+    for manifest in [
+        "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "TestVectors/product-qrom-interactive-reduction-v1.json",
+    ]:
+        require(manifest in source, f"lossRule.queryBoundAccountingSource must include {manifest}")
     require_false(rule.get("allQROMLossTermsInstantiated"), "lossRule.allQROMLossTermsInstantiated")
     require_false(rule.get("qromLossWithinBudget"), "lossRule.qromLossWithinBudget")
     require_false(rule.get("productionQROMClaimAllowed"), "lossRule.productionQROMClaimAllowed")
@@ -333,14 +345,14 @@ def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
         "productionQROMClaimAllowed",
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
+    require(promotion.get("requiresInteractiveProtocol") is False, "promotionRule.requiresInteractiveProtocol must be false after interactive reduction manifest closure")
     for key in [
-        "requiresInteractiveProtocol",
         "requiresTransformPreconditions",
-        "requiresQuantumOracleQueryBound",
         "requiresQROMLossWithinBudget",
         "requiresSelectedDepthLedgerUpdate",
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(promotion.get("requiresQuantumOracleQueryBound") is False, "promotionRule.requiresQuantumOracleQueryBound must be false after Q_H bound instantiation")
 
 
 def validate_docs_and_gate() -> None:

@@ -48,10 +48,10 @@ def main() -> None:
         write_json(path, premature_depth)
         run_fail(str(VALIDATE), str(path))
 
-        premature_interactive = copy.deepcopy(schedule)
-        premature_interactive["oracleModel"]["interactiveProtocolFullySpecified"] = True
-        path = tmp / "premature-interactive.json"
-        write_json(path, premature_interactive)
+        missing_interactive = copy.deepcopy(schedule)
+        missing_interactive["oracleModel"]["interactiveProtocolFullySpecified"] = False
+        path = tmp / "missing-interactive.json"
+        write_json(path, missing_interactive)
         run_fail(str(VALIDATE), str(path))
 
         missing_qrom = copy.deepcopy(schedule)
@@ -98,10 +98,17 @@ def main() -> None:
         write_json(path, wrong_query_prefix)
         run_fail(str(VALIDATE), str(path))
 
-        premature_query_bound = copy.deepcopy(schedule)
-        premature_query_bound["scheduleEntries"][0]["maximumQuantumOracleQueries"] = 12
-        path = tmp / "premature-query-bound.json"
-        write_json(path, premature_query_bound)
+        missing_query_bound = copy.deepcopy(schedule)
+        missing_query_bound["scheduleEntries"][0]["maximumQuantumOracleQueries"] = None
+        missing_query_bound["scheduleEntries"][0]["queryBoundInstantiated"] = False
+        path = tmp / "missing-query-bound.json"
+        write_json(path, missing_query_bound)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_challenge_derivation_count = copy.deepcopy(schedule)
+        wrong_challenge_derivation_count["scheduleEntries"][4]["maximumProtocolChallengeDerivations"] = 1
+        path = tmp / "wrong-challenge-derivation-count.json"
+        write_json(path, wrong_challenge_derivation_count)
         run_fail(str(VALIDATE), str(path))
 
         missing_query_symbol = copy.deepcopy(schedule)
@@ -111,7 +118,9 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(schedule)
-        missing_blocker["hardClaimBlockers"].remove("numeric quantum random-oracle query bound for every schedule entry")
+        missing_blocker["hardClaimBlockers"].remove(
+            "integration of the instantiated Q_H bound into a repaired QROM loss model that fits the selected total-loss budget"
+        )
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))

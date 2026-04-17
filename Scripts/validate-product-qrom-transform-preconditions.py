@@ -61,19 +61,18 @@ EXPECTED_PRECONDITION_IDS = [
 ]
 
 EXPECTED_PROOF_KINDS = [
-    ("fold", 1),
-    ("terminal", 2),
-    ("compressed-terminal", 3),
-    ("numiseal-terminal", 4),
-    ("numiseal-zk-product", 5),
+    ("fold", 1, 204),
+    ("terminal", 2, 423),
+    ("compressed-terminal", 3, 423),
+    ("numiseal-terminal", 4, 4_376_925),
+    ("numiseal-zk-product", 5, 4_377_150),
 ]
 
 EXPECTED_BLOCKERS = [
-    "exact public-coin interactive protocol for every accepted product proof kind",
-    "exact constant-round odd-message schedule and challenge count n",
+    "proof that the pinned public-coin interactive schedules satisfy the selected theorem family",
     "challenge-space uniformity and transcript-oracle encoding proof",
     "underlying interactive knowledge-soundness or soundness bound against quantum dishonest provers",
-    "numeric Q_H query bound and DFM20 ((2*Q_H+n+1)^(2n)/n!) reduction-loss instantiation",
+    "repair of the out-of-budget DFM20 reduction-loss finding under the instantiated Q_H = 2^64 bound",
     "integration of epsilon_fs_transform and epsilon_precondition into QROM accounting and the selected total-loss budget",
 ]
 
@@ -117,6 +116,10 @@ def require_string_list(value: Any, label: str) -> list[str]:
 
 def require_false(value: Any, label: str) -> None:
     require(value is False, f"{label} must be false until QROM transform evidence is instantiated")
+
+
+def require_true(value: Any, label: str) -> None:
+    require(value is True, f"{label} must be true")
 
 
 def require_relative_path(value: Any, label: str) -> Path:
@@ -251,13 +254,13 @@ def validate_selected_transform_profile(preconditions: dict[str, Any]) -> None:
     for needle in ["sigma", "o(q_h^2)", "multi-round", "dfm20", "2*q_h", "n!", "(2n + 1)"]:
         require(needle in family_text, f"accepted theorem families must mention {needle}")
     require(profile.get("currentSelectedFamily") == "multi-round-public-coin-fail-closed", "currentSelectedFamily mismatch")
-    require_false(profile.get("exactMoveCountInstantiated"), "selectedTransformProfile.exactMoveCountInstantiated")
+    require(profile.get("exactMoveCountInstantiated") is True, "selectedTransformProfile.exactMoveCountInstantiated must be true")
     require(profile.get("challengeCountSymbol") == "n", "challengeCountSymbol must be n")
     require(profile.get("quantumOracleQuerySymbol") == "Q_H", "quantumOracleQuerySymbol must be Q_H")
     loss_shape = require_string(profile.get("selectedLossShape"), "selectedTransformProfile.selectedLossShape")
     for symbol in ["2*Q_H", "2n", "n!", "epsilon_interactive", "epsilon_precondition"]:
         require(symbol in loss_shape, f"selectedLossShape must include {symbol}")
-    require_false(profile.get("exactConstantInstantiated"), "selectedTransformProfile.exactConstantInstantiated")
+    require(profile.get("exactConstantInstantiated") is True, "selectedTransformProfile.exactConstantInstantiated must be true")
     require_false(profile.get("productionTransformClaimAllowed"), "selectedTransformProfile.productionTransformClaimAllowed")
 
 
@@ -274,7 +277,11 @@ def validate_precondition_rows(preconditions: dict[str, Any]) -> None:
         seen.append(row_id)
         require_string(row.get("status"), f"{row_id}.status")
         require(row.get("required") is True, f"{row_id}.required must be true")
-        require_false(row.get("satisfied"), f"{row_id}.satisfied")
+        if row_id == "quantum-query-bound":
+            require_true(row.get("satisfied"), f"{row_id}.satisfied")
+            require(row.get("status") == "conditional-query-bound-instantiated", f"{row_id}.status mismatch")
+        else:
+            require_false(row.get("satisfied"), f"{row_id}.satisfied")
         require_string(row.get("evidence"), f"{row_id}.evidence")
         basis = require_string_list(row.get("sourceBasis"), f"{row_id}.sourceBasis")
         require(set(basis).issubset(source_ids), f"{row_id}.sourceBasis contains unknown source id")
@@ -297,24 +304,33 @@ def validate_proof_kind_fit(preconditions: dict[str, Any]) -> None:
         (require_dict(item, f"scheduleEntries[{index}]").get("proofKind"), item.get("envelopeKind"))
         for index, item in enumerate(entries)
     ]
+    schedule_derivations = {
+        require_string(require_dict(item, f"scheduleEntries[{index}]").get("proofKind"), f"scheduleEntries[{index}].proofKind"):
+            require_dict(item, f"scheduleEntries[{index}]").get("maximumProtocolChallengeDerivations")
+        for index, item in enumerate(entries)
+    }
 
-    seen: list[tuple[str, int]] = []
+    seen: list[tuple[str, int, int]] = []
     for index, item in enumerate(rows):
         row = require_dict(item, f"proofKindFit[{index}]")
         proof_kind = require_string(row.get("proofKind"), f"proofKindFit[{index}].proofKind")
         envelope_kind = row.get("envelopeKind")
         require(isinstance(envelope_kind, int), f"{proof_kind}.envelopeKind must be an integer")
-        seen.append((proof_kind, envelope_kind))
+        challenge_count = row.get("challengeCountN")
+        require(type(challenge_count) is int and challenge_count > 0, f"{proof_kind}.challengeCountN must be a positive integer")
+        seen.append((proof_kind, envelope_kind, challenge_count))
         require(row.get("scheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json", f"{proof_kind}.scheduleManifest mismatch")
         require_relative_path(row.get("scheduleManifest"), f"{proof_kind}.scheduleManifest")
         require("public-coin" in require_string(row.get("candidateFamily"), f"{proof_kind}.candidateFamily"), f"{proof_kind}.candidateFamily must name public-coin")
-        require_false(row.get("exactInteractiveProtocolSpecified"), f"{proof_kind}.exactInteractiveProtocolSpecified")
-        require(row.get("challengeCountN") is None, f"{proof_kind}.challengeCountN must stay null until instantiated")
-        require(row.get("queryBoundQH") is None, f"{proof_kind}.queryBoundQH must stay null until instantiated")
+        require(row.get("exactInteractiveProtocolSpecified") is True, f"{proof_kind}.exactInteractiveProtocolSpecified must be true")
+        require(row.get("queryBoundQH") == "2^64", f"{proof_kind}.queryBoundQH must be 2^64")
+        require(row.get("queryBoundLog2") == 64, f"{proof_kind}.queryBoundLog2 must be 64")
+        require(row.get("maximumProtocolChallengeDerivations") == challenge_count, f"{proof_kind}.maximumProtocolChallengeDerivations must match challengeCountN")
+        require(schedule_derivations.get(proof_kind) == challenge_count, f"{proof_kind}.schedule maximumProtocolChallengeDerivations mismatch")
         require_false(row.get("transformPreconditionsSatisfied"), f"{proof_kind}.transformPreconditionsSatisfied")
         require_false(row.get("productionQROMClaimAllowed"), f"{proof_kind}.productionQROMClaimAllowed")
     require(seen == EXPECTED_PROOF_KINDS, "proofKindFit must stay in the pinned proof-kind order")
-    require(schedule_pairs == EXPECTED_PROOF_KINDS, "proofKindFit must match the transcript schedule proof-kind order")
+    require(schedule_pairs == [(kind, envelope) for kind, envelope, _ in EXPECTED_PROOF_KINDS], "proofKindFit must match the transcript schedule proof-kind order")
 
 
 def validate_loss_interface(preconditions: dict[str, Any]) -> None:
@@ -350,17 +366,17 @@ def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
         "productionQROMClaimAllowed",
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
+    require(promotion.get("requiresInteractiveProtocol") is False, "promotionRule.requiresInteractiveProtocol must be false after interactive schedule pinning")
+    require(promotion.get("requiresRoundSchedule") is False, "promotionRule.requiresRoundSchedule must be false after challenge-count pinning")
     for key in [
-        "requiresInteractiveProtocol",
-        "requiresRoundSchedule",
         "requiresChallengeUniformity",
         "requiresTranscriptEncodingProof",
         "requiresUnderlyingInteractiveSecurity",
-        "requiresQuantumOracleQueryBound",
         "requiresQROMLossInstantiation",
         "requiresTotalLossBudgetUpdate",
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(promotion.get("requiresQuantumOracleQueryBound") is False, "promotionRule.requiresQuantumOracleQueryBound must be false after Q_H bound instantiation")
 
 
 def validate_docs_and_gate() -> None:

@@ -53,6 +53,14 @@ EXPECTED_PROOF_KINDS = [
     ("numiseal-zk-product", 5),
 ]
 
+EXPECTED_CHALLENGE_DERIVATIONS = {
+    "fold": 204,
+    "terminal": 423,
+    "compressed-terminal": 423,
+    "numiseal-terminal": 4_376_925,
+    "numiseal-zk-product": 4_377_150,
+}
+
 EXPECTED_QUERY_FAMILY_PREFIXES = [
     "Q_H_fold_",
     "Q_H_terminal_",
@@ -62,11 +70,9 @@ EXPECTED_QUERY_FAMILY_PREFIXES = [
 ]
 
 EXPECTED_BLOCKERS = [
-    "exact interactive public-coin message algorithms for every accepted proof kind",
     "Fiat-Shamir transform precondition proof for the pinned transcript schedule",
-    "numeric quantum random-oracle query bound for every schedule entry",
     "domain-separation collision and proof-kind malleability exclusion proof",
-    "integration of schedule-derived Q_H into QROM accounting and the selected total-loss budget",
+    "integration of the instantiated Q_H bound into a repaired QROM loss model that fits the selected total-loss budget",
 ]
 
 
@@ -109,6 +115,15 @@ def require_string_list(value: Any, label: str) -> list[str]:
 
 def require_false(value: Any, label: str) -> None:
     require(value is False, f"{label} must be false until QROM schedule evidence is instantiated")
+
+
+def require_true(value: Any, label: str) -> None:
+    require(value is True, f"{label} must be true")
+
+
+def require_int(value: Any, label: str) -> int:
+    require(type(value) is int, f"{label} must be an integer")
+    return value
 
 
 def require_relative_path(value: Any, label: str) -> Path:
@@ -259,10 +274,10 @@ def validate_oracle_model(schedule: dict[str, Any]) -> None:
         "oracleModel.interactiveReductionManifest mismatch",
     )
     require_relative_path(model.get("interactiveReductionManifest"), "oracleModel.interactiveReductionManifest")
+    require(model.get("interactiveProtocolFullySpecified") is True, "oracleModel.interactiveProtocolFullySpecified must be true")
+    require_true(model.get("quantumOracleQueryBoundInstantiated"), "oracleModel.quantumOracleQueryBoundInstantiated")
     for key in [
         "hashInstantiationProofProvided",
-        "interactiveProtocolFullySpecified",
-        "quantumOracleQueryBoundInstantiated",
         "transformPreconditionsSatisfied",
         "productionQROMClaimAllowed",
     ]:
@@ -325,8 +340,17 @@ def validate_schedule_entries(schedule: dict[str, Any]) -> None:
         prefix = EXPECTED_QUERY_FAMILY_PREFIXES[index]
         for family in oracle_families:
             require(family.startswith(prefix), f"{proof_kind} oracle query family must start with {prefix}: {family}")
-        require(entry.get("maximumQuantumOracleQueries") is None, f"{proof_kind}.maximumQuantumOracleQueries must stay null until numeric bounds are instantiated")
-        require_false(entry.get("queryBoundInstantiated"), f"{proof_kind}.queryBoundInstantiated")
+        expected_derivations = EXPECTED_CHALLENGE_DERIVATIONS[proof_kind]
+        require(
+            require_int(entry.get("maximumProtocolChallengeDerivations"), f"{proof_kind}.maximumProtocolChallengeDerivations")
+            == expected_derivations,
+            f"{proof_kind}.maximumProtocolChallengeDerivations mismatch",
+        )
+        require(entry.get("maximumQuantumOracleQueries") == "2^64", f"{proof_kind}.maximumQuantumOracleQueries must be 2^64")
+        require(entry.get("maximumQuantumOracleQueriesLog2") == 64, f"{proof_kind}.maximumQuantumOracleQueriesLog2 must be 64")
+        source = require_string(entry.get("queryBoundSource"), f"{proof_kind}.queryBoundSource")
+        require("conditional adversary" in source and "schedule-derived" in source, f"{proof_kind}.queryBoundSource must identify the conditional and schedule-derived bounds")
+        require_true(entry.get("queryBoundInstantiated"), f"{proof_kind}.queryBoundInstantiated")
         require_false(entry.get("transformPreconditionsSatisfied"), f"{proof_kind}.transformPreconditionsSatisfied")
         require_false(entry.get("productionScheduleClaimAllowed"), f"{proof_kind}.productionScheduleClaimAllowed")
         labels.extend(challenge_labels)
@@ -377,7 +401,10 @@ def validate_ledger_binding(schedule: dict[str, Any]) -> None:
         "Q_H_numiseal_zk_product",
     ]:
         require(symbol in expression, f"selectedDepthQueryExpression must include {symbol}")
-    require_false(binding.get("numericQueryBoundInstantiated"), "ledgerBinding.numericQueryBoundInstantiated")
+    require(binding.get("selectedDepthProtocolChallengeDerivations") == sum(EXPECTED_CHALLENGE_DERIVATIONS.values()), "ledgerBinding.selectedDepthProtocolChallengeDerivations mismatch")
+    require(binding.get("selectedQHBound") == "2^64", "ledgerBinding.selectedQHBound must be 2^64")
+    require(binding.get("selectedQHLog2") == 64, "ledgerBinding.selectedQHLog2 must be 64")
+    require_true(binding.get("numericQueryBoundInstantiated"), "ledgerBinding.numericQueryBoundInstantiated")
     require_false(binding.get("qromLossWithinBudget"), "ledgerBinding.qromLossWithinBudget")
 
 
@@ -391,14 +418,14 @@ def validate_promotion_and_blockers(schedule: dict[str, Any]) -> None:
         "productionQROMClaimAllowed",
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
+    require(promotion.get("requiresInteractiveProtocol") is False, "promotionRule.requiresInteractiveProtocol must be false after interactive reduction manifest closure")
     for key in [
-        "requiresInteractiveProtocol",
         "requiresTransformPreconditions",
-        "requiresQuantumOracleQueryBound",
         "requiresQROMAccountingUpdate",
         "requiresTotalLossBudgetUpdate",
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(promotion.get("requiresQuantumOracleQueryBound") is False, "promotionRule.requiresQuantumOracleQueryBound must be false after Q_H bound instantiation")
 
 
 def validate_docs_and_gate() -> None:

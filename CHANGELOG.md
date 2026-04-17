@@ -48,10 +48,12 @@ claims remain blocked by the release packet no-go items.
   validators, mutation tests,
   release-evidence wiring, and Lean theorem hooks. These pin the extractor
   input/rewind contract, proof-kind transcript labels, symbolic `Q_H` query
-  families, transform theorem-family obligations, public-coin protocol
-  formulas, DFM20 QROM loss multiplier, QROM loss contract, and
-  collision-to-ledger mapping while keeping concrete extractor and production
-  QROM loss claims disabled.
+  families, the conditional `Q_H = 2^64` adversary-query cap, selected-depth
+  protocol challenge-derivation budget, transform theorem-family obligations,
+  public-coin protocol formulas, code-enforced NumiSeal challenge maxima,
+  DFM20 QROM loss multiplier, QROM loss contract, and collision-to-ledger
+  mapping while keeping concrete extractor and production QROM loss claims
+  disabled.
 - Added a checked total-loss budget manifest, validator, mutation tests,
   release-evidence wiring, and Lean theorem hook. The budget pins exact
   rational selected-depth summation, ten component bounds, nine required
@@ -118,9 +120,9 @@ claims remain blocked by the release packet no-go items.
   concrete Swift extractor implementation, numeric extractor loss
   instantiation, product recursive typed carry vectors, selected total-loss
   budget instantiation, simulator coupling beyond the exact field-mask
-  distribution lemma, QROM transform precondition closure, NumiSeal challenge
-  maxima, sampler uniformity proofs, per-kind interactive security bounds,
-  numeric QROM loss instantiations, conservative
+  distribution lemma, QROM transform precondition closure, sampler uniformity
+  proofs, per-kind interactive security bounds, repair of the current
+  out-of-budget DFM20 QROM numeric loss finding, conservative
   post-quantum parameter closure, competitive proof-size/latency evidence, and
   side-channel evidence.
 - Signed artifacts and repository branch-protection enforcement.

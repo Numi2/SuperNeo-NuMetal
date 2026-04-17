@@ -804,6 +804,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
         guard request.zkMode == NumiSealZK.nonZKMode || request.zkMode == NumiSealZK.maskedDigitTensorMode else {
             throw SuperNeoError.invalidParameter("unsupported NumiSeal product ZK mode")
         }
+        try NumiSealProductTheoremLimits.validate(request: request)
         let publicInput = prepared.publicFoldInput
         let sourceStatement = CCSStatement(
             shapeDigest: publicInput.shape.shapeDigest,
@@ -827,6 +828,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
             prepared.foldInput,
             transcriptSeed: sourceContext.transcriptBindingBytes
         )
+        try NumiSealProductTheoremLimits.validateSourceFoldOutputClaimCount(sourceFold.outputClaims.count)
         let sourceEnvelope = try FoldProofEnvelope(context: sourceContext, proof: sourceFold.proof)
         let sourceEnvelopeBytes = sourceEnvelope.superNeoBytes
         let sourceEnvelopeDigest = Digest256.hash(sourceEnvelopeBytes)
@@ -870,6 +872,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
             policy: acceptancePolicy,
             aggregationLimits: request.aggregationLimits
         )
+        try NumiSealProductTheoremLimits.validate(plan: plan)
         let tensorInputs = try Self.derivedDigitTensorInputs(
             plan: plan,
             witnessedObligations: obligations,
@@ -1580,6 +1583,7 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         guard artifact.maximumObligationsPerAggregate > 0 else {
             throw SuperNeoError.invalidEncoding("NumiSeal product aggregate limit must be positive")
         }
+        try NumiSealProductTheoremLimits.validate(artifact: artifact)
         _ = try Digest256(hexDigest: artifact.shapeDigestHex, name: "NumiSeal shape digest")
         _ = try Digest256(hexDigest: artifact.sourceStatementDigestHex, name: "NumiSeal source statement digest")
         _ = try Digest256(hexDigest: artifact.statementDigestHex, name: "NumiSeal statement digest")

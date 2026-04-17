@@ -398,10 +398,13 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         qrom.get("claimStatus") == "qrom-fiat-shamir-loss-contract-not-production-claim",
         "fiatShamirQROMPosition.claimStatus must stay precise",
     )
+    require(qrom.get("interactiveProtocolSpecified") is True, "fiatShamirQROMPosition.interactiveProtocolSpecified must be true")
+    require(qrom.get("quantumOracleQueryBoundAccounted") is True, "fiatShamirQROMPosition.quantumOracleQueryBoundAccounted must be true after Q_H bound instantiation")
+    require(qrom.get("queryBoundQH") == "2^64", "fiatShamirQROMPosition.queryBoundQH must be 2^64")
+    require(qrom.get("queryBoundLog2") == 64, "fiatShamirQROMPosition.queryBoundLog2 must be 64")
+    require(qrom.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "fiatShamirQROMPosition.selectedDepthProtocolChallengeDerivations mismatch")
     for key in [
-        "interactiveProtocolSpecified",
         "transformPreconditionsSatisfied",
-        "quantumOracleQueryBoundAccounted",
         "transcriptCollisionMalleabilityExcluded",
         "productionQROMClaimAllowed",
     ]:
@@ -439,7 +442,8 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         "QROM transcript schedule claimStatus must stay precise",
     )
     ledger_binding = require_dict(schedule.get("ledgerBinding"), "QROM transcript schedule ledgerBinding")
-    require_false(ledger_binding.get("numericQueryBoundInstantiated"), "QROM transcript schedule numericQueryBoundInstantiated")
+    require(ledger_binding.get("numericQueryBoundInstantiated") is True, "QROM transcript schedule numericQueryBoundInstantiated must be true")
+    require(ledger_binding.get("selectedQHLog2") == 64, "QROM transcript schedule selectedQHLog2 must be 64")
     manifest = read_json(ROOT / "TestVectors/product-qrom-fiat-shamir-accounting-v1.json")
     require(manifest.get("schemaVersion") == 1, "QROM accounting schemaVersion must be 1")
     require(
@@ -471,6 +475,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         "QROM interactive reduction claimStatus must stay precise",
     )
     reduction_loss = require_dict(reduction.get("qromQueryAndLossInstantiation"), "QROM interactive reduction loss")
+    require(reduction_loss.get("numiSealNumericNInstantiated") is True, "QROM interactive reduction numiSealNumericNInstantiated must be true")
     require_false(reduction_loss.get("allNumericLossTermsInstantiated"), "QROM interactive reduction allNumericLossTermsInstantiated")
 
 

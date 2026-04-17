@@ -107,10 +107,11 @@ cryptographic library.
   `TestVectors/product-qrom-interactive-reduction-v1.json`, and
   `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`. These pin the
   extractor inputs, transcript rewind schedule, proof-kind transcript labels,
-  oracle query families, transform theorem-family obligations, exact PCIP
-  challenge-count formulas, the DFM20 loss multiplier, QROM symbols, and
-  selected-depth formulas while keeping concrete production reduction claims
-  disabled.
+  oracle query families, the conditional `Q_H = 2^64` adversary-query cap,
+  transform theorem-family obligations, exact PCIP challenge-count formulas,
+  code-enforced NumiSeal challenge maxima, the DFM20 loss multiplier, QROM
+  symbols, and selected-depth formulas while keeping concrete production
+  reduction claims disabled.
 - A checked total-loss budget contract in
   `TestVectors/product-total-loss-budget-v1.json` that evaluates the exact
   selected-depth rational sum format, maps `epsilon_transcript_collision` into
@@ -180,8 +181,9 @@ Still intentionally not claimed as complete production security: hosted product
 operations, selected-depth loss accounting is contracted but not fully
 instantiated, extractor loss accounting, QROM transcript schedule, QROM
 transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir
-accounting are contracted but not numerically instantiated, the
-total-loss budget is checked but still missing every required numeric term,
+accounting are contracted with the conditional query cap and challenge maxima
+instantiated but without a production-fitting transform/loss theorem, the
+total-loss budget is checked but still missing every required component bound,
 full ZK simulator composition,
 release signing/notarized distribution, and CPU/Swift/LLVM/Metal constant-time
 evidence closure for every production hardware lane.
@@ -489,17 +491,24 @@ terminal, and NumiSealZK product transcript interfaces.
 `TestVectors/product-qrom-transcript-schedule-v1.json` pins the QROM
 transcript schedule for fold, terminal, compressed-terminal, NumiSeal terminal,
 and NumiSealZK product proof kinds, including public challenge labels and
-symbolic quantum random-oracle query families.
+symbolic quantum random-oracle query families. It now also pins per-kind
+protocol challenge-derivation maxima and the conditional `Q_H = 2^64`
+adversary-query cap, for `8755125` selected-depth protocol challenge
+derivations across the accepted proof-kind set.
 `TestVectors/product-qrom-transform-preconditions-v1.json` pins the QROM
 transform precondition dossier for the selected fail-closed measure-and-reprogram
 profile, including theorem-family fit, interactive protocol, round schedule,
-uniform challenges, transcript encoding, query-bound, and reduction-loss
-obligations.
+uniform challenges, transcript encoding, the instantiated conditional
+`Q_H = 2^64` query bound, and reduction-loss obligations.
 `TestVectors/product-qrom-interactive-reduction-v1.json` pins the exact
 public-coin interactive protocol formulas, selected `Q_H = 2^64` policy, DFM20
-`((2*Q_H+n+1)^(2n)/n!)` multiplier, and per-proof-kind open loss inputs; it
-still blocks production QROM claims until NumiSeal numeric challenge maxima,
-sampler uniformity proofs, and interactive security bounds are instantiated.
+`((2*Q_H+n+1)^(2n)/n!)` multiplier, code-enforced NumiSeal numeric challenge
+maxima, and per-proof-kind open loss inputs. It also records the current
+fail-closed budget result: under the selected DFM20/256-bit challenge accounting,
+the `n! / 2^256` ordering term is already outside the `2^-128` budget for the
+smallest accepted proof kind, so production QROM remains disabled until the
+loss model, sampler-uniformity proofs, transcript encoding, and interactive
+security bounds are repaired.
 `TestVectors/product-total-loss-budget-v1.json` pins the total-loss budget
 contract, exact rational summation rule, required selected-depth component
 bounds, and the mapping that keeps transcript collision out of the core

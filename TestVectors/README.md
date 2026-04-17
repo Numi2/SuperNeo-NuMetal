@@ -43,22 +43,27 @@ Machine-readable files:
   accounting contract for fold, terminal, compressed-terminal, NumiSeal
   terminal, and NumiSealZK product transcript interfaces. It records QROM loss
   symbols, proof-kind separation, and the mapping from
-  `epsilon_transcript_collision` to ledger `epsilon_collision` while keeping
-  the interactive protocol, query bound, and numeric QROM loss open.
+  `epsilon_transcript_collision` to ledger `epsilon_collision`. The
+  conditional `Q_H = 2^64` query cap is instantiated; transform preconditions,
+  sampler uniformity, the repaired QROM loss budget, and the production QROM
+  loss claim remain open.
 - `product-qrom-transcript-schedule-v1.json`: checked QROM transcript schedule
   contract for fold, terminal, compressed-terminal, NumiSeal terminal, and
   NumiSealZK product proof kinds. It pins public challenge labels, transcript
-  bindings, symbolic `Q_H` query families, and the fail-closed promotion rule.
+  bindings, symbolic `Q_H` query families, per-kind protocol
+  challenge-derivation maxima, the conditional `Q_H = 2^64` adversary-query
+  cap, and the fail-closed promotion rule.
 - `product-qrom-transform-preconditions-v1.json`: checked QROM transform
   precondition dossier for the selected fail-closed measure-and-reprogram
   profile. It pins primary research sources, theorem-family fit,
-  public-coin protocol obligations, round schedule, challenge uniformity,
-  transcript encoding, `Q_H` query-bound, and reduction-loss obligations while
-  keeping production QROM claims disabled.
+  pinned public-coin protocol schedules, challenge uniformity, transcript
+  encoding, `Q_H` query-bound, and reduction-loss obligations while keeping
+  production QROM claims disabled.
 - `product-qrom-interactive-reduction-v1.json`: checked QROM interactive
   reduction ledger. It pins the product public-coin protocol formulas,
-  selected `Q_H = 2^64` policy, DFM20 loss multiplier, and per-proof-kind open
-  loss inputs while keeping production QROM claims disabled.
+  selected `Q_H = 2^64` policy, code-enforced NumiSeal numeric challenge
+  maxima, DFM20 loss multiplier, and the current out-of-budget numeric finding
+  while keeping production QROM claims disabled.
 - `product-total-loss-budget-v1.json`: checked total-loss budget contract for
   the current selected-depth security boundary. It records exact rational
   summation, the `2^-128` selected threshold, ten component bounds, nine

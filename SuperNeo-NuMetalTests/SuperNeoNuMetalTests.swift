@@ -6783,6 +6783,19 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(artifact.sourceFoldOutputClaimCount, 14)
         XCTAssertEqual(artifact.aggregateDigestsHex.count, 1)
         XCTAssertEqual(artifact.executionPolicyMetadata["terminalCarryPolicy"], "none")
+        XCTAssertLessThanOrEqual(
+            artifact.sourceFoldOutputClaimCount,
+            NumiSealProductTheoremLimits.maximumSourceFoldOutputClaimCount
+        )
+        XCTAssertLessThanOrEqual(
+            artifact.maximumObligationsPerAggregate,
+            NumiSealProductTheoremLimits.maximumObligationsPerAggregate
+        )
+        XCTAssertLessThanOrEqual(artifact.maximumLaneCount, NumiSealProductTheoremLimits.maximumLaneCount)
+        XCTAssertLessThanOrEqual(
+            artifact.maximumAggregatesPerLane,
+            NumiSealProductTheoremLimits.maximumAggregatesPerLane
+        )
 
         let result = try NumiSealProductVerifier().verify(
             artifact: artifact,
@@ -6803,6 +6816,88 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 executionPolicy: .highAssurance
             ),
             .verificationFailed("NumiSeal product source fold digest mismatch")
+        )
+    }
+
+    func testNumiSealProductTheoremLimitsFailClosed() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        let prepared = try workload.prepareForFolding(
+            bits: [false, true],
+            keySeed: Array("numiseal-product-theorem-limits-key".utf8)
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductProver().prove(
+                NumiSealProvingRequest(
+                    preparedR1CS: prepared,
+                    workload: "one-hot-vector-v1",
+                    bitCount: 2,
+                    publicInputs: [1],
+                    keySeedUTF8: "numiseal-product-theorem-limits-key",
+                    workloadParameters: ["selectedCount": "1"],
+                    laneID: try NumiSealLaneID("product"),
+                    executionPolicy: .zkHighAssuranceCPU,
+                    aggregationLimits: try NumiSealAggregationLimits(
+                        maximumObligationsPerAggregate:
+                            NumiSealProductTheoremLimits.maximumObligationsPerAggregate + 1
+                    )
+                )
+            ),
+            .invalidParameter("NumiSeal product aggregate limit exceeds theorem maximum")
+        )
+
+        let artifact = try NumiSealProductProver().prove(
+            NumiSealProvingRequest(
+                preparedR1CS: prepared,
+                workload: "one-hot-vector-v1",
+                bitCount: 2,
+                publicInputs: [1],
+                keySeedUTF8: "numiseal-product-theorem-limits-key",
+                workloadParameters: ["selectedCount": "1"],
+                laneID: try NumiSealLaneID("product"),
+                executionPolicy: .zkHighAssuranceCPU,
+                aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
+            )
+        )
+
+        var tooManyLanes = artifact
+        tooManyLanes.maximumLaneCount = NumiSealProductTheoremLimits.maximumLaneCount + 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tooManyLanes,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product lane count exceeds theorem maximum")
+        )
+
+        var tooManyAggregates = artifact
+        tooManyAggregates.maximumAggregatesPerLane = NumiSealProductTheoremLimits.maximumAggregatesPerLane + 1
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tooManyAggregates,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product aggregate count exceeds theorem maximum")
+        )
+
+        var tooManyClaims = artifact
+        tooManyClaims.sourceFoldOutputClaimCount = NumiSealProductTheoremLimits.maximumSourceFoldOutputClaimCount + 1
+        tooManyClaims.sourceFoldOutputClaimDigestsHex = Array(
+            repeating: String(repeating: "0", count: 64),
+            count: tooManyClaims.sourceFoldOutputClaimCount
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tooManyClaims,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product source claim count exceeds theorem maximum")
         )
     }
 

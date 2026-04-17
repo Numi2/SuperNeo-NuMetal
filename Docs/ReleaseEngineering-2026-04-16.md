@@ -58,9 +58,9 @@ At minimum, this requires:
 - NumiSeal conformance-scope promotion plus concrete Swift extractor
   implementation and numeric extractor loss accounting, product recursive
   typed carry vectors, simulator coupling beyond the exact rejection-sampled
-  field mask distribution, numeric QROM loss instantiations, selected total-loss
-  budget closure, and product cryptographic security dossier promotion beyond
-  depth 1,
+  field mask distribution, repair of the current out-of-budget DFM20 QROM
+  numeric loss finding, selected total-loss budget closure, and product
+  cryptographic security dossier promotion beyond depth 1,
 - selected-depth loss accounting instantiated for extractor, QROM,
   ZK-simulator, hosted product-ops replay, constant-time side-channel, and
   signed release-distribution terms,
@@ -141,11 +141,13 @@ future recursive carry extractor, and the fail-closed numeric loss budget.
 `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, including
 proof-kind transcript interfaces, QROM loss symbols, challenge families,
 domain separation, the `epsilon_transcript_collision` to `epsilon_collision`
-ledger mapping, and the fail-closed quantum random-oracle loss budget.
+ledger mapping, the instantiated conditional `Q_H = 2^64` cap, and the
+fail-closed quantum random-oracle loss budget.
 `Scripts/validate-product-qrom-transcript-schedule.py` checks
 `TestVectors/product-qrom-transcript-schedule-v1.json`, including the product
 QROM transcript schedule, proof-kind order, public challenge labels, symbolic
-`Q_H` query families, and the fail-closed query-bound promotion rule.
+`Q_H` query families, per-kind protocol challenge-derivation maxima, and the
+fail-closed QROM promotion rule.
 `Scripts/validate-product-qrom-transform-preconditions.py` checks
 `TestVectors/product-qrom-transform-preconditions-v1.json`, including the
 product QROM transform preconditions, primary QROM Fiat-Shamir source basis,
@@ -155,8 +157,9 @@ QROM promotion rule.
 `Scripts/validate-product-qrom-interactive-reduction.py` checks
 `TestVectors/product-qrom-interactive-reduction-v1.json`, including the
 product QROM interactive reduction ledger, public-coin protocol formulas,
-selected `Q_H = 2^64` policy, DFM20 loss multiplier, and fail-closed
-production QROM promotion rule.
+selected `Q_H = 2^64` policy, code-enforced NumiSeal challenge maxima, DFM20
+loss multiplier, selected-depth protocol challenge-derivation budget,
+out-of-budget numeric finding, and fail-closed production QROM promotion rule.
 `Scripts/validate-product-total-loss-budget.py` checks
 `TestVectors/product-total-loss-budget-v1.json`, including exact rational
 summation, the `2^-128` selected threshold, ten component bounds, nine

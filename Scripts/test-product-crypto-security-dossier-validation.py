@@ -132,6 +132,12 @@ def main() -> None:
         write_json(path, wrong_qrom_transform_manifest)
         run_fail(str(VALIDATE), str(path))
 
+        wrong_qrom_query_bound = copy.deepcopy(dossier)
+        wrong_qrom_query_bound["fiatShamirQROMPosition"]["queryBoundLog2"] = 32
+        path = tmp / "wrong-qrom-query-bound.json"
+        write_json(path, wrong_qrom_query_bound)
+        run_fail(str(VALIDATE), str(path))
+
         missing_total_budget = copy.deepcopy(dossier)
         del missing_total_budget["relatedManifests"]["productTotalLossBudget"]
         path = tmp / "missing-total-budget.json"

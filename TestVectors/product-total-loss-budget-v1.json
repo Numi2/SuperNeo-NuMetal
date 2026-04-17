@@ -89,7 +89,7 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
-      "requiredEvidence": "pinned QROM transcript schedule, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, interactive protocol, transform preconditions, quantum random-oracle query bound, and numeric QROM reduction loss"
+      "requiredEvidence": "pinned QROM transcript schedule with Q_H = 2^64 and 8755125 selected-depth protocol challenge derivations, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, code-enforced NumiSeal challenge maxima, and replacement or repair of the current DFM20 numeric finding that is outside the selected 2^-128 budget"
     },
     {
       "id": "extractor-instantiation",

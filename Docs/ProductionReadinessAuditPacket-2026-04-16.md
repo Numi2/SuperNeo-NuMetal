@@ -281,9 +281,9 @@ These are the remaining blockers before using production-security language:
    `TestVectors/product-total-loss-budget-v1.json`, but concrete Swift
    extractor implementation, product recursive typed carry depth/loss
    accounting beyond the checked parent-child handoff, simulator coupling
-   evidence beyond the exact mask-distribution lemma, numeric QROM reduction
-   loss, QROM transform-precondition closure, QROM transcript schedule query
-   bounds, NumiSeal challenge-count maxima, sampler uniformity and
+   evidence beyond the exact mask-distribution lemma, repair of the current
+   out-of-budget DFM20 numeric QROM reduction finding, QROM
+   transform-precondition closure, sampler uniformity and
    interactive-security bounds, total-loss budget instantiation, and
    side-channel evidence still have
    to be supplied before production-security NumiSeal theorem language is

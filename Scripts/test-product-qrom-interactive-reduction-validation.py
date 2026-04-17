@@ -80,10 +80,16 @@ def main() -> None:
         write_json(path, wrong_fold_n)
         run_fail(str(VALIDATE), str(path))
 
-        premature_numiseal_n = copy.deepcopy(reduction)
-        premature_numiseal_n["proofKindProtocols"][3]["instantiatedUpperBoundN"] = 1
-        path = tmp / "premature-numiseal-n.json"
-        write_json(path, premature_numiseal_n)
+        wrong_numiseal_n = copy.deepcopy(reduction)
+        wrong_numiseal_n["proofKindProtocols"][3]["instantiatedUpperBoundN"] = 1
+        path = tmp / "wrong-numiseal-n.json"
+        write_json(path, wrong_numiseal_n)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_theorem_limit = copy.deepcopy(reduction)
+        wrong_theorem_limit["productProtocolModel"]["selectedProductTheoremLimits"]["maximumNumiSealZKProductChallengeCount"] = 4_377_149
+        path = tmp / "wrong-theorem-limit.json"
+        write_json(path, wrong_theorem_limit)
         run_fail(str(VALIDATE), str(path))
 
         missing_loss_symbol = copy.deepcopy(reduction)
@@ -102,6 +108,18 @@ def main() -> None:
         premature_qrom["promotionRule"]["productionQROMClaimAllowed"] = True
         path = tmp / "premature-qrom.json"
         write_json(path, premature_qrom)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_budget_finding = copy.deepcopy(reduction)
+        missing_budget_finding["qromQueryAndLossInstantiation"].pop("numericBudgetFinding")
+        path = tmp / "missing-budget-finding.json"
+        write_json(path, missing_budget_finding)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_schedule_budget = copy.deepcopy(reduction)
+        wrong_schedule_budget["qromQueryAndLossInstantiation"]["scheduleDerivedQueryBudget"]["selectedDepthProtocolChallengeDerivations"] = 1
+        path = tmp / "wrong-schedule-budget.json"
+        write_json(path, wrong_schedule_budget)
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(reduction)

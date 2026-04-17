@@ -297,6 +297,10 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                 "TestVectors/product-qrom-interactive-reduction-v1.json" in evidence,
                 "fiat-shamir-qrom requiredEvidence must link QROM interactive reduction",
             )
+            require(
+                "outside the selected 2^-128 budget" in evidence,
+                "fiat-shamir-qrom requiredEvidence must record the fail-closed numeric budget finding",
+            )
 
         if required:
             required_ids.append(component_id)
