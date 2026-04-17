@@ -1,4 +1,4 @@
-import SuperNeoFormal.TerminalCEFiniteSoundness
+import SuperNeoFormal.TerminalCEVerifierSemantics
 
 /-!
 Concrete terminal CE special-soundness scaffolding.

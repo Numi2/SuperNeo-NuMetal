@@ -3,7 +3,7 @@ import Mathlib.Tactic
 import SuperNeoFormal.PiRLCFiniteSoundness
 import SuperNeoFormal.ProbabilityComposition
 import SuperNeoFormal.Serialization
-import SuperNeoFormal.TerminalCEFiniteSoundness
+import SuperNeoFormal.TerminalCEVerifierSemantics
 
 /-!
 Finite transcript-seed accounting for later Fiat-Shamir probability work.

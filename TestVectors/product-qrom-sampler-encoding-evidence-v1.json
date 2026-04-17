@@ -16,7 +16,7 @@
     "transcriptModule": "Formal/SuperNeoFormal/Transcript.lean",
     "challengeSamplingModule": "Formal/SuperNeoFormal/ChallengeSampling.lean",
     "transcriptChallengeModule": "Formal/SuperNeoFormal/TranscriptChallenge.lean",
-    "terminalCEModule": "Formal/SuperNeoFormal/TerminalCEFiniteSoundness.lean",
+    "terminalCEModule": "Formal/SuperNeoFormal/TerminalCEVerifierSemantics.lean",
     "declarations": [
       "transcriptFrameEncode_injective",
       "transcriptInit_injective",

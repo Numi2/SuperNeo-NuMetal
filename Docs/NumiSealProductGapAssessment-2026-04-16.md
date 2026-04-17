@@ -9,8 +9,10 @@ Mostly true: NumiSeal has production-facing inspection, verification, and local
 product artifact generation for checked immediate-residual artifacts. It is not
 a complete hosted production NumiSeal product.
 
-Correction: repository-level SuperNeo formal status is completed for the
-corrected model. What remains is NumiSeal-specific product formalization.
+Correction: repository-level SuperNeo formal status is a corrected finite-model
+core with open theorem-critical integrations. What remains is both the listed
+NumiSeal-specific product work and the formal integration work tracked in
+`Docs/FormalStatus.json`.
 
 ## Current Surface
 

@@ -1,6 +1,6 @@
 # Formal Assumption Ledger Split, 2026-04-14
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 This pass replaces the assumption-boundary dependency path with certified-key
 and finite bad-challenge/bad-seed theorem groups. Historical `closed_under_*`
@@ -44,9 +44,10 @@ conditional path depends only on mechanized closed groups.
   Concrete acceptance predicate shape is tracked as the closed
   `pirlc-concrete-acceptance-core`.
   `phi81-split-semantics` records the concrete factorization of Phi81 over
-  Goldilocks, and `pirlc-finite-bad-seed-soundness` tracks the split-carrying
-  finite bad-seed certificate plus the component-projection one-bad-value
-  theorem used by the random-linear-combination boundary.
+  Goldilocks. The theorem-facing PiRLC endpoint now goes through
+  `Phi81CRT.lean`, `PiRLCConcreteCollision.lean`, and
+  `PiRLCCRTConstructiveFailureLocalization` rather than a split-carrying finite
+  bad-seed certificate.
 - PiCCS exact public-Q reduction is tracked as a closed deterministic bridge.
   PiCCS acceptance projections are tracked separately as a closed core.
   The finite-field low-degree root-count lemma is tracked as
@@ -60,10 +61,9 @@ conditional path depends only on mechanized closed groups.
   constructs the theorem-facing PiCCS bad-challenge set; the older certificate
   wrapper is no longer the endpoint for constructed bad sets.
   `goldilocks-ext2-wire-model` tracks the extension-field wire operations and
-  inverse-data correctness. `piccs-finite-bad-challenge-soundness` tracks the
-  public-Q oracle semantics, round-polynomial degree witnesses, and finite
-  bad-challenge certificate that replace the deterministic
-  `PiCCSSumcheckSoundnessAssumption` shape.
+  inverse-data correctness. The legacy `piccs-finite-bad-challenge-soundness`
+  certificate wrapper remains compatibility-only; theorem-facing PiCCS
+  accounting is the constructed bad-challenge set above.
 - Swift wire support now includes `swift-ext2-caller-byte-surfaces`, a closed
   grammar layer for counted Ext2 vectors, counted Ext2 ring vectors,
   sum-check Ext2 proof fragments, and CCS/CE point-evaluation caller bytes.

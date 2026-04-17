@@ -1,6 +1,6 @@
 # Transcript Absorption Formal Slice
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 This note records the April 14, 2026 transcript absorption work in
 `Formal/SuperNeoFormal/Transcript.lean`.

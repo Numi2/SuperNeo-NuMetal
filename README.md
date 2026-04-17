@@ -24,8 +24,8 @@ certification, or independent cryptographic audit completion.
 ## Current Status
 
 As of 2026-04-17, the formal layer has made real lower-level progress, but the
-old formal blocker list is not yet retired. The current formal solution is built
-around:
+full-theorem blocker list remains open at the integration level. The current
+formal solution is built around:
 
 - well-formed, length-counted transcripts with byte injectivity;
 - 384-bit theorem-critical proof-envelope binding encodings;
@@ -75,6 +75,7 @@ Use these Lean files for theorem-facing references:
 - `Formal/SuperNeoFormal/PiRLCConcreteCollision.lean`
 - `Formal/SuperNeoFormal/PiRLCFiniteSoundness.lean`
 - `Formal/SuperNeoFormal/PiCCSConstructiveFiniteSoundness.lean`
+- `Formal/SuperNeoFormal/TerminalCEVerifierSemantics.lean`
 - `Formal/SuperNeoFormal/TerminalCEConstructiveFiniteSoundness.lean`
 - `Formal/SuperNeoFormal/FiniteUniformProbability.lean`
 - `Formal/SuperNeoFormal/TranscriptProbability.lean`

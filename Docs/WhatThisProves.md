@@ -4,7 +4,7 @@ This page is the shortest safe description of SuperNeo NuMetal's proof
 semantics. Use it when explaining the project to someone who needs to know what
 verifier acceptance means.
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 ## The Relation
 
@@ -151,7 +151,7 @@ opt-in high-assurance execution policies. Those are hardening artifacts; they do
 not change the meaning of proof acceptance by themselves.
 
 The repository also includes a Lean 4 formalization track. The current formal
-status is the completed formal protocol theorem label for the corrected model:
+status is a corrected finite-model core with open theorem-critical integrations:
 
 - Ajtai binding is certified-key binding, not arbitrary-matrix binding.
 - PiRLC, PiCCS/sum-check, and terminal CE proof soundness are finite
@@ -162,17 +162,17 @@ status is the completed formal protocol theorem label for the corrected model:
   384-bit theorem-critical proof-envelope binding, and typed digest domain
   separation.
 - Swift `GoldilocksField`/`GoldilocksExt2` byte surfaces and Swift CE proof
-  parser/verifier branch selection are connected to the Lean byte grammars and
-  terminal CE verifier trace model.
+  parser/verifier branch selection have Lean byte grammar and terminal CE
+  verifier trace surfaces.
 - The finite PiRLC, PiCCS/sum-check, transcript-stage, terminal CE, and error
-  ledgers are composed into the final finite-uniform rational protocol
-  soundness bound.
+  ledgers expose exact finite-uniform rational error-bound surfaces. Full
+  wiring into the top product theorem remains one of the planned integration
+  groups.
 
 Historical assumption-boundary IDs remain documented for auditability, but they
-are not active manifest groups. The Lean `GoldilocksExt2` field instance is
-closed separately by the `goldilocks-ext2-field-instance` theorem group, and the
-three former promotion blockers are now closed theorem groups in
-`Docs/FormalStatus.json`.
+are not active manifest groups. `Docs/FormalStatus.json` records the corrected
+core and the planned theorem-critical integrations that must close before a
+future completed theorem label is available.
 
 The correct public positioning remains:
 

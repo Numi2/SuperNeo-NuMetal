@@ -74,7 +74,7 @@ def main() -> None:
         "missing certified declaration",
         mutate_group(
             manifest,
-            "concrete-ajtai-certified-binding",
+            "typed-digest-width-parameterization",
             lambda group: group["declarations"].append("SuperNeoFormal.missingBindingTheorem"),
         ),
         "references missing declaration",
@@ -84,7 +84,7 @@ def main() -> None:
         "closed group without declaration",
         mutate_group(
             manifest,
-            "ajtai-opening-linearity",
+            "well-formed-transcript-injectivity",
             lambda group: group.update({"declarations": []}),
         ),
         "must list at least one declaration",
@@ -94,7 +94,7 @@ def main() -> None:
         "question mark declaration names checked",
         mutate_group(
             manifest,
-            "swift-wire-serialization",
+            "digest384-serialization",
             lambda group: group["declarations"].append("SuperNeoFormal.uintLEDecode?_missing"),
         ),
         "references missing declaration",
@@ -104,10 +104,11 @@ def main() -> None:
         "duplicate declaration across theorem groups blocked",
         mutate_group(
             manifest,
-            "terminal-ce-local-batch",
-            lambda group: group["declarations"].append(
-                "SuperNeoFormal.CELocalOpeningRelation"
-            ),
+            "digest384-serialization",
+            lambda group: group.update({
+                "lean_module": "SuperNeoFormal.WellFormedTranscript",
+                "declarations": ["transcriptBytes_injective_of_wellFormed"],
+            }),
         ),
         "appears in multiple theorem groups",
     )
@@ -140,7 +141,7 @@ def main() -> None:
             manifest,
             lambda copy: copy["labels"]["conditional protocol formalization"][
                 "required_theorem_groups"
-            ].append("profile-constants"),
+            ].append("well-formed-transcript-injectivity"),
         ),
         "required_theorem_groups contains duplicates",
     )
@@ -169,8 +170,8 @@ def main() -> None:
         "boundary group cannot be marked closed",
         mutate_group(
             manifest,
-            "terminal-ce-finite-bad-seed-soundness",
-            lambda group: group.update({"id": "terminal-ce-synthetic-boundary"}),
+            "well-formed-transcript-injectivity",
+            lambda group: group.update({"id": "synthetic-boundary"}),
         ),
         "boundary theorem group",
     )
@@ -179,9 +180,9 @@ def main() -> None:
         "completion theorem group cannot list assumption declaration",
         mutate_group(
             manifest,
-            "terminal-ce-proof-acceptance-core",
+            "well-formed-transcript-injectivity",
             lambda group: group["declarations"].append(
-                "SuperNeoFormal.TerminalCEProofSoundnessAssumption"
+                "SuperNeoFormal.SyntheticAssumption"
             ),
         ),
         "assumption or boundary declaration",
@@ -204,20 +205,16 @@ def main() -> None:
             manifest,
             lambda copy: copy["labels"]["completed formal protocol theorem"][
                 "required_theorem_groups"
-            ].remove("ce-opening-certified-binding"),
+            ].remove("well-formed-transcript-injectivity"),
         ),
-        "must include every conditional theorem group",
+        "must include every dependency theorem group",
     )
 
     expect_failure(
-        "completed label blocked by non-closed completion blockers",
+        "completed label blocked by non-closed open integrations",
         mutate_manifest(
             manifest,
-            lambda copy: next(
-                group
-                for group in copy["theorem_groups"]
-                if group["id"] == "superneo-full-probability-composition"
-            ).update({"status": "planned", "declarations": []}),
+            lambda copy: copy.update({"current_label": "completed formal protocol theorem"}),
         ),
         "must be closed at promotion",
     )
@@ -231,44 +228,46 @@ def main() -> None:
                 [
                     group.update({"status": "planned", "declarations": []})
                     for group in copy["theorem_groups"]
-                    if group["id"] in copy["completion_blocker_groups"]
+                    if group["id"] in copy["open_integration_groups"]
                 ],
             ),
         ),
-        "claims completed formal protocol theorem before promotion",
+        "which is stronger than current label",
     )
 
     expect_failure(
-        "completion blocker required by completed label",
+        "open integration required by current label",
         mutate_manifest(
             manifest,
-            lambda copy: copy["labels"]["completed formal protocol theorem"][
+            lambda copy: copy["labels"][
+                "corrected finite-model core with open theorem-critical integrations"
+            ][
                 "required_theorem_groups"
-            ].remove("superneo-full-probability-composition"),
+            ].remove("product-theorem-exact-probability-integration"),
         ),
-        "must include completion blocker",
+        "current corrected finite-model label must include open integration",
     )
 
     expect_failure(
-        "missing completion blocker blocked",
+        "missing open integration blocked",
         mutate_manifest(
             manifest,
-            lambda copy: copy["completion_blocker_groups"].remove(
-                "swift-ce-verifier-byte-equivalence"
+            lambda copy: copy["open_integration_groups"].remove(
+                "terminal-ce-localization-instantiation"
             ),
         ),
-        "missing required blocker",
+        "missing required integration",
     )
 
     expect_failure(
-        "completion blocker must remain planned before promotion",
+        "open integration must remain planned before promotion",
         mutate_group(
-            mutate_manifest(
-                manifest,
-                lambda copy: copy.update({"current_label": "conditional protocol formalization"}),
-            ),
-            "superneo-full-probability-composition",
-            lambda group: None,
+            manifest,
+            "upper-typed-digest-binding-integration",
+            lambda group: group.update({
+                "status": "closed",
+                "declarations": ["ProductSystemBindings"],
+            }),
         ),
         "must remain planned before promotion",
     )

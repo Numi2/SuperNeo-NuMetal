@@ -1,10 +1,10 @@
 # Formal CCS Semantics Progress, 2026-04-14
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 This pass added the algebraic CCS relation layer that PiCCS and terminal CE
 claims target. Later formal cleanup connected this layer into the constructive
-PiCCS finite soundness path and the completed finite protocol theorem.
+PiCCS finite soundness path and the corrected finite-model core.
 
 ## Added Lean module
 

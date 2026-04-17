@@ -4,9 +4,10 @@ import SuperNeoFormal.PiRLCSoundness
 Phi81 split semantics.
 
 Goldilocks satisfies `p ≡ 4 (mod 81)`, and the concrete cyclotomic polynomial
-factors over the base field into two degree-27 factors.  The formal PiRLC
-collision replacement uses an explicit split certificate instead of treating the
-quotient ring as a field.
+factors over the base field into two degree-27 factors.  This file keeps the
+factorization and legacy split-certificate surface available; theorem-facing
+PiRLC collision counting goes through the concrete CRT endpoint in
+`Phi81CRT.lean`.
 -/
 
 noncomputable section

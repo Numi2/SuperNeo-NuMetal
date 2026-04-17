@@ -1,17 +1,17 @@
 # Formal Completion Research Plan, 2026-04-14
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
-This document is now a closure record, not an active blocker plan. Earlier
-versions of this note described gaps in Swift byte equivalence, finite
-probability composition, transcript canonicality, typed digest width,
+This document is now a historical planning record, not the active source of
+truth. Earlier versions of this note described gaps in Swift byte equivalence,
+finite probability composition, transcript canonicality, typed digest width,
 certificate-first PiCCS soundness, and certificate-first terminal CE soundness.
-The current Lean solution has removed those outdated action items from the
-active formal plan.
+Some lower-layer items have since been corrected, but the upper theorem path is
+still tracked by the narrower status in `README.md`.
 
-## Closed Path
+## Corrected Lower-Layer Path
 
-The completed formal path now includes:
+The corrected formal path now includes:
 
 - Swift/Lean `GoldilocksField` and `GoldilocksExt2` serialization equivalence
   surfaces.
@@ -23,7 +23,7 @@ The completed formal path now includes:
   low-degree and prefix soundness files.
 - Constructive terminal CE finite bad-seed accounting over the concrete
   extraction-failure bad-seed set.
-- Exact finite-uniform probability composition over the finite Fiat-Shamir seed
+- Exact finite-uniform probability modules over the finite Fiat-Shamir seed
   product.
 - Selected-depth numerator arithmetic in the error ledger.
 - Explicit theorem-obligation status records for upper evidence-parametric
@@ -41,7 +41,8 @@ Use these files for the current formal solution:
 - `Formal/SuperNeoFormal/FiniteUniformProbability.lean`
 - `Formal/SuperNeoFormal/ErrorLedger.lean`
 - `Formal/SuperNeoFormal/ProductSecurityTheorem.lean`
-- root `math-audit.md`
+- `Formal/SuperNeoFormal/TerminalCEVerifierSemantics.lean`
+- `Formal/SuperNeoFormal/PiRLCFiniteSoundness.lean`
 
 ## What Is No Longer Active
 
@@ -62,11 +63,16 @@ Do not carry forward these older blocker statements:
   The finite-uniform bridge and selected-depth numerator theorem are now in
   `ErrorLedger.lean`.
 
-## Remaining Non-Formal-Plan Evidence
+## Remaining Integration Work
 
-The remaining work is product/security evidence, not the old formal completion
-plan:
+The remaining work includes theorem-critical integrations and product/security
+evidence:
 
+- wire the 384-bit typed-digest layer through the upper theorem boundary;
+- instantiate constructive terminal CE localization evidence;
+- complete CRT-based PiRLC finite soundness;
+- keep exact finite probability wired through the selected-depth ledger and
+  product theorem;
 - instantiate the split-oracle CTCO or Merkle-straightline QROM compiler
   evidence records;
 - provide release-grade Swift trace/extractor equivalence evidence;
@@ -83,4 +89,5 @@ cd Formal
 lake build SuperNeoFormal
 ```
 
-The current top-level build succeeds.
+The current top-level build succeeds, but build success is not the same as a
+closed instantiated theorem.

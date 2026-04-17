@@ -1,9 +1,10 @@
 # Formal Status Promotion, 2026-04-13
 
 Historical note, 2026-04-17: this document is retained as the audit record for
-the original partial-formalization promotion. It is superseded by the completed
-formal protocol theorem label described in `Docs/FormalVerification.md` and
-root `math-audit.md`.
+the original partial-formalization promotion. It is superseded by the corrected
+finite-model core status described in `Docs/FormalVerification.md` and root
+`math-audit.md`; theorem-critical integrations remain open before any completed
+protocol theorem label is available.
 
 This pass promotes the repository's formal track from `bounded formalization` to
 `partial formalization`.
@@ -40,8 +41,8 @@ theorem.
   workflow.
 - Added the same regression harness to the paper-reproduction command list and
   execution flow.
-- Extended the regression harness to prove that the completed-protocol label is
-  blocked by non-`closed` assumption-scoped theorem groups and that documentation
+- Extended the regression harness to prove that any future completed-protocol
+  label is blocked by non-`closed` theorem groups and that documentation
   overclaims are rejected.
 
 ## Residual Boundaries

@@ -30,11 +30,10 @@ Machine-readable scope:
 - `Scripts/validate-product-total-loss-budget.py`
 - `Scripts/validate-product-release-distribution-evidence.py`
 
-The current status is an evidence-parametric bounded-depth product security
-theorem surface with local typed parent-child carry evidence. All production
-claims remain disabled until the listed extractor, QROM, parameter, hosted
-carry-depth, ZK, side-channel, release distribution, and benchmark obligations
-are instantiated.
+The current status is an evidence-parametric bounded-depth product security theorem
+surface with local typed parent-child carry evidence. All production claims remain disabled
+until the listed extractor, QROM, parameter, hosted carry-depth, ZK,
+side-channel, release distribution, and benchmark obligations are instantiated.
 
 ## Theorem Scope
 

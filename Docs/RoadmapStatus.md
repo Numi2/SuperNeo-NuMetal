@@ -4,7 +4,7 @@ This document maps the repository roadmap to concrete artifacts and remaining
 boundaries. It is intentionally conservative: passing items are implementation
 claims, not production security certifications.
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 ## First Priority: Legibility
 
@@ -259,14 +259,14 @@ Artifacts:
   documentation labels against named theorem groups and verify that closed
   groups reference declarations present in the claimed Lean module without
   duplicate declaration assignment across groups. The gate also prevents
-  boundary/assumption declarations from appearing in completed theorem groups
-  and requires every promotion blocker to be closed when the completed theorem
-  label is active.
+  boundary/assumption declarations from appearing in future completed-theorem
+  groups and requires every open theorem-critical integration to be closed
+  before a stronger theorem label is active.
 - `Scripts/test-formal-status-validation.py` regression-tests the formal-status
   gate by mutating temporary manifests and requiring fail-closed behavior.
 - `Docs/FormalStatusPromotion-2026-04-13.md` records the historical
   partial-formalization promotion, validation commands, and boundaries that were
-  later superseded by the completed formal protocol theorem label.
+  later superseded by the corrected finite-model core status.
 - `Docs/FormalAjtaiBinding-2026-04-13.md` records the Ajtai binding-equivalence
   formalization pass and remaining quotient-ring/protocol boundaries.
 - `Docs/FormalPiDECRecomposition-2026-04-13.md` records the abstract PiDEC
@@ -279,7 +279,8 @@ Artifacts:
 - `Docs/FormalRemainingBoundaries-2026-04-14.md` records the historical boundary
   IDs and their closed replacement groups.
 - The latest Lean pass keeps historical boundary IDs documented for audit
-  continuity while keeping the active manifest on closed replacement groups.
+  continuity while keeping the active manifest on corrected-core groups plus
+  explicit planned theorem-critical integrations.
 - `Docs/PaperReproduction.md` documents the harness and interpretation rules.
 - `Docs/LatticeEstimatorReproduction.md` documents the estimator command,
   pinned upstream source, and exact derived parameters.
@@ -289,10 +290,11 @@ Remaining boundary:
 - The harness reproduces implementation claims against the bundled paper text.
   It does not produce a formal proof of the paper's theorems or a production
   cryptographic certification.
-- The current formal status is the completed formal protocol theorem label for
-  the corrected model: certified verifier keys, finite excluded challenge/seed
-  sets, Swift/Lean byte equivalence surfaces, and the composed probability
-  bound. It is not a proof that arbitrary Ajtai matrices are binding or that the
+- The current formal status is a corrected finite-model core with open
+  theorem-critical integrations: certified verifier keys, finite excluded
+  challenge/seed sets, theorem-facing transcript and digest layers, and exact
+  finite probability modules. It is not a proof that arbitrary Ajtai matrices
+  are binding, that the top product theorem is fully instantiated, or that the
   implementation has completed side-channel or production operational
   certification.
 
@@ -308,7 +310,8 @@ Status:
 - [x] Kind `4` envelope, NumiSeal proof body, terminal policy, lane aggregation,
   decomposition, scalarization, sum-check, immediate residual CE opening,
   checked vectors, CLI verification, and product verifier facade exist.
-- [x] Corrected SuperNeo formal protocol theorem label is completed.
+- [x] SuperNeo formal status is a corrected finite-model core with open
+  theorem-critical integrations.
 - [x] Public NumiSeal proving/product exposure exists through
   `NumiSealProductAPI` and `superneo prove --seal numiseal`.
 - [x] Supported frontend-to-NumiSeal obligation path exists for prepared R1CS,

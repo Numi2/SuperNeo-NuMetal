@@ -1,6 +1,6 @@
 # Swift Wire Serialization Formal Slice
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 This note records the April 14, 2026 concrete wire-format additions in
 `Formal/SuperNeoFormal/Serialization.lean`.

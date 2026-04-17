@@ -10,9 +10,9 @@ NumiSeal has production-facing inspection, verification, and local product
 artifact-generation surfaces for checked immediate-residual artifacts. It is not
 a complete hosted production NumiSeal product.
 
-Formal wording: the corrected SuperNeo formal protocol theorem label is
-completed. NumiSeal-specific product claims remain scoped to the checklist
-below.
+Formal wording: SuperNeo has a corrected finite-model core with open
+theorem-critical integrations. NumiSeal-specific product claims remain scoped
+to the checklist below.
 
 ## Done
 

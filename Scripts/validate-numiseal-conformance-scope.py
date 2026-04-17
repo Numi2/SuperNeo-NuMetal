@@ -102,7 +102,7 @@ REQUIRED_AUXILIARY_FORMAL_MODULES = {
             "RecursiveFoldingKnowledgeChainHolds",
             "RecursiveFoldingKnowledgeChainEvidence",
             "recursiveFoldingKnowledgeSoundness_from_chainEvidence",
-            "recursiveFoldingKnowledge_terminalCE_witnesses_from_badSeed_certificate",
+            "recursiveFoldingKnowledge_terminalCE_witnesses_from_constructive_badSeeds",
         },
     },
     "Formal/SuperNeoFormal/NumiSealTypedCarryTheorem.lean": {

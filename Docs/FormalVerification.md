@@ -1,6 +1,6 @@
 # Formal Verification Track
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 The formal track lives under `Formal/` as a Lean 4 Lake workspace. It is
 separate from the Sage/lattice-estimator workflow:
@@ -10,36 +10,23 @@ separate from the Sage/lattice-estimator workflow:
 - Lean formalization records protocol-level algebraic statements, certified-key
   reductions, and finite bad-challenge/bad-seed exclusions.
 
-The current Lean milestone is the completed formal protocol theorem label for
-the corrected finite model. Ajtai binding is consumed through certified
+The current Lean milestone is a corrected finite-model core with open
+theorem-critical integrations. Ajtai binding is consumed through certified
 verifier keys, transcript byte injectivity is theorem-facing only for
-well-formed length-counted transcript states, theorem-critical bindings use the
-384-bit binding companion, and probabilistic PiRLC, constructive PiCCS
-/ sum-check, transcript-stage, and constructive terminal CE proof soundness are
-composed outside explicitly finite bad challenge/seed sets. The checked
-declaration set covers profile constants, derived parameter equalities, the
-strong-sampling inequality, concrete Goldilocks/Phi81 algebra, GoldilocksExt2
-wire operations, Ext2 caller byte surfaces, CE opening proof byte grammar,
-Phi81 factorization, field-to-ring packing, the complete Lean
-`GoldilocksExt2` field instance, concrete and certified Ajtai instantiation,
-PiDEC recomposition, PiRLC weighted-claim recomposition, finite-support
-counting, scalar and quotient-ring-safe collision facts, well-formed transcript
-injection, 384-bit proof-envelope binding injection, transcript-bound finite
-challenge scheduling, PiCCS acceptance projections, the PiCCS exact public-Q
-bridge, finite-field low-degree root counting, sum-check prefix bad-challenge
-aggregation, constructive finite bad-challenge PiCCS soundness, terminal CE
-statement and local batch algebra, constructive finite bad-seed terminal CE
-proof soundness, Swift/Lean GoldilocksExt2 serialization equivalence,
-Swift/Lean CE verifier-byte equivalence, distinct-witness-to-short-kernel
-reductions, and exact finite-uniform rational probability composition over the
-finite Fiat-Shamir seed product.
+well-formed length-counted transcript states, theorem-critical bindings have a
+384-bit typed digest layer, and finite PiRLC/PiCCS/terminal-CE/transcript
+probability accounting exists over explicit bad challenge/seed sets. The active
+status still keeps four integrations open in `Docs/FormalStatus.json`: upper
+384-bit typed-digest binding, constructive terminal CE localization
+instantiation, CRT-based PiRLC finite-soundness completion, and product-theorem
+probability wiring.
 
 The historical `closed_under_*` groups remain documented for auditability, but
-the manifest now uses closed replacement group IDs and closed promotion blocker
+the manifest now uses corrected-core group IDs plus explicit planned integration
 groups. The status validator rejects declaration reuse across theorem groups,
-prevents boundary/assumption declarations from appearing in completed theorem
-groups, and requires the three promotion blockers to be closed when the
-completed label is active.
+prevents boundary/assumption declarations from being promoted into future
+completed-theorem groups, and rejects documentation that claims the stronger
+future label while open integrations remain planned.
 
 ## Status Manifest
 
@@ -53,10 +40,10 @@ Scripts/validate-formal-status.py
 ```
 
 The regression harness mutates temporary manifest copies and confirms the
-validator fails closed for missing blockers, non-closed promotion blockers,
-missing declarations, closed groups without any declaration, assumption/boundary
-declarations in completion groups, documentation overclaims, and completed-label
-dependency drift:
+validator fails closed for missing open integrations, open integrations marked
+closed too early, missing declarations, closed groups without any declaration,
+assumption/boundary declarations in stronger-label groups, documentation
+overclaims, and future-label dependency drift:
 
 ```sh
 Scripts/test-formal-status-validation.py
@@ -67,12 +54,11 @@ Allowed labels are:
 - `bounded formalization`
 - `partial formalization`
 - `conditional protocol formalization`
-- `completed formal protocol theorem`
+- `corrected finite-model core with open theorem-critical integrations`
 
-Documentation may use the full theorem label only when every group on that path
-is `closed`. Historical `closed_under_*` boundary IDs are replaced by closed
-certified-key, finite-bad-seed, byte-equivalence, and probability-composition
-groups on the completed path.
+A future full theorem label is reserved for the state where every group on that
+path is `closed`. Historical `closed_under_*` boundary IDs are retained only as
+audit history, not as active manifest groups.
 
 Recent formal pass:
 

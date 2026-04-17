@@ -23,6 +23,7 @@ FORMAL_STATUS_RE = re.compile(
     r"bounded formalization|"
     r"partial formalization|"
     r"conditional protocol formalization|"
+    r"corrected finite-model core with open theorem-critical integrations|"
     r"completed formal protocol theorem"
     r")",
     re.IGNORECASE,
@@ -35,10 +36,12 @@ LEAN_DECL_RE = re.compile(
 ASSUMPTION_DECL_RE = re.compile(r"(?:Assumption|Boundary)$")
 COMPLETED_LABEL = "completed formal protocol theorem"
 CONDITIONAL_LABEL = "conditional protocol formalization"
-REQUIRED_COMPLETION_BLOCKERS = {
-    "swift-goldilocks-ext2-serialization-equivalence",
-    "swift-ce-verifier-byte-equivalence",
-    "superneo-full-probability-composition",
+CURRENT_CORE_LABEL = "corrected finite-model core with open theorem-critical integrations"
+REQUIRED_OPEN_INTEGRATIONS = {
+    "upper-typed-digest-binding-integration",
+    "terminal-ce-localization-instantiation",
+    "pirlc-crt-finite-soundness-completion",
+    "product-theorem-exact-probability-integration",
 }
 
 
@@ -214,47 +217,47 @@ def validate_completion_label_guard(manifest: Dict[str, Any]) -> None:
         missing = sorted(conditional_groups - completed_groups)
         if missing:
             fail(
-                "completed formal protocol theorem must include every conditional "
+                "completed formal protocol theorem must include every dependency "
                 f"theorem group; missing {missing!r}"
             )
 
 
-def validate_completion_blockers(manifest: Dict[str, Any], statuses: Dict[str, str]) -> None:
-    blockers = manifest.get("completion_blocker_groups")
-    if not isinstance(blockers, list) or not all(isinstance(item, str) for item in blockers):
-        fail("completion_blocker_groups must be an array of strings")
-    if len(set(blockers)) != len(blockers):
-        fail("completion_blocker_groups contains duplicates")
-    missing_required = sorted(REQUIRED_COMPLETION_BLOCKERS - set(blockers))
+def validate_open_integrations(manifest: Dict[str, Any], statuses: Dict[str, str]) -> None:
+    integrations = manifest.get("open_integration_groups")
+    if not isinstance(integrations, list) or not all(isinstance(item, str) for item in integrations):
+        fail("open_integration_groups must be an array of strings")
+    if len(set(integrations)) != len(integrations):
+        fail("open_integration_groups contains duplicates")
+    missing_required = sorted(REQUIRED_OPEN_INTEGRATIONS - set(integrations))
     if missing_required:
-        fail(f"completion_blocker_groups missing required blocker(s): {missing_required!r}")
-    unknown_required = sorted(set(blockers) - REQUIRED_COMPLETION_BLOCKERS)
+        fail(f"open_integration_groups missing required integration(s): {missing_required!r}")
+    unknown_required = sorted(set(integrations) - REQUIRED_OPEN_INTEGRATIONS)
     if unknown_required:
-        fail(f"completion_blocker_groups contains unsupported blocker(s): {unknown_required!r}")
+        fail(f"open_integration_groups contains unsupported integration(s): {unknown_required!r}")
 
     labels = manifest.get("labels")
     if not isinstance(labels, dict):
         fail("labels must be an object")
     completed_groups = set(required_groups(manifest, COMPLETED_LABEL)) if COMPLETED_LABEL in labels else set()
-    conditional_groups = set(required_groups(manifest, CONDITIONAL_LABEL)) if CONDITIONAL_LABEL in labels else set()
+    current_groups = set(required_groups(manifest, CURRENT_CORE_LABEL)) if CURRENT_CORE_LABEL in labels else set()
     current_label = manifest.get("current_label")
     if not isinstance(current_label, str):
         fail("current_label must be a string")
     promoted = current_label == COMPLETED_LABEL
 
-    for blocker in blockers:
-        status = statuses.get(blocker)
+    for integration in integrations:
+        status = statuses.get(integration)
         if status is None:
-            fail(f"completion blocker {blocker!r} is not a theorem group")
+            fail(f"open integration {integration!r} is not a theorem group")
         if promoted:
             if status != "closed":
-                fail(f"completion blocker {blocker!r} must be closed at promotion")
+                fail(f"open integration {integration!r} must be closed at promotion")
         elif status != "planned":
-            fail(f"completion blocker {blocker!r} must remain planned before promotion")
-        if blocker not in completed_groups:
-            fail(f"completed formal protocol theorem must include completion blocker {blocker!r}")
-        if blocker in conditional_groups:
-            fail(f"conditional protocol formalization must not require completion blocker {blocker!r}")
+            fail(f"open integration {integration!r} must remain planned before promotion")
+        if integration not in current_groups:
+            fail(f"current corrected finite-model label must include open integration {integration!r}")
+        if integration not in completed_groups:
+            fail(f"completed formal protocol theorem must include open integration {integration!r}")
 
 
 def validate_completion_group_declarations(manifest: Dict[str, Any]) -> None:
@@ -348,7 +351,7 @@ def main() -> None:
     statuses = validate_theorem_groups(manifest)
     validate_labels(manifest, statuses)
     validate_completion_label_guard(manifest)
-    validate_completion_blockers(manifest, statuses)
+    validate_open_integrations(manifest, statuses)
     validate_completion_group_declarations(manifest)
     current_label = manifest.get("current_label")
     if not isinstance(current_label, str):

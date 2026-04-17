@@ -1,6 +1,6 @@
 # Production Readiness Audit Packet, 2026-04-16
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 This packet is the current reviewer entry point for production-readiness
 assessment. It records what the repository can substantiate today, what the
@@ -279,10 +279,10 @@ These are the remaining blockers before using production-security language:
    surfaces and conformance vectors, and
    `TestVectors/numiseal-end-to-end-theorem-scope-v1.json` pins the checked
    NumiSeal end-to-end theorem scope. That scope now includes checked Lean
-   surfaces for recursive folding knowledge soundness, typed carry
-   producer/consumer composition, and NumiSealZK simulation/privacy under the
-   declared public-leakage model. The scope now also pins exact
-   rejection-sampled field mask distribution evidence, product Swift
+   surfaces for recursive folding knowledge soundness, typed carry producer/consumer
+   composition, and NumiSealZK simulation/privacy under the declared
+   public-leakage model. The scope now also pins exact rejection-sampled field mask distribution
+   evidence, product Swift
    trace/extractor evidence, NumiSealZK simulator-coupling evidence, and CTCO
    instantiation evidence. The current theorem is still evidence-parametric:
    accepted product gates plus named source-fold, terminal-seal,

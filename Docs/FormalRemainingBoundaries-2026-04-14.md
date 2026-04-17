@@ -1,11 +1,12 @@
 # Formal Remaining Boundaries, 2026-04-14
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 This note records the boundary-closure pass after the earlier assumption-surface
 deepening work. It has been updated for the 2026-04-17 formal cleanup: the old
 transcript, 384-bit binding, constructive PiCCS, constructive terminal CE, and
-finite probability-ledger gaps are no longer open boundary items.
+finite probability-ledger gaps are no longer phrased as broad roadmap blockers,
+but their upper theorem-critical integration points remain tracked explicitly.
 
 ## Closed During This Pass
 
@@ -17,12 +18,12 @@ finite probability-ledger gaps are no longer open boundary items.
   zero matrix over any nontrivial commutative ring does not satisfy
   `NoShortKernel`.
 - Phi81 now records the concrete Goldilocks factorization
-  `X^54 + X^27 + 1 = (X^27 - (2^32 - 1)) * (X^27 + 2^32)` and exposes an
-  explicit split-certificate surface for componentwise collision arguments.
-- PiRLC now has `PiRLCFiniteBadSeedCertificate`: accepted folded claims imply all
-  inputs are sound outside the finite certified bad-seed set. The certificate
-  carries the Phi81 split, and the file records projected component deltas and a
-  one-bad-value theorem for nonzero projected pivots.
+  `X^54 + X^27 + 1 = (X^27 - (2^32 - 1)) * (X^27 + 2^32)` as support for the
+  concrete CRT endpoint in `Phi81CRT.lean`.
+- PiRLC now has a constructive finite bad-seed endpoint:
+  `PiRLCConstructiveBadSeeds` is the filtered fold-failure set, and
+  `PiRLCCRTConstructiveFailureLocalization` records the CRT component
+  localization needed for the remaining-seed count.
 - PiCCS/sum-check now has a GoldilocksExt2 wire model and a constructive finite
   bad-challenge path. `PiCCSConstructiveFiniteSoundness.lean` constructs the
   bad set directly from `SumcheckSoundness.lean` and
@@ -34,8 +35,9 @@ finite probability-ledger gaps are no longer open boundary items.
   extraction-failure bad-seed set and derives the `roundCount * 3` budget from
   an injective bad-seed localization. `TerminalCEFiniteSoundness.lean` remains
   as a compatibility wrapper.
-- SuperNeo composition now has `superneo_end_to_end_outside_ce_badSeeds`, which
-  composes terminal verifier acceptance with the finite CE bad-seed certificate.
+- SuperNeo composition now has
+  `superneo_end_to_end_outside_constructive_ce_badSeeds`, which composes
+  terminal verifier acceptance with constructive terminal CE bad-seed semantics.
 - Transcript binding now has a theorem-facing well-formed layer:
   `WellFormedTranscript.lean` proves byte injectivity for length-counted
   transcript states and provides 384-bit proof-envelope transcript separation.
@@ -98,30 +100,32 @@ finite probability-ledger gaps are no longer open boundary items.
 
 ## Current Manifest Shape
 
-The current manifest uses closed replacement groups for the completed theorem
-dependency path. The active label is `completed formal protocol theorem`.
+The current manifest uses closed corrected-core groups plus explicit planned
+integration groups. The active label is `corrected finite-model core with open theorem-critical integrations`.
 
-The three former full-theorem blockers are closed:
+The remaining theorem-critical integration groups are:
 
-- `superneo-full-probability-composition` composes the PiRLC, PiCCS/sum-check,
-  terminal CE, transcript, and error ledgers into the final rational probability
-  statement over the finite Fiat-Shamir seed product.
-- `swift-goldilocks-ext2-serialization-equivalence` names Swift
-  `GoldilocksField` and `GoldilocksExt2` encode/decode behavior in Lean and
-  proves it equal to the canonical Lean grammar, including failure and caller
-  vector surfaces.
-- `swift-ce-verifier-byte-equivalence` connects Swift CE proof byte decoding,
-  response-tag branch selection, terminal CE verifier traces, and finite
-  bad-seed soundness.
+- `upper-typed-digest-binding-integration`, which wires the 384-bit
+  theorem-critical typed-digest binding path through the upper theorem
+  boundary.
+- `terminal-ce-localization-instantiation`, which instantiates constructive
+  terminal CE localization evidence beyond the current constructive composition
+  endpoint.
+- `pirlc-crt-finite-soundness-completion`, which completes the CRT-based PiRLC
+  finite-soundness count on top of `Phi81CRT.lean` and
+  `PiRLCConcreteCollision.lean`.
+- `product-theorem-exact-probability-integration`, which keeps exact
+  finite-uniform probability wired through the selected-depth ledger and
+  top-level product theorem.
 
 The existing CE byte grammar remains the supporting parser model for counted CE
 proof bytes, response tags, commitments, responses, rounds, and complete proof
 objects. The Ext2 caller byte surface remains the supporting grammar for counted
 Ext2 vectors, counted Ext2 ring vectors, sum-check Ext2 proof fragments, and
 CCS/CE point-evaluation caller bytes. The tagged bad-event, error-ledger, and
-Fiat-Shamir finite-seed accounting groups are now connected to an exact
-finite-uniform probability bridge and selected-depth numerator arithmetic used
-by the completed composition theorem.
+Fiat-Shamir finite-seed accounting groups are connected to an exact
+finite-uniform probability bridge and selected-depth numerator arithmetic, but
+the product-theorem integration remains an open planned group.
 
 The Lean `goldilocks-ext2-field-instance` group is now closed by transferring
 mathlib's root-free quadratic-algebra field instance onto the existing

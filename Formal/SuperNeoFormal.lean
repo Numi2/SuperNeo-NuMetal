@@ -23,11 +23,10 @@ import SuperNeoFormal.PiRLCFiniteSoundness
 import SuperNeoFormal.PiCCS
 import SuperNeoFormal.CCSSemantics
 import SuperNeoFormal.PiCCSSoundness
-import SuperNeoFormal.PiCCSFiniteSoundness
 import SuperNeoFormal.PiCCSConstructiveFiniteSoundness
 import SuperNeoFormal.TerminalCE
 import SuperNeoFormal.CEOpeningRelation
-import SuperNeoFormal.TerminalCEFiniteSoundness
+import SuperNeoFormal.TerminalCEVerifierSemantics
 import SuperNeoFormal.TerminalCEConcreteSpecialSoundness
 import SuperNeoFormal.TerminalCEConstructiveFiniteSoundness
 import SuperNeoFormal.Serialization

@@ -1,6 +1,6 @@
 # Audit and Blocker Narrowing, 2026-04-16
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 This note records the local audit pass covering side-channel posture, product
 integration requirements, formal blocker status, and lattice-estimator evidence.
@@ -194,23 +194,25 @@ still requires deployed durable implementations and operational review.
 
 ## Formal Blockers
 
-`Docs/FormalStatus.json` now closes the three former completion blockers:
+`Docs/FormalStatus.json` now records the corrected finite-model core and keeps
+the theorem-critical integrations explicit as open planned groups:
 
-- `superneo-full-probability-composition`
-- `swift-goldilocks-ext2-serialization-equivalence`
-- `swift-ce-verifier-byte-equivalence`
+- `upper-typed-digest-binding-integration`
+- `terminal-ce-localization-instantiation`
+- `pirlc-crt-finite-soundness-completion`
+- `product-theorem-exact-probability-integration`
 
-The production gate now validates that those blockers are closed when the
-completed label is active. Supporting work includes Goldilocks/Phi81 algebra,
-Ext2 wire grammar, CE byte grammar, Swift/Lean Ext2 vectors, Swift/Lean CE
-vectors, tagged bad-event bookkeeping, finite transcript-seed accounting,
-Swift-facing byte equivalence declarations, CE verifier-trace bridging, and the
-full probability composition theorem.
+The formal-status validator rejects documentation that claims a future completed
+theorem label before those integrations are closed. Supporting work includes
+Goldilocks/Phi81 algebra, Ext2 wire grammar, CE byte grammar, Swift/Lean Ext2
+vectors, Swift/Lean CE vectors, tagged bad-event bookkeeping, finite
+transcript-seed accounting, Swift-facing byte equivalence declarations, and CE
+verifier-trace bridging.
 
-Conclusion: formal status promotion is justified by checked Lean declarations
-plus fail-closed validator mutation tests. This does not close the separate
-independent-audit, side-channel, product-integration, benchmark, or release
-infrastructure blockers.
+Conclusion: the formal status is now narrower and validated by checked Lean
+declarations plus fail-closed validator mutation tests. This does not close the
+separate independent-audit, side-channel, product-integration, benchmark, or
+release infrastructure blockers.
 
 ## Lattice Estimator
 
@@ -251,7 +253,7 @@ artifact separately.
 | Cryptographic and implementation review record | Still open; owned in-repo as release evidence. |
 | Side-channel review | Narrowed; high-assurance mode is meaningful, source/formal plus Swift/LLVM/Metal lowering proof contracts exist, local Metal/runtime/CPU/GPU release evidence is pinned, and broader compiler/hardware evidence remains required before production CT language. |
 | Product integration layer | Executable NumiSeal integration contract added; deployed storage/provenance/replay/access/logging implementations remain open. |
-| Formal blocker completion | Closed for the completed formal protocol theorem label; production-security blockers remain separate. |
+| Formal blocker completion | Narrowed to a corrected finite-model core with open theorem-critical integrations; production-security blockers remain separate. |
 | Full Sage estimator | Closed for the pinned local lane; SageMath 10.8 ran and the generated artifact validated. |
 | Broader benchmarks | Not run in this pass; no new cross-generation performance claim. |
 | Release signing and branch protection | Not locally provable; remains hosting/release-infrastructure work. |

@@ -1,6 +1,6 @@
 # Formal PiDEC Recomposition Pass, 2026-04-13
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 This pass adds a Lean module for the algebraic recomposition boundary used by
 the PiDEC verifier.
@@ -37,4 +37,4 @@ unconditional full SuperNeo protocol theorem. It closes the commitment
 recomposition algebra over the current abstract ring model. A later
 2026-04-13 pass added assumption-scoped PiRLC, PiCCS, terminal CE, and verifier
 composition theorem surfaces, and the 2026-04-17 formal cleanup superseded that
-intermediate status with the completed finite formal protocol theorem label.
+intermediate status with the corrected finite-model core with open theorem-critical integrations label.

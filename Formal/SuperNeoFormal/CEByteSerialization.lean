@@ -1,5 +1,6 @@
 import SuperNeoFormal.Serialization
-import SuperNeoFormal.TerminalCEFiniteSoundness
+import SuperNeoFormal.TerminalCEConcreteSpecialSoundness
+import SuperNeoFormal.TerminalCEVerifierSemantics
 
 /-!
 CE opening proof byte grammar.
@@ -775,29 +776,24 @@ theorem swift_ceVerifier_accepts_implies_traceAccepts
   rw [trace.responseTags_match round]
   exact hAccepts round
 
-theorem swift_ceVerifier_accepts_sound_outside_badSeeds
-    {Claim Proof Witness Seed Commitment Response : Type}
-    [DecidableEq Seed]
-    {count roundCount bound : Nat}
-    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
-    {opens : Claim → Witness → Prop}
-    {proofSeed : Proof → Seed}
-    (certificate :
-      TerminalCEFiniteVerifierCertificate
-        (Commitment := Commitment)
-        (Response := Response)
-        (roundCount := roundCount)
-        verifyProof
-        opens
-        proofSeed
-        bound)
+theorem swift_ceVerifier_accepts_sound_from_concrete_extractor
+    {Claim Witness Seed Commitment Response : Type}
+    {count roundCount : Nat}
+    {trace : SwiftCEVerifierTrace Commitment Response Witness Seed roundCount}
     {statement : TerminalCEStatement Claim count}
-    {proof : Proof}
-    (hAccepts : verifyProof statement proof)
-    (hSeed : proofSeed proof ∉ certificate.badSeeds) :
-    ∃ witnesses : Fin count → Witness,
-      TerminalLocalBatchRelation statement witnesses opens :=
-  terminalCEVerifierTrace_extract_batch_from_round_certificates
-    (certificate.extraction statement proof hAccepts hSeed)
+    {opens : Claim → Witness → Prop}
+    (hAccepts : SwiftCEVerifierAccepts trace)
+    (semantics :
+      TerminalCEConcreteExtractorSemantics
+        trace.terminalTrace
+        statement
+        opens) :
+    TerminalCEVerifierTraceAccepts trace.terminalTrace ∧
+      ∃ witnesses : Fin count → Witness,
+        TerminalLocalBatchRelation statement witnesses opens :=
+  ⟨
+    swift_ceVerifier_accepts_implies_traceAccepts hAccepts,
+    terminalCEConcrete_extract_batch semantics
+  ⟩
 
 end SuperNeoFormal

@@ -1,16 +1,16 @@
 # Formal Protocol Composition Pass, 2026-04-13
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 This pass replaces the remaining planned Lean roadmap markers with explicit
 assumption-scoped theorem surfaces for PiRLC, PiCCS/sum-check, terminal CE, and
 the top-level SuperNeo verifier composition.
 
-Historical note, 2026-04-17: this pass is superseded by the completed formal
-protocol theorem label. The newer theorem path uses constructive PiCCS finite
+Historical note, 2026-04-17: this pass is superseded by the corrected
+finite-model core status. The newer theorem path uses constructive PiCCS finite
 soundness, constructive terminal CE finite soundness, well-formed transcript
 injectivity, 384-bit theorem-critical binding, and finite-uniform probability
-composition.
+composition, while upper theorem-critical integrations remain tracked as open.
 
 ## Work Completed
 
@@ -36,8 +36,9 @@ assumptions instead of `planned`. A later 2026-04-14 assumption-ledger split
 separates their deterministic cores from the remaining boundaries:
 
 - `pirlc-recomposition-core`, `pirlc-finite-support-core`, and
-  `pirlc-scalar-collision-core` are closed; the quotient-ring folded-claim
-  collision certificate remains in `pirlc-collision-bound-boundary`.
+  `pirlc-scalar-collision-core` are historical closure labels. The current
+  theorem-facing PiRLC path uses the CRT localization endpoint rather than the
+  older quotient-ring folded-claim collision certificate boundary.
 - `piccs-acceptance-core` and `piccs-deterministic-sumcheck-bridge` are closed;
   `sumcheck-low-degree-root-count-core` closes the finite-field root-count
   lemma; `piccs-sumcheck-boundary` remains scoped to the remaining
@@ -56,13 +57,14 @@ separates their deterministic cores from the remaining boundaries:
   opening soundness boundary rather than a separate aggregate stage assumption.
 
 The historical manifest label for this pass was `conditional protocol
-formalization`. The current manifest label is the completed formal protocol
-theorem for the corrected finite model.
+formalization`. The current manifest label is the corrected finite-model core
+with open theorem-critical integrations.
 
 ## Trust Boundary
 
 This is a real Lean formalization layer, not a roadmap marker. It is no longer
 the endpoint for the formal track: later modules mechanize the finite
 sum-check/PiCCS, terminal CE, transcript, and probability layers used by the
-completed finite theorem. It still is not a production cryptographic proof of
-the deployed system or a QROM theorem.
+corrected finite-model core. It still is not a production cryptographic proof of
+the deployed system, a fully instantiated top product theorem, or a QROM
+theorem.

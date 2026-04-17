@@ -1,0 +1,278 @@
+{
+  "schema": "superneo.formal-status.v1",
+  "formal_status": "corrected finite-model core with open theorem-critical integrations",
+  "current_label": "corrected finite-model core with open theorem-critical integrations",
+  "blocker_groups": [
+    "upper-typed-digest-binding-integration",
+    "terminal-ce-localization-instantiation",
+    "pirlc-crt-finite-soundness-completion",
+    "product-theorem-exact-probability-integration"
+  ],
+  "open_integration_groups": [
+    "upper-typed-digest-binding-integration",
+    "terminal-ce-localization-instantiation",
+    "pirlc-crt-finite-soundness-completion",
+    "product-theorem-exact-probability-integration"
+  ],
+  "theorem_groups": [
+    {
+      "id": "well-formed-transcript-injectivity",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.WellFormedTranscript",
+      "declarations": [
+        "transcriptBytes_injective_of_wellFormed"
+      ]
+    },
+    {
+      "id": "digest384-serialization",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.Digest384Serialization",
+      "declarations": [
+        "digest384Encode_injective"
+      ]
+    },
+    {
+      "id": "typed-digest-width-parameterization",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.TypedDigestSemantics",
+      "declarations": [
+        "TypedDigest384Wire",
+        "typedDigest384Encode_injective",
+        "typedDigest384FrameEncode_injective"
+      ]
+    },
+    {
+      "id": "phi81-crt-decomposition",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.Phi81CRT",
+      "declarations": [
+        "phi81CRTHom_injective",
+        "phi81CRT_nonzero_has_nonzero_component"
+      ]
+    },
+    {
+      "id": "pirlc-crt-constructive-surface",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.PiRLCFiniteSoundness",
+      "declarations": [
+        "pirlcCRTComponentNonzero_exists_of_pivot_ne_zero",
+        "PiRLCConstructiveBadSeeds",
+        "PiRLCCRTConstructiveFailureLocalization",
+        "pirlc_constructive_badSeedCount_le_of_crtLocalization"
+      ]
+    },
+    {
+      "id": "piccs-constructive-finite-soundness",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.PiCCSConstructiveFiniteSoundness",
+      "declarations": [
+        "PiCCSBadChallengeSetConstructed_card_le_budget"
+      ]
+    },
+    {
+      "id": "terminal-ce-verifier-semantics",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.TerminalCEVerifierSemantics",
+      "declarations": [
+        "TerminalCEVerifierTrace",
+        "TerminalCEProofBadSeedBudget",
+        "ceOpeningChallengeDomain_card",
+        "ceOpeningChallengeFromSymbol_mem_domain"
+      ]
+    },
+    {
+      "id": "terminal-ce-constructive-finite-soundness",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.TerminalCEConstructiveFiniteSoundness",
+      "declarations": [
+        "terminalCEConstructive_badSeeds_probability_le"
+      ]
+    },
+    {
+      "id": "finite-uniform-probability",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.FiniteUniformProbability",
+      "declarations": [
+        "finiteUniformProbability_le_of_subset_card_le"
+      ]
+    },
+    {
+      "id": "exact-fiat-shamir-error-ledger",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.ErrorLedger",
+      "declarations": [
+        "superneo_fiatShamirFiniteUniform_errorLedger_eq_transcriptProbability",
+        "superneo_fiatShamirProbability_le_selectedDepthLoss"
+      ]
+    },
+    {
+      "id": "product-qrom-theorem-surface",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.ProductSecurityTheorem",
+      "declarations": [
+        "ProductQROMTightTransform",
+        "productSecurityTheorem_from_instantiated_qrom"
+      ]
+    },
+    {
+      "id": "upper-typed-digest-binding-integration",
+      "status": "planned",
+      "lean_module": "SuperNeoFormal.ProductSecurityTheorem",
+      "declarations": []
+    },
+    {
+      "id": "terminal-ce-localization-instantiation",
+      "status": "planned",
+      "lean_module": "SuperNeoFormal.TerminalCEConstructiveFiniteSoundness",
+      "declarations": []
+    },
+    {
+      "id": "pirlc-crt-finite-soundness-completion",
+      "status": "planned",
+      "lean_module": "SuperNeoFormal.PiRLCFiniteSoundness",
+      "declarations": []
+    },
+    {
+      "id": "product-theorem-exact-probability-integration",
+      "status": "planned",
+      "lean_module": "SuperNeoFormal.ProductSecurityTheorem",
+      "declarations": []
+    }
+  ],
+  "labels": {
+    "bounded formalization": {
+      "rank": 1,
+      "required_theorem_groups": [
+        "well-formed-transcript-injectivity"
+      ]
+    },
+    "partial formalization": {
+      "rank": 2,
+      "required_theorem_groups": [
+        "well-formed-transcript-injectivity",
+        "digest384-serialization"
+      ]
+    },
+    "conditional protocol formalization": {
+      "rank": 3,
+      "required_theorem_groups": [
+        "well-formed-transcript-injectivity",
+        "digest384-serialization",
+        "typed-digest-width-parameterization",
+        "phi81-crt-decomposition",
+        "piccs-constructive-finite-soundness",
+        "terminal-ce-verifier-semantics",
+        "finite-uniform-probability"
+      ]
+    },
+    "corrected finite-model core with open theorem-critical integrations": {
+      "rank": 4,
+      "accepted_statuses": [
+        "closed",
+        "planned"
+      ],
+      "required_theorem_groups": [
+        "well-formed-transcript-injectivity",
+        "digest384-serialization",
+        "typed-digest-width-parameterization",
+        "phi81-crt-decomposition",
+        "pirlc-crt-constructive-surface",
+        "piccs-constructive-finite-soundness",
+        "terminal-ce-verifier-semantics",
+        "terminal-ce-constructive-finite-soundness",
+        "finite-uniform-probability",
+        "exact-fiat-shamir-error-ledger",
+        "product-qrom-theorem-surface",
+        "upper-typed-digest-binding-integration",
+        "terminal-ce-localization-instantiation",
+        "pirlc-crt-finite-soundness-completion",
+        "product-theorem-exact-probability-integration"
+      ]
+    },
+    "completed formal protocol theorem": {
+      "rank": 5,
+      "accepted_statuses": [
+        "closed"
+      ],
+      "required_theorem_groups": [
+        "well-formed-transcript-injectivity",
+        "digest384-serialization",
+        "typed-digest-width-parameterization",
+        "phi81-crt-decomposition",
+        "pirlc-crt-constructive-surface",
+        "piccs-constructive-finite-soundness",
+        "terminal-ce-verifier-semantics",
+        "terminal-ce-constructive-finite-soundness",
+        "finite-uniform-probability",
+        "exact-fiat-shamir-error-ledger",
+        "product-qrom-theorem-surface",
+        "upper-typed-digest-binding-integration",
+        "terminal-ce-localization-instantiation",
+        "pirlc-crt-finite-soundness-completion",
+        "product-theorem-exact-probability-integration"
+      ]
+    }
+  },
+  "documentation_claims": [
+    {
+      "path": "Docs/AuditBlockerNarrowing-2026-04-16.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/FormalAssumptionLedger-2026-04-14.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/FormalCCSSemantics-2026-04-14.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/FormalCompletionResearchPlan-2026-04-14.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/FormalGoldilocksExt2Field-2026-04-14.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/FormalPiDECRecomposition-2026-04-13.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/FormalProtocolComposition-2026-04-13.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/FormalRemainingBoundaries-2026-04-14.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/FormalSwiftWireSerialization-2026-04-14.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/FormalTranscript-2026-04-14.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/FormalVerification.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/ProductIntegrationLayer-2026-04-16.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/ProductionReadinessAuditPacket-2026-04-16.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/RoadmapStatus.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    },
+    {
+      "path": "Docs/WhatThisProves.md",
+      "label": "corrected finite-model core with open theorem-critical integrations"
+    }
+  ]
+}

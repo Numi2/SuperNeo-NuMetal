@@ -464,7 +464,10 @@ def validate_schema_versions() -> None:
     )
     qrom_position = product_dossier.get("fiatShamirQROMPosition")
     require(isinstance(qrom_position, dict), "product crypto security dossier fiatShamirQROMPosition must be an object")
-    require(qrom_position.get("model") == "qrom", "product crypto security dossier must state the QROM target")
+    require(
+        qrom_position.get("model") == "ideal-split-qro",
+        "product crypto security dossier must state the ideal split-QRO target",
+    )
     require(
         qrom_position.get("transcriptScheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json",
         "product crypto security dossier must link the QROM transcript schedule in the QROM position",
@@ -572,7 +575,7 @@ def validate_schema_versions() -> None:
     require(isinstance(qrom_accounting, dict), "QROM Fiat-Shamir accounting root must be an object")
     require(qrom_accounting.get("schemaVersion") == 1, "QROM Fiat-Shamir accounting schemaVersion must be 1")
     require(
-        qrom_accounting.get("claimStatus") == "qrom-fiat-shamir-loss-contract-not-production-claim",
+        qrom_accounting.get("claimStatus") == "qrom-ctco-split-qro-contract-not-production-claim",
         "QROM Fiat-Shamir accounting claimStatus must stay precise",
     )
     qrom_rule = qrom_accounting.get("lossRule")
@@ -588,12 +591,12 @@ def validate_schema_versions() -> None:
     require(isinstance(qrom_loss, dict), "QROM fiatShamirQROMLoss mapping must be an object")
     require(isinstance(collision_loss, dict), "QROM transcriptCollisionLoss mapping must be an object")
     require(
-        qrom_loss.get("sourceSymbols") == ["epsilon_fs_transform", "epsilon_qro_queries", "epsilon_proof_kind_malleability"],
-        "QROM Fiat-Shamir accounting must not double-count transcript collision inside epsilon_qrom",
+        qrom_loss.get("sourceSymbols") == ["epsilon_compiler_overhead", "epsilon_hash_model_gap"],
+        "QROM Fiat-Shamir accounting must map epsilon_qrom to compiler overhead and hash-model gap",
     )
     require(
-        collision_loss.get("sourceSymbols") == ["epsilon_transcript_collision"],
-        "QROM Fiat-Shamir accounting must map epsilon_transcript_collision to epsilon_collision",
+        collision_loss.get("sourceSymbols") == ["epsilon_bind"],
+        "QROM Fiat-Shamir accounting must map epsilon_bind to epsilon_collision",
     )
     qrom_related = qrom_accounting.get("relatedManifests")
     require(isinstance(qrom_related, dict), "QROM Fiat-Shamir accounting relatedManifests must be an object")
@@ -743,7 +746,7 @@ def validate_schema_versions() -> None:
     require(isinstance(qrom_collision, dict), "QROM collision/malleability evidence root must be an object")
     require(qrom_collision.get("schemaVersion") == 1, "QROM collision/malleability evidence schemaVersion must be 1")
     require(
-        qrom_collision.get("claimStatus") == "qrom-collision-malleability-structural-evidence-not-production-qrom-theorem",
+        qrom_collision.get("claimStatus") == "qrom-collision-malleability-hbind-bound-not-production-qrom-theorem",
         "QROM collision/malleability evidence claimStatus must stay precise",
     )
     collision_closure = qrom_collision.get("closureStatus")
@@ -753,8 +756,12 @@ def validate_schema_versions() -> None:
         "QROM collision/malleability evidence must pin structural closure",
     )
     require(
-        collision_closure.get("digestCollisionBoundInstantiated") is False,
-        "QROM collision/malleability evidence must keep the numeric digest bound open",
+        collision_closure.get("digestCollisionBoundInstantiated") is True,
+        "QROM collision/malleability evidence must pin the numeric digest bound",
+    )
+    require(
+        collision_closure.get("proofKindMalleabilityBoundInstantiated") is True,
+        "QROM collision/malleability evidence must pin the proof-kind malleability bound",
     )
     require(
         collision_closure.get("productionQROMClaimAllowed") is False,
@@ -764,13 +771,13 @@ def validate_schema_versions() -> None:
     require(isinstance(qrom_preconditions, dict), "QROM transform preconditions root must be an object")
     require(qrom_preconditions.get("schemaVersion") == 1, "QROM transform preconditions schemaVersion must be 1")
     require(
-        qrom_preconditions.get("claimStatus") == "qrom-transform-precondition-dossier-not-production-claim",
+        qrom_preconditions.get("claimStatus") == "qrom-ctco-transform-precondition-contract-not-production-claim",
         "QROM transform preconditions claimStatus must stay precise",
     )
     precondition_rows = qrom_preconditions.get("preconditions")
     require(
-        isinstance(precondition_rows, list) and len(precondition_rows) == 10,
-        "QROM transform preconditions must pin ten precondition rows",
+        isinstance(precondition_rows, list) and len(precondition_rows) == 12,
+        "QROM transform preconditions must pin twelve precondition rows",
     )
     precondition_promotion = qrom_preconditions.get("promotionRule")
     require(isinstance(precondition_promotion, dict), "QROM transform preconditions promotionRule must be an object")
@@ -787,16 +794,33 @@ def validate_schema_versions() -> None:
         "QROM transform preconditions must consume the transcript encoding evidence instead of keeping it open",
     )
     require(
-        precondition_promotion.get("requiresCollisionMalleabilityExclusion") is True,
-        "QROM transform preconditions must keep full collision/malleability closure open until the numeric digest bound is instantiated",
-    )
-    require(
         precondition_promotion.get("requiresStructuralCollisionMalleabilityEvidence") is False,
         "QROM transform preconditions must consume structural collision/malleability evidence",
     )
     require(
-        precondition_promotion.get("requiresDigestCollisionBound") is True,
-        "QROM transform preconditions must keep the numeric digest collision bound open",
+        precondition_promotion.get("requiresQuantumOracleQueryBound") is False,
+        "QROM transform preconditions must consume the Q_H bound evidence",
+    )
+    for key in [
+        "requiresInteractiveProtocolImplementation",
+        "requiresHBind384Implementation",
+        "requiresUnderlyingInteractiveSecurity",
+        "requiresDelayedMessageData",
+        "requiresUniqueResponseData",
+        "requiresQROMLossInstantiation",
+        "requiresTotalLossBudgetUpdate",
+    ]:
+        require(
+            precondition_promotion.get(key) is True,
+            f"QROM transform preconditions must keep {key} open",
+        )
+    require(
+        precondition_promotion.get("productionProductSecurityClaimAllowed") is False,
+        "QROM transform preconditions must not prematurely allow product-security claims",
+    )
+    require(
+        precondition_promotion.get("productionPostQuantumClaimAllowed") is False,
+        "QROM transform preconditions must not prematurely allow post-quantum claims",
     )
     transform_profile = qrom_preconditions.get("selectedTransformProfile")
     require(isinstance(transform_profile, dict), "QROM transform preconditions selectedTransformProfile must be an object")
@@ -808,7 +832,7 @@ def validate_schema_versions() -> None:
     require(isinstance(qrom_reduction, dict), "QROM interactive reduction root must be an object")
     require(qrom_reduction.get("schemaVersion") == 1, "QROM interactive reduction schemaVersion must be 1")
     require(
-        qrom_reduction.get("claimStatus") == "qrom-interactive-reduction-ledger-not-production-claim",
+        qrom_reduction.get("claimStatus") == "qrom-ctco-interactive-reduction-contract-not-production-claim",
         "QROM interactive reduction claimStatus must stay precise",
     )
     reduction_loss = qrom_reduction.get("qromQueryAndLossInstantiation")
@@ -817,8 +841,12 @@ def validate_schema_versions() -> None:
         reduction_loss.get("allNumericLossTermsInstantiated") is False,
         "QROM interactive reduction must not prematurely instantiate all numeric loss terms",
     )
+    legacy_budget = reduction_loss.get("legacyScheduleDerivedQueryBudget")
+    require(isinstance(legacy_budget, dict), "QROM interactive reduction legacyScheduleDerivedQueryBudget must be an object")
     require(
-        reduction_loss.get("numiSealNumericNInstantiated") is True,
+        legacy_budget.get("numiseal-terminal") == 4_376_925
+        and legacy_budget.get("numiseal-zk-product") == 4_377_150
+        and legacy_budget.get("selectedDepthProtocolChallengeDerivations") == 8_755_125,
         "QROM interactive reduction must instantiate NumiSeal numeric challenge bounds",
     )
     require(
@@ -843,18 +871,28 @@ def validate_schema_versions() -> None:
     )
     reduction_promotion = qrom_reduction.get("promotionRule")
     require(isinstance(reduction_promotion, dict), "QROM interactive reduction promotionRule must be an object")
-    require(
-        reduction_promotion.get("requiresChallengeUniformityProofs") is False,
-        "QROM interactive reduction must consume sampler uniformity evidence",
-    )
-    require(
-        reduction_promotion.get("requiresCollisionMalleabilityBound") is True,
-        "QROM interactive reduction must keep collision/malleability bound open",
-    )
-    require(
-        reduction_promotion.get("requiresStructuralCollisionMalleabilityEvidence") is False,
-        "QROM interactive reduction must consume structural collision/malleability evidence",
-    )
+    for key in [
+        "productionProductSecurityClaimAllowed",
+        "productionPostQuantumClaimAllowed",
+        "productionQROMClaimAllowed",
+    ]:
+        require(
+            reduction_promotion.get(key) is False,
+            f"QROM interactive reduction must not prematurely allow {key}",
+        )
+    for key in [
+        "requiresCTCORootCommitments",
+        "requiresHBind384SourceImplementation",
+        "requiresInteractiveSecurityBounds",
+        "requiresDelayedMessageData",
+        "requiresUniqueResponseData",
+        "requiresQROMLossWithinBudget",
+        "requiresTotalLossBudgetUpdate",
+    ]:
+        require(
+            reduction_promotion.get(key) is True,
+            f"QROM interactive reduction must keep {key} open",
+        )
     total_budget = read_json("TestVectors/product-total-loss-budget-v1.json")
     require(isinstance(total_budget, dict), "total-loss budget root must be an object")
     require(total_budget.get("schemaVersion") == 1, "total-loss budget schemaVersion must be 1")

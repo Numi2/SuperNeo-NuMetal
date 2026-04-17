@@ -1,6 +1,6 @@
 # Formal GoldilocksExt2 Field Instance
 
-Formal status: completed formal protocol theorem.
+Formal status: corrected finite-model core with open theorem-critical integrations.
 
 This pass closes the Lean-side `GoldilocksExt2` field-instance blocker without
 changing the public status label. The implementation keeps the existing Swift
