@@ -175,8 +175,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_int(
             surfaces.get("productSelectedDepthLossComponentCount"),
             "productSelectedDepthLossComponentCount",
-        ) == 9,
-        "product selected-depth loss accounting must pin nine component losses",
+        ) == 10,
+        "product selected-depth loss accounting must pin ten component losses",
     )
     require(
         require_int(
@@ -227,6 +227,74 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
             "productQROMFiatShamirTranscriptInterfaceCount",
         ) == 5,
         "product QROM Fiat-Shamir accounting must pin five transcript interfaces",
+    )
+    require(
+        require_int(
+            surfaces.get("productQROMTranscriptScheduleVersion"),
+            "productQROMTranscriptScheduleVersion",
+        ) == 1,
+        "product QROM transcript schedule version must be 1",
+    )
+    require_string(
+        surfaces.get("productQROMTranscriptScheduleDigestHex"),
+        "productQROMTranscriptScheduleDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productQROMTranscriptScheduleClaimStatus"),
+            "productQROMTranscriptScheduleClaimStatus",
+        ) == "qrom-transcript-schedule-contract-not-production-claim",
+        "product QROM transcript schedule claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("productQROMTranscriptScheduleEntryCount"),
+            "productQROMTranscriptScheduleEntryCount",
+        ) == 5,
+        "product QROM transcript schedule must pin five schedule entries",
+    )
+    require(
+        require_int(
+            surfaces.get("productTotalLossBudgetVersion"),
+            "productTotalLossBudgetVersion",
+        ) == 1,
+        "product total-loss budget version must be 1",
+    )
+    require_string(
+        surfaces.get("productTotalLossBudgetDigestHex"),
+        "productTotalLossBudgetDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productTotalLossBudgetClaimStatus"),
+            "productTotalLossBudgetClaimStatus",
+        ) == "total-loss-budget-contract-not-production-claim",
+        "product total-loss budget claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("productTotalLossBudgetComponentCount"),
+            "productTotalLossBudgetComponentCount",
+        ) == 10,
+        "product total-loss budget must pin ten component bounds",
+    )
+    require(
+        require_int(
+            surfaces.get("productTotalLossBudgetRequiredTermCount"),
+            "productTotalLossBudgetRequiredTermCount",
+        ) == 9,
+        "product total-loss budget must require nine selected-depth terms",
+    )
+    require(
+        require_int(
+            surfaces.get("productTotalLossBudgetInstantiatedRequiredTermCount"),
+            "productTotalLossBudgetInstantiatedRequiredTermCount",
+        ) == 0,
+        "product total-loss budget must not pretend required terms are instantiated",
+    )
+    require(
+        surfaces.get("productTotalLossBudgetWithinBudget") is False,
+        "product total-loss budget must not prematurely claim the selected loss is within budget",
     )
     require(
         require_int(surfaces.get("constantTimeScopeVersion"), "constantTimeScopeVersion") == 1,
@@ -337,6 +405,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "productSelectedDepthLossAccounting",
         "productExtractorLossAccounting",
         "productQROMFiatShamirAccounting",
+        "productQROMTranscriptSchedule",
+        "productTotalLossBudget",
         "constantTimeEvidence",
         "constantTimeScope",
         "constantTimeLoweringEvidence",
@@ -379,6 +449,14 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(
         any("qrom fiat-shamir accounting" in str(boundary).lower() for boundary in boundaries),
         "productionSecurityBoundaries must mention QROM Fiat-Shamir accounting",
+    )
+    require(
+        any("qrom transcript schedule" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention QROM transcript schedule",
+    )
+    require(
+        any("total-loss budget" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention total-loss budget",
     )
 
 

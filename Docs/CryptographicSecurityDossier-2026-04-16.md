@@ -10,11 +10,15 @@ Machine-readable scope:
 - `TestVectors/product-selected-depth-loss-accounting-v1.json`
 - `TestVectors/product-extractor-loss-accounting-v1.json`
 - `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
+- `TestVectors/product-qrom-transcript-schedule-v1.json`
+- `TestVectors/product-total-loss-budget-v1.json`
 - `Formal/SuperNeoFormal/ProductSecurityTheorem.lean`
 - `Scripts/validate-product-crypto-security-dossier.py`
 - `Scripts/validate-product-selected-depth-loss-accounting.py`
 - `Scripts/validate-product-extractor-loss-accounting.py`
 - `Scripts/validate-product-qrom-fiat-shamir-accounting.py`
+- `Scripts/validate-product-qrom-transcript-schedule.py`
+- `Scripts/validate-product-total-loss-budget.py`
 
 The current status is a bounded-depth product security theorem at depth 1.
 All production claims remain disabled until the listed extractor, QROM,
@@ -71,6 +75,7 @@ The ledger pins these loss terms:
 - ZK simulator composition loss,
 - Fiat-Shamir/QROM loss,
 - concrete extractor failure loss,
+- transcript collision and proof-kind malleability loss,
 - product-ops replay and revocation freshness loss,
 - constant-time side-channel leakage loss, and
 - release signing/notarization distribution loss.
@@ -183,26 +188,32 @@ style of scrutiny.
 
 The Fiat-Shamir/QROM target is recorded, and
 `TestVectors/product-qrom-fiat-shamir-accounting-v1.json` now pins the QROM
-Fiat-Shamir accounting contract. The manifest records the selected depth,
-proof-kind transcript interfaces, challenge families, and the selected-depth
-loss expression:
+Fiat-Shamir accounting contract. The accounting manifest links to
+`TestVectors/product-qrom-transcript-schedule-v1.json`, which pins the QROM
+transcript schedule separately from the numeric loss formula. The manifest
+records the selected depth, proof-kind transcript interfaces, challenge
+families, and the selected-depth loss expression:
 
 ```text
 epsilon_qrom(depth=1) =
   epsilon_fs_transform
   + epsilon_qro_queries
-  + epsilon_transcript_collision
   + epsilon_proof_kind_malleability
 ```
 
-It covers the current envelope kinds for fold, terminal, compressed-terminal,
-NumiSeal terminal, and NumiSealZK product proofs. The production QROM claim is
-still disabled.
+`epsilon_transcript_collision` is exported separately into the selected-depth
+ledger as `epsilon_collision`; it is not counted inside `epsilon_qrom`. This
+prevents a later budget evaluator from silently double-counting or dropping the
+collision term. The manifest covers the current envelope kinds for fold,
+terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK product
+proofs. The production QROM claim is still disabled.
 
 Remaining work:
 
 - define the exact public-coin interactive protocol before Fiat-Shamir for
   every accepted product proof kind,
+- instantiate the pinned QROM transcript schedule with per-kind `Q_H` query
+  bounds,
 - prove the selected transform preconditions or explicitly narrow the theorem
   to ROM,
 - account quantum random-oracle query bounds in the soundness loss,
@@ -210,9 +221,11 @@ Remaining work:
 - prove no transcript collision or malleability across fold, terminal,
   compressed-terminal, NumiSeal terminal, and NumiSealZK envelopes.
 
-`ProductSecurityTheorem` exposes `ProductFiatShamirLossAccounting`,
-`ProductFiatShamirLossAccountingAccepted`, and
-`productSecurityTheorem_requires_qrom_loss_accounting` so future theorem
+`ProductSecurityTheorem` exposes `ProductFiatShamirTranscriptSchedule`,
+`ProductFiatShamirTranscriptScheduleAccepted`,
+`productSecurityTheorem_requires_qrom_transcript_schedule`,
+`ProductFiatShamirLossAccounting`, `ProductFiatShamirLossAccountingAccepted`,
+and `productSecurityTheorem_requires_qrom_loss_accounting` so future theorem
 promotion cannot bypass interactive-protocol, challenge-schedule,
 precondition, quantum-query, collision, malleability, or budget evidence.
 
@@ -220,6 +233,48 @@ Relevant QROM literature includes Don, Fehr, Majenz, and Schaffner,
 `Security of the Fiat-Shamir Transformation in the Quantum Random-Oracle
 Model`, https://arxiv.org/abs/1902.07556. The current dossier does not claim
 that SuperNeo/NumiSeal already satisfies that theorem's hypotheses.
+
+## QROM Transcript Schedule
+
+`TestVectors/product-qrom-transcript-schedule-v1.json` is the checked QROM
+Transcript Schedule contract. It pins the accepted proof-kind order, envelope
+kinds, public challenge labels, transcript bindings, symbolic quantum
+random-oracle query families, and schedule-to-ledger binding for fold,
+terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK product proof
+kinds. It is intentionally not a production QROM proof: interactive protocol
+closure, transform preconditions, numeric quantum random-oracle query bounds,
+and integration into the total-loss budget remain open.
+
+## Total Loss Budget
+
+`TestVectors/product-total-loss-budget-v1.json` is the checked total-loss
+budget contract. It is an executable accounting layer over the selected-depth
+ledger, extractor accounting, QROM accounting, ZK evidence, product-ops
+readiness, release evidence, and constant-time evidence.
+
+The budget uses exact rational arithmetic over terms of the form:
+
+```text
+multiplicity * 2^-boundLog2
+```
+
+For this contract, the selected threshold is `2^-128`. The current manifest
+records ten component bounds, nine of which are required at selected depth 1.
+The typed recursive carry term has zero selected-depth multiplicity and remains
+closed only for the current base depth, not for recursive depth promotion.
+
+The current manifest intentionally records:
+
+- `requiredTermCount = 9`,
+- `instantiatedRequiredTermCount = 0`,
+- `exactSelectedDepthLossUpperBound = null`,
+- `selectedDepthLossWithinBudget = false`, and
+- `productionTotalLossClaimAllowed = false`.
+
+This does not prove product security. It prevents a future product-security
+claim from bypassing numeric extractor, QROM, ZK, operations, constant-time,
+and release-distribution loss terms or from double-counting
+`epsilon_transcript_collision` inside `epsilon_qrom`.
 
 ## NumiSealZK Privacy
 

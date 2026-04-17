@@ -39,13 +39,20 @@ claims remain blocked by the release packet no-go items.
   keeping production claims disabled.
 - Added a checked selected-depth loss accounting ledger and validator for the
   current depth-1 product theorem boundary, pinning source-fold, terminal-seal,
-  carry, ZK simulator, QROM, extractor, product-ops replay, constant-time, and
-  release-distribution loss terms while keeping production claims disabled.
-- Added checked extractor loss accounting and QROM Fiat-Shamir accounting
-  manifests, validators, mutation tests, release-evidence wiring, and Lean
-  theorem hooks. These pin the extractor input/rewind contract and proof-kind
-  transcript/QROM loss contract while keeping concrete extractor and numeric
-  QROM loss claims disabled.
+  carry, ZK simulator, QROM, extractor, transcript-collision, product-ops
+  replay, constant-time, and release-distribution loss terms while keeping
+  production claims disabled.
+- Added checked extractor loss accounting, QROM transcript schedule, and QROM
+  Fiat-Shamir accounting manifests, validators, mutation tests,
+  release-evidence wiring, and Lean theorem hooks. These pin the extractor
+  input/rewind contract, proof-kind transcript labels, symbolic `Q_H` query
+  families, QROM loss contract, and collision-to-ledger mapping while keeping
+  concrete extractor and numeric QROM loss claims disabled.
+- Added a checked total-loss budget manifest, validator, mutation tests,
+  release-evidence wiring, and Lean theorem hook. The budget pins exact
+  rational selected-depth summation, ten component bounds, nine required
+  selected-depth numeric terms, and the `2^-128` threshold while keeping
+  production claims disabled.
 - Added a checked constant-time source/formal scope manifest, validator, and
   Lean trace-independence model for the first Swift/Metal secret-bearing slices.
 - Added a checked Swift/LLVM/Metal lowering evidence manifest, validator,
@@ -87,6 +94,7 @@ claims remain blocked by the release packet no-go items.
 - The selected-depth loss accounting manifest starts at `schemaVersion = 1`.
 - The extractor loss accounting manifest starts at `schemaVersion = 1`.
 - The QROM Fiat-Shamir accounting manifest starts at `schemaVersion = 1`.
+- The total-loss budget manifest starts at `schemaVersion = 1`.
 - Proof envelopes remain at `ProofEnvelopeHeader.version = 4`.
 
 ### Remaining Production-Security Blockers
@@ -101,8 +109,9 @@ claims remain blocked by the release packet no-go items.
   NumiSeal end-to-end theorem scope and product cryptographic security dossier
   are checked, while production-security NumiSeal product claims still require
   concrete Swift extractor implementation, numeric extractor loss
-  instantiation, product recursive typed carry vectors, selected-depth loss
-  instantiation, simulator coupling beyond the exact field-mask distribution
-  lemma, numeric QROM loss instantiations, conservative post-quantum parameter
-  closure, competitive proof-size/latency evidence, and side-channel evidence.
+  instantiation, product recursive typed carry vectors, selected total-loss
+  budget instantiation, simulator coupling beyond the exact field-mask
+  distribution lemma, numeric QROM loss instantiations, conservative
+  post-quantum parameter closure, competitive proof-size/latency evidence, and
+  side-channel evidence.
 - Signed artifacts and repository branch-protection enforcement.

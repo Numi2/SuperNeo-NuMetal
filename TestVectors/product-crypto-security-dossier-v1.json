@@ -24,13 +24,19 @@
       "ProductSelectedDepthLossLedgerAccepted",
       "ProductExtractorLossAccounting",
       "ProductExtractorLossAccountingAccepted",
+      "ProductFiatShamirTranscriptSchedule",
+      "ProductFiatShamirTranscriptScheduleAccepted",
       "ProductFiatShamirLossAccounting",
       "ProductFiatShamirLossAccountingAccepted",
+      "ProductTotalLossBudget",
+      "ProductTotalLossBudgetAccepted",
       "productSecurityTheorem_from_evidence",
       "productSecurityTheorem_requires_bounded_depth",
       "productSecurityTheorem_requires_selected_depth_loss_accounting",
       "productSecurityTheorem_requires_extractor_loss_accounting",
+      "productSecurityTheorem_requires_qrom_transcript_schedule",
       "productSecurityTheorem_requires_qrom_loss_accounting",
+      "productSecurityTheorem_requires_total_loss_budget",
       "productSecurityTheorem_requires_qrom_accounting",
       "productSecurityTheorem_requires_artifact_envelope_binding"
     ]
@@ -47,6 +53,8 @@
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json"
   },
   "productTheoremCoverage": [
@@ -178,6 +186,7 @@
   "fiatShamirQROMPosition": {
     "model": "qrom",
     "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "claimStatus": "qrom-fiat-shamir-loss-contract-not-production-claim",
     "interactiveProtocolSpecified": false,
     "publicCoinChallengeScheduleSpecified": true,
@@ -186,13 +195,40 @@
     "transcriptDomainSeparatorsBound": true,
     "proofKindSeparationBound": true,
     "transcriptCollisionMalleabilityExcluded": false,
-    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_transcript_collision + epsilon_proof_kind_malleability",
+    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability",
+    "ledgerTermMapping": {
+      "epsilon_qrom": [
+        "epsilon_fs_transform",
+        "epsilon_qro_queries",
+        "epsilon_proof_kind_malleability"
+      ],
+      "epsilon_collision": [
+        "epsilon_transcript_collision"
+      ]
+    },
     "productionQROMClaimAllowed": false,
     "remainingObligations": [
       "define the exact public-coin interactive protocol before Fiat-Shamir for each accepted product proof kind",
+      "instantiate the pinned product QROM transcript schedule with numeric per-kind Q_H query bounds",
       "prove the protocol satisfies the selected Fiat-Shamir transform preconditions or explicitly narrow to ROM",
       "account quantum random-oracle query bounds in the soundness loss",
       "prove proof-kind domain separation prevents transcript collision and malleability across fold, terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK envelopes"
+    ]
+  },
+  "totalLossBudget": {
+    "budgetManifest": "TestVectors/product-total-loss-budget-v1.json",
+    "claimStatus": "total-loss-budget-contract-not-production-claim",
+    "selectedSecurityBudgetBits": 128,
+    "maximumAllowedTotalLoss": "2^-128",
+    "exactArithmetic": "sum exact rational terms multiplicity * 2^-boundLog2",
+    "allRequiredTermsInstantiated": false,
+    "selectedDepthLossWithinBudget": false,
+    "productionTotalLossClaimAllowed": false,
+    "remainingObligations": [
+      "instantiate numeric loss bounds for every required selected-depth term",
+      "keep epsilon_collision mapped from epsilon_transcript_collision rather than double-counted inside epsilon_qrom",
+      "prove the exact selected-depth rational sum is at most 2^-128 before any production security claim",
+      "update the selected-depth ledger and release evidence with the computed budget result"
     ]
   },
   "zkPrivacyProofStatus": {

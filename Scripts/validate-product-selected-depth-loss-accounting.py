@@ -37,6 +37,8 @@ EXPECTED_MANIFESTS = {
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
+    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
 }
 
 EXPECTED_FORMAL_DECLARATIONS = {
@@ -44,11 +46,17 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductSelectedDepthLossLedgerAccepted",
     "ProductExtractorLossAccounting",
     "ProductExtractorLossAccountingAccepted",
+    "ProductFiatShamirTranscriptSchedule",
+    "ProductFiatShamirTranscriptScheduleAccepted",
     "ProductFiatShamirLossAccounting",
     "ProductFiatShamirLossAccountingAccepted",
+    "ProductTotalLossBudget",
+    "ProductTotalLossBudgetAccepted",
     "productSecurityTheorem_requires_selected_depth_loss_accounting",
     "productSecurityTheorem_requires_extractor_loss_accounting",
+    "productSecurityTheorem_requires_qrom_transcript_schedule",
     "productSecurityTheorem_requires_qrom_loss_accounting",
+    "productSecurityTheorem_requires_total_loss_budget",
 }
 
 EXPECTED_COMPONENT_IDS = [
@@ -58,6 +66,7 @@ EXPECTED_COMPONENT_IDS = [
     "zk-simulator-composition",
     "fiat-shamir-qrom",
     "extractor-instantiation",
+    "transcript-collision-domain-separation",
     "product-ops-replay",
     "constant-time-side-channel",
     "release-signing-notarization",
@@ -65,7 +74,9 @@ EXPECTED_COMPONENT_IDS = [
 
 EXPECTED_BLOCKERS = [
     "selected-depth extractor instantiation",
-    "QROM Fiat-Shamir loss accounting",
+    "QROM transcript schedule and Fiat-Shamir loss accounting",
+    "transcript collision and proof-kind malleability exclusion",
+    "selected total-loss budget instantiation",
     "full ZK simulator composition",
     "hosted product operations replay and revocation freshness",
     "release signing and notarization",
@@ -155,6 +166,24 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         dossier_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
         "product crypto security dossier must link QROM Fiat-Shamir accounting",
     )
+    require(
+        dossier_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "product crypto security dossier must link QROM transcript schedule",
+    )
+    require(
+        dossier_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
+        "product crypto security dossier must link the total loss budget",
+    )
+    total_budget = read_json(ROOT / EXPECTED_MANIFESTS["productTotalLossBudget"])
+    total_related = require_dict(total_budget.get("relatedManifests"), "productTotalLossBudget.relatedManifests")
+    require(
+        total_related.get("selectedDepthLossAccounting") == "TestVectors/product-selected-depth-loss-accounting-v1.json",
+        "total loss budget must link the selected-depth ledger",
+    )
+    require(
+        total_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "total loss budget must link QROM transcript schedule",
+    )
 
 
 def validate_formal_surface(ledger: dict[str, Any]) -> None:
@@ -226,10 +255,16 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "fiat-shamir-qrom must link product QROM Fiat-Shamir accounting",
             )
             require_relative_path(component.get("accountingManifest"), "fiat-shamir-qrom.accountingManifest")
+        if component_id == "transcript-collision-domain-separation":
+            require(
+                component.get("accountingManifest") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+                "transcript-collision-domain-separation must link product QROM Fiat-Shamir accounting",
+            )
+            require_relative_path(component.get("accountingManifest"), "transcript-collision-domain-separation.accountingManifest")
         component_text.append(json.dumps(component, sort_keys=True).lower())
     require(seen_ids == EXPECTED_COMPONENT_IDS, "componentLosses must stay in the pinned accounting order")
     joined = " ".join(component_text)
-    for needle in ["extractor", "qrom", "simulator", "hosted", "notarization", "swift", "llvm", "metal"]:
+    for needle in ["extractor", "qrom", "collision", "simulator", "hosted", "notarization", "swift", "llvm", "metal"]:
         require(needle in joined, f"component losses must mention {needle}")
 
 

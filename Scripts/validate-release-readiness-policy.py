@@ -79,6 +79,8 @@ def validate_docs() -> None:
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "TestVectors/product-extractor-loss-accounting-v1.json",
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+            "TestVectors/product-qrom-transcript-schedule-v1.json",
+            "TestVectors/product-total-loss-budget-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -100,6 +102,10 @@ def validate_docs() -> None:
             "Scripts/test-product-extractor-loss-accounting-validation.py",
             "Scripts/validate-product-qrom-fiat-shamir-accounting.py",
             "Scripts/test-product-qrom-fiat-shamir-accounting-validation.py",
+            "Scripts/validate-product-qrom-transcript-schedule.py",
+            "Scripts/test-product-qrom-transcript-schedule-validation.py",
+            "Scripts/validate-product-total-loss-budget.py",
+            "Scripts/test-product-total-loss-budget-validation.py",
             "Scripts/validate-e2e-proof-metrics.py",
             "Scripts/test-e2e-proof-metrics-validation.py",
             "Scripts/validate-benchmark-coverage.py",
@@ -118,6 +124,8 @@ def validate_docs() -> None:
             "selected-depth loss accounting",
             "extractor loss-accounting validation",
             "QROM Fiat-Shamir accounting validation",
+            "QROM transcript schedule validation",
+            "total-loss budget validation",
             "ProductSecurityTheorem",
             "Fiat-Shamir/QROM",
             "Module-SIS",
@@ -142,6 +150,8 @@ def validate_docs() -> None:
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "TestVectors/product-extractor-loss-accounting-v1.json",
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+            "TestVectors/product-qrom-transcript-schedule-v1.json",
+            "TestVectors/product-total-loss-budget-v1.json",
             "Docs/CryptographicSecurityDossier-2026-04-16.md",
             "Scripts/validate-constant-time-scope.py",
             "Scripts/validate-constant-time-lowering-evidence.py",
@@ -158,6 +168,8 @@ def validate_docs() -> None:
             "bounded-depth product security theorem",
             "product extractor loss accounting",
             "product QROM Fiat-Shamir accounting",
+            "product QROM transcript schedule",
+            "product total-loss budget",
             "signed revocation feed",
             "E2E proof metrics digest",
             "constant-time release evidence digest",
@@ -179,6 +191,8 @@ def validate_docs() -> None:
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "TestVectors/product-extractor-loss-accounting-v1.json",
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+            "TestVectors/product-qrom-transcript-schedule-v1.json",
+            "TestVectors/product-total-loss-budget-v1.json",
             "TestVectors/constant-time-scope-v1.json",
             "TestVectors/constant-time-lowering-evidence-v1.json",
             "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -186,6 +200,8 @@ def validate_docs() -> None:
             "TestVectors/benchmark-coverage-v1.json",
             "Product extractor loss accounting manifest",
             "Product QROM Fiat-Shamir accounting manifest",
+            "Product QROM transcript schedule manifest",
+            "Product total-loss budget manifest",
             "Version Bump Checklist",
         ],
     )
@@ -204,6 +220,8 @@ def validate_docs() -> None:
             "selected-depth loss-accounting version and digest",
             "product extractor loss-accounting version and digest",
             "product QROM Fiat-Shamir accounting version and digest",
+            "product QROM transcript schedule version and digest",
+            "product total-loss budget version and digest",
             "constant-time source/formal scope version and digest",
             "constant-time lowering evidence version and digest",
             "constant-time release evidence version and digest",
@@ -231,6 +249,8 @@ def validate_docs() -> None:
             "selected-depth loss accounting",
             "extractor loss accounting",
             "QROM Fiat-Shamir accounting",
+            "QROM transcript schedule",
+            "total-loss budget",
             "constant-time release evidence",
         ],
     )
@@ -351,6 +371,14 @@ def validate_schema_versions() -> None:
         dossier_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
         "product crypto security dossier must link QROM Fiat-Shamir accounting",
     )
+    require(
+        dossier_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "product crypto security dossier must link QROM transcript schedule",
+    )
+    require(
+        dossier_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
+        "product crypto security dossier must link total-loss budget",
+    )
     dossier_depth = product_dossier.get("supportedProductDepth")
     require(isinstance(dossier_depth, dict), "product crypto security dossier supportedProductDepth must be an object")
     require(dossier_depth.get("depthModel") == "bounded-depth", "product security theorem must stay bounded-depth")
@@ -369,6 +397,10 @@ def validate_schema_versions() -> None:
     qrom_position = product_dossier.get("fiatShamirQROMPosition")
     require(isinstance(qrom_position, dict), "product crypto security dossier fiatShamirQROMPosition must be an object")
     require(qrom_position.get("model") == "qrom", "product crypto security dossier must state the QROM target")
+    require(
+        qrom_position.get("transcriptScheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "product crypto security dossier must link the QROM transcript schedule in the QROM position",
+    )
     require(
         qrom_position.get("productionQROMClaimAllowed") is False,
         "product crypto security dossier must not prematurely allow production QROM claims",
@@ -396,7 +428,7 @@ def validate_schema_versions() -> None:
         "selected-depth loss-accounting must not prematurely allow product-security loss claims",
     )
     blockers = selected_depth_loss.get("hardClaimBlockers")
-    require(isinstance(blockers, list) and len(blockers) == 6, "selected-depth loss-accounting must pin six hard blockers")
+    require(isinstance(blockers, list) and len(blockers) == 8, "selected-depth loss-accounting must pin eight hard blockers")
     selected_related = selected_depth_loss.get("relatedManifests")
     require(isinstance(selected_related, dict), "selected-depth loss-accounting relatedManifests must be an object")
     require(
@@ -406,6 +438,14 @@ def validate_schema_versions() -> None:
     require(
         selected_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
         "selected-depth loss-accounting must link QROM Fiat-Shamir accounting",
+    )
+    require(
+        selected_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "selected-depth loss-accounting must link QROM transcript schedule",
+    )
+    require(
+        selected_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
+        "selected-depth loss-accounting must link total-loss budget",
     )
     extractor_loss = read_json("TestVectors/product-extractor-loss-accounting-v1.json")
     require(isinstance(extractor_loss, dict), "extractor loss-accounting root must be an object")
@@ -432,6 +472,61 @@ def validate_schema_versions() -> None:
     require(
         qrom_rule.get("productionQROMClaimAllowed") is False,
         "QROM Fiat-Shamir accounting must not prematurely allow QROM claims",
+    )
+    qrom_mapping = qrom_accounting.get("ledgerTermMapping")
+    require(isinstance(qrom_mapping, dict), "QROM Fiat-Shamir accounting ledgerTermMapping must be an object")
+    qrom_loss = qrom_mapping.get("fiatShamirQROMLoss")
+    collision_loss = qrom_mapping.get("transcriptCollisionLoss")
+    require(isinstance(qrom_loss, dict), "QROM fiatShamirQROMLoss mapping must be an object")
+    require(isinstance(collision_loss, dict), "QROM transcriptCollisionLoss mapping must be an object")
+    require(
+        qrom_loss.get("sourceSymbols") == ["epsilon_fs_transform", "epsilon_qro_queries", "epsilon_proof_kind_malleability"],
+        "QROM Fiat-Shamir accounting must not double-count transcript collision inside epsilon_qrom",
+    )
+    require(
+        collision_loss.get("sourceSymbols") == ["epsilon_transcript_collision"],
+        "QROM Fiat-Shamir accounting must map epsilon_transcript_collision to epsilon_collision",
+    )
+    qrom_related = qrom_accounting.get("relatedManifests")
+    require(isinstance(qrom_related, dict), "QROM Fiat-Shamir accounting relatedManifests must be an object")
+    require(
+        qrom_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "QROM Fiat-Shamir accounting must link QROM transcript schedule",
+    )
+    qrom_schedule = read_json("TestVectors/product-qrom-transcript-schedule-v1.json")
+    require(isinstance(qrom_schedule, dict), "QROM transcript schedule root must be an object")
+    require(qrom_schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
+    require(
+        qrom_schedule.get("claimStatus") == "qrom-transcript-schedule-contract-not-production-claim",
+        "QROM transcript schedule claimStatus must stay precise",
+    )
+    schedule_entries = qrom_schedule.get("scheduleEntries")
+    require(
+        isinstance(schedule_entries, list) and len(schedule_entries) == 5,
+        "QROM transcript schedule must pin five schedule entries",
+    )
+    total_budget = read_json("TestVectors/product-total-loss-budget-v1.json")
+    require(isinstance(total_budget, dict), "total-loss budget root must be an object")
+    require(total_budget.get("schemaVersion") == 1, "total-loss budget schemaVersion must be 1")
+    require(
+        total_budget.get("claimStatus") == "total-loss-budget-contract-not-production-claim",
+        "total-loss budget claimStatus must stay precise",
+    )
+    computed_budget = total_budget.get("computedBudget")
+    require(isinstance(computed_budget, dict), "total-loss budget computedBudget must be an object")
+    require(
+        computed_budget.get("productionTotalLossClaimAllowed") is False,
+        "total-loss budget must not prematurely allow product-security loss claims",
+    )
+    require(
+        computed_budget.get("selectedDepthLossWithinBudget") is False,
+        "total-loss budget must not prematurely claim the selected-depth loss is within budget",
+    )
+    total_related = total_budget.get("relatedManifests")
+    require(isinstance(total_related, dict), "total-loss budget relatedManifests must be an object")
+    require(
+        total_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "total-loss budget must link QROM transcript schedule",
     )
     constant_time_scope = read_json("TestVectors/constant-time-scope-v1.json")
     require(isinstance(constant_time_scope, dict), "constant-time scope root must be an object")
@@ -598,6 +693,22 @@ def validate_production_gate_wiring() -> None:
     require(
         "run_step Scripts/test-product-qrom-fiat-shamir-accounting-validation.py" in gate,
         "production gate must run QROM Fiat-Shamir accounting regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-qrom-transcript-schedule.py" in gate,
+        "production gate must run validate-product-qrom-transcript-schedule.py",
+    )
+    require(
+        "run_step Scripts/test-product-qrom-transcript-schedule-validation.py" in gate,
+        "production gate must run QROM transcript schedule regression tests",
+    )
+    require(
+        "run_step Scripts/validate-product-total-loss-budget.py" in gate,
+        "production gate must run validate-product-total-loss-budget.py",
+    )
+    require(
+        "run_step Scripts/test-product-total-loss-budget-validation.py" in gate,
+        "production gate must run total-loss budget regression tests",
     )
     require(
         "run_step Scripts/validate-constant-time-scope.py" in gate,

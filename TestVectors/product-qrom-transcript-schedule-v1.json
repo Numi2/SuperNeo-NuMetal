@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "scheduleID": "superneo-product-qrom-transcript-schedule-v1",
+  "claimStatus": "qrom-transcript-schedule-contract-not-production-claim",
+  "relatedManifests": {
+    "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+    "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+    "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
+    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+    "proofEnvelopePolicy": "Docs/ProofEnvelope.md"
+  },
+  "formalSurface": {
+    "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
+    "declarations": [
+      "ProductFiatShamirTranscriptSchedule",
+      "ProductFiatShamirTranscriptScheduleAccepted",
+      "productSecurityTheorem_requires_qrom_transcript_schedule"
+    ]
+  },
+  "selectedDepth": {
+    "depthModel": "bounded-depth",
+    "selectedMaximumDepth": 1,
+    "acceptedProductLayers": 1,
+    "selectedRecursiveCarryHops": 0,
+    "schedulePromotionAllowed": false
+  },
+  "oracleModel": {
+    "model": "qrom",
+    "randomOracleAbstraction": "SHA-256 transcript bytes are treated as the quantum random-oracle interface for the proof obligation only",
+    "hashInstantiationProofProvided": false,
+    "interactiveProtocolFullySpecified": false,
+    "quantumOracleQueryBoundInstantiated": false,
+    "transformPreconditionsSatisfied": false,
+    "productionQROMClaimAllowed": false
+  },
+  "transcriptState": {
+    "initialBinding": "ProofEnvelopeHeader.version, ProofEnvelopeKind, transcript domain separator, public statement digest, verifier key digest, artifact digest, and proof-envelope digest are absorbed before challenge derivation",
+    "stateTransitionPolicy": "append-only length-delimited transcript fields with challenge labels that include proof kind, schedule id, and challenge family",
+    "witnessIndependencePolicy": "oracle labels, field encodings, proof-kind bytes, and schedule metadata are public and witness independent; witness influence is allowed only through committed proof messages",
+    "domainSeparatorPolicy": "proof kind raw value, product session/context digests, and superneo-product-qrom-transcript-schedule-v1 are absorbed before the first challenge",
+    "failurePathPolicy": "the schedule is independent of verifier success or failure; failure-path constant behavior remains covered by the CT evidence manifests"
+  },
+  "scheduleEntries": [
+    {
+      "proofKind": "fold",
+      "envelopeKind": 1,
+      "interactiveRoundSchedule": "source fold public-coin schedule: absorb source fold statement, verifier key, commitment openings, and per-round prover messages before each challenge family",
+      "transcriptBindings": [
+        "source fold relation digest",
+        "source fold proof-envelope header",
+        "source fold verifier-key digest",
+        "source fold prior commitment digest"
+      ],
+      "challengeLabels": [
+        "superneo.fold.sumcheck.round",
+        "superneo.fold.piccs.linear-combination",
+        "superneo.fold.pirlc",
+        "superneo.fold.pidec"
+      ],
+      "oracleQueryFamilies": [
+        "Q_H_fold_absorb_public_statement",
+        "Q_H_fold_absorb_prover_message",
+        "Q_H_fold_derive_public_coin_challenge"
+      ],
+      "maximumQuantumOracleQueries": null,
+      "queryBoundInstantiated": false,
+      "transformPreconditionsSatisfied": false,
+      "productionScheduleClaimAllowed": false
+    },
+    {
+      "proofKind": "terminal",
+      "envelopeKind": 2,
+      "interactiveRoundSchedule": "terminal public-coin schedule: absorb terminal relation digest, public CE-opening commitments, and local relation messages before terminal challenges",
+      "transcriptBindings": [
+        "terminal relation digest",
+        "terminal proof-envelope header",
+        "terminal CE-opening commitment root"
+      ],
+      "challengeLabels": [
+        "superneo.terminal.ce-opening",
+        "superneo.terminal.local-relation"
+      ],
+      "oracleQueryFamilies": [
+        "Q_H_terminal_absorb_public_statement",
+        "Q_H_terminal_absorb_opening_message",
+        "Q_H_terminal_derive_public_coin_challenge"
+      ],
+      "maximumQuantumOracleQueries": null,
+      "queryBoundInstantiated": false,
+      "transformPreconditionsSatisfied": false,
+      "productionScheduleClaimAllowed": false
+    },
+    {
+      "proofKind": "compressed-terminal",
+      "envelopeKind": 3,
+      "interactiveRoundSchedule": "compressed terminal public-coin schedule: absorb compressed terminal statement, compressed opening commitments, and compression binding messages before challenges",
+      "transcriptBindings": [
+        "compressed terminal relation digest",
+        "compressed terminal proof-envelope header",
+        "compressed public statement digest"
+      ],
+      "challengeLabels": [
+        "superneo.compressed-terminal.ce-opening",
+        "superneo.compressed-terminal.statement-binding"
+      ],
+      "oracleQueryFamilies": [
+        "Q_H_compressed_terminal_absorb_public_statement",
+        "Q_H_compressed_terminal_absorb_opening_message",
+        "Q_H_compressed_terminal_derive_public_coin_challenge"
+      ],
+      "maximumQuantumOracleQueries": null,
+      "queryBoundInstantiated": false,
+      "transformPreconditionsSatisfied": false,
+      "productionScheduleClaimAllowed": false
+    },
+    {
+      "proofKind": "numiseal-terminal",
+      "envelopeKind": 4,
+      "interactiveRoundSchedule": "NumiSeal terminal public-coin schedule: absorb public statement, obligation root, lane summary root, aggregate digest set, component digest root, and proof transcript digest before terminal residual challenges",
+      "transcriptBindings": [
+        "NumiSeal public statement digest",
+        "NumiSeal obligation root",
+        "NumiSeal lane summary root",
+        "NumiSeal aggregate digests",
+        "NumiSeal component digest root",
+        "NumiSeal proof transcript digest"
+      ],
+      "challengeLabels": [
+        "superneo.numiseal-terminal.residual-opening",
+        "superneo.numiseal-terminal.lane-aggregation",
+        "superneo.numiseal-terminal.component-root-binding"
+      ],
+      "oracleQueryFamilies": [
+        "Q_H_numiseal_terminal_absorb_public_statement",
+        "Q_H_numiseal_terminal_absorb_component_digest_root",
+        "Q_H_numiseal_terminal_derive_public_coin_challenge"
+      ],
+      "maximumQuantumOracleQueries": null,
+      "queryBoundInstantiated": false,
+      "transformPreconditionsSatisfied": false,
+      "productionScheduleClaimAllowed": false
+    },
+    {
+      "proofKind": "numiseal-zk-product",
+      "envelopeKind": 5,
+      "interactiveRoundSchedule": "NumiSealZK product public-coin schedule: absorb masked residual public statement, randomness session digest, declared leakage digest, mask tensor metadata, component digest root, and proof transcript digest before masked residual challenges",
+      "transcriptBindings": [
+        "NumiSealZK public statement digest",
+        "NumiSealZK randomness session digest",
+        "NumiSealZK declared leakage digest",
+        "NumiSealZK mask tensor dimensions",
+        "NumiSealZK component digest root",
+        "NumiSealZK proof transcript digest"
+      ],
+      "challengeLabels": [
+        "superneo.numiseal-zk-product.masked-residual",
+        "superneo.numiseal-zk-product.mask-tensor-commitment",
+        "superneo.numiseal-zk-product.randomness-session-binding"
+      ],
+      "oracleQueryFamilies": [
+        "Q_H_numiseal_zk_product_absorb_public_statement",
+        "Q_H_numiseal_zk_product_absorb_randomness_session",
+        "Q_H_numiseal_zk_product_absorb_declared_leakage",
+        "Q_H_numiseal_zk_product_derive_public_coin_challenge"
+      ],
+      "maximumQuantumOracleQueries": null,
+      "queryBoundInstantiated": false,
+      "transformPreconditionsSatisfied": false,
+      "productionScheduleClaimAllowed": false
+    }
+  ],
+  "ledgerBinding": {
+    "qromAccountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "totalLossBudgetManifest": "TestVectors/product-total-loss-budget-v1.json",
+    "qromLossSymbol": "epsilon_qrom",
+    "transcriptCollisionLossSymbol": "epsilon_collision",
+    "quantumOracleQuerySymbol": "Q_H",
+    "selectedDepthQueryExpression": "Q_H(depth=1) = Q_H_fold + Q_H_terminal + Q_H_compressed_terminal + Q_H_numiseal_terminal + Q_H_numiseal_zk_product",
+    "numericQueryBoundInstantiated": false,
+    "qromLossWithinBudget": false
+  },
+  "hardClaimBlockers": [
+    "exact interactive public-coin message algorithms for every accepted proof kind",
+    "Fiat-Shamir transform precondition proof for the pinned transcript schedule",
+    "numeric quantum random-oracle query bound for every schedule entry",
+    "domain-separation collision and proof-kind malleability exclusion proof",
+    "integration of schedule-derived Q_H into QROM accounting and the selected total-loss budget"
+  ],
+  "promotionRule": {
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
+    "requiresInteractiveProtocol": true,
+    "requiresTransformPreconditions": true,
+    "requiresQuantumOracleQueryBound": true,
+    "requiresQROMAccountingUpdate": true,
+    "requiresTotalLossBudgetUpdate": true
+  }
+}

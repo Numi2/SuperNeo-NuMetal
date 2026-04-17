@@ -28,7 +28,9 @@ Coverage included:
 - product cryptographic security dossier validation,
 - selected-depth product loss-accounting validation,
 - product extractor loss-accounting validation,
+- product QROM transcript schedule validation,
 - product QROM Fiat-Shamir accounting validation,
+- product total-loss budget validation,
 - constant-time source/formal scope validation,
 - constant-time Swift/LLVM/Metal lowering and pinned release evidence
   validation,
@@ -122,6 +124,8 @@ Release and validation gates:
 - `TestVectors/product-selected-depth-loss-accounting-v1.json`
 - `TestVectors/product-extractor-loss-accounting-v1.json`
 - `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
+- `TestVectors/product-qrom-transcript-schedule-v1.json`
+- `TestVectors/product-total-loss-budget-v1.json`
 - `TestVectors/constant-time-scope-v1.json`
 - `TestVectors/constant-time-lowering-evidence-v1.json`
 - `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
@@ -141,6 +145,10 @@ Release and validation gates:
 - `Scripts/test-product-extractor-loss-accounting-validation.py`
 - `Scripts/validate-product-qrom-fiat-shamir-accounting.py`
 - `Scripts/test-product-qrom-fiat-shamir-accounting-validation.py`
+- `Scripts/validate-product-qrom-transcript-schedule.py`
+- `Scripts/test-product-qrom-transcript-schedule-validation.py`
+- `Scripts/validate-product-total-loss-budget.py`
+- `Scripts/test-product-total-loss-budget-validation.py`
 - `Scripts/validate-constant-time-scope.py`
 - `Scripts/test-constant-time-scope-validation.py`
 - `Scripts/validate-constant-time-lowering-evidence.py`
@@ -254,14 +262,19 @@ These are the remaining blockers before using production-security language:
    theorem is still evidence-parametric: accepted product gates plus named source-fold,
    terminal-seal, recursive-knowledge, typed-carry, masked-residual ZK,
    simulation/privacy, and product-policy obligations imply the composed
-   relation. Product extractor loss accounting and QROM Fiat-Shamir accounting
-   are now checked in `TestVectors/product-extractor-loss-accounting-v1.json`
-   and `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, but concrete
-   Swift extractor implementation, product recursive typed carry depth/loss
+   relation. Product extractor loss accounting, QROM Fiat-Shamir accounting,
+   and the total-loss budget are now checked in
+   `TestVectors/product-extractor-loss-accounting-v1.json`,
+   `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`,
+   `TestVectors/product-qrom-transcript-schedule-v1.json`, and
+   `TestVectors/product-total-loss-budget-v1.json`, but concrete Swift
+   extractor implementation, product recursive typed carry depth/loss
    accounting beyond the checked parent-child handoff, simulator coupling
    evidence beyond the exact mask-distribution lemma, numeric QROM reduction
-   loss, and side-channel evidence still have to be supplied before
-   production-security NumiSeal theorem language is allowed.
+   loss, QROM transcript schedule query bounds, total-loss budget instantiation,
+   and side-channel evidence still have
+   to be supplied before production-security NumiSeal theorem language is
+   allowed.
    `TestVectors/product-crypto-security-dossier-v1.json` and
    `Docs/CryptographicSecurityDossier-2026-04-16.md` now pin the bounded-depth product security theorem,
    `ProductSecurityTheorem`, Fiat-Shamir/QROM
@@ -270,10 +283,10 @@ These are the remaining blockers before using production-security language:
    `TestVectors/product-selected-depth-loss-accounting-v1.json` now pins the
    selected-depth loss accounting contract for the current depth-1 boundary,
    including source fold, terminal seal, carry, ZK simulator, QROM, extractor,
-   product-ops replay, constant-time, and release-distribution loss terms. The
-   checked dossier, ledger, extractor accounting, and QROM accounting keep all
-   production claims disabled until those losses are instantiated and inside
-   budget.
+   transcript collision, product-ops replay, constant-time, and
+   release-distribution loss terms. The checked dossier, ledger, extractor
+   accounting, QROM accounting, and total-loss budget keep all production
+   claims disabled until those losses are instantiated and inside budget.
 5. Broader hardware benchmark reports before making cross-generation
    performance claims. The E2E proof metrics manifest now gates checked-vector
    proof size and product-smoke size budgets, and

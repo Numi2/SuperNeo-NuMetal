@@ -6,6 +6,7 @@
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
+    "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json"
   },
@@ -26,6 +27,7 @@
   },
   "fiatShamirModel": {
     "model": "qrom",
+    "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "interactiveProtocolSpecified": false,
     "publicCoinChallengeScheduleSpecified": true,
     "transformPreconditionsSatisfied": false,
@@ -87,8 +89,8 @@
     }
   ],
   "lossRule": {
-    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_transcript_collision + epsilon_proof_kind_malleability",
-    "recursivePromotionExpression": "epsilon_qrom(depth=d) = d * (epsilon_fs_transform + epsilon_qro_queries) + epsilon_transcript_collision + epsilon_proof_kind_malleability",
+    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability",
+    "recursivePromotionExpression": "epsilon_qrom(depth=d) = d * (epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability)",
     "quantumOracleQuerySymbol": "Q_H",
     "challengeForkingLossSymbol": "epsilon_fs_transform",
     "transcriptCollisionLossSymbol": "epsilon_transcript_collision",
@@ -96,6 +98,24 @@
     "allQROMLossTermsInstantiated": false,
     "qromLossWithinBudget": false,
     "productionQROMClaimAllowed": false
+  },
+  "ledgerTermMapping": {
+    "fiatShamirQROMLoss": {
+      "ledgerSymbol": "epsilon_qrom",
+      "sourceSymbols": [
+        "epsilon_fs_transform",
+        "epsilon_qro_queries",
+        "epsilon_proof_kind_malleability"
+      ],
+      "selectedDepthContribution": "epsilon_qrom(depth=1) = epsilon_fs_transform + epsilon_qro_queries + epsilon_proof_kind_malleability"
+    },
+    "transcriptCollisionLoss": {
+      "ledgerSymbol": "epsilon_collision",
+      "sourceSymbols": [
+        "epsilon_transcript_collision"
+      ],
+      "selectedDepthContribution": "epsilon_collision = epsilon_transcript_collision"
+    }
   },
   "hardClaimBlockers": [
     "exact public-coin interactive protocol for every accepted product proof kind",

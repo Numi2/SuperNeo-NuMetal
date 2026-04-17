@@ -127,6 +127,34 @@ def ProductExtractorLossAccountingAccepted
     ∧ accounting.extractorFailureLossAccounted
     ∧ accounting.extractorLossWithinBudget
 
+structure ProductFiatShamirTranscriptSchedule where
+  selectedDepth : Nat
+  selectedDepthPositive : 0 < selectedDepth
+  acceptedProofKindsPinned : Prop
+  interactiveRoundSchedulePinned : Prop
+  publicCoinChallengeLabelsPinned : Prop
+  oracleQueryFamiliesPinned : Prop
+  transcriptStateTransitionsPinned : Prop
+  witnessIndependentOracleLabelsPinned : Prop
+  domainSeparationBindingPinned : Prop
+  proofKindSeparationBindingPinned : Prop
+  numericQuantumQueryBoundsInstantiated : Prop
+  productionTranscriptScheduleClaimAllowed : Prop
+
+def ProductFiatShamirTranscriptScheduleAccepted
+    (schedule : ProductFiatShamirTranscriptSchedule) : Prop :=
+  (0 < schedule.selectedDepth)
+    ∧ schedule.acceptedProofKindsPinned
+    ∧ schedule.interactiveRoundSchedulePinned
+    ∧ schedule.publicCoinChallengeLabelsPinned
+    ∧ schedule.oracleQueryFamiliesPinned
+    ∧ schedule.transcriptStateTransitionsPinned
+    ∧ schedule.witnessIndependentOracleLabelsPinned
+    ∧ schedule.domainSeparationBindingPinned
+    ∧ schedule.proofKindSeparationBindingPinned
+    ∧ schedule.numericQuantumQueryBoundsInstantiated
+    ∧ schedule.productionTranscriptScheduleClaimAllowed
+
 structure ProductFiatShamirLossAccounting where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
@@ -150,6 +178,28 @@ def ProductFiatShamirLossAccountingAccepted
     ∧ accounting.proofKindSeparationBound
     ∧ accounting.transcriptCollisionMalleabilityExcluded
     ∧ accounting.qromLossWithinBudget
+
+structure ProductTotalLossBudget where
+  selectedDepth : Nat
+  selectedDepthPositive : 0 < selectedDepth
+  exactArithmeticPinned : Prop
+  qromLedgerTermMappingPinned : Prop
+  extractorLedgerTermMappingPinned : Prop
+  allRequiredTermsInstantiated : Prop
+  missingRequiredTermSetEmpty : Prop
+  selectedDepthLossWithinBudget : Prop
+  productionTotalLossClaimAllowed : Prop
+
+def ProductTotalLossBudgetAccepted
+    (budget : ProductTotalLossBudget) : Prop :=
+  (0 < budget.selectedDepth)
+    ∧ budget.exactArithmeticPinned
+    ∧ budget.qromLedgerTermMappingPinned
+    ∧ budget.extractorLedgerTermMappingPinned
+    ∧ budget.allRequiredTermsInstantiated
+    ∧ budget.missingRequiredTermSetEmpty
+    ∧ budget.selectedDepthLossWithinBudget
+    ∧ budget.productionTotalLossClaimAllowed
 
 structure ProductLatticeAssumptionDossier where
   moduleSISStatementPinned : Prop
@@ -352,6 +402,58 @@ theorem productSecurityTheorem_requires_qrom_loss_accounting
       hQuantumQueries,
       hCollision,
       hBudget⟩
+
+theorem productSecurityTheorem_requires_qrom_transcript_schedule
+    {schedule : ProductFiatShamirTranscriptSchedule}
+    (hSchedule : ProductFiatShamirTranscriptScheduleAccepted schedule) :
+    schedule.acceptedProofKindsPinned
+      ∧ schedule.publicCoinChallengeLabelsPinned
+      ∧ schedule.oracleQueryFamiliesPinned
+      ∧ schedule.domainSeparationBindingPinned
+      ∧ schedule.proofKindSeparationBindingPinned
+      ∧ schedule.numericQuantumQueryBoundsInstantiated
+      ∧ schedule.productionTranscriptScheduleClaimAllowed := by
+  rcases hSchedule with
+    ⟨_,
+      hProofKinds,
+      _,
+      hChallengeLabels,
+      hOracleQueries,
+      _,
+      _,
+      hDomain,
+      hProofKindSeparation,
+      hNumericQueries,
+      hPromotion⟩
+  exact
+    ⟨hProofKinds,
+      hChallengeLabels,
+      hOracleQueries,
+      hDomain,
+      hProofKindSeparation,
+      hNumericQueries,
+      hPromotion⟩
+
+theorem productSecurityTheorem_requires_total_loss_budget
+    {budget : ProductTotalLossBudget}
+    (hBudget : ProductTotalLossBudgetAccepted budget) :
+    budget.exactArithmeticPinned
+      ∧ budget.qromLedgerTermMappingPinned
+      ∧ budget.extractorLedgerTermMappingPinned
+      ∧ budget.allRequiredTermsInstantiated
+      ∧ budget.missingRequiredTermSetEmpty
+      ∧ budget.selectedDepthLossWithinBudget
+      ∧ budget.productionTotalLossClaimAllowed := by
+  rcases hBudget with
+    ⟨_,
+      hArithmetic,
+      hQROM,
+      hExtractor,
+      hAll,
+      hMissing,
+      hWithin,
+      hPromotion⟩
+  exact ⟨hArithmetic, hQROM, hExtractor, hAll, hMissing, hWithin, hPromotion⟩
 
 theorem productSecurityTheorem_requires_qrom_accounting
     {fiatShamir : ProductFiatShamirQROMEvidence}

@@ -102,10 +102,40 @@ def main() -> None:
         write_json(path, missing_qrom_accounting)
         run_fail(str(VALIDATE), str(path))
 
+        missing_qrom_schedule = copy.deepcopy(dossier)
+        del missing_qrom_schedule["relatedManifests"]["productQROMTranscriptSchedule"]
+        path = tmp / "missing-qrom-schedule.json"
+        write_json(path, missing_qrom_schedule)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_qrom_schedule_manifest = copy.deepcopy(dossier)
+        wrong_qrom_schedule_manifest["fiatShamirQROMPosition"]["transcriptScheduleManifest"] = "TestVectors/product-qrom-fiat-shamir-accounting-v1.json"
+        path = tmp / "wrong-qrom-schedule-manifest.json"
+        write_json(path, wrong_qrom_schedule_manifest)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_total_budget = copy.deepcopy(dossier)
+        del missing_total_budget["relatedManifests"]["productTotalLossBudget"]
+        path = tmp / "missing-total-budget.json"
+        write_json(path, missing_total_budget)
+        run_fail(str(VALIDATE), str(path))
+
         missing_qrom_expression = copy.deepcopy(dossier)
         missing_qrom_expression["fiatShamirQROMPosition"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_fs_transform"
         path = tmp / "missing-qrom-expression.json"
         write_json(path, missing_qrom_expression)
+        run_fail(str(VALIDATE), str(path))
+
+        double_counted_qrom = copy.deepcopy(dossier)
+        double_counted_qrom["fiatShamirQROMPosition"]["selectedDepthExpression"] += " + epsilon_transcript_collision"
+        path = tmp / "double-counted-qrom.json"
+        write_json(path, double_counted_qrom)
+        run_fail(str(VALIDATE), str(path))
+
+        premature_total_budget = copy.deepcopy(dossier)
+        premature_total_budget["totalLossBudget"]["selectedDepthLossWithinBudget"] = True
+        path = tmp / "premature-total-budget.json"
+        write_json(path, premature_total_budget)
         run_fail(str(VALIDATE), str(path))
 
         outsourced_review = copy.deepcopy(dossier)

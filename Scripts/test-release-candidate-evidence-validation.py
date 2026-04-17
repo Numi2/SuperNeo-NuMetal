@@ -174,6 +174,54 @@ def main() -> None:
         write_json(path, missing_qrom_interface)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_qrom_schedule = copy.deepcopy(evidence)
+        wrong_qrom_schedule["publicSurfaces"]["productQROMTranscriptScheduleVersion"] = 2
+        path = tmp / "wrong-qrom-schedule.json"
+        write_json(path, wrong_qrom_schedule)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_qrom_schedule = copy.deepcopy(evidence)
+        vague_qrom_schedule["publicSurfaces"]["productQROMTranscriptScheduleClaimStatus"] = "production-qrom-schedule"
+        path = tmp / "vague-qrom-schedule.json"
+        write_json(path, vague_qrom_schedule)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_qrom_schedule_entry = copy.deepcopy(evidence)
+        missing_qrom_schedule_entry["publicSurfaces"]["productQROMTranscriptScheduleEntryCount"] = 4
+        path = tmp / "missing-qrom-schedule-entry.json"
+        write_json(path, missing_qrom_schedule_entry)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        wrong_total_loss_budget = copy.deepcopy(evidence)
+        wrong_total_loss_budget["publicSurfaces"]["productTotalLossBudgetVersion"] = 2
+        path = tmp / "wrong-total-loss-budget.json"
+        write_json(path, wrong_total_loss_budget)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_total_loss_budget = copy.deepcopy(evidence)
+        vague_total_loss_budget["publicSurfaces"]["productTotalLossBudgetClaimStatus"] = "production-total-loss-proof"
+        path = tmp / "vague-total-loss-budget.json"
+        write_json(path, vague_total_loss_budget)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_total_loss_component = copy.deepcopy(evidence)
+        missing_total_loss_component["publicSurfaces"]["productTotalLossBudgetComponentCount"] = 9
+        path = tmp / "missing-total-loss-component.json"
+        write_json(path, missing_total_loss_component)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        premature_total_loss_instantiation = copy.deepcopy(evidence)
+        premature_total_loss_instantiation["publicSurfaces"]["productTotalLossBudgetInstantiatedRequiredTermCount"] = 1
+        path = tmp / "premature-total-loss-instantiation.json"
+        write_json(path, premature_total_loss_instantiation)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        premature_total_loss_budget = copy.deepcopy(evidence)
+        premature_total_loss_budget["publicSurfaces"]["productTotalLossBudgetWithinBudget"] = True
+        path = tmp / "premature-total-loss-budget.json"
+        write_json(path, premature_total_loss_budget)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_constant_time_scope = copy.deepcopy(evidence)
         wrong_constant_time_scope["publicSurfaces"]["constantTimeScopeVersion"] = 2
         path = tmp / "wrong-constant-time-scope.json"

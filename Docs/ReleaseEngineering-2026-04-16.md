@@ -30,8 +30,8 @@ true:
 - `Docs/CryptographicSecurityDossier-2026-04-16.md` reflects the current
   bounded-depth product security theorem, Fiat-Shamir/QROM position, Module-SIS
   parameter dossier, selected-depth loss accounting, product extractor loss
-  accounting, product QROM Fiat-Shamir accounting, and production-claim
-  boundaries.
+  accounting, product QROM transcript schedule, product QROM Fiat-Shamir
+  accounting, product total-loss budget, and production-claim boundaries.
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
 - Release notes explicitly use research/integration wording and do not claim
@@ -56,8 +56,9 @@ At minimum, this requires:
 - NumiSeal conformance-scope promotion plus concrete Swift extractor
   implementation and numeric extractor loss accounting, product recursive
   typed carry vectors, simulator coupling beyond the exact rejection-sampled
-  field mask distribution, numeric QROM loss instantiations, and product
-  cryptographic security dossier promotion beyond depth 1,
+  field mask distribution, numeric QROM loss instantiations, selected total-loss
+  budget closure, and product cryptographic security dossier promotion beyond
+  depth 1,
 - selected-depth loss accounting instantiated for extractor, QROM,
   ZK-simulator, hosted product-ops replay, constant-time side-channel, and
   signed release-distribution terms,
@@ -89,7 +90,9 @@ Each release candidate should record:
 - bounded-depth product security theorem status.
 - selected-depth loss accounting digest.
 - product extractor loss accounting digest.
+- product QROM transcript schedule digest.
 - product QROM Fiat-Shamir accounting digest.
+- product total-loss budget digest.
 - constant-time source/formal scope digest.
 - constant-time lowering evidence digest.
 - constant-time release evidence digest.
@@ -122,10 +125,10 @@ tuple, conservative post-quantum boundary, proof-size/latency boundary, and
 implementation-hardening boundary.
 `Scripts/validate-product-selected-depth-loss-accounting.py` checks
 `TestVectors/product-selected-depth-loss-accounting-v1.json`, including the
-current depth-1 loss expression, the recursive promotion expression, the nine
+current depth-1 loss expression, the recursive promotion expression, the ten
 component loss terms, and the fail-closed blockers for extractor, QROM,
-ZK-simulator, hosted product operations, release signing/notarization, and
-CPU/Swift/LLVM/Metal constant-time evidence closure.
+transcript collision, ZK-simulator, hosted product operations, release
+signing/notarization, and CPU/Swift/LLVM/Metal constant-time evidence closure.
 `Scripts/validate-product-extractor-loss-accounting.py` checks
 `TestVectors/product-extractor-loss-accounting-v1.json`, including source-fold
 extractor, terminal-seal extractor, product-envelope composition extractor,
@@ -133,7 +136,16 @@ future recursive carry extractor, and the fail-closed numeric loss budget.
 `Scripts/validate-product-qrom-fiat-shamir-accounting.py` checks
 `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, including
 proof-kind transcript interfaces, QROM loss symbols, challenge families,
-domain separation, and the fail-closed quantum random-oracle loss budget.
+domain separation, the `epsilon_transcript_collision` to `epsilon_collision`
+ledger mapping, and the fail-closed quantum random-oracle loss budget.
+`Scripts/validate-product-qrom-transcript-schedule.py` checks
+`TestVectors/product-qrom-transcript-schedule-v1.json`, including the product
+QROM transcript schedule, proof-kind order, public challenge labels, symbolic
+`Q_H` query families, and the fail-closed query-bound promotion rule.
+`Scripts/validate-product-total-loss-budget.py` checks
+`TestVectors/product-total-loss-budget-v1.json`, including exact rational
+summation, the `2^-128` selected threshold, ten component bounds, nine
+selected-depth required terms, and the fail-closed total-loss budget validation.
 `Scripts/validate-constant-time-scope.py` checks the constant-time
 source/formal scope manifest and the formal declarations recorded in
 `Docs/ConstantTimeEvidence-2026-04-16.md`.

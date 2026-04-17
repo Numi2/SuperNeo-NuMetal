@@ -32,8 +32,8 @@ Machine-readable files:
 - `product-selected-depth-loss-accounting-v1.json`: checked selected-depth
   loss accounting contract for the current depth-1 product security boundary.
   It pins source fold, terminal seal, typed carry, ZK simulator, QROM,
-  extractor, product-ops replay, constant-time, and release-distribution loss
-  terms while keeping production claims disabled.
+  extractor, transcript collision, product-ops replay, constant-time, and
+  release-distribution loss terms while keeping production claims disabled.
 - `product-extractor-loss-accounting-v1.json`: checked extractor loss
   accounting contract for source-fold extraction, terminal-seal extraction,
   product-envelope composition extraction, and future recursive carry
@@ -42,8 +42,17 @@ Machine-readable files:
 - `product-qrom-fiat-shamir-accounting-v1.json`: checked QROM Fiat-Shamir
   accounting contract for fold, terminal, compressed-terminal, NumiSeal
   terminal, and NumiSealZK product transcript interfaces. It records QROM loss
-  symbols and proof-kind separation while keeping the interactive protocol,
-  query bound, and numeric QROM loss open.
+  symbols, proof-kind separation, and the mapping from
+  `epsilon_transcript_collision` to ledger `epsilon_collision` while keeping
+  the interactive protocol, query bound, and numeric QROM loss open.
+- `product-qrom-transcript-schedule-v1.json`: checked QROM transcript schedule
+  contract for fold, terminal, compressed-terminal, NumiSeal terminal, and
+  NumiSealZK product proof kinds. It pins public challenge labels, transcript
+  bindings, symbolic `Q_H` query families, and the fail-closed promotion rule.
+- `product-total-loss-budget-v1.json`: checked total-loss budget contract for
+  the current selected-depth security boundary. It records exact rational
+  summation, the `2^-128` selected threshold, ten component bounds, nine
+  selected-depth required terms, and the fail-closed promotion rule.
 - `numiseal-typed-carry-conformance-v1.json`: typed carry positive/negative
   conformance descriptor.
 - `numiseal-zk-masked-residual-conformance-v1.json`: masked residual ZK
@@ -81,6 +90,10 @@ Scripts/validate-product-extractor-loss-accounting.py
 Scripts/test-product-extractor-loss-accounting-validation.py
 Scripts/validate-product-qrom-fiat-shamir-accounting.py
 Scripts/test-product-qrom-fiat-shamir-accounting-validation.py
+Scripts/validate-product-qrom-transcript-schedule.py
+Scripts/test-product-qrom-transcript-schedule-validation.py
+Scripts/validate-product-total-loss-budget.py
+Scripts/test-product-total-loss-budget-validation.py
 Scripts/validate-constant-time-scope.py
 Scripts/validate-constant-time-lowering-evidence.py
 Scripts/generate-constant-time-release-evidence.py --skip-build

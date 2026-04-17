@@ -62,6 +62,18 @@ def main() -> None:
         write_json(path, missing_kind)
         run_fail(str(VALIDATE), str(path))
 
+        missing_schedule = copy.deepcopy(accounting)
+        missing_schedule["relatedManifests"].pop("productQROMTranscriptSchedule")
+        path = tmp / "missing-schedule.json"
+        write_json(path, missing_schedule)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_schedule_manifest = copy.deepcopy(accounting)
+        wrong_schedule_manifest["fiatShamirModel"]["transcriptScheduleManifest"] = "TestVectors/product-qrom-fiat-shamir-accounting-v1.json"
+        path = tmp / "wrong-schedule-manifest.json"
+        write_json(path, wrong_schedule_manifest)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_envelope_kind = copy.deepcopy(accounting)
         wrong_envelope_kind["transcriptInterfaces"][0]["envelopeKind"] = 5
         path = tmp / "wrong-envelope-kind.json"
@@ -78,6 +90,26 @@ def main() -> None:
         missing_query_symbol["lossRule"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_fs_transform"
         path = tmp / "missing-query-symbol.json"
         write_json(path, missing_query_symbol)
+        run_fail(str(VALIDATE), str(path))
+
+        double_counted_collision = copy.deepcopy(accounting)
+        double_counted_collision["lossRule"]["selectedDepthExpression"] += " + epsilon_transcript_collision"
+        path = tmp / "double-counted-collision.json"
+        write_json(path, double_counted_collision)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_mapping = copy.deepcopy(accounting)
+        missing_mapping.pop("ledgerTermMapping")
+        path = tmp / "missing-mapping.json"
+        write_json(path, missing_mapping)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_collision_mapping = copy.deepcopy(accounting)
+        wrong_collision_mapping["ledgerTermMapping"]["fiatShamirQROMLoss"]["sourceSymbols"].append(
+            "epsilon_transcript_collision"
+        )
+        path = tmp / "wrong-collision-mapping.json"
+        write_json(path, wrong_collision_mapping)
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(accounting)

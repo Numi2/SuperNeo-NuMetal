@@ -29,8 +29,9 @@ candidate. It does not authorize production-security release claims.
   theorem, Fiat-Shamir/QROM, Module-SIS parameter, proof-size, or hardening
   boundary changes.
 - `TestVectors/product-selected-depth-loss-accounting-v1.json` reflects any
-  selected-depth loss-accounting changes for extractor, QROM, ZK simulator,
-  product-ops replay, CT, or release-distribution terms.
+  selected-depth loss-accounting changes for extractor, QROM, transcript
+  collision, ZK simulator, product-ops replay, CT, or release-distribution
+  terms.
 - `TestVectors/product-extractor-loss-accounting-v1.json` reflects any
   extractor input, rewind schedule, source-fold extractor, terminal-seal
   extractor, product-envelope composition, or recursive carry extractor changes.
@@ -38,6 +39,12 @@ candidate. It does not authorize production-security release claims.
   QROM Fiat-Shamir accounting changes for proof-kind transcript interfaces,
   challenge families, domain separation, quantum random-oracle queries, or
   transcript collision/malleability terms.
+- `TestVectors/product-qrom-transcript-schedule-v1.json` reflects any product
+  QROM transcript schedule changes for proof-kind order, public challenge
+  labels, symbolic `Q_H` query families, or schedule-to-ledger binding.
+- `TestVectors/product-total-loss-budget-v1.json` reflects any selected-depth
+  total-loss budget, exact rational summation, required component bounds, or
+  `2^-128` threshold changes.
 - `elan`, Swift, and the pinned Lean toolchain are available.
 
 ## Candidate Gate
@@ -98,6 +105,8 @@ The generated evidence records:
 - selected-depth loss-accounting version and digest,
 - product extractor loss-accounting version and digest,
 - product QROM Fiat-Shamir accounting version and digest,
+- product QROM transcript schedule version and digest,
+- product total-loss budget version and digest,
 - constant-time source/formal scope version and digest,
 - constant-time lowering evidence version and digest,
 - constant-time release evidence version and digest,

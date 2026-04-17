@@ -22,6 +22,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
     "fiatShamirModel",
     "transcriptInterfaces",
     "lossRule",
+    "ledgerTermMapping",
     "hardClaimBlockers",
     "promotionRule",
 }
@@ -30,6 +31,7 @@ EXPECTED_MANIFESTS = {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
+    "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
 }
@@ -131,6 +133,17 @@ def validate_related_manifests(accounting: dict[str, Any]) -> None:
         ledger_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
         "selected-depth ledger must link QROM Fiat-Shamir accounting",
     )
+    require(
+        ledger_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "selected-depth ledger must link QROM transcript schedule",
+    )
+
+    schedule = read_json(ROOT / EXPECTED_MANIFESTS["productQROMTranscriptSchedule"])
+    schedule_related = require_dict(schedule.get("relatedManifests"), "productQROMTranscriptSchedule.relatedManifests")
+    require(
+        schedule_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+        "QROM transcript schedule must link this accounting manifest",
+    )
 
 
 def validate_formal_surface(accounting: dict[str, Any]) -> None:
@@ -155,6 +168,11 @@ def validate_selected_depth(accounting: dict[str, Any]) -> None:
 def validate_fiat_shamir_model(accounting: dict[str, Any]) -> None:
     model = require_dict(accounting.get("fiatShamirModel"), "fiatShamirModel")
     require(model.get("model") == "qrom", "fiatShamirModel.model must be qrom")
+    require(
+        model.get("transcriptScheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json",
+        "fiatShamirModel.transcriptScheduleManifest mismatch",
+    )
+    require_relative_path(model.get("transcriptScheduleManifest"), "fiatShamirModel.transcriptScheduleManifest")
     require_false(model.get("interactiveProtocolSpecified"), "fiatShamirModel.interactiveProtocolSpecified")
     require(model.get("publicCoinChallengeScheduleSpecified") is True, "publicCoinChallengeScheduleSpecified must be true")
     require_false(model.get("transformPreconditionsSatisfied"), "fiatShamirModel.transformPreconditionsSatisfied")
@@ -200,10 +218,10 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     for symbol in [
         "epsilon_fs_transform",
         "epsilon_qro_queries",
-        "epsilon_transcript_collision",
         "epsilon_proof_kind_malleability",
     ]:
         require(symbol in selected, f"selected-depth QROM expression must include {symbol}")
+    require("epsilon_transcript_collision" not in selected, "transcript collision must be exported as epsilon_collision, not double-counted inside epsilon_qrom")
     require("d *" in recursive and "epsilon_qro_queries" in recursive, "recursive QROM expression must include per-depth query accounting")
     for key in [
         "quantumOracleQuerySymbol",
@@ -215,6 +233,24 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     require_false(rule.get("allQROMLossTermsInstantiated"), "lossRule.allQROMLossTermsInstantiated")
     require_false(rule.get("qromLossWithinBudget"), "lossRule.qromLossWithinBudget")
     require_false(rule.get("productionQROMClaimAllowed"), "lossRule.productionQROMClaimAllowed")
+
+
+def validate_ledger_term_mapping(accounting: dict[str, Any]) -> None:
+    mapping = require_dict(accounting.get("ledgerTermMapping"), "ledgerTermMapping")
+    require(set(mapping) == {"fiatShamirQROMLoss", "transcriptCollisionLoss"}, "ledgerTermMapping keys mismatch")
+    qrom = require_dict(mapping.get("fiatShamirQROMLoss"), "ledgerTermMapping.fiatShamirQROMLoss")
+    require(qrom.get("ledgerSymbol") == "epsilon_qrom", "fiatShamirQROMLoss must map to epsilon_qrom")
+    qrom_sources = require_string_list(qrom.get("sourceSymbols"), "ledgerTermMapping.fiatShamirQROMLoss.sourceSymbols")
+    require(
+        qrom_sources == ["epsilon_fs_transform", "epsilon_qro_queries", "epsilon_proof_kind_malleability"],
+        "epsilon_qrom source symbols must exclude epsilon_transcript_collision",
+    )
+    require_string(qrom.get("selectedDepthContribution"), "ledgerTermMapping.fiatShamirQROMLoss.selectedDepthContribution")
+    collision = require_dict(mapping.get("transcriptCollisionLoss"), "ledgerTermMapping.transcriptCollisionLoss")
+    require(collision.get("ledgerSymbol") == "epsilon_collision", "transcriptCollisionLoss must map to epsilon_collision")
+    collision_sources = require_string_list(collision.get("sourceSymbols"), "ledgerTermMapping.transcriptCollisionLoss.sourceSymbols")
+    require(collision_sources == ["epsilon_transcript_collision"], "epsilon_collision must map exactly from epsilon_transcript_collision")
+    require_string(collision.get("selectedDepthContribution"), "ledgerTermMapping.transcriptCollisionLoss.selectedDepthContribution")
 
 
 def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
@@ -241,10 +277,12 @@ def validate_docs_and_gate() -> None:
     docs = {
         "README.md": [
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+            "TestVectors/product-qrom-transcript-schedule-v1.json",
             "QROM Fiat-Shamir accounting",
         ],
         "Docs/CryptographicSecurityDossier-2026-04-16.md": [
             "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+            "TestVectors/product-qrom-transcript-schedule-v1.json",
             "QROM Fiat-Shamir Accounting",
         ],
         "Docs/ProductionReadinessAuditPacket-2026-04-16.md": [
@@ -252,12 +290,15 @@ def validate_docs_and_gate() -> None:
         ],
         "Docs/ReleaseEngineering-2026-04-16.md": [
             "product QROM Fiat-Shamir accounting",
+            "product QROM transcript schedule",
         ],
         "Docs/SchemaCompatibility-2026-04-16.md": [
             "Product QROM Fiat-Shamir accounting manifest",
+            "Product QROM transcript schedule manifest",
         ],
         "TestVectors/README.md": [
             "product-qrom-fiat-shamir-accounting-v1.json",
+            "product-qrom-transcript-schedule-v1.json",
         ],
     }
     for relative, needles in docs.items():
@@ -268,6 +309,10 @@ def validate_docs_and_gate() -> None:
     require(
         "run_step Scripts/validate-product-qrom-fiat-shamir-accounting.py" in gate,
         "production gate must run QROM Fiat-Shamir accounting validator",
+    )
+    require(
+        "run_step Scripts/validate-product-qrom-transcript-schedule.py" in gate,
+        "production gate must run QROM transcript schedule validator",
     )
     require(
         "run_step Scripts/test-product-qrom-fiat-shamir-accounting-validation.py" in gate,
@@ -292,6 +337,7 @@ def validate_accounting(path: Path) -> None:
     validate_fiat_shamir_model(accounting)
     validate_transcript_interfaces(accounting)
     validate_loss_rule(accounting)
+    validate_ledger_term_mapping(accounting)
     validate_promotion_and_blockers(accounting)
     validate_docs_and_gate()
 

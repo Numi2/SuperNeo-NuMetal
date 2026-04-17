@@ -74,6 +74,18 @@ def main() -> None:
         write_json(path, missing_qrom_accounting)
         run_fail(str(VALIDATE), str(path))
 
+        missing_qrom_schedule = copy.deepcopy(ledger)
+        missing_qrom_schedule["relatedManifests"].pop("productQROMTranscriptSchedule")
+        path = tmp / "missing-qrom-schedule.json"
+        write_json(path, missing_qrom_schedule)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_total_budget = copy.deepcopy(ledger)
+        missing_total_budget["relatedManifests"].pop("productTotalLossBudget")
+        path = tmp / "missing-total-budget.json"
+        write_json(path, missing_total_budget)
+        run_fail(str(VALIDATE), str(path))
+
         reordered_components = copy.deepcopy(ledger)
         reordered_components["componentLosses"][0], reordered_components["componentLosses"][1] = (
             reordered_components["componentLosses"][1],
@@ -92,9 +104,17 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(ledger)
-        missing_blocker["hardClaimBlockers"].remove("QROM Fiat-Shamir loss accounting")
+        missing_blocker["hardClaimBlockers"].remove("QROM transcript schedule and Fiat-Shamir loss accounting")
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_collision = copy.deepcopy(ledger)
+        missing_collision["componentLosses"] = [
+            row for row in missing_collision["componentLosses"] if row["id"] != "transcript-collision-domain-separation"
+        ]
+        path = tmp / "missing-collision.json"
+        write_json(path, missing_collision)
         run_fail(str(VALIDATE), str(path))
 
         outsourced_review = copy.deepcopy(ledger)
