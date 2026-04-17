@@ -109,6 +109,112 @@ theorem phi81_X108_eq_X27 :
     phi81X ^ 108 = (phi81X ^ 81) * (phi81X ^ 27) := by ring
     _ = phi81X ^ 27 := by rw [phi81_X81_eq_one, one_mul]
 
+theorem phi81Polynomial_monic :
+    phi81Polynomial.Monic := by
+  have hDegree :
+      Polynomial.degree (X ^ 27 + 1 : Polynomial Goldilocks) < (54 : WithBot Nat) :=
+    lt_of_le_of_lt
+    (Polynomial.degree_add_le (X ^ 27 : Polynomial Goldilocks) 1)
+    (by norm_num)
+  simpa [phi81Polynomial, phi81Degree, add_assoc] using
+    (Polynomial.monic_X_pow_add (p := (X ^ 27 + 1 : Polynomial Goldilocks)) hDegree)
+
+theorem phi81Polynomial_natDegree :
+    phi81Polynomial.natDegree = phi81Degree := by
+  have hDegree :
+      (X ^ 54 + (X ^ 27 + 1 : Polynomial Goldilocks)).natDegree = 54 := by
+    rw [Polynomial.natDegree_add_eq_left_of_natDegree_lt]
+    · simp
+    · have hSmall :
+          (X ^ 27 + 1 : Polynomial Goldilocks).natDegree = 27 := by
+        simpa using
+          (Polynomial.natDegree_X_pow_add_C (n := 27) (r := (1 : Goldilocks)))
+      rw [hSmall]
+      norm_num
+  simpa [phi81Polynomial, phi81Degree, add_assoc] using hDegree
+
+theorem phi81CoeffsToPolynomial_natDegree_lt
+    (coefficients : Phi81Coefficients) :
+    (phi81CoeffsToPolynomial coefficients).natDegree < phi81Degree := by
+  rw [phi81CoeffsToPolynomial]
+  have hDegree :
+      (∑ index : Fin phi81Degree,
+          C (coefficients index) * X ^ index.val :
+            Polynomial Goldilocks).natDegree ≤ phi81Degree - 1 := by
+    apply Polynomial.natDegree_sum_le_of_forall_le
+    intro index _hIndex
+    exact le_trans
+      (Polynomial.natDegree_C_mul_X_pow_le (coefficients index) index.val)
+      (by
+        have hIndex := index.isLt
+        omega)
+  have h := hDegree
+  simp [phi81Degree] at h ⊢
+  omega
+
+theorem phi81CoeffsToPolynomial_coeff
+    (coefficients : Phi81Coefficients)
+    (index : Fin phi81Degree) :
+    (phi81CoeffsToPolynomial coefficients).coeff index.val =
+      coefficients index := by
+  simp only [phi81CoeffsToPolynomial, Polynomial.finset_sum_coeff,
+    Polynomial.coeff_C_mul_X_pow]
+  rw [Finset.sum_eq_single index]
+  · simp
+  · intro other _hOther hNe
+    have hVal : index.val ≠ other.val := by
+      intro hEq
+      exact hNe (Fin.ext hEq.symm)
+    simp [hVal]
+  · simp
+
+theorem phi81CoeffsToPolynomial_injective :
+    Function.Injective phi81CoeffsToPolynomial := by
+  intro lhs rhs hPolynomial
+  funext index
+  have hCoeff := congrArg (fun p : Polynomial Goldilocks => p.coeff index.val) hPolynomial
+  simpa [phi81CoeffsToPolynomial_coeff] using hCoeff
+
+theorem phi81CoeffsToQuotient_injective :
+    Function.Injective phi81CoeffsToQuotient := by
+  intro lhs rhs hQuotient
+  apply phi81CoeffsToPolynomial_injective
+  apply sub_eq_zero.mp
+  by_contra hDiff
+  have hMk :
+      (Ideal.Quotient.mk phi81Ideal
+        (phi81CoeffsToPolynomial lhs - phi81CoeffsToPolynomial rhs) : Phi81) = 0 := by
+    simpa [phi81CoeffsToQuotient, map_sub] using
+      (sub_eq_zero.mpr hQuotient :
+        phi81CoeffsToQuotient lhs - phi81CoeffsToQuotient rhs = 0)
+  have hDvd :
+      phi81Polynomial ∣
+        phi81CoeffsToPolynomial lhs - phi81CoeffsToPolynomial rhs := by
+    change
+      AdjoinRoot.mk phi81Polynomial
+          (phi81CoeffsToPolynomial lhs - phi81CoeffsToPolynomial rhs) = 0 at hMk
+    exact AdjoinRoot.mk_eq_zero.mp hMk
+  have hDegree :
+      (phi81CoeffsToPolynomial lhs - phi81CoeffsToPolynomial rhs).natDegree <
+        phi81Polynomial.natDegree := by
+    have hLeft :
+        (phi81CoeffsToPolynomial lhs).natDegree ≤ phi81Degree - 1 := by
+      have hLeftLt := phi81CoeffsToPolynomial_natDegree_lt lhs
+      omega
+    have hRight :
+        (phi81CoeffsToPolynomial rhs).natDegree ≤ phi81Degree - 1 := by
+      have hRightLt := phi81CoeffsToPolynomial_natDegree_lt rhs
+      omega
+    rw [phi81Polynomial_natDegree]
+    exact lt_of_le_of_lt
+      (Polynomial.natDegree_sub_le_of_le
+        hLeft
+        hRight)
+      (by simp [phi81Degree])
+  exact
+    (phi81Polynomial_monic.not_dvd_of_natDegree_lt hDiff hDegree)
+      hDvd
+
 theorem phi81CoeffsToPolynomial_zero :
     phi81CoeffsToPolynomial phi81ZeroCoeffs = 0 := by
   simp [phi81CoeffsToPolynomial, phi81ZeroCoeffs]

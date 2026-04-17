@@ -48,6 +48,10 @@ theorem challengeCoefficient_goldilocks_normBound (choice : ChallengeCoefficient
 def challengeCoefficientGoldilocks (choice : ChallengeCoefficientChoice) : Goldilocks :=
   (challengeCoefficientValue choice : Goldilocks)
 
+theorem challengeCoefficientGoldilocks_injective :
+    Function.Injective challengeCoefficientGoldilocks := by
+  native_decide
+
 abbrev Phi81ChallengeSeed :=
   Fin phi81Degree → ChallengeCoefficientChoice
 
@@ -56,6 +60,19 @@ def phi81ChallengeCoefficients (seed : Phi81ChallengeSeed) : Phi81Coefficients :
 
 def phi81ChallengeElement (seed : Phi81ChallengeSeed) : Phi81 :=
   phi81CoeffsToQuotient (phi81ChallengeCoefficients seed)
+
+theorem phi81ChallengeCoefficients_injective :
+    Function.Injective phi81ChallengeCoefficients := by
+  intro lhs rhs hCoefficients
+  funext coeff
+  exact challengeCoefficientGoldilocks_injective
+    (congrFun hCoefficients coeff)
+
+theorem phi81ChallengeElement_injective :
+    Function.Injective phi81ChallengeElement := by
+  intro lhs rhs hElement
+  exact phi81ChallengeCoefficients_injective
+    (phi81CoeffsToQuotient_injective hElement)
 
 def Phi81CoefficientsBounded
     (bound : Nat)
