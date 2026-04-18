@@ -364,7 +364,7 @@ workload artifact schema. The NumiSeal manifest is the trusted expected context:
 it records the expected shape, statement, verifier-key, transcript-domain,
 public-statement, obligation-root, lane-summary-root, aggregate,
 component-root, and proof-transcript digests. Its strict commands target
-`superneo verify --require-numiseal` with those trust pins; the vector CLI
+`superneo verify` with those trust pins; the vector CLI
 remains the deterministic generator/regenerator authority. Both CLIs use the
 shared `NumiSealArtifactVerifier` core for public reconstruction, policy,
 envelope digest checks, and final verification. `Scripts/validate-numiseal-artifact-schema.py`

@@ -38,7 +38,7 @@ to the checklist below.
   `numiseal-terminal-single-aggregate-v1.json`,
   `numiseal-terminal-two-aggregate-v1.json`, and
   `numiseal-terminal-two-lane-v1.json`.
-- [x] `superneo inspect` and opt-in `superneo verify --require-numiseal` for
+- [x] `superneo inspect` and default strict `superneo verify` for
   checked NumiSeal artifacts.
 - [x] Product verifier facade hooks for expected context, authorization,
   provenance, replay, byte limits, and audit events.
@@ -72,10 +72,10 @@ to the checklist below.
   hosted production-depth replay policy with loss accounting.
 
 - [ ] `NumiSealZK` production privacy promotion.
-  Done when product-sized hardware benchmark evidence and side-channel evidence
-  are recorded before product defaults change. The proof-level simulator
-  coupling evidence is now recorded with `epsilon_zk_sim = 0` under declared
-  leakage.
+  Product proving now defaults to masked NumiSealZK. Done when product-sized
+  hardware benchmark evidence and side-channel evidence are recorded for a
+  stronger production privacy claim. The proof-level simulator coupling
+  evidence is now recorded with `epsilon_zk_sim = 0` under declared leakage.
 
 - [ ] Deployed product operations.
   Done when hosted trusted context storage, key distribution/rotation rollout,
@@ -104,8 +104,8 @@ Use:
 
 > NumiSeal generates and verifies checked immediate-residual product artifacts
 > through explicit kind `4`/kind `5` policy paths. Recursive-by-default carry,
-> zero-knowledge-by-default privacy, deployed product operations,
-> selected-depth theorem promotion, and self-owned review closure remain.
+> deployed product operations, selected-depth theorem promotion, and self-owned
+> review closure remain.
 
 Do not say:
 

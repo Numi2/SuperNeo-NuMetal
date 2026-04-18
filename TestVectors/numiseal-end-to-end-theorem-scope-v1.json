@@ -249,7 +249,7 @@
         "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse",
         "testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch",
         "testNumiSealProductProverEmitsVerifiableZKV2Artifact",
-        "testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked"
+        "testNumiSealZKSideChannelCertificateIsOptionalAndBindingChecked"
       ],
       "evidenceObligations": [
         "the leakage function contains only public statement roots, aggregate metadata, tensor dimensions, randomness session ID, proof validity, and declared leakage digest",

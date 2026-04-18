@@ -36,6 +36,7 @@ def run_validator(root: Path, expect_ok: bool, expected: str = "") -> None:
 def copy_repo_subset(destination: Path) -> None:
     for relative in [
         "SuperNeo-NuMetal/ProductIntegration/LocalProductControls.swift",
+        "SuperNeo-NuMetal/ProductIntegration/NumiSealZKSideChannelCertification.swift",
         "SuperNeoCLI/main.swift",
         "Docs/ProductOperationsReadiness-2026-04-16.md",
         "Docs/LocalProductControls-2026-04-16.md",

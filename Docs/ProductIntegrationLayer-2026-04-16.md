@@ -77,9 +77,10 @@ signed provenance before algebraic acceptance, rejects replay through a durable
 SQLite ledger, and appends accepted/rejected decisions to a hash-chained JSONL
 audit log. It covers terminal, compressed-terminal, NumiSeal terminal, and
 NumiSealZK product surfaces. For `numiseal-zk`, the trusted context must include
-NumiSealZK policy. Optional signed side-channel certificates can be supplied as
-release metadata and are checked for release, context, leakage, proof policy,
-Metal workspace, reviewed kernel, and evidence-digest bindings when present.
+NumiSealZK policy. Signed side-channel certificates are optional release
+metadata; when present, they are checked for release, context, leakage, proof
+policy, Metal workspace, reviewed kernel, benchmark-report, and evidence-digest
+bindings.
 `product-status --format json` emits the canonical readiness status, and
 `product-export-audit` embeds it as `operationsStatus`. The signed revocation
 feed is verified independently from the context pack and its digest is recorded

@@ -45,7 +45,7 @@ Coverage included:
 - release policy, schema compatibility, and CI gate drift validation,
 - checked vector validation,
 - NumiSeal vector validation,
-- production `superneo verify --require-numiseal` adversarial matrix,
+- production strict NumiSeal `superneo verify` adversarial matrix,
 - terminal and compressed-terminal CLI smoke tests,
 - lattice-estimator dry-run artifact validation,
 - Lean `lake build`,

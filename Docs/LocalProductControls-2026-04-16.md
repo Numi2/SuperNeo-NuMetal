@@ -9,6 +9,14 @@ The product-status command reports operations readiness from the signed context
 pack, signed revocation feed, replay ledger, and audit log. The JSON payload
 contains `operationsStatus`, `auditRetentionPolicy`, and `retryPolicy` so a
 runbook can decide whether local state is ready or attention is required.
+CLI product-control commands discover the operator profile from
+`SUPERNEO_OPERATOR_PROFILE` or `.superneo/operator-profile.json` when
+`--operator-profile` is omitted.
+
+If the signed context accepts `numiseal-zk`, readiness does not require a
+side-channel certificate. Certificates are optional release metadata; when
+supplied, product verification checks their context, release, leakage, proof
+policy, Metal workspace, and evidence bindings.
 
 ## Signed Revocation Feed
 

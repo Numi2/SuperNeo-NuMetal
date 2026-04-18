@@ -144,8 +144,8 @@ Existing primitives:
   verifier key, shape, statement, transcript domain, public-statement root,
   obligation root, lane-summary root, aggregate digests, component root, proof
   transcript digest, and public inputs.
-- `superneo verify --require-numiseal` enforces an explicit NumiSeal policy
-  gate and rejects legacy terminal policy confusion.
+- `superneo verify` enforces strict NumiSeal handling by artifact kind and
+  rejects legacy terminal policy confusion.
 - The production gate tests wrong public inputs, wrong expected pins, proof-kind
   confusion, unknown artifact fields, duplicate JSON keys, schema drift, and
   malformed vector metadata.

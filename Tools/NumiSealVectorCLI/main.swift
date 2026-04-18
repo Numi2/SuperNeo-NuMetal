@@ -783,7 +783,6 @@ private func strictVerifyCommand(
         "run",
         "superneo",
         "verify",
-        "--require-numiseal",
         "--key-seed",
         keySeed,
         "--expected-verifier-key-digest",

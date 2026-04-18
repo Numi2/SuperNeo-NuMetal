@@ -102,8 +102,9 @@ The remaining product/security evidence gaps are separate:
   selected-depth replay surface;
 - extend recursive carry from checked local chain replay into the selected
   hosted production-depth policy;
-- record release-hardware NumiSealZK benchmark evidence and side-channel review
-  before default promotion;
+- keep NumiSealZK on by default for product proving and product APIs; signed
+  side-channel certificates remain optional release metadata and are checked
+  only when supplied;
 - close hosted product operations evidence for context, provenance, replay,
   authorization, audit retention, and signed distribution;
 - finish independent cryptographic, implementation, and side-channel review.

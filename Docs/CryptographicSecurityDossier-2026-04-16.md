@@ -449,10 +449,12 @@ The proof-level privacy simulator is now recorded in
 `TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json`: under exact
 field-mask sampling, fresh randomness-session binding, mask-reuse rejection,
 and the declared proof-byte leakage model, the simulator loss is
-`epsilon_zk_sim = 0`. This does not authorize production ZK defaults. The
-remaining privacy production obligations are side-channel evidence and hosted
-behavior evidence for artifact metadata, sizes, errors, retry behavior,
-allocator/GPU behavior, and carry-state exposure outside declared proof bytes.
+`epsilon_zk_sim = 0`. Product proving now emits NumiSealZK by default. Signed
+side-channel certificates are optional release metadata and are checked only
+when attached. The remaining privacy production obligations are side-channel
+evidence plus hosted behavior evidence for artifact metadata, sizes, errors,
+retry behavior, allocator/GPU behavior, and carry-state exposure outside
+declared proof bytes.
 
 ## Carry And Recursion Closure
 

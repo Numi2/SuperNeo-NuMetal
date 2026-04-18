@@ -140,7 +140,6 @@ swift run superneo prove \
 swift run superneo inspect /tmp/one-hot-numiseal.json
 
 swift run superneo verify \
-  --require-numiseal \
   /tmp/one-hot-numiseal.json
 ```
 
@@ -165,7 +164,6 @@ swift run superneo prove \
   --output /tmp/one-hot-numiseal-zk.json
 
 swift run superneo verify \
-  --require-numiseal \
   /tmp/one-hot-numiseal-zk.json
 ```
 
@@ -247,7 +245,6 @@ Inspect and verify a checked NumiSeal terminal vector:
 swift run superneo inspect TestVectors/numiseal-terminal-single-aggregate-v1.json
 
 swift run superneo verify \
-  --require-numiseal \
   --key-seed SuperNeoNumiSeal.vector.single-aggregate.key.v1 \
   --expected-verifier-key-digest fd2605390a4f450fdfdcde6259aa8bb06c51bf66d1def285fbe9cabc5eb09a73 \
   --expected-shape-digest 31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e \
@@ -263,10 +260,10 @@ swift run superneo verify \
   TestVectors/numiseal-terminal-single-aggregate-v1.json
 ```
 
-NumiSeal kind `4` artifacts and NumiSeal product artifacts fail closed unless
-`--require-numiseal` is present. They are not accepted by `--require-terminal`,
-which remains the policy gate for legacy terminal-local and compressed-public
-envelopes.
+NumiSeal kind `4` artifacts and NumiSeal product artifacts verify through the
+strict NumiSeal path by default. `--require-numiseal` remains accepted as a
+compatibility no-op. They are not accepted by `--require-terminal`, which remains
+the policy gate for legacy terminal-local and compressed-public envelopes.
 
 Terminal mode is complete but intentionally not the default. In local Debug
 runs, even a small terminal proof is much larger and slower because it includes
@@ -308,16 +305,16 @@ are visible during CLI development as well as in the production gate.
 The initial `NumiSealZK` proof body is envelope kind `5`, body version `13`,
 and `zkMode = "masked-digit-tensor-v1"`. It is available through the library
 surface (`NumiSealZKProver`, `NumiSealZKProofEnvelope`, and
-`NumiSealZKVerifier`) and through explicit CLI product proving via
-`--numiseal-zk-mode masked-digit-tensor-v1`. The CLI default remains
-`zkMode = "none"` while accelerated side-channel evidence remains out-of-band
-release metadata rather than proof bytes.
+`NumiSealZKVerifier`) and is the CLI product proving default. Pass
+`--numiseal-zk-mode none` to emit a non-ZK NumiSeal terminal product artifact.
+Accelerated side-channel evidence remains out-of-band release metadata rather
+than proof bytes.
 
 NumiSeal vector artifacts additionally store residual mode, lane IDs,
 fold/source/CE deterministic vector seeds, aggregate limits, transcript-domain
 digest, public-statement digest, obligation root, lane-summary root, aggregate
-digests, component digest root, and proof-transcript digest. `superneo verify
---require-numiseal` delegates artifact metadata validation, public-obligation
+digests, component digest root, and proof-transcript digest. `superneo verify`
+delegates NumiSeal artifact metadata validation, public-obligation
 reconstruction, NumiSeal policy construction, envelope digest checks, expected
 trust-pin checks, and final `NumiSealVerifier` dispatch to the shared
 `NumiSealArtifactVerifier` library boundary.
@@ -354,10 +351,9 @@ compressed-terminal vectors. The manifest validator reconstructs trusted context
 for every checked-in vector and verifies terminal and compressed-terminal
 vectors with `--require-terminal`. `superneo-numiseal-vectors` remains the
 deterministic NumiSeal generator/manifest validator, while the manifest strict
-commands now target `superneo verify --require-numiseal` with caller-owned trust
-pins. `superneo inspect` and `superneo verify --require-numiseal` are the
-production-facing reader and verifier surfaces for checked NumiSeal terminal
-artifacts.
+commands now target `superneo verify` with caller-owned trust pins.
+`superneo inspect` and strict `superneo verify` are the production-facing reader
+and verifier surfaces for checked NumiSeal terminal artifacts.
 
 For external implementations, `TestVectors/manifest.json` records each vector's
 SHA-256 hash, byte count, workload, proof kind, trusted expected verifier

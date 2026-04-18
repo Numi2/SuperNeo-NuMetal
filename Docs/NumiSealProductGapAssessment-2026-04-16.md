@@ -17,7 +17,7 @@ side-channel, operations, and audit evidence tracked outside the Lean theorem.
 ## Current Surface
 
 - [x] `superneo inspect` parses checked NumiSeal artifacts.
-- [x] `superneo verify --require-numiseal` verifies checked kind `4`
+- [x] `superneo verify` verifies checked kind `4`
   immediate-residual artifacts.
 - [x] `NumiSealArtifactVerifier` validates metadata, trust pins, envelope roots,
   public reconstruction, and `NumiSealVerifier` dispatch.
@@ -56,8 +56,10 @@ side-channel, operations, and audit evidence tracked outside the Lean theorem.
 
 - [ ] Recursive carry: promote the checked local chain replay policy to hosted
   selected-depth replay semantics and formal loss accounting.
-- [ ] ZK: refresh product-sized hardware benchmark evidence on release hardware
-  and finish side-channel review before changing product defaults.
+- [x] ZK product default: product proving and public product APIs now emit
+  masked NumiSealZK artifacts by default. Signed side-channel certificates are
+  optional release metadata; when present, they are checked for artifact,
+  context, release, leakage, and proof-policy bindings.
 - [ ] Product operations: hosted context storage, deployed key distribution,
   tenant authz, hosted audit retention, hosted revocation feed distribution, and
   signed releases.
@@ -80,6 +82,6 @@ side-channel, operations, and audit evidence tracked outside the Lean theorem.
 Use:
 
 > NumiSeal currently generates and verifies checked immediate-residual product
-> artifacts through supported Swift and CLI surfaces. It is not yet
-> recursive-by-default, zero-knowledge-by-default, or a deployed production
-> product.
+> artifacts through supported Swift and CLI surfaces. Product proving emits
+> masked NumiSealZK by default. It is not yet recursive-by-default or a deployed
+> production product.

@@ -47,11 +47,28 @@ def run_expect_failure(command: List[str], expected: str) -> None:
         )
 
 
+def run_expect_success(command: List[str], expected: str = "") -> None:
+    result = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
+    combined = result.stdout + result.stderr
+    if result.returncode != 0:
+        fail(
+            f"expected command to succeed but it failed: {' '.join(command)}\n"
+            f"stdout:\n{result.stdout}\n"
+            f"stderr:\n{result.stderr}"
+        )
+    if expected and expected not in combined:
+        fail(
+            f"expected success output to contain {expected!r}\n"
+            f"command: {' '.join(command)}\n"
+            f"stdout:\n{result.stdout}\n"
+            f"stderr:\n{result.stderr}"
+        )
+
+
 def strict_command(cli: Path, artifact: Dict[str, Any], path: Path) -> List[str]:
     return [
         str(cli),
         "verify",
-        "--require-numiseal",
         "--key-seed",
         artifact["keySeedUTF8"],
         "--expected-verifier-key-digest",
@@ -92,7 +109,7 @@ def run_mutated_artifact(
     with tempfile.TemporaryDirectory(prefix=f"superneo-numiseal-{name}-") as tmp:
         path = Path(tmp) / VECTOR.name
         write_json(path, mutated)
-        run_expect_failure([str(cli), "verify", "--require-numiseal", str(path)], expected)
+        run_expect_failure([str(cli), "verify", str(path)], expected)
 
 
 def set_envelope_header_kind(artifact: Dict[str, Any], kind: int) -> None:
@@ -117,10 +134,7 @@ def main() -> None:
 
     artifact = load_json(VECTOR)
 
-    run_expect_failure(
-        [str(cli), "verify", str(VECTOR)],
-        "NumiSeal terminal proof requires --require-numiseal",
-    )
+    run_expect_success([str(cli), "verify", str(VECTOR)], "valid NumiSeal terminal proof")
     run_expect_failure(
         [str(cli), "verify", "--require-terminal", str(VECTOR)],
         "legacy terminal proof required",

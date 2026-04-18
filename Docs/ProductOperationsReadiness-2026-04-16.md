@@ -17,7 +17,9 @@ superneo product-status --operator-profile profile.json --format json
 ```
 
 The short form `product-status --format json` names the same JSON status view
-when the operator profile is supplied by the surrounding runbook.
+when the operator profile is supplied by the surrounding runbook. Local CLI
+commands also discover a default operator profile from `SUPERNEO_OPERATOR_PROFILE`
+or `.superneo/operator-profile.json`.
 
 The JSON response includes `operationsStatus`, `readiness`, `checks`,
 `revocationFeedDigestHex`, `auditRetentionPolicy`, and `retryPolicy`.
@@ -49,6 +51,12 @@ or stale operational state before a product claim is considered.
 revocation feed, replay database, and audit log are all internally consistent
 for the current operator profile. `attention-required` means the operator must
 repair or refresh local state before relying on product-mode acceptance.
+
+For trusted contexts that accept `numiseal-zk`, readiness does not require a
+side-channel certificate. The `sideChannelCertificateStatus` field records
+whether optional release metadata is attached, and supplied certificates are
+checked by product verification for context, release, leakage, proof-policy,
+Metal workspace, benchmark-report, and evidence bindings.
 
 This document closes the product operations readiness evidence artifact
 referenced by the total-loss budget. It does not instantiate the hosted replay

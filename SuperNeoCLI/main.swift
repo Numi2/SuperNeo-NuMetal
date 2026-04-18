@@ -94,7 +94,7 @@ private struct ProveOptions {
     var proofKind: DemoProofKind = .fold
     var sealMode: ProveSealMode?
     var numiSealExecutionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct
-    var numiSealZKMode: String = NumiSealZK.nonZKMode
+    var numiSealZKMode: String = NumiSealZK.maskedDigitTensorMode
     var maximumObligationsPerAggregate: Int?
     var sourceApplicationPath: String?
 }
@@ -133,6 +133,9 @@ private struct ProductControlOptions {
     var outputPath: String?
     var outputFormat: ProductOutputFormat = .text
 }
+
+private let defaultOperatorProfileEnvironmentKey = "SUPERNEO_OPERATOR_PROFILE"
+private let defaultOperatorProfileRelativePath = ".superneo/operator-profile.json"
 
 private enum ProductOutputFormat: String {
     case text
@@ -218,13 +221,16 @@ private func usage() -> String {
     much larger and slower because they include the public CE opening proof.
     compressed-terminal proofs keep terminal acceptance while compressing public
     terminal statement material behind digest bindings.
-    NumiSeal product artifacts are emitted with --seal numiseal and require the
-    explicit --require-numiseal policy gate during verification. Strict NumiSeal verification also
+    NumiSeal product artifacts are emitted with --seal numiseal and verify through
+    strict NumiSeal handling by default. --require-numiseal is accepted as a
+    compatibility no-op. Strict NumiSeal verification also
     accepts --expected-transcript-domain-digest, --expected-public-statement-digest,
     --expected-obligation-root, --expected-lane-summary-root,
     --expected-aggregate-digests, --expected-component-digest-root, and
-    --expected-proof-transcript-digest. Pass --numiseal-zk-mode masked-digit-tensor-v1
-    to emit a kind-5 masked NumiSealZK product artifact.
+    --expected-proof-transcript-digest. Product controls auto-enable for product
+    artifacts when SUPERNEO_OPERATOR_PROFILE or .superneo/operator-profile.json
+    is present. Pass --numiseal-zk-mode none to emit a non-ZK NumiSeal product
+    artifact.
     """
 }
 
@@ -506,9 +512,6 @@ private func parseProductControlOptions(_ arguments: [String]) throws -> Product
         }
         index += 1
     }
-    guard options.operatorProfilePath != nil else {
-        throw CLIError.invalidArgument("--operator-profile is required")
-    }
     return options
 }
 
@@ -689,18 +692,39 @@ private func makeNumiSealMetalContext(policy: NumiSealProvingExecutionPolicy) th
 }
 
 private func verify(options: VerifyOptions) throws {
-    if options.useProductControls {
-        try verifyWithProductControls(options: options)
+    var resolvedOptions = options
+    let artifact = try readProofArtifact(path: resolvedOptions.path)
+    if try shouldUseProductControls(options: &resolvedOptions, artifact: artifact) {
+        try verifyWithProductControls(options: resolvedOptions)
         return
     }
-    switch try readProofArtifact(path: options.path) {
+    switch artifact {
     case .demo(let artifact):
-        try verifyDemoArtifact(artifact, options: options)
+        try verifyDemoArtifact(artifact, options: resolvedOptions)
     case .numiSeal(let artifact):
-        try verifyNumiSealArtifact(artifact, options: options)
+        try verifyNumiSealArtifact(artifact, options: resolvedOptions)
     case .numiSealProduct(let artifact):
-        try verifyNumiSealProductArtifact(artifact, options: options)
+        try verifyNumiSealProductArtifact(artifact, options: resolvedOptions)
     }
+}
+
+private func shouldUseProductControls(options: inout VerifyOptions, artifact: ProofArtifact) throws -> Bool {
+    if options.useProductControls {
+        options.operatorProfilePath = try resolvedProductOperatorProfilePath(options.operatorProfilePath)
+        return true
+    }
+    guard case .numiSealProduct = artifact else {
+        return false
+    }
+    guard !options.hasLegacyExpectedContext else {
+        return false
+    }
+    guard let operatorProfilePath = discoveredProductOperatorProfilePath() else {
+        return false
+    }
+    options.operatorProfilePath = operatorProfilePath
+    options.useProductControls = true
+    return true
 }
 
 private func verifyWithProductControls(options: VerifyOptions) throws {
@@ -1112,10 +1136,10 @@ private func verifyNumiSealArtifact(_ artifact: NumiSealArtifact, options: Verif
     if options.requireTerminalProof {
         throw CLIError.invalidArgument("legacy terminal proof required, but artifact contains a NumiSeal terminal proof")
     }
-    guard options.requireNumiSealProof else {
-        throw CLIError.invalidArgument("NumiSeal terminal proof requires --require-numiseal")
-    }
-    let expectedContext = try makeNumiSealExpectedContext(options: options)
+    let expectedContext = try makeNumiSealExpectedContext(
+        options: options,
+        artifactKeySeedUTF8: artifact.keySeedUTF8
+    )
     let started = Date()
     _ = try NumiSealArtifactVerifier.verify(
         artifact: artifact,
@@ -1174,9 +1198,6 @@ private func inspectNumiSealArtifact(_ artifact: NumiSealArtifact) throws {
 private func verifyNumiSealProductArtifact(_ artifact: NumiSealProductArtifact, options: VerifyOptions) throws {
     if options.requireTerminalProof {
         throw CLIError.invalidArgument("legacy terminal proof required, but artifact contains a NumiSeal product proof")
-    }
-    guard options.requireNumiSealProof else {
-        throw CLIError.invalidArgument("NumiSeal product proof requires --require-numiseal")
     }
     try validateNumiSealProductExpectedOptions(artifact: artifact, options: options)
     let publicInput = try makePublicInput(from: artifact)
@@ -1276,9 +1297,7 @@ private func inspectNumiSealProductArtifact(_ artifact: NumiSealProductArtifact)
 }
 
 private func productInitStorage(_ options: ProductControlOptions) throws {
-    guard let operatorProfilePath = options.operatorProfilePath else {
-        throw CLIError.invalidArgument("--operator-profile is required")
-    }
+    let operatorProfilePath = try resolvedProductOperatorProfilePath(options.operatorProfilePath)
     let profile = try SuperNeoLocalOperatorProfile.load(from: URL(fileURLWithPath: operatorProfilePath))
     try SuperNeoSQLiteReplayLedger.bootstrap(databaseURL: URL(fileURLWithPath: profile.replayDatabasePath))
     try SuperNeoJSONLAuditLog.bootstrap(url: URL(fileURLWithPath: profile.auditLogPath))
@@ -1309,6 +1328,7 @@ private func productStatus(_ options: ProductControlOptions) throws {
     if let numiSealZK = context.numiSealZK {
         print("numiseal zk accepted metal modes: \(numiSealZK.acceptedMetalModes.joined(separator: ","))")
         print("numiseal zk allowed leakage digests: \(numiSealZK.allowedLeakageDigestsHex.joined(separator: ","))")
+        print("numiseal zk minimum side-channel level: \(numiSealZK.minimumSideChannelCertificationLevel.rawValue)")
     }
     if let certificate = controls.sideChannelCertificate {
         print("side-channel certificate digest: \(certificate.certificateDigest.hexString)")
@@ -1415,15 +1435,40 @@ private func writePrettyJSON<T: Encodable>(_ value: T, outputPath: String?) thro
     }
 }
 
+private func resolvedProductOperatorProfilePath(_ explicitPath: String?) throws -> String {
+    if let explicitPath {
+        return explicitPath
+    }
+    if let discoveredPath = discoveredProductOperatorProfilePath() {
+        return discoveredPath
+    }
+    throw CLIError.invalidArgument(
+        "--operator-profile is required unless \(defaultOperatorProfileEnvironmentKey) or \(defaultOperatorProfileRelativePath) is present"
+    )
+}
+
+private func discoveredProductOperatorProfilePath() -> String? {
+    if let environmentPath = ProcessInfo.processInfo.environment[defaultOperatorProfileEnvironmentKey],
+       !environmentPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        return environmentPath
+    }
+    let candidate = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent(defaultOperatorProfileRelativePath)
+    var isDirectory: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDirectory),
+          !isDirectory.boolValue else {
+        return nil
+    }
+    return candidate.path
+}
+
 private func loadProductControls(
     operatorProfilePath: String?,
     contextPackPath: String?,
     revocationFeedPath: String?,
     sideChannelCertificatePath: String?
 ) throws -> LoadedProductControls {
-    guard let operatorProfilePath else {
-        throw CLIError.invalidArgument("--operator-profile is required for product controls")
-    }
+    let operatorProfilePath = try resolvedProductOperatorProfilePath(operatorProfilePath)
     let profile = try SuperNeoLocalOperatorProfile.load(from: URL(fileURLWithPath: operatorProfilePath))
     let contextPath = try productContextPackPath(contextPackPath, profile: profile)
     let context = try SuperNeoSignedTrustedContextPack.loadVerified(
@@ -1496,20 +1541,7 @@ private func productArtifactProvenancePath(
 }
 
 private func rejectLegacyVerifierOptionsInProductMode(_ options: VerifyOptions) throws {
-    if options.trustedKeySeed != nil
-        || options.expectedVerifierKeyDigestHex != nil
-        || options.expectedShapeDigestHex != nil
-        || options.expectedStatementDigestHex != nil
-        || options.expectedTranscriptDomainDigestHex != nil
-        || options.expectedPublicStatementDigestHex != nil
-        || options.expectedObligationRootHex != nil
-        || options.expectedLaneSummaryRootHex != nil
-        || options.expectedAggregateDigestsHex != nil
-        || options.expectedComponentDigestRootHex != nil
-        || options.expectedProofTranscriptDigestHex != nil
-        || options.expectedPublicInputs != nil
-        || options.requireTerminalProof
-        || options.requireNumiSealProof {
+    if options.hasLegacyExpectedContext || options.requireTerminalProof {
         throw CLIError.invalidArgument("product verification must take expected context only from the signed context pack")
     }
 }
@@ -2109,9 +2141,13 @@ private func requireWorkloadParameters(
     return parameters
 }
 
-private func makeNumiSealExpectedContext(options: VerifyOptions) throws -> NumiSealArtifactExpectedContext {
-    try NumiSealArtifactExpectedContext(
-        trustedKeySeedUTF8: options.trustedKeySeed,
+private func makeNumiSealExpectedContext(
+    options: VerifyOptions,
+    artifactKeySeedUTF8: String? = nil
+) throws -> NumiSealArtifactExpectedContext {
+    let trustedKeySeed = options.trustedKeySeed ?? artifactKeySeedUTF8
+    return try NumiSealArtifactExpectedContext(
+        trustedKeySeedUTF8: trustedKeySeed,
         verifierKeyDigest: options.expectedVerifierKeyDigestHex.map {
             try parseDigest256($0, name: "--expected-verifier-key-digest")
         },
@@ -2702,6 +2738,15 @@ private func parseEnvelopeHeader(_ bytes: [UInt8]) throws -> EnvelopeHeader {
 }
 
 private extension VerifyOptions {
+    var hasLegacyExpectedContext: Bool {
+        trustedKeySeed != nil
+            || expectedVerifierKeyDigestHex != nil
+            || expectedShapeDigestHex != nil
+            || expectedStatementDigestHex != nil
+            || expectedPublicInputs != nil
+            || hasNumiSealExpectedContext
+    }
+
     var hasNumiSealExpectedContext: Bool {
         expectedTranscriptDomainDigestHex != nil
             || expectedPublicStatementDigestHex != nil

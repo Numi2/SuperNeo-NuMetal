@@ -32,6 +32,7 @@ public struct SuperNeoTrustedNumiSealZKContext: Codable, Equatable, Sendable {
     public let allowedLeakageDigestsHex: [String]
     public let allowedProofBodyVersions: [UInt16]
     public let allowedMaskedResidualStatementVersions: [UInt16]
+    public let minimumSideChannelCertificationLevel: NumiSealZKSideChannelCertificationLevel
 
     public init(
         acceptedZKModes: [String] = [NumiSealZK.maskedDigitTensorMode],
@@ -48,7 +49,8 @@ public struct SuperNeoTrustedNumiSealZKContext: Codable, Equatable, Sendable {
         ],
         allowedLeakageDigestsHex: [String],
         allowedProofBodyVersions: [UInt16] = [NumiSealZKProof.bodyVersion],
-        allowedMaskedResidualStatementVersions: [UInt16] = [NumiSealZKMaskedResidualStatement.version]
+        allowedMaskedResidualStatementVersions: [UInt16] = [NumiSealZKMaskedResidualStatement.version],
+        minimumSideChannelCertificationLevel: NumiSealZKSideChannelCertificationLevel = .correctnessOnly
     ) {
         self.acceptedZKModes = acceptedZKModes
         self.acceptedSealModes = acceptedSealModes
@@ -57,6 +59,36 @@ public struct SuperNeoTrustedNumiSealZKContext: Codable, Equatable, Sendable {
         self.allowedLeakageDigestsHex = allowedLeakageDigestsHex
         self.allowedProofBodyVersions = allowedProofBodyVersions
         self.allowedMaskedResidualStatementVersions = allowedMaskedResidualStatementVersions
+        self.minimumSideChannelCertificationLevel = minimumSideChannelCertificationLevel
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case acceptedZKModes
+        case acceptedSealModes
+        case acceptedMetalModes
+        case acceptedExecutionPolicies
+        case allowedLeakageDigestsHex
+        case allowedProofBodyVersions
+        case allowedMaskedResidualStatementVersions
+        case minimumSideChannelCertificationLevel
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.acceptedZKModes = try container.decode([String].self, forKey: .acceptedZKModes)
+        self.acceptedSealModes = try container.decode([String].self, forKey: .acceptedSealModes)
+        self.acceptedMetalModes = try container.decode([String].self, forKey: .acceptedMetalModes)
+        self.acceptedExecutionPolicies = try container.decode([String].self, forKey: .acceptedExecutionPolicies)
+        self.allowedLeakageDigestsHex = try container.decode([String].self, forKey: .allowedLeakageDigestsHex)
+        self.allowedProofBodyVersions = try container.decode([UInt16].self, forKey: .allowedProofBodyVersions)
+        self.allowedMaskedResidualStatementVersions = try container.decode(
+            [UInt16].self,
+            forKey: .allowedMaskedResidualStatementVersions
+        )
+        self.minimumSideChannelCertificationLevel = try container.decodeIfPresent(
+            NumiSealZKSideChannelCertificationLevel.self,
+            forKey: .minimumSideChannelCertificationLevel
+        ) ?? .correctnessOnly
     }
 }
 

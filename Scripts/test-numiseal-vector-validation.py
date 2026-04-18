@@ -160,7 +160,7 @@ def test_manifest_legacy_verify_command_negative(cli: Path, vector: Dict[str, An
         )
 
 
-def test_manifest_verify_command_requires_numiseal_negative(cli: Path, vector: Dict[str, Any]) -> None:
+def test_manifest_verify_command_rejects_legacy_numiseal_gate_negative(cli: Path, vector: Dict[str, Any]) -> None:
     file = vector["file"]
     with tempfile.TemporaryDirectory(prefix="superneo-numiseal-command-guard-") as tmp:
         temp_root = Path(tmp)
@@ -168,7 +168,7 @@ def test_manifest_verify_command_requires_numiseal_negative(cli: Path, vector: D
         manifest = load_json(temp_vectors / MANIFEST_FILE)
         for item in manifest_vectors(manifest):
             if item["file"] == file:
-                item["verifyCommand"] = item["verifyCommand"].replace(" --require-numiseal", "")
+                item["verifyCommand"] = item["verifyCommand"].replace(" verify ", " verify --require-numiseal ", 1)
                 break
         write_json(temp_vectors / MANIFEST_FILE, manifest)
         run_expect_failure(
@@ -198,7 +198,7 @@ def main() -> None:
             test_manifest_obligation_root_negative(cli, vector)
             test_manifest_lane_summary_root_negative(cli, vector)
             test_manifest_legacy_verify_command_negative(cli, vector)
-            test_manifest_verify_command_requires_numiseal_negative(cli, vector)
+            test_manifest_verify_command_rejects_legacy_numiseal_gate_negative(cli, vector)
 
     print("NumiSeal vector validation regression tests passed")
 

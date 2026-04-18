@@ -34,6 +34,7 @@ def require_contains(relative_path: str, needles: list[str]) -> None:
 
 def validate_library_surface() -> None:
     local_controls = read("SuperNeo-NuMetal/ProductIntegration/LocalProductControls.swift")
+    side_channel = read("SuperNeo-NuMetal/ProductIntegration/NumiSealZKSideChannelCertification.swift")
     require_contains(
         "SuperNeo-NuMetal/ProductIntegration/LocalProductControls.swift",
         [
@@ -55,6 +56,16 @@ def validate_library_surface() -> None:
             "SuperNeoAuditLogStatusSnapshot",
             "contextExpiryWarningSeconds",
             "auditExportRecommendedRecordCount",
+            "not-attached-optional",
+            "attached",
+        ],
+    )
+    require_contains(
+        "SuperNeo-NuMetal/ProductIntegration/NumiSealZKSideChannelCertification.swift",
+        [
+            "minimumSideChannelCertificationLevel",
+            "correctnessOnly",
+            "guard let certificate else { return }",
         ],
     )
     require(
@@ -78,6 +89,7 @@ def validate_cli_surface() -> None:
             "writePrettyJSON(operationsStatus",
             "audit retention policy:",
             "retry policy:",
+            "numiseal zk minimum side-channel level:",
         ],
     )
 

@@ -1,9 +1,6 @@
 {
   "schemaVersion": 1,
   "scopeID": "numiseal-product-carry-zk-conformance-v1",
-  "theoremScopeManifest": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
-  "zkMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
-  "zkSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
   "surfaces": [
     {
       "conformanceVectors": [
@@ -81,15 +78,18 @@
         "SuperNeo-NuMetal/ProductIntegration/NumiSealZKSideChannelCertification.swift"
       ],
       "openFormalWork": [
-        "collect side-channel evidence before product default promotion from zkMode none to masked-digit-tensor-v1"
+        "collect side-channel evidence as optional release metadata for masked-digit-tensor-v1 product proofs"
       ],
       "testNames": [
         "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse",
         "testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch",
         "testNumiSealZKMaskSamplerUsesExactFieldRejectionSampling",
         "testNumiSealProductProverEmitsVerifiableZKV2Artifact",
-        "testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked"
+        "testNumiSealZKSideChannelCertificateIsOptionalAndBindingChecked"
       ]
     }
-  ]
+  ],
+  "theoremScopeManifest": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
+  "zkMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+  "zkSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json"
 }

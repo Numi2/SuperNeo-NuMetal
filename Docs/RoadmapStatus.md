@@ -76,8 +76,8 @@ Remaining boundary:
   system.
 - The CLI is still a local integration surface, not a hosted verifier service,
   wallet, durable replay-protection layer, or application policy engine.
-  NumiSeal acceptance is exposed through the explicit `--require-numiseal`
-  verifier path for checked immediate-residual artifacts, the public
+  NumiSeal acceptance is exposed through the default strict verifier path for
+  checked immediate-residual artifacts, the public
   `NumiSealProductAPI` generation path, and the protocol-based
   `SuperNeoNumiSealProductVerifier` facade for product integration experiments.
 
@@ -327,8 +327,9 @@ Status:
 Remaining checklist:
 
 - [ ] Hosted selected-depth recursive carry policy and loss accounting.
-- [ ] Release-hardware `NumiSealZK` benchmark refresh and side-channel evidence
-  before default promotion.
+- [x] Product-mode `NumiSealZK` is now the default for CLI and public product
+  proving APIs. Signed side-channel certificates remain optional release
+  metadata and are checked only when supplied.
 - [ ] Deployed product operations: context storage, keys, provenance, replay,
   authz, hosted audit retention, hosted revocation feed distribution, release
   signing.
@@ -340,4 +341,4 @@ Safe wording:
 
 > NumiSeal generates and verifies checked immediate-residual product artifacts
 > through supported Swift and CLI surfaces. It is not yet a
-> recursive-by-default, zero-knowledge-by-default, deployed production product.
+> recursive-by-default or a deployed production product.

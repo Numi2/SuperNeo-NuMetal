@@ -35,6 +35,6 @@
     "testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch",
     "testNumiSealZKMaskSamplerUsesExactFieldRejectionSampling",
     "testNumiSealProductProverEmitsVerifiableZKV2Artifact",
-    "testNumiSealZKSideChannelCertificateIsOptionalButBindingChecked"
+    "testNumiSealZKSideChannelCertificateIsOptionalAndBindingChecked"
   ]
 }

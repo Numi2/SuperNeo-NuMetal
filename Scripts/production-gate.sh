@@ -217,10 +217,9 @@ run_step "${NUMISEAL_VECTOR_CLI}" validate
 run_step python3 Scripts/test-numiseal-vector-validation.py --cli "${NUMISEAL_VECTOR_CLI}"
 run_step python3 Scripts/test-numiseal-superneo-cli-validation.py --cli "${SUPERNEO_CLI}"
 run_step "${SUPERNEO_CLI}" inspect "${NUMISEAL_SINGLE_VECTOR}"
-run_expect_failure "${SUPERNEO_CLI}" verify "${NUMISEAL_SINGLE_VECTOR}"
+run_step "${SUPERNEO_CLI}" verify "${NUMISEAL_SINGLE_VECTOR}"
 run_expect_failure "${SUPERNEO_CLI}" verify --require-terminal "${NUMISEAL_SINGLE_VECTOR}"
 run_step "${SUPERNEO_CLI}" verify \
-  --require-numiseal \
   --key-seed "${NUMISEAL_SINGLE_KEY_SEED}" \
   --expected-verifier-key-digest "${NUMISEAL_SINGLE_VERIFIER_KEY_DIGEST}" \
   --expected-shape-digest "${NUMISEAL_SINGLE_SHAPE_DIGEST}" \
@@ -235,11 +234,10 @@ run_step "${SUPERNEO_CLI}" verify \
   --expected-public-inputs "${NUMISEAL_ZERO_PUBLIC_INPUTS}" \
   "${NUMISEAL_SINGLE_VECTOR}"
 run_expect_failure "${SUPERNEO_CLI}" verify \
-  --require-numiseal \
   --expected-public-statement-digest "0000000000000000000000000000000000000000000000000000000000000000" \
   "${NUMISEAL_SINGLE_VECTOR}"
-run_step "${SUPERNEO_CLI}" verify --require-numiseal TestVectors/numiseal-terminal-two-aggregate-v1.json
-run_step "${SUPERNEO_CLI}" verify --require-numiseal TestVectors/numiseal-terminal-two-lane-v1.json
+run_step "${SUPERNEO_CLI}" verify TestVectors/numiseal-terminal-two-aggregate-v1.json
+run_step "${SUPERNEO_CLI}" verify TestVectors/numiseal-terminal-two-lane-v1.json
 run_step Scripts/test-vector-manifest-validation.py
 
 lattice_path="$(make_temp_json)"
@@ -434,11 +432,9 @@ run_step "${SUPERNEO_CLI}" prove \
   --output "${numiseal_product_path}"
 run_step Scripts/validate-e2e-proof-metrics.py --generated-product-artifact "numiseal-product-smoke:${numiseal_product_path}"
 run_step "${SUPERNEO_CLI}" inspect "${numiseal_product_path}"
-run_expect_failure "${SUPERNEO_CLI}" verify "${numiseal_product_path}"
+run_step "${SUPERNEO_CLI}" verify "${numiseal_product_path}"
 run_expect_failure "${SUPERNEO_CLI}" verify --require-terminal "${numiseal_product_path}"
-run_step "${SUPERNEO_CLI}" verify --require-numiseal "${numiseal_product_path}"
 run_expect_failure "${SUPERNEO_CLI}" verify \
-  --require-numiseal \
   --expected-public-inputs 0 \
   "${numiseal_product_path}"
 
@@ -469,11 +465,9 @@ assert metadata["zkMaskedResidualStatementCount"] == "1"
 assert len(metadata["zkRandomnessSessionDigest"]) == 64
 assert len(metadata["zkLeakageDigest"]) == 64
 PY
-run_expect_failure "${SUPERNEO_CLI}" verify "${numiseal_zk_product_path}"
+run_step "${SUPERNEO_CLI}" verify "${numiseal_zk_product_path}"
 run_expect_failure "${SUPERNEO_CLI}" verify --require-terminal "${numiseal_zk_product_path}"
-run_step "${SUPERNEO_CLI}" verify --require-numiseal "${numiseal_zk_product_path}"
 run_expect_failure "${SUPERNEO_CLI}" verify \
-  --require-numiseal \
   --expected-public-inputs 0 \
   "${numiseal_zk_product_path}"
 

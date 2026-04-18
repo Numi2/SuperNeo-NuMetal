@@ -1385,12 +1385,11 @@ public struct SuperNeoProductOperationsStatus: Codable, Equatable, Sendable {
         let sideChannelCertificateStatus: String
         if payload.acceptedProofKinds.contains(.numiSealZK) {
             if sideChannelCertificate == nil {
-                sideChannelCertificateStatus = "missing-for-numiseal-zk"
+                sideChannelCertificateStatus = "not-attached-optional"
                 appendCheck(
                     "side-channel-certificate",
-                    .warn,
-                    "trusted context accepts numiseal-zk without an attached side-channel certificate",
-                    remediation: "attach a signed side-channel certificate when promoting a reviewed hardware lane"
+                    .ok,
+                    "trusted context accepts numiseal-zk without requiring a side-channel certificate"
                 )
             } else {
                 sideChannelCertificateStatus = "attached"
