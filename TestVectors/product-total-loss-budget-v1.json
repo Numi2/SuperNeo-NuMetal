@@ -125,10 +125,10 @@
       "sourceManifest": "TestVectors/product-extractor-loss-accounting-v1.json",
       "currentMultiplicityAtSelectedDepth": 1,
       "requiredForSelectedDepth": true,
-      "lossInstantiated": false,
-      "boundLog2": null,
-      "exactUpperBound": null,
-      "requiredEvidence": "residual concrete Swift extractor failure bound for source fold, terminal seal, and product-envelope composition after shared core failures are charged once through epsilon_core_shared"
+      "lossInstantiated": true,
+      "boundLog2": 384,
+      "exactUpperBound": "0",
+      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus NumiSealProductConcreteExtractor.extract and swiftConcreteExtractorEvidenceDigest metadata instantiate epsilon_extract(depth=1) = 0 by deterministic post-acceptance replay; CTCO knowledge extraction remains charged in per-kind theorem assumptions"
     },
     {
       "id": "transcript-collision-domain-separation",
@@ -177,9 +177,8 @@
   ],
   "computedBudget": {
     "requiredTermCount": 10,
-    "instantiatedRequiredTermCount": 6,
+    "instantiatedRequiredTermCount": 7,
     "missingRequiredTermIDs": [
-      "extractor-instantiation",
       "product-ops-replay",
       "constant-time-side-channel",
       "release-signing-notarization"
@@ -203,7 +202,8 @@
     "productionTotalLossClaimAllowed": false,
     "nonDyadicFiniteProtocolRationalsPinned": true,
     "sourceFoldRepeatedTapeExpressionExact": "epsilon_fold <= 16/q^4 + 1/5^81",
-    "terminalCE226ExpressionExact": "epsilon_terminal_ce <= (2/3)^226"
+    "terminalCE226ExpressionExact": "epsilon_terminal_ce <= (2/3)^226",
+    "extractorExpressionExact": "epsilon_extract(depth=1) = 0"
   },
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,

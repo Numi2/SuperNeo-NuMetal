@@ -44,20 +44,23 @@
     "componentDigestRootBound": true,
     "proofTranscriptDigestBound": true,
     "ctcoContextBinder384Bound": true,
-    "challengeTapeSeedBound": true
+    "challengeTapeSeedBound": true,
+    "concreteExtractorSurface": "NumiSealProductConcreteExtractor.extract",
+    "concreteExtractorEvidenceDigestMetadataKey": "swiftConcreteExtractorEvidenceDigest"
   },
   "coveredByTests": [
     "testPublicNumiSealProductAPIGeneratesOneHotArtifactWithTraceAndQROMEvidence",
     "testPublicNumiSealProductAPIGeneratesBinaryAdditionArtifact",
-    "testNumiSealProductProverEmitsVerifiableV2Artifact"
+    "testNumiSealProductProverEmitsVerifiableV2Artifact",
+    "testNumiSealProductConcreteExtractorReplaysAcceptedProductBindings"
   ],
   "promotionRule": {
     "productionExtractorClaimAllowed": false,
     "releaseEvidenceOnly": true,
     "remainingBoundaries": [
-      "release-grade code review must confirm this Swift trace surface is the theorem-consumed extractor surface",
-      "numeric extractor failure loss remains in TestVectors/product-extractor-loss-accounting-v1.json",
-      "selected total-loss promotion remains disabled until extractor loss is instantiated"
+      "release-grade code review must confirm this Swift trace surface remains the theorem-consumed extractor surface",
+      "selected total-loss promotion remains disabled until hosted replay, constant-time, and release-distribution terms are instantiated",
+      "recursive carry extraction remains required before any promoted-depth production claim"
     ]
   }
 }

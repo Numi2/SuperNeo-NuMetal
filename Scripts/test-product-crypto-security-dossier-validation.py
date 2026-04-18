@@ -96,10 +96,10 @@ def main() -> None:
         write_json(path, missing_extractor_accounting)
         run_fail(str(VALIDATE), str(path))
 
-        premature_extractor = copy.deepcopy(dossier)
-        premature_extractor["extractorLossAccounting"]["productionExtractorClaimAllowed"] = True
+        missing_extractor = copy.deepcopy(dossier)
+        missing_extractor["extractorLossAccounting"]["productionExtractorClaimAllowed"] = False
         path = tmp / "premature-extractor.json"
-        write_json(path, premature_extractor)
+        write_json(path, missing_extractor)
         run_fail(str(VALIDATE), str(path))
 
         missing_qrom_accounting = copy.deepcopy(dossier)

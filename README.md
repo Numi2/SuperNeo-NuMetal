@@ -30,10 +30,11 @@ Current safe claim:
 > selected product theorem uses the fixed-kind CTCO repeated-tape route instead.
 > That route instantiates the source-fold finite term with two PiCCS tapes and
 > three generic CRT PiRLC branches, and instantiates terminal CE at 226 rounds.
-> The remaining non-production terms are separate evidence terms: numeric
-> extractor loss instantiation, release-grade Swift trace/extractor equivalence,
-> operations, side-channel, release-distribution loss terms, and full production
-> audit records.
+> The selected-depth Swift extractor term is now instantiated as deterministic
+> post-acceptance replay with `epsilon_extract(depth=1) = 0`. The remaining
+> non-production terms are separate evidence terms: hosted operations replay,
+> side-channel, release-distribution loss terms, recursive carry extraction for
+> promoted depths, and full production audit records.
 
 This is not a production-security claim. The repo does not claim production
 post-quantum security, production QROM security, whole-stack constant-time
@@ -90,15 +91,15 @@ endpoints and must still not be confused with product/security evidence status:
 
 The remaining product/security evidence gaps are separate:
 
-- instantiate numeric extractor, operations, side-channel, and
+- instantiate operations, side-channel, and
   release-distribution loss terms in the selected total-loss budget; the
   one-shot source-fold profile remains mathematically non-128-bit
   (`5^54 < 2^128`, generic CRT PiRLC gives `1/5^27`, and the loose PiCCS
   certificate is `72/q^2`), while the selected fixed-kind CTCO repeated-tape
   route now supplies `epsilon_fold <= 16/q^4 + 1/5^81` and terminal CE is
   pinned at 226 repeated challenge rounds;
-- complete release-grade Swift trace/extractor equivalence review for the
-  pinned executable trace evidence;
+- keep release-grade Swift trace/extractor equivalence pinned to the concrete
+  selected-depth replay surface;
 - extend recursive carry from checked local chain replay into the selected
   hosted production-depth policy;
 - record release-hardware NumiSealZK benchmark evidence and side-channel review

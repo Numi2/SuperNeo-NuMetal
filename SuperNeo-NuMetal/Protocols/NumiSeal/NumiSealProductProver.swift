@@ -1072,6 +1072,21 @@ public final class NumiSealProductProver: @unchecked Sendable {
             challengeTapeSeed: ctcoChallengeSeed,
             traceEvidenceDigest: traceEvidenceDigest
         )
+        let concreteExtractorDigest = NumiSealProductConcreteExtraction.digest(
+            sourceFoldHeader: sourceEnvelope.header,
+            productProofHeader: productProofHeader,
+            sourceFoldOutputClaims: sourceFold.outputClaims.map(NumiSealProductConcreteExtraction.publicDataOnly),
+            sourceFoldOutputClaimDigests: outputClaimDigests,
+            obligations: obligations.map(\.obligation),
+            publicStatementDigest: numiSealEnvelope.proof.publicStatement.digest,
+            obligationRoot: numiSealEnvelope.proof.publicStatement.obligationRoot,
+            laneSummaryRoot: numiSealEnvelope.proof.publicStatement.laneSummaryRoot,
+            aggregateDigests: numiSealEnvelope.proof.laneProofs.map(\.aggregateDigest),
+            componentDigestRoot: numiSealProductProof.componentDigestRoot,
+            proofTranscriptDigest: numiSealProductProof.transcriptDigest,
+            traceExtractorEvidenceDigest: traceEvidenceDigest,
+            qromEvidenceDigest: qromEvidenceDigest
+        )
         var policyMetadata = [
             "sourceFoldKind": "fold-reduction",
             "numiSealProofKind": numiSealProductProof.proofKind,
@@ -1080,6 +1095,8 @@ public final class NumiSealProductProver: @unchecked Sendable {
             "frontendContextDigest": frontendContext.contextDigest.hexString,
             "swiftTraceExtractorSurface": "source-fold-output-claims-to-numiseal-obligations-v1",
             "swiftTraceExtractorEvidenceDigest": traceEvidenceDigest.hexString,
+            "swiftConcreteExtractorSurface": "post-acceptance-source-fold-terminal-envelope-replay-v1",
+            "swiftConcreteExtractorEvidenceDigest": concreteExtractorDigest.hexString,
             "ctcoCompilerFamily": "ctco",
             "ctcoContextBinder384Hex": productProofHeader.ctcoContextBinder.hexString,
             "ctcoRoot384Hex": ctcoCommitment.root.hexString,

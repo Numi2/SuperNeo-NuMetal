@@ -236,8 +236,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productExtractorLossAccountingClaimStatus"),
             "productExtractorLossAccountingClaimStatus",
-        ) == "extractor-loss-contract-not-production-claim",
-        "product extractor loss accounting claim status must stay precise",
+        ) == "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
+        "product extractor loss accounting claim status must record selected-depth instantiation",
     )
     require(
         require_int(
@@ -498,8 +498,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_int(
             surfaces.get("productTotalLossBudgetInstantiatedRequiredTermCount"),
             "productTotalLossBudgetInstantiatedRequiredTermCount",
-        ) == 6,
-        "product total-loss budget must instantiate shared-core, repeated finite-protocol, CTCO compiler, H_bind collision, terminal CE, and zero proof-level ZK simulator terms",
+        ) == 7,
+        "product total-loss budget must instantiate shared-core, repeated finite-protocol, CTCO compiler, H_bind collision, terminal CE, zero proof-level ZK simulator, and zero extractor terms",
     )
     require(
         surfaces.get("productTotalLossBudgetWithinBudget") is False,

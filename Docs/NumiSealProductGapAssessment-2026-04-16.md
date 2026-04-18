@@ -67,8 +67,8 @@ side-channel, operations, and audit evidence tracked outside the Lean theorem.
   probability ledger. Remaining NumiSeal-specific work is release-grade Swift
   review of the pinned Swift extractor/trace surface, hosted selected-depth
   typed carry policy, release-hardware side-channel evidence, and numeric
-  total-loss instantiation for source-fold, terminal, extractor, product
-  operations, side-channel, and release terms. The ideal split-QRO
+  total-loss instantiation for product operations, side-channel, and release
+  terms. The ideal split-QRO
   compiler-overhead term and proof-level NumiSealZK simulator loss are now
   instantiated as zero, per-kind interactive security bounds are pinned outside
   `epsilon_qrom`, and the exact partial total-loss budget is wired.

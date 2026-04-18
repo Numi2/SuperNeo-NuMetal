@@ -281,6 +281,238 @@ public struct NumiSealProductQROMEvidence: Equatable, Sendable {
     }
 }
 
+public struct NumiSealProductConcreteExtraction: Equatable, Sendable {
+    public let sourceFoldHeader: ProofEnvelopeHeader
+    public let productProofHeader: ProofEnvelopeHeader
+    public let sourceFoldOutputClaims: [CCSEvaluationClaim]
+    public let sourceFoldOutputClaimDigests: [Digest256]
+    public let obligations: [NumiSealObligation]
+    public let publicStatementDigest: Digest256
+    public let obligationRoot: Digest256
+    public let laneSummaryRoot: Digest256
+    public let aggregateDigests: [Digest256]
+    public let componentDigestRoot: Digest256
+    public let proofTranscriptDigest: Digest256
+    public let traceExtractorEvidence: NumiSealProductTraceExtractorEvidence
+    public let qromEvidence: NumiSealProductQROMEvidence
+    public let extractionDigest: Digest256
+
+    public init(
+        sourceFoldHeader: ProofEnvelopeHeader,
+        productProofHeader: ProofEnvelopeHeader,
+        sourceFoldOutputClaims: [CCSEvaluationClaim],
+        sourceFoldOutputClaimDigests: [Digest256],
+        obligations: [NumiSealObligation],
+        publicStatementDigest: Digest256,
+        obligationRoot: Digest256,
+        laneSummaryRoot: Digest256,
+        aggregateDigests: [Digest256],
+        componentDigestRoot: Digest256,
+        proofTranscriptDigest: Digest256,
+        traceExtractorEvidence: NumiSealProductTraceExtractorEvidence,
+        qromEvidence: NumiSealProductQROMEvidence
+    ) {
+        self.sourceFoldHeader = sourceFoldHeader
+        self.productProofHeader = productProofHeader
+        self.sourceFoldOutputClaims = sourceFoldOutputClaims.map(Self.publicDataOnly)
+        self.sourceFoldOutputClaimDigests = sourceFoldOutputClaimDigests
+        self.obligations = obligations
+        self.publicStatementDigest = publicStatementDigest
+        self.obligationRoot = obligationRoot
+        self.laneSummaryRoot = laneSummaryRoot
+        self.aggregateDigests = aggregateDigests
+        self.componentDigestRoot = componentDigestRoot
+        self.proofTranscriptDigest = proofTranscriptDigest
+        self.traceExtractorEvidence = traceExtractorEvidence
+        self.qromEvidence = qromEvidence
+        self.extractionDigest = Self.digest(
+            sourceFoldHeader: sourceFoldHeader,
+            productProofHeader: productProofHeader,
+            sourceFoldOutputClaims: self.sourceFoldOutputClaims,
+            sourceFoldOutputClaimDigests: sourceFoldOutputClaimDigests,
+            obligations: obligations,
+            publicStatementDigest: publicStatementDigest,
+            obligationRoot: obligationRoot,
+            laneSummaryRoot: laneSummaryRoot,
+            aggregateDigests: aggregateDigests,
+            componentDigestRoot: componentDigestRoot,
+            proofTranscriptDigest: proofTranscriptDigest,
+            traceExtractorEvidenceDigest: traceExtractorEvidence.evidenceDigest,
+            qromEvidenceDigest: qromEvidence.evidenceDigest
+        )
+    }
+
+    public static func digest(
+        sourceFoldHeader: ProofEnvelopeHeader,
+        productProofHeader: ProofEnvelopeHeader,
+        sourceFoldOutputClaims: [CCSEvaluationClaim],
+        sourceFoldOutputClaimDigests: [Digest256],
+        obligations: [NumiSealObligation],
+        publicStatementDigest: Digest256,
+        obligationRoot: Digest256,
+        laneSummaryRoot: Digest256,
+        aggregateDigests: [Digest256],
+        componentDigestRoot: Digest256,
+        proofTranscriptDigest: Digest256,
+        traceExtractorEvidenceDigest: Digest256,
+        qromEvidenceDigest: Digest256
+    ) -> Digest256 {
+        let publicClaims = sourceFoldOutputClaims.map(Self.publicDataOnly)
+        return NumiSealEncoding.digest(
+            label: "numiseal.product.concrete-extractor.v1",
+            bytes: sourceFoldHeader.superNeoBytes
+                + productProofHeader.superNeoBytes
+                + numiSealEncodeCount(publicClaims.count)
+                + publicClaims.flatMap { CEInstance($0).superNeoBytes }
+                + numiSealEncodeCount(sourceFoldOutputClaimDigests.count)
+                + sourceFoldOutputClaimDigests.flatMap(\.superNeoBytes)
+                + numiSealEncodeCount(obligations.count)
+                + obligations.flatMap(\.superNeoBytes)
+                + publicStatementDigest.superNeoBytes
+                + obligationRoot.superNeoBytes
+                + laneSummaryRoot.superNeoBytes
+                + numiSealEncodeCount(aggregateDigests.count)
+                + aggregateDigests.flatMap(\.superNeoBytes)
+                + componentDigestRoot.superNeoBytes
+                + proofTranscriptDigest.superNeoBytes
+                + traceExtractorEvidenceDigest.superNeoBytes
+                + qromEvidenceDigest.superNeoBytes
+        )
+    }
+
+    public static func publicDataOnly(_ claim: CCSEvaluationClaim) -> CCSEvaluationClaim {
+        CCSEvaluationClaim(
+            commitment: claim.commitment,
+            publicInput: claim.publicInput,
+            point: claim.point,
+            evaluations: claim.evaluations,
+            witness: nil
+        )
+    }
+}
+
+public enum NumiSealProductConcreteExtractor {
+    public static func extract(
+        artifact: NumiSealProductArtifact,
+        trustedContext: NumiSealProductTrustedContext,
+        sourcePublicInput: SuperNeoPublicFoldInput,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters = .goldilocks,
+        metalContext: MetalExecutionContext? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .highAssurance,
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil
+    ) throws -> NumiSealProductConcreteExtraction {
+        try requireTrustedContext(trustedContext, matches: artifact)
+        let verification = try NumiSealProductVerifier().verify(
+            artifact: artifact,
+            sourcePublicInput: sourcePublicInput,
+            key: key,
+            parameters: parameters,
+            metalContext: metalContext,
+            executionPolicy: executionPolicy,
+            recursiveCarryParent: recursiveCarryParent
+        )
+        guard verification.sourceFoldResult.isReductionAccepted else {
+            throw SuperNeoError.verificationFailed(
+                "NumiSeal product extractor requires accepted source fold reduction"
+            )
+        }
+        guard verification.numiSealResult.isValid,
+              let terminalEnvelope = verification.numiSealResult.envelope else {
+            throw SuperNeoError.verificationFailed(
+                "NumiSeal product extractor requires accepted terminal seal proof"
+            )
+        }
+
+        let sourceBytes = try artifact.sourceFoldEnvelopeBytes()
+        let proofBytes = try artifact.proofEnvelopeBytes()
+        let sourceHeader = try ProofEnvelopeHeader.parsePrefix(from: sourceBytes)
+        let productHeader = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
+        let sourceDigest = Digest256.hash(sourceBytes)
+        let sourceStatement = CCSStatement(
+            shapeDigest: sourcePublicInput.shape.shapeDigest,
+            ccsInstances: sourcePublicInput.instances,
+            priorCEInstances: sourcePublicInput.priorClaims.map { CEInstance($0) }
+        )
+        let sourceOutputClaims = verification.sourceFoldResult.outputClaims
+        let sourceOutputDigests = try sourceOutputClaims.enumerated().map { index, claim in
+            try NumiSealProductProver.sourceFoldOutputClaimDigest(
+                sourceFoldEnvelopeDigest: sourceDigest,
+                claim: claim,
+                outputIndex: index
+            )
+        }
+        guard sourceOutputDigests.map(\.hexString) == artifact.sourceFoldOutputClaimDigestsHex else {
+            throw SuperNeoError.verificationFailed(
+                "NumiSeal product extractor source output digest mismatch"
+            )
+        }
+        guard let laneIDValue = artifact.laneIDsUTF8.first, artifact.laneIDsUTF8.count == 1 else {
+            throw SuperNeoError.verificationFailed(
+                "NumiSeal product extractor requires exactly one lane id"
+            )
+        }
+        let laneID = try NumiSealLaneID(laneIDValue)
+        let obligations = try NumiSealProductProver.makeObligations(
+            claims: sourceOutputClaims,
+            laneID: laneID,
+            profileID: parameters.profileID,
+            statement: sourceStatement,
+            verifierKeyDigest: key.verifierKeyDigest,
+            sourceFoldOutputClaimDigests: sourceOutputDigests
+        )
+        let proof = terminalEnvelope.proof
+        let aggregateDigests = proof.laneProofs.map(\.aggregateDigest)
+        guard proof.publicStatement.digest.hexString == artifact.publicStatementDigestHex,
+              proof.publicStatement.obligationRoot.hexString == artifact.obligationRootHex,
+              proof.publicStatement.laneSummaryRoot.hexString == artifact.laneSummaryRootHex,
+              aggregateDigests.map(\.hexString) == artifact.aggregateDigestsHex,
+              proof.componentDigestRoot.hexString == artifact.componentDigestRootHex,
+              proof.transcriptDigest.hexString == artifact.proofTranscriptDigestHex else {
+            throw SuperNeoError.verificationFailed(
+                "NumiSeal product extractor terminal binding mismatch"
+            )
+        }
+        let traceEvidence = try NumiSealProductTraceExtractorEvidence.make(
+            artifact: artifact,
+            trustedContext: trustedContext
+        )
+        let qromEvidence = NumiSealProductQROMEvidence.ctco(traceEvidence: traceEvidence)
+        return NumiSealProductConcreteExtraction(
+            sourceFoldHeader: sourceHeader,
+            productProofHeader: productHeader,
+            sourceFoldOutputClaims: sourceOutputClaims,
+            sourceFoldOutputClaimDigests: sourceOutputDigests,
+            obligations: obligations,
+            publicStatementDigest: proof.publicStatement.digest,
+            obligationRoot: proof.publicStatement.obligationRoot,
+            laneSummaryRoot: proof.publicStatement.laneSummaryRoot,
+            aggregateDigests: aggregateDigests,
+            componentDigestRoot: proof.componentDigestRoot,
+            proofTranscriptDigest: proof.transcriptDigest,
+            traceExtractorEvidence: traceEvidence,
+            qromEvidence: qromEvidence
+        )
+    }
+
+    private static func requireTrustedContext(
+        _ trustedContext: NumiSealProductTrustedContext,
+        matches artifact: NumiSealProductArtifact
+    ) throws {
+        guard artifact.workload == trustedContext.workload,
+              artifact.bitCount == trustedContext.bitCount,
+              artifact.publicInputs == trustedContext.publicInputs,
+              artifact.workloadParameters == trustedContext.workloadParameters,
+              artifact.sourceApplicationPathUTF8 == trustedContext.sourceApplicationPathUTF8,
+              artifact.laneIDsUTF8 == [trustedContext.laneID.utf8String],
+              artifact.executionPolicyMetadata["frontendContextDigest"] == trustedContext.contextDigest.hexString else {
+            throw SuperNeoError.invalidParameter(
+                "NumiSeal product extractor trusted context mismatch"
+            )
+        }
+    }
+}
+
 public struct NumiSealProductProvingOutput: Sendable {
     public let artifact: NumiSealProductArtifact
     public let trustedContext: NumiSealProductTrustedContext

@@ -64,8 +64,8 @@ soundness and hosted selected-depth recursive carry are not claimed.
 
 Depth promotion requires:
 
-- concrete Swift extractor evidence for every accepted source fold and terminal
-  NumiSeal layer,
+- recursive typed carry extractor evidence for promoted depths beyond the
+  selected depth-1 zero-hop profile,
 - typed-required recursive child product carry extended from the local checked
   parent-child handoff to the selected hosted production depth with replay
   semantics,
@@ -153,35 +153,34 @@ cannot be used to promote a one-shot selected-depth claim.
 
 `TestVectors/product-extractor-loss-accounting-v1.json` is the checked
 extractor loss accounting contract. It pins the selected depth, accepted input
-bindings, transcript rewind model, and four extractor loss terms:
+bindings, deterministic post-acceptance replay model, and four extractor loss
+terms:
 
 - source fold extractor loss,
 - terminal NumiSeal seal extractor loss,
 - product envelope composition extractor loss, and
 - recursive carry extractor loss for future depth promotion.
 
-At the current depth, the extractor contract records:
+At the current depth, the extractor contract records the selected replay loss
+as exact zero:
 
 ```text
-epsilon_extract(depth=1) =
-  epsilon_extract_source_fold
-  + epsilon_extract_terminal
-  + epsilon_extract_product
+epsilon_extract(depth=1) = 0
 ```
 
 For future recursive promotion, it records:
 
 ```text
 epsilon_extract(depth=d) =
-  d * (epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product)
-  + max(d - 1, 0) * epsilon_extract_carry
+  d * 0 + max(d - 1, 0) * epsilon_extract_carry
 ```
 
-This is not a completed extractor proof. It deliberately keeps
-`concreteExtractorImplemented = false`, `extractorLossWithinBudget = false`,
-and `productionExtractorClaimAllowed = false` until the Swift extractor is
-implemented over the actual proof-envelope bytes and the numeric loss is inside
-the selected total budget. `ProductSecurityTheorem` exposes
+This is not a production product-security claim. The selected-depth Swift
+surface `NumiSealProductConcreteExtractor.extract` replays accepted source fold,
+terminal seal, product envelope, trusted-context, trace-evidence, and QROM
+bindings and records `swiftConcreteExtractorEvidenceDigest` in product metadata.
+Recursive carry extraction remains required before promoted-depth production
+claims. `ProductSecurityTheorem` exposes
 `ProductExtractorLossAccounting`,
 `ProductExtractorLossAccountingAccepted`, and
 `productSecurityTheorem_requires_extractor_loss_accounting`.
@@ -410,18 +409,18 @@ charge rather than a flat duplicate sum of the same core event.
 The current manifest intentionally records:
 
 - `requiredTermCount = 10`,
-- `instantiatedRequiredTermCount = 4`,
-- `exactInstantiatedRequiredTermUpperBound =
-  42535295865117307932921825928971026441/2^254`
-  (`1/2^129 + 9/2^254`, with zero-valued QROM compiler-overhead and
-  ZK-simulator terms instantiated exactly),
+- `instantiatedRequiredTermCount = 7`,
+- `exactInstantiatedRequiredTermUpperBound` is the exact rational sum of the
+  shared core term, repeated-tape source-fold term, terminal CE 226 term,
+  zero-valued QROM compiler-overhead, zero-valued ZK simulator term,
+  zero-valued extractor term, and H_bind collision term,
 - `exactSelectedDepthLossUpperBound = null`,
 - `selectedDepthLossWithinBudget = false`, and
 - `productionTotalLossClaimAllowed = false`.
 
 This does not prove product security. It prevents a future product-security
-claim from bypassing finite-protocol, numeric extractor, operations,
-constant-time, and release-distribution loss terms or from double-counting
+claim from bypassing operations, constant-time, and release-distribution loss
+terms or from double-counting
 `epsilon_core_shared` or `epsilon_collision` inside another ledger term.
 
 ## Release Distribution Evidence

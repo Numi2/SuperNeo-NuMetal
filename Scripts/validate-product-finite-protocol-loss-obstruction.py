@@ -477,7 +477,7 @@ def validate_ledger_decision(manifest: dict[str, Any]) -> None:
     require(decision.get("oneShotSourceFoldProfile128BitClaimAllowed") is False, "one-shot source fold claim must be blocked")
     require(decision.get("sourceFoldLossInstantiated") is True, "source fold finite loss must be instantiated by repeated tapes")
     require(decision.get("terminalSealLossInstantiated") is True, "terminal CE finite loss must be instantiated at 226 rounds")
-    require_false(decision.get("extractorLossInstantiated"), "ledgerDecision.extractorLossInstantiated")
+    require(decision.get("extractorLossInstantiated") is True, "ledgerDecision.extractorLossInstantiated must be true")
     require_false(decision.get("selectedTotalLossBudgetPromotionAllowed"), "ledgerDecision.selectedTotalLossBudgetPromotionAllowed")
     require(decision.get("fixedKindRepeatedTapeRouteRequired") is True, "fixed-kind repeated-tape route must be required")
     require(decision.get("dispatcherCorollaryOnlyAfterFixedKindPlans") is True, "dispatcher corollary gating mismatch")
@@ -500,7 +500,7 @@ def validate_ledger_decision(manifest: dict[str, Any]) -> None:
         require(needle in accounting, f"fixed-kind ledger accounting must mention {needle}")
     options = require_string_list(decision.get("nextMathematicalOptions"), "ledgerDecision.nextMathematicalOptions")
     joined = " ".join(options).lower()
-    for needle in ["fixed-kind", "repeated-tape", "226", "extractor"]:
+    for needle in ["fixed-kind", "repeated-tape", "226", "hosted replay"]:
         require(needle in joined, f"next mathematical options must mention {needle}")
 
     total_budget = read_json(ROOT / "TestVectors/product-total-loss-budget-v1.json")
@@ -512,7 +512,8 @@ def validate_ledger_decision(manifest: dict[str, Any]) -> None:
         require(component.get("lossInstantiated") is True, f"total-loss {component_id}.lossInstantiated must be true")
     for component_id in ["extractor-instantiation"]:
         component = require_dict(by_id.get(component_id), f"total-loss {component_id}")
-        require_false(component.get("lossInstantiated"), f"total-loss {component_id}.lossInstantiated")
+        require(component.get("lossInstantiated") is True, f"total-loss {component_id}.lossInstantiated must be true")
+        require(component.get("exactUpperBound") == "0", f"total-loss {component_id}.exactUpperBound must be 0")
 
 
 def validate_manifest(path: Path) -> None:

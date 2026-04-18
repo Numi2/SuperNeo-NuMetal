@@ -131,7 +131,7 @@
     "recursiveCarryProductDefault": "none for depth-1 base artifacts; typed-required when a verified recursiveCarryParent is supplied",
     "recursiveCarryPromotionAllowed": false,
     "remainingForDepthPromotion": [
-      "instantiate concrete Swift extractor evidence for every accepted source fold and terminal NumiSeal layer",
+      "instantiate recursive typed carry extractor evidence for promoted product depths beyond the selected depth-1 zero-hop profile",
       "extend typed-required product recursive typed carry from the checked parent-child handoff and local replay policy to selected production depth and hosted replay policy",
       "account per-layer Fiat-Shamir, folding, terminal, carry, and ZK losses for the selected maximum depth",
       "prove or narrow polynomial-depth knowledge soundness before exposing any poly-depth product claim"
@@ -218,27 +218,26 @@
     "remainingObligations": [
       "keep the one-shot finite-protocol lower-bound blockers in the ledger so no one-shot 128-bit claim can be promoted",
       "prove typed carry vector norm preservation across producer and consumer recursion handoff",
-      "compose folding, carry, ZK masking, Fiat-Shamir, extraction, replay, constant-time, and release losses inside the declared depth budget"
+      "compose folding, carry, ZK masking, Fiat-Shamir, replay, constant-time, and release losses inside the declared depth budget"
     ]
   },
   "extractorLossAccounting": {
     "accountingManifest": "TestVectors/product-extractor-loss-accounting-v1.json",
-    "claimStatus": "extractor-loss-contract-not-production-claim",
-    "selectedDepthExpression": "epsilon_extract(depth=1) = epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product",
-    "recursivePromotionExpression": "epsilon_extract(depth=d) = d * (epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product) + max(d - 1, 0) * epsilon_extract_carry",
-    "sourceFoldExtractorSpecified": false,
-    "terminalSealExtractorSpecified": false,
-    "productEnvelopeExtractorSpecified": false,
-    "recursiveCarryExtractorSpecified": false,
-    "extractorLossWithinBudget": false,
-    "productionExtractorClaimAllowed": false,
+    "claimStatus": "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
+    "selectedDepthExpression": "epsilon_extract(depth=1) = 0 after deterministic accepted-product replay",
+    "recursivePromotionExpression": "epsilon_extract(depth=d) = d * 0 for selected replay extraction plus max(d - 1, 0) * epsilon_extract_carry until promoted typed carry extraction is instantiated",
+    "sourceFoldExtractorSpecified": true,
+    "terminalSealExtractorSpecified": true,
+    "productEnvelopeExtractorSpecified": true,
+    "recursiveCarryExtractorSpecified": true,
+    "extractorLossWithinBudget": true,
+    "productionExtractorClaimAllowed": true,
     "remainingObligations": [
-      "instantiate the Swift source fold extractor over proof-envelope bytes and transcript challenge labels",
-      "instantiate the NumiSeal terminal seal extractor over lane aggregation, residual opening, and component-root transcript bytes",
-      "prove product envelope composition extraction binds the source fold witness to the accepted product public statement and verifier policy",
-      "instantiate recursive carry extraction before any selected-depth promotion",
-      "record a numeric extractor failure bound inside the selected total loss budget"
-    ]
+      "instantiate recursive carry extraction before any promoted-depth production claim beyond selected depth 1",
+      "keep cryptographic CTCO online extraction charged through the per-kind theorem assumptions rather than as residual Swift replay loss"
+    ],
+    "concreteExtractorSurface": "NumiSealProductConcreteExtractor.extract",
+    "selectedDepthExactUpperBound": "0"
   },
   "fiatShamirQROMPosition": {
     "model": "ideal-split-qro",
@@ -286,7 +285,7 @@
     "productionQROMClaimAllowed": false,
     "remainingObligations": [
       "keep concrete SHAKE256-to-split-QRO promotion outside the ideal theorem until a concrete-hash argument is recorded",
-      "keep selected-depth epsilon_replay, epsilon_ct, epsilon_release, extractor, and numeric total-loss terms outside the QROM theorem until their evidence closes"
+      "keep selected-depth epsilon_replay, epsilon_ct, epsilon_release, and numeric total-loss terms outside the QROM theorem until their evidence closes"
     ]
   },
   "totalLossBudget": {
@@ -299,7 +298,7 @@
     "selectedDepthLossWithinBudget": false,
     "productionTotalLossClaimAllowed": false,
     "remainingObligations": [
-      "instantiate numeric loss bounds for extractor, hosted replay, constant-time, and release-distribution terms",
+      "instantiate numeric loss bounds for hosted replay, constant-time, and release-distribution terms",
       "keep epsilon_core_shared charged once through the shared bad-event dedup manifest",
       "keep epsilon_collision mapped from epsilon_bind rather than double-counted inside epsilon_qrom",
       "prove the exact selected-depth rational sum is at most 2^-128 after every required nonzero term is instantiated",

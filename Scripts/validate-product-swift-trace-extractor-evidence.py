@@ -123,6 +123,11 @@ def validate(path: Path) -> None:
             require(value is True, f"extractorBinding.{key} must be true")
     require(binding.get("sourceFoldOutputClaimDigestFunction") == "NumiSealProductProver.sourceFoldOutputClaimDigest", "sourceFoldOutputClaimDigestFunction mismatch")
     require(binding.get("proofEnvelopeHeaderParser") == "ProofEnvelopeHeader.parsePrefix", "proofEnvelopeHeaderParser mismatch")
+    require(binding.get("concreteExtractorSurface") == "NumiSealProductConcreteExtractor.extract", "concreteExtractorSurface mismatch")
+    require(
+        binding.get("concreteExtractorEvidenceDigestMetadataKey") == "swiftConcreteExtractorEvidenceDigest",
+        "concreteExtractorEvidenceDigestMetadataKey mismatch",
+    )
 
     test_source = tests.read_text(encoding="utf-8")
     for test_name in require_string_list(manifest.get("coveredByTests"), "coveredByTests"):
@@ -132,7 +137,7 @@ def validate(path: Path) -> None:
     require(promotion.get("productionExtractorClaimAllowed") is False, "productionExtractorClaimAllowed must be false")
     require(promotion.get("releaseEvidenceOnly") is True, "releaseEvidenceOnly must be true")
     boundaries = " ".join(require_string_list(promotion.get("remainingBoundaries"), "remainingBoundaries")).lower()
-    for needle in ["code review", "numeric extractor", "total-loss"]:
+    for needle in ["code review", "total-loss", "recursive carry"]:
         require(needle in boundaries, f"remaining boundaries must mention {needle}")
 
 

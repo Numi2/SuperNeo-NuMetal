@@ -97,7 +97,6 @@ EXPECTED_COMPONENT_IDS = [
 ]
 
 EXPECTED_BLOCKERS = [
-    "selected-depth extractor instantiation",
     "selected total-loss budget instantiation",
     "hosted product operations replay and revocation freshness",
     "release signing and notarization",
@@ -413,6 +412,13 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "extractor-instantiation must link product extractor loss accounting",
             )
             require_relative_path(component.get("accountingManifest"), "extractor-instantiation.accountingManifest")
+            require(
+                component.get("status") == "selected-depth-concrete-extractor-zero-loss-instantiated",
+                "extractor-instantiation status must record selected-depth zero-loss instantiation",
+            )
+            evidence = require_string(component.get("requiredEvidence"), "extractor-instantiation.requiredEvidence")
+            for needle in ["NumiSealProductConcreteExtractor.extract", "swiftConcreteExtractorEvidenceDigest", "epsilon_extract = 0"]:
+                require(needle in evidence, f"extractor-instantiation requiredEvidence must mention {needle}")
         if component_id == "fiat-shamir-qrom":
             require(
                 component.get("accountingManifest") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",

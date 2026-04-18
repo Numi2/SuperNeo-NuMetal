@@ -159,7 +159,7 @@
     "oneShotSourceFoldProfile128BitClaimAllowed": false,
     "sourceFoldLossInstantiated": true,
     "terminalSealLossInstantiated": true,
-    "extractorLossInstantiated": false,
+    "extractorLossInstantiated": true,
     "selectedTotalLossBudgetPromotionAllowed": false,
     "fixedKindRepeatedTapeRouteRequired": true,
     "dispatcherCorollaryOnlyAfterFixedKindPlans": true,
@@ -170,7 +170,7 @@
     "nextMathematicalOptions": [
       "keep one-shot PiRLC/PiCCS lower-bound blockers as permanent non-128-bit evidence",
       "use the fixed-kind repeated-tape source-fold bound 16/q^4 + 1/5^81 and terminal CE bound (2/3)^226 in selected-depth arithmetic",
-      "finish extractor, hosted replay, constant-time, and release-distribution numeric bounds before any total-loss promotion"
+      "finish hosted replay, constant-time, and release-distribution numeric bounds before any total-loss promotion"
     ]
   }
 }

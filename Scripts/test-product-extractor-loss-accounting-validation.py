@@ -48,10 +48,10 @@ def main() -> None:
         write_json(path, premature_depth)
         run_fail(str(VALIDATE), str(path))
 
-        premature_extractor = copy.deepcopy(accounting)
-        premature_extractor["extractorInterface"]["concreteExtractorImplemented"] = True
+        missing_extractor = copy.deepcopy(accounting)
+        missing_extractor["extractorInterface"]["concreteExtractorImplemented"] = False
         path = tmp / "premature-extractor.json"
-        write_json(path, premature_extractor)
+        write_json(path, missing_extractor)
         run_fail(str(VALIDATE), str(path))
 
         missing_terminal = copy.deepcopy(accounting)
@@ -62,10 +62,10 @@ def main() -> None:
         write_json(path, missing_terminal)
         run_fail(str(VALIDATE), str(path))
 
-        premature_budget = copy.deepcopy(accounting)
-        premature_budget["lossRule"]["extractorLossWithinBudget"] = True
+        missing_budget = copy.deepcopy(accounting)
+        missing_budget["lossRule"]["extractorLossWithinBudget"] = False
         path = tmp / "premature-budget.json"
-        write_json(path, premature_budget)
+        write_json(path, missing_budget)
         run_fail(str(VALIDATE), str(path))
 
         missing_carry_symbol = copy.deepcopy(accounting)
@@ -75,7 +75,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(accounting)
-        missing_blocker["hardClaimBlockers"].remove("product envelope composition extractor")
+        missing_blocker["hardClaimBlockers"].remove("recursive carry extractor for promoted depth beyond selected depth 1")
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))
@@ -86,10 +86,10 @@ def main() -> None:
         write_json(path, outsourced_review)
         run_fail(str(VALIDATE), str(path))
 
-        premature_promotion = copy.deepcopy(accounting)
-        premature_promotion["promotionRule"]["productionExtractorClaimAllowed"] = True
+        missing_promotion = copy.deepcopy(accounting)
+        missing_promotion["promotionRule"]["productionExtractorClaimAllowed"] = False
         path = tmp / "premature-promotion.json"
-        write_json(path, premature_promotion)
+        write_json(path, missing_promotion)
         run_fail(str(VALIDATE), str(path))
 
     print("product extractor loss accounting validation regression tests passed")

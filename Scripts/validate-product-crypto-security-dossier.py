@@ -323,7 +323,7 @@ def validate_depth(dossier: dict[str, Any]) -> None:
     total = require_dict(loss_ledger.get("totalLossRule"), "selectedDepthLossAccounting.totalLossRule")
     require_false(total.get("selectedDepthLossClaimAllowed"), "selectedDepthLossAccounting.selectedDepthLossClaimAllowed")
     blockers = " ".join(require_string_list(loss_ledger.get("hardClaimBlockers"), "selectedDepthLossAccounting.hardClaimBlockers")).lower()
-    for needle in ["extractor", "total-loss", "hosted product operations", "release signing", "swift/llvm/metal"]:
+    for needle in ["total-loss", "hosted product operations", "release signing", "swift/llvm/metal"]:
         require(needle in blockers, f"selected-depth loss ledger blockers must mention {needle}")
     require("full zk simulator" not in blockers, "selected-depth loss ledger must not keep the closed ZK simulator blocker")
     ledger_related = require_dict(loss_ledger.get("relatedManifests"), "selectedDepthLossAccounting.relatedManifests")
@@ -419,7 +419,7 @@ def validate_norm_budget(dossier: dict[str, Any]) -> None:
     for needle in ["one-shot", "repeated-tape", "pirlc", "piccs", "epsilon_fold", "2^-128"]:
         require(needle in numeric_status, f"selected numeric loss status must mention {needle}")
     obligations = " ".join(require_string_list(norm.get("remainingObligations"), "normGrowthAndFailureBudget.remainingObligations")).lower()
-    for needle in ["one-shot", "finite-protocol", "typed carry", "fiat-shamir", "extraction"]:
+    for needle in ["one-shot", "finite-protocol", "typed carry", "fiat-shamir"]:
         require(needle in obligations, f"norm-growth obligations must mention {needle}")
 
 
@@ -431,13 +431,12 @@ def validate_extractor_loss_accounting(dossier: dict[str, Any]) -> None:
     )
     require_relative_path("TestVectors/product-extractor-loss-accounting-v1.json", "extractorLossAccounting.accountingManifest")
     require(
-        extractor.get("claimStatus") == "extractor-loss-contract-not-production-claim",
-        "extractorLossAccounting.claimStatus must stay precise",
+        extractor.get("claimStatus") == "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
+        "extractorLossAccounting.claimStatus must record selected-depth instantiation",
     )
     selected = require_string(extractor.get("selectedDepthExpression"), "extractorLossAccounting.selectedDepthExpression")
     recursive = require_string(extractor.get("recursivePromotionExpression"), "extractorLossAccounting.recursivePromotionExpression")
-    for symbol in ["epsilon_extract_source_fold", "epsilon_extract_terminal", "epsilon_extract_product"]:
-        require(symbol in selected, f"extractor selected-depth expression must include {symbol}")
+    require("epsilon_extract(depth=1) = 0" in selected, "extractor selected-depth expression must be exact zero")
     require("epsilon_extract_carry" in recursive and "max(d - 1, 0)" in recursive, "extractor recursive expression must include carry-hop loss")
     for key in [
         "sourceFoldExtractorSpecified",
@@ -447,19 +446,19 @@ def validate_extractor_loss_accounting(dossier: dict[str, Any]) -> None:
         "extractorLossWithinBudget",
         "productionExtractorClaimAllowed",
     ]:
-        require_false(extractor.get(key), f"extractorLossAccounting.{key}")
+        require(extractor.get(key) is True, f"extractorLossAccounting.{key} must be true")
     obligations = " ".join(require_string_list(extractor.get("remainingObligations"), "extractorLossAccounting.remainingObligations")).lower()
-    for needle in ["swift source fold extractor", "terminal seal extractor", "product envelope", "recursive carry", "numeric extractor"]:
+    for needle in ["recursive carry", "promoted-depth", "ctco online extraction"]:
         require(needle in obligations, f"extractor loss obligations must mention {needle}")
 
     manifest = read_json(ROOT / "TestVectors/product-extractor-loss-accounting-v1.json")
     require(manifest.get("schemaVersion") == 1, "extractor accounting schemaVersion must be 1")
     require(
-        manifest.get("claimStatus") == "extractor-loss-contract-not-production-claim",
-        "extractor accounting claimStatus must stay precise",
+        manifest.get("claimStatus") == "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
+        "extractor accounting claimStatus must record selected-depth instantiation",
     )
     loss_rule = require_dict(manifest.get("lossRule"), "extractor accounting lossRule")
-    require_false(loss_rule.get("productionExtractorClaimAllowed"), "extractor accounting productionExtractorClaimAllowed")
+    require(loss_rule.get("productionExtractorClaimAllowed") is True, "extractor accounting productionExtractorClaimAllowed must be true")
 
 
 def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
@@ -549,7 +548,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     obligations = " ".join(require_string_list(qrom.get("remainingObligations"), "fiatShamirQROMPosition.remainingObligations")).lower()
     require("special-soundness" not in obligations, "interactive special-soundness must not remain a QROM obligation")
     require("simulator" not in obligations, "closed ZK simulator coupling must not remain a QROM obligation")
-    for needle in ["shake256", "epsilon_replay", "epsilon_ct", "epsilon_release", "extractor", "numeric total-loss"]:
+    for needle in ["shake256", "epsilon_replay", "epsilon_ct", "epsilon_release", "numeric total-loss"]:
         require(needle in obligations, f"QROM obligations must mention {needle}")
     schedule = read_json(ROOT / "TestVectors/product-qrom-transcript-schedule-v1.json")
     require(schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
@@ -734,7 +733,7 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
     ]:
         require_false(total.get(key), f"totalLossBudget.{key}")
     obligations = " ".join(require_string_list(total.get("remainingObligations"), "totalLossBudget.remainingObligations")).lower()
-    for needle in ["extractor", "numeric loss", "epsilon_collision", "2^-128", "release evidence"]:
+    for needle in ["numeric loss", "epsilon_collision", "2^-128", "release evidence"]:
         require(needle in obligations, f"total loss budget obligations must mention {needle}")
 
     manifest = read_json(ROOT / "TestVectors/product-total-loss-budget-v1.json")

@@ -57,14 +57,14 @@ At minimum, this requires:
   smoke corpus,
 - product integration policy for trusted context, replay protection,
   provenance, and signed revocation feeds,
-- NumiSeal conformance-scope promotion plus concrete Swift extractor
-  implementation and numeric extractor loss accounting, product recursive
-  typed carry vectors, selected total-loss budget closure, production
+- NumiSeal conformance-scope promotion plus selected-depth Swift extractor
+  replay evidence, product recursive typed carry vectors for promoted depths,
+  selected total-loss budget closure, production
   side-channel evidence, and product cryptographic security dossier promotion
   beyond depth 1,
-- selected-depth loss accounting instantiated for source-fold, terminal,
-  extractor, hosted product-ops replay, constant-time side-channel, and signed
-  release-distribution terms,
+- selected-depth loss accounting instantiated for source-fold, terminal, and
+  extractor terms, while hosted product-ops replay, constant-time side-channel,
+  and signed release-distribution terms remain tracked blockers,
 - pinned Sage-backed lattice-estimator evidence,
 - release signing/provenance,
 - branch protection requiring the full production gate.

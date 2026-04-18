@@ -12,14 +12,14 @@
         "TestVectors/numiseal-terminal-two-lane-v1.json",
         "TestVectors/numiseal-product-recursive-carry-context-v1.json"
       ],
-    "formalScope": [
-      "canonical obligation ordering",
-      "lane aggregation roots",
-      "immediate residual CE opening relation",
-      "terminal proof transcript binding",
-      "product carry-mode policy binding",
-      "product recursive carry context binding",
-      "typed-required recursive child product verification"
+      "formalScope": [
+        "canonical obligation ordering",
+        "lane aggregation roots",
+        "immediate residual CE opening relation",
+        "terminal proof transcript binding",
+        "product carry-mode policy binding",
+        "product recursive carry context binding",
+        "typed-required recursive child product verification"
       ],
       "id": "numiseal-product",
       "implementationPaths": [
@@ -29,15 +29,15 @@
         "SuperNeo-NuMetal/ProductIntegration/NumiSealProductVerifier.swift"
       ],
       "openFormalWork": [
-        "generate concrete Swift extractor evidence for product proof bytes and all recursive transcript schedules"
+        "generate recursive carry extractor evidence for promoted recursive transcript schedules beyond selected depth 1"
       ],
       "testNames": [
-      "testNumiSealProductProverEmitsVerifiableV2Artifact",
-      "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
-      "testNumiSealProductRecursiveCarryContextBindsParentArtifactAndSession",
-      "testNumiSealProductRecursiveCarryParentProducesAndVerifiesTypedRequiredChild",
-      "testNumiSealProductVerifierAcceptsThroughIntegrationHooks",
-      "testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification"
+        "testNumiSealProductProverEmitsVerifiableV2Artifact",
+        "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
+        "testNumiSealProductRecursiveCarryContextBindsParentArtifactAndSession",
+        "testNumiSealProductRecursiveCarryParentProducesAndVerifiesTypedRequiredChild",
+        "testNumiSealProductVerifierAcceptsThroughIntegrationHooks",
+        "testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification"
       ]
     },
     {

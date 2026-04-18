@@ -581,10 +581,9 @@ def validate_schema_versions() -> None:
         "selected-depth loss-accounting must not prematurely allow product-security loss claims",
     )
     blockers = selected_depth_loss.get("hardClaimBlockers")
-    require(isinstance(blockers, list) and len(blockers) == 5, "selected-depth loss-accounting must pin five hard blockers")
+    require(isinstance(blockers, list) and len(blockers) == 4, "selected-depth loss-accounting must pin four hard blockers")
     blockers_text = " ".join(str(item) for item in blockers).lower()
     for needle in [
-        "selected-depth extractor",
         "selected total-loss",
         "hosted product operations",
         "release signing",
@@ -653,14 +652,14 @@ def validate_schema_versions() -> None:
     require(isinstance(extractor_loss, dict), "extractor loss-accounting root must be an object")
     require(extractor_loss.get("schemaVersion") == 1, "extractor loss-accounting schemaVersion must be 1")
     require(
-        extractor_loss.get("claimStatus") == "extractor-loss-contract-not-production-claim",
-        "extractor loss-accounting claimStatus must stay precise",
+        extractor_loss.get("claimStatus") == "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
+        "extractor loss-accounting claimStatus must record selected-depth instantiation",
     )
     extractor_rule = extractor_loss.get("lossRule")
     require(isinstance(extractor_rule, dict), "extractor loss-accounting lossRule must be an object")
     require(
-        extractor_rule.get("productionExtractorClaimAllowed") is False,
-        "extractor loss-accounting must not prematurely allow extractor claims",
+        extractor_rule.get("productionExtractorClaimAllowed") is True,
+        "extractor loss-accounting must allow the selected-depth extractor claim",
     )
     qrom_accounting = read_json("TestVectors/product-qrom-fiat-shamir-accounting-v1.json")
     require(isinstance(qrom_accounting, dict), "QROM Fiat-Shamir accounting root must be an object")

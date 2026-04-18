@@ -47,12 +47,10 @@ EXPECTED_COMPONENT_IDS = [
 ]
 
 EXPECTED_BLOCKERS = [
-    "Swift source fold extractor implementation",
-    "terminal NumiSeal extractor implementation",
-    "product envelope composition extractor",
-    "recursive carry extractor for promoted depth",
-    "numeric extractor failure bound inside the selected total loss budget",
+    "recursive carry extractor for promoted depth beyond selected depth 1",
 ]
+
+EXPECTED_CLAIM_STATUS = "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim"
 
 
 def fail(message: str) -> None:
@@ -147,7 +145,7 @@ def validate_selected_depth(accounting: dict[str, Any]) -> None:
     require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
     require(depth.get("acceptedProductLayers") == 1, "selectedDepth.acceptedProductLayers must be 1")
     require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
-    require_false(depth.get("extractorPromotionAllowed"), "selectedDepth.extractorPromotionAllowed")
+    require(depth.get("extractorPromotionAllowed") is True, "selectedDepth.extractorPromotionAllowed must be true for selected-depth extractor promotion")
 
 
 def validate_extractor_interface(accounting: dict[str, Any]) -> None:
@@ -155,7 +153,8 @@ def validate_extractor_interface(accounting: dict[str, Any]) -> None:
     text = json.dumps(interface, sort_keys=True).lower()
     for needle in [
         "proof envelopes",
-        "public-coin transcript",
+        "post-acceptance verifier replay",
+        "ctco online extraction",
         "swift",
         "proof envelope header bytes",
         "source fold envelope bytes",
@@ -163,7 +162,19 @@ def validate_extractor_interface(accounting: dict[str, Any]) -> None:
         "recursive carry context root",
     ]:
         require(needle in text, f"extractorInterface must mention {needle}")
-    require(interface.get("concreteExtractorImplemented") is False, "concreteExtractorImplemented must stay false")
+    require(interface.get("concreteExtractorImplemented") is True, "concreteExtractorImplemented must be true")
+    require(
+        interface.get("concreteExtractorSurface") == "NumiSealProductConcreteExtractor.extract",
+        "extractorInterface.concreteExtractorSurface mismatch",
+    )
+    require(
+        interface.get("concreteExtractorEvidenceDigestMetadataKey") == "swiftConcreteExtractorEvidenceDigest",
+        "extractorInterface must pin swiftConcreteExtractorEvidenceDigest metadata",
+    )
+    require(
+        interface.get("selectedDepthLossBound") == "epsilon_extract(depth=1) = 0",
+        "extractorInterface.selectedDepthLossBound mismatch",
+    )
     require(interface.get("extractorSchedulePinned") is True, "extractorSchedulePinned must be true")
     bindings = require_string_list(interface.get("acceptedInputBindings"), "extractorInterface.acceptedInputBindings")
     require(len(bindings) >= 10, "extractorInterface must pin the accepted input binding set")
@@ -185,7 +196,11 @@ def validate_component_losses(accounting: dict[str, Any]) -> None:
         require_string(component.get("status"), f"{component_id}.status")
         require_string(component.get("accountingRule"), f"{component_id}.accountingRule")
         require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
-        require_false(component.get("lossInstantiated"), f"{component_id}.lossInstantiated")
+        require(component.get("lossInstantiated") is True, f"{component_id}.lossInstantiated must be true")
+        require(component.get("exactUpperBound") == "0", f"{component_id}.exactUpperBound must be 0")
+        require("instantiated" in require_string(component.get("status"), f"{component_id}.status"), f"{component_id}.status must record instantiation")
+        if component_id == "recursive-carry-extractor":
+            require(multiplicity == 0, "recursive-carry-extractor must have zero selected-depth multiplicity")
     require(seen_ids == EXPECTED_COMPONENT_IDS, "componentLosses must stay in the pinned extractor order")
 
 
@@ -193,26 +208,40 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     rule = require_dict(accounting.get("lossRule"), "lossRule")
     selected = require_string(rule.get("selectedDepthExpression"), "lossRule.selectedDepthExpression")
     recursive = require_string(rule.get("recursivePromotionExpression"), "lossRule.recursivePromotionExpression")
-    for symbol in ["epsilon_extract_source_fold", "epsilon_extract_terminal", "epsilon_extract_product"]:
-        require(symbol in selected, f"selected-depth extractor expression must include {symbol}")
+    require("epsilon_extract(depth=1) = 0" in selected, "selected-depth extractor expression must be exact zero")
     require("epsilon_extract_carry" in recursive and "max(d - 1, 0)" in recursive, "recursive extractor expression must include carry-hop loss")
-    require_false(rule.get("allExtractorTermsInstantiated"), "lossRule.allExtractorTermsInstantiated")
-    require_false(rule.get("extractorLossWithinBudget"), "lossRule.extractorLossWithinBudget")
-    require_false(rule.get("productionExtractorClaimAllowed"), "lossRule.productionExtractorClaimAllowed")
+    require(rule.get("allExtractorTermsInstantiated") is True, "lossRule.allExtractorTermsInstantiated must be true")
+    require(rule.get("extractorLossWithinBudget") is True, "lossRule.extractorLossWithinBudget must be true")
+    require(rule.get("productionExtractorClaimAllowed") is True, "lossRule.productionExtractorClaimAllowed must be true")
+    require(rule.get("exactSelectedDepthUpperBound") == "0", "lossRule.exactSelectedDepthUpperBound must be 0")
 
 
 def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
     blockers = require_string_list(accounting.get("hardClaimBlockers"), "hardClaimBlockers")
     require(blockers == EXPECTED_BLOCKERS, "hardClaimBlockers mismatch")
     promotion = require_dict(accounting.get("promotionRule"), "promotionRule")
-    for key in ["productionProductSecurityClaimAllowed", "productionExtractorClaimAllowed"]:
-        require_false(promotion.get(key), f"promotionRule.{key}")
+    require_false(
+        promotion.get("productionProductSecurityClaimAllowed"),
+        "promotionRule.productionProductSecurityClaimAllowed",
+    )
+    require(
+        promotion.get("productionExtractorClaimAllowed") is True,
+        "promotionRule.productionExtractorClaimAllowed must be true",
+    )
     for key in [
         "requiresConcreteExtractorImplementation",
         "requiresExtractorLossWithinBudget",
         "requiresSelectedDepthLedgerUpdate",
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(
+        promotion.get("selectedDepthExtractorClaimAllowed") is True,
+        "promotionRule.selectedDepthExtractorClaimAllowed must be true",
+    )
+    require(
+        promotion.get("recursiveDepthPromotionRequiresCarryExtractor") is True,
+        "promotionRule.recursiveDepthPromotionRequiresCarryExtractor must be true",
+    )
 
 
 def validate_docs_and_gate() -> None:
@@ -261,8 +290,8 @@ def validate_accounting(path: Path) -> None:
     require(accounting.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(accounting.get("accountingID") == "superneo-product-extractor-loss-accounting-v1", "accountingID mismatch")
     require(
-        accounting.get("claimStatus") == "extractor-loss-contract-not-production-claim",
-        "claimStatus must stay non-production",
+        accounting.get("claimStatus") == EXPECTED_CLAIM_STATUS,
+        "claimStatus must record selected-depth concrete extractor instantiation",
     )
     validate_related_manifests(accounting)
     validate_formal_surface(accounting)

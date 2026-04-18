@@ -178,9 +178,9 @@ instantiated and inside budget.
 extractor loss accounting manifest. It is not a proof artifact schema and does
 not affect proof bytes. It pins source-fold extractor, terminal-seal extractor,
 product-envelope composition extractor, future recursive carry extractor,
-accepted input bindings, rewind model, and the promotion rule that keeps
-production extractor claims disabled until a concrete extractor and numeric
-loss budget are instantiated.
+accepted input bindings, deterministic replay model, and the promotion rule
+that allows the selected-depth extractor claim while keeping promoted-depth
+carry extraction and total product-security promotion gated.
 
 `TestVectors/product-qrom-fiat-shamir-accounting-v1.json` is the checked
 Product QROM Fiat-Shamir accounting manifest. It is not a proof artifact schema

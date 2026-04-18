@@ -52,5 +52,5 @@ repair or refresh local state before relying on product-mode acceptance.
 
 This document closes the product operations readiness evidence artifact
 referenced by the total-loss budget. It does not instantiate the hosted replay
-freshness loss, and it does not close the remaining extractor, simulator,
-side-channel, release-distribution, or total-loss numeric terms.
+freshness loss, and it does not close the remaining side-channel,
+release-distribution, or total-loss numeric terms.

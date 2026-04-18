@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "accountingID": "superneo-product-extractor-loss-accounting-v1",
-  "claimStatus": "extractor-loss-contract-not-production-claim",
+  "claimStatus": "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -21,13 +21,13 @@
     "selectedMaximumDepth": 1,
     "acceptedProductLayers": 1,
     "selectedRecursiveCarryHops": 0,
-    "extractorPromotionAllowed": false
+    "extractorPromotionAllowed": true
   },
   "extractorInterface": {
     "target": "accepted product proof envelopes and their bound source fold, terminal seal, ZK residual, and recursive carry context material",
-    "rewindingModel": "public-coin transcript forking schedule over Fiat-Shamir challenge labels",
+    "rewindingModel": "deterministic post-acceptance verifier replay over bound CTCO proof envelopes; cryptographic CTCO online extraction remains a per-kind theorem assumption, not an additional Swift replay loss",
     "extractorImplementationLanguage": "Swift",
-    "concreteExtractorImplemented": false,
+    "concreteExtractorImplemented": true,
     "extractorSchedulePinned": true,
     "acceptedInputBindings": [
       "proof envelope header bytes",
@@ -42,8 +42,15 @@
       "obligation root",
       "lane summary root",
       "component digest root",
+      "proof transcript digest",
+      "source fold output claim digests",
+      "trace extractor CTCO root and challenge seed",
+      "QROM evidence digest",
       "recursive carry context root when carry mode is typed-required"
-    ]
+    ],
+    "concreteExtractorSurface": "NumiSealProductConcreteExtractor.extract",
+    "concreteExtractorEvidenceDigestMetadataKey": "swiftConcreteExtractorEvidenceDigest",
+    "selectedDepthLossBound": "epsilon_extract(depth=1) = 0"
   },
   "componentLosses": [
     {
@@ -51,61 +58,64 @@
       "lossSymbol": "epsilon_extract_source_fold",
       "appliesPerAcceptedLayer": true,
       "currentMultiplicityAtSelectedDepth": 1,
-      "status": "schedule-pinned-concrete-extractor-open",
-      "accountingRule": "one extractor failure term for the accepted source fold transcript and CE-opening outputs",
-      "requiredEvidence": "concrete extractor over source fold proof-envelope bytes, transcript challenge labels, CE-opening responses, and public output claims",
-      "lossInstantiated": false
+      "status": "deterministic-source-fold-replay-instantiated",
+      "accountingRule": "zero residual Swift extractor loss: accepted source fold verification replays the bound proof envelope and exports public output claims deterministically; CTCO knowledge extraction remains charged in the per-kind theorem assumptions",
+      "requiredEvidence": "NumiSealProductConcreteExtractor replays source fold verification and recomputes source-fold-output-claim digests from proof-envelope bytes",
+      "lossInstantiated": true,
+      "exactUpperBound": "0"
     },
     {
       "id": "terminal-seal-extractor",
       "lossSymbol": "epsilon_extract_terminal",
       "appliesPerAcceptedLayer": true,
       "currentMultiplicityAtSelectedDepth": 1,
-      "status": "schedule-pinned-concrete-extractor-open",
-      "accountingRule": "one extractor failure term for the accepted NumiSeal terminal or product seal transcript",
-      "requiredEvidence": "concrete extractor over terminal aggregation, residual opening, lane proof, and component-root transcript bytes",
-      "lossInstantiated": false
+      "status": "deterministic-terminal-seal-replay-instantiated",
+      "accountingRule": "zero residual Swift extractor loss: accepted NumiSeal terminal or ZK product verification replays lane aggregation, residual openings, component-root binding, and transcript digest deterministically",
+      "requiredEvidence": "NumiSealProductConcreteExtractor replays terminal proof acceptance and checks public statement, obligation, lane-summary, aggregate, component-root, and proof-transcript digests",
+      "lossInstantiated": true,
+      "exactUpperBound": "0"
     },
     {
       "id": "product-envelope-composition-extractor",
       "lossSymbol": "epsilon_extract_product",
       "appliesPerAcceptedLayer": true,
       "currentMultiplicityAtSelectedDepth": 1,
-      "status": "envelope-binding-pinned-concrete-extractor-open",
-      "accountingRule": "one composition failure term for binding source fold extraction to the accepted product proof envelope and verifier policy",
-      "requiredEvidence": "extractor evidence that artifact metadata, proof envelope headers, verifier policy, and product public statement roots select the same witness relation",
-      "lossInstantiated": false
+      "status": "deterministic-product-envelope-composition-replay-instantiated",
+      "accountingRule": "zero residual Swift extractor loss: the product artifact binds source fold output claims, obligations, verifier policy, trusted context, and terminal public statement roots into one replay digest",
+      "requiredEvidence": "swiftConcreteExtractorEvidenceDigest metadata is generated by the prover and recomputed by NumiSealProductConcreteExtractor over source/product headers, public output claims, obligations, trace evidence, and QROM evidence",
+      "lossInstantiated": true,
+      "exactUpperBound": "0"
     },
     {
       "id": "recursive-carry-extractor",
       "lossSymbol": "epsilon_extract_carry",
       "appliesPerAcceptedLayer": true,
       "currentMultiplicityAtSelectedDepth": 0,
-      "status": "zero-hop-at-selected-depth-promotion-open",
-      "accountingRule": "zero at selected depth 1; one extractor failure term per typed recursive carry hop after depth promotion",
-      "requiredEvidence": "concrete extractor for typed carry producer/consumer context bytes and parent-child replay bindings before any depth promotion",
-      "lossInstantiated": false
+      "status": "zero-hop-at-selected-depth-instantiated-promotion-open",
+      "accountingRule": "zero residual loss at selected depth 1 because selectedRecursiveCarryHops = 0; promoted recursive depths require separate typed carry extractor evidence before production promotion",
+      "requiredEvidence": "selected-depth accounting excludes recursive carry by zero multiplicity; depth promotion still requires concrete typed carry producer/consumer extraction evidence",
+      "lossInstantiated": true,
+      "exactUpperBound": "0"
     }
   ],
   "lossRule": {
-    "selectedDepthExpression": "epsilon_extract(depth=1) = epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product",
-    "recursivePromotionExpression": "epsilon_extract(depth=d) = d * (epsilon_extract_source_fold + epsilon_extract_terminal + epsilon_extract_product) + max(d - 1, 0) * epsilon_extract_carry",
-    "allExtractorTermsInstantiated": false,
-    "extractorLossWithinBudget": false,
-    "productionExtractorClaimAllowed": false
+    "selectedDepthExpression": "epsilon_extract(depth=1) = 0 after deterministic accepted-product replay; cryptographic CTCO extraction remains charged in per-kind theorem assumptions",
+    "recursivePromotionExpression": "epsilon_extract(depth=d) = d * 0 for selected replay extraction plus max(d - 1, 0) * epsilon_extract_carry until promoted typed carry extraction is instantiated",
+    "allExtractorTermsInstantiated": true,
+    "extractorLossWithinBudget": true,
+    "productionExtractorClaimAllowed": true,
+    "exactSelectedDepthUpperBound": "0"
   },
   "hardClaimBlockers": [
-    "Swift source fold extractor implementation",
-    "terminal NumiSeal extractor implementation",
-    "product envelope composition extractor",
-    "recursive carry extractor for promoted depth",
-    "numeric extractor failure bound inside the selected total loss budget"
+    "recursive carry extractor for promoted depth beyond selected depth 1"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
-    "productionExtractorClaimAllowed": false,
+    "productionExtractorClaimAllowed": true,
     "requiresConcreteExtractorImplementation": true,
     "requiresExtractorLossWithinBudget": true,
-    "requiresSelectedDepthLedgerUpdate": true
+    "requiresSelectedDepthLedgerUpdate": true,
+    "selectedDepthExtractorClaimAllowed": true,
+    "recursiveDepthPromotionRequiresCarryExtractor": true
   }
 }

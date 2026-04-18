@@ -283,18 +283,18 @@
   ],
   "theoremConclusion": "Lean proves that accepted product verifier gates plus the named evidence obligations imply NumiSealEndToEndRelationHolds across source fold, terminal seal, typed carry, masked residual ZK, and product policy. Additional checked modules prove the recursive folding knowledge chain, typed carry producer/consumer relation, and NumiSealZK simulation/privacy relation compose into NumiSealProductKnowledgeCarryPrivacyHolds. The simulator/privacy theorem is under an explicit public-leakage model and excludes hardware side channels.",
   "residualProofObligations": [
-    "concrete Swift extractor implementation evidence for product proof bytes and all recursive transcript schedules",
+    "recursive carry extractor evidence for promoted recursive transcript schedules beyond selected depth 1",
     "extend typed-required recursive child product carry beyond the checked parent-child handoff and account product replay/losses for the selected production depth",
-    "QROM Fiat-Shamir reduction and concrete soundness-loss accounting for the product transcript",
+    "QROM accounting for concrete hash-model promotion beyond the ideal split-QRO theorem and remaining total-loss budget closure",
     "constant-time and side-channel evidence sufficient for product privacy promotion"
   ],
   "promotionRule": {
     "productionNumiSealTheoremClaimAllowed": false,
     "releaseEvidenceOnly": true,
     "unblockRequires": [
-      "concrete Swift extractor implementation evidence is generated for product proof bytes and all recursive transcript schedules",
+      "recursive carry extractor evidence is generated for promoted recursive transcript schedules beyond selected depth 1",
       "typed-required recursive child product typed carry is extended beyond the checked parent-child handoff with replay and loss accounting",
-      "QROM Fiat-Shamir and concrete soundness-loss accounting are recorded for the product transcript",
+      "QROM accounting for concrete hash-model promotion and remaining total-loss budget terms is recorded for the product transcript",
       "constant-time and side-channel evidence sufficient for product privacy promotion is closed",
       "the promotion manifest changes productionNumiSealTheoremClaimAllowed only with updated validation"
     ]

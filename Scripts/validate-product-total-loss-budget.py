@@ -530,6 +530,17 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                 require(needle in evidence, f"zk-simulator-composition requiredEvidence must mention {needle}")
             if instantiated:
                 require(exact_bound == 0, "zk-simulator-composition exactUpperBound must be exactly 0")
+        if component_id == "extractor-instantiation":
+            evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
+            for needle in [
+                "product-extractor-loss-accounting-v1.json",
+                "NumiSealProductConcreteExtractor.extract",
+                "swiftConcreteExtractorEvidenceDigest",
+                "epsilon_extract(depth=1) = 0",
+            ]:
+                require(needle in evidence, f"extractor-instantiation requiredEvidence must mention {needle}")
+            if instantiated:
+                require(exact_bound == 0, "extractor-instantiation exactUpperBound must be exactly 0")
         if component_id == "transcript-collision-domain-separation":
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
@@ -642,6 +653,10 @@ def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiate
     require(
         wiring.get("terminalCE226ExpressionExact") == "epsilon_terminal_ce <= (2/3)^226",
         "exactFiniteProbabilityWiring.terminalCE226ExpressionExact mismatch",
+    )
+    require(
+        wiring.get("extractorExpressionExact") == "epsilon_extract(depth=1) = 0",
+        "exactFiniteProbabilityWiring.extractorExpressionExact mismatch",
     )
     require(
         wiring.get("sharedCoreExpressionExact") == "epsilon_core_shared = 2^-129 = 1/2^129 and is charged once as a tagged union",

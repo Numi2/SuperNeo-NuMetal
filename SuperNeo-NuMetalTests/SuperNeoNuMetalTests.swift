@@ -7093,6 +7093,66 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertTrue(verified.numiSealResult.isValid, verified.numiSealResult.reason ?? "")
     }
 
+    func testNumiSealProductConcreteExtractorReplaysAcceptedProductBindings() throws {
+        let output = try NumiSealProductAPI.proveOneHotVector(
+            bits: [false, true],
+            keySeedUTF8: "numiseal-product-concrete-extractor-key",
+            sourceApplicationPathUTF8: "app://public-api/extractor",
+            executionPolicy: .zkHighAssuranceCPU,
+            aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
+        )
+
+        let extraction = try NumiSealProductConcreteExtractor.extract(
+            artifact: output.artifact,
+            trustedContext: output.trustedContext,
+            sourcePublicInput: output.sourcePublicInput,
+            key: output.verifierKey,
+            executionPolicy: .highAssurance
+        )
+
+        XCTAssertEqual(extraction.sourceFoldHeader.kind, .foldReduction)
+        XCTAssertEqual(extraction.productProofHeader.kind, .numiSealTerminal)
+        XCTAssertEqual(extraction.sourceFoldOutputClaims.count, output.artifact.sourceFoldOutputClaimCount)
+        XCTAssertEqual(
+            extraction.sourceFoldOutputClaimDigests.map(\.hexString),
+            output.artifact.sourceFoldOutputClaimDigestsHex
+        )
+        XCTAssertEqual(extraction.obligations.count, output.artifact.sourceFoldOutputClaimCount)
+        XCTAssertEqual(extraction.publicStatementDigest.hexString, output.artifact.publicStatementDigestHex)
+        XCTAssertEqual(extraction.obligationRoot.hexString, output.artifact.obligationRootHex)
+        XCTAssertEqual(extraction.laneSummaryRoot.hexString, output.artifact.laneSummaryRootHex)
+        XCTAssertEqual(extraction.aggregateDigests.map(\.hexString), output.artifact.aggregateDigestsHex)
+        XCTAssertEqual(extraction.componentDigestRoot.hexString, output.artifact.componentDigestRootHex)
+        XCTAssertEqual(extraction.proofTranscriptDigest.hexString, output.artifact.proofTranscriptDigestHex)
+        XCTAssertEqual(
+            extraction.traceExtractorEvidence.evidenceDigest,
+            output.traceExtractorEvidence.evidenceDigest
+        )
+        XCTAssertEqual(extraction.qromEvidence.evidenceDigest, output.qromEvidence.evidenceDigest)
+        XCTAssertEqual(
+            output.artifact.executionPolicyMetadata["swiftConcreteExtractorEvidenceDigest"],
+            extraction.extractionDigest.hexString
+        )
+
+        let wrongContext = try NumiSealProductTrustedContext(
+            workload: output.trustedContext.workload,
+            bitCount: output.trustedContext.bitCount,
+            publicInputs: output.trustedContext.publicInputs,
+            workloadParameters: output.trustedContext.workloadParameters,
+            sourceApplicationPathUTF8: "app://public-api/wrong-extractor-context"
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductConcreteExtractor.extract(
+                artifact: output.artifact,
+                trustedContext: wrongContext,
+                sourcePublicInput: output.sourcePublicInput,
+                key: output.verifierKey,
+                executionPolicy: .highAssurance
+            ),
+            .invalidParameter("NumiSeal product extractor trusted context mismatch")
+        )
+    }
+
     func testPublicNumiSealProductAPIGeneratesBinaryAdditionArtifact() throws {
         let output = try NumiSealProductAPI.proveBinaryAddition(
             left: 1,

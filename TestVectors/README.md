@@ -37,8 +37,9 @@ Machine-readable files:
 - `product-extractor-loss-accounting-v1.json`: checked extractor loss
   accounting contract for source-fold extraction, terminal-seal extraction,
   product-envelope composition extraction, and future recursive carry
-  extraction. It records the rewind/input binding schedule while keeping the
-  concrete extractor and numeric loss budget open.
+  extraction. It records the deterministic post-acceptance replay/input binding
+  schedule and instantiates selected-depth `epsilon_extract = 0`, while keeping
+  promoted-depth carry extraction and the total production budget open.
 - `product-finite-protocol-loss-obstruction-v1.json`: checked finite-protocol
   selected-budget obstruction evidence. It records that the current PiRLC/PiCCS
   finite certificates are formal soundness evidence but do not instantiate

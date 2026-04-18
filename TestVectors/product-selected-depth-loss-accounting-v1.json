@@ -144,10 +144,10 @@
     {
       "id": "extractor-instantiation",
       "appliesPerAcceptedLayer": true,
-      "status": "extractor-accounting-contract-pinned-concrete-instantiation-open",
+      "status": "selected-depth-concrete-extractor-zero-loss-instantiated",
       "lossSymbol": "epsilon_extract",
-      "accountingRule": "one residual concrete extractor failure term per accepted product layer and recursive transcript schedule after shared core bad-event tags are charged through epsilon_core_shared",
-      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus extractor implementation evidence over product proof bytes, source fold bytes, terminal seal bytes, recursive carry context bytes, and transcript rewind schedule, excluding shared core bad-event tags already charged through TestVectors/product-shared-bad-event-dedup-v1.json",
+      "accountingRule": "epsilon_extract(depth=1) = 0 for deterministic post-acceptance replay of accepted source fold, terminal seal, product envelope, trusted context, trace evidence, and QROM evidence; cryptographic CTCO extraction remains charged in per-kind theorem assumptions",
+      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus NumiSealProductConcreteExtractor.extract and swiftConcreteExtractorEvidenceDigest metadata instantiate selected-depth epsilon_extract = 0; recursive carry extraction remains a depth-promotion obligation because selectedRecursiveCarryHops = 0",
       "accountingManifest": "TestVectors/product-extractor-loss-accounting-v1.json",
       "productionClaimAllowed": false
     },
@@ -197,7 +197,6 @@
     "selectedDepthLossClaimAllowed": false
   },
   "hardClaimBlockers": [
-    "selected-depth extractor instantiation",
     "selected total-loss budget instantiation",
     "hosted product operations replay and revocation freshness",
     "release signing and notarization",
