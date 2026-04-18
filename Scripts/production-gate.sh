@@ -28,7 +28,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - product Swift trace/extractor, extractor accounting, QROM transcript schedule, QROM transform preconditions, QROM interactive reduction, QROM Fiat-Shamir, CTCO instantiation, and total-loss budget validation
   - production NumiSeal CLI adversarial matrix
   - optional signed NumiSealZK side-channel certificate binding tests
-  - release policy, schema compatibility, and CI gate drift validation
+  - release policy, schema compatibility, doc-link, and CI gate drift validation
   - release-candidate evidence tooling validation
   - release CLI fold, terminal, compressed-terminal, and NumiSeal prove/verify smoke
 
@@ -209,6 +209,7 @@ run_step Scripts/validate-benchmark-coverage.py
 run_step Scripts/test-benchmark-coverage-validation.py
 run_step Scripts/validate-product-ops-surface.py
 run_step Scripts/test-product-ops-surface-validation.py
+run_step Scripts/validate-doc-links.py
 run_step Scripts/validate-release-readiness-policy.py
 run_step Scripts/test-release-candidate-evidence-validation.py
 run_step Scripts/test-benchmark-tooling-validation.py
@@ -426,6 +427,7 @@ run_expect_failure "${SUPERNEO_CLI}" verify \
 
 run_step "${SUPERNEO_CLI}" prove \
   --seal numiseal \
+  --numiseal-zk-mode none \
   --numiseal-execution-policy zk-high-assurance-cpu \
   --bits 0,1 \
   --max-obligations-per-aggregate 32 \

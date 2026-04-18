@@ -1409,6 +1409,10 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         }
     }
 
+    /// Verifies algebraic proof validity and artifact self-consistency.
+    /// Product-facing callers should pass `trustedContext` to pin frontend
+    /// workload metadata to operator-trusted context rather than artifact
+    /// self-description alone.
     @inline(never)
     public func verify(
         artifact: NumiSealProductArtifact,
@@ -1417,9 +1421,13 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         parameters: SuperNeoParameters = .goldilocks,
         metalContext: MetalExecutionContext? = nil,
         executionPolicy: SuperNeoExecutionPolicy = .highAssurance,
-        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil,
+        trustedContext: NumiSealProductTrustedContext? = nil
     ) throws -> NumiSealProductVerificationResult {
         try Self.validateMetadata(artifact)
+        if let trustedContext {
+            try Self.requireTrustedContext(trustedContext, matches: artifact)
+        }
         let sourceBytes = try artifact.sourceFoldEnvelopeBytes()
         let numiSealBytes = try artifact.proofEnvelopeBytes()
         _ = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: sourceBytes)
@@ -1821,9 +1829,13 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
 
     private static func validateCTCOMetadata(_ artifact: NumiSealProductArtifact) throws {
         let expected = try ctcoEvidence(for: artifact)
+        let frontendContext = try productTrustedContext(from: artifact)
         let sourceEnvelopeCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: artifact.sourceFoldEnvelopeBytes())
         let proofEnvelopeCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: artifact.proofEnvelopeBytes())
         let metadata = artifact.executionPolicyMetadata
+        guard metadata["frontendContextDigest"] == frontendContext.contextDigest.hexString else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product frontend context digest mismatch")
+        }
         guard metadata["ctcoCompilerFamily"] == "ctco" else {
             throw SuperNeoError.invalidEncoding("NumiSeal product CTCO compiler metadata mismatch")
         }
@@ -1992,6 +2004,21 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             sourceApplicationPathUTF8: artifact.sourceApplicationPathUTF8 ?? "unbound",
             laneID: NumiSealLaneID(laneIDValue)
         )
+    }
+
+    private static func requireTrustedContext(
+        _ trustedContext: NumiSealProductTrustedContext,
+        matches artifact: NumiSealProductArtifact
+    ) throws {
+        guard artifact.workload == trustedContext.workload,
+              artifact.bitCount == trustedContext.bitCount,
+              artifact.publicInputs == trustedContext.publicInputs,
+              artifact.workloadParameters == trustedContext.workloadParameters,
+              artifact.sourceApplicationPathUTF8 == trustedContext.sourceApplicationPathUTF8,
+              artifact.laneIDsUTF8 == [trustedContext.laneID.utf8String],
+              artifact.executionPolicyMetadata["frontendContextDigest"] == trustedContext.contextDigest.hexString else {
+            throw SuperNeoError.invalidParameter("NumiSeal product trusted context mismatch")
+        }
     }
 
     private static func requiredMetadata(_ metadata: [String: String], _ key: String) throws -> String {

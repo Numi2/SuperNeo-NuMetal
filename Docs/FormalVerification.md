@@ -66,7 +66,6 @@ only as audit history, not as active manifest groups.
 
 Recent formal pass:
 
-- [Formal Ajtai Binding, 2026-04-13](FormalAjtaiBinding-2026-04-13.md)
 - [Formal PiDEC Recomposition, 2026-04-13](FormalPiDECRecomposition-2026-04-13.md)
 - [Formal Protocol Composition, 2026-04-13](FormalProtocolComposition-2026-04-13.md)
 - [Formal Assumption Ledger Split, 2026-04-14](FormalAssumptionLedger-2026-04-14.md)

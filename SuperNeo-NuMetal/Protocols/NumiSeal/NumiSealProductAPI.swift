@@ -463,12 +463,30 @@ public enum NumiSealProductConcreteExtractor {
         )
         let proof = terminalEnvelope.proof
         let aggregateDigests = proof.laneProofs.map(\.aggregateDigest)
+        let componentDigestRoot: Digest256
+        let proofTranscriptDigest: Digest256
+        switch artifact.zkMode {
+        case NumiSealZK.nonZKMode:
+            componentDigestRoot = proof.componentDigestRoot
+            proofTranscriptDigest = proof.transcriptDigest
+        case NumiSealZK.maskedDigitTensorMode:
+            let zkEnvelope = try NumiSealZKProofEnvelope(bytes: proofBytes, parameters: parameters)
+            componentDigestRoot = zkEnvelope.proof.componentDigestRoot
+            proofTranscriptDigest = zkEnvelope.proof.transcriptDigest
+            guard zkEnvelope.proof.baseProof == proof else {
+                throw SuperNeoError.verificationFailed(
+                    "NumiSeal product extractor ZK base proof mismatch"
+                )
+            }
+        default:
+            throw SuperNeoError.invalidEncoding("unsupported NumiSeal product ZK mode")
+        }
         guard proof.publicStatement.digest.hexString == artifact.publicStatementDigestHex,
               proof.publicStatement.obligationRoot.hexString == artifact.obligationRootHex,
               proof.publicStatement.laneSummaryRoot.hexString == artifact.laneSummaryRootHex,
               aggregateDigests.map(\.hexString) == artifact.aggregateDigestsHex,
-              proof.componentDigestRoot.hexString == artifact.componentDigestRootHex,
-              proof.transcriptDigest.hexString == artifact.proofTranscriptDigestHex else {
+              componentDigestRoot.hexString == artifact.componentDigestRootHex,
+              proofTranscriptDigest.hexString == artifact.proofTranscriptDigestHex else {
             throw SuperNeoError.verificationFailed(
                 "NumiSeal product extractor terminal binding mismatch"
             )
@@ -488,8 +506,8 @@ public enum NumiSealProductConcreteExtractor {
             obligationRoot: proof.publicStatement.obligationRoot,
             laneSummaryRoot: proof.publicStatement.laneSummaryRoot,
             aggregateDigests: aggregateDigests,
-            componentDigestRoot: proof.componentDigestRoot,
-            proofTranscriptDigest: proof.transcriptDigest,
+            componentDigestRoot: componentDigestRoot,
+            proofTranscriptDigest: proofTranscriptDigest,
             traceExtractorEvidence: traceEvidence,
             qromEvidence: qromEvidence
         )

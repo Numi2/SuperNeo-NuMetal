@@ -1515,12 +1515,8 @@ public final class SuperNeoJSONLAuditLog {
             let record = SuperNeoAuditLogRecord(payload: payload, recordDigestHex: digest)
             var line = try SuperNeoCanonicalJSON.encode(record)
             line.append(UInt8(ascii: "\n"))
-            let wrote = line.withUnsafeBytes { buffer in
-                write(fd, buffer.baseAddress, buffer.count)
-            }
-            guard wrote == line.count else {
-                throw SuperNeoProductIntegrationError.invalidRequest("could not append audit log record")
-            }
+            try writeAllUnlocked(fd: fd, bytes: line)
+            try syncFileUnlocked(fd: fd)
         }
     }
 
@@ -1659,12 +1655,55 @@ public final class SuperNeoJSONLAuditLog {
                 read(fd, rawBuffer.baseAddress, rawBuffer.count)
             }
             if byteCount < 0 {
+                if errno == EINTR {
+                    continue
+                }
                 throw SuperNeoProductIntegrationError.invalidRequest("could not read audit log")
             }
             if byteCount == 0 {
                 return data
             }
             data.append(buffer, count: byteCount)
+        }
+    }
+
+    private func writeAllUnlocked(fd: Int32, bytes: Data) throws {
+        var offset = 0
+        while offset < bytes.count {
+            let written = bytes.withUnsafeBytes { rawBuffer -> Int in
+                guard let baseAddress = rawBuffer.baseAddress else {
+                    return 0
+                }
+                return write(fd, baseAddress.advanced(by: offset), bytes.count - offset)
+            }
+            if written < 0 {
+                if errno == EINTR {
+                    continue
+                }
+                throw SuperNeoProductIntegrationError.invalidRequest("could not append audit log record")
+            }
+            guard written > 0 else {
+                throw SuperNeoProductIntegrationError.invalidRequest("could not append audit log record")
+            }
+            offset += written
+        }
+    }
+
+    private func syncFileUnlocked(fd: Int32) throws {
+        while true {
+            if fcntl(fd, F_FULLFSYNC) == 0 {
+                return
+            }
+            if errno == EINTR {
+                continue
+            }
+            break
+        }
+        while fsync(fd) != 0 {
+            if errno == EINTR {
+                continue
+            }
+            throw SuperNeoProductIntegrationError.invalidRequest("could not sync audit log")
         }
     }
 

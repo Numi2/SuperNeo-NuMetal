@@ -746,11 +746,11 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
     var recursiveCarryParentResolution: ProductRecursiveCarryParentResolution?
 
     do {
-        let artifactData = try Data(contentsOf: URL(fileURLWithPath: options.path))
+        let artifactData = try readProofArtifactData(
+            path: options.path,
+            maximumByteCount: context.maximumArtifactByteCount
+        )
         artifactDigest = Digest256.hash([UInt8](artifactData))
-        guard artifactData.count <= context.maximumArtifactByteCount else {
-            throw SuperNeoProductIntegrationError.invalidRequest("artifact byte count exceeds trusted context maximum")
-        }
         try controls.effectiveRevocation.requireNotRevoked(
             contextID: context.contextID,
             artifactDigest: artifactDigest,
@@ -910,7 +910,10 @@ private func makeProductRecursiveCarryParentIfNeeded(
         )
     }
 
-    let parentData = try Data(contentsOf: URL(fileURLWithPath: parentPath))
+    let parentData = try readProofArtifactData(
+        path: parentPath,
+        maximumByteCount: context.maximumArtifactByteCount
+    )
     let parentRawArtifactDigest = Digest256.hash([UInt8](parentData))
     try controls.effectiveRevocation.requireNotRevoked(
         contextID: context.contextID,
@@ -2246,8 +2249,35 @@ private func validateNumiSealProductExpectedOptions(
 }
 
 private func readProofArtifact(path: String) throws -> ProofArtifact {
-    let data = try Data(contentsOf: URL(fileURLWithPath: path))
+    let data = try readProofArtifactData(path: path)
     return try readProofArtifact(data: data)
+}
+
+private func readProofArtifactData(
+    path: String,
+    maximumByteCount: Int? = nil
+) throws -> Data {
+    if let maximumByteCount, maximumByteCount < 0 {
+        throw CLIError.invalidArgument("artifact byte count limit must be non-negative")
+    }
+    let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+    defer { try? handle.close() }
+
+    let chunkSize = 64 * 1024
+    var data = Data()
+    while true {
+        let chunk = try handle.read(upToCount: chunkSize) ?? Data()
+        guard !chunk.isEmpty else {
+            return data
+        }
+        if let maximumByteCount,
+           (chunk.count > maximumByteCount || data.count > maximumByteCount - chunk.count) {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "artifact byte count exceeds trusted context maximum"
+            )
+        }
+        data.append(chunk)
+    }
 }
 
 private func readProofArtifact(data: Data) throws -> ProofArtifact {

@@ -55,6 +55,9 @@ def validate_workflow() -> None:
         require("concurrency:" in text, f"{path} must cancel superseded runs")
         require("cancel-in-progress: true" in text, f"{path} must cancel in-progress duplicate runs")
     require("name: PR smoke" in workflow, "production workflow must use a short PR smoke job")
+    require("pull_request:" in workflow, "production workflow must run a smoke gate on pull requests")
+    require("push:" in workflow, "production workflow must run the full gate on main pushes")
+    require("branches:" in workflow and "- main" in workflow, "production workflow push trigger must target main")
     require(
         "if: ${{ github.event_name == 'pull_request' }}" in workflow,
         "PR smoke job must be limited to pull requests",
@@ -75,6 +78,9 @@ def validate_workflow() -> None:
         "Lean formal Linux cross-check" not in workflow,
         "production workflow must not duplicate the formal-status workflow",
     )
+    require("pull_request:" in formal_workflow, "formal workflow must run on pull requests")
+    require("push:" in formal_workflow, "formal workflow must run on main pushes")
+    require("branches:" in formal_workflow and "- main" in formal_workflow, "formal workflow push trigger must target main")
     require("pull_request:" not in benchmark_workflow, "benchmark workflow must not run automatically on pull requests")
     require("push:" not in benchmark_workflow, "benchmark workflow must not run automatically on pushes")
     require("workflow_dispatch:" in benchmark_workflow, "benchmark workflow must remain manually dispatchable")
@@ -129,6 +135,7 @@ def validate_docs() -> None:
             "TestVectors/e2e-proof-metrics-v1.json",
             "TestVectors/benchmark-coverage-v1.json",
             "Scripts/validate-release-readiness-policy.py",
+            "Scripts/validate-doc-links.py",
             "Scripts/validate-numiseal-conformance-scope.py",
             "Scripts/test-numiseal-conformance-scope-validation.py",
             "Scripts/validate-constant-time-scope.py",
@@ -1225,8 +1232,12 @@ def validate_schema_versions() -> None:
 def validate_production_gate_wiring() -> None:
     gate = read_text("Scripts/production-gate.sh")
     require(
-        "release policy, schema compatibility, and CI gate drift validation" in gate,
+        "release policy, schema compatibility, doc-link, and CI gate drift validation" in gate,
         "production gate usage text must mention release policy validation",
+    )
+    require(
+        "run_step Scripts/validate-doc-links.py" in gate,
+        "production gate must run validate-doc-links.py",
     )
     require(
         "run_step Scripts/validate-release-readiness-policy.py" in gate,

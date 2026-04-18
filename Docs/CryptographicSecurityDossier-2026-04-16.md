@@ -208,8 +208,9 @@ The pinned assumption is Module-SIS over Goldilocks/Phi81 Ajtai commitments:
 | Strong-sampling check | `16200 < 16384` |
 
 The pinned default estimator lane records `129.1` rop bits, matching the paper
-threshold lane. The sensitivity rows in
-`Docs/LatticeEstimatorReproduction.md` include lower conservative quantum and
+threshold lane. `Scripts/reproduce-lattice-estimator.sh` and
+`Scripts/validate-lattice-estimator-artifact.py` preserve the pinned estimator
+lane and sensitivity-row validation, including lower conservative quantum and
 enumeration models, so the product dossier does not permit a broad production
 post-quantum claim. NIST FIPS 203/204/205 set the reference bar for precise
 parameter sets and category claims; this repo keeps the current claim

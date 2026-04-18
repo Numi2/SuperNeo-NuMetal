@@ -7368,7 +7368,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         )
 
         XCTAssertEqual(extraction.sourceFoldHeader.kind, .foldReduction)
-        XCTAssertEqual(extraction.productProofHeader.kind, .numiSealTerminal)
+        XCTAssertEqual(extraction.productProofHeader.kind, .numiSealZK)
         XCTAssertEqual(extraction.sourceFoldOutputClaims.count, output.artifact.sourceFoldOutputClaimCount)
         XCTAssertEqual(
             extraction.sourceFoldOutputClaimDigests.map(\.hexString),
@@ -7433,10 +7433,41 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             artifact: output.artifact,
             sourcePublicInput: output.sourcePublicInput,
             key: output.verifierKey,
-            executionPolicy: .highAssurance
+            executionPolicy: .highAssurance,
+            trustedContext: output.trustedContext
         )
         XCTAssertTrue(verified.sourceFoldResult.isReductionAccepted, verified.sourceFoldResult.reason ?? "")
         XCTAssertTrue(verified.numiSealResult.isValid, verified.numiSealResult.reason ?? "")
+
+        var tamperedPublicInputs = output.artifact
+        tamperedPublicInputs.publicInputs = [0]
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tamperedPublicInputs,
+                sourcePublicInput: output.sourcePublicInput,
+                key: output.verifierKey,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product frontend context digest mismatch")
+        )
+
+        let wrongContext = try NumiSealProductTrustedContext(
+            workload: output.trustedContext.workload,
+            bitCount: output.trustedContext.bitCount,
+            publicInputs: [0],
+            workloadParameters: output.trustedContext.workloadParameters,
+            sourceApplicationPathUTF8: output.trustedContext.sourceApplicationPathUTF8
+        )
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: output.artifact,
+                sourcePublicInput: output.sourcePublicInput,
+                key: output.verifierKey,
+                executionPolicy: .highAssurance,
+                trustedContext: wrongContext
+            ),
+            .invalidParameter("NumiSeal product trusted context mismatch")
+        )
     }
 
     func testNumiSealProductProverEmitsVerifiableV2Artifact() throws {
@@ -8060,11 +8091,28 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             .verificationFailed("NumiSeal recursive carry context root mismatch")
         )
         #else
-        let childEnvelope = try! NumiSealProofEnvelope(
-            bytes: childArtifact.proofEnvelopeBytes(),
-            parameters: .goldilocks
-        )
-        guard let childLaneProof = childEnvelope.proof.laneProofs.first,
+        let childProof: NumiSealProof
+        do {
+            switch childArtifact.zkMode {
+            case NumiSealZK.nonZKMode:
+                childProof = try NumiSealProofEnvelope(
+                    bytes: childArtifact.proofEnvelopeBytes(),
+                    parameters: .goldilocks
+                ).proof
+            case NumiSealZK.maskedDigitTensorMode:
+                childProof = try NumiSealZKProofEnvelope(
+                    bytes: childArtifact.proofEnvelopeBytes(),
+                    parameters: .goldilocks
+                ).proof.baseProof
+            default:
+                XCTFail("unsupported NumiSeal product ZK mode")
+                return
+            }
+        } catch {
+            XCTFail("could not decode NumiSeal recursive carry child proof: \(error)")
+            return
+        }
+        guard let childLaneProof = childProof.laneProofs.first,
               let typedCarry = childLaneProof.optionalCarryClaim?.typedStatement else {
             XCTFail("NumiSeal recursive carry typed-required child proof is missing typed carry")
             return

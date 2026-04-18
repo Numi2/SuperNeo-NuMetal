@@ -13,15 +13,15 @@ Status: implemented for the current prover track.
 Artifacts:
 
 - `README.md` names the implemented profile as `Goldilocks/Phi81(d=54)`.
-- `Docs/Parameters.md` maps Appendix B.2 constants to code.
-- `Docs/ThreatModel.md` documents assumptions, assets, adversaries, boundaries,
-  and non-goals.
-- `Docs/ProofEnvelope.md` specifies the version-4 envelope header, context
+- `Docs/ParameterSecurityDossier-2026-04-16.md` maps the active parameter
+  profile, estimator boundary, and assumption-scoped parameter claims.
+- `Docs/WhatThisProves.md` and
+  `Docs/AuditBlockerNarrowing-2026-04-16.md` document assumptions, assets,
+  adversaries, proof semantics, boundaries, and non-goals.
+- `Docs/ProofEnvelope.md` specifies the version-5 envelope header, context
   binding, digest inputs, and parser rejection rules.
-- `Docs/WhatThisProves.md` states what fold reductions, terminal proofs, and
-  compressed public envelopes prove and do not prove.
-- `SuperNeo_NuMetal.docc/SuperNeo_NuMetal.md` now has a real DocC landing page
-  and symbol topics.
+- `SuperNeo-NuMetal/SuperNeo_NuMetal.docc/SuperNeo_NuMetal.md` now has a real
+  DocC landing page and symbol topics.
 
 Estimator boundary:
 
@@ -96,15 +96,11 @@ Artifacts:
 - `Scripts/test-benchmark-tooling-validation.py` mutation-tests benchmark
   comparator and report-rendering failure modes before benchmark evidence is
   trusted by the production gate.
-- `Docs/BenchmarkMetadataComparison-2026-04-14.md` records the metadata-aware
-  benchmark comparison pass for profile, case, environment, toolchain,
-  hardware, Metal, and clean-source policy checks.
-- `Docs/BenchmarkReports/apple-m4-quick-2026-04-12.md` is a pinned Apple M4
-  quick-profile report.
-- `Docs/LeadAudit-2026-04-12.md` records the latest code audit findings,
-  protocol/backend hardening work, and validation commands.
-- `Docs/ProductionReadiness-2026-04-13.md` records the latest production gate,
-  CLI verifier, vector manifest, and Metal allocation hardening work.
+- `TestVectors/benchmark-coverage-v1.json` records the checked benchmark
+  surface contract, and `Scripts/validate-benchmark-coverage.py` gates it.
+- `Docs/BenchmarkReports/README.md` is the checked-in benchmark-report index;
+  fresh hardware timing reports are generated artifacts and are not bundled as
+  audit evidence in this checkout.
 - `Docs/ProductionReadinessAuditPacket-2026-04-16.md` records the current full
   release-gate evidence map, passed full local gate, and remaining no-go items
   before production-security language is appropriate.
@@ -115,8 +111,8 @@ Artifacts:
   authorization, provenance verification, replay checking, product byte limits,
   and audit events.
 - `ProtocolE2ETests` include malformed proof-envelope and tampering tests.
-- `Docs/GPUDeterminism.md` documents the CPU oracle policy and Metal
-  determinism boundary.
+- `Docs/ConstantTimeEvidence-2026-04-16.md` documents the CPU oracle policy,
+  constant-work source scope, and Metal determinism boundary.
 - `SuperNeoExecutionPolicy.highAssurance` selects constant-work CPU
   commitment/evaluation paths for covered secret-bearing normalization and
   prover work, including transformed sparse ring matrix-vector multiplication.
@@ -128,8 +124,8 @@ Artifacts:
   backend boundary with seeded/system-random setup, local opening verification,
   batch commits, verifier-key digesting, shape-bound fail-closed checks, and
   profile-tagged key serialization.
-- `Docs/AjtaiCommitmentBackend-2026-04-15.md` records the implemented backend
-  boundary, non-claims, and targeted validation.
+- `Docs/CryptographicSecurityDossier-2026-04-16.md` records the implemented
+  backend boundary, non-claims, and targeted validation.
 - `SuperNeoPreparedFoldContext` is available to the benchmarking SPI so repeated
   proof measurements can reuse the transformed sparse CCS shape and bound Metal
   workspace while rejecting profile, shape, key, execution-policy, and Metal
@@ -137,50 +133,14 @@ Artifacts:
 - `SuperNeoPreparedPiRLCTranscript` is available to the benchmarking SPI so
   PiRLC stage rows can prepare and validate the post-sum-check transcript in
   benchmark setup instead of charging sum-check proving work to PiRLC timing.
-- `Docs/HighAssuranceHardening-2026-04-13.md` records the side-channel,
-  malicious-GPU, and estimator-reproduction hardening pass.
-- `Docs/AjtaiKeyHardening-2026-04-13.md` records the fail-closed seeded Ajtai
-  key dimension-overflow hardening pass.
-- `Docs/KeySeedDomainSeparation-2026-04-13.md` records parameter-aware default
-  key-seed derivation for bundled generated workloads while preserving checked-in
-  8-bit vector compatibility.
-- `Docs/BinaryAdditionArtifactMetadataHardening-2026-04-13.md` records
-  fail-closed binary-addition `publicSum` metadata validation in the CLI,
-  vector schema, vector validator, and production gate.
-- `Docs/BinaryAdditionTerminalVector-2026-04-14.md` records the checked-in
-  binary-addition terminal proof vector and strict `--require-terminal`
-  validation coverage.
-- `Docs/CompressedTerminalCLI-2026-04-14.md` records the CLI, schema,
-  validator, and production-gate exposure for compressed public terminal
-  envelopes.
-- `Docs/CompressedTerminalVector-2026-04-14.md` records the checked-in one-hot
-  compressed-terminal proof vector and manifest/reproduction coverage.
-- `Docs/VectorManifestDuplicateKeyHardening-2026-04-14.md` records
-  fail-closed duplicate-key scanning for the vector manifest and checked-in
-  artifact corpus.
-- `Docs/BenchmarkPiRLCIsolation-2026-04-14.md` records the PiRLC benchmark
-  boundary correction and validation plan.
-- `Docs/BenchmarkOpeningBatchThreshold-2026-04-14.md` records the m256 CPU
-  opening-batch parallel threshold pass and validation plan.
-- `Docs/BenchmarkRelationEvaluationPlan-2026-04-14.md` records the sum-check
-  public relation/source evaluation-plan pass and validation plan.
-- `Docs/BenchmarkSumcheckPriorBatch-2026-04-14.md` records the sum-check
-  prior-claim coefficient batching pass and validation plan.
-- `Docs/BenchmarkSumcheckPublicPrecompute-2026-04-14.md` records the sum-check
-  public-precompute cleanup and its no-material-speedup benchmark finding.
-- `Docs/BenchmarkNormPolynomialSpecialization-2026-04-14.md` records the
-  default public norm-root polynomial specialization and its no-material
-  aggregate benchmark finding.
-- `Docs/BenchmarkTransformedEvaluationFusion-2026-04-14.md` records the CPU
-  transformed-evaluation fusion pass and validation plan.
-- `Docs/CLIHighAssurancePolicy-2026-04-13.md` records the CLI proof-generation
-  switch to explicit `.highAssurance` execution policy.
-- `Docs/ArtifactUnknownFieldHardening-2026-04-13.md` records fail-closed
-  rejection of unsupported top-level proof artifact fields in the CLI, vector
-  validator, and production gate.
-- `Docs/WorkloadParameterCanonicality-2026-04-13.md` records exact
-  workload-parameter validation for one-hot and binary-addition artifacts across
-  the CLI, vector schema, vector validator, and production gate.
+- `Docs/CLI.md`, `Docs/SchemaCompatibility-2026-04-16.md`, and
+  `Docs/NumiSealCLIExposure-2026-04-16.md` record the current fail-closed CLI,
+  artifact-schema, duplicate-key, terminal-envelope, and workload-parameter
+  validation boundaries.
+- `Docs/ProductIntegrationLayer-2026-04-16.md` and
+  `Docs/ProductOperationsReadiness-2026-04-16.md` record the current product
+  integration, local controls, replay, revocation, provenance, and audit-event
+  surfaces.
 - `.github/workflows/production-gate.yml` runs a short XCTest smoke job on
   pull requests, while the full release build, debug and release XCTest suites,
   vector validation, and strict release CLI smoke tests run on `main` and
@@ -215,11 +175,8 @@ Artifacts:
 - `Scripts/test-artifact-schema-validation.py` regression-tests the artifact
   schema checker against temporary loosened schemas and requires fail-closed
   behavior.
-- `Docs/ArtifactHeaderHardening-2026-04-13.md` records the CLI/vector
-  envelope-header hardening pass.
-- `Docs/ArtifactDuplicateKeyHardening-2026-04-13.md` records fail-closed CLI
-  and vector-corpus rejection of duplicate JSON object keys before artifact
-  decoding.
+- `Scripts/validate-doc-links.py` rejects broken local Markdown evidence links
+  before the release gate can report audit docs as current.
 
 Remaining boundary:
 
@@ -268,8 +225,6 @@ Artifacts:
 - `Docs/FormalStatusPromotion-2026-04-13.md` records the historical
   partial-formalization promotion, validation commands, and boundaries that were
   later superseded by the completed formal protocol theorem status.
-- `Docs/FormalAjtaiBinding-2026-04-13.md` records the Ajtai binding-equivalence
-  formalization pass and remaining quotient-ring/protocol boundaries.
 - `Docs/FormalPiDECRecomposition-2026-04-13.md` records the abstract PiDEC
   recomposition formalization pass.
 - `Docs/FormalProtocolComposition-2026-04-13.md` records the assumption-scoped
@@ -282,9 +237,11 @@ Artifacts:
 - The latest Lean pass keeps historical boundary IDs documented for audit
   continuity while keeping the active manifest on corrected-core groups plus
   closed theorem-critical integration gates.
-- `Docs/PaperReproduction.md` documents the harness and interpretation rules.
-- `Docs/LatticeEstimatorReproduction.md` documents the estimator command,
-  pinned upstream source, and exact derived parameters.
+- `Scripts/render-paper-reproduction.swift` documents and renders the
+  paper-claim reproduction artifact format.
+- `Scripts/reproduce-lattice-estimator.sh` and
+  `Scripts/validate-lattice-estimator-artifact.py` document and validate the
+  estimator command, pinned upstream source, and exact derived parameters.
 
 Remaining boundary:
 

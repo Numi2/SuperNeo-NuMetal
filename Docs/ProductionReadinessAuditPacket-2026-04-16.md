@@ -96,7 +96,6 @@ Core implementation and verifier boundaries:
 
 Threat model and proof semantics:
 
-- `Docs/ThreatModel.md`
 - `Docs/WhatThisProves.md`
 - `Docs/ProofEnvelope.md`
 - `Docs/CLI.md`
@@ -142,6 +141,7 @@ Release and validation gates:
 - `TestVectors/e2e-proof-metrics-v1.json`
 - `TestVectors/benchmark-coverage-v1.json`
 - `CHANGELOG.md`
+- `Scripts/validate-doc-links.py`
 - `Scripts/validate-release-readiness-policy.py`
 - `Scripts/validate-numiseal-conformance-scope.py`
 - `Scripts/test-numiseal-conformance-scope-validation.py`
