@@ -184,21 +184,34 @@ public struct SuperNeoNumiSealProductVerifier {
 
         do {
             try validateRequest(request)
-            let proofBytes = try request.artifact.proofEnvelopeBytes()
+            let artifact = try decodeArtifact(from: request.artifactBytes)
+            guard artifact == request.artifact else {
+                throw SuperNeoProductIntegrationError.invalidRequest(
+                    "artifact bytes do not match request artifact"
+                )
+            }
+            let verifiedRequest = SuperNeoNumiSealProductVerificationRequest(
+                callerID: request.callerID,
+                expectedContextID: request.expectedContextID,
+                artifact: artifact,
+                artifactBytes: request.artifactBytes,
+                maximumArtifactByteCount: request.maximumArtifactByteCount
+            )
+            let proofBytes = try artifact.proofEnvelopeBytes()
             let proofBytesDigest = Digest256.hash(proofBytes)
             proofEnvelopeDigest = proofBytesDigest
 
-            try NumiSealArtifactVerifier.validateMetadata(request.artifact)
-            try authorizer.authorize(request)
-            let expectedContext = try expectedContextStore.expectedContext(for: request)
+            try NumiSealArtifactVerifier.validateMetadata(artifact)
+            try authorizer.authorize(verifiedRequest)
+            let expectedContext = try expectedContextStore.expectedContext(for: verifiedRequest)
             let verifiedProvenanceDigest = try provenanceVerifier.verifyProvenance(
-                for: request,
+                for: verifiedRequest,
                 artifactDigest: artifactDigest
             )
             provenanceDigest = verifiedProvenanceDigest
 
             let statementDigest = try Digest256(
-                hexDigest: request.artifact.statementDigestHex,
+                hexDigest: artifact.statementDigestHex,
                 name: "NumiSeal product statement digest"
             )
             let identity = SuperNeoProductProofIdentity(
@@ -215,7 +228,7 @@ public struct SuperNeoNumiSealProductVerifier {
             }
 
             let innerReport = try NumiSealArtifactVerifier.verify(
-                artifact: request.artifact,
+                artifact: artifact,
                 expectedContext: expectedContext,
                 parameters: parameters,
                 executionPolicy: executionPolicy
@@ -251,6 +264,31 @@ public struct SuperNeoNumiSealProductVerifier {
                 )
             )
             throw error
+        }
+    }
+
+    private func decodeArtifact(from artifactBytes: [UInt8]) throws -> NumiSealArtifact {
+        let data = Data(artifactBytes)
+        try SuperNeoJSONDuplicateKeyValidator.validate(data: data, artifactName: "NumiSeal artifact")
+        let jsonObject: Any
+        do {
+            jsonObject = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            throw SuperNeoProductIntegrationError.invalidRequest("NumiSeal artifact JSON is invalid: \(error)")
+        }
+        guard let object = jsonObject as? [String: Any] else {
+            throw SuperNeoProductIntegrationError.invalidRequest("NumiSeal artifact JSON must be an object")
+        }
+        let unknownKeys = Set(object.keys).subtracting(NumiSealArtifact.topLevelKeys).sorted()
+        guard unknownKeys.isEmpty else {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "NumiSeal artifact contains unknown top-level fields: \(unknownKeys.joined(separator: ","))"
+            )
+        }
+        do {
+            return try JSONDecoder().decode(NumiSealArtifact.self, from: data)
+        } catch {
+            throw SuperNeoProductIntegrationError.invalidRequest("could not decode NumiSeal artifact: \(error)")
         }
     }
 

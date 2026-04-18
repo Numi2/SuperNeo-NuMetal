@@ -233,11 +233,12 @@ public struct NumiSealArtifactVerificationReport: Equatable, Sendable {
 public enum NumiSealArtifactVerifier {
     public static func verify(
         artifact: NumiSealArtifact,
-        expectedContext: NumiSealArtifactExpectedContext = NumiSealArtifactExpectedContext(),
+        expectedContext: NumiSealArtifactExpectedContext,
         parameters: SuperNeoParameters = .goldilocks,
         executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> NumiSealArtifactVerificationReport {
         try validateMetadata(artifact)
+        let keySeed = try trustedVerificationKeySeed(from: expectedContext)
         if let expectedPublicInputs = expectedContext.publicInputs {
             guard artifact.publicInputs == expectedPublicInputs else {
                 throw NumiSealArtifactVerificationError.invalid("artifact public inputs do not match expected public inputs")
@@ -248,7 +249,7 @@ public enum NumiSealArtifactVerifier {
         let envelope = try validatedEnvelope(from: artifact, parameters: parameters)
         let material = try makeVerificationMaterial(
             from: artifact,
-            keySeed: expectedContext.trustedKeySeedUTF8 ?? artifact.keySeedUTF8,
+            keySeed: keySeed,
             parameters: parameters,
             executionPolicy: executionPolicy
         )
@@ -284,6 +285,22 @@ public enum NumiSealArtifactVerifier {
             material: material,
             envelope: envelope,
             verificationResult: result
+        )
+    }
+
+    public static func verifySelfDescribedTestVector(
+        artifact: NumiSealArtifact,
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) throws -> NumiSealArtifactVerificationReport {
+        try verify(
+            artifact: artifact,
+            expectedContext: NumiSealArtifactExpectedContext(
+                trustedKeySeedUTF8: artifact.keySeedUTF8,
+                verifierKeyDigest: try Digest256(hexDigest: artifact.verifierKeyDigestHex)
+            ),
+            parameters: parameters,
+            executionPolicy: executionPolicy
         )
     }
 
@@ -644,6 +661,23 @@ public enum NumiSealArtifactVerifier {
                 throw NumiSealArtifactVerificationError.invalid("NumiSeal proof transcript digest does not match expected proof transcript digest")
             }
         }
+    }
+
+    private static func trustedVerificationKeySeed(
+        from expectedContext: NumiSealArtifactExpectedContext
+    ) throws -> String? {
+        if let trustedKeySeed = expectedContext.trustedKeySeedUTF8 {
+            guard !trustedKeySeed.isEmpty else {
+                throw NumiSealArtifactVerificationError.invalid("NumiSeal trusted key seed must not be empty")
+            }
+            return trustedKeySeed
+        }
+        guard expectedContext.verifierKeyDigest != nil else {
+            throw NumiSealArtifactVerificationError.invalid(
+                "NumiSeal verification requires a trusted key seed or verifier key digest in expected context"
+            )
+        }
+        return nil
     }
 
     public static func expectedKeyColumnCount(_ artifact: NumiSealArtifact) -> Int {

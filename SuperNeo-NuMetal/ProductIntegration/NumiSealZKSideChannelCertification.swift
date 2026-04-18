@@ -147,11 +147,10 @@ public struct SuperNeoSignedNumiSealZKSideChannelCertificate: Codable, Equatable
         trustedIssuerKeyDigestsHex: Set<String>,
         now: Date = Date()
     ) throws -> SuperNeoVerifiedNumiSealZKSideChannelCertificate {
-        try SuperNeoLocalFileSecurity.requireSecureRegularFile(
+        let data = try SuperNeoLocalFileSecurity.readSecureRegularFile(
             url,
             description: "NumiSealZK side-channel certificate"
         )
-        let data = try Data(contentsOf: url)
         try SuperNeoJSONDuplicateKeyValidator.validate(
             data: data,
             artifactName: "NumiSealZK side-channel certificate"

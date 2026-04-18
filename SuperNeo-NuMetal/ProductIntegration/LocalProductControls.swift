@@ -267,8 +267,7 @@ public struct SuperNeoSignedTrustedContextPack: Codable, Equatable, Sendable {
         trustedIssuerKeyDigestsHex: Set<String>,
         now: Date = Date()
     ) throws -> SuperNeoVerifiedTrustedContextPack {
-        try SuperNeoLocalFileSecurity.requireSecureRegularFile(url, description: "trusted context pack")
-        let data = try Data(contentsOf: url)
+        let data = try SuperNeoLocalFileSecurity.readSecureRegularFile(url, description: "trusted context pack")
         try SuperNeoJSONDuplicateKeyValidator.validate(data: data, artifactName: "trusted context pack")
         let pack = try JSONDecoder().decode(Self.self, from: data)
         return try pack.verified(trustedIssuerKeyDigestsHex: trustedIssuerKeyDigestsHex, now: now)
@@ -354,8 +353,10 @@ public struct SuperNeoSignedArtifactProvenanceManifest: Codable, Equatable, Send
         from url: URL,
         trustedIssuerKeyDigestsHex: Set<String>
     ) throws -> SuperNeoVerifiedArtifactProvenanceManifest {
-        try SuperNeoLocalFileSecurity.requireSecureRegularFile(url, description: "artifact provenance manifest")
-        let data = try Data(contentsOf: url)
+        let data = try SuperNeoLocalFileSecurity.readSecureRegularFile(
+            url,
+            description: "artifact provenance manifest"
+        )
         try SuperNeoJSONDuplicateKeyValidator.validate(data: data, artifactName: "artifact provenance manifest")
         let manifest = try JSONDecoder().decode(Self.self, from: data)
         return try manifest.verified(trustedIssuerKeyDigestsHex: trustedIssuerKeyDigestsHex)
@@ -533,8 +534,7 @@ public struct SuperNeoSignedRevocationFeed: Codable, Equatable, Sendable {
         context: SuperNeoTrustedContextPayload,
         now: Date = Date()
     ) throws -> SuperNeoVerifiedRevocationFeed {
-        try SuperNeoLocalFileSecurity.requireSecureRegularFile(url, description: "revocation feed")
-        let data = try Data(contentsOf: url)
+        let data = try SuperNeoLocalFileSecurity.readSecureRegularFile(url, description: "revocation feed")
         try SuperNeoJSONDuplicateKeyValidator.validate(data: data, artifactName: "revocation feed")
         let feed = try JSONDecoder().decode(Self.self, from: data)
         return try feed.verified(
@@ -627,8 +627,7 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
     }
 
     public static func load(from url: URL) throws -> Self {
-        try SuperNeoLocalFileSecurity.requireSecureRegularFile(url, description: "operator profile")
-        let data = try Data(contentsOf: url)
+        let data = try SuperNeoLocalFileSecurity.readSecureRegularFile(url, description: "operator profile")
         try SuperNeoJSONDuplicateKeyValidator.validate(data: data, artifactName: "operator profile")
         let profile = try JSONDecoder().decode(Self.self, from: data)
         try profile.validate()
@@ -683,14 +682,80 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
 
 public enum SuperNeoLocalFileSecurity {
     public static func requireSecureRegularFile(_ url: URL, description: String) throws {
-        let path = url.path
-        var info = stat()
-        guard lstat(path, &info) == 0 else {
-            throw SuperNeoProductIntegrationError.invalidRequest("\(description) is missing: \(path)")
+        try withSecureRegularFileDescriptor(url, description: description, flags: O_RDONLY) { _ in }
+    }
+
+    public static func readSecureRegularFile(_ url: URL, description: String) throws -> Data {
+        try withSecureRegularFileDescriptor(url, description: description, flags: O_RDONLY) { fd in
+            try readAll(from: fd, description: description, path: url.path)
         }
-        guard (info.st_mode & S_IFMT) != S_IFLNK else {
+    }
+
+    public static func withSecureRegularFileDescriptor<T>(
+        _ url: URL,
+        description: String,
+        flags: Int32,
+        _ body: (Int32) throws -> T
+    ) throws -> T {
+        let fd = try openSecureRegularFile(url, description: description, flags: flags)
+        defer { close(fd) }
+        return try body(fd)
+    }
+
+    public static func requireLockableSecureRegularFile(_ url: URL, description: String) throws {
+        try withSecureRegularFileDescriptor(url, description: description, flags: O_RDWR) { fd in
+            guard flock(fd, LOCK_EX | LOCK_NB) == 0 else {
+                throw SuperNeoProductIntegrationError.unauthorized("\(description) is not lockable: \(url.path)")
+            }
+            flock(fd, LOCK_UN)
+        }
+    }
+
+    public static func createSecureFileIfMissing(_ url: URL, description: String) throws {
+        let path = url.path
+        let fd = open(path, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC | O_NOFOLLOW, S_IRUSR | S_IWUSR)
+        if fd >= 0 {
+            close(fd)
+            return
+        }
+        let openErrno = errno
+        if openErrno == EEXIST {
+            try requireSecureRegularFile(url, description: description)
+            return
+        }
+        if openErrno == ELOOP {
             throw SuperNeoProductIntegrationError.unauthorized("\(description) must not be a symlink: \(path)")
         }
+        throw SuperNeoProductIntegrationError.invalidRequest("could not create \(description): \(path)")
+    }
+
+    private static func openSecureRegularFile(_ url: URL, description: String, flags: Int32) throws -> Int32 {
+        let path = url.path
+        let fd = open(path, flags | O_CLOEXEC | O_NOFOLLOW)
+        guard fd >= 0 else {
+            let openErrno = errno
+            if openErrno == ENOENT {
+                throw SuperNeoProductIntegrationError.invalidRequest("\(description) is missing: \(path)")
+            }
+            if openErrno == ELOOP {
+                throw SuperNeoProductIntegrationError.unauthorized("\(description) must not be a symlink: \(path)")
+            }
+            throw SuperNeoProductIntegrationError.invalidRequest("\(description) is not openable: \(path)")
+        }
+        do {
+            var info = stat()
+            guard fstat(fd, &info) == 0 else {
+                throw SuperNeoProductIntegrationError.invalidRequest("\(description) metadata is unavailable: \(path)")
+            }
+            try validateSecureRegularFileInfo(info, description: description, path: path)
+            return fd
+        } catch {
+            close(fd)
+            throw error
+        }
+    }
+
+    private static func validateSecureRegularFileInfo(_ info: stat, description: String, path: String) throws {
         guard (info.st_mode & S_IFMT) == S_IFREG else {
             throw SuperNeoProductIntegrationError.invalidRequest("\(description) must be a regular file: \(path)")
         }
@@ -702,30 +767,21 @@ public enum SuperNeoLocalFileSecurity {
         }
     }
 
-    public static func requireLockableSecureRegularFile(_ url: URL, description: String) throws {
-        try requireSecureRegularFile(url, description: description)
-        let fd = open(url.path, O_RDWR | O_CLOEXEC)
-        guard fd >= 0 else {
-            throw SuperNeoProductIntegrationError.invalidRequest("\(description) is not openable for locking: \(url.path)")
+    private static func readAll(from fd: Int32, description: String, path: String) throws -> Data {
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 16 * 1024)
+        while true {
+            let result = buffer.withUnsafeMutableBytes { rawBuffer in
+                read(fd, rawBuffer.baseAddress, rawBuffer.count)
+            }
+            if result > 0 {
+                data.append(contentsOf: buffer.prefix(Int(result)))
+            } else if result == 0 {
+                return data
+            } else if errno != EINTR {
+                throw SuperNeoProductIntegrationError.invalidRequest("could not read \(description): \(path)")
+            }
         }
-        defer { close(fd) }
-        guard flock(fd, LOCK_EX | LOCK_NB) == 0 else {
-            throw SuperNeoProductIntegrationError.unauthorized("\(description) is not lockable: \(url.path)")
-        }
-        flock(fd, LOCK_UN)
-    }
-
-    public static func createSecureFileIfMissing(_ url: URL, description: String) throws {
-        let path = url.path
-        if FileManager.default.fileExists(atPath: path) {
-            try requireSecureRegularFile(url, description: description)
-            return
-        }
-        let fd = open(path, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
-        guard fd >= 0 else {
-            throw SuperNeoProductIntegrationError.invalidRequest("could not create \(description): \(path)")
-        }
-        close(fd)
     }
 }
 
@@ -1514,17 +1570,17 @@ public final class SuperNeoJSONLAuditLog {
         flags: Int32,
         _ body: (Int32) throws -> T
     ) throws -> T {
-        try SuperNeoLocalFileSecurity.requireSecureRegularFile(url, description: "audit log")
-        let fd = open(url.path, flags)
-        guard fd >= 0 else {
-            throw SuperNeoProductIntegrationError.invalidRequest("could not open audit log")
+        try SuperNeoLocalFileSecurity.withSecureRegularFileDescriptor(
+            url,
+            description: "audit log",
+            flags: flags
+        ) { fd in
+            guard flock(fd, LOCK_EX) == 0 else {
+                throw SuperNeoProductIntegrationError.unauthorized("audit log is not lockable")
+            }
+            defer { flock(fd, LOCK_UN) }
+            return try body(fd)
         }
-        defer { close(fd) }
-        guard flock(fd, LOCK_EX) == 0 else {
-            throw SuperNeoProductIntegrationError.unauthorized("audit log is not lockable")
-        }
-        defer { flock(fd, LOCK_UN) }
-        return try body(fd)
     }
 
     private func readRecordsUnlocked(fd: Int32) throws -> AuditLogReadResult {

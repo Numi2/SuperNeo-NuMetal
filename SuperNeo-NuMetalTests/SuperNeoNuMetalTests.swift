@@ -5587,6 +5587,27 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
     }
 
+    func testNumiSealZKDefaultGuardRejectsRandomnessReuseAcrossProvers() throws {
+        let fixture = try makeNumiSealProofBodyFixture()
+        let sessionMaterial = Array("numiseal-zk-cross-prover-reuse-test".utf8)
+        _ = try NumiSealZKProver().prove(
+            terminalEnvelope: fixture.envelope,
+            digitTensors: [fixture.digitTensor],
+            randomnessSessionMaterial: sessionMaterial,
+            randomnessSessionLabel: "cross-prover-unit-test"
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealZKProver().prove(
+                terminalEnvelope: fixture.envelope,
+                digitTensors: [fixture.digitTensor],
+                randomnessSessionMaterial: sessionMaterial,
+                randomnessSessionLabel: "cross-prover-unit-test"
+            ),
+            .verificationFailed("NumiSealZK randomness session reuse detected")
+        )
+    }
+
     func testNumiSealZKFixedRandomnessCPUAndMetalProofBytesMatch() throws {
         let fixture = try makeNumiSealProofBodyFixture()
         let device = try requireMetalDevice()
@@ -5602,13 +5623,14 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             provingPolicy: .zkRedundantMetal
         )
         let sessionMaterial = Array("numiseal-zk-fixed-metal-equivalence".utf8)
-        let cpuEnvelope = try NumiSealZKProver().prove(
+        let deterministicGuard = NumiSealZKRandomnessReuseGuard(enforcesReuseDetection: false)
+        let cpuEnvelope = try NumiSealZKProver(randomnessReuseGuard: deterministicGuard).prove(
             terminalEnvelope: fixture.envelope,
             digitTensors: [fixture.digitTensor],
             randomnessSessionMaterial: sessionMaterial,
             randomnessSessionLabel: "fixed-equivalence"
         )
-        let metalEnvelope = try NumiSealZKProver().prove(
+        let metalEnvelope = try NumiSealZKProver(randomnessReuseGuard: deterministicGuard).prove(
             terminalEnvelope: fixture.envelope,
             digitTensors: [fixture.digitTensor],
             randomnessSessionMaterial: sessionMaterial,
@@ -6171,7 +6193,10 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertThrowsNumiSealArtifactError(
             try NumiSealArtifactVerifier.verify(
                 artifact: artifact,
-                expectedContext: NumiSealArtifactExpectedContext(publicInputs: wrongPublicInputs),
+                expectedContext: NumiSealArtifactExpectedContext(
+                    trustedKeySeedUTF8: artifact.keySeedUTF8,
+                    publicInputs: wrongPublicInputs
+                ),
                 executionPolicy: .highAssurance
             ),
             containing: "expected public inputs"
@@ -6183,6 +6208,19 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 executionPolicy: .highAssurance
             ),
             containing: "regenerated key"
+        )
+    }
+
+    func testNumiSealArtifactVerifierRejectsSelfDescribedContextWithoutKeyTrustPin() throws {
+        let artifact = try loadNumiSealArtifact(named: "numiseal-terminal-single-aggregate-v1.json")
+
+        XCTAssertThrowsNumiSealArtifactError(
+            try NumiSealArtifactVerifier.verify(
+                artifact: artifact,
+                expectedContext: NumiSealArtifactExpectedContext(publicInputs: artifact.publicInputs),
+                executionPolicy: .highAssurance
+            ),
+            containing: "trusted key seed or verifier key digest"
         )
     }
 
@@ -6218,6 +6256,64 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertEqual(auditSink.events.last?.decision, .accepted)
         XCTAssertEqual(auditSink.events.last?.artifactDigest, Digest256.hash([UInt8](data)))
         XCTAssertEqual(auditSink.events.last?.provenanceDigest, provenanceVerifier.provenanceDigest)
+    }
+
+    func testNumiSealProductVerifierRejectsArtifactObjectThatDoesNotMatchBytes() throws {
+        let data = try loadNumiSealArtifactData(named: "numiseal-terminal-single-aggregate-v1.json")
+        let artifact = try JSONDecoder().decode(NumiSealArtifact.self, from: data)
+        let mismatchedArtifact = NumiSealArtifact(
+            artifactVersion: artifact.artifactVersion,
+            workload: "\(artifact.workload)-mismatch",
+            profile: artifact.profile,
+            proofKind: artifact.proofKind,
+            residualMode: artifact.residualMode,
+            keySeedUTF8: artifact.keySeedUTF8,
+            keyColumnCount: artifact.keyColumnCount,
+            foldTranscriptSeedUTF8: artifact.foldTranscriptSeedUTF8,
+            laneIDsUTF8: artifact.laneIDsUTF8,
+            sourceFoldDigestSeedsUTF8: artifact.sourceFoldDigestSeedsUTF8,
+            ceRandomSeedsUTF8: artifact.ceRandomSeedsUTF8,
+            maximumObligationsPerAggregate: artifact.maximumObligationsPerAggregate,
+            maximumLaneCount: artifact.maximumLaneCount,
+            maximumAggregatesPerLane: artifact.maximumAggregatesPerLane,
+            publicInputCount: artifact.publicInputCount,
+            privateWitnessCount: artifact.privateWitnessCount,
+            publicInputs: artifact.publicInputs,
+            shapeDigestHex: artifact.shapeDigestHex,
+            statementDigestHex: artifact.statementDigestHex,
+            verifierKeyDigestHex: artifact.verifierKeyDigestHex,
+            transcriptDomainHex: artifact.transcriptDomainHex,
+            publicStatementDigestHex: artifact.publicStatementDigestHex,
+            obligationRootHex: artifact.obligationRootHex,
+            laneSummaryRootHex: artifact.laneSummaryRootHex,
+            aggregateDigestsHex: artifact.aggregateDigestsHex,
+            componentDigestRootHex: artifact.componentDigestRootHex,
+            proofTranscriptDigestHex: artifact.proofTranscriptDigestHex,
+            proofEnvelopeBase64: artifact.proofEnvelopeBase64
+        )
+        let auditSink = ProductAuditSink()
+        let verifier = SuperNeoNumiSealProductVerifier(
+            expectedContextStore: ProductExpectedContextStore(expectedContext: try strictExpectedContext(for: artifact)),
+            authorizer: ProductAuthorizer(),
+            provenanceVerifier: ProductProvenanceVerifier(),
+            replayLedger: ProductReplayLedger(),
+            auditSink: auditSink
+        )
+
+        XCTAssertThrowsProductIntegrationError(
+            try verifier.verify(
+                SuperNeoNumiSealProductVerificationRequest(
+                    callerID: "tenant-a",
+                    expectedContextID: "ctx-numiseal-single",
+                    artifact: mismatchedArtifact,
+                    artifactBytes: [UInt8](data)
+                )
+            ),
+            containing: "artifact bytes do not match request artifact"
+        )
+        XCTAssertEqual(auditSink.events.last?.decision, .rejected)
+        XCTAssertNil(auditSink.events.last?.proofEnvelopeDigest)
+        XCTAssertNil(auditSink.events.last?.provenanceDigest)
     }
 
     func testNumiSealProductVerifierFailsClosedOnAuthorizationRejection() throws {
@@ -6830,6 +6926,44 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 now: try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
             ),
             containing: "must not be group- or world-writable"
+        )
+    }
+
+    func testLocalProductControlsRejectSymlinkedTrustedContextPack() throws {
+        let directory = try temporaryDirectory()
+        let signingKey = Curve25519.Signing.PrivateKey()
+        let publicKeyDigest = Digest256.hash([UInt8](signingKey.publicKey.rawRepresentation)).hexString
+        let payload = SuperNeoTrustedContextPayload(
+            contextID: "ctx-terminal",
+            issuer: "SuperNeo Release",
+            validFromUTC: "2026-01-01T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z",
+            expectedVerifierKeyDigestHex: Digest256.hash("verifier").hexString,
+            expectedShapeDigestHex: Digest256.hash("shape").hexString,
+            expectedStatementDigestHex: Digest256.hash("statement").hexString,
+            expectedTranscriptDomainDigestHex: Digest256.hash("domain").hexString,
+            acceptedProofKinds: [.terminal],
+            maximumArtifactByteCount: 1024,
+            allowedWorkloads: ["one-hot-vector-v1"],
+            releaseBuildDigestHex: Digest256.hash("release").hexString,
+            keyRotation: SuperNeoTrustedContextKeyRotation(currentIssuerKeyDigestHex: publicKeyDigest)
+        )
+        let pack = SuperNeoSignedTrustedContextPack(
+            payload: payload,
+            signature: try productSignature(for: payload, signingKey: signingKey)
+        )
+        let targetURL = directory.appendingPathComponent("context-target.json")
+        let symlinkURL = directory.appendingPathComponent("context-link.json")
+        try writeSecureJSON(pack, to: targetURL)
+        try FileManager.default.createSymbolicLink(at: symlinkURL, withDestinationURL: targetURL)
+
+        XCTAssertThrowsProductIntegrationError(
+            try SuperNeoSignedTrustedContextPack.loadVerified(
+                from: symlinkURL,
+                trustedIssuerKeyDigestsHex: [publicKeyDigest],
+                now: try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
+            ),
+            containing: "must not be a symlink"
         )
     }
 

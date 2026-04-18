@@ -35,14 +35,26 @@ public struct NumiSealZKRandomnessSession: Equatable, Sendable, SuperNeoByteEnco
 }
 
 public final class NumiSealZKRandomnessReuseGuard: @unchecked Sendable {
+    public static let processWide = NumiSealZKRandomnessReuseGuard()
+
     private let lock = NSLock()
     private var consumedSessionIDs: Set<Digest256>
+    private let enforcesReuseDetection: Bool
 
     public init(consumedSessionIDs: Set<Digest256> = []) {
         self.consumedSessionIDs = consumedSessionIDs
+        self.enforcesReuseDetection = true
+    }
+
+    init(consumedSessionIDs: Set<Digest256> = [], enforcesReuseDetection: Bool) {
+        self.consumedSessionIDs = consumedSessionIDs
+        self.enforcesReuseDetection = enforcesReuseDetection
     }
 
     public func consume(_ session: NumiSealZKRandomnessSession) throws {
+        guard enforcesReuseDetection else {
+            return
+        }
         lock.lock()
         defer { lock.unlock() }
         guard !consumedSessionIDs.contains(session.sessionIDDigest) else {
@@ -1144,7 +1156,7 @@ public struct NumiSealZKProofEnvelope: Equatable, Sendable, SuperNeoByteEncodabl
 public final class NumiSealZKProver: @unchecked Sendable {
     private let randomnessReuseGuard: NumiSealZKRandomnessReuseGuard
 
-    public init(randomnessReuseGuard: NumiSealZKRandomnessReuseGuard = NumiSealZKRandomnessReuseGuard()) {
+    public init(randomnessReuseGuard: NumiSealZKRandomnessReuseGuard = .processWide) {
         self.randomnessReuseGuard = randomnessReuseGuard
     }
 

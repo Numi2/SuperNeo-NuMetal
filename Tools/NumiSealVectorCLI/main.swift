@@ -405,7 +405,7 @@ private func validateSharedArtifact(
     file: String
 ) throws -> NumiSealArtifactVerificationReport {
     do {
-        return try NumiSealArtifactVerifier.verify(
+        return try NumiSealArtifactVerifier.verifySelfDescribedTestVector(
             artifact: artifact,
             executionPolicy: .highAssurance
         )
