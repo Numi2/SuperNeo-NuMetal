@@ -18,12 +18,22 @@ Current safe claim:
 > primitive used by the algebraic transcript challenge paths. The CTCO
 > delayed-message and unique-response data are pinned, the ideal split-QRO
 > compiler-overhead term is instantiated as zero, and the exact finite
-> probability wiring is recorded in the selected total-loss budget. The shared
+> probability wiring is recorded in the selected total-loss budget. The
+> proof-level NumiSealZK simulator coupling is instantiated as
+> `epsilon_zk_sim = 0` under the declared leakage model. The shared
 > cryptographic core bad events are charged once through `epsilon_core_shared`.
-> Some theorem-critical integrations remain open: underlying interactive
-> security bounds, ZK simulator loss, concrete Swift/trace terminal CE
-> localization evidence, concrete PiRLC fold-failure-to-delta-collision
-> localization, and the remaining non-QROM selected total-loss terms.
+> The terminal CE localization and PiRLC selected public-field finite-soundness
+> integrations are now closed in Lean. Terminal CE repeated-challenge soundness
+> is pinned by an exact `(2/3)^226 < 2^-128` finite-tape bound. The selected
+> finite-protocol numeric obstruction is also explicit: the current one-shot
+> PiRLC/PiCCS challenge supports cannot justify a selected 128-bit claim, so the
+> selected product theorem uses the fixed-kind CTCO repeated-tape route instead.
+> That route instantiates the source-fold finite term with two PiCCS tapes and
+> three generic CRT PiRLC branches, and instantiates terminal CE at 226 rounds.
+> The remaining non-production terms are separate evidence terms: numeric
+> extractor loss instantiation, release-grade Swift trace/extractor equivalence,
+> operations, side-channel, release-distribution loss terms, and full production
+> audit records.
 
 This is not a production-security claim. The repo does not claim production
 post-quantum security, production QROM security, whole-stack constant-time
@@ -31,9 +41,11 @@ certification, or independent cryptographic audit completion.
 
 ## Current Status
 
-As of 2026-04-18, the formal layer has made real lower-level progress, but the
-full-theorem blocker list remains open at the integration level. The current
-formal solution is built around:
+As of 2026-04-18, the Lean finite protocol theorem is completed for the
+repository's formal model. Production-security wording remains disabled because
+the selected product ledger still has separate extractor, operations,
+side-channel, release, and audit evidence terms. The current formal
+solution is built around:
 
 - well-formed, length-counted transcripts with byte injectivity;
 - 384-bit theorem-critical proof-envelope binding encodings;
@@ -61,39 +73,36 @@ formal solution is built around:
   `TestVectors/benchmark-coverage-v1.json`, used as evidence gates rather than
   latency claims.
 
-The remaining Lean integration gaps are theorem-critical and must not be folded
-into product/security evidence status:
+The former hard Lean integration gaps are now closed by checked finite-model
+endpoints and must still not be confused with product/security evidence status:
 
-- instantiate constructive terminal CE localization evidence beyond the checked
-  slot and full-tape certificate endpoints, by proving the concrete Swift/trace
-  parser supplies the required bad-round selector. The full ternary tape and
-  proof-level full-tape certificate constructor are now checked directly from
-  the Swift response-tag trace;
-- complete CRT-based PiRLC finite soundness on top of `Phi81CRT.lean` and
-  `PiRLCConcreteCollision.lean`. The formal surface now includes a conservative
-  CRT component bad-seed budget with the necessary `5^27` fiber factor and
-  constructs the component-localization certificate from a delta-collision
-  proof plus the checked upper-half coefficient fiber used by the Swift
-  challenge encoding. It also proves that any accepted fold with a sound folded
-  output reaches that certificate from a linear defect functional, and provides
-  concrete linear observations for the folded claim fields, including a finite
-  observation-family soundness certificate for the full public field family.
-  Closing the integration still requires concrete protocol evidence that the
-  selected Swift/trace folded relation supplies the selected defect predicate. The
-  stronger `1/5^54`-style count is exposed only under an explicit full-ring
-  unit-pivot collision evidence package.
+- terminal CE localization now has direct finite-soundness certificates from
+  constructive localization, a slot-to-full-tape lift, Swift trace full-tape
+  certificates, a pointwise two-branch repeated-challenge tape bound, the exact
+  Swift profile inequality `(2/3)^226 < 2^-128`, and a checked first-round Swift
+  trace selector;
+- CRT-based PiRLC finite soundness now has a monotone certificate transport, a
+  theorem extracting a nonzero public-field observation from failure of the
+  selected public-fields-zero relation, and a direct finite-soundness
+  certificate for that selected relation. The stronger `1/5^54`-style count
+  remains exposed only under an explicit full-ring unit-pivot collision evidence
+  package.
 
 The remaining product/security evidence gaps are separate:
 
-- instantiate numeric extractor, interactive-security, ZK-simulator,
-  operations, side-channel, and release-distribution loss terms in the selected
-  total-loss budget;
+- instantiate numeric extractor, operations, side-channel, and
+  release-distribution loss terms in the selected total-loss budget; the
+  one-shot source-fold profile remains mathematically non-128-bit
+  (`5^54 < 2^128`, generic CRT PiRLC gives `1/5^27`, and the loose PiCCS
+  certificate is `72/q^2`), while the selected fixed-kind CTCO repeated-tape
+  route now supplies `epsilon_fold <= 16/q^4 + 1/5^81` and terminal CE is
+  pinned at 226 repeated challenge rounds;
 - complete release-grade Swift trace/extractor equivalence review for the
   pinned executable trace evidence;
 - extend recursive carry from checked local chain replay into the selected
   hosted production-depth policy;
-- record release-hardware ZK simulator-coupling benchmarks and side-channel
-  review before default promotion;
+- record release-hardware NumiSealZK benchmark evidence and side-channel review
+  before default promotion;
 - close hosted product operations evidence for context, provenance, replay,
   authorization, audit retention, and signed distribution;
 - finish independent cryptographic, implementation, and side-channel review.
@@ -165,7 +174,8 @@ The active theorem target is:
   NumiSeal-terminal, and NumiSealZK product proof kinds;
 - CTCO as the preferred compiler family;
 - Merkle-straightline as the fallback compiler family;
-- interactive soundness charged outside the QROM transform term;
+- interactive soundness charged outside the QROM transform term, with per-kind
+  finite-model bounds now pinned through the interactive-reduction evidence;
 - shared bad events charged through the selected-depth ledger.
 
 Production QROM language stays disabled until the explicit product/QROM evidence

@@ -4,6 +4,7 @@
   "claimStatus": "evidence-parametric-end-to-end-composition-theorem",
   "conformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
   "zkMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+  "zkSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
   "formalModel": {
     "module": "Formal/SuperNeoFormal/NumiSealEndToEnd.lean",
     "rootImport": "import SuperNeoFormal.NumiSealEndToEnd",
@@ -284,7 +285,6 @@
   "residualProofObligations": [
     "concrete Swift extractor implementation evidence for product proof bytes and all recursive transcript schedules",
     "extend typed-required recursive child product carry beyond the checked parent-child handoff and account product replay/losses for the selected production depth",
-    "concrete NumiSealZK simulator coupling evidence beyond the exact field-mask distribution lemma",
     "QROM Fiat-Shamir reduction and concrete soundness-loss accounting for the product transcript",
     "constant-time and side-channel evidence sufficient for product privacy promotion"
   ],
@@ -294,8 +294,8 @@
     "unblockRequires": [
       "concrete Swift extractor implementation evidence is generated for product proof bytes and all recursive transcript schedules",
       "typed-required recursive child product typed carry is extended beyond the checked parent-child handoff with replay and loss accounting",
-      "NumiSealZK simulator/leakage model evidence is recorded beyond the exact field-mask distribution lemma",
       "QROM Fiat-Shamir and concrete soundness-loss accounting are recorded for the product transcript",
+      "constant-time and side-channel evidence sufficient for product privacy promotion is closed",
       "the promotion manifest changes productionNumiSealTheoremClaimAllowed only with updated validation"
     ]
   }

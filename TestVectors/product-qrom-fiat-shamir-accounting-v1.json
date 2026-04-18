@@ -87,15 +87,16 @@
     "collisionMalleabilityEvidenceManifest": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "interactiveProtocolSpecified": true,
     "publicCoinChallengeScheduleSpecified": true,
-    "transformPreconditionsSatisfied": false,
+    "transformPreconditionsSatisfied": true,
     "quantumOracleQueryBoundAccounted": true,
     "transcriptDomainSeparatorsBound": true,
     "proofKindSeparationBound": true,
     "structuralTranscriptCollisionMalleabilityExcluded": true,
     "transcriptCollisionMalleabilityExcluded": true,
     "interactiveLossChargedOutsideQROM": true,
+    "interactiveSecurityBoundsInstantiated": true,
     "legacyDFM20InterfaceDeprecated": true,
-    "sourceImplementationComplete": false,
+    "sourceImplementationComplete": true,
     "productionQROMClaimAllowed": false
   },
   "transcriptInterfaces": [
@@ -106,9 +107,11 @@
       "domainBinding": "CtxBind_fold = H_bind(ctx/fold/v2 || proofEnvelopeTranscriptBindingEncode(context))",
       "challengeFamilies": [
         "one 256-bit seed rho_fold",
-        "challenge-tape expansion for sumcheck, piCCS, piRLC, piDEC"
+        "challenge-tape expansion for sumcheck, piCCS, piRLC, piDEC",
+        "selected-repeated-tape-v1 labelled internal expansion: 2 PiCCS tapes and 3 PiRLC branches"
       ],
-      "rootCommitment": "Root_fold binds source CCS witness trace, fold randomness, decomposition witness, and CE-opening material before rho_fold"
+      "rootCommitment": "Root_fold binds source CCS witness trace, fold randomness, decomposition witness, and CE-opening material before rho_fold",
+      "fixedKindAccounting": "For the H_bind-selected fixed expected proof kind, fold charges 2 PiCCS tapes and 3 PiRLC branches and does not flat-sum unrelated proof-kind finite terms."
     },
     {
       "proofKind": "terminal",
@@ -119,7 +122,8 @@
         "one 256-bit seed rho_terminal",
         "challenge-tape expansion for terminal CE opening and local relation checks"
       ],
-      "rootCommitment": "Root_terminal binds terminal residual-opening and obligation witness material before rho_terminal"
+      "rootCommitment": "Root_terminal binds terminal residual-opening and obligation witness material before rho_terminal",
+      "fixedKindAccounting": "For the H_bind-selected fixed expected proof kind, this interface does not flat-sum unrelated proof-kind finite terms."
     },
     {
       "proofKind": "compressed-terminal",
@@ -130,7 +134,8 @@
         "one 256-bit seed rho_compressed_terminal",
         "challenge-tape expansion after canonical deterministic decompression"
       ],
-      "rootCommitment": "Root_compressed_terminal is checked after unique decompression to the terminal transcript"
+      "rootCommitment": "Root_compressed_terminal is checked after unique decompression to the terminal transcript",
+      "fixedKindAccounting": "For the H_bind-selected fixed expected proof kind, this interface does not flat-sum unrelated proof-kind finite terms."
     },
     {
       "proofKind": "numiseal-terminal",
@@ -141,7 +146,8 @@
         "one 256-bit seed rho_numiseal_terminal",
         "challenge-tape expansion for residual opening, lane aggregation, scalarization, and component-root checks"
       ],
-      "rootCommitment": "Root_numiseal_terminal binds source-fold, terminal, product obligation, lane/aggregate, and component-root witness traces"
+      "rootCommitment": "Root_numiseal_terminal binds source-fold, terminal, product obligation, lane/aggregate, and component-root witness traces",
+      "fixedKindAccounting": "For the H_bind-selected fixed expected proof kind, this interface does not flat-sum unrelated proof-kind finite terms."
     },
     {
       "proofKind": "numiseal-zk-product",
@@ -152,7 +158,8 @@
         "one 256-bit seed rho_numiseal_zk_product",
         "challenge-tape expansion for masked residual, mask tensor, randomness-session, and leakage checks"
       ],
-      "rootCommitment": "Root_numiseal_zk_product binds all NumiSeal terminal traces plus mask, randomness-session, and leakage witnesses"
+      "rootCommitment": "Root_numiseal_zk_product binds all NumiSeal terminal traces plus mask, randomness-session, and leakage witnesses",
+      "fixedKindAccounting": "For the H_bind-selected fixed expected proof kind, this interface does not flat-sum unrelated proof-kind finite terms."
     }
   ],
   "lossRule": {
@@ -180,11 +187,13 @@
     "compilerOverheadInstantiatedExpression": "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO theorem model",
     "hashModelGapInstantiatedExpression": "epsilon_hash_model_gap = 0 in the ideal split-QRO model; concrete SHAKE256 promotion remains a separate hash-instantiation claim",
     "interactiveLossChargedOutsideQROM": true,
+    "interactiveSecurityBoundsInstantiated": true,
     "sharedBadEventTagsPinned": true,
     "sharedBadEventDeduplicationManifest": "TestVectors/product-shared-bad-event-dedup-v1.json",
     "allQROMLossTermsInstantiated": true,
     "qromLossWithinBudget": true,
-    "productionQROMClaimAllowed": false
+    "productionQROMClaimAllowed": false,
+    "fixedKindAccountingRule": "H_bind binds the fixed expected proof kind and context; the selected-depth theorem dispatches to that fixed-kind ledger and does not flat-sum unrelated proof-kind finite terms."
   },
   "ledgerTermMapping": {
     "fiatShamirQROMLoss": {
@@ -212,8 +221,6 @@
     "legacyLossExpression": "max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)"
   },
   "hardClaimBlockers": [
-    "interactive special-soundness data must be instantiated for every accepted proof kind",
-    "NumiSealZK simulator composition remains outside epsilon_qrom and must be instantiated separately",
     "repo-wide epsilon_replay, epsilon_ct, and epsilon_release remain outside the QROM theorem and still block production security"
   ],
   "promotionRule": {
@@ -222,7 +229,7 @@
     "productionQROMClaimAllowed": false,
     "requiresCTCOProtocolImplementation": false,
     "requiresHBind384Implementation": false,
-    "requiresInteractiveSecurityBounds": true,
+    "requiresInteractiveSecurityBounds": false,
     "requiresCompilerOverheadInstantiation": false,
     "requiresSharedBadEventDeduplication": false,
     "requiresSelectedDepthLedgerUpdate": false

@@ -39,7 +39,7 @@ public enum ProofEnvelopeKind: UInt8, Equatable, Sendable {
 
 public struct ProofEnvelopeHeader: Equatable, Sendable, SuperNeoByteEncodable {
     public static let magic: UInt32 = 0x4E_55_4D_51
-    public static let version: UInt16 = 4
+    public static let version: UInt16 = 5
     public static let byteCount = 141
 
     public let magic: UInt32
@@ -612,6 +612,12 @@ extension PiDECSection: SuperNeoByteEncodable {
     }
 }
 
+extension PiRLCBranch: SuperNeoByteEncodable {
+    public var superNeoBytes: [UInt8] {
+        piRLC.superNeoBytes + piDEC.superNeoBytes
+    }
+}
+
 extension CCSEvaluationClaim: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
         var bytes = commitment.superNeoBytes
@@ -762,9 +768,14 @@ extension TerminalFoldProof: SuperNeoByteEncodable {
 
 extension FoldProof: SuperNeoByteEncodable {
     public var superNeoBytes: [UInt8] {
-        var bytes = piCCS.superNeoBytes
-        bytes.append(contentsOf: piRLC.superNeoBytes)
-        bytes.append(contentsOf: piDEC.superNeoBytes)
+        var bytes = encodeCount(piCCSTapes.count)
+        for tape in piCCSTapes {
+            bytes.append(contentsOf: tape.superNeoBytes)
+        }
+        bytes.append(contentsOf: encodeCount(piRLCBranches.count))
+        for branch in piRLCBranches {
+            bytes.append(contentsOf: branch.superNeoBytes)
+        }
         return bytes
     }
 }
@@ -1191,16 +1202,45 @@ extension ByteReader {
     }
 
     fileprivate mutating func readFoldProof(parameters: SuperNeoParameters) throws -> FoldProof {
-        let piCCS = try readPiCCSSection(parameters: parameters)
-        let piRLC = try readPiRLCSection(
-            expectedChallengeCount: piCCS.finalClaims.count,
-            parameters: parameters
+        let piCCSTapeCount = try readCount(
+            maximum: FoldProof.selectedPiCCSTapeCount,
+            name: "PiCCS repeated tape",
+            elementByteWidth: 16
         )
-        let piDEC = try readPiDECSection(parameters: parameters)
+        guard piCCSTapeCount == FoldProof.selectedPiCCSTapeCount else {
+            throw SuperNeoError.invalidEncoding("wrong PiCCS repeated tape count")
+        }
+        let piCCSTapes = try (0..<piCCSTapeCount).map { _ in
+            try readPiCCSSection(parameters: parameters)
+        }
+        guard let canonicalPiCCS = piCCSTapes.first else {
+            throw SuperNeoError.invalidEncoding("missing canonical PiCCS tape")
+        }
+        let piRLCBranchCount = try readCount(
+            maximum: FoldProof.selectedPiRLCBranchCount,
+            name: "PiRLC repeated branch",
+            elementByteWidth: CyclotomicRing54.degree * 8
+        )
+        guard piRLCBranchCount == FoldProof.selectedPiRLCBranchCount else {
+            throw SuperNeoError.invalidEncoding("wrong PiRLC repeated branch count")
+        }
+        let piRLCBranches = try (0..<piRLCBranchCount).map { _ -> PiRLCBranch in
+            let piRLC = try readPiRLCSection(
+                expectedChallengeCount: canonicalPiCCS.finalClaims.count,
+                parameters: parameters
+            )
+            let piDEC = try readPiDECSection(parameters: parameters)
+            return PiRLCBranch(piRLC: piRLC, piDEC: piDEC)
+        }
+        guard let canonicalBranch = piRLCBranches.first else {
+            throw SuperNeoError.invalidEncoding("missing canonical PiRLC branch")
+        }
         return FoldProof(
-            piCCS: piCCS,
-            piRLC: piRLC,
-            piDEC: piDEC
+            piCCS: canonicalPiCCS,
+            piRLC: canonicalBranch.piRLC,
+            piDEC: canonicalBranch.piDEC,
+            auxiliaryPiCCSTapes: Array(piCCSTapes.dropFirst()),
+            auxiliaryPiRLCBranches: Array(piRLCBranches.dropFirst())
         )
     }
 

@@ -120,22 +120,39 @@ BINARY_ADD_STATEMENT_DIGEST="109b394b315f9b846e13ceb1f00ee0b374ff459334425a5b106
 BINARY_ADD_VERIFIER_KEY_DIGEST="199bec9fea21d192f741e81896029d07743b9a8b793543751ea1605fe2a8e973"
 BINARY_ADD_PUBLIC_INPUTS="1,0,1,0,1,0,1,0,0,0"
 
-NUMISEAL_ZERO_PUBLIC_INPUTS="$(python3 - <<'PY'
-print(",".join(["0"] * 54))
-PY
-)"
 NUMISEAL_SINGLE_VECTOR="TestVectors/numiseal-terminal-single-aggregate-v1.json"
-NUMISEAL_SINGLE_KEY_SEED="SuperNeoNumiSeal.vector.single-aggregate.key.v1"
-NUMISEAL_SINGLE_SHAPE_DIGEST="31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e"
-NUMISEAL_SINGLE_STATEMENT_DIGEST="9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e"
-NUMISEAL_SINGLE_VERIFIER_KEY_DIGEST="fd2605390a4f450fdfdcde6259aa8bb06c51bf66d1def285fbe9cabc5eb09a73"
-NUMISEAL_SINGLE_TRANSCRIPT_DOMAIN_DIGEST="018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de"
-NUMISEAL_SINGLE_PUBLIC_STATEMENT_DIGEST="55e4126528542197ddcb2076bff2f1beec09e731a4e788fd173ababb72df56e6"
-NUMISEAL_SINGLE_OBLIGATION_ROOT="ee6178537ce024cdceed53ddf66757ef9819d41e80fa51839312b2835958e9c6"
-NUMISEAL_SINGLE_LANE_SUMMARY_ROOT="3c5e225a02db3033af400ac9d83b40ac48400ef61ac71e4c1a01de07309d7402"
-NUMISEAL_SINGLE_AGGREGATE_DIGESTS="70909d6e08b431e1c0d5d29f4250101edc46bac66c8b2ab75caf00b5933632ac"
-NUMISEAL_SINGLE_COMPONENT_DIGEST_ROOT="7c2dd06c0ba0fede11b2bb65af6e93cbcdeeac053a50c879c19d16d5d6555e3d"
-NUMISEAL_SINGLE_PROOF_TRANSCRIPT_DIGEST="45497f0235bed172aa5a008baccfda3942c511c11cd56ae88410dd466776686f"
+{
+  IFS= read -r NUMISEAL_SINGLE_KEY_SEED
+  IFS= read -r NUMISEAL_SINGLE_SHAPE_DIGEST
+  IFS= read -r NUMISEAL_SINGLE_STATEMENT_DIGEST
+  IFS= read -r NUMISEAL_SINGLE_VERIFIER_KEY_DIGEST
+  IFS= read -r NUMISEAL_SINGLE_TRANSCRIPT_DOMAIN_DIGEST
+  IFS= read -r NUMISEAL_SINGLE_PUBLIC_STATEMENT_DIGEST
+  IFS= read -r NUMISEAL_SINGLE_OBLIGATION_ROOT
+  IFS= read -r NUMISEAL_SINGLE_LANE_SUMMARY_ROOT
+  IFS= read -r NUMISEAL_SINGLE_AGGREGATE_DIGESTS
+  IFS= read -r NUMISEAL_SINGLE_COMPONENT_DIGEST_ROOT
+  IFS= read -r NUMISEAL_SINGLE_PROOF_TRANSCRIPT_DIGEST
+  IFS= read -r NUMISEAL_ZERO_PUBLIC_INPUTS
+} < <(python3 - <<'PY'
+import json
+from pathlib import Path
+
+artifact = json.loads(Path("TestVectors/numiseal-terminal-single-aggregate-v1.json").read_text())
+print(artifact["keySeedUTF8"])
+print(artifact["shapeDigestHex"])
+print(artifact["statementDigestHex"])
+print(artifact["verifierKeyDigestHex"])
+print(artifact["transcriptDomainHex"])
+print(artifact["publicStatementDigestHex"])
+print(artifact["obligationRootHex"])
+print(artifact["laneSummaryRootHex"])
+print(",".join(artifact["aggregateDigestsHex"]))
+print(artifact["componentDigestRootHex"])
+print(artifact["proofTranscriptDigestHex"])
+print(",".join(str(value) for value in artifact["publicInputs"]))
+PY
+)
 
 run_step swift build -c release
 run_step swift test --disable-swift-testing
@@ -160,6 +177,8 @@ run_step Scripts/validate-product-swift-trace-extractor-evidence.py
 run_step Scripts/test-product-swift-trace-extractor-evidence-validation.py
 run_step Scripts/validate-product-extractor-loss-accounting.py
 run_step Scripts/test-product-extractor-loss-accounting-validation.py
+run_step Scripts/validate-product-finite-protocol-loss-obstruction.py
+run_step Scripts/test-product-finite-protocol-loss-obstruction-validation.py
 run_step Scripts/validate-product-qrom-transcript-schedule.py
 run_step Scripts/test-product-qrom-transcript-schedule-validation.py
 run_step Scripts/validate-product-qrom-sampler-encoding-evidence.py

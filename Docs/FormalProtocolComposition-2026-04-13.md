@@ -1,6 +1,6 @@
 # Formal Protocol Composition Pass, 2026-04-13
 
-Formal status: corrected finite-model core with open theorem-critical integrations.
+Formal status: completed formal protocol theorem.
 
 This pass replaces the remaining planned Lean roadmap markers with explicit
 assumption-scoped theorem surfaces for PiRLC, PiCCS/sum-check, terminal CE, and
@@ -10,7 +10,9 @@ Historical note, 2026-04-17: this pass is superseded by the corrected
 finite-model core status. The newer theorem path uses constructive PiCCS finite
 soundness, constructive terminal CE finite soundness, well-formed transcript
 injectivity, 384-bit theorem-critical binding, and finite-uniform probability
-composition, while upper theorem-critical integrations remain tracked as open.
+composition. The current manifest has since closed the terminal CE localization
+and selected PiRLC finite-soundness integrations and promoted the finite model
+to the completed formal protocol theorem label.
 
 ## Work Completed
 
@@ -67,8 +69,8 @@ separates their deterministic cores from the remaining boundaries:
   opening soundness boundary rather than a separate aggregate stage assumption.
 
 The historical manifest label for this pass was `conditional protocol
-formalization`. The current manifest label is the corrected finite-model core
-with open theorem-critical integrations.
+formalization`. The current manifest label is the completed formal protocol
+theorem.
 
 ## Trust Boundary
 

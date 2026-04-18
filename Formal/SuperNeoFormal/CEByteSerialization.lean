@@ -15,10 +15,10 @@ byte-for-byte CE verifier theorem must still connect decoded proofs to
 namespace SuperNeoFormal
 
 def ceOpeningProofRoundCount : Nat :=
-  219
+  226
 
 theorem ceOpeningProofRoundCount_eq :
-    ceOpeningProofRoundCount = 219 := by
+    ceOpeningProofRoundCount = 226 := by
   rfl
 
 def natUInt64LE (value : Nat) (hValue : value < 256 ^ 8) : UInt64LE :=

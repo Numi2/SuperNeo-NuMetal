@@ -59,7 +59,17 @@
     "witnessIndependentDomainLabels": true,
     "randomOracleInputEncodingInjectiveForStructuredFrames": true,
     "explicitPerChallengeLabelsAbsorbedByImplementation": false,
-    "productionEncodingClaimAllowed": false
+    "productionEncodingClaimAllowed": false,
+    "repeatedTapeLabelsAbsorbedByImplementation": true,
+    "seedBitSlicingRejected": true,
+    "repeatedTapeLabelVersion": "selected-repeated-tape-v1",
+    "repeatedTapeLabels": [
+      "selected-repeated-tape-v1/piccs-tape-0",
+      "selected-repeated-tape-v1/piccs-tape-1",
+      "selected-repeated-tape-v1/pirlc-branch-0",
+      "selected-repeated-tape-v1/pirlc-branch-1",
+      "selected-repeated-tape-v1/pirlc-branch-2"
+    ]
   },
   "samplerUniformity": {
     "randomOracleModel": "conditional on 64-bit blocks from the quantum random-oracle abstraction being uniform and independent for each transcript state/counter pair",
@@ -111,7 +121,14 @@
       "source": "GoldilocksField sampler",
       "conditionalDistribution": "product of three independent uniform field challenges per lane proof"
     },
-    "samplerUniformityProofPinned": true
+    "samplerUniformityProofPinned": true,
+    "ctcoRepeatedTapeExpansion": {
+      "externalChallengeSeedBits": 256,
+      "piccsTapeCount": 2,
+      "pirlcBranchCount": 3,
+      "expansionRule": "domain-separated H_chal expansion using public labels; not seed-bit slicing",
+      "conditionalDistribution": "ideal split-QRO labels are independent random-oracle inputs for each internal repeated tape"
+    }
   },
   "integrationStatus": {
     "challengeSpaceUniformitySatisfiedUnderQROAbstraction": true,

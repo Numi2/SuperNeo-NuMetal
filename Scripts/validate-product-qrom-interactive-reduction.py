@@ -22,6 +22,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
     "selectedTheoremFamily",
     "productProtocolModel",
     "proofKindProtocols",
+    "interactiveSecurityBounds",
     "transcriptOracleEncodingProof",
     "delayedMessageData",
     "uniqueResponseData",
@@ -52,8 +53,11 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductInteractiveSpecialSoundnessData",
     "ProductInteractiveDelayedMessageData",
     "ProductInteractiveUniqueResponseData",
+    "ProductInteractiveSecurityBounds",
+    "ProductPerKindInteractiveSecurityEvidence",
     "ProductChallengeTapeCommitOpenCompiler",
     "ProductQROMCompilerOverheadBound",
+    "productInteractiveSecurityBounds_from_perKindEvidence",
     "productSecurityTheorem_requires_qrom_interactive_reduction",
     "productSecurityTheorem_requires_qrom_compiler_overhead_bound",
 }
@@ -65,6 +69,25 @@ EXPECTED_PROOF_KINDS = [
     ("numiseal-terminal", 4, 4_376_925),
     ("numiseal-zk-product", 5, 4_377_150),
 ]
+EXPECTED_REPEATED_TAPE_PROFILE = {
+    "proofEnvelopeHeaderVersion": 5,
+    "externalChallengeSeedBits": 256,
+    "piccsTapeCount": 2,
+    "pirlcBranchCount": 3,
+    "terminalCERoundCount": 226,
+    "pirlcSelectedRoute": "generic-crt-component-three-branch",
+    "pirlcUnitPivotRouteSelected": False,
+    "labelVersion": "selected-repeated-tape-v1",
+    "piccsTapeLabels": [
+        "selected-repeated-tape-v1/piccs-tape-0",
+        "selected-repeated-tape-v1/piccs-tape-1",
+    ],
+    "pirlcBranchLabels": [
+        "selected-repeated-tape-v1/pirlc-branch-0",
+        "selected-repeated-tape-v1/pirlc-branch-1",
+        "selected-repeated-tape-v1/pirlc-branch-2",
+    ],
+}
 
 
 def fail(message: str) -> None:
@@ -119,6 +142,23 @@ def require_true(value: Any, label: str) -> None:
 
 def require_false(value: Any, label: str) -> None:
     require(value is False, f"{label} must be false")
+
+
+def validate_repeated_tape_profile(value: Any, label: str) -> None:
+    profile = require_dict(value, label)
+    for key, expected in EXPECTED_REPEATED_TAPE_PROFILE.items():
+        require(profile.get(key) == expected, f"{label}.{key} mismatch")
+    expansion = require_string(profile.get("challengeExpansionMode"), f"{label}.challengeExpansionMode")
+    require("H_chal" in expansion and "seed-bit slicing" in expansion and "not" in expansion.lower(), f"{label}.challengeExpansionMode must reject seed-bit slicing")
+    source = (ROOT / "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift").read_text(encoding="utf-8")
+    for needle in [
+        "public static let selectedPiCCSTapeCount = 2",
+        "public static let selectedPiRLCBranchCount = 3",
+        "repeatedTapeSeed(",
+        "validatePiCCSTape(",
+        "validatePiRLCBranch(",
+    ]:
+        require(needle in source, f"Swift repeated-tape implementation missing {needle}")
 
 
 def validate_related_manifests(reduction: dict[str, Any]) -> None:
@@ -194,11 +234,15 @@ def validate_protocol_model(reduction: dict[str, Any]) -> None:
         "ctcoRootCommitmentsImplemented",
     ]:
         require_true(model.get(key), f"productProtocolModel.{key}")
+    validate_repeated_tape_profile(
+        model.get("runtimeSelectedRepeatedTapeProfile"),
+        "productProtocolModel.runtimeSelectedRepeatedTapeProfile",
+    )
     limits = require_dict(model.get("selectedProductTheoremLimits"), "selectedProductTheoremLimits")
     require_relative_path(limits.get("codeSurface"), "selectedProductTheoremLimits.codeSurface")
     require(limits.get("maximumNumiSealTerminalChallengeCount") == 4_376_925, "legacy terminal challenge metric mismatch")
     require(limits.get("maximumNumiSealZKProductChallengeCount") == 4_377_150, "legacy ZK challenge metric mismatch")
-    require_false(model.get("allInteractiveSecurityBoundsInstantiated"), "productProtocolModel.allInteractiveSecurityBoundsInstantiated")
+    require_true(model.get("allInteractiveSecurityBoundsInstantiated"), "productProtocolModel.allInteractiveSecurityBoundsInstantiated")
     require_true(model.get("allUniformityProofsInstantiated"), "productProtocolModel.allUniformityProofsInstantiated")
     require_false(model.get("productionProtocolClaimAllowed"), "productProtocolModel.productionProtocolClaimAllowed")
 
@@ -219,7 +263,64 @@ def validate_proof_kind_protocols(reduction: dict[str, Any]) -> None:
         require_string(row.get("extractorTarget"), f"{expected_kind}.extractorTarget")
         require("independent of legacy" in require_string(row.get("numericLossExpression"), f"{expected_kind}.numericLossExpression"), f"{expected_kind}.numericLossExpression must reject legacy n dependence")
         require_true(row.get("numericLossInstantiated"), f"{expected_kind}.numericLossInstantiated")
+        if expected_kind == "fold":
+            validate_repeated_tape_profile(
+                row.get("runtimeSelectedRepeatedTapeProfile"),
+                f"{expected_kind}.runtimeSelectedRepeatedTapeProfile",
+            )
+            fixed_kind = require_string(row.get("fixedKindFiniteLossExpression"), f"{expected_kind}.fixedKindFiniteLossExpression")
+            for needle in ["16/q^4", "1/5^81", "two PiCCS", "three PiRLC"]:
+                require(needle in fixed_kind, f"{expected_kind}.fixedKindFiniteLossExpression must mention {needle}")
+        else:
+            inherited = require_string(row.get("sourceFoldRepeatedTapeProfile"), f"{expected_kind}.sourceFoldRepeatedTapeProfile")
+            require("selected-repeated-tape-v1" in inherited and "2 PiCCS" in inherited and "3 PiRLC" in inherited, f"{expected_kind} must inherit the selected source-fold repeated profile")
+        bound = require_dict(row.get("interactiveSecurityBound"), f"{expected_kind}.interactiveSecurityBound")
+        require("instantiated" in require_string(bound.get("status"), f"{expected_kind}.interactiveSecurityBound.status"), f"{expected_kind}.interactiveSecurityBound.status must be instantiated")
+        require("charged outside epsilon_qrom" in require_string(bound.get("qromAccountingRule"), f"{expected_kind}.interactiveSecurityBound.qromAccountingRule"), f"{expected_kind}.interactiveSecurityBound must export loss outside epsilon_qrom")
+        require_string_list(bound.get("formalEvidence"), f"{expected_kind}.interactiveSecurityBound.formalEvidence")
+        require_string_list(bound.get("lossExport"), f"{expected_kind}.interactiveSecurityBound.lossExport")
+        open_inputs = row.get("openInputs")
+        require(isinstance(open_inputs, list), f"{expected_kind}.openInputs must be a list")
+        require(open_inputs == [], f"{expected_kind}.openInputs must be closed")
         require_false(row.get("productionQROMClaimAllowed"), f"{expected_kind}.productionQROMClaimAllowed")
+
+
+def validate_interactive_security_bounds(reduction: dict[str, Any]) -> None:
+    bounds = require_dict(reduction.get("interactiveSecurityBounds"), "interactiveSecurityBounds")
+    require(
+        bounds.get("status") == "instantiated-for-selected-depth-finite-formal-model",
+        "interactiveSecurityBounds.status mismatch",
+    )
+    formal = require_dict(bounds.get("formalEvidence"), "interactiveSecurityBounds.formalEvidence")
+    require(formal.get("formalStatusManifest") == "Docs/FormalStatus.json", "interactiveSecurityBounds formal status manifest mismatch")
+    formal_status = read_json(ROOT / "Docs" / "FormalStatus.json")
+    require(
+        formal_status.get("current_label") == "completed formal protocol theorem",
+        "interactiveSecurityBounds requires completed formal protocol theorem",
+    )
+    require(
+        formal.get("leanBridge") == "productInteractiveSecurityBounds_from_perKindEvidence",
+        "interactiveSecurityBounds leanBridge mismatch",
+    )
+    require(
+        formal.get("perKindEvidenceStructure") == "ProductPerKindInteractiveSecurityEvidence",
+        "interactiveSecurityBounds evidence structure mismatch",
+    )
+    rule = require_string(bounds.get("accountingRule"), "interactiveSecurityBounds.accountingRule")
+    for needle in [
+        "epsilon_fold",
+        "epsilon_terminal",
+        "epsilon_replay",
+        "epsilon_collision",
+        "proof-level simulator coupling",
+        "epsilon_zk_sim = 0",
+        "epsilon_qrom",
+    ]:
+        require(needle in rule, f"interactiveSecurityBounds accountingRule must mention {needle}")
+    require_true(bounds.get("allAcceptedProofKindsCovered"), "interactiveSecurityBounds.allAcceptedProofKindsCovered")
+    require_true(bounds.get("allInteractiveSecurityBoundsInstantiated"), "interactiveSecurityBounds.allInteractiveSecurityBoundsInstantiated")
+    require_false(bounds.get("numericTotalLossInstantiated"), "interactiveSecurityBounds.numericTotalLossInstantiated")
+    require_false(bounds.get("productionQROMClaimAllowed"), "interactiveSecurityBounds.productionQROMClaimAllowed")
 
 
 def validate_encoding_delayed_unique_and_loss(reduction: dict[str, Any]) -> None:
@@ -280,11 +381,16 @@ def validate_encoding_delayed_unique_and_loss(reduction: dict[str, Any]) -> None
         require(ctco_counts.get(proof_kind) == 1, f"{proof_kind}.ctco count must be 1")
     require(loss.get("challengeSeedBits") == 256, "challengeSeedBits must be 256")
     require(loss.get("bindingDigestBits") == 384, "bindingDigestBits must be 384")
+    internal = require_dict(loss.get("internalRepeatedTapeCounts"), "internalRepeatedTapeCounts")
+    require(internal.get("piccsTapeCount") == 2, "internalRepeatedTapeCounts.piccsTapeCount mismatch")
+    require(internal.get("pirlcBranchCount") == 3, "internalRepeatedTapeCounts.pirlcBranchCount mismatch")
+    require(internal.get("terminalCERoundCount") == 226, "internalRepeatedTapeCounts.terminalCERoundCount mismatch")
+    require(internal.get("externalCTCOSeedCountRemainsOne") is True, "internalRepeatedTapeCounts.externalCTCOSeedCountRemainsOne must be true")
     require("epsilon_compiler_overhead" in require_string(loss.get("ctcoSelectedDepthExpression"), "ctcoSelectedDepthExpression"), "CTCO loss expression mismatch")
     finding = require_dict(loss.get("legacyNumericBudgetFinding"), "legacyNumericBudgetFinding")
     require(finding.get("smallestAcceptedChallengeCountN") == 204, "legacy finding smallest n mismatch")
     require("deprecated" in require_string(finding.get("smallestAcceptedOrderingTermConclusion"), "legacy conclusion"), "legacy conclusion must deprecate DFM20")
-    require_false(loss.get("allInteractiveSecurityBoundsInstantiated"), "qromQueryAndLossInstantiation.allInteractiveSecurityBoundsInstantiated")
+    require_true(loss.get("allInteractiveSecurityBoundsInstantiated"), "qromQueryAndLossInstantiation.allInteractiveSecurityBoundsInstantiated")
     require_true(loss.get("allNumericLossTermsInstantiated"), "qromQueryAndLossInstantiation.allNumericLossTermsInstantiated")
     require_true(loss.get("qromLossWithinBudget"), "qromQueryAndLossInstantiation.qromLossWithinBudget")
     require_false(loss.get("productionQROMClaimAllowed"), "qromQueryAndLossInstantiation.productionQROMClaimAllowed")
@@ -297,8 +403,10 @@ def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
     require_true(ledger.get("qromLossWithinBudget"), "ledgerIntegration.qromLossWithinBudget")
     require_true(ledger.get("totalLossBudgetUpdated"), "ledgerIntegration.totalLossBudgetUpdated")
     blockers = " ".join(require_string_list(reduction.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["special-soundness", "zk simulator"]:
+    for needle in ["shake256", "split-qro"]:
         require(needle in blockers, f"hardClaimBlockers must mention {needle}")
+    require("zk simulator" not in blockers, "ZK simulator composition must not remain a QROM interactive-reduction blocker")
+    require("special-soundness" not in blockers, "interactive special-soundness must not remain a hard blocker")
     promotion = require_dict(reduction.get("promotionRule"), "promotionRule")
     for key in [
         "productionProductSecurityClaimAllowed",
@@ -307,7 +415,7 @@ def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
     require_false(promotion.get("requiresCTCORootCommitments"), "promotionRule.requiresCTCORootCommitments")
-    require_true(promotion.get("requiresInteractiveSecurityBounds"), "promotionRule.requiresInteractiveSecurityBounds")
+    require_false(promotion.get("requiresInteractiveSecurityBounds"), "promotionRule.requiresInteractiveSecurityBounds")
     for key in [
         "requiresHBind384SourceImplementation",
         "requiresDelayedMessageData",
@@ -332,6 +440,7 @@ def validate_reduction(path: Path) -> None:
     validate_selected_theorem(reduction)
     validate_protocol_model(reduction)
     validate_proof_kind_protocols(reduction)
+    validate_interactive_security_bounds(reduction)
     validate_encoding_delayed_unique_and_loss(reduction)
     validate_ledger_and_promotion(reduction)
 

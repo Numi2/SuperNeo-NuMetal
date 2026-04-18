@@ -1,6 +1,7 @@
 import SuperNeoFormal.PiCCSSoundness
 import SuperNeoFormal.SumcheckSoundness
 import SuperNeoFormal.SumcheckPrefixSoundness
+import SuperNeoFormal.GoldilocksExt2
 
 /-!
 Constructive finite PiCCS bad-challenge set.
@@ -29,6 +30,14 @@ def PiCCSBadChallengeSetConstructed
 def PiCCSConstructiveSumcheckBadChallengeBudget
     (numVars maxDegreePerRound : Nat) : Nat :=
   sumcheckPrefixBadChallengeBudget numVars maxDegreePerRound
+
+theorem piccsGoldilocksExt2ChallengeSupport_below_selected128 :
+    goldilocksModulus ^ 2 < 2 ^ 128 := by
+  native_decide
+
+theorem piccsSelectedBadChallengeBudget_exceeds_selected128 :
+    goldilocksModulus ^ 2 < (18 * 4) * 2 ^ 128 := by
+  native_decide
 
 theorem PiCCSBadChallengeSetConstructed_mem_iff
     (numVars : Nat)

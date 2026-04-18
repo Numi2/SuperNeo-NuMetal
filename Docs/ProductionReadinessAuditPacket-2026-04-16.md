@@ -1,6 +1,6 @@
 # Production Readiness Audit Packet, 2026-04-16
 
-Formal status: corrected finite-model core with open theorem-critical integrations.
+Formal status: completed formal protocol theorem.
 
 This packet is the current reviewer entry point for production-readiness
 assessment. It records what the repository can substantiate today, what the
@@ -306,8 +306,8 @@ These are the remaining blockers before using production-security language:
    simulator-coupling evidence is checked in
    `TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json`. Hosted
    selected-depth carry/loss accounting, release-grade Swift trace/extractor
-   review, interactive-security bounds, remaining non-QROM total-loss budget
-   instantiation, release-hardware ZK benchmark refresh, and side-channel evidence still have
+   review, remaining non-QROM total-loss budget instantiation,
+   release-hardware ZK benchmark refresh, and side-channel evidence still have
    to be supplied before production-security NumiSeal theorem language is
    allowed.
    `TestVectors/product-crypto-security-dossier-v1.json` and
@@ -317,8 +317,8 @@ These are the remaining blockers before using production-security language:
    implementation-hardening boundary.
    `TestVectors/product-selected-depth-loss-accounting-v1.json` now pins the
    selected-depth loss accounting contract for the product theorem boundary,
-   including source fold, terminal seal, carry, ZK simulator, QROM, extractor,
-   transcript collision, product-ops replay, constant-time, and
+   including source fold, terminal seal, carry, proof-level ZK simulator loss,
+   QROM, extractor, transcript collision, product-ops replay, constant-time, and
    release-distribution loss terms. The checked dossier, ledger, extractor
    accounting, QROM accounting, QROM transform preconditions, and total-loss
    budget keep all production claims disabled until those losses are

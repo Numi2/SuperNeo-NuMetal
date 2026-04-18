@@ -90,7 +90,7 @@ implemented key sampler to this Module-SIS assumption.
 | Maximum per-fold aggregate count | `75` |
 | PiCCS challenge field | `F_q^2` |
 | Terminal CE challenge symbols | `3` |
-| Terminal CE rounds | `219` |
+| Terminal CE rounds | `226` |
 | NumiSeal default aggregate limit | `75` obligations |
 | NumiSeal max digit-tensor columns | `4096` |
 
@@ -181,17 +181,17 @@ Component budgets currently exposed by Lean include:
 - For R1CS-like degree-2 CCS with the current norm polynomial,
   `maxDegreePerRound = max(shape.relationDegree, 3) + 1 = 4`.
 - Terminal CE finite bad-seed budget:
-  `219 * 3 = 657` over the modeled slot-seed type.
+  `226 * 3 = 678` over the modeled slot-seed type.
 - The theorem-facing PiCCS and terminal CE paths are now constructive:
   `PiCCSConstructiveFiniteSoundness.lean` consumes the sum-check bad-set proofs
   directly, and `TerminalCEConstructiveFiniteSoundness.lean` derives the
   `roundCount * 3` budget from an injective extraction-failure localization.
   The terminal CE file now also lifts slot bad seeds to the full ternary
   challenge-tape seed model with the exact `3^(roundCount - 1)` slot-fiber
-  factor, and the Swift response-tag trace supplies the full tape and
-  verifier-branch match. The actual Swift/Fiat-Shamir parser still needs a
-  proved map from failures to these concrete bad `(round, challenge)` slots
-  before this budget can be promoted.
+  factor, and separately proves the pointwise two-branch repeated-challenge
+  bound `2^roundCount / 3^roundCount`. For the Swift profile, Lean checks
+  `(2/3)^226 < 2^-128` and the stronger shared-core slack inequality. The Swift
+  response-tag trace supplies the full tape and verifier-branch match.
 - PiRLC finite bad-seed soundness requires the explicit split/finite bad-seed
   localization. The CRT component path now constructs the conservative
   certificate from a delta-collision proof, a nonzero CRT component pivot, and
@@ -292,7 +292,7 @@ accounting, not as a QROM reduction. For concrete audit packets, record:
 
 - `pirlcCount <= 75` for a maximum fold aggregate;
 - `piccsRoundCount = log2(shape.m)` for the sum-check instance;
-- `terminalCERoundCount = 219`;
+- `terminalCERoundCount = 226`;
 - `transcriptByteLength = 137` for the envelope-context seed when that seed is
   used; and
 - all proof-kind and transcript labels listed below.
@@ -314,7 +314,7 @@ The interactive protocol before Fiat-Shamir is:
 3. PiDEC: deterministic checked decomposition and recomposition; no verifier
    randomness beyond the folded claim already produced.
 4. Terminal CE opening: repeated Stern-style public-coin protocol with one of
-   three verifier challenge symbols per round for 219 rounds.
+   three verifier challenge symbols per round for 226 rounds.
 5. NumiSeal: lane RLC, scalarization, sum-check, residual-opening, and optional
    ZK component transcripts use separate labels and digest roots.
 
@@ -411,8 +411,9 @@ the bundled paper's Goldilocks/Phi81 target:
   of norm slack.
 - challenge support `{-2,-1,0,1,2}` and `T = 216` match the implemented
   strong-sampling proof surface.
-- terminal CE uses 219 three-symbol rounds to make the finite bad-seed budget
-  negligible in the modeled seed space.
+- terminal CE uses 226 three-symbol rounds; the repeated-challenge bound is
+  `(2/3)^226`, below `2^-128` and below `2^-129` for shared-core slack, in the
+  modeled seed space.
 
 The adversarial reading is that these parameters are tight and model-sensitive.
 They are appropriate for implementation research and benchmarking. They are not

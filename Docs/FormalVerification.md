@@ -1,6 +1,6 @@
 # Formal Verification Track
 
-Formal status: corrected finite-model core with open theorem-critical integrations.
+Formal status: completed formal protocol theorem.
 
 The formal track lives under `Formal/` as a Lean 4 Lake workspace. It is
 separate from the Sage/lattice-estimator workflow:
@@ -10,27 +10,26 @@ separate from the Sage/lattice-estimator workflow:
 - Lean formalization records protocol-level algebraic statements, certified-key
   reductions, and finite bad-challenge/bad-seed exclusions.
 
-The current Lean milestone is a corrected finite-model core with open
-theorem-critical integrations. Ajtai binding is consumed through certified
+The current Lean milestone is a completed formal protocol theorem for the
+finite model. Ajtai binding is consumed through certified
 verifier keys, transcript byte injectivity is theorem-facing only for
 well-formed length-counted transcript states, theorem-critical bindings have a
 384-bit typed digest layer, and finite PiRLC/PiCCS/terminal-CE/transcript
 probability accounting exists over explicit bad challenge/seed sets. The active
-status still keeps two integrations open in `Docs/FormalStatus.json`:
-constructive terminal CE localization instantiation for the concrete
-Swift/Fiat-Shamir tape and CRT-based PiRLC finite-soundness completion. The
-PiRLC completion is narrowed to selected Swift/trace defect evidence: Lean now
-has concrete folded-claim linear observations and finite observation-family
-bad-seed accounting with an explicit family-cardinality multiplier. The full
-public-field family is instantiated with the concrete
-`(rows + publicCount + evalCount)` multiplier.
+status keeps the two former integration IDs in `Docs/FormalStatus.json` as
+closed promotion gates: constructive terminal CE localization instantiation for
+the concrete Swift/Fiat-Shamir tape and CRT-based PiRLC finite-soundness
+completion. PiRLC now has concrete folded-claim linear observations, finite
+observation-family bad-seed accounting with an explicit family-cardinality
+multiplier, and a direct certificate for the selected public-fields-zero
+relation.
 
 The historical `closed_under_*` groups remain documented for auditability, but
-the manifest now uses corrected-core group IDs plus explicit planned integration
-groups. The status validator rejects declaration reuse across theorem groups,
-prevents boundary/assumption declarations from being promoted into future
-completed-theorem groups, and rejects documentation that claims the stronger
-future label while open integrations remain planned.
+the manifest now uses corrected-core group IDs plus closed integration gates.
+The status validator rejects declaration reuse across theorem groups, prevents
+boundary/assumption declarations from being promoted into completed-theorem
+groups, and rejects documentation that claims the completed label unless the
+promotion gates are closed.
 
 ## Status Manifest
 
@@ -44,10 +43,10 @@ Scripts/validate-formal-status.py
 ```
 
 The regression harness mutates temporary manifest copies and confirms the
-validator fails closed for missing open integrations, open integrations marked
-closed too early, missing declarations, closed groups without any declaration,
+validator fails closed for missing integration gates, non-closed integration
+gates at promotion, missing declarations, closed groups without any declaration,
 assumption/boundary declarations in stronger-label groups, documentation
-overclaims, and future-label dependency drift:
+overclaims, and completed-label dependency drift:
 
 ```sh
 Scripts/test-formal-status-validation.py
@@ -59,10 +58,11 @@ Allowed labels are:
 - `partial formalization`
 - `conditional protocol formalization`
 - `corrected finite-model core with open theorem-critical integrations`
+- `completed formal protocol theorem`
 
-A future full theorem label is reserved for the state where every group on that
-path is `closed`. Historical `closed_under_*` boundary IDs are retained only as
-audit history, not as active manifest groups.
+The completed formal protocol theorem label is active only when every group on
+that path is `closed`. Historical `closed_under_*` boundary IDs are retained
+only as audit history, not as active manifest groups.
 
 Recent formal pass:
 

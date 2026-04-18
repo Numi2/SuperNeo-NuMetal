@@ -12,6 +12,10 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 BUDGET = ROOT / "TestVectors" / "product-total-loss-budget-v1.json"
+GOLDILOCKS_MODULUS = 18_446_744_069_414_584_321
+PIRLC_CRT_COMPONENT_DEGREE = 27
+PIRLC_REPEATED_BRANCH_COUNT = 3
+TERMINAL_CE_ROUNDS = 226
 
 EXPECTED_TOP_LEVEL_KEYS = {
     "schemaVersion",
@@ -38,7 +42,9 @@ EXPECTED_MANIFESTS = {
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
+    "productFiniteProtocolLossObstruction": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
     "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+    "numiSealZKSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
@@ -164,6 +170,17 @@ def format_dyadic_fraction(value: Fraction) -> str:
     return format_fraction(value)
 
 
+def source_fold_repeated_tape_bound() -> Fraction:
+    return Fraction(16, GOLDILOCKS_MODULUS**4) + Fraction(
+        1,
+        5 ** (PIRLC_CRT_COMPONENT_DEGREE * PIRLC_REPEATED_BRANCH_COUNT),
+    )
+
+
+def terminal_ce_226_bound() -> Fraction:
+    return Fraction(2**TERMINAL_CE_ROUNDS, 3**TERMINAL_CE_ROUNDS)
+
+
 def parse_exact_bound(value: Any, label: str) -> Fraction | None:
     if value is None:
         return None
@@ -208,6 +225,10 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
         dossier_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "product crypto security dossier must link total loss budget",
     )
+    require(
+        dossier_related.get("numiSealZKSimulatorCouplingEvidence") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+        "product crypto security dossier must link ZK simulator-coupling evidence",
+    )
     total = require_dict(dossier.get("totalLossBudget"), "productCryptoSecurityDossier.totalLossBudget")
     require(
         total.get("budgetManifest") == "TestVectors/product-total-loss-budget-v1.json",
@@ -245,8 +266,16 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
         "selected-depth ledger must link shared bad-event dedup evidence",
     )
     require(
+        ledger_related.get("productFiniteProtocolLossObstruction") == "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
+        "selected-depth ledger must link finite-protocol loss obstruction evidence",
+    )
+    require(
         ledger_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
         "selected-depth ledger must link release distribution evidence",
+    )
+    require(
+        ledger_related.get("numiSealZKSimulatorCouplingEvidence") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+        "selected-depth ledger must link ZK simulator-coupling evidence",
     )
     component_ids = [
         require_string(row.get("id"), f"selectedDepthLossAccounting.componentLosses[{index}].id")
@@ -324,6 +353,12 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
     require(
         shared_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
         "shared bad-event dedup evidence must link total-loss budget",
+    )
+    finite_loss = read_json(ROOT / EXPECTED_MANIFESTS["productFiniteProtocolLossObstruction"])
+    finite_related = require_dict(finite_loss.get("relatedManifests"), "productFiniteProtocolLossObstruction.relatedManifests")
+    require(
+        finite_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
+        "finite-protocol loss obstruction evidence must link total-loss budget",
     )
 
     reduction = read_json(ROOT / EXPECTED_MANIFESTS["productQROMInteractiveReduction"])
@@ -452,6 +487,49 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                 require(needle in evidence, f"fiat-shamir-qrom requiredEvidence must mention {needle}")
             if instantiated:
                 require(exact_bound == 0, "fiat-shamir-qrom exactUpperBound must be exactly 0")
+        if component_id in {"source-fold-knowledge", "terminal-numiseal-seal"}:
+            evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
+            require(
+                component.get("sourceManifest") == "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
+                f"{component_id} sourceManifest must be finite-protocol loss obstruction evidence",
+            )
+            for needle in ["product-finite-protocol-loss-obstruction-v1.json", "finite-protocol", "2^-128"]:
+                require(needle in evidence, f"{component_id} requiredEvidence must mention {needle}")
+            if component_id == "source-fold-knowledge":
+                require(
+                    "one-shot 5^54 < 2^128" in evidence
+                    and "1/5^27" in evidence
+                    and "16/q^4 + 1/5^81" in evidence
+                    and "fixed-kind CTCO repeated-tape" in evidence,
+                    "source fold evidence must pin PiRLC numeric gap and repeated-tape route",
+                )
+                if instantiated:
+                    require(exact_bound == source_fold_repeated_tape_bound(), "source-fold-knowledge exactUpperBound mismatch")
+            if component_id == "terminal-numiseal-seal":
+                require(
+                    "terminal CE is pinned at 226 repeated challenge rounds" in evidence
+                    and "fixed-kind repeated-tape" in evidence,
+                    "terminal evidence must pin terminal CE repeated challenge closure",
+                )
+                require("(2/3)^226" in evidence, "terminal evidence must pin exact CE expression")
+                if instantiated:
+                    require(exact_bound == terminal_ce_226_bound(), "terminal-numiseal-seal exactUpperBound mismatch")
+        if component_id == "zk-simulator-composition":
+            evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
+            require(
+                component.get("sourceManifest") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+                "zk-simulator-composition sourceManifest must be simulator-coupling evidence",
+            )
+            for needle in [
+                "numiseal-zk-simulator-coupling-evidence-v1.json",
+                "epsilon_zk_sim = 0",
+                "declared leakage",
+                "mask-reuse rejection",
+                "epsilon_ct",
+            ]:
+                require(needle in evidence, f"zk-simulator-composition requiredEvidence must mention {needle}")
+            if instantiated:
+                require(exact_bound == 0, "zk-simulator-composition exactUpperBound must be exactly 0")
         if component_id == "transcript-collision-domain-separation":
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
@@ -537,6 +615,7 @@ def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiate
     require(wiring.get("selectedDepth") == 1, "exactFiniteProbabilityWiring.selectedDepth must be 1")
     for key in [
         "dyadicRationalArithmeticPinned",
+        "nonDyadicFiniteProtocolRationalsPinned",
         "zeroLossTermsRepresentedExactly",
         "instantiatedTermPartialSumComputed",
         "missingRequiredTermsKeepTotalUninstantiated",
@@ -549,8 +628,20 @@ def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiate
         "exactFiniteProbabilityWiring.hbindCollisionExpressionExact mismatch",
     )
     require(
-        instantiated_total == Fraction(1, 1 << 129) + Fraction(9, 1 << 254),
-        "exactFiniteProbabilityWiring instantiated partial sum must include shared core and H_bind collision terms",
+        instantiated_total
+        == Fraction(1, 1 << 129)
+        + source_fold_repeated_tape_bound()
+        + terminal_ce_226_bound()
+        + Fraction(9, 1 << 254),
+        "exactFiniteProbabilityWiring instantiated partial sum must include shared core, repeated finite-protocol, terminal CE, and H_bind collision terms",
+    )
+    require(
+        wiring.get("sourceFoldRepeatedTapeExpressionExact") == "epsilon_fold <= 16/q^4 + 1/5^81",
+        "exactFiniteProbabilityWiring.sourceFoldRepeatedTapeExpressionExact mismatch",
+    )
+    require(
+        wiring.get("terminalCE226ExpressionExact") == "epsilon_terminal_ce <= (2/3)^226",
+        "exactFiniteProbabilityWiring.terminalCE226ExpressionExact mismatch",
     )
     require(
         wiring.get("sharedCoreExpressionExact") == "epsilon_core_shared = 2^-129 = 1/2^129 and is charged once as a tagged union",
@@ -591,6 +682,10 @@ def validate_docs_and_gate() -> None:
     require(
         "run_step Scripts/validate-product-shared-bad-event-dedup.py" in gate,
         "production gate must run shared bad-event dedup validator",
+    )
+    require(
+        "run_step Scripts/validate-product-finite-protocol-loss-obstruction.py" in gate,
+        "production gate must run finite-protocol loss obstruction validator",
     )
     require(
         "run_step Scripts/test-product-shared-bad-event-dedup-validation.py" in gate,

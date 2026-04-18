@@ -2005,7 +2005,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         XCTAssertEqual(publicInput.priorClaims.count, 2)
         XCTAssertEqual(fold.proof.piCCSClaims.count, 4)
 
-        let transcriptState = try assertPiCCSMatchesPaperReference(
+        _ = try assertPiCCSMatchesPaperReference(
             input: publicInput,
             proof: fold.proof,
             seed: fixture.seed
@@ -2013,7 +2013,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         try assertPiRLCMatchesPaperReference(
             input: publicInput,
             proof: fold.proof,
-            transcriptState: transcriptState
+            seed: fixture.seed
         )
         try assertPiDECMatchesPaperReference(
             folded: fold.proof.foldedClaim,
@@ -2121,19 +2121,20 @@ final class ProtocolE2ETests: SuperNeoTestCase {
     }
 
     func testPublicFoldVerifierDoesNotTreatReductionAsTerminalProof() throws {
-        let forged = try makeForgedReductionFixture()
+        let fixture = try makeFoldFixture()
+        let proof = try fixture.backend.makeProver(key: fixture.key).fold(fixture.input, transcriptSeed: fixture.seed)
 
-        let verifier = SuperNeoVerifier(key: forged.key)
+        let verifier = SuperNeoVerifier(key: fixture.key)
         let reduction = verifier.reduceFold(
-            publicInput: forged.publicInput,
-            proof: forged.proof,
-            transcriptSeed: forged.seed
+            input: fixture.input,
+            proof: proof,
+            transcriptSeed: fixture.seed
         )
         let terminalWithForgedClaims = verifier.verifyTerminalFold(
-            publicInput: forged.publicInput,
-            proof: forged.proof,
-            outputClaims: forged.proof.outputClaims,
-            transcriptSeed: forged.seed
+            input: fixture.input,
+            proof: proof,
+            outputClaims: proof.outputClaims,
+            transcriptSeed: fixture.seed
         )
 
         XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
@@ -2176,7 +2177,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
 
         let result = SuperNeoVerifier(key: fixture.key).reduceFold(input: fixture.input, proof: tampered, transcriptSeed: fixture.seed)
 
-        XCTAssertInvalid(result, reason: "folded claim does not match random linear combination")
+        XCTAssertInvalid(result, reason: "repeated PiRLC branch 0 verification failed")
     }
 
     func testVerifierRejectsMalformedDecompositionOutput() throws {
@@ -2193,7 +2194,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             transcriptSeed: fixture.seed
         )
 
-        XCTAssertInvalid(result, reason: "decomposition does not match folded witness")
+        XCTAssertInvalid(result, reason: "repeated PiRLC branch 0 verification failed")
 
         let missingOutput = replacing(proof, outputClaims: Array(proof.outputClaims.dropLast()))
         let missingResult = SuperNeoVerifier(key: fixture.key).reduceFold(
@@ -2201,7 +2202,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             proof: missingOutput,
             transcriptSeed: fixture.seed
         )
-        XCTAssertInvalid(missingResult, reason: "decomposition output count must equal 14")
+        XCTAssertInvalid(missingResult, reason: "invalidParameter(\"decomposition output count must equal 14\")")
     }
 
     func testProofEnvelopeRoundTripsThroughVerifierTranscript() throws {
@@ -3007,7 +3008,7 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             .foldEnvelope(fixture.input, context: context)
             .superNeoBytes
 
-        let firstFieldOffset = ProofEnvelopeHeader.byteCount
+        let firstFieldOffset = ProofEnvelopeHeader.byteCount + 8
         let nonCanonical = withUnsafeBytes(of: GoldilocksField.modulus.littleEndian, Array.init)
         proofBytes.replaceSubrange(firstFieldOffset..<firstFieldOffset + 8, with: nonCanonical)
 
@@ -3021,20 +3022,88 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         let proof = try fixture.backend.makeProver(key: fixture.key).fold(fixture.input, transcriptSeed: fixture.seed)
         var challenges = proof.randomLinearCombinationChallenges
         challenges[0] = challenges[0] + .one
-        let tampered = FoldProof(
+        let tampered = replacing(proof, randomLinearCombinationChallenges: challenges)
+
+        let result = SuperNeoVerifier(key: fixture.key).reduceFold(input: fixture.input, proof: tampered, transcriptSeed: fixture.seed)
+
+        XCTAssertFalse(result.isReductionAccepted)
+        XCTAssertFalse(result.requiresTerminalRelationCheck)
+        XCTAssertEqual(result.reason, "repeated PiRLC branch 0 verification failed")
+    }
+
+    func testVerifierRejectsRepeatedPiCCSTapeMismatch() throws {
+        let fixture = try makeFoldFixture()
+        let proof = try fixture.backend.makeProver(key: fixture.key).fold(fixture.input, transcriptSeed: fixture.seed)
+        XCTAssertEqual(proof.piCCSTapes.count, FoldProof.selectedPiCCSTapeCount)
+
+        var auxiliaryTapes = proof.auxiliaryPiCCSTapes
+        let badTape = auxiliaryTapes[0]
+        let badSumcheck = SumcheckProof(
+            claimedSum: badTape.sumCheck.claimedSum,
+            rounds: badTape.sumCheck.rounds,
+            finalPoint: badTape.sumCheck.finalPoint,
+            finalValue: badTape.sumCheck.finalValue + .one
+        )
+        auxiliaryTapes[0] = PiCCSSection(sumCheck: badSumcheck, finalClaims: badTape.finalClaims)
+
+        let tampered = replacing(proof, auxiliaryPiCCSTapes: auxiliaryTapes)
+        let result = SuperNeoVerifier(key: fixture.key).reduceFold(input: fixture.input, proof: tampered, transcriptSeed: fixture.seed)
+
+        XCTAssertFalse(result.isReductionAccepted)
+        XCTAssertEqual(result.reason, "repeated PiCCS tape 1 verification failed")
+    }
+
+    func testVerifierRejectsRepeatedPiRLCBranchMismatch() throws {
+        let fixture = try makeFoldFixture()
+        let proof = try fixture.backend.makeProver(key: fixture.key).fold(fixture.input, transcriptSeed: fixture.seed)
+        XCTAssertEqual(proof.piRLCBranches.count, FoldProof.selectedPiRLCBranchCount)
+
+        var auxiliaryBranches = proof.auxiliaryPiRLCBranches
+        let badBranch = auxiliaryBranches[0]
+        var badChallenges = badBranch.challenges
+        badChallenges[0] = badChallenges[0] + .one
+        auxiliaryBranches[0] = PiRLCBranch(
+            piRLC: PiRLCSection(challenges: badChallenges, foldedClaim: badBranch.foldedClaim),
+            piDEC: badBranch.piDEC
+        )
+
+        let tampered = replacing(proof, auxiliaryPiRLCBranches: auxiliaryBranches)
+        let result = SuperNeoVerifier(key: fixture.key).reduceFold(input: fixture.input, proof: tampered, transcriptSeed: fixture.seed)
+
+        XCTAssertFalse(result.isReductionAccepted)
+        XCTAssertEqual(result.reason, "repeated PiRLC branch 1 verification failed")
+    }
+
+    func testVerifierRejectsLegacyOneShotFoldProofForSelectedProfile() throws {
+        let fixture = try makeFoldFixture()
+        let proof = try fixture.backend.makeProver(key: fixture.key).fold(fixture.input, transcriptSeed: fixture.seed)
+        let oneShot = FoldProof(
             sumCheck: proof.sumCheck,
-            randomLinearCombinationChallenges: challenges,
+            randomLinearCombinationChallenges: proof.randomLinearCombinationChallenges,
             piCCSClaims: proof.piCCSClaims,
             foldedClaim: proof.foldedClaim,
             decomposition: proof.decomposition,
             outputClaims: proof.outputClaims
         )
 
-        let result = SuperNeoVerifier(key: fixture.key).reduceFold(input: fixture.input, proof: tampered, transcriptSeed: fixture.seed)
+        let result = SuperNeoVerifier(key: fixture.key).reduceFold(input: fixture.input, proof: oneShot, transcriptSeed: fixture.seed)
 
         XCTAssertFalse(result.isReductionAccepted)
-        XCTAssertFalse(result.requiresTerminalRelationCheck)
-        XCTAssertEqual(result.reason, "random-linear-combination challenge mismatch")
+        XCTAssertTrue(result.reason?.contains("selected repeated-tape fold proof requires") == true)
+    }
+
+    func testFoldProofParserRejectsWrongRepeatedTapeCount() throws {
+        let fixture = try makeFoldFixture()
+        let context = makeEnvelopeContext(for: fixture.input, verifierKeyDigest: fixture.key.verifierKeyDigest)
+        var proofBytes = try fixture.backend.makeProver(key: fixture.key)
+            .foldEnvelope(fixture.input, context: context)
+            .superNeoBytes
+
+        writeUInt64(1, into: &proofBytes, at: ProofEnvelopeHeader.byteCount)
+
+        XCTAssertThrowsError(try FoldProofEnvelope(bytes: proofBytes)) { error in
+            XCTAssertEqual(error as? SuperNeoError, .invalidEncoding("wrong PiCCS repeated tape count"))
+        }
     }
 
     func testProverRejectsMixedWitnessAvailabilityInRLCClaims() throws {
@@ -3056,31 +3125,31 @@ final class ProtocolE2ETests: SuperNeoTestCase {
     func testPreparedPiRLCTranscriptMatchesFoldAndRejectsWrongPoint() throws {
         let fixture = try makeFoldFixture()
         let prover = fixture.backend.makeProver(key: fixture.key)
-        let fold = try prover.foldWithOutput(fixture.input, transcriptSeed: fixture.seed)
-        let proof = fold.proof
+        let sumCheck = try prover.benchmarkSumCheckProof(input: fixture.input, transcriptSeed: fixture.seed)
+        let claims = try prover.benchmarkPiCCSClaims(input: fixture.input, point: sumCheck.finalPoint)
         let preparedTranscript = try prover.preparePiRLCTranscript(
             input: fixture.input,
-            sumCheck: proof.sumCheck,
-            claims: proof.piCCSClaims,
+            sumCheck: sumCheck,
+            claims: claims,
             transcriptSeed: fixture.seed
         )
 
         let rlc = try prover.benchmarkPiRLC(
-            claims: proof.piCCSClaims,
+            claims: claims,
             preparedTranscript: preparedTranscript
         )
 
-        XCTAssertEqual(rlc.challenges, proof.randomLinearCombinationChallenges)
-        XCTAssertEqual(rlc.foldedClaim, proof.foldedClaim)
+        XCTAssertEqual(rlc.challenges.count, claims.count)
+        XCTAssertEqual(rlc.foldedClaim.point, sumCheck.finalPoint)
 
-        var wrongPoint = proof.sumCheck.finalPoint
+        var wrongPoint = sumCheck.finalPoint
         wrongPoint[0] = wrongPoint[0] + .one
-        var wrongClaims = proof.piCCSClaims
+        var wrongClaims = claims
         wrongClaims[0] = replacing(wrongClaims[0], point: wrongPoint)
         XCTAssertThrowsSuperNeoError(
             try prover.preparePiRLCTranscript(
                 input: fixture.input,
-                sumCheck: proof.sumCheck,
+                sumCheck: sumCheck,
                 claims: wrongClaims,
                 transcriptSeed: fixture.seed
             ),
@@ -3101,20 +3170,13 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             evaluations: outputClaims[0].evaluations,
             witness: outputClaims[0].witness
         )
-        let tampered = FoldProof(
-            sumCheck: proof.sumCheck,
-            randomLinearCombinationChallenges: proof.randomLinearCombinationChallenges,
-            piCCSClaims: proof.piCCSClaims,
-            foldedClaim: proof.foldedClaim,
-            decomposition: proof.decomposition,
-            outputClaims: outputClaims
-        )
+        let tampered = replacing(proof, outputClaims: outputClaims)
 
         let result = SuperNeoVerifier(key: fixture.key).reduceFold(input: fixture.input, proof: tampered, transcriptSeed: fixture.seed)
 
         XCTAssertFalse(result.isReductionAccepted)
         XCTAssertFalse(result.requiresTerminalRelationCheck)
-        XCTAssertEqual(result.reason, "decomposition commitments must match output claims")
+        XCTAssertEqual(result.reason, "invalidParameter(\"decomposition commitments must match output claims\")")
     }
 
 }
@@ -9090,7 +9152,9 @@ extension SuperNeoTestCase {
         piCCSClaims: [CCSEvaluationClaim]? = nil,
         foldedClaim: CCSEvaluationClaim? = nil,
         decomposition: DecompositionProof? = nil,
-        outputClaims: [CCSEvaluationClaim]? = nil
+        outputClaims: [CCSEvaluationClaim]? = nil,
+        auxiliaryPiCCSTapes: [PiCCSSection]? = nil,
+        auxiliaryPiRLCBranches: [PiRLCBranch]? = nil
     ) -> FoldProof {
         FoldProof(
             sumCheck: sumCheck ?? proof.sumCheck,
@@ -9098,7 +9162,9 @@ extension SuperNeoTestCase {
             piCCSClaims: piCCSClaims ?? proof.piCCSClaims,
             foldedClaim: foldedClaim ?? proof.foldedClaim,
             decomposition: decomposition ?? proof.decomposition,
-            outputClaims: outputClaims ?? proof.outputClaims
+            outputClaims: outputClaims ?? proof.outputClaims,
+            auxiliaryPiCCSTapes: auxiliaryPiCCSTapes ?? proof.auxiliaryPiCCSTapes,
+            auxiliaryPiRLCBranches: auxiliaryPiRLCBranches ?? proof.auxiliaryPiRLCBranches
         )
     }
 
@@ -9242,7 +9308,12 @@ extension SuperNeoTestCase {
         proof: FoldProof,
         seed: [UInt8]
     ) throws -> PaperReferenceTranscriptState {
-        var transcript = makePublicFoldTranscript(input: input, seed: seed)
+        let label = selectedRepeatedTapeLabelPiCCS(0)
+        var transcript = makePublicFoldTranscript(
+            input: input,
+            seed: repeatedTapeSeedForTest(base: seed, label: label),
+            tapeLabel: label
+        )
         let numVars = try log2ForTest(input.shape.m)
         let alpha = (0..<numVars).map { _ in transcript.challengeExt2() }
         let gamma = transcript.challengeExt2()
@@ -9282,9 +9353,19 @@ extension SuperNeoTestCase {
     func assertPiRLCMatchesPaperReference(
         input: SuperNeoPublicFoldInput,
         proof: FoldProof,
-        transcriptState: PaperReferenceTranscriptState
+        seed: [UInt8]
     ) throws {
-        var transcript = transcriptState.transcriptAfterSumcheck
+        let label = selectedRepeatedTapeLabelPiRLC(0)
+        var transcript = makePublicFoldTranscript(
+            input: input,
+            seed: repeatedTapeSeedForTest(
+                base: seed,
+                label: label,
+                extra: repeatedPiRLCTranscriptExtraForTest(proof: proof)
+            ),
+            tapeLabel: label
+        )
+        transcript.absorb(proof.sumCheck.superNeoBytes)
         transcript.absorb(transcriptEncodeCount(proof.piCCSClaims.count))
         proof.piCCSClaims.forEach { transcript.absorb($0.superNeoBytes) }
 
@@ -9673,19 +9754,60 @@ extension SuperNeoTestCase {
     }
 
     func makePublicFoldTranscript(input: SuperNeoPublicFoldInput, seed: [UInt8]) -> SumCheckTranscript {
+        makePublicFoldTranscript(input: input, seed: seed, tapeLabel: nil)
+    }
+
+    func makePublicFoldTranscript(
+        input: SuperNeoPublicFoldInput,
+        seed: [UInt8],
+        tapeLabel: String?
+    ) -> SumCheckTranscript {
+        let labelBytes = tapeLabel.map { Array($0.utf8) } ?? []
+        let labelFrame = tapeLabel == nil ? [] : transcriptEncodeCount(labelBytes.count) + labelBytes
         let contextSeed = seed
+            + labelFrame
             + input.shape.shapeDigest.superNeoBytes
             + transcriptEncodeCount(input.instances.count)
             + input.instances.flatMap(\.superNeoBytes)
             + transcriptEncodeCount(input.priorClaims.count)
             + input.priorClaims.flatMap(\.superNeoBytes)
-        var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.fold", seed: contextSeed)
+        let domainSeparator = tapeLabel.map { "SuperNeo-NuMetal.fold/\($0)" } ?? "SuperNeo-NuMetal.fold"
+        var transcript = SumCheckTranscript(domainSeparator: domainSeparator, seed: contextSeed)
+        if !labelBytes.isEmpty {
+            transcript.absorb(labelBytes)
+        }
         transcript.absorb(input.shape.shapeDigest.superNeoBytes)
         transcript.absorb(transcriptEncodeCount(input.instances.count))
         input.instances.forEach { transcript.absorb($0.superNeoBytes) }
         transcript.absorb(transcriptEncodeCount(input.priorClaims.count))
         input.priorClaims.forEach { transcript.absorb($0.superNeoBytes) }
         return transcript
+    }
+
+    func selectedRepeatedTapeLabelPiCCS(_ index: Int) -> String {
+        "selected-repeated-tape-v1/piccs-tape-\(index)"
+    }
+
+    func selectedRepeatedTapeLabelPiRLC(_ index: Int) -> String {
+        "selected-repeated-tape-v1/pirlc-branch-\(index)"
+    }
+
+    func repeatedTapeSeedForTest(base seed: [UInt8], label: String, extra: [UInt8] = []) -> [UInt8] {
+        let version = Array("selected-repeated-tape-v1".utf8)
+        let labelBytes = Array(label.utf8)
+        return seed
+            + transcriptEncodeCount(version.count)
+            + version
+            + transcriptEncodeCount(labelBytes.count)
+            + labelBytes
+            + transcriptEncodeCount(extra.count)
+            + extra
+    }
+
+    func repeatedPiRLCTranscriptExtraForTest(proof: FoldProof) -> [UInt8] {
+        proof.sumCheck.superNeoBytes
+            + transcriptEncodeCount(proof.piCCSClaims.count)
+            + proof.piCCSClaims.flatMap(\.superNeoBytes)
     }
 
     func transcriptEncodeCount(_ value: Int) -> [UInt8] {

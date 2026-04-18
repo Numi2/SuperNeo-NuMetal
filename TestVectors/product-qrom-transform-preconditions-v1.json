@@ -12,6 +12,7 @@
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "numiSealZKSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "proofEnvelopePolicy": "Docs/ProofEnvelope.md"
   },
@@ -34,6 +35,10 @@
       "ProductInteractiveDelayedMessageDataAccepted",
       "ProductInteractiveUniqueResponseData",
       "ProductInteractiveUniqueResponseDataAccepted",
+      "ProductInteractiveSecurityBounds",
+      "ProductInteractiveSecurityBoundsAccepted",
+      "ProductPerKindInteractiveSecurityEvidence",
+      "productInteractiveSecurityBounds_from_perKindEvidence",
       "ProductQROMCompilerOverheadBound",
       "ProductQROMCompilerOverheadBoundAccepted",
       "productSecurityTheorem_requires_challenge_tape_expansion",
@@ -107,7 +112,25 @@
     "merkleNodeBits": 384,
     "interactiveLossChargedOutsideQROM": true,
     "legacyDFM20InterfaceDeprecated": true,
-    "productionTransformClaimAllowed": false
+    "productionTransformClaimAllowed": false,
+    "selectedRepeatedTapeProfile": {
+      "proofEnvelopeHeaderVersion": 5,
+      "externalChallengeSeedBits": 256,
+      "piccsTapeCount": 2,
+      "pirlcBranchCount": 3,
+      "terminalCERoundCount": 226,
+      "pirlcSelectedRoute": "generic-crt-component-three-branch",
+      "pirlcUnitPivotRouteSelected": false,
+      "labelVersion": "selected-repeated-tape-v1",
+      "labels": [
+        "selected-repeated-tape-v1/piccs-tape-0",
+        "selected-repeated-tape-v1/piccs-tape-1",
+        "selected-repeated-tape-v1/pirlc-branch-0",
+        "selected-repeated-tape-v1/pirlc-branch-1",
+        "selected-repeated-tape-v1/pirlc-branch-2"
+      ],
+      "challengeExpansionMode": "domain-separated H_chal expansion from the single external 256-bit CTCO seed through public labels; not seed-bit slicing"
+    }
   },
   "preconditions": [
     {
@@ -184,10 +207,10 @@
     },
     {
       "id": "underlying-interactive-security",
-      "status": "open",
+      "status": "formal-finite-interactive-security-bound-instantiated",
       "required": true,
-      "satisfied": false,
-      "evidence": "knowledge soundness or soundness bound for the exact CTCO product protocol against quantum dishonest provers",
+      "satisfied": true,
+      "evidence": "TestVectors/product-qrom-interactive-reduction-v1.json pins ProductPerKindInteractiveSecurityEvidence for fold, terminal, compressed-terminal, NumiSeal-terminal, and NumiSealZK-product soundness; Docs/FormalStatus.json is promoted to completed formal protocol theorem; interactive losses are exported outside epsilon_qrom",
       "sourceBasis": [
         "DFMS22",
         "RotemTessaro"
@@ -195,10 +218,10 @@
     },
     {
       "id": "zero-knowledge-or-simulator-preconditions",
-      "status": "open",
+      "status": "proof-level-simulator-coupling-instantiated",
       "required": true,
-      "satisfied": false,
-      "evidence": "NumiSealZK requires simulator composition for the masked residual relation after CTCO root binding",
+      "satisfied": true,
+      "evidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json instantiates proof-level simulator coupling for the masked residual relation after CTCO root binding; side-channel leakage remains outside proof bytes and charged to epsilon_ct",
       "sourceBasis": [
         "DFMS22"
       ]
@@ -218,7 +241,7 @@
       "status": "ideal-split-qro-compiler-overhead-instantiated",
       "required": true,
       "satisfied": true,
-      "evidence": "ProductQROMCompilerOverheadBound pins epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO model: online extractability is assumed by the theorem, legacy micro-round/factorial loss is excluded, H_bind target failures are exported to epsilon_collision, and remaining interactive/extractor/simulator losses are charged outside epsilon_qrom",
+      "evidence": "ProductQROMCompilerOverheadBound pins epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO model: online extractability is assumed by the theorem, legacy micro-round/factorial loss is excluded, H_bind target failures are exported to epsilon_collision, per-kind interactive/extractor losses are charged outside epsilon_qrom, and proof-level simulator coupling is exported separately as epsilon_zk_sim = 0",
       "sourceBasis": [
         "DFMS22",
         "RotemTessaro"
@@ -247,8 +270,27 @@
       "legacyMaximumProtocolChallengeDerivations": 204,
       "queryBoundQH": "2^64",
       "queryBoundLog2": 64,
-      "transformPreconditionsSatisfied": false,
-      "productionQROMClaimAllowed": false
+      "interactiveSecurityBoundInstantiated": true,
+      "transformPreconditionsSatisfied": true,
+      "productionQROMClaimAllowed": false,
+      "selectedRepeatedTapeProfile": {
+        "proofEnvelopeHeaderVersion": 5,
+        "externalChallengeSeedBits": 256,
+        "piccsTapeCount": 2,
+        "pirlcBranchCount": 3,
+        "terminalCERoundCount": 226,
+        "pirlcSelectedRoute": "generic-crt-component-three-branch",
+        "pirlcUnitPivotRouteSelected": false,
+        "labelVersion": "selected-repeated-tape-v1",
+        "labels": [
+          "selected-repeated-tape-v1/piccs-tape-0",
+          "selected-repeated-tape-v1/piccs-tape-1",
+          "selected-repeated-tape-v1/pirlc-branch-0",
+          "selected-repeated-tape-v1/pirlc-branch-1",
+          "selected-repeated-tape-v1/pirlc-branch-2"
+        ],
+        "challengeExpansionMode": "domain-separated H_chal expansion from the single external 256-bit CTCO seed through public labels; not seed-bit slicing"
+      }
     },
     {
       "proofKind": "terminal",
@@ -260,8 +302,10 @@
       "legacyMaximumProtocolChallengeDerivations": 423,
       "queryBoundQH": "2^64",
       "queryBoundLog2": 64,
-      "transformPreconditionsSatisfied": false,
-      "productionQROMClaimAllowed": false
+      "interactiveSecurityBoundInstantiated": true,
+      "transformPreconditionsSatisfied": true,
+      "productionQROMClaimAllowed": false,
+      "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited source-fold profile with 2 PiCCS tapes and 3 PiRLC branches when the proof kind embeds source-fold obligations"
     },
     {
       "proofKind": "compressed-terminal",
@@ -273,8 +317,10 @@
       "legacyMaximumProtocolChallengeDerivations": 423,
       "queryBoundQH": "2^64",
       "queryBoundLog2": 64,
-      "transformPreconditionsSatisfied": false,
-      "productionQROMClaimAllowed": false
+      "interactiveSecurityBoundInstantiated": true,
+      "transformPreconditionsSatisfied": true,
+      "productionQROMClaimAllowed": false,
+      "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited source-fold profile with 2 PiCCS tapes and 3 PiRLC branches when the proof kind embeds source-fold obligations"
     },
     {
       "proofKind": "numiseal-terminal",
@@ -286,8 +332,10 @@
       "legacyMaximumProtocolChallengeDerivations": 4376925,
       "queryBoundQH": "2^64",
       "queryBoundLog2": 64,
-      "transformPreconditionsSatisfied": false,
-      "productionQROMClaimAllowed": false
+      "interactiveSecurityBoundInstantiated": true,
+      "transformPreconditionsSatisfied": true,
+      "productionQROMClaimAllowed": false,
+      "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited source-fold profile with 2 PiCCS tapes and 3 PiRLC branches when the proof kind embeds source-fold obligations"
     },
     {
       "proofKind": "numiseal-zk-product",
@@ -299,8 +347,10 @@
       "legacyMaximumProtocolChallengeDerivations": 4377150,
       "queryBoundQH": "2^64",
       "queryBoundLog2": 64,
-      "transformPreconditionsSatisfied": false,
-      "productionQROMClaimAllowed": false
+      "interactiveSecurityBoundInstantiated": true,
+      "transformPreconditionsSatisfied": true,
+      "productionQROMClaimAllowed": false,
+      "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited source-fold profile with 2 PiCCS tapes and 3 PiRLC branches when the proof kind embeds source-fold obligations"
     }
   ],
   "lossInterface": {
@@ -320,17 +370,15 @@
     "qromLossWithinBudget": true
   },
   "hardClaimBlockers": [
-    "interactive special-soundness bounds for every accepted proof kind",
-    "zero-knowledge simulator composition for the masked residual product relation",
     "selected total-loss budget remains blocked by non-QROM required terms"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
-    "requiresInteractiveProtocolImplementation": true,
+    "requiresInteractiveProtocolImplementation": false,
     "requiresHBind384Implementation": false,
-    "requiresUnderlyingInteractiveSecurity": true,
+    "requiresUnderlyingInteractiveSecurity": false,
     "requiresDelayedMessageData": false,
     "requiresUniqueResponseData": false,
     "requiresQROMLossInstantiation": false,

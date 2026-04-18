@@ -12,6 +12,18 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "TestVectors" / "numiseal-zk-simulator-coupling-evidence-v1.json"
 
+EXPECTED_FORMAL_DECLARATIONS = {
+    "NumiSealZKPerfectMaskCoupling",
+    "NumiSealZKPerfectMaskCouplingAccepted",
+    "NumiSealZKProofLevelSimulatorLoss",
+    "NumiSealZKProofLevelSimulatorLossAccepted",
+    "NumiSealZKPerfectMaskSimulationEvidence",
+    "NumiSealZKSimulationEvidence.ofPerfectMaskCoupling",
+    "numiSealZKSimulationPrivacy_from_perfectMaskCoupling",
+    "numiSealZKProduct_privacy_from_perfectMaskCoupling",
+    "numiSealZKProofLevelSimulatorLoss_from_perfectMaskCoupling",
+}
+
 
 def fail(message: str) -> None:
     print(f"NumiSealZK simulator-coupling evidence validation failed: {message}", file=sys.stderr)
@@ -64,9 +76,29 @@ def validate(path: Path) -> None:
     require(manifest.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(manifest.get("evidenceID") == "numiseal-zk-simulator-coupling-evidence-v1", "evidenceID mismatch")
     require(
-        manifest.get("claimStatus") == "product-simulator-coupling-surface-pinned-not-production-zk-privacy",
-        "claimStatus must stay fail-closed",
+        manifest.get("claimStatus") == "proof-level-simulator-coupling-instantiated-not-production-zk-privacy",
+        "claimStatus must stay proof-level and non-production",
     )
+
+    related = require_dict(manifest.get("relatedManifests"), "relatedManifests")
+    for key in [
+        "numiSealZKMaskDistributionEvidence",
+        "productCryptoSecurityDossier",
+        "selectedDepthLossAccounting",
+        "productTotalLossBudget",
+        "productQROMTransformPreconditions",
+        "benchmarkCoverage",
+        "constantTimeLoweringEvidence",
+    ]:
+        require_relative_path(related.get(key), f"relatedManifests.{key}")
+
+    formal = require_dict(manifest.get("formalSurface"), "formalSurface")
+    formal_module = require_relative_path(formal.get("module"), "formalSurface.module")
+    declarations = set(require_string_list(formal.get("declarations"), "formalSurface.declarations"))
+    require(EXPECTED_FORMAL_DECLARATIONS.issubset(declarations), "formalSurface.declarations missing simulator coupling declarations")
+    formal_source = formal_module.read_text(encoding="utf-8")
+    for declaration in EXPECTED_FORMAL_DECLARATIONS:
+        require(declaration in formal_source, f"formal source missing {declaration}")
 
     surfaces = require_dict(manifest.get("implementationSurfaces"), "implementationSurfaces")
     product_prover = require_relative_path(surfaces.get("productProver"), "implementationSurfaces.productProver")
@@ -96,6 +128,29 @@ def validate(path: Path) -> None:
     for needle in ["base terminal proof", "randomness session", "declared leakage", "component", "transcript"]:
         require(needle in fields, f"coupling fields must mention {needle}")
 
+    proof_level = require_dict(manifest.get("proofLevelSimulatorCoupling"), "proofLevelSimulatorCoupling")
+    require(
+        proof_level.get("status") == "instantiated-under-declared-leakage-model",
+        "proof-level simulator status mismatch",
+    )
+    require(proof_level.get("lossSymbol") == "epsilon_zk_sim", "proof-level loss symbol mismatch")
+    require(proof_level.get("lossInstantiated") is True, "proof-level simulator loss must be instantiated")
+    require(proof_level.get("exactUpperBound") == "0", "proof-level simulator loss must be exactly zero")
+    require(
+        proof_level.get("statisticalDistanceFromUniformMaskedResidual") == "0",
+        "masked residual statistical distance must be zero",
+    )
+    proof_text = json.dumps(proof_level, sort_keys=True).lower()
+    for needle in [
+        "exactly uniform",
+        "one-time-padded",
+        "without witness access",
+        "fresh randomness-session",
+        "mask-reuse rejection",
+        "epsilon_ct",
+    ]:
+        require(needle in proof_text, f"proof-level coupling must mention {needle}")
+
     pins = require_dict(manifest.get("benchmarkAndSideChannelPins"), "benchmarkAndSideChannelPins")
     require(pins.get("productSizedBenchmarkRowsPinned") is True, "productSizedBenchmarkRowsPinned must be true")
     require(pins.get("sideChannelCertificateRequiredBeforeDefaultPromotion") is True, "sideChannelCertificateRequiredBeforeDefaultPromotion must be true")
@@ -111,8 +166,10 @@ def validate(path: Path) -> None:
     promotion = require_dict(manifest.get("promotionRule"), "promotionRule")
     require(promotion.get("productionZKPrivacyClaimAllowed") is False, "productionZKPrivacyClaimAllowed must be false")
     require(promotion.get("zkDefaultPromotionAllowed") is False, "zkDefaultPromotionAllowed must be false")
+    require(promotion.get("proofLevelSimulatorLossInstantiated") is True, "proofLevelSimulatorLossInstantiated must be true")
     boundaries = " ".join(require_string_list(promotion.get("remainingBoundaries"), "remainingBoundaries")).lower()
-    for needle in ["benchmark", "side-channel", "epsilon_zk_sim"]:
+    require("epsilon_zk_sim" not in boundaries, "epsilon_zk_sim must not remain a simulator-coupling boundary")
+    for needle in ["benchmark", "side-channel"]:
         require(needle in boundaries, f"remaining boundaries must mention {needle}")
 
 

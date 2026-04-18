@@ -31,24 +31,31 @@ Machine-readable files:
   implementation-hardening boundaries while keeping production claims disabled.
 - `product-selected-depth-loss-accounting-v1.json`: checked selected-depth
   loss accounting contract for the current depth-1 product security boundary.
-  It pins source fold, terminal seal, typed carry, ZK simulator, QROM,
-  extractor, transcript collision, product-ops replay, constant-time, and
+  It pins source fold, terminal seal, typed carry, proof-level ZK simulator
+  loss, QROM, extractor, transcript collision, product-ops replay, constant-time, and
   release-distribution loss terms while keeping production claims disabled.
 - `product-extractor-loss-accounting-v1.json`: checked extractor loss
   accounting contract for source-fold extraction, terminal-seal extraction,
   product-envelope composition extraction, and future recursive carry
   extraction. It records the rewind/input binding schedule while keeping the
   concrete extractor and numeric loss budget open.
+- `product-finite-protocol-loss-obstruction-v1.json`: checked finite-protocol
+  selected-budget obstruction evidence. It records that the current PiRLC/PiCCS
+  finite certificates are formal soundness evidence but do not instantiate
+  `epsilon_fold` or `epsilon_terminal` inside the selected `2^-128` total-loss
+  budget under the `Goldilocks/Phi81(d=54)` profile. It also pins the terminal
+  CE repeated-challenge bound `(2/3)^226 < 2^-128`, so terminal CE is not the
+  remaining numeric obstruction.
 - `product-qrom-fiat-shamir-accounting-v1.json`: checked QROM Fiat-Shamir
   accounting contract for fold, terminal, compressed-terminal, NumiSeal
   terminal, and NumiSealZK product transcript interfaces. It records QROM loss
   symbols, proof-kind separation, and the mapping from
   `epsilon_transcript_collision` to ledger `epsilon_collision`. The
   conditional `Q_H = 2^64` query cap is instantiated; split-oracle CTCO product
-  evidence, numeric 384-bit binding collision bounds, and exact partial
-  total-loss integration are pinned, while underlying interactive-security
-  bounds, NumiSealZK simulator composition outside the QROM term, concrete
-  hash/QRO promotion, and the production QROM loss claim remain open.
+  evidence, numeric 384-bit binding collision bounds, per-kind interactive
+  security evidence, proof-level NumiSealZK simulator coupling, and exact
+  partial total-loss integration are pinned, while concrete hash/QRO promotion
+  and the production QROM loss claim remain open.
 - `product-qrom-transcript-schedule-v1.json`: checked QROM transcript schedule
   contract for fold, terminal, compressed-terminal, NumiSeal terminal, and
   NumiSealZK product proof kinds. It pins public challenge labels, transcript

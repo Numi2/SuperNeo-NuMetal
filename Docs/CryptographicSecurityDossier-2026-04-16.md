@@ -15,6 +15,7 @@ Machine-readable scope:
 - `TestVectors/product-qrom-collision-malleability-evidence-v1.json`
 - `TestVectors/product-qrom-transform-preconditions-v1.json`
 - `TestVectors/product-qrom-interactive-reduction-v1.json`
+- `TestVectors/product-finite-protocol-loss-obstruction-v1.json`
 - `TestVectors/product-total-loss-budget-v1.json`
 - `TestVectors/product-release-distribution-evidence-v1.json`
 - `Formal/SuperNeoFormal/ProductSecurityTheorem.lean`
@@ -32,7 +33,7 @@ Machine-readable scope:
 
 The current status is an evidence-parametric bounded-depth product security theorem
 surface with local typed parent-child carry evidence. All production claims remain disabled
-until the listed extractor, QROM, parameter, hosted carry-depth, ZK,
+until the listed extractor, QROM, parameter, hosted carry-depth, production ZK default,
 side-channel, release distribution, and benchmark obligations are instantiated.
 
 ## Theorem Scope
@@ -53,7 +54,7 @@ if the product bindings, bounded-depth loss accounting, lattice dossier,
 Fiat-Shamir/QROM evidence, and existing NumiSeal product/carry/ZK relations are
 accepted, then the product completeness, knowledge-soundness, zero-knowledge,
 and composition claims hold. It does not fill in missing concrete extractor,
-simulator-coupling, QROM, or side-channel evidence.
+hosted operations, concrete hash/QRO, side-channel, or release evidence.
 
 ## Recursion And Knowledge Soundness
 
@@ -85,7 +86,8 @@ The ledger pins these loss terms:
 - source fold knowledge loss,
 - terminal NumiSeal seal loss,
 - typed recursive carry loss,
-- ZK simulator composition loss,
+- proof-level ZK simulator composition loss, now instantiated as zero under the
+  declared leakage model,
 - Fiat-Shamir/QROM loss,
 - concrete extractor failure loss,
 - transcript collision and proof-kind malleability loss,
@@ -127,7 +129,25 @@ budget. `ProductSecurityTheorem` now exposes
 `ProductSelectedDepthLossLedger`,
 `ProductSelectedDepthLossLedgerAccepted`, and
 `productSecurityTheorem_requires_selected_depth_loss_accounting` so the formal
-surface cannot skip extractor, QROM, simulator, and total-loss gates.
+surface cannot skip extractor, QROM, and total-loss gates.
+
+The finite-model protocol certificates are now separated from selected numeric
+loss instantiation. `TestVectors/product-finite-protocol-loss-obstruction-v1.json`
+records the exact obstruction: under the current `Goldilocks/Phi81(d=54)`
+profile, `5^54 < 2^128`, so even a hypothetical full-ring PiRLC
+`1/5^54` single-observation bound is larger than the selected 128-bit budget,
+while the available CRT-component certificate is only `1/5^27`. The PiCCS
+Ext2 support also satisfies `q^2 < 2^128`, and the selected `72/q^2` certificate
+is about `2^-121.83`. The current one-shot route is therefore frozen as
+non-128-bit. The selected route is fixed-kind CTCO repeated-tape accounting:
+PiCCS uses two internal tapes, PiRLC uses three internal CRT-component tapes
+unless a separate semantic unit-pivot theorem is proved, and terminal CE is
+pinned at 226 rounds. The terminal repeated-challenge tape theorem gives
+`(2/3)^226`, about `2^-132.20`, and Lean pins the exact comparison with
+shared-core slack. The selected product ledger now wires the fixed-kind route as
+`epsilon_fold <= 16/q^4 + 1/5^81` and `epsilon_terminal_ce <= (2/3)^226`; the
+one-shot PiRLC/PiCCS facts remain as permanent non-128-bit blockers so they
+cannot be used to promote a one-shot selected-depth claim.
 
 ## Extractor Loss Accounting
 
@@ -230,11 +250,13 @@ The current Lean surface exposes the theorem-critical replacement objects:
 - `ProductFiatShamirQROMAccepted`
 - `ProductQROMTightTransform`
 
-Remaining QROM work is therefore:
+Current QROM guardrails are therefore:
 
-- instantiate the underlying interactive special-soundness bounds consumed by
-  the product theorem surface;
-- instantiate NumiSealZK simulator composition outside the QROM transform term;
+- keep the per-kind interactive security bounds consumed by the product theorem
+  surface charged outside `epsilon_qrom`; these are now pinned by
+  `TestVectors/product-qrom-interactive-reduction-v1.json`;
+- consume the NumiSealZK proof-level simulator coupling evidence outside the
+  QROM transform term with `epsilon_zk_sim = 0`;
 - keep concrete SHAKE256-to-QRO promotion separate from the ideal split-QRO
   theorem model; and
 - keep production QROM claims disabled until those evidence objects are present.
@@ -266,12 +288,14 @@ stack:
   for the future tighter commit-and-open extractor track if product proofs are
   refactored to fit that family.
 
-Promotion now requires underlying interactive security against quantum dishonest
-provers, concrete hash/QRO promotion when leaving the ideal split-QRO model,
-and the remaining non-QROM terms in the selected total-loss budget. The CTCO
+Promotion now requires concrete hash/QRO promotion when leaving the ideal
+split-QRO model and the remaining non-QROM terms in the selected total-loss
+budget. The CTCO
 delayed-message/unique-response data, ideal split-QRO compiler-overhead term,
 384-bit H_bind collision accounting, proof-kind malleability accounting, and
-exact partial total-loss wiring are pinned by the checked manifests.
+exact partial total-loss wiring are pinned by the checked manifests. Per-kind
+interactive security and proof-level NumiSealZK simulator coupling are exported
+outside `epsilon_qrom` by checked evidence.
 Uniform challenge-space and well-formed structured transcript-oracle input
 encoding are pinned by the sampler/encoding evidence plus the Lean
 `WellFormedTranscript` and `Digest384Serialization` layers, while concrete
@@ -332,7 +356,7 @@ terminal, and NumiSealZK product proofs, and the exact DFM20 multiplier
 The ledger instantiates conservative numeric `n` upper bounds for every
 accepted proof kind. Fold, terminal, and compressed-terminal use the checked
 profile limits `log2(shape.m) <= 64`, `maxFreshBatchCount = 61`,
-`maxPriorClaimCount = 14`, and `CEOpeningProof.roundCount = 219`.
+`maxPriorClaimCount = 14`, and `CEOpeningProof.roundCount = 226`.
 NumiSeal terminal and NumiSealZK product now use the code-enforced
 `NumiSealProductTheoremLimits` surface: one product lane, at most 75 source
 fold output claims, at most 75 obligations per aggregate, at most 75 aggregates
@@ -359,9 +383,8 @@ kinds. It also pins the conditional `Q_H = 2^64` adversary-query cap and
 not a production QROM proof. The transcript-canonicality gap is now closed by
 the well-formed Lean transcript object, the binding-width gap is closed by the
 384-bit digest layer, and the ideal split-QRO compiler-overhead term is wired
-as zero into the total-loss budget. Remaining QROM work is underlying
-interactive security, NumiSealZK simulator composition outside the QROM term,
-and concrete hash/QRO promotion.
+as zero into the total-loss budget. Remaining QROM work is concrete hash/QRO
+promotion and the remaining non-QROM total-loss terms.
 
 ## Total Loss Budget
 
@@ -387,16 +410,17 @@ charge rather than a flat duplicate sum of the same core event.
 The current manifest intentionally records:
 
 - `requiredTermCount = 10`,
-- `instantiatedRequiredTermCount = 3`,
+- `instantiatedRequiredTermCount = 4`,
 - `exactInstantiatedRequiredTermUpperBound =
   42535295865117307932921825928971026441/2^254`
-  (`1/2^129 + 9/2^254`),
+  (`1/2^129 + 9/2^254`, with zero-valued QROM compiler-overhead and
+  ZK-simulator terms instantiated exactly),
 - `exactSelectedDepthLossUpperBound = null`,
 - `selectedDepthLossWithinBudget = false`, and
 - `productionTotalLossClaimAllowed = false`.
 
 This does not prove product security. It prevents a future product-security
-claim from bypassing numeric extractor, interactive-security, ZK, operations,
+claim from bypassing finite-protocol, numeric extractor, operations,
 constant-time, and release-distribution loss terms or from double-counting
 `epsilon_core_shared` or `epsilon_collision` inside another ledger term.
 
@@ -422,15 +446,14 @@ theorem scope. The exact rejection-sampled field mask distribution is checked
 by `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`, including
 zero statistical distance from uniform accepted field elements after rejection.
 
-The remaining privacy proof obligations are:
-
-- simulator coupling from witness-free transcripts to real product transcripts,
-- randomness-session composition across repeated product proofs,
-- proof that mask reuse is impossible or detected in every accepted mode,
-- proof that artifact metadata, sizes, errors, retry behavior, and carry state
-  leak only declared public information, and
-- composition of the simulator with transcript, envelope, and product-policy
-  binding.
+The proof-level privacy simulator is now recorded in
+`TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json`: under exact
+field-mask sampling, fresh randomness-session binding, mask-reuse rejection,
+and the declared proof-byte leakage model, the simulator loss is
+`epsilon_zk_sim = 0`. This does not authorize production ZK defaults. The
+remaining privacy production obligations are side-channel evidence and hosted
+behavior evidence for artifact metadata, sizes, errors, retry behavior,
+allocator/GPU behavior, and carry-state exposure outside declared proof bytes.
 
 ## Carry And Recursion Closure
 

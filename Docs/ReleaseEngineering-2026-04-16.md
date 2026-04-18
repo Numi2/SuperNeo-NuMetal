@@ -59,13 +59,12 @@ At minimum, this requires:
   provenance, and signed revocation feeds,
 - NumiSeal conformance-scope promotion plus concrete Swift extractor
   implementation and numeric extractor loss accounting, product recursive
-  typed carry vectors, simulator coupling beyond the exact rejection-sampled
-  field mask distribution, underlying interactive-security bounds, selected
-  total-loss budget closure, and product cryptographic security dossier
-  promotion beyond depth 1,
-- selected-depth loss accounting instantiated for extractor, interactive,
-  ZK-simulator, hosted product-ops replay, constant-time side-channel, and
-  signed release-distribution terms,
+  typed carry vectors, selected total-loss budget closure, production
+  side-channel evidence, and product cryptographic security dossier promotion
+  beyond depth 1,
+- selected-depth loss accounting instantiated for source-fold, terminal,
+  extractor, hosted product-ops replay, constant-time side-channel, and signed
+  release-distribution terms,
 - pinned Sage-backed lattice-estimator evidence,
 - release signing/provenance,
 - branch protection requiring the full production gate.
@@ -127,8 +126,9 @@ promotion guards.
 `Scripts/validate-numiseal-zk-mask-distribution-evidence.py` checks the concrete
 NumiSealZK mask sampler arithmetic and promotion boundary.
 `Scripts/validate-numiseal-zk-simulator-coupling-evidence.py` checks the
-NumiSealZK product simulator-coupling digest surface, product-sized benchmark
-row pins, and side-channel promotion boundary.
+NumiSealZK proof-level simulator-coupling digest surface, declared leakage
+model, exact zero `epsilon_zk_sim` loss, product-sized benchmark row pins, and
+side-channel promotion boundary.
 `Scripts/validate-product-crypto-security-dossier.py` checks
 `TestVectors/product-crypto-security-dossier-v1.json`, including the
 bounded-depth product security theorem surface, ProductSecurityTheorem import,
@@ -138,9 +138,10 @@ implementation-hardening boundary.
 `Scripts/validate-product-selected-depth-loss-accounting.py` checks
 `TestVectors/product-selected-depth-loss-accounting-v1.json`, including the
 selected-depth loss expression, the recursive promotion expression, the ten
-component loss terms, and the fail-closed blockers for extractor, QROM,
-transcript collision, ZK-simulator, hosted product operations, release
-signing/notarization, and CPU/Swift/LLVM/Metal constant-time evidence closure.
+component loss terms, proof-level `epsilon_zk_sim = 0`, and the fail-closed
+blockers for extractor, QROM, transcript collision, hosted product operations,
+release signing/notarization, and CPU/Swift/LLVM/Metal constant-time evidence
+closure.
 `Scripts/validate-product-swift-trace-extractor-evidence.py` checks
 `TestVectors/product-swift-trace-extractor-evidence-v1.json`, including the
 Swift executable trace surface, source-fold output claim binding, CTCO trace

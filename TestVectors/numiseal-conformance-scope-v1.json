@@ -3,6 +3,7 @@
   "scopeID": "numiseal-product-carry-zk-conformance-v1",
   "theoremScopeManifest": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
   "zkMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+  "zkSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
   "surfaces": [
     {
       "conformanceVectors": [

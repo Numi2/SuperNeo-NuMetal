@@ -37,7 +37,7 @@ manifests, and binary proof envelopes.
 | Constant-time release evidence manifest | `schemaVersion = 1` |
 | E2E proof metrics manifest | `schemaVersion = 1` |
 | Benchmark coverage manifest | `schemaVersion = 1` |
-| Proof envelope header | `ProofEnvelopeHeader.version = 4` |
+| Proof envelope header | `ProofEnvelopeHeader.version = 5` |
 | NumiSeal proof envelope kind | `4` |
 
 ## Compatibility Rules
@@ -169,7 +169,7 @@ promotion rule that keeps production product-security claims disabled.
 selected-depth loss accounting manifest. It is not a proof artifact schema and
 does not affect proof bytes. It pins the selected-depth loss expression,
 recursive-promotion loss expression, source-fold, terminal-seal, carry,
-ZK-simulator, QROM, extractor, transcript collision, product-ops replay,
+proof-level ZK simulator loss, QROM, extractor, transcript collision, product-ops replay,
 constant-time, and release-distribution loss terms, and the promotion rule that
 keeps production product-security claims disabled until all terms are
 instantiated and inside budget.
@@ -187,10 +187,10 @@ Product QROM Fiat-Shamir accounting manifest. It is not a proof artifact schema
 and does not affect proof bytes. It pins proof-kind transcript interfaces,
 challenge families, domain separation, QROM loss symbols, the mapping from
 `epsilon_transcript_collision` to the ledger's `epsilon_collision`, and the
-promotion rule that keeps production QROM claims disabled until underlying
-interactive-security bounds, NumiSealZK simulator composition outside the QROM
-term, concrete hash/QRO promotion, and the remaining non-QROM numeric loss
-budget terms are instantiated.
+promotion rule that keeps production QROM claims disabled until concrete
+hash/QRO promotion and the remaining non-QROM numeric loss budget terms are
+instantiated. Per-kind interactive security and proof-level NumiSealZK
+simulator coupling are now exported outside `epsilon_qrom` by checked evidence.
 
 `TestVectors/product-qrom-transcript-schedule-v1.json` is the checked Product
 QROM transcript schedule manifest. It is not a proof artifact schema and does
@@ -198,9 +198,10 @@ not affect proof bytes. It pins proof-kind order, envelope kinds, public
 challenge labels, transcript bindings, symbolic quantum random-oracle query
 families, per-kind protocol challenge-derivation maxima, the conditional
 `Q_H = 2^64` query cap, and the promotion rule that keeps production QROM
-claims disabled until underlying interactive-security bounds, NumiSealZK
-simulator composition outside the QROM term, concrete hash/QRO promotion, and
-the remaining non-QROM total-loss terms are instantiated.
+claims disabled until concrete hash/QRO promotion and the remaining non-QROM
+total-loss terms are instantiated. Per-kind interactive security and
+proof-level NumiSealZK simulator coupling are now exported outside
+`epsilon_qrom` by checked evidence.
 
 `TestVectors/product-qrom-sampler-encoding-evidence-v1.json` is the checked
 Product QROM sampler/encoding evidence manifest. It is not a proof artifact
@@ -210,9 +211,7 @@ masked-residual challenges under the QRO abstraction, plus structured
 64-bit-length-prefixed transcript frame encoding. The Lean theorem path now
 uses the well-formed transcript object and 384-bit theorem-critical binding
 digests. The promotion rule keeps production QROM claims disabled until hash
-instantiation, underlying interactive-security bounds, ZK simulator
-composition outside the QROM term, and the remaining non-QROM total-loss terms
-close.
+instantiation and the remaining non-QROM total-loss terms close.
 
 `TestVectors/product-qrom-collision-malleability-evidence-v1.json` is the
 checked Product QROM collision/malleability evidence manifest. It is not a
@@ -221,9 +220,8 @@ proof-kind separation, proof-envelope transcript-binding injectivity,
 transcript-domain enforcement, proof-kind acceptance policy,
 artifact/provenance digest binding, product replay identity, NumiSeal component
 root binding, and typed carry replay binding. The promotion rule keeps
-production QROM claims disabled until concrete hash/QRO instantiation,
-underlying interactive-security bounds, NumiSealZK simulator composition
-outside the QROM term, and the remaining non-QROM total-loss terms are supplied.
+production QROM claims disabled until concrete hash/QRO instantiation and the
+remaining non-QROM total-loss terms are supplied.
 
 `TestVectors/product-qrom-transform-preconditions-v1.json` is the checked
 Product QROM transform preconditions manifest. It is not a proof artifact
@@ -232,9 +230,8 @@ source references, the legacy fail-closed measure-and-reprogram diagnostic
 profile, proof-kind theorem-family fit, CTCO/Merkle-straightline replacement
 target, precondition rows, symbolic loss interface, delayed-message and
 unique-response CTCO data, and the promotion rule that keeps production QROM
-claims disabled until underlying interactive-security bounds, ZK simulator
-composition outside the QROM term, and the remaining non-QROM total-loss terms
-are instantiated.
+claims disabled until concrete hash/QRO promotion and the remaining non-QROM
+total-loss terms are instantiated.
 
 `TestVectors/product-qrom-interactive-reduction-v1.json` is the checked
 Product QROM interactive reduction manifest. It is not a proof artifact schema

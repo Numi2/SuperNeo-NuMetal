@@ -136,7 +136,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("numiSealZKSimulatorCouplingEvidenceClaimStatus"),
             "numiSealZKSimulatorCouplingEvidenceClaimStatus",
-        ) == "product-simulator-coupling-surface-pinned-not-production-zk-privacy",
+        ) == "proof-level-simulator-coupling-instantiated-not-production-zk-privacy",
         "NumiSealZK simulator-coupling evidence claim status must stay precise",
     )
     require(
@@ -498,8 +498,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_int(
             surfaces.get("productTotalLossBudgetInstantiatedRequiredTermCount"),
             "productTotalLossBudgetInstantiatedRequiredTermCount",
-        ) == 3,
-        "product total-loss budget must instantiate exactly shared-core, CTCO compiler, and H_bind collision terms",
+        ) == 6,
+        "product total-loss budget must instantiate shared-core, repeated finite-protocol, CTCO compiler, H_bind collision, terminal CE, and zero proof-level ZK simulator terms",
     )
     require(
         surfaces.get("productTotalLossBudgetWithinBudget") is False,
@@ -626,7 +626,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_int(surfaces.get("productOperationsStatusVersion"), "productOperationsStatusVersion") == 2,
         "product operations status version must be 2",
     )
-    require(require_int(surfaces.get("proofEnvelopeHeaderVersion"), "proofEnvelopeHeaderVersion") == 4, "proof envelope version must be 4")
+    require(require_int(surfaces.get("proofEnvelopeHeaderVersion"), "proofEnvelopeHeaderVersion") == 5, "proof envelope version must be 5")
     require(require_int(surfaces.get("numiSealProofEnvelopeKind"), "numiSealProofEnvelopeKind") == 4, "NumiSeal envelope kind must be 4")
     require_string(surfaces.get("r1csSchemaID"), "r1csSchemaID")
     require_string(surfaces.get("numiSealSchemaID"), "numiSealSchemaID")

@@ -775,7 +775,7 @@ def proofEnvelopeMagic : UInt32LE :=
   ⟨0x4E554D51, by native_decide⟩
 
 def proofEnvelopeVersion : UInt16LE :=
-  ⟨4, by native_decide⟩
+  ⟨5, by native_decide⟩
 
 structure ProofEnvelopeContextWire where
   profileID : UInt16LE

@@ -72,9 +72,10 @@ to the checklist below.
   hosted production-depth replay policy with loss accounting.
 
 - [ ] `NumiSealZK` production privacy promotion.
-  Done when simulator coupling evidence beyond the exact field-mask
-  distribution lemma, product-sized hardware benchmark evidence, and
-  side-channel evidence are recorded before product defaults change.
+  Done when product-sized hardware benchmark evidence and side-channel evidence
+  are recorded before product defaults change. The proof-level simulator
+  coupling evidence is now recorded with `epsilon_zk_sim = 0` under declared
+  leakage.
 
 - [ ] Deployed product operations.
   Done when hosted trusted context storage, key distribution/rotation rollout,
@@ -85,8 +86,9 @@ to the checklist below.
 
 - [ ] NumiSeal-specific end-to-end product formalization promotion.
   Done when release review accepts the pinned Swift trace/extractor evidence,
-  hosted selected-depth typed carry evidence, simulator-coupling evidence,
-  CTCO/QROM evidence, and numeric selected total-loss budget.
+  hosted selected-depth typed carry evidence, CTCO/QROM evidence, and numeric
+  selected total-loss budget. The proof-level simulator-coupling evidence is
+  already pinned under the declared leakage model.
 
 - [ ] Self-owned cryptographic and implementation review.
   Done when review evidence is recorded in the repository and findings are

@@ -86,6 +86,38 @@ def main() -> None:
         write_json(path, wrong_legacy_metric)
         run_fail(str(VALIDATE), str(path))
 
+        missing_interactive_bounds = copy.deepcopy(reduction)
+        missing_interactive_bounds.pop("interactiveSecurityBounds")
+        path = tmp / "missing-interactive-bounds.json"
+        write_json(path, missing_interactive_bounds)
+        run_fail(str(VALIDATE), str(path))
+
+        uninstantiated_protocol_bounds = copy.deepcopy(reduction)
+        uninstantiated_protocol_bounds["productProtocolModel"]["allInteractiveSecurityBoundsInstantiated"] = False
+        path = tmp / "uninstantiated-protocol-bounds.json"
+        write_json(path, uninstantiated_protocol_bounds)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_per_kind_bound = copy.deepcopy(reduction)
+        missing_per_kind_bound["proofKindProtocols"][0].pop("interactiveSecurityBound")
+        path = tmp / "missing-per-kind-bound.json"
+        write_json(path, missing_per_kind_bound)
+        run_fail(str(VALIDATE), str(path))
+
+        reopened_fold_input = copy.deepcopy(reduction)
+        reopened_fold_input["proofKindProtocols"][0]["openInputs"] = ["interactive special-soundness remains open"]
+        path = tmp / "reopened-fold-input.json"
+        write_json(path, reopened_fold_input)
+        run_fail(str(VALIDATE), str(path))
+
+        reopened_zk_sim_input = copy.deepcopy(reduction)
+        reopened_zk_sim_input["proofKindProtocols"][4]["openInputs"] = [
+            "ZK simulator composition for the masked residual relation"
+        ]
+        path = tmp / "reopened-zk-sim-input.json"
+        write_json(path, reopened_zk_sim_input)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_binding_loss = copy.deepcopy(reduction)
         wrong_binding_loss["qromQueryAndLossInstantiation"]["bindingDigestBits"] = 256
         path = tmp / "wrong-binding-loss.json"

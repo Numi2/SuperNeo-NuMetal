@@ -80,6 +80,18 @@ def main() -> None:
         write_json(path, premature_promotion)
         run_fail(str(VALIDATE), str(path))
 
+        reopened_interactive_bounds = copy.deepcopy(manifest)
+        reopened_interactive_bounds["promotionRule"]["requiresInteractiveSecurityBounds"] = True
+        path = tmp / "reopened-interactive-bounds.json"
+        write_json(path, reopened_interactive_bounds)
+        run_fail(str(VALIDATE), str(path))
+
+        reopened_zk_simulator = copy.deepcopy(manifest)
+        reopened_zk_simulator["promotionRule"]["requiresZKSimulatorComposition"] = True
+        path = tmp / "reopened-zk-simulator.json"
+        write_json(path, reopened_zk_simulator)
+        run_fail(str(VALIDATE), str(path))
+
         duplicate_key = MANIFEST.read_text(encoding="utf-8").replace(
             '"schemaVersion": 1,',
             '"schemaVersion": 1,\\n  "schemaVersion": 1,',

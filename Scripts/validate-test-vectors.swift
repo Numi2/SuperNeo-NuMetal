@@ -52,7 +52,7 @@ enum ValidationError: Error, CustomStringConvertible {
 
 let goldilocksModulus: UInt64 = 0xFFFF_FFFF_0000_0001
 let proofEnvelopeMagic: UInt32 = 0x4E_55_4D_51
-let proofEnvelopeVersion: UInt16 = 4
+let proofEnvelopeVersion: UInt16 = 5
 let proofEnvelopeHeaderByteCount = 141
 let goldilocksProfileID: UInt16 = 1
 let artifactTopLevelKeys: Set<String> = [
@@ -694,6 +694,7 @@ do {
                 && $0 != "product-swift-trace-extractor-evidence-v1.json"
                 && $0 != "product-selected-depth-loss-accounting-v1.json"
                 && $0 != "product-extractor-loss-accounting-v1.json"
+                && $0 != "product-finite-protocol-loss-obstruction-v1.json"
                 && $0 != "product-qrom-fiat-shamir-accounting-v1.json"
                 && $0 != "product-qrom-transcript-schedule-v1.json"
                 && $0 != "product-qrom-sampler-encoding-evidence-v1.json"

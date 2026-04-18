@@ -74,6 +74,26 @@ def main() -> None:
         write_json(path, missing_uniformity)
         run_fail(str(VALIDATE), str(path))
 
+        missing_underlying_interactive = copy.deepcopy(preconditions)
+        for row in missing_underlying_interactive["preconditions"]:
+            if row["id"] == "underlying-interactive-security":
+                row["satisfied"] = False
+                row["status"] = "open"
+                break
+        path = tmp / "missing-underlying-interactive.json"
+        write_json(path, missing_underlying_interactive)
+        run_fail(str(VALIDATE), str(path))
+
+        reopened_zk_simulator = copy.deepcopy(preconditions)
+        for row in reopened_zk_simulator["preconditions"]:
+            if row["id"] == "zero-knowledge-or-simulator-preconditions":
+                row["satisfied"] = False
+                row["status"] = "open"
+                break
+        path = tmp / "reopened-zk-simulator.json"
+        write_json(path, reopened_zk_simulator)
+        run_fail(str(VALIDATE), str(path))
+
         missing_precondition = copy.deepcopy(preconditions)
         missing_precondition["preconditions"] = [
             row for row in missing_precondition["preconditions"] if row["id"] != "quantum-query-bound"
@@ -92,6 +112,24 @@ def main() -> None:
         wrong_legacy_metric["proofKindFit"][4]["legacyMaximumProtocolChallengeDerivations"] = 1
         path = tmp / "wrong-legacy-metric.json"
         write_json(path, wrong_legacy_metric)
+        run_fail(str(VALIDATE), str(path))
+
+        uninstantiated_kind_bound = copy.deepcopy(preconditions)
+        uninstantiated_kind_bound["proofKindFit"][0]["interactiveSecurityBoundInstantiated"] = False
+        path = tmp / "uninstantiated-kind-bound.json"
+        write_json(path, uninstantiated_kind_bound)
+        run_fail(str(VALIDATE), str(path))
+
+        reopened_fold_transform = copy.deepcopy(preconditions)
+        reopened_fold_transform["proofKindFit"][0]["transformPreconditionsSatisfied"] = False
+        path = tmp / "reopened-fold-transform.json"
+        write_json(path, reopened_fold_transform)
+        run_fail(str(VALIDATE), str(path))
+
+        reopened_zk_transform = copy.deepcopy(preconditions)
+        reopened_zk_transform["proofKindFit"][4]["transformPreconditionsSatisfied"] = False
+        path = tmp / "reopened-zk-transform.json"
+        write_json(path, reopened_zk_transform)
         run_fail(str(VALIDATE), str(path))
 
         missing_loss_symbol = copy.deepcopy(preconditions)

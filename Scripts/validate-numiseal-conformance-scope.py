@@ -155,6 +155,11 @@ def require(condition: bool, message: str) -> None:
         fail(message)
 
 
+def require_dict(value: Any, label: str) -> dict[str, Any]:
+    require(isinstance(value, dict), f"{label} must be an object")
+    return value
+
+
 def require_string_list(value: Any, label: str, *, allow_empty: bool = False) -> list[str]:
     require(isinstance(value, list), f"{label} must be a list")
     require(allow_empty or bool(value), f"{label} must not be empty")
@@ -365,6 +370,16 @@ def validate_theorem_scope(path: Path, test_source: str) -> None:
         theorem_scope.get("zkMaskDistributionEvidence") == "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
         "theorem scope must link the NumiSealZK mask-distribution evidence",
     )
+    require(
+        theorem_scope.get("zkSimulatorCouplingEvidence") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+        "theorem scope must link the NumiSealZK simulator-coupling evidence",
+    )
+    simulator = read_json(ROOT / "TestVectors" / "numiseal-zk-simulator-coupling-evidence-v1.json")
+    proof_level = require_dict(simulator.get("proofLevelSimulatorCoupling"), "zkSimulatorCouplingEvidence.proofLevelSimulatorCoupling")
+    require(
+        proof_level.get("exactUpperBound") == "0" and proof_level.get("lossInstantiated") is True,
+        "theorem scope requires instantiated proof-level ZK simulator coupling",
+    )
     text = json.dumps(theorem_scope, sort_keys=True).lower()
     require("external" + " audit" not in text, "theorem scope must not encode outsourced review")
 
@@ -420,7 +435,7 @@ def validate_theorem_scope(path: Path, test_source: str) -> None:
     unblock = require_string_list(promotion.get("unblockRequires"), "theorem promotionRule.unblockRequires")
     require(any("extractor" in item for item in unblock), "theorem unblockRequires must mention extractor evidence")
     require(any("typed carry" in item for item in unblock), "theorem unblockRequires must mention typed carry evidence")
-    require(any("leakage model" in item for item in unblock), "theorem unblockRequires must mention leakage-model evidence")
+    require(any("side-channel" in item for item in unblock), "theorem unblockRequires must mention side-channel evidence")
     require(any("QROM" in item for item in unblock), "theorem unblockRequires must mention QROM accounting")
 
 
@@ -433,9 +448,14 @@ def main() -> None:
     require(scope.get("scopeID") == "numiseal-product-carry-zk-conformance-v1", "scopeID is unsupported")
     theorem_path = require_manifest_path(scope.get("theoremScopeManifest"), "theoremScopeManifest")
     mask_evidence_path = require_manifest_path(scope.get("zkMaskDistributionEvidence"), "zkMaskDistributionEvidence")
+    simulator_evidence_path = require_manifest_path(scope.get("zkSimulatorCouplingEvidence"), "zkSimulatorCouplingEvidence")
     if manifest_path == MANIFEST:
         require(theorem_path == THEOREM_SCOPE, "theoremScopeManifest must point to the pinned theorem scope manifest")
         require(mask_evidence_path == MASK_DISTRIBUTION_EVIDENCE, "zkMaskDistributionEvidence must point to the pinned mask evidence manifest")
+        require(
+            simulator_evidence_path == ROOT / "TestVectors" / "numiseal-zk-simulator-coupling-evidence-v1.json",
+            "zkSimulatorCouplingEvidence must point to the pinned simulator-coupling evidence manifest",
+        )
     legacy_review_flag = "external" + "AuditRequired"
     require(legacy_review_flag not in scope, "outsourced review gate field must not be present")
     mask_evidence = read_json(mask_evidence_path)
@@ -443,6 +463,11 @@ def main() -> None:
     require(
         mask_evidence.get("claimStatus") == "exact-rejection-sampled-field-mask-evidence",
         "mask-distribution evidence claimStatus must stay precise",
+    )
+    simulator_evidence = read_json(simulator_evidence_path)
+    require(
+        simulator_evidence.get("claimStatus") == "proof-level-simulator-coupling-instantiated-not-production-zk-privacy",
+        "simulator-coupling evidence claimStatus must stay precise",
     )
 
     test_source = (ROOT / "SuperNeo-NuMetalTests" / "SuperNeoNuMetalTests.swift").read_text(encoding="utf-8")

@@ -13,7 +13,9 @@
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
+    "productFiniteProtocolLossObstruction": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
     "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+    "numiSealZKSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
@@ -65,24 +67,24 @@
     {
       "id": "source-fold-knowledge",
       "ledgerSymbol": "epsilon_fold",
-      "sourceManifest": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+      "sourceManifest": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
       "currentMultiplicityAtSelectedDepth": 1,
       "requiredForSelectedDepth": true,
-      "lossInstantiated": false,
-      "boundLog2": null,
-      "exactUpperBound": null,
-      "requiredEvidence": "residual source fold transcript-loss instantiation for accepted proof-envelope bytes after shared core failures are charged once through epsilon_core_shared"
+      "lossInstantiated": true,
+      "boundLog2": 188,
+      "exactUpperBound": "115792089129476408824356888060926850351691544018699576221145172681277952793681/47890485607457536452598582598378457031198335082954752000076293945305394572642812588447565271161654454346034981426782906055450439453125",
+      "requiredEvidence": "TestVectors/product-finite-protocol-loss-obstruction-v1.json pins the one-shot 5^54 < 2^128 obstruction, the generic CRT-component one-tape bound 1/5^27, and instantiates the fixed-kind CTCO repeated-tape source-fold route: two PiCCS tapes with 16/q^4, three generic CRT PiRLC branches with 1/5^81, and exact epsilon_fold <= 16/q^4 + 1/5^81 < 2^-128."
     },
     {
       "id": "terminal-numiseal-seal",
       "ledgerSymbol": "epsilon_terminal",
-      "sourceManifest": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+      "sourceManifest": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
       "currentMultiplicityAtSelectedDepth": 1,
       "requiredForSelectedDepth": true,
-      "lossInstantiated": false,
-      "boundLog2": null,
-      "exactUpperBound": null,
-      "requiredEvidence": "residual terminal aggregation, residual opening, and component-root reduction loss instantiated for depth 1 after shared core failures are charged once through epsilon_core_shared"
+      "lossInstantiated": true,
+      "boundLog2": 132,
+      "exactUpperBound": "107839786668602559178668060348078522694548577690162289924414440996864/675155121849745212129793196759870681725592001960937203444022441244641816765582369161757600591162976283304329",
+      "requiredEvidence": "TestVectors/product-finite-protocol-loss-obstruction-v1.json pins that terminal CE is pinned at 226 repeated challenge rounds and instantiates fixed-kind repeated-tape terminal CE soundness as epsilon_terminal_ce <= (2/3)^226 < 2^-128; embedded source-fold PiRLC/PiCCS obligations use the selected source-fold component."
     },
     {
       "id": "typed-recursive-carry",
@@ -98,13 +100,13 @@
     {
       "id": "zk-simulator-composition",
       "ledgerSymbol": "epsilon_zk_sim",
-      "sourceManifest": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+      "sourceManifest": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
       "currentMultiplicityAtSelectedDepth": 1,
       "requiredForSelectedDepth": true,
-      "lossInstantiated": false,
-      "boundLog2": null,
-      "exactUpperBound": null,
-      "requiredEvidence": "full simulator coupling for repeated product proofs under the declared leakage model"
+      "lossInstantiated": true,
+      "boundLog2": 384,
+      "exactUpperBound": "0",
+      "requiredEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json instantiates epsilon_zk_sim = 0 for proof-level simulator coupling under the declared leakage model, exact field-mask rejection sampling, fresh randomness-session binding, mask-reuse rejection, and side channels charged separately to epsilon_ct"
     },
     {
       "id": "fiat-shamir-qrom",
@@ -175,17 +177,14 @@
   ],
   "computedBudget": {
     "requiredTermCount": 10,
-    "instantiatedRequiredTermCount": 3,
+    "instantiatedRequiredTermCount": 6,
     "missingRequiredTermIDs": [
-      "source-fold-knowledge",
-      "terminal-numiseal-seal",
-      "zk-simulator-composition",
       "extractor-instantiation",
       "product-ops-replay",
       "constant-time-side-channel",
       "release-signing-notarization"
     ],
-    "exactInstantiatedRequiredTermUpperBound": "42535295865117307932921825928971026441/2^254",
+    "exactInstantiatedRequiredTermUpperBound": "1524817325552571955113405954366591001320576061428196206500415823921474266153995130059487906546373417689880984888043496571148166815403488144131742298699032142411663275450355351739381207662530046071525219605185648606367417825540477933895568043356446980129567094378122437384095472341/935991071719907656231174971634127030812185940547016584296494971417027948496807144817356399419284219200241624485881079596444615615866880749936442975187946737011612872207536558002714890044884378641395515403848760693058509286515688454750208000000000000000000000000000000000000000000000000000000000000000000000000000000000",
     "exactSelectedDepthLossUpperBound": null,
     "selectedDepthLossWithinBudget": false,
     "allRequiredTermsInstantiated": false,
@@ -201,7 +200,10 @@
     "hbindCollisionExpressionExact": "epsilon_bind = 36 * 2^-256 = 9/2^254",
     "sharedCoreExpressionExact": "epsilon_core_shared = 2^-129 = 1/2^129 and is charged once as a tagged union",
     "selectedDepthBudgetComparisonUsesExactRationals": true,
-    "productionTotalLossClaimAllowed": false
+    "productionTotalLossClaimAllowed": false,
+    "nonDyadicFiniteProtocolRationalsPinned": true,
+    "sourceFoldRepeatedTapeExpressionExact": "epsilon_fold <= 16/q^4 + 1/5^81",
+    "terminalCE226ExpressionExact": "epsilon_terminal_ce <= (2/3)^226"
   },
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,

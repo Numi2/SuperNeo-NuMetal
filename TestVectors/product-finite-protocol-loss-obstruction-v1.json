@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "evidenceID": "superneo-product-finite-protocol-loss-obstruction-v1",
+  "claimStatus": "finite-protocol-one-shot-obstruction-repeated-tape-selected-not-production-claim",
+  "relatedManifests": {
+    "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+    "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
+    "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
+    "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json"
+  },
+  "formalSurface": {
+    "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
+    "declarations": [
+      "ProductFiniteProtocolNumericLossObstruction",
+      "ProductFiniteProtocolNumericLossObstructionAccepted",
+      "ProductFixedKindCTCORepeatedTapePlan",
+      "ProductFixedKindCTCORepeatedTapePlanAccepted",
+      "ProductDepthOneDispatcherCorollary",
+      "ProductDepthOneDispatcherCorollaryAccepted",
+      "productSecurityTheorem_requires_finite_protocol_numeric_loss_instantiation",
+      "productSecurityTheorem_requires_fixed_kind_repeated_tape_plan",
+      "productSecurityTheorem_dispatcher_reduces_to_fixed_kind"
+    ],
+    "supportingModules": [
+      {
+        "module": "Formal/SuperNeoFormal/CTCORepeatedTapeSoundness.lean",
+        "declarations": [
+          "CTCORepeatedTapeBindingEvidence",
+          "CTCORepeatedTapeBadSet",
+          "ctcoRepeatedTapeBadSet_card_le_bad_pow",
+          "ctcoRepeatedTapeBadSet_card_le_budget_pow",
+          "ctcoRepeatedTapeBadSet_uniformProbability_le_budgetRatio",
+          "pirlcOneShotEqualityCounterexampleBadSeeds_card_eq",
+          "pirlcOneShotEqualityCounterexampleLowerBound_exceeds_selected128",
+          "piccsOneShotFirstChallengeZeroBadSet_card_eq",
+          "piccsOneShotFirstChallengeZeroCounterexampleLowerBound_exceeds_selected128",
+          "piccsTwoTapeLooseRepeatedBound_lt_selected128",
+          "piccsTwoTapeFirstMismatchRepeatedBound_lt_selected128",
+          "sourceFoldRepeatedTapeFiniteBound_lt_selected128",
+          "pirlcThreeTapeCRTComponentRepeatedBound_lt_selected128",
+          "pirlcTwoTapeUnitPivotRepeatedBound_lt_selected128",
+          "terminalCESwift226RepeatedChallengeWithSharedCoreBudget_lt_selected128"
+        ]
+      }
+    ]
+  },
+  "selectedProfile": {
+    "profile": "Goldilocks/Phi81(d=54)",
+    "selectedDepth": 1,
+    "selectedSecurityBudgetBits": 128,
+    "goldilocksModulusDecimal": "18446744069414584321",
+    "phi81Degree": 54,
+    "pirlcCoefficientSupportSize": 5,
+    "pirlcCRTFiberDegree": 27,
+    "piccsMaxDegreePerRound": 4,
+    "piccsMaximumSumcheckVariableCount": 18,
+    "terminalCERoundCount": 226,
+    "terminalCEChallengeSymbolCount": 3,
+    "proofEnvelopeHeaderVersion": 5,
+    "piccsRepeatedTapeCount": 2,
+    "pirlcRepeatedBranchCount": 3,
+    "pirlcSelectedRoute": "generic-crt-component-three-branch",
+    "pirlcUnitPivotRouteSelected": false,
+    "repeatedTapeLabelVersion": "selected-repeated-tape-v1",
+    "piccsTapeLabels": [
+      "selected-repeated-tape-v1/piccs-tape-0",
+      "selected-repeated-tape-v1/piccs-tape-1"
+    ],
+    "pirlcBranchLabels": [
+      "selected-repeated-tape-v1/pirlc-branch-0",
+      "selected-repeated-tape-v1/pirlc-branch-1",
+      "selected-repeated-tape-v1/pirlc-branch-2"
+    ],
+    "challengeExpansionMode": "domain-separated H_chal expansion from the single external 256-bit CTCO seed through public labels; not seed-bit slicing"
+  },
+  "selectedBudget": {
+    "maximumAllowedTotalLoss": "2^-128",
+    "sharedCoreAlreadyCharged": "1/2^129",
+    "hbindCollisionAlreadyCharged": "9/2^254",
+    "instantiatedRequiredTermPartialSum": "1524817325552571955113405954366591001320576061428196206500415823921474266153995130059487906546373417689880984888043496571148166815403488144131742298699032142411663275450355351739381207662530046071525219605185648606367417825540477933895568043356446980129567094378122437384095472341/935991071719907656231174971634127030812185940547016584296494971417027948496807144817356399419284219200241624485881079596444615615866880749936442975187946737011612872207536558002714890044884378641395515403848760693058509286515688454750208000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "remainingBudgetRequiresEveryPositiveResidualTermToFitBelowTheSelected128BitLedger": true,
+    "productionLossInstantiationAllowed": false
+  },
+  "pirlcNumericGap": {
+    "challengeSupportExact": "5^54 = 55511151231257827021181583404541015625",
+    "selectedBudgetDenominatorExact": "2^128 = 340282366920938463463374607431768211456",
+    "challengeSupportBelowSelectedBudgetDenominator": true,
+    "conservativeCRTComponentSingleObservationBound": "1/5^27",
+    "conservativeCRTComponentBoundLog2Approx": -62.69205856195878,
+    "fullRingUnitPivotSingleObservationBound": "1/5^54",
+    "fullRingUnitPivotBoundLog2Approx": -125.38411712391756,
+    "oneShotEqualityCounterexampleBadSeedCount": "5^54",
+    "oneShotEqualityCounterexampleProbability": "1/5^54",
+    "oneShotEqualityCounterexampleConclusion": "two unsound claims can be chosen so the one-shot fold accepts exactly on the equality event rho_0 = rho_1; this has probability 1/5^54, which is larger than 2^-128.",
+    "genericRepeatedTapeRoute": "three independent internal PiRLC tapes using the justified CRT-component 1/5^27 one-tape bound",
+    "genericRepeatedTapeBound": "1/5^81",
+    "genericRepeatedTapeBoundLog2Approx": -188.07617568587634,
+    "optionalUnitPivotRepeatedTapeRoute": "two internal PiRLC tapes are allowed only after a separate semantic unit-pivot theorem for the concrete relation",
+    "optionalUnitPivotRepeatedTapeBound": "1/5^108",
+    "optionalUnitPivotRepeatedTapeBoundLog2Approx": -250.76823424783512,
+    "comparisonToSelectedBudget": "5^54 < 2^128, so even a full-ring unit-pivot 1/5^54 single-observation bound is larger than 2^-128; the available CRT-component 1/5^27 bound is much larger.",
+    "selectedPublicFieldFamilyMultiplierPinned": true,
+    "leanDeclarations": [
+      "pirlcCRTComponentSingleObservationBound_exceeds_selected128",
+      "pirlcFullRingUnitPivotSingleObservationBound_exceeds_selected128",
+      "pirlcOneShotEqualityCounterexampleBadSeeds_card_eq",
+      "pirlcOneShotEqualityCounterexampleLowerBound_exceeds_selected128",
+      "pirlcThreeTapeCRTComponentRepeatedBound_lt_selected128",
+      "pirlcTwoTapeUnitPivotRepeatedBound_lt_selected128"
+    ],
+    "sourceFoldBudgetConclusion": "one-shot PiRLC remains non-128-bit, but the selected fixed-kind route instantiates the PiRLC contribution with three independent CRT-component branches, giving 1/5^81.",
+    "terminalBudgetConclusion": "one-shot PiRLC remains non-128-bit for terminal/NumiSeal embeddings, but the selected fixed-kind route inherits the three-branch CRT-component bound instead of the one-shot profile."
+  },
+  "piccsNumericGap": {
+    "ext2ChallengeSupportExact": "q^2 = 340282366762482138490186164457219031041",
+    "ext2ChallengeSupportBelowSelectedBudgetDenominator": true,
+    "selectedPiCCSBadChallengeBudget": "18 * 4 / q^2 = 72/q^2",
+    "selectedPiCCSBoundLog2Approx": -121.83007499788589,
+    "oneShotFirstChallengeZeroCounterexampleBadSetSize": 1,
+    "oneShotFirstChallengeZeroCounterexampleProbability": "1/q^2",
+    "oneShotFirstChallengeZeroCounterexampleConclusion": "a first-round linear perturbation accepts whenever the first Ext2 challenge is zero; this has probability 1/q^2, which is larger than 2^-128 because q^2 < 2^128.",
+    "twoTapeLooseRepeatedBound": "(72/q^2)^2",
+    "twoTapeLooseRepeatedBoundLog2Approx": -243.66014999577177,
+    "twoTapeFirstMismatchRepeatedBound": "16/q^4",
+    "twoTapeFirstMismatchRepeatedBoundLog2Approx": -251.9999999986564,
+    "minimalSingleChallengeComparison": "q^2 < 2^128, so even one Ext2 target event is larger than 2^-128; the selected finite PiCCS certificate uses 72/q^2.",
+    "leanDeclarations": [
+      "piccsGoldilocksExt2ChallengeSupport_below_selected128",
+      "piccsSelectedBadChallengeBudget_exceeds_selected128",
+      "piccsOneShotFirstChallengeZeroBadSet_card_eq",
+      "piccsOneShotFirstChallengeZeroCounterexampleLowerBound_exceeds_selected128",
+      "piccsTwoTapeLooseRepeatedBound_lt_selected128",
+      "piccsTwoTapeFirstMismatchRepeatedBound_lt_selected128"
+    ],
+    "selectedBudgetConclusion": "the one-shot PiCCS certificate is not a standalone 128-bit selected-depth loss bound; the selected fixed-kind route instantiates two independent PiCCS tapes and charges 16/q^4."
+  },
+  "terminalCENumericGap": {
+    "slotBadSeedBudget": 678,
+    "fullTapeLiftFiberFactor": "3^225",
+    "fullTapeUnionBoundRatio": "678 * 3^225 / 3^226 = 226",
+    "fullTapeLiftConclusion": "the slot-localization full-tape lift remains extraction-localization evidence, not a usable selected-depth probability bound.",
+    "repeatedChallengeBadTapeBudget": "2^226 = 107839786668602559178668060348078522694548577690162289924414440996864",
+    "repeatedChallengeTapeSupport": "3^226 = 675155121849745212129793196759870681725592001960937203444022441244641816765582369161757600591162976283304329",
+    "repeatedChallengeBound": "(2/3)^226",
+    "repeatedChallengeBoundLog2Approx": -132.2015251629813,
+    "repeatedChallengeBoundWithinSelectedBudget": true,
+    "pinnedRoundCountForProductLedger": 226,
+    "withSharedCoreSlackBound": "(2/3)^226 < 2^-129, so epsilon_core_shared <= 2^-129 plus terminal CE remains below 2^-128 before nonzero operational terms are added.",
+    "leanDeclarations": [
+      "TerminalCEPointwiseTwoBranchEvidence",
+      "terminalCEPointwiseBadChallengeTapes_card_le_two_pow",
+      "terminalCESwiftRepeatedChallengeBound_lt_selected128",
+      "terminalCESwift226RepeatedChallengeWithSharedCoreBudget_lt_selected128"
+    ],
+    "selectedBudgetConclusion": "terminal CE is pinned at 226 repeated challenge rounds; its repeated challenge soundness is within the selected 2^-128 threshold and below 2^-129 for shared-core slack, and the selected fixed-kind route now wires this as epsilon_terminal_ce <= (2/3)^226 while embedded PiRLC/PiCCS obligations use the selected source-fold repeated-tape component."
+  },
+  "ledgerDecision": {
+    "oneShotSourceFoldProfile128BitClaimAllowed": false,
+    "sourceFoldLossInstantiated": true,
+    "terminalSealLossInstantiated": true,
+    "extractorLossInstantiated": false,
+    "selectedTotalLossBudgetPromotionAllowed": false,
+    "fixedKindRepeatedTapeRouteRequired": true,
+    "dispatcherCorollaryOnlyAfterFixedKindPlans": true,
+    "terminalCEPinnedRoundCount": 226,
+    "sourceFoldSelectedRepeatedTapeExactUpperBound": "115792089129476408824356888060926850351691544018699576221145172681277952793681/47890485607457536452598582598378457031198335082954752000076293945305394572642812588447565271161654454346034981426782906055450439453125",
+    "terminalCESelectedExactUpperBound": "107839786668602559178668060348078522694548577690162289924414440996864/675155121849745212129793196759870681725592001960937203444022441244641816765582369161757600591162976283304329",
+    "fixedKindLedgerAccounting": "For a fixed expected proof kind selected by H_bind, the ledger charges only finite terms relevant to that kind and does not flat-sum unrelated proof-kind finite terms.",
+    "nextMathematicalOptions": [
+      "keep one-shot PiRLC/PiCCS lower-bound blockers as permanent non-128-bit evidence",
+      "use the fixed-kind repeated-tape source-fold bound 16/q^4 + 1/5^81 and terminal CE bound (2/3)^226 in selected-depth arithmetic",
+      "finish extractor, hosted replay, constant-time, and release-distribution numeric bounds before any total-loss promotion"
+    ]
+  }
+}

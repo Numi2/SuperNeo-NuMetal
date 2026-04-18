@@ -1,12 +1,29 @@
 {
   "schemaVersion": 1,
   "evidenceID": "numiseal-zk-simulator-coupling-evidence-v1",
-  "claimStatus": "product-simulator-coupling-surface-pinned-not-production-zk-privacy",
+  "claimStatus": "proof-level-simulator-coupling-instantiated-not-production-zk-privacy",
   "relatedManifests": {
     "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+    "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
+    "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json"
+  },
+  "formalSurface": {
+    "module": "Formal/SuperNeoFormal/NumiSealZKPrivacy.lean",
+    "declarations": [
+      "NumiSealZKPerfectMaskCoupling",
+      "NumiSealZKPerfectMaskCouplingAccepted",
+      "NumiSealZKProofLevelSimulatorLoss",
+      "NumiSealZKProofLevelSimulatorLossAccepted",
+      "NumiSealZKPerfectMaskSimulationEvidence",
+      "NumiSealZKSimulationEvidence.ofPerfectMaskCoupling",
+      "numiSealZKSimulationPrivacy_from_perfectMaskCoupling",
+      "numiSealZKProduct_privacy_from_perfectMaskCoupling",
+      "numiSealZKProofLevelSimulatorLoss_from_perfectMaskCoupling"
+    ]
   },
   "implementationSurfaces": {
     "productProver": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
@@ -27,6 +44,17 @@
       "ZK proof transcript digest"
     ]
   },
+  "proofLevelSimulatorCoupling": {
+    "status": "instantiated-under-declared-leakage-model",
+    "lossSymbol": "epsilon_zk_sim",
+    "lossInstantiated": true,
+    "exactUpperBound": "0",
+    "statisticalDistanceFromUniformMaskedResidual": "0",
+    "maskArgument": "accepted field masks are exactly uniform by TestVectors/numiseal-zk-mask-distribution-evidence-v1.json; masked residual components are one-time-padded by masks sampled independently of the witness",
+    "simulatorConstruction": "the simulator samples accepted masks with the same rejection-sampled field distribution, reconstructs the declared public leakage surface, binds the same randomness-session/leakage/component-root/proof-transcript digests, and emits the masked residual transcript without witness access",
+    "repeatedProofComposition": "fresh randomness-session binding and mask-reuse rejection make the proof-level simulator loss additive with zero per accepted masked product proof; hosted replay/session operations remain charged outside epsilon_zk_sim",
+    "sideChannelBoundary": "CPU, Swift, LLVM, allocator, Metal, GPU, timing, and failure-path leakage are outside proof bytes and remain charged to epsilon_ct"
+  },
   "benchmarkAndSideChannelPins": {
     "productSizedBenchmarkRowsPinned": true,
     "benchmarkRows": [
@@ -44,10 +72,10 @@
   "promotionRule": {
     "productionZKPrivacyClaimAllowed": false,
     "zkDefaultPromotionAllowed": false,
+    "proofLevelSimulatorLossInstantiated": true,
     "remainingBoundaries": [
       "product-sized benchmark rows must remain current for release hardware",
-      "side-channel review must cover CPU, Swift, LLVM, allocator, Metal, GPU, and failure paths",
-      "selected total-loss promotion remains disabled until epsilon_zk_sim is instantiated"
+      "side-channel review must cover CPU, Swift, LLVM, allocator, Metal, GPU, and failure paths"
     ]
   }
 }

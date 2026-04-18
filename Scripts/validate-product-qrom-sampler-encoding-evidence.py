@@ -72,6 +72,13 @@ EXPECTED_DOMAIN_SEPARATORS = [
     "SuperNeo-NuMetal.numiseal.zk.masked-residual-statement.v2",
     "SuperNeo-NuMetal.numiseal.zk.masked-residual-accumulation.v1",
 ]
+EXPECTED_REPEATED_TAPE_LABELS = [
+    "selected-repeated-tape-v1/piccs-tape-0",
+    "selected-repeated-tape-v1/piccs-tape-1",
+    "selected-repeated-tape-v1/pirlc-branch-0",
+    "selected-repeated-tape-v1/pirlc-branch-1",
+    "selected-repeated-tape-v1/pirlc-branch-2",
+]
 
 
 def fail(message: str) -> None:
@@ -221,6 +228,17 @@ def validate_transcript_encoding(evidence: dict[str, Any]) -> None:
     ]:
         require_true(encoding.get(key), f"transcriptEncoding.{key}")
     require_false(encoding.get("explicitPerChallengeLabelsAbsorbedByImplementation"), "transcriptEncoding.explicitPerChallengeLabelsAbsorbedByImplementation")
+    require_true(encoding.get("repeatedTapeLabelsAbsorbedByImplementation"), "transcriptEncoding.repeatedTapeLabelsAbsorbedByImplementation")
+    require_true(encoding.get("seedBitSlicingRejected"), "transcriptEncoding.seedBitSlicingRejected")
+    require(encoding.get("repeatedTapeLabelVersion") == "selected-repeated-tape-v1", "transcriptEncoding.repeatedTapeLabelVersion mismatch")
+    require(
+        require_string_list(encoding.get("repeatedTapeLabels"), "transcriptEncoding.repeatedTapeLabels")
+        == EXPECTED_REPEATED_TAPE_LABELS,
+        "transcriptEncoding.repeatedTapeLabels mismatch",
+    )
+    protocol_source = (ROOT / "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift").read_text(encoding="utf-8")
+    for needle in ["selected-repeated-tape-v1", "repeatedTapeSeed(", "makeFoldTranscript("]:
+        require(needle in protocol_source, f"repeated tape source missing {needle}")
     require_false(encoding.get("productionEncodingClaimAllowed"), "transcriptEncoding.productionEncodingClaimAllowed")
     mode = require_string(encoding.get("challengeLabelMode"), "transcriptEncoding.challengeLabelMode")
     require("domain separator" in mode and "append-only challenge position" in mode, "challengeLabelMode must describe current implementation")
@@ -278,6 +296,12 @@ def validate_sampler_uniformity(evidence: dict[str, Any]) -> None:
     require(require_int(zk.get("fieldChallengesPerLaneProof"), "numiSealZKMaskedResidualSampler.fieldChallengesPerLaneProof") == 3, "ZK challenge count mismatch")
     require(zk.get("source") == "GoldilocksField sampler", "ZK source mismatch")
     require("product" in require_string(zk.get("conditionalDistribution"), "numiSealZKMaskedResidualSampler.conditionalDistribution"), "ZK distribution must be product-uniform")
+    repeated = require_dict(sampler.get("ctcoRepeatedTapeExpansion"), "ctcoRepeatedTapeExpansion")
+    require(require_int(repeated.get("externalChallengeSeedBits"), "ctcoRepeatedTapeExpansion.externalChallengeSeedBits") == 256, "repeated tape external seed bits mismatch")
+    require(require_int(repeated.get("piccsTapeCount"), "ctcoRepeatedTapeExpansion.piccsTapeCount") == 2, "repeated tape PiCCS count mismatch")
+    require(require_int(repeated.get("pirlcBranchCount"), "ctcoRepeatedTapeExpansion.pirlcBranchCount") == 3, "repeated tape PiRLC count mismatch")
+    expansion = require_string(repeated.get("expansionRule"), "ctcoRepeatedTapeExpansion.expansionRule")
+    require("H_chal" in expansion and "label" in expansion and "not seed-bit slicing" in expansion, "repeated tape expansion rule mismatch")
     require_true(sampler.get("samplerUniformityProofPinned"), "samplerUniformity.samplerUniformityProofPinned")
 
 

@@ -74,6 +74,81 @@ structure NumiSealZKSimulationEvidence
       NumiSealZKLeakageModelAccepted model →
         claim.indistinguishable claim.realView claim.simulatedView
 
+structure NumiSealZKPerfectMaskCoupling where
+  exactAcceptedMaskDistribution : Prop
+  maskIndependentOfWitness : Prop
+  maskedResidualOneTimePad : Prop
+  randomnessSessionFresh : Prop
+  randomnessReuseRejected : Prop
+  declaredLeakageBindsPublicView : Prop
+  transcriptBindingPublic : Prop
+  noWitnessDependentMetadataOutsideLeakage : Prop
+
+def NumiSealZKPerfectMaskCouplingAccepted
+    (coupling : NumiSealZKPerfectMaskCoupling) : Prop :=
+  coupling.exactAcceptedMaskDistribution
+    ∧ coupling.maskIndependentOfWitness
+    ∧ coupling.maskedResidualOneTimePad
+    ∧ coupling.randomnessSessionFresh
+    ∧ coupling.randomnessReuseRejected
+    ∧ coupling.declaredLeakageBindsPublicView
+    ∧ coupling.transcriptBindingPublic
+    ∧ coupling.noWitnessDependentMetadataOutsideLeakage
+
+structure NumiSealZKProofLevelSimulatorLoss where
+  epsilonZKSimExactZero : Prop
+  declaredLeakageOnly : Prop
+  repeatedProofCompositionFresh : Prop
+  hardwareSideChannelsChargedOutsideProofBytes : Prop
+
+def NumiSealZKProofLevelSimulatorLossAccepted
+    (loss : NumiSealZKProofLevelSimulatorLoss) : Prop :=
+  loss.epsilonZKSimExactZero
+    ∧ loss.declaredLeakageOnly
+    ∧ loss.repeatedProofCompositionFresh
+    ∧ loss.hardwareSideChannelsChargedOutsideProofBytes
+
+structure NumiSealZKPerfectMaskSimulationEvidence
+    {View Leakage : Type}
+    (zk : NumiSealZKGates)
+    (model : NumiSealZKLeakageModel)
+    (claim : NumiSealZKSimulationPrivacyClaim View Leakage) where
+  coupling : NumiSealZKPerfectMaskCoupling
+  simulatorLoss : NumiSealZKProofLevelSimulatorLoss
+  couplingAccepted :
+    NumiSealZKPerfectMaskCouplingAccepted coupling
+  simulatorLossAccepted :
+    NumiSealZKProofLevelSimulatorLossAccepted simulatorLoss
+  leakageFromDeclaredSurface :
+    NumiSealZKAccepted zk →
+      NumiSealZKLeakageModelAccepted model →
+        NumiSealZKPerfectMaskCouplingAccepted coupling →
+          claim.leakageFunction claim.realView = claim.declaredLeakage
+  simulatorFromOneTimePad :
+    NumiSealZKAccepted zk →
+      NumiSealZKLeakageModelAccepted model →
+        NumiSealZKPerfectMaskCouplingAccepted coupling →
+          claim.indistinguishable claim.realView claim.simulatedView
+
+def NumiSealZKSimulationEvidence.ofPerfectMaskCoupling
+    {View Leakage : Type}
+    {zk : NumiSealZKGates}
+    {model : NumiSealZKLeakageModel}
+    {claim : NumiSealZKSimulationPrivacyClaim View Leakage}
+    (evidence :
+      NumiSealZKPerfectMaskSimulationEvidence zk model claim) :
+    NumiSealZKSimulationEvidence zk model claim where
+  leakageSound hZK hModel :=
+    evidence.leakageFromDeclaredSurface
+      hZK
+      hModel
+      evidence.couplingAccepted
+  simulatorSound hZK hModel :=
+    evidence.simulatorFromOneTimePad
+      hZK
+      hModel
+      evidence.couplingAccepted
+
 theorem numiSealZKSimulationPrivacy_from_evidence
     {View Leakage : Type}
     {zk : NumiSealZKGates}
@@ -88,6 +163,31 @@ theorem numiSealZKSimulationPrivacy_from_evidence
     evidence.simulatorSound hZK hModel
   ⟩
 
+theorem numiSealZKSimulationPrivacy_from_perfectMaskCoupling
+    {View Leakage : Type}
+    {zk : NumiSealZKGates}
+    {model : NumiSealZKLeakageModel}
+    {claim : NumiSealZKSimulationPrivacyClaim View Leakage}
+    (hZK : NumiSealZKAccepted zk)
+    (hModel : NumiSealZKLeakageModelAccepted model)
+    (evidence :
+      NumiSealZKPerfectMaskSimulationEvidence zk model claim) :
+    NumiSealZKSimulationPrivacyHolds claim :=
+  numiSealZKSimulationPrivacy_from_evidence
+    hZK
+    hModel
+    (NumiSealZKSimulationEvidence.ofPerfectMaskCoupling evidence)
+
+theorem numiSealZKProofLevelSimulatorLoss_from_perfectMaskCoupling
+    {View Leakage : Type}
+    {zk : NumiSealZKGates}
+    {model : NumiSealZKLeakageModel}
+    {claim : NumiSealZKSimulationPrivacyClaim View Leakage}
+    (evidence :
+      NumiSealZKPerfectMaskSimulationEvidence zk model claim) :
+    NumiSealZKProofLevelSimulatorLossAccepted evidence.simulatorLoss :=
+  evidence.simulatorLossAccepted
+
 theorem numiSealZKProduct_privacy_from_product_acceptance
     {View Leakage : Type}
     {gates : NumiSealProductVerifierGates}
@@ -99,6 +199,25 @@ theorem numiSealZKProduct_privacy_from_product_acceptance
     NumiSealZKSimulationPrivacyHolds claim := by
   exact
     numiSealZKSimulationPrivacy_from_evidence
+      (numiSealProduct_acceptance_requires_zk_layer hAccepts.1)
+      hModel
+      evidence
+
+theorem numiSealZKProduct_privacy_from_perfectMaskCoupling
+    {View Leakage : Type}
+    {gates : NumiSealProductVerifierGates}
+    {model : NumiSealZKLeakageModel}
+    {claim : NumiSealZKSimulationPrivacyClaim View Leakage}
+    (hAccepts : NumiSealZKProductVerifierAccepts gates)
+    (hModel : NumiSealZKLeakageModelAccepted model)
+    (evidence :
+      NumiSealZKPerfectMaskSimulationEvidence
+        gates.zk
+        model
+        claim) :
+    NumiSealZKSimulationPrivacyHolds claim := by
+  exact
+    numiSealZKSimulationPrivacy_from_perfectMaskCoupling
       (numiSealProduct_acceptance_requires_zk_layer hAccepts.1)
       hModel
       evidence

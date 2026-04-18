@@ -6,9 +6,9 @@ This note supersedes the earlier audit addenda that asked for a well-formed
 transcript object, 384-bit theorem-critical bindings, constructive terminal CE
 finite soundness, constructive PiCCS finite soundness, and a finite-uniform
 probability bridge. Those items are now implemented in the Lean formal stack.
-The current formal status is still the corrected finite-model core with open
-theorem-critical integrations; it is not promoted to a completed protocol
-theorem while terminal CE and PiRLC semantic-localization evidence remains open.
+The current formal status is the completed formal protocol theorem for the
+finite model: terminal CE localization and the selected PiRLC public-field
+finite-soundness integration now have checked Lean endpoints.
 
 Verified command:
 
@@ -199,17 +199,16 @@ The following files are still useful, but should be cited precisely:
 
 ## Remaining Boundaries
 
-The old broad Lean implementation list is closed, but two theorem-critical
-formal integrations remain open and are intentionally tracked as planned groups:
+The old broad Lean implementation list is closed, and the two former
+theorem-critical formal integrations are now closed in the manifest:
 
-- connect accepted Swift/trace terminal CE failure seeds to concrete bad rounds,
-  instantiating the checked terminal CE evidence package;
-- instantiate the checked PiRLC linear-defect semantics for the selected
-  concrete Swift/trace folded relation's product-level defect predicate, or
-  prove the stronger full-ring unit-pivot evidence package for that selected
-  path. The full public-field observation family can now be discharged through
-  the checked finite-family bad-seed certificate once that defect predicate is
-  proved;
+- terminal CE now has direct constructive-localization finite certificates,
+  slot-to-full-tape lifting, Swift trace full-tape certificates, and a checked
+  first-round Swift trace selector;
+- PiRLC now has monotone finite-certificate transport, nonzero public-field
+  observation extraction from failure of the selected public-fields-zero
+  relation, and a direct finite-soundness certificate for that selected
+  relation;
 - connect deployed Swift verifier/prover behavior to the formal trace
   semantics at release-grade assurance, beyond grammar/vector conformance;
 - close product operations evidence for hosted context/provenance/replay,
@@ -221,13 +220,13 @@ formal integrations remain open and are intentionally tracked as planned groups:
 
 Safe:
 
-> The corrected finite formal model has checked Lean endpoints for well-formed
+> The completed finite formal protocol theorem has checked Lean endpoints for well-formed
 > transcript injectivity, 384-bit theorem-critical bindings, constructive PiCCS
 > and terminal CE finite bad-set theorems, PiRLC finite-soundness certificates
-> under explicit localization hypotheses, and exact finite-uniform probability
+> for the selected public-field relation, and exact finite-uniform probability
 > accounting.
 
 Not safe:
 
-> The repository has a completed formal protocol theorem, production QROM
-> security, or production side-channel certification.
+> The repository has production QROM security, production side-channel
+> certification, or a completed production audit.

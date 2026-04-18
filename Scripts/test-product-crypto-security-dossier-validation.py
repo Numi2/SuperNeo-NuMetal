@@ -84,6 +84,12 @@ def main() -> None:
         write_json(path, missing_loss_ledger)
         run_fail(str(VALIDATE), str(path))
 
+        missing_zk_simulator = copy.deepcopy(dossier)
+        del missing_zk_simulator["relatedManifests"]["numiSealZKSimulatorCouplingEvidence"]
+        path = tmp / "missing-zk-simulator.json"
+        write_json(path, missing_zk_simulator)
+        run_fail(str(VALIDATE), str(path))
+
         missing_extractor_accounting = copy.deepcopy(dossier)
         del missing_extractor_accounting["relatedManifests"]["productExtractorLossAccounting"]
         path = tmp / "missing-extractor-accounting.json"
@@ -144,6 +150,18 @@ def main() -> None:
         write_json(path, missing_total_budget)
         run_fail(str(VALIDATE), str(path))
 
+        missing_finite_protocol_loss = copy.deepcopy(dossier)
+        del missing_finite_protocol_loss["relatedManifests"]["productFiniteProtocolLossObstruction"]
+        path = tmp / "missing-finite-protocol-loss.json"
+        write_json(path, missing_finite_protocol_loss)
+        run_fail(str(VALIDATE), str(path))
+
+        hidden_finite_protocol_gap = copy.deepcopy(dossier)
+        hidden_finite_protocol_gap["normGrowthAndFailureBudget"]["selectedNumericLossStatus"] = "all numeric losses are fine"
+        path = tmp / "hidden-finite-protocol-gap.json"
+        write_json(path, hidden_finite_protocol_gap)
+        run_fail(str(VALIDATE), str(path))
+
         missing_qrom_expression = copy.deepcopy(dossier)
         missing_qrom_expression["fiatShamirQROMPosition"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_fs_transform"
         path = tmp / "missing-qrom-expression.json"
@@ -160,6 +178,12 @@ def main() -> None:
         premature_total_budget["totalLossBudget"]["selectedDepthLossWithinBudget"] = True
         path = tmp / "premature-total-budget.json"
         write_json(path, premature_total_budget)
+        run_fail(str(VALIDATE), str(path))
+
+        reopened_zk_simulator = copy.deepcopy(dossier)
+        reopened_zk_simulator["zkPrivacyProofStatus"]["simulatorWithoutWitness"] = "evidence-parametric; coupling proof remains open"
+        path = tmp / "reopened-zk-simulator.json"
+        write_json(path, reopened_zk_simulator)
         run_fail(str(VALIDATE), str(path))
 
         outsourced_review = copy.deepcopy(dossier)

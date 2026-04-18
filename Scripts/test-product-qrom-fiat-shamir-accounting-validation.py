@@ -66,10 +66,16 @@ def main() -> None:
         write_json(path, wrong_transform)
         run_fail(str(VALIDATE), str(path))
 
-        premature_source = copy.deepcopy(accounting)
-        premature_source["fiatShamirModel"]["sourceImplementationComplete"] = True
-        path = tmp / "premature-source.json"
-        write_json(path, premature_source)
+        hidden_source = copy.deepcopy(accounting)
+        hidden_source["fiatShamirModel"]["sourceImplementationComplete"] = False
+        path = tmp / "hidden-source.json"
+        write_json(path, hidden_source)
+        run_fail(str(VALIDATE), str(path))
+
+        uninstantiated_model_bounds = copy.deepcopy(accounting)
+        uninstantiated_model_bounds["fiatShamirModel"]["interactiveSecurityBoundsInstantiated"] = False
+        path = tmp / "uninstantiated-model-bounds.json"
+        write_json(path, uninstantiated_model_bounds)
         run_fail(str(VALIDATE), str(path))
 
         missing_kind = copy.deepcopy(accounting)
@@ -92,6 +98,12 @@ def main() -> None:
         write_json(path, legacy_formula)
         run_fail(str(VALIDATE), str(path))
 
+        uninstantiated_loss_bounds = copy.deepcopy(accounting)
+        uninstantiated_loss_bounds["lossRule"]["interactiveSecurityBoundsInstantiated"] = False
+        path = tmp / "uninstantiated-loss-bounds.json"
+        write_json(path, uninstantiated_loss_bounds)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_collision_mapping = copy.deepcopy(accounting)
         wrong_collision_mapping["ledgerTermMapping"]["transcriptCollisionLoss"]["sourceSymbols"] = [
             "epsilon_transcript_collision"
@@ -106,10 +118,22 @@ def main() -> None:
         write_json(path, missing_legacy_failure)
         run_fail(str(VALIDATE), str(path))
 
+        missing_non_qrom_blocker = copy.deepcopy(accounting)
+        missing_non_qrom_blocker["hardClaimBlockers"] = ["NumiSealZK simulator composition remains outside epsilon_qrom"]
+        path = tmp / "missing-non-qrom-blocker.json"
+        write_json(path, missing_non_qrom_blocker)
+        run_fail(str(VALIDATE), str(path))
+
         premature_promotion = copy.deepcopy(accounting)
         premature_promotion["promotionRule"]["productionQROMClaimAllowed"] = True
         path = tmp / "premature-promotion.json"
         write_json(path, premature_promotion)
+        run_fail(str(VALIDATE), str(path))
+
+        reopened_interactive_promotion = copy.deepcopy(accounting)
+        reopened_interactive_promotion["promotionRule"]["requiresInteractiveSecurityBounds"] = True
+        path = tmp / "reopened-interactive-promotion.json"
+        write_json(path, reopened_interactive_promotion)
         run_fail(str(VALIDATE), str(path))
 
     print("product QROM CTCO accounting validation regression tests passed")

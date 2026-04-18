@@ -61,7 +61,7 @@ def main() -> None:
         run_fail(str(VALIDATE), "--allow-dirty", "--expect-production-gate-result", "passed", str(path))
 
         wrong_version = copy.deepcopy(evidence)
-        wrong_version["publicSurfaces"]["proofEnvelopeHeaderVersion"] = 5
+        wrong_version["publicSurfaces"]["proofEnvelopeHeaderVersion"] = 4
         path = tmp / "wrong-version.json"
         write_json(path, wrong_version)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))

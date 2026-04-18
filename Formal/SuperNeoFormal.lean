@@ -24,6 +24,7 @@ import SuperNeoFormal.PiCCS
 import SuperNeoFormal.CCSSemantics
 import SuperNeoFormal.PiCCSSoundness
 import SuperNeoFormal.PiCCSConstructiveFiniteSoundness
+import SuperNeoFormal.CTCORepeatedTapeSoundness
 import SuperNeoFormal.TerminalCE
 import SuperNeoFormal.CEOpeningRelation
 import SuperNeoFormal.TerminalCEVerifierSemantics

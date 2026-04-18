@@ -37,6 +37,7 @@ EXPECTED_MANIFESTS = {
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
+    "numiSealZKSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "proofEnvelopePolicy": "Docs/ProofEnvelope.md",
 }
@@ -52,8 +53,11 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductInteractiveSpecialSoundnessData",
     "ProductInteractiveDelayedMessageData",
     "ProductInteractiveUniqueResponseData",
+    "ProductInteractiveSecurityBounds",
+    "ProductPerKindInteractiveSecurityEvidence",
     "ProductQROMCompilerOverheadBound",
     "ProductQROMCompilerOverheadBoundAccepted",
+    "productInteractiveSecurityBounds_from_perKindEvidence",
     "productSecurityTheorem_requires_challenge_tape_expansion",
     "productSecurityTheorem_requires_qrom_compiler_overhead_bound",
     "productSecurityTheorem_requires_qrom_transform_preconditions",
@@ -80,6 +84,13 @@ EXPECTED_PROOF_KINDS = [
     ("compressed-terminal", 3, 423),
     ("numiseal-terminal", 4, 4_376_925),
     ("numiseal-zk-product", 5, 4_377_150),
+]
+EXPECTED_REPEATED_TAPE_LABELS = [
+    "selected-repeated-tape-v1/piccs-tape-0",
+    "selected-repeated-tape-v1/piccs-tape-1",
+    "selected-repeated-tape-v1/pirlc-branch-0",
+    "selected-repeated-tape-v1/pirlc-branch-1",
+    "selected-repeated-tape-v1/pirlc-branch-2",
 ]
 
 
@@ -137,6 +148,21 @@ def require_false(value: Any, label: str) -> None:
     require(value is False, f"{label} must be false")
 
 
+def validate_repeated_tape_profile(value: Any, label: str) -> None:
+    profile = require_dict(value, label)
+    require(profile.get("proofEnvelopeHeaderVersion") == 5, f"{label}.proofEnvelopeHeaderVersion mismatch")
+    require(profile.get("externalChallengeSeedBits") == 256, f"{label}.externalChallengeSeedBits mismatch")
+    require(profile.get("piccsTapeCount") == 2, f"{label}.piccsTapeCount mismatch")
+    require(profile.get("pirlcBranchCount") == 3, f"{label}.pirlcBranchCount mismatch")
+    require(profile.get("terminalCERoundCount") == 226, f"{label}.terminalCERoundCount mismatch")
+    require(profile.get("pirlcSelectedRoute") == "generic-crt-component-three-branch", f"{label}.pirlcSelectedRoute mismatch")
+    require(profile.get("pirlcUnitPivotRouteSelected") is False, f"{label}.pirlcUnitPivotRouteSelected must be false")
+    require(profile.get("labelVersion") == "selected-repeated-tape-v1", f"{label}.labelVersion mismatch")
+    require(profile.get("labels") == EXPECTED_REPEATED_TAPE_LABELS, f"{label}.labels mismatch")
+    expansion = require_string(profile.get("challengeExpansionMode"), f"{label}.challengeExpansionMode")
+    require("H_chal" in expansion and "not seed-bit slicing" in expansion, f"{label}.challengeExpansionMode mismatch")
+
+
 def validate_related_manifests(preconditions: dict[str, Any]) -> None:
     related = require_dict(preconditions.get("relatedManifests"), "relatedManifests")
     require(related == EXPECTED_MANIFESTS, "relatedManifests must pin the transform-precondition evidence set exactly")
@@ -191,6 +217,7 @@ def validate_selected_transform_profile(preconditions: dict[str, Any]) -> None:
     require(profile.get("challengeOracleBits") == 256, "challengeOracleBits mismatch")
     require(profile.get("bindingOracleBits") == 384, "bindingOracleBits mismatch")
     require(profile.get("merkleNodeBits") == 384, "merkleNodeBits mismatch")
+    validate_repeated_tape_profile(profile.get("selectedRepeatedTapeProfile"), "selectedTransformProfile.selectedRepeatedTapeProfile")
     loss_shape = require_string(profile.get("selectedLossShape"), "selectedLossShape")
     require("epsilon_compiler_overhead" in loss_shape and "factorial" in loss_shape, "selectedLossShape must pin new loss and reject factorial term")
     require_true(profile.get("interactiveLossChargedOutsideQROM"), "interactiveLossChargedOutsideQROM")
@@ -227,12 +254,14 @@ def validate_precondition_rows(preconditions: dict[str, Any]) -> None:
         "transcript-oracle-input-encoding",
         "delayed-message-binding",
         "unique-response-data",
+        "underlying-interactive-security",
+        "zero-knowledge-or-simulator-preconditions",
         "quantum-query-bound",
         "qrom-compiler-overhead-instantiation",
         "collision-and-malleability-exclusion",
     }.issubset(satisfied), "closed CTCO/QROM preconditions mismatch")
     require(
-        unsatisfied == {"underlying-interactive-security", "zero-knowledge-or-simulator-preconditions"},
+        unsatisfied == set(),
         "open CTCO implementation/security preconditions mismatch",
     )
 
@@ -250,10 +279,16 @@ def validate_proof_kind_fit(preconditions: dict[str, Any]) -> None:
         require(row.get("candidateFamily", "").startswith("ctco"), f"{expected_kind}.candidateFamily must be ctco")
         require(row.get("exactInteractiveProtocolSpecified") is True, f"{expected_kind}.exactInteractiveProtocolSpecified must be true")
         require(row.get("challengeCountN") == 1, f"{expected_kind}.challengeCountN must be 1")
+        if expected_kind == "fold":
+            validate_repeated_tape_profile(row.get("selectedRepeatedTapeProfile"), f"{expected_kind}.selectedRepeatedTapeProfile")
+        else:
+            inherited = require_string(row.get("sourceFoldRepeatedTapeProfile"), f"{expected_kind}.sourceFoldRepeatedTapeProfile")
+            require("selected-repeated-tape-v1" in inherited and "2 PiCCS" in inherited and "3 PiRLC" in inherited, f"{expected_kind} must inherit source-fold repeated profile")
         require(row.get("legacyMaximumProtocolChallengeDerivations") == legacy_count, f"{expected_kind}.legacyMaximumProtocolChallengeDerivations mismatch")
         require(row.get("queryBoundQH") == "2^64", f"{expected_kind}.queryBoundQH mismatch")
         require(row.get("queryBoundLog2") == 64, f"{expected_kind}.queryBoundLog2 mismatch")
-        require_false(row.get("transformPreconditionsSatisfied"), f"{expected_kind}.transformPreconditionsSatisfied")
+        require_true(row.get("interactiveSecurityBoundInstantiated"), f"{expected_kind}.interactiveSecurityBoundInstantiated")
+        require_true(row.get("transformPreconditionsSatisfied"), f"{expected_kind}.transformPreconditionsSatisfied")
         require_false(row.get("productionQROMClaimAllowed"), f"{expected_kind}.productionQROMClaimAllowed")
     require(seen == [(kind, envelope) for kind, envelope, _ in EXPECTED_PROOF_KINDS], "proofKindFit order mismatch")
 
@@ -284,8 +319,10 @@ def validate_loss_interface(preconditions: dict[str, Any]) -> None:
 
 def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
     blockers = " ".join(require_string_list(preconditions.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["special-soundness", "zero-knowledge", "total-loss"]:
+    for needle in ["total-loss"]:
         require(needle in blockers, f"hardClaimBlockers must mention {needle}")
+    require("zero-knowledge" not in blockers, "zero-knowledge simulator composition must not remain a transform blocker")
+    require("special-soundness" not in blockers, "interactive special-soundness must not remain a transform blocker")
     promotion = require_dict(preconditions.get("promotionRule"), "promotionRule")
     for key in [
         "productionProductSecurityClaimAllowed",
@@ -296,9 +333,6 @@ def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
     for key in [
         "requiresInteractiveProtocolImplementation",
         "requiresUnderlyingInteractiveSecurity",
-    ]:
-        require_true(promotion.get(key), f"promotionRule.{key}")
-    for key in [
         "requiresHBind384Implementation",
         "requiresDelayedMessageData",
         "requiresUniqueResponseData",

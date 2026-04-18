@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import json
 import sys
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DOSSIER = ROOT / "TestVectors" / "product-crypto-security-dossier-v1.json"
+GOLDILOCKS_MODULUS = 18_446_744_069_414_584_321
 
 EXPECTED_TOP_LEVEL_KEYS = {
     "schemaVersion",
@@ -60,6 +62,8 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductSecurityTheoremEvidence",
     "ProductSelectedDepthLossLedger",
     "ProductSelectedDepthLossLedgerAccepted",
+    "ProductFiniteProtocolNumericLossObstruction",
+    "ProductFiniteProtocolNumericLossObstructionAccepted",
     "ProductExtractorLossAccounting",
     "ProductExtractorLossAccountingAccepted",
     "ProductFiatShamirTranscriptSchedule",
@@ -108,6 +112,7 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "productSecurityTheorem_from_evidence",
     "productSecurityTheorem_requires_bounded_depth",
     "productSecurityTheorem_requires_selected_depth_loss_accounting",
+    "productSecurityTheorem_requires_finite_protocol_numeric_loss_instantiation",
     "productSecurityTheorem_requires_extractor_loss_accounting",
     "productSecurityTheorem_requires_qrom_transcript_schedule",
     "productSecurityTheorem_requires_qrom_transform_preconditions",
@@ -128,6 +133,7 @@ EXPECTED_MANIFESTS = {
     "numiSealConformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+    "numiSealZKSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
     "constantTimeScope": "TestVectors/constant-time-scope-v1.json",
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -142,6 +148,7 @@ EXPECTED_MANIFESTS = {
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
+    "productFiniteProtocolLossObstruction": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json",
@@ -223,6 +230,26 @@ def require_false(value: Any, label: str) -> None:
     require(value is False, f"{label} must be false until the required evidence is instantiated")
 
 
+def require_true(value: Any, label: str) -> None:
+    require(value is True, f"{label} must be true")
+
+
+def format_fraction(value: Fraction) -> str:
+    if value.denominator == 1:
+        return str(value.numerator)
+    return f"{value.numerator}/{value.denominator}"
+
+
+def selected_instantiated_partial_sum() -> Fraction:
+    return (
+        Fraction(1, 1 << 129)
+        + Fraction(16, GOLDILOCKS_MODULUS**4)
+        + Fraction(1, 5**81)
+        + Fraction(2**226, 3**226)
+        + Fraction(9, 1 << 254)
+    )
+
+
 def require_relative_path(value: Any, label: str) -> Path:
     relative = Path(require_string(value, label))
     require(not relative.is_absolute(), f"{label} must be repository-relative")
@@ -296,8 +323,9 @@ def validate_depth(dossier: dict[str, Any]) -> None:
     total = require_dict(loss_ledger.get("totalLossRule"), "selectedDepthLossAccounting.totalLossRule")
     require_false(total.get("selectedDepthLossClaimAllowed"), "selectedDepthLossAccounting.selectedDepthLossClaimAllowed")
     blockers = " ".join(require_string_list(loss_ledger.get("hardClaimBlockers"), "selectedDepthLossAccounting.hardClaimBlockers")).lower()
-    for needle in ["extractor", "qrom", "simulator", "hosted product operations", "release signing", "swift/llvm/metal"]:
+    for needle in ["extractor", "total-loss", "hosted product operations", "release signing", "swift/llvm/metal"]:
         require(needle in blockers, f"selected-depth loss ledger blockers must mention {needle}")
+    require("full zk simulator" not in blockers, "selected-depth loss ledger must not keep the closed ZK simulator blocker")
     ledger_related = require_dict(loss_ledger.get("relatedManifests"), "selectedDepthLossAccounting.relatedManifests")
     require(
         ledger_related.get("productExtractorLossAccounting") == "TestVectors/product-extractor-loss-accounting-v1.json",
@@ -322,6 +350,10 @@ def validate_depth(dossier: dict[str, Any]) -> None:
     require(
         ledger_related.get("productSharedBadEventDedup") == "TestVectors/product-shared-bad-event-dedup-v1.json",
         "selected-depth ledger must link shared bad-event dedup evidence",
+    )
+    require(
+        ledger_related.get("productFiniteProtocolLossObstruction") == "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
+        "selected-depth ledger must link finite-protocol loss obstruction evidence",
     )
     require(
         ledger_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
@@ -378,8 +410,16 @@ def validate_norm_budget(dossier: dict[str, Any]) -> None:
     require(norm.get("rightSide") == 16384, "strong sampling right side mismatch")
     require(norm.get("status") == "profile-bound-recorded-product-path-losses-not-fully-instantiated", "norm-growth status must stay precise")
     require(norm.get("failureProbabilityBudgetRecorded") is True, "failure probability budget must be recorded")
+    require(
+        norm.get("finiteProtocolLossObstructionManifest") == "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
+        "norm-growth budget must link finite-protocol loss obstruction evidence",
+    )
+    require_relative_path("TestVectors/product-finite-protocol-loss-obstruction-v1.json", "finiteProtocolLossObstructionManifest")
+    numeric_status = require_string(norm.get("selectedNumericLossStatus"), "normGrowthAndFailureBudget.selectedNumericLossStatus").lower()
+    for needle in ["one-shot", "repeated-tape", "pirlc", "piccs", "epsilon_fold", "2^-128"]:
+        require(needle in numeric_status, f"selected numeric loss status must mention {needle}")
     obligations = " ".join(require_string_list(norm.get("remainingObligations"), "normGrowthAndFailureBudget.remainingObligations")).lower()
-    for needle in ["source folding", "terminal numiseal", "typed carry", "fiat-shamir"]:
+    for needle in ["one-shot", "finite-protocol", "typed carry", "fiat-shamir", "extraction"]:
         require(needle in obligations, f"norm-growth obligations must mention {needle}")
 
 
@@ -475,11 +515,8 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(qrom.get("queryBoundQH") == "2^64", "fiatShamirQROMPosition.queryBoundQH must be 2^64")
     require(qrom.get("queryBoundLog2") == 64, "fiatShamirQROMPosition.queryBoundLog2 must be 64")
     require(qrom.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "fiatShamirQROMPosition.selectedDepthProtocolChallengeDerivations mismatch")
-    for key in [
-        "transformPreconditionsSatisfied",
-        "productionQROMClaimAllowed",
-    ]:
-        require_false(qrom.get(key), f"fiatShamirQROMPosition.{key}")
+    require_true(qrom.get("transformPreconditionsSatisfied"), "fiatShamirQROMPosition.transformPreconditionsSatisfied")
+    require_false(qrom.get("productionQROMClaimAllowed"), "fiatShamirQROMPosition.productionQROMClaimAllowed")
     require(qrom.get("sourceHBindImplementationComplete") is True, "fiatShamirQROMPosition.sourceHBindImplementationComplete")
     require(qrom.get("publicCoinChallengeScheduleSpecified") is True, "public coin challenge schedule must be recorded")
     require(qrom.get("transcriptDomainSeparatorsBound") is True, "transcript domain separator binding must be recorded")
@@ -490,6 +527,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     )
     require(qrom.get("transcriptCollisionMalleabilityExcluded") is True, "H_bind collision/malleability bound must be recorded")
     require(qrom.get("interactiveLossChargedOutsideQROM") is True, "interactive loss must be charged outside epsilon_qrom")
+    require(qrom.get("interactiveSecurityBoundsInstantiated") is True, "interactive security bounds must be instantiated outside epsilon_qrom")
     require(qrom.get("hashQROInstantiationAssumptionPinned") is True, "split-QRO assumption must be pinned")
     require_false(qrom.get("hashQROInstantiationProofProvided"), "fiatShamirQROMPosition.hashQROInstantiationProofProvided")
     require(qrom.get("legacyDFM20InterfaceDeprecated") is True, "legacy DFM20 interface must be deprecated")
@@ -509,7 +547,9 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         "QROM ledgerTermMapping.epsilon_collision mismatch",
     )
     obligations = " ".join(require_string_list(qrom.get("remainingObligations"), "fiatShamirQROMPosition.remainingObligations")).lower()
-    for needle in ["special-soundness", "simulator", "epsilon_replay"]:
+    require("special-soundness" not in obligations, "interactive special-soundness must not remain a QROM obligation")
+    require("simulator" not in obligations, "closed ZK simulator coupling must not remain a QROM obligation")
+    for needle in ["shake256", "epsilon_replay", "epsilon_ct", "epsilon_release", "extractor", "numeric total-loss"]:
         require(needle in obligations, f"QROM obligations must mention {needle}")
     schedule = read_json(ROOT / "TestVectors/product-qrom-transcript-schedule-v1.json")
     require(schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
@@ -545,7 +585,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(fiat_model.get("fallbackTransformFamily") == "merkle-straightline", "QROM accounting fallback family mismatch")
     require(fiat_model.get("interactiveLossChargedOutsideQROM") is True, "QROM accounting must charge interactive loss outside QROM")
     require(fiat_model.get("legacyDFM20InterfaceDeprecated") is True, "QROM accounting must deprecate legacy DFM20")
-    require_false(fiat_model.get("sourceImplementationComplete"), "QROM accounting sourceImplementationComplete")
+    require(fiat_model.get("sourceImplementationComplete") is True, "QROM accounting sourceImplementationComplete must be true")
     loss_rule = require_dict(manifest.get("lossRule"), "QROM accounting lossRule")
     require_false(loss_rule.get("productionQROMClaimAllowed"), "QROM accounting productionQROMClaimAllowed")
     manifest_expression = require_string(loss_rule.get("selectedDepthExpression"), "QROM accounting selectedDepthExpression")
@@ -694,7 +734,7 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
     ]:
         require_false(total.get(key), f"totalLossBudget.{key}")
     obligations = " ".join(require_string_list(total.get("remainingObligations"), "totalLossBudget.remainingObligations")).lower()
-    for needle in ["numeric loss", "epsilon_collision", "2^-128", "selected-depth ledger"]:
+    for needle in ["extractor", "numeric loss", "epsilon_collision", "2^-128", "release evidence"]:
         require(needle in obligations, f"total loss budget obligations must mention {needle}")
 
     manifest = read_json(ROOT / "TestVectors/product-total-loss-budget-v1.json")
@@ -705,8 +745,8 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
     )
     computed = require_dict(manifest.get("computedBudget"), "total loss budget computedBudget")
     require(
-        computed.get("exactInstantiatedRequiredTermUpperBound") == "42535295865117307932921825928971026441/2^254",
-        "total loss budget instantiated partial sum must include shared core and H_bind collision terms",
+        computed.get("exactInstantiatedRequiredTermUpperBound") == format_fraction(selected_instantiated_partial_sum()),
+        "total loss budget instantiated partial sum must include shared core, repeated finite-protocol terms, terminal CE, and H_bind collision terms",
     )
     require_false(computed.get("productionTotalLossClaimAllowed"), "total loss budget productionTotalLossClaimAllowed")
     require_false(computed.get("selectedDepthLossWithinBudget"), "total loss budget selectedDepthLossWithinBudget")
@@ -715,10 +755,14 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
 def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
     zk = require_dict(dossier.get("zkPrivacyProofStatus"), "zkPrivacyProofStatus")
     require("masked residual" in require_string(zk.get("formalMaskedResidualLanguage"), "formalMaskedResidualLanguage").lower(), "ZK status must name the masked residual language")
-    require("evidence-parametric" in require_string(zk.get("simulatorWithoutWitness"), "simulatorWithoutWitness"), "simulator status must stay evidence-parametric")
+    simulator = require_string(zk.get("simulatorWithoutWitness"), "simulatorWithoutWitness")
+    require("simulator coupling instantiated" in simulator and "declared leakage" in simulator, "simulator status must record proof-level coupling instantiation")
     require("reuse" in require_string(zk.get("maskReusePolicy"), "maskReusePolicy").lower(), "mask reuse policy must be explicit")
     leakage = set(require_string_list(zk.get("leakageModel"), "zkPrivacyProofStatus.leakageModel"))
     require({"randomness session digest", "declared leakage digest", "mask tensor dimensions"}.issubset(leakage), "ZK leakage model must pin public leakage")
+    require(zk.get("epsilonZKSimExactUpperBound") == "0", "epsilon_zk_sim exact upper bound must be zero")
+    require("proof-level composition is instantiated" in require_string(zk.get("repeatedProductProofComposition"), "repeatedProductProofComposition"), "repeated proof composition must be instantiated at proof level")
+    require("epsilon_ct" in json.dumps(zk, sort_keys=True), "ZK status must charge side channels outside epsilon_zk_sim")
     require_false(zk.get("productionZKPrivacyClaimAllowed"), "zkPrivacyProofStatus.productionZKPrivacyClaimAllowed")
 
     carry = require_dict(dossier.get("carryRecursionClosure"), "carryRecursionClosure")

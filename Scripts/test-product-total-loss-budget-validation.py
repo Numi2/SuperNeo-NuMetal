@@ -66,6 +66,18 @@ def main() -> None:
         write_json(path, missing_qrom_interactive_reduction)
         run_fail(str(VALIDATE), str(path))
 
+        missing_zk_simulator = copy.deepcopy(budget)
+        missing_zk_simulator["relatedManifests"].pop("numiSealZKSimulatorCouplingEvidence")
+        path = tmp / "missing-zk-simulator.json"
+        write_json(path, missing_zk_simulator)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_finite_protocol_loss = copy.deepcopy(budget)
+        missing_finite_protocol_loss["relatedManifests"].pop("productFiniteProtocolLossObstruction")
+        path = tmp / "missing-finite-protocol-loss.json"
+        write_json(path, missing_finite_protocol_loss)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_security_bits = copy.deepcopy(budget)
         wrong_security_bits["budgetModel"]["selectedSecurityBudgetBits"] = 64
         path = tmp / "wrong-security-bits.json"
@@ -89,10 +101,22 @@ def main() -> None:
         write_json(path, missing_collision)
         run_fail(str(VALIDATE), str(path))
 
-        premature_bound = copy.deepcopy(budget)
-        premature_bound["componentBounds"][1]["boundLog2"] = 256
-        path = tmp / "premature-bound.json"
-        write_json(path, premature_bound)
+        wrong_source_fold_bound = copy.deepcopy(budget)
+        wrong_source_fold_bound["componentBounds"][1]["exactUpperBound"] = "1/2^256"
+        path = tmp / "wrong-source-fold-bound.json"
+        write_json(path, wrong_source_fold_bound)
+        run_fail(str(VALIDATE), str(path))
+
+        hidden_source_fold_gap = copy.deepcopy(budget)
+        hidden_source_fold_gap["componentBounds"][1]["requiredEvidence"] = "residual source fold loss"
+        path = tmp / "hidden-source-fold-gap.json"
+        write_json(path, hidden_source_fold_gap)
+        run_fail(str(VALIDATE), str(path))
+
+        hidden_terminal_ce_closure = copy.deepcopy(budget)
+        hidden_terminal_ce_closure["componentBounds"][2]["requiredEvidence"] = "finite-protocol terminal gap"
+        path = tmp / "hidden-terminal-ce-closure.json"
+        write_json(path, hidden_terminal_ce_closure)
         run_fail(str(VALIDATE), str(path))
 
         stale_missing_list = copy.deepcopy(budget)
@@ -113,6 +137,14 @@ def main() -> None:
                 row["exactUpperBound"] = "1/2^256"
         path = tmp / "wrong-qrom-exact-bound.json"
         write_json(path, wrong_qrom_exact_bound)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_zk_simulator_exact_bound = copy.deepcopy(budget)
+        for row in wrong_zk_simulator_exact_bound["componentBounds"]:
+            if row["id"] == "zk-simulator-composition":
+                row["exactUpperBound"] = "1/2^256"
+        path = tmp / "wrong-zk-simulator-exact-bound.json"
+        write_json(path, wrong_zk_simulator_exact_bound)
         run_fail(str(VALIDATE), str(path))
 
         wrong_shared_core_exact_bound = copy.deepcopy(budget)

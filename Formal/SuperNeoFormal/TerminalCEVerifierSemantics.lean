@@ -110,7 +110,7 @@ def TerminalCEProofBadSeedBudget
   roundCount * challengeCount
 
 def terminalCESwiftRoundCount : Nat :=
-  219
+  226
 
 def terminalCESwiftProofBadSeedBudget : Nat :=
   TerminalCEProofBadSeedBudget terminalCESwiftRoundCount
@@ -120,7 +120,7 @@ theorem terminalCESwiftRoundCount_positive :
   native_decide
 
 theorem terminalCESwiftProofBadSeedBudget_eq :
-    terminalCESwiftProofBadSeedBudget = 657 := by
+    terminalCESwiftProofBadSeedBudget = 678 := by
   native_decide
 
 abbrev TerminalCESwiftVerifierTrace

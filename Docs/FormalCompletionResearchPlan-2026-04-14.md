@@ -1,6 +1,6 @@
 # Formal Completion Research Plan, 2026-04-14
 
-Formal status: corrected finite-model core with open theorem-critical integrations.
+Formal status: completed formal protocol theorem.
 
 This document is now a historical planning record, not the active source of
 truth. Earlier versions of this note described gaps in Swift byte equivalence,

@@ -86,9 +86,9 @@ def main() -> None:
     )
     run_mutation(
         "Formal/SuperNeoFormal/CEByteSerialization.lean",
-        "def ceOpeningProofRoundCount : Nat :=\n  219",
+        "def ceOpeningProofRoundCount : Nat :=\n  226",
         "def ceOpeningProofRoundCount : Nat :=\n  218",
-        "Lean CE proof round count must be 219",
+        "Lean CE proof round count must be 226",
     )
     run_mutation(
         "Formal/SuperNeoFormal/CEByteSerialization.lean",
@@ -98,9 +98,9 @@ def main() -> None:
     )
     run_mutation(
         "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift",
-        "public static let roundCount = 219",
+        "public static let roundCount = 226",
         "public static let roundCount = 218",
-        "Swift CEOpeningProof roundCount must be 219",
+        "Swift CEOpeningProof roundCount must be 226",
     )
     run_mutation(
         "SuperNeo-NuMetal/SuperNeoSerialization.swift",

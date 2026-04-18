@@ -1,5 +1,6 @@
 import SuperNeoFormal.NumiSealProductTheorem
 import SuperNeoFormal.ProductBadEventLedger
+import SuperNeoFormal.CTCORepeatedTapeSoundness
 
 /-!
 Product cryptographic security theorem surface.
@@ -113,6 +114,97 @@ def ProductSelectedDepthLossLedgerAccepted
     ∧ ledger.constantTimeSideChannelEvidenceClosed
     ∧ ledger.releaseSigningEvidenceClosed
     ∧ ledger.totalLossWithinBudget
+
+structure ProductFiniteProtocolNumericLossObstruction where
+  selectedDepth : Nat
+  selectedSecurityBudgetBits : Nat
+  pirlcCRTCertificateBoundExceedsSelectedBudget : Prop
+  pirlcFullRingUnitPivotBoundStillExceedsSelectedBudget : Prop
+  pirlcOneShotEqualityCounterexamplePinned : Prop
+  piccsExt2RoundBoundExceedsSelectedBudget : Prop
+  piccsOneShotFirstChallengeCounterexamplePinned : Prop
+  terminalCEFullTapeLiftNotBudgetUseful : Prop
+  terminalCERepeatedChallengeBoundWithinSelectedBudget : Prop
+  terminalCEPinnedAt226Rounds : Prop
+  ctcoRepeatedTapeAmplificationAvailable : Prop
+  fixedKindRepeatedTapeRouteRequired : Prop
+  sourceFoldRepeatedTapeLossInstantiated : Prop
+  terminalSealRepeatedTapeLossInstantiated : Prop
+  selectedTotalLossRemainsUninstantiated : Prop
+
+def ProductFiniteProtocolNumericLossObstructionAccepted
+    (obstruction : ProductFiniteProtocolNumericLossObstruction) : Prop :=
+  obstruction.selectedDepth = 1
+    ∧ obstruction.selectedSecurityBudgetBits = 128
+    ∧ obstruction.pirlcCRTCertificateBoundExceedsSelectedBudget
+    ∧ obstruction.pirlcFullRingUnitPivotBoundStillExceedsSelectedBudget
+    ∧ obstruction.pirlcOneShotEqualityCounterexamplePinned
+    ∧ obstruction.piccsExt2RoundBoundExceedsSelectedBudget
+    ∧ obstruction.piccsOneShotFirstChallengeCounterexamplePinned
+    ∧ obstruction.terminalCEFullTapeLiftNotBudgetUseful
+    ∧ obstruction.terminalCERepeatedChallengeBoundWithinSelectedBudget
+    ∧ obstruction.terminalCEPinnedAt226Rounds
+    ∧ obstruction.ctcoRepeatedTapeAmplificationAvailable
+    ∧ obstruction.fixedKindRepeatedTapeRouteRequired
+    ∧ obstruction.sourceFoldRepeatedTapeLossInstantiated
+    ∧ obstruction.terminalSealRepeatedTapeLossInstantiated
+    ∧ obstruction.selectedTotalLossRemainsUninstantiated
+
+inductive ProductDepthOneExpectedProofKind where
+  | fold
+  | terminal
+  | compressedTerminal
+  | numiSealTerminal
+  | numiSealZKProduct
+  deriving DecidableEq, Repr
+
+structure ProductFixedKindCTCORepeatedTapePlan where
+  selectedDepth : Nat
+  expectedKind : ProductDepthOneExpectedProofKind
+  expectedKindBoundByHBind : Prop
+  fixedContextChargesOnlyExpectedKindFiniteTerms : Prop
+  dispatcherCorollaryRangesOverAcceptedKinds : Prop
+  oneExternalSeedPerAcceptedProofKindPreserved : Prop
+  repeatedInternalTapesExpandedByDomainSeparatedHChal : Prop
+  pirlcOneShotLowerBoundPinned : Prop
+  piccsOneShotLowerBoundPinned : Prop
+  genericRepeatedTapeAmplificationProved : Prop
+  piccsTwoTapeInstantiationWithinBudget : Prop
+  pirlcThreeTapeCRTInstantiationWithinBudget : Prop
+  pirlcTwoTapeUnitPivotOnlyAfterSemanticProof : Prop
+  terminalCEPinned226WithSharedCoreSlack : Prop
+
+def ProductFixedKindCTCORepeatedTapePlanAccepted
+    (plan : ProductFixedKindCTCORepeatedTapePlan) : Prop :=
+  plan.selectedDepth = 1
+    ∧ plan.expectedKindBoundByHBind
+    ∧ plan.fixedContextChargesOnlyExpectedKindFiniteTerms
+    ∧ plan.dispatcherCorollaryRangesOverAcceptedKinds
+    ∧ plan.oneExternalSeedPerAcceptedProofKindPreserved
+    ∧ plan.repeatedInternalTapesExpandedByDomainSeparatedHChal
+    ∧ plan.pirlcOneShotLowerBoundPinned
+    ∧ plan.piccsOneShotLowerBoundPinned
+    ∧ plan.genericRepeatedTapeAmplificationProved
+    ∧ plan.piccsTwoTapeInstantiationWithinBudget
+    ∧ plan.pirlcThreeTapeCRTInstantiationWithinBudget
+    ∧ plan.pirlcTwoTapeUnitPivotOnlyAfterSemanticProof
+    ∧ plan.terminalCEPinned226WithSharedCoreSlack
+
+structure ProductDepthOneDispatcherCorollary where
+  selectedDepth : Nat
+  acceptedProofKindsAreExactlyPublicFive : Prop
+  proofKindBinderSelectsFixedExpectedKindContext : Prop
+  everyAcceptedKindHasFixedKindPlan :
+    ProductDepthOneExpectedProofKind → Prop
+  dispatcherChargesOnlySelectedKindPerRun : Prop
+
+def ProductDepthOneDispatcherCorollaryAccepted
+    (corollary : ProductDepthOneDispatcherCorollary) : Prop :=
+  corollary.selectedDepth = 1
+    ∧ corollary.acceptedProofKindsAreExactlyPublicFive
+    ∧ corollary.proofKindBinderSelectsFixedExpectedKindContext
+    ∧ (∀ kind, corollary.everyAcceptedKindHasFixedKindPlan kind)
+    ∧ corollary.dispatcherChargesOnlySelectedKindPerRun
 
 structure ProductExtractorLossAccounting where
   selectedDepth : Nat
@@ -344,6 +436,47 @@ def ProductInteractiveSecurityBoundsAccepted
     ∧ bounds.numiSealTerminalInteractiveBoundInstantiated
     ∧ bounds.numiSealZKProductInteractiveBoundInstantiated
 
+structure ProductPerKindInteractiveSecurityEvidence where
+  interactiveLossChargedOutsideQROM : Prop
+  sharedBadEventTagsPinned : Prop
+  moduleSISSharedEventDeduplicated : Prop
+  foldFiniteProtocolBound : Prop
+  terminalFiniteProtocolBound : Prop
+  compressedTerminalCanonicalReduction : Prop
+  numiSealTerminalSourceAndTerminalComposition : Prop
+  numiSealZKProductSoundnessComposition : Prop
+
+def ProductInteractiveSecurityBounds.ofPerKindEvidence
+    (evidence : ProductPerKindInteractiveSecurityEvidence) :
+    ProductInteractiveSecurityBounds where
+  interactiveLossChargedOutsideQROM :=
+    evidence.interactiveLossChargedOutsideQROM
+  sharedBadEventTagsPinned := evidence.sharedBadEventTagsPinned
+  moduleSISSharedEventDeduplicated := evidence.moduleSISSharedEventDeduplicated
+  foldInteractiveBoundInstantiated := evidence.foldFiniteProtocolBound
+  terminalInteractiveBoundInstantiated := evidence.terminalFiniteProtocolBound
+  compressedTerminalInteractiveBoundInstantiated :=
+    evidence.compressedTerminalCanonicalReduction
+  numiSealTerminalInteractiveBoundInstantiated :=
+    evidence.numiSealTerminalSourceAndTerminalComposition
+  numiSealZKProductInteractiveBoundInstantiated :=
+    evidence.numiSealZKProductSoundnessComposition
+
+theorem productInteractiveSecurityBounds_from_perKindEvidence
+    {evidence : ProductPerKindInteractiveSecurityEvidence}
+    (hEvidence :
+      evidence.interactiveLossChargedOutsideQROM
+        ∧ evidence.sharedBadEventTagsPinned
+        ∧ evidence.moduleSISSharedEventDeduplicated
+        ∧ evidence.foldFiniteProtocolBound
+        ∧ evidence.terminalFiniteProtocolBound
+        ∧ evidence.compressedTerminalCanonicalReduction
+        ∧ evidence.numiSealTerminalSourceAndTerminalComposition
+        ∧ evidence.numiSealZKProductSoundnessComposition) :
+    ProductInteractiveSecurityBoundsAccepted
+      (ProductInteractiveSecurityBounds.ofPerKindEvidence evidence) := by
+  exact hEvidence
+
 structure ProductQROMTotalLossInstantiated where
   hashModelGapZeroInIdealSplitQRO : Prop
   compilerOverheadWithinBudget : Prop
@@ -409,10 +542,13 @@ def ProductSharedBadEventDeduplicationAccepted
 structure ProductExactFiniteProbabilityWiring where
   selectedDepth : Nat
   dyadicRationalArithmeticPinned : Prop
+  nonDyadicFiniteProtocolRationalsPinned : Prop
   zeroLossTermsRepresentedExactly : Prop
   instantiatedTermPartialSumComputed : Prop
   missingRequiredTermsKeepTotalUninstantiated : Prop
   qromTermSeparatedFromCollisionLedger : Prop
+  sourceFoldRepeatedTapeExpressionExact : Prop
+  terminalCE226ExpressionExact : Prop
   hbindCollisionExpressionExact : Prop
   selectedDepthBudgetComparisonUsesExactRationals : Prop
 
@@ -420,10 +556,13 @@ def ProductExactFiniteProbabilityWiringAccepted
     (wiring : ProductExactFiniteProbabilityWiring) : Prop :=
   0 < wiring.selectedDepth
     ∧ wiring.dyadicRationalArithmeticPinned
+    ∧ wiring.nonDyadicFiniteProtocolRationalsPinned
     ∧ wiring.zeroLossTermsRepresentedExactly
     ∧ wiring.instantiatedTermPartialSumComputed
     ∧ wiring.missingRequiredTermsKeepTotalUninstantiated
     ∧ wiring.qromTermSeparatedFromCollisionLedger
+    ∧ wiring.sourceFoldRepeatedTapeExpressionExact
+    ∧ wiring.terminalCE226ExpressionExact
     ∧ wiring.hbindCollisionExpressionExact
     ∧ wiring.selectedDepthBudgetComparisonUsesExactRationals
 
@@ -796,6 +935,69 @@ theorem productSecurityTheorem_requires_selected_depth_loss_accounting
       hTotal⟩
   exact ⟨hExtractor, hQROM, hZKSimulator, hTotal⟩
 
+theorem productSecurityTheorem_requires_finite_protocol_numeric_loss_instantiation
+    {obstruction : ProductFiniteProtocolNumericLossObstruction}
+    (hObstruction :
+      ProductFiniteProtocolNumericLossObstructionAccepted obstruction) :
+    obstruction.sourceFoldRepeatedTapeLossInstantiated
+      ∧ obstruction.terminalSealRepeatedTapeLossInstantiated
+      ∧ obstruction.selectedTotalLossRemainsUninstantiated := by
+  rcases hObstruction with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hSourceFold,
+      hTerminalSeal,
+      hTotal⟩
+  exact ⟨hSourceFold, hTerminalSeal, hTotal⟩
+
+theorem productSecurityTheorem_requires_fixed_kind_repeated_tape_plan
+    {plan : ProductFixedKindCTCORepeatedTapePlan}
+    (hPlan : ProductFixedKindCTCORepeatedTapePlanAccepted plan) :
+    plan.fixedContextChargesOnlyExpectedKindFiniteTerms
+      ∧ plan.genericRepeatedTapeAmplificationProved
+      ∧ plan.piccsTwoTapeInstantiationWithinBudget
+      ∧ plan.pirlcThreeTapeCRTInstantiationWithinBudget
+      ∧ plan.terminalCEPinned226WithSharedCoreSlack := by
+  rcases hPlan with
+    ⟨_,
+      _,
+      hFixedKind,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hRepeated,
+      hPiCCS,
+      hPiRLC,
+      _,
+      hTerminal⟩
+  exact ⟨hFixedKind, hRepeated, hPiCCS, hPiRLC, hTerminal⟩
+
+theorem productSecurityTheorem_dispatcher_reduces_to_fixed_kind
+    {corollary : ProductDepthOneDispatcherCorollary}
+    (hCorollary : ProductDepthOneDispatcherCorollaryAccepted corollary) :
+    corollary.proofKindBinderSelectsFixedExpectedKindContext
+      ∧ (∀ kind, corollary.everyAcceptedKindHasFixedKindPlan kind)
+      ∧ corollary.dispatcherChargesOnlySelectedKindPerRun := by
+  rcases hCorollary with
+    ⟨_,
+      _,
+      hBinder,
+      hEveryKind,
+      hSelectedKind⟩
+  exact ⟨hBinder, hEveryKind, hSelectedKind⟩
+
 theorem productSecurityTheorem_requires_extractor_loss_accounting
     {accounting : ProductExtractorLossAccounting}
     (hAccounting : ProductExtractorLossAccountingAccepted accounting) :
@@ -905,7 +1107,7 @@ theorem productSecurityTheorem_from_instantiated_qrom
   rcases hCompilerOverhead with
     ⟨_, _, _, _, _, hCompilerOverheadZero, _, _⟩
   rcases hWiring with
-    ⟨_, _, _, hPartialSum, _, _, _, _⟩
+    ⟨_, _, _, _, hPartialSum, _, _, _, _, _, _⟩
   rcases hLoss with
     ⟨_,
       _,
@@ -1173,10 +1375,13 @@ theorem productSecurityTheorem_requires_exact_finite_probability_wiring
     (hWiring : ProductExactFiniteProbabilityWiringAccepted wiring) :
     0 < wiring.selectedDepth
       ∧ wiring.dyadicRationalArithmeticPinned
+      ∧ wiring.nonDyadicFiniteProtocolRationalsPinned
       ∧ wiring.zeroLossTermsRepresentedExactly
       ∧ wiring.instantiatedTermPartialSumComputed
       ∧ wiring.missingRequiredTermsKeepTotalUninstantiated
       ∧ wiring.qromTermSeparatedFromCollisionLedger
+      ∧ wiring.sourceFoldRepeatedTapeExpressionExact
+      ∧ wiring.terminalCE226ExpressionExact
       ∧ wiring.hbindCollisionExpressionExact
       ∧ wiring.selectedDepthBudgetComparisonUsesExactRationals := by
   exact hWiring

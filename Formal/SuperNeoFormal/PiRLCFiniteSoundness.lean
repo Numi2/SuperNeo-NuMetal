@@ -29,6 +29,14 @@ theorem phi81CRTComponentDegree_eq :
     phi81CRTComponentDegree = 27 := by
   native_decide
 
+theorem pirlcCRTComponentSingleObservationBound_exceeds_selected128 :
+    5 ^ phi81CRTComponentDegree < 2 ^ 128 := by
+  native_decide
+
+theorem pirlcFullRingUnitPivotSingleObservationBound_exceeds_selected128 :
+    5 ^ phi81Degree < 2 ^ 128 := by
+  native_decide
+
 def PiRLCCRTComponentNonzero
     {count : Nat}
     (pivot : Fin count)
@@ -2094,6 +2102,110 @@ noncomputable def pirlc_publicFieldObservation_finiteSoundnessCertificate
       (fun observationIndex : RLCClaimPublicFieldIndex rows publicCount evalCount =>
         rlcPublicFieldObservation (RF := Phi81) (pointVars := pointVars) observationIndex)
       decidablePublicFieldFailure
+
+def pirlc_finiteSoundnessCertificate_mono
+    {count rows publicCount evalCount pointVars bound : Nat}
+    {point : ProtocolVector Phi81 pointVars}
+    {foldedSoundOld foldedSoundNew :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
+    {inputSoundOld inputSoundNew :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
+    {claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars}
+    (certificate :
+      PiRLCConstructiveFiniteSoundnessCertificate
+        point
+        foldedSoundOld
+        inputSoundOld
+        claims
+        bound)
+    (hFolded :
+      ∀ folded, foldedSoundNew folded → foldedSoundOld folded)
+    (hInput :
+      ∀ claim, inputSoundOld claim → inputSoundNew claim) :
+    PiRLCConstructiveFiniteSoundnessCertificate
+      point
+      foldedSoundNew
+      inputSoundNew
+      claims
+      bound where
+  badSeeds := certificate.badSeeds
+  card_le := certificate.card_le
+  allInputsSound_outside_bad := by
+    intro seed folded hAccepts hFoldedSound hSeed index
+    exact hInput (claims index)
+      (certificate.allInputsSound_outside_bad
+        seed
+        folded
+        hAccepts
+        (hFolded folded hFoldedSound)
+        hSeed
+        index)
+
+theorem pirlc_publicFieldsZero_unsound_has_nonzero_publicObservation
+    {count rows publicCount evalCount pointVars : Nat}
+    {claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars}
+    (hUnsound :
+      ¬ AllClaimsSound
+        (RLCClaimPublicFieldsZero
+          (RF := Phi81)
+          (pointVars := pointVars))
+        claims) :
+    ∃ claimIndex : Fin count,
+      ∃ observationIndex : RLCClaimPublicFieldIndex rows publicCount evalCount,
+        (rlcPublicFieldObservation
+          (RF := Phi81)
+          (pointVars := pointVars)
+          observationIndex).observe (claims claimIndex) ≠ 0 := by
+  classical
+  by_contra hNoObservation
+  exact hUnsound (by
+    intro claimIndex
+    rw [← pirlc_publicFieldObservationSound_iff_fields_zero
+      (claim := claims claimIndex)]
+    intro observationIndex
+    by_contra hNonzero
+    exact hNoObservation ⟨claimIndex, observationIndex, hNonzero⟩)
+
+noncomputable def pirlc_publicFieldsZero_finiteSoundnessCertificate
+    {count rows publicCount evalCount pointVars : Nat}
+    [DecidableEq (PiRLCChallengeSeed count)]
+    [DecidableEq Phi81CRTLeft]
+    [DecidableEq Phi81CRTRight]
+    (point : ProtocolVector Phi81 pointVars)
+    (claims : Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars)
+    (decidablePublicFieldFailure :
+      ∀ observationIndex : RLCClaimPublicFieldIndex rows publicCount evalCount,
+        DecidablePred
+          (PiRLCFoldFailure
+            (PiRLCConcreteAccepts point)
+            (PiRLCObservationSound
+              (rlcPublicFieldObservation
+                (RF := Phi81)
+                (pointVars := pointVars)
+                observationIndex))
+            (PiRLCObservationSound
+              (rlcPublicFieldObservation
+                (RF := Phi81)
+                (pointVars := pointVars)
+                observationIndex))
+            claims)) :
+    PiRLCConstructiveFiniteSoundnessCertificate
+      point
+      (RLCClaimPublicFieldsZero (RF := Phi81) (pointVars := pointVars))
+      (RLCClaimPublicFieldsZero (RF := Phi81) (pointVars := pointVars))
+      claims
+      (PiRLCPublicFieldObservationBadSeedBudget count rows publicCount evalCount) :=
+  pirlc_finiteSoundnessCertificate_mono
+    (pirlc_publicFieldObservation_finiteSoundnessCertificate
+      point
+      claims
+      decidablePublicFieldFailure)
+    (fun folded hFields =>
+      (pirlc_publicFieldObservationSound_iff_fields_zero
+        (claim := folded)).mpr hFields)
+    (fun claim hObservation =>
+      (pirlc_publicFieldObservationSound_iff_fields_zero
+        (claim := claim)).mp hObservation)
 
 theorem pirlc_constructive_badSeedCount_le_of_crtLocalization
     {count rows publicCount evalCount pointVars bound : Nat}

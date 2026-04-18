@@ -9,10 +9,10 @@ Mostly true: NumiSeal has production-facing inspection, verification, and local
 product artifact generation for checked immediate-residual artifacts. It is not
 a complete hosted production NumiSeal product.
 
-Correction: repository-level SuperNeo formal status is a corrected finite-model
-core with open theorem-critical integrations. What remains is both the listed
-NumiSeal-specific product work and the formal integration work tracked in
-`Docs/FormalStatus.json`.
+Correction: repository-level SuperNeo formal status is now a completed formal
+protocol theorem for the finite model. What remains is the listed
+NumiSeal-specific product work plus the selected total-loss, release,
+side-channel, operations, and audit evidence tracked outside the Lean theorem.
 
 ## Current Surface
 
@@ -61,16 +61,17 @@ NumiSeal-specific product work and the formal integration work tracked in
 - [ ] Product operations: hosted context storage, deployed key distribution,
   tenant authz, hosted audit retention, hosted revocation feed distribution, and
   signed releases.
-- [ ] NumiSeal-specific product evidence: the corrected finite Lean theorem
+- [ ] NumiSeal-specific product evidence: the completed finite Lean theorem
   stack is current, including well-formed transcripts, 384-bit theorem-critical
   bindings, constructive PiCCS/terminal CE finite bad sets, and the finite
   probability ledger. Remaining NumiSeal-specific work is release-grade Swift
   review of the pinned Swift extractor/trace surface, hosted selected-depth
-  typed carry policy, release-hardware simulator-coupling evidence, and numeric
-  total-loss instantiation for extractor, interactive security, ZK simulator,
-  product operations, side-channel, and release terms. The ideal split-QRO
-  compiler-overhead term is now instantiated as zero and wired into the exact
-  partial total-loss budget.
+  typed carry policy, release-hardware side-channel evidence, and numeric
+  total-loss instantiation for source-fold, terminal, extractor, product
+  operations, side-channel, and release terms. The ideal split-QRO
+  compiler-overhead term and proof-level NumiSealZK simulator loss are now
+  instantiated as zero, per-kind interactive security bounds are pinned outside
+  `epsilon_qrom`, and the exact partial total-loss budget is wired.
 - [ ] Self-owned review: cryptographic review, implementation review, and
   side-channel assessment recorded in repository evidence.
 

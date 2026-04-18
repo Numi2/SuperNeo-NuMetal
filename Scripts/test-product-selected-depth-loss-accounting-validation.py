@@ -92,10 +92,22 @@ def main() -> None:
         write_json(path, missing_qrom_interactive_reduction)
         run_fail(str(VALIDATE), str(path))
 
+        missing_zk_simulator = copy.deepcopy(ledger)
+        missing_zk_simulator["relatedManifests"].pop("numiSealZKSimulatorCouplingEvidence")
+        path = tmp / "missing-zk-simulator.json"
+        write_json(path, missing_zk_simulator)
+        run_fail(str(VALIDATE), str(path))
+
         missing_total_budget = copy.deepcopy(ledger)
         missing_total_budget["relatedManifests"].pop("productTotalLossBudget")
         path = tmp / "missing-total-budget.json"
         write_json(path, missing_total_budget)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_finite_protocol_loss = copy.deepcopy(ledger)
+        missing_finite_protocol_loss["relatedManifests"].pop("productFiniteProtocolLossObstruction")
+        path = tmp / "missing-finite-protocol-loss.json"
+        write_json(path, missing_finite_protocol_loss)
         run_fail(str(VALIDATE), str(path))
 
         reordered_components = copy.deepcopy(ledger)
@@ -116,9 +128,26 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(ledger)
-        missing_blocker["hardClaimBlockers"].remove("underlying interactive security bounds outside the QROM compiler-overhead term")
+        missing_blocker["hardClaimBlockers"].remove("release signing and notarization")
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
+        run_fail(str(VALIDATE), str(path))
+
+        stale_source_fold_status = copy.deepcopy(ledger)
+        for row in stale_source_fold_status["componentLosses"]:
+            if row["id"] == "source-fold-knowledge":
+                row["status"] = "finite-protocol-bound-pinned-selected-budget-gap-open"
+                break
+        path = tmp / "stale-source-fold-status.json"
+        write_json(path, stale_source_fold_status)
+        run_fail(str(VALIDATE), str(path))
+
+        hidden_terminal_ce_closure = copy.deepcopy(ledger)
+        for row in hidden_terminal_ce_closure["componentLosses"]:
+            if row["id"] == "terminal-numiseal-seal":
+                row["requiredEvidence"] = "finite-protocol terminal gap without CE closure"
+        path = tmp / "hidden-terminal-ce-closure.json"
+        write_json(path, hidden_terminal_ce_closure)
         run_fail(str(VALIDATE), str(path))
 
         missing_collision = copy.deepcopy(ledger)

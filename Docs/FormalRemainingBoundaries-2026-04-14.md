@@ -1,6 +1,6 @@
 # Formal Remaining Boundaries, 2026-04-14
 
-Formal status: corrected finite-model core with open theorem-critical integrations.
+Formal status: completed formal protocol theorem.
 
 This note records the boundary-closure pass after the earlier assumption-surface
 deepening work. It has been updated for the 2026-04-17 formal cleanup: the old
@@ -119,32 +119,22 @@ but their upper theorem-critical integration points remain tracked explicitly.
 
 ## Current Manifest Shape
 
-The current manifest uses closed corrected-core groups plus explicit planned
-integration groups. The active label is `corrected finite-model core with open theorem-critical integrations`.
+The current manifest uses closed corrected-core groups plus the two former
+integration groups as closed promotion gates. The active label is
+`completed formal protocol theorem`.
 
-The remaining theorem-critical integration groups are:
+The former theorem-critical integration groups are now closed:
 
-- `terminal-ce-localization-instantiation`, which instantiates constructive
-  terminal CE localization evidence beyond the checked slot and full-tape
-  certificate endpoints by proving the accepted Swift/trace parser supplies the
-  concrete bad-round selector. The full ternary challenge tape and the
-  proof-level full-tape certificate constructor are already checked from the
-  Swift response-tag trace.
-- `pirlc-crt-finite-soundness-completion`, which completes the CRT-based PiRLC
-  finite-soundness count on top of `Phi81CRT.lean` and
-  `PiRLCConcreteCollision.lean`. The checked surface includes a conservative
-  component bad-seed budget with the `5^27` CRT fiber factor and certificate
-  constructors from delta collision plus the checked upper-half coefficient
-  fiber. The checked `PiRLCLinearDefectSemantics` certificate route is now the
-  exact formal target, with checked linear observations for the folded claim
-  fields and a finite observation-family lift that unions bad seeds across the
-  selected coordinate family with the explicit family-cardinality multiplier.
-  The full public-field family is now instantiated with a concrete
-  `(rows + publicCount + evalCount)` multiplier; completion still requires the
-  selected concrete Swift/trace folded relation to instantiate the selected
-  defect predicate. The stronger
-  remaining-seed count is exposed only under an explicit full-ring unit-pivot
-  collision evidence package.
+- `terminal-ce-localization-instantiation`, which provides direct
+  constructive-localization finite certificates, a slot-to-full-tape lift,
+  Swift trace full-tape certificates, and a checked first-round Swift trace
+  selector.
+- `pirlc-crt-finite-soundness-completion`, which provides monotone
+  finite-certificate transport, nonzero public-field observation extraction
+  from failure of the selected public-fields-zero relation, and a direct
+  finite-soundness certificate for that selected relation. The stronger
+  remaining-seed count is still exposed only under an explicit full-ring
+  unit-pivot collision evidence package.
 
 The existing CE byte grammar remains the supporting parser model for counted CE
 proof bytes, response tags, commitments, responses, rounds, and complete proof
@@ -153,8 +143,8 @@ Ext2 vectors, counted Ext2 ring vectors, sum-check Ext2 proof fragments, and
 CCS/CE point-evaluation caller bytes. The tagged bad-event, error-ledger, and
 Fiat-Shamir finite-seed accounting groups are connected to an exact
 finite-uniform probability bridge and selected-depth numerator arithmetic; the
-remaining open groups are the terminal CE and PiRLC semantic-localization
-integrations listed above.
+terminal CE and PiRLC semantic-localization integrations listed above are now
+closed in the manifest.
 
 The Lean `goldilocks-ext2-field-instance` group is now closed by transferring
 mathlib's root-free quadratic-algebra field instance onto the existing

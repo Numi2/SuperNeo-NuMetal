@@ -212,9 +212,10 @@ def main() -> None:
 
     expect_failure(
         "completed label blocked by non-closed open integrations",
-        mutate_manifest(
+        mutate_group(
             manifest,
-            lambda copy: copy.update({"current_label": "completed formal protocol theorem"}),
+            "terminal-ce-localization-instantiation",
+            lambda group: group.update({"status": "planned", "declarations": []}),
         ),
         "must be closed at promotion",
     )
@@ -232,7 +233,7 @@ def main() -> None:
                 ],
             ),
         ),
-        "which is stronger than current label",
+        "claims completed formal protocol theorem before promotion",
     )
 
     expect_failure(
@@ -261,12 +262,11 @@ def main() -> None:
 
     expect_failure(
         "open integration must remain planned before promotion",
-        mutate_group(
+        mutate_manifest(
             manifest,
-            "pirlc-crt-finite-soundness-completion",
-            lambda group: group.update({
-                "status": "closed",
-                "declarations": ["pirlc_allInputsSound_of_seed_not_bad"],
+            lambda copy: copy.update({
+                "formal_status": "corrected finite-model core with open theorem-critical integrations",
+                "current_label": "corrected finite-model core with open theorem-critical integrations",
             }),
         ),
         "must remain planned before promotion",

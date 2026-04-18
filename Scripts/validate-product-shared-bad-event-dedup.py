@@ -221,11 +221,11 @@ def validate_promotion_rule(manifest: dict[str, Any]) -> None:
         "productionProductSecurityClaimAllowed",
         "productionQROMClaimAllowed",
         "requiresSharedBadEventDeduplication",
+        "requiresInteractiveSecurityBounds",
+        "requiresZKSimulatorComposition",
     ]:
         require(promotion.get(key) is False, f"promotionRule.{key} must be false")
     for key in [
-        "requiresInteractiveSecurityBounds",
-        "requiresZKSimulatorComposition",
         "requiresRemainingTotalLossTerms",
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")

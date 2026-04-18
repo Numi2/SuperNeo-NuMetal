@@ -65,6 +65,20 @@ def main() -> None:
         write_json(path, missing_mask_evidence)
         run_fail(str(VALIDATE), str(path))
 
+        missing_scope_simulator_evidence = copy.deepcopy(manifest)
+        del missing_scope_simulator_evidence["zkSimulatorCouplingEvidence"]
+        path = tmp / "missing-scope-simulator-evidence.json"
+        write_json(path, missing_scope_simulator_evidence)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_simulator_evidence = copy.deepcopy(theorem)
+        del missing_simulator_evidence["zkSimulatorCouplingEvidence"]
+        theorem_path = tmp / "missing-simulator-evidence-theorem.json"
+        manifest_path = tmp / "missing-simulator-evidence-manifest.json"
+        write_json(theorem_path, missing_simulator_evidence)
+        write_json(manifest_path, manifest_with_theorem(manifest, theorem_path))
+        run_fail(str(VALIDATE), str(manifest_path))
+
         wrong_claim = copy.deepcopy(theorem)
         wrong_claim["claimStatus"] = "full-product-theorem"
         theorem_path = tmp / "wrong-claim-theorem.json"

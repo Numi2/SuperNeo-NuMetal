@@ -72,8 +72,14 @@ EXPECTED_QUERY_FAMILY_PREFIXES = [
 ]
 
 EXPECTED_BLOCKERS = [
-    "underlying interactive security bounds for the pinned transcript schedule",
-    "NumiSealZK simulator composition remains outside the transcript-schedule query bound",
+    "concrete SHAKE256-to-split-QRO promotion remains outside the ideal transcript-schedule theorem model",
+]
+EXPECTED_REPEATED_LABELS = [
+    "selected-repeated-tape-v1/piccs-tape-0",
+    "selected-repeated-tape-v1/piccs-tape-1",
+    "selected-repeated-tape-v1/pirlc-branch-0",
+    "selected-repeated-tape-v1/pirlc-branch-1",
+    "selected-repeated-tape-v1/pirlc-branch-2",
 ]
 
 
@@ -125,6 +131,19 @@ def require_true(value: Any, label: str) -> None:
 def require_int(value: Any, label: str) -> int:
     require(type(value) is int, f"{label} must be an integer")
     return value
+
+
+def validate_repeated_tape_profile(value: Any, label: str) -> None:
+    profile = require_dict(value, label)
+    require(profile.get("proofEnvelopeHeaderVersion") == 5, f"{label}.proofEnvelopeHeaderVersion mismatch")
+    require(profile.get("externalChallengeSeedBits") == 256, f"{label}.externalChallengeSeedBits mismatch")
+    require(profile.get("piccsTapeCount") == 2, f"{label}.piccsTapeCount mismatch")
+    require(profile.get("pirlcBranchCount") == 3, f"{label}.pirlcBranchCount mismatch")
+    require(profile.get("terminalCERoundCount") == 226, f"{label}.terminalCERoundCount mismatch")
+    require(profile.get("labelVersion") == "selected-repeated-tape-v1", f"{label}.labelVersion mismatch")
+    require(profile.get("labels") == EXPECTED_REPEATED_LABELS, f"{label}.labels mismatch")
+    expansion = require_string(profile.get("challengeExpansionMode"), f"{label}.challengeExpansionMode")
+    require("H_chal" in expansion and "seed-bit slicing" in expansion and "not" in expansion.lower(), f"{label}.challengeExpansionMode must reject seed-bit slicing")
 
 
 def require_relative_path(value: Any, label: str) -> Path:
@@ -339,9 +358,9 @@ def validate_oracle_model(schedule: dict[str, Any]) -> None:
     require(model.get("interactiveProtocolFullySpecified") is True, "oracleModel.interactiveProtocolFullySpecified must be true")
     require_true(model.get("quantumOracleQueryBoundInstantiated"), "oracleModel.quantumOracleQueryBoundInstantiated")
     require_true(model.get("structuralCollisionMalleabilityEvidencePinned"), "oracleModel.structuralCollisionMalleabilityEvidencePinned")
+    require_true(model.get("transformPreconditionsSatisfied"), "oracleModel.transformPreconditionsSatisfied")
     for key in [
         "hashInstantiationProofProvided",
-        "transformPreconditionsSatisfied",
         "productionQROMClaimAllowed",
     ]:
         require_false(model.get(key), f"oracleModel.{key}")
@@ -363,6 +382,7 @@ def validate_transcript_state(schedule: dict[str, Any]) -> None:
         "proof kind",
         "length-delimited",
         "witness independent",
+        "labelled",
         "schedule",
         "failure",
     ]:
@@ -399,7 +419,17 @@ def validate_schedule_entries(schedule: dict[str, Any]) -> None:
         require(len(challenge_labels) >= 2, f"{proof_kind} must pin multiple challenge labels")
         require(len(oracle_families) >= 2, f"{proof_kind} must pin multiple oracle query families")
         for label in challenge_labels:
-            require(label.startswith("superneo."), f"{proof_kind} challenge label must use the superneo namespace: {label}")
+            require(
+                label.startswith("superneo.") or label.startswith("selected-repeated-tape-v1/"),
+                f"{proof_kind} challenge label must use the superneo or selected repeated-tape namespace: {label}",
+            )
+        if proof_kind == "fold":
+            validate_repeated_tape_profile(entry.get("repeatedTapeProfile"), f"{proof_kind}.repeatedTapeProfile")
+            for label in EXPECTED_REPEATED_LABELS:
+                require(label in challenge_labels, f"{proof_kind} challengeLabels missing repeated label {label}")
+        else:
+            inherited = require_string(entry.get("sourceFoldRepeatedTapeProfile"), f"{proof_kind}.sourceFoldRepeatedTapeProfile")
+            require("selected-repeated-tape-v1" in inherited and "2 PiCCS" in inherited and "3 PiRLC" in inherited, f"{proof_kind} must inherit selected source-fold repeated profile")
         prefix = EXPECTED_QUERY_FAMILY_PREFIXES[index]
         for family in oracle_families:
             require(family.startswith(prefix), f"{proof_kind} oracle query family must start with {prefix}: {family}")
@@ -414,7 +444,7 @@ def validate_schedule_entries(schedule: dict[str, Any]) -> None:
         source = require_string(entry.get("queryBoundSource"), f"{proof_kind}.queryBoundSource")
         require("conditional adversary" in source and "schedule-derived" in source, f"{proof_kind}.queryBoundSource must identify the conditional and schedule-derived bounds")
         require_true(entry.get("queryBoundInstantiated"), f"{proof_kind}.queryBoundInstantiated")
-        require_false(entry.get("transformPreconditionsSatisfied"), f"{proof_kind}.transformPreconditionsSatisfied")
+        require_true(entry.get("transformPreconditionsSatisfied"), f"{proof_kind}.transformPreconditionsSatisfied")
         require_false(entry.get("productionScheduleClaimAllowed"), f"{proof_kind}.productionScheduleClaimAllowed")
         labels.extend(challenge_labels)
         combined_text.append(json.dumps(entry, sort_keys=True).lower())
@@ -482,7 +512,7 @@ def validate_promotion_and_blockers(schedule: dict[str, Any]) -> None:
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
     require(promotion.get("requiresInteractiveProtocol") is False, "promotionRule.requiresInteractiveProtocol must be false after interactive reduction manifest closure")
-    require(promotion.get("requiresTransformPreconditions") is True, "promotionRule.requiresTransformPreconditions must be true")
+    require(promotion.get("requiresTransformPreconditions") is False, "promotionRule.requiresTransformPreconditions must be false after transform precondition closure")
     for key in [
         "requiresQROMAccountingUpdate",
         "requiresTotalLossBudgetUpdate",

@@ -4,7 +4,7 @@ This page is the shortest safe description of SuperNeo NuMetal's proof
 semantics. Use it when explaining the project to someone who needs to know what
 verifier acceptance means.
 
-Formal status: corrected finite-model core with open theorem-critical integrations.
+Formal status: completed formal protocol theorem.
 
 ## The Relation
 
@@ -151,7 +151,7 @@ opt-in high-assurance execution policies. Those are hardening artifacts; they do
 not change the meaning of proof acceptance by themselves.
 
 The repository also includes a Lean 4 formalization track. The current formal
-status is a corrected finite-model core with open theorem-critical integrations:
+status is a completed formal protocol theorem for the finite model:
 
 - Ajtai binding is certified-key binding, not arbitrary-matrix binding.
 - PiRLC, PiCCS/sum-check, and terminal CE proof soundness are finite
@@ -165,14 +165,14 @@ status is a corrected finite-model core with open theorem-critical integrations:
   parser/verifier branch selection have Lean byte grammar and terminal CE
   verifier trace surfaces.
 - The finite PiRLC, PiCCS/sum-check, transcript-stage, terminal CE, and error
-  ledgers expose exact finite-uniform rational error-bound surfaces. Full
-  wiring into the top product theorem remains one of the planned integration
-  groups.
+  ledgers expose exact finite-uniform rational error-bound surfaces. Exact
+  finite-probability wiring into the top product theorem is checked.
+- Terminal CE localization and the selected PiRLC public-field
+  finite-soundness integration are closed by explicit Lean declarations.
 
 Historical assumption-boundary IDs remain documented for auditability, but they
-are not active manifest groups. `Docs/FormalStatus.json` records the corrected
-core and the planned theorem-critical integrations that must close before a
-future completed theorem label is available.
+are not active manifest groups. `Docs/FormalStatus.json` records the completed
+formal protocol theorem and the closed theorem groups that support it.
 
 The correct public positioning remains:
 

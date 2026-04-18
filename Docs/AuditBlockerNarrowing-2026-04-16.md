@@ -1,6 +1,6 @@
 # Audit and Blocker Narrowing, 2026-04-16
 
-Formal status: corrected finite-model core with open theorem-critical integrations.
+Formal status: completed formal protocol theorem.
 
 This note records the local audit pass covering side-channel posture, product
 integration requirements, formal blocker status, and lattice-estimator evidence.
@@ -194,14 +194,14 @@ still requires deployed durable implementations and operational review.
 
 ## Formal Blockers
 
-`Docs/FormalStatus.json` now records the corrected finite-model core and keeps
-the theorem-critical integrations explicit as open planned groups:
+`Docs/FormalStatus.json` now records the completed formal protocol theorem and
+keeps the former theorem-critical integration IDs as closed promotion gates:
 
 - `terminal-ce-localization-instantiation`
 - `pirlc-crt-finite-soundness-completion`
 
-The formal-status validator rejects documentation that claims a future completed
-theorem label before those integrations are closed. Supporting work includes
+The formal-status validator rejects documentation that claims a completed
+theorem label unless those integrations are closed. Supporting work includes
 Goldilocks/Phi81 algebra, Ext2 wire grammar, CE byte grammar, Swift/Lean Ext2
 vectors, Swift/Lean CE vectors, tagged bad-event bookkeeping, finite
 transcript-seed accounting, Swift-facing byte equivalence declarations, and CE
@@ -217,9 +217,8 @@ claims. Concrete folded-claim observations cover commitment, public-input, and
 evaluation coordinates, and finite observation-family accounting now unions the
 selected-coordinate bad seeds with an explicit family-cardinality multiplier.
 The full public-field family is instantiated with the concrete
-`(rows + publicCount + evalCount)` multiplier. The open part is instantiating
-the selected product-level defect predicate for the concrete Swift/trace folded
-relation.
+`(rows + publicCount + evalCount)` multiplier, and the selected
+public-fields-zero relation now has a direct finite-soundness certificate.
 
 Conclusion: the formal status is now narrower and validated by checked Lean
 declarations plus fail-closed validator mutation tests. This does not close the
@@ -265,7 +264,7 @@ artifact separately.
 | Cryptographic and implementation review record | Still open; owned in-repo as release evidence. |
 | Side-channel review | Narrowed; high-assurance mode is meaningful, source/formal plus Swift/LLVM/Metal lowering proof contracts exist, local Metal/runtime/CPU/GPU release evidence is pinned, and broader compiler/hardware evidence remains required before production CT language. |
 | Product integration layer | Executable NumiSeal integration contract added; deployed storage/provenance/replay/access/logging implementations remain open. |
-| Formal blocker completion | Narrowed to a corrected finite-model core with open theorem-critical integrations; production-security blockers remain separate. |
+| Formal blocker completion | Promoted to completed formal protocol theorem for the finite model; production-security blockers remain separate. |
 | Full Sage estimator | Closed for the pinned local lane; SageMath 10.8 ran and the generated artifact validated. |
 | Broader benchmarks | Not run in this pass; no new cross-generation performance claim. |
 | Release signing and branch protection | Not locally provable; remains hosting/release-infrastructure work. |

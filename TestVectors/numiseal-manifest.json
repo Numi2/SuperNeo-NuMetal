@@ -4,16 +4,16 @@
   "schema" : "numiseal-artifact.schema.json",
   "vectors" : [
     {
-      "byteCount" : 322050,
+      "byteCount" : 331385,
       "expectedAggregateDigestsHex" : [
-        "70909d6e08b431e1c0d5d29f4250101edc46bac66c8b2ab75caf00b5933632ac"
+        "b4db3fcf2b1a23ab6d47f3e7c3d3f9044662e723c141f83134665f189ebfe3b5"
       ],
-      "expectedComponentDigestRootHex" : "7c2dd06c0ba0fede11b2bb65af6e93cbcdeeac053a50c879c19d16d5d6555e3d",
+      "expectedComponentDigestRootHex" : "533869a4e005a142659d528193f56535840dc50bb608af91631365cc1a96ab79",
       "expectedKeySeedUTF8" : "SuperNeoNumiSeal.vector.single-aggregate.key.v1",
-      "expectedLaneSummaryRootHex" : "3c5e225a02db3033af400ac9d83b40ac48400ef61ac71e4c1a01de07309d7402",
-      "expectedObligationRootHex" : "ee6178537ce024cdceed53ddf66757ef9819d41e80fa51839312b2835958e9c6",
-      "expectedProofTranscriptDigestHex" : "45497f0235bed172aa5a008baccfda3942c511c11cd56ae88410dd466776686f",
-      "expectedPublicStatementDigestHex" : "55e4126528542197ddcb2076bff2f1beec09e731a4e788fd173ababb72df56e6",
+      "expectedLaneSummaryRootHex" : "cd89315cd0a0ec294579e46409c740761805a2297dbfc9149a0963b34b0b56f5",
+      "expectedObligationRootHex" : "5494e62d9f580f10ae803729ce6ef28370e46d9a501edaf90c6b6f0a0ad27554",
+      "expectedProofTranscriptDigestHex" : "96c6bafca5f1b278e69f3d740afba96a9e927def9bd87b5819cda8b0783962cc",
+      "expectedPublicStatementDigestHex" : "2807ca20ac8b4cf3c4456ad6c7b364bd6817f82d23336b0da22d9cf38a70a990",
       "expectedShapeDigestHex" : "31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e",
       "expectedStatementDigestHex" : "9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e",
       "expectedTranscriptDomainHex" : "018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de",
@@ -22,22 +22,22 @@
       "proofKind" : "numiseal-terminal",
       "publicClaim" : "single direct digit-commitment immediate-residual NumiSeal aggregate over a fold output claim",
       "residualMode" : "immediate",
-      "sha256" : "39fb763c1df268c1a06d9b148acf9179630185ebba73d2e621486fb01a58cf7b",
-      "verifyCommand" : "swift run superneo verify --require-numiseal --key-seed SuperNeoNumiSeal.vector.single-aggregate.key.v1 --expected-verifier-key-digest fd2605390a4f450fdfdcde6259aa8bb06c51bf66d1def285fbe9cabc5eb09a73 --expected-shape-digest 31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e --expected-statement-digest 9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e --expected-transcript-domain-digest 018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de --expected-public-statement-digest 55e4126528542197ddcb2076bff2f1beec09e731a4e788fd173ababb72df56e6 --expected-obligation-root ee6178537ce024cdceed53ddf66757ef9819d41e80fa51839312b2835958e9c6 --expected-lane-summary-root 3c5e225a02db3033af400ac9d83b40ac48400ef61ac71e4c1a01de07309d7402 --expected-aggregate-digests 70909d6e08b431e1c0d5d29f4250101edc46bac66c8b2ab75caf00b5933632ac --expected-component-digest-root 7c2dd06c0ba0fede11b2bb65af6e93cbcdeeac053a50c879c19d16d5d6555e3d --expected-proof-transcript-digest 45497f0235bed172aa5a008baccfda3942c511c11cd56ae88410dd466776686f --expected-public-inputs 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 TestVectors\/numiseal-terminal-single-aggregate-v1.json",
+      "sha256" : "83e394a285343390e8de88e19a4f402ac20b1cca544ccf67a822dcad4d70d9f1",
+      "verifyCommand" : "swift run superneo verify --require-numiseal --key-seed SuperNeoNumiSeal.vector.single-aggregate.key.v1 --expected-verifier-key-digest fd2605390a4f450fdfdcde6259aa8bb06c51bf66d1def285fbe9cabc5eb09a73 --expected-shape-digest 31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e --expected-statement-digest 9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e --expected-transcript-domain-digest 018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de --expected-public-statement-digest 2807ca20ac8b4cf3c4456ad6c7b364bd6817f82d23336b0da22d9cf38a70a990 --expected-obligation-root 5494e62d9f580f10ae803729ce6ef28370e46d9a501edaf90c6b6f0a0ad27554 --expected-lane-summary-root cd89315cd0a0ec294579e46409c740761805a2297dbfc9149a0963b34b0b56f5 --expected-aggregate-digests b4db3fcf2b1a23ab6d47f3e7c3d3f9044662e723c141f83134665f189ebfe3b5 --expected-component-digest-root 533869a4e005a142659d528193f56535840dc50bb608af91631365cc1a96ab79 --expected-proof-transcript-digest 96c6bafca5f1b278e69f3d740afba96a9e927def9bd87b5819cda8b0783962cc --expected-public-inputs 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 TestVectors\/numiseal-terminal-single-aggregate-v1.json",
       "workload" : "numiseal-terminal-single-aggregate-v1"
     },
     {
-      "byteCount" : 641315,
+      "byteCount" : 660060,
       "expectedAggregateDigestsHex" : [
-        "2097a452194769e3f4199bd0f5551f4189ee3ee533780ff23c4b32ab202ff274",
-        "d82a30fc3aa093d054d5b0e854450f8036a52b009999fab3937201061df5f5ac"
+        "f6dd949bcebb3e7289bacc50045c8a7540ec9025ee9e0a981de5168f6dc87bf2",
+        "6ed2254fb59ce418ec9b5d3c6b1a81136c41ba18a564dc2f85401fd593b2f3b7"
       ],
-      "expectedComponentDigestRootHex" : "c3c5d27f80f5d53e97f740da850a480a1bea0a9dd60603af55c5dbd47847c285",
+      "expectedComponentDigestRootHex" : "3b56e02919c13535d4ad6b02aa539cddb2ff2cb90f3c444033ac3da30722a4ee",
       "expectedKeySeedUTF8" : "SuperNeoNumiSeal.vector.two-aggregate.key.v1",
-      "expectedLaneSummaryRootHex" : "6a05349c561dad7d1b32bea532a98e1b5f667facbf30412991b89bbde3c8312c",
-      "expectedObligationRootHex" : "3af93cfeda5a04e1000a436fb03ddfd863e07cadbeb73b302eed9f165d33bb59",
-      "expectedProofTranscriptDigestHex" : "7feebe12841d6b98fac64b317f6cffc94bf79c76f04b8559d56d76ac9b92d708",
-      "expectedPublicStatementDigestHex" : "d02e0fbc783259c7702deccdd384d8645ac1e9ddace653d5c10862c43e286344",
+      "expectedLaneSummaryRootHex" : "99f1493e315168221d421d748b5a6e913ae2d7897343680ef06d7331025e43b5",
+      "expectedObligationRootHex" : "303cd9a83f77201ff93f47944facd7c173ac60ce6461138a37f46486926a61f7",
+      "expectedProofTranscriptDigestHex" : "9a0d035900e52940b172ba06e04f4f6ff34186cbe88cd6641bacbb0fad122915",
+      "expectedPublicStatementDigestHex" : "e631c85f91ac3f1fc1a66e4d3f09209fa23df7c98294627f02ba1e87d6636696",
       "expectedShapeDigestHex" : "31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e",
       "expectedStatementDigestHex" : "9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e",
       "expectedTranscriptDomainHex" : "018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de",
@@ -46,22 +46,22 @@
       "proofKind" : "numiseal-terminal",
       "publicClaim" : "two direct digit-commitment immediate-residual NumiSeal aggregates in one lane",
       "residualMode" : "immediate",
-      "sha256" : "e00b3dfe67f080f6639244dc9e3b7f072e949ab6f22e33314cf2ab57373aa935",
-      "verifyCommand" : "swift run superneo verify --require-numiseal --key-seed SuperNeoNumiSeal.vector.two-aggregate.key.v1 --expected-verifier-key-digest 339ff03d146bede8923a8ca974dc742e23fdccebfa5b9b2d17319b02cbbf9896 --expected-shape-digest 31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e --expected-statement-digest 9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e --expected-transcript-domain-digest 018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de --expected-public-statement-digest d02e0fbc783259c7702deccdd384d8645ac1e9ddace653d5c10862c43e286344 --expected-obligation-root 3af93cfeda5a04e1000a436fb03ddfd863e07cadbeb73b302eed9f165d33bb59 --expected-lane-summary-root 6a05349c561dad7d1b32bea532a98e1b5f667facbf30412991b89bbde3c8312c --expected-aggregate-digests 2097a452194769e3f4199bd0f5551f4189ee3ee533780ff23c4b32ab202ff274,d82a30fc3aa093d054d5b0e854450f8036a52b009999fab3937201061df5f5ac --expected-component-digest-root c3c5d27f80f5d53e97f740da850a480a1bea0a9dd60603af55c5dbd47847c285 --expected-proof-transcript-digest 7feebe12841d6b98fac64b317f6cffc94bf79c76f04b8559d56d76ac9b92d708 --expected-public-inputs 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 TestVectors\/numiseal-terminal-two-aggregate-v1.json",
+      "sha256" : "1e657d15b053aa20e2a4e7982b8a49027bbb431379c770c0383080ff25032b4c",
+      "verifyCommand" : "swift run superneo verify --require-numiseal --key-seed SuperNeoNumiSeal.vector.two-aggregate.key.v1 --expected-verifier-key-digest 339ff03d146bede8923a8ca974dc742e23fdccebfa5b9b2d17319b02cbbf9896 --expected-shape-digest 31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e --expected-statement-digest 9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e --expected-transcript-domain-digest 018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de --expected-public-statement-digest e631c85f91ac3f1fc1a66e4d3f09209fa23df7c98294627f02ba1e87d6636696 --expected-obligation-root 303cd9a83f77201ff93f47944facd7c173ac60ce6461138a37f46486926a61f7 --expected-lane-summary-root 99f1493e315168221d421d748b5a6e913ae2d7897343680ef06d7331025e43b5 --expected-aggregate-digests f6dd949bcebb3e7289bacc50045c8a7540ec9025ee9e0a981de5168f6dc87bf2,6ed2254fb59ce418ec9b5d3c6b1a81136c41ba18a564dc2f85401fd593b2f3b7 --expected-component-digest-root 3b56e02919c13535d4ad6b02aa539cddb2ff2cb90f3c444033ac3da30722a4ee --expected-proof-transcript-digest 9a0d035900e52940b172ba06e04f4f6ff34186cbe88cd6641bacbb0fad122915 --expected-public-inputs 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 TestVectors\/numiseal-terminal-two-aggregate-v1.json",
       "workload" : "numiseal-terminal-two-aggregate-v1"
     },
     {
-      "byteCount" : 641706,
+      "byteCount" : 660314,
       "expectedAggregateDigestsHex" : [
-        "224a5383ac09e17337620a563c66af0642ec84be8e25b9fd28a5524f1ca9327c",
-        "7bf84a283d11b140d6750118802960e3d1427ae0120e21b6938e486550175e31"
+        "eb3b4b7ce0ad4b7040ca31a80aed306f0dfcf43f53cdf15b5563b0e4e74281d7",
+        "35fab305cb378024665a0d4dbfb9e492648c8b6703042d5d8444f557ebad1baa"
       ],
-      "expectedComponentDigestRootHex" : "4cdf9f9080d1eccc5aeb72fa98e356b03dfc2b1b2ab139254219c0aeb3d97cfa",
+      "expectedComponentDigestRootHex" : "69c89743acec86009177b7d43b287c13ce5207432ccda26aecec11add48479d8",
       "expectedKeySeedUTF8" : "SuperNeoNumiSeal.vector.two-lane.key.v1",
-      "expectedLaneSummaryRootHex" : "132a9b6b8ce89b53dc888f5f4dc6b94c9b46c00f1468dde2b06df5ddcbb33622",
-      "expectedObligationRootHex" : "3d77f26d4cb1e4b647f6a7952ecd858154abb129cf67caf20d55331725413b7d",
-      "expectedProofTranscriptDigestHex" : "955c8272e83b85480e31f5e43995003e11038cca388196fcd310be41b038381a",
-      "expectedPublicStatementDigestHex" : "bda2cbddabd322d76ee54cd2858c21907d951a76bfc3ecb8c34c0c8be0f203f0",
+      "expectedLaneSummaryRootHex" : "96f69e980a11bdfb588848789973ef75fa940662688301d5e110b452423347dd",
+      "expectedObligationRootHex" : "dbbdfeac6b48f82ffb927bc2caf30d36baeade231f33cdcbc8f43ccd5cd55225",
+      "expectedProofTranscriptDigestHex" : "15bea93204f8188e8135b521007a416e3bf2d447a723577bb90eab1243153161",
+      "expectedPublicStatementDigestHex" : "af393e9ae47d7ac97922eeafe68378c8b4fa75bb557b75dbe90a121efb092e99",
       "expectedShapeDigestHex" : "31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e",
       "expectedStatementDigestHex" : "9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e",
       "expectedTranscriptDomainHex" : "018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de",
@@ -70,8 +70,8 @@
       "proofKind" : "numiseal-terminal",
       "publicClaim" : "two direct digit-commitment immediate-residual NumiSeal aggregates across two accepted lanes",
       "residualMode" : "immediate",
-      "sha256" : "291cdf75cfaa95c016c04f7104ae9cab46cb5233c7209cda5e6c5aa7530f8cc0",
-      "verifyCommand" : "swift run superneo verify --require-numiseal --key-seed SuperNeoNumiSeal.vector.two-lane.key.v1 --expected-verifier-key-digest 4e431c30d8c5e5d230bbe3d6af39dbb75430ef4365a11a145185661865a19911 --expected-shape-digest 31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e --expected-statement-digest 9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e --expected-transcript-domain-digest 018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de --expected-public-statement-digest bda2cbddabd322d76ee54cd2858c21907d951a76bfc3ecb8c34c0c8be0f203f0 --expected-obligation-root 3d77f26d4cb1e4b647f6a7952ecd858154abb129cf67caf20d55331725413b7d --expected-lane-summary-root 132a9b6b8ce89b53dc888f5f4dc6b94c9b46c00f1468dde2b06df5ddcbb33622 --expected-aggregate-digests 224a5383ac09e17337620a563c66af0642ec84be8e25b9fd28a5524f1ca9327c,7bf84a283d11b140d6750118802960e3d1427ae0120e21b6938e486550175e31 --expected-component-digest-root 4cdf9f9080d1eccc5aeb72fa98e356b03dfc2b1b2ab139254219c0aeb3d97cfa --expected-proof-transcript-digest 955c8272e83b85480e31f5e43995003e11038cca388196fcd310be41b038381a --expected-public-inputs 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 TestVectors\/numiseal-terminal-two-lane-v1.json",
+      "sha256" : "f399c6e8d183cf3b778ee9c6e867c8334db9bfea53200e19705c1162bd412ddf",
+      "verifyCommand" : "swift run superneo verify --require-numiseal --key-seed SuperNeoNumiSeal.vector.two-lane.key.v1 --expected-verifier-key-digest 4e431c30d8c5e5d230bbe3d6af39dbb75430ef4365a11a145185661865a19911 --expected-shape-digest 31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e --expected-statement-digest 9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e --expected-transcript-domain-digest 018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de --expected-public-statement-digest af393e9ae47d7ac97922eeafe68378c8b4fa75bb557b75dbe90a121efb092e99 --expected-obligation-root dbbdfeac6b48f82ffb927bc2caf30d36baeade231f33cdcbc8f43ccd5cd55225 --expected-lane-summary-root 96f69e980a11bdfb588848789973ef75fa940662688301d5e110b452423347dd --expected-aggregate-digests eb3b4b7ce0ad4b7040ca31a80aed306f0dfcf43f53cdf15b5563b0e4e74281d7,35fab305cb378024665a0d4dbfb9e492648c8b6703042d5d8444f557ebad1baa --expected-component-digest-root 69c89743acec86009177b7d43b287c13ce5207432ccda26aecec11add48479d8 --expected-proof-transcript-digest 15bea93204f8188e8135b521007a416e3bf2d447a723577bb90eab1243153161 --expected-public-inputs 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 TestVectors\/numiseal-terminal-two-lane-v1.json",
       "workload" : "numiseal-terminal-two-lane-v1"
     }
   ]

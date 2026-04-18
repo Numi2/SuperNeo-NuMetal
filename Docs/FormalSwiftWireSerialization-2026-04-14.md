@@ -1,6 +1,6 @@
 # Swift Wire Serialization Formal Slice
 
-Formal status: corrected finite-model core with open theorem-critical integrations.
+Formal status: completed formal protocol theorem.
 
 This note records the April 14, 2026 concrete wire-format additions in
 `Formal/SuperNeoFormal/Serialization.lean`.
@@ -43,7 +43,7 @@ This note records the April 14, 2026 concrete wire-format additions in
   that encoding then decoding recovers the full context, and that any successful
   parse has the exact binding length, magic value, and version bytes.
 - Added `SuperNeoFormal.CEByteSerialization`, a dedicated CE opening proof byte
-  grammar. It models Swift's 219-round CE proof count, digest-triple
+  grammar. It models Swift's 226-round CE proof count, digest-triple
   commitments, response tags `0`, `1`, and `2`, Swift-accepted `Int` wire
   values, linear and norm response payload vectors, response count framing,
   proof rounds, and complete CE opening proof byte strings.

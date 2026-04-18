@@ -248,7 +248,7 @@ def validate_docs() -> None:
         [
             "`artifactVersion = 1`",
             "`manifestVersion = 1`",
-            "`ProofEnvelopeHeader.version = 4`",
+            "`ProofEnvelopeHeader.version = 5`",
             "`numiseal-test-vector-artifact-v1.json`",
             "`test-vector-artifact-v1.json`",
             "TestVectors/numiseal-conformance-scope-v1.json",
@@ -376,6 +376,10 @@ def validate_schema_versions() -> None:
         conformance_scope.get("zkMaskDistributionEvidence") == "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
         "NumiSeal conformance scope must link the mask-distribution evidence",
     )
+    require(
+        conformance_scope.get("zkSimulatorCouplingEvidence") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+        "NumiSeal conformance scope must link the simulator-coupling evidence",
+    )
     legacy_review_flag = "external" + "AuditRequired"
     require(legacy_review_flag not in conformance_scope, "NumiSeal conformance scope must not carry review-gate flags")
     theorem_scope = read_json("TestVectors/numiseal-end-to-end-theorem-scope-v1.json")
@@ -388,6 +392,10 @@ def validate_schema_versions() -> None:
     require(
         theorem_scope.get("zkMaskDistributionEvidence") == "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
         "NumiSeal theorem scope must link the mask-distribution evidence",
+    )
+    require(
+        theorem_scope.get("zkSimulatorCouplingEvidence") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+        "NumiSeal theorem scope must link the simulator-coupling evidence",
     )
     formal_model = theorem_scope.get("formalModel")
     require(isinstance(formal_model, dict), "NumiSeal end-to-end theorem formalModel must be an object")
@@ -439,6 +447,19 @@ def validate_schema_versions() -> None:
         mask_promotion.get("productionZKPrivacyClaimAllowed") is False,
         "NumiSealZK mask evidence must not prematurely allow production privacy claims",
     )
+    simulator_evidence = read_json("TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json")
+    require(isinstance(simulator_evidence, dict), "NumiSealZK simulator-coupling evidence root must be an object")
+    require(simulator_evidence.get("schemaVersion") == 1, "NumiSealZK simulator-coupling evidence schemaVersion must be 1")
+    require(
+        simulator_evidence.get("claimStatus") == "proof-level-simulator-coupling-instantiated-not-production-zk-privacy",
+        "NumiSealZK simulator-coupling evidence claimStatus must stay precise",
+    )
+    proof_level = simulator_evidence.get("proofLevelSimulatorCoupling")
+    require(isinstance(proof_level, dict), "NumiSealZK simulator-coupling proofLevelSimulatorCoupling must be an object")
+    require(
+        proof_level.get("exactUpperBound") == "0" and proof_level.get("lossInstantiated") is True,
+        "NumiSealZK simulator-coupling evidence must instantiate epsilon_zk_sim as zero",
+    )
     product_dossier = read_json("TestVectors/product-crypto-security-dossier-v1.json")
     require(isinstance(product_dossier, dict), "product crypto security dossier root must be an object")
     require(product_dossier.get("schemaVersion") == 1, "product crypto security dossier schemaVersion must be 1")
@@ -483,6 +504,10 @@ def validate_schema_versions() -> None:
     require(
         dossier_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
         "product crypto security dossier must link release distribution evidence",
+    )
+    require(
+        dossier_related.get("numiSealZKSimulatorCouplingEvidence") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+        "product crypto security dossier must link ZK simulator-coupling evidence",
     )
     dossier_depth = product_dossier.get("supportedProductDepth")
     require(isinstance(dossier_depth, dict), "product crypto security dossier supportedProductDepth must be an object")
@@ -556,10 +581,27 @@ def validate_schema_versions() -> None:
         "selected-depth loss-accounting must not prematurely allow product-security loss claims",
     )
     blockers = selected_depth_loss.get("hardClaimBlockers")
-    require(isinstance(blockers, list) and len(blockers) == 7, "selected-depth loss-accounting must pin seven hard blockers")
+    require(isinstance(blockers, list) and len(blockers) == 5, "selected-depth loss-accounting must pin five hard blockers")
+    blockers_text = " ".join(str(item) for item in blockers).lower()
+    for needle in [
+        "selected-depth extractor",
+        "selected total-loss",
+        "hosted product operations",
+        "release signing",
+        "constant-time",
+    ]:
+        require(needle in blockers_text, f"selected-depth loss-accounting blockers must mention {needle}")
     require(
-        "underlying interactive security bounds outside the QROM compiler-overhead term" in blockers,
-        "selected-depth loss-accounting must keep only the underlying QROM interactive-security blocker",
+        "finite-protocol" not in blockers_text,
+        "selected-depth loss-accounting must not keep the closed finite-protocol selected-route blocker",
+    )
+    require(
+        "full zk simulator" not in blockers_text,
+        "selected-depth loss-accounting must not keep the closed ZK simulator blocker",
+    )
+    require(
+        "underlying interactive security bounds outside the qrom compiler-overhead term" not in blockers_text,
+        "selected-depth loss-accounting must not keep the closed QROM interactive-security blocker",
     )
     selected_related = selected_depth_loss.get("relatedManifests")
     require(isinstance(selected_related, dict), "selected-depth loss-accounting relatedManifests must be an object")
@@ -596,8 +638,16 @@ def validate_schema_versions() -> None:
         "selected-depth loss-accounting must link total-loss budget",
     )
     require(
+        selected_related.get("productFiniteProtocolLossObstruction") == "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
+        "selected-depth loss-accounting must link finite-protocol loss obstruction evidence",
+    )
+    require(
         selected_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
         "selected-depth loss-accounting must link release distribution evidence",
+    )
+    require(
+        selected_related.get("numiSealZKSimulatorCouplingEvidence") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+        "selected-depth loss-accounting must link ZK simulator-coupling evidence",
     )
     extractor_loss = read_json("TestVectors/product-extractor-loss-accounting-v1.json")
     require(isinstance(extractor_loss, dict), "extractor loss-accounting root must be an object")
@@ -855,8 +905,8 @@ def validate_schema_versions() -> None:
         "requiresUnderlyingInteractiveSecurity",
     ]:
         require(
-            precondition_promotion.get(key) is True,
-            f"QROM transform preconditions must keep {key} open",
+            precondition_promotion.get(key) is False,
+            f"QROM transform preconditions must consume {key}",
         )
     for key in [
         "requiresDelayedMessageData",
@@ -918,6 +968,10 @@ def validate_schema_versions() -> None:
     protocol_model = qrom_reduction.get("productProtocolModel")
     require(isinstance(protocol_model, dict), "QROM interactive reduction productProtocolModel must be an object")
     require(
+        protocol_model.get("allInteractiveSecurityBoundsInstantiated") is True,
+        "QROM interactive reduction must instantiate per-kind interactive security bounds",
+    )
+    require(
         protocol_model.get("allUniformityProofsInstantiated") is True,
         "QROM interactive reduction must consume sampler uniformity evidence",
     )
@@ -947,8 +1001,8 @@ def validate_schema_versions() -> None:
         "QROM interactive reduction must consume CTCO root commitment implementation evidence",
     )
     require(
-        reduction_promotion.get("requiresInteractiveSecurityBounds") is True,
-        "QROM interactive reduction must keep requiresInteractiveSecurityBounds open",
+        reduction_promotion.get("requiresInteractiveSecurityBounds") is False,
+        "QROM interactive reduction must consume requiresInteractiveSecurityBounds",
     )
     for key in [
         "requiresDelayedMessageData",
@@ -1004,8 +1058,16 @@ def validate_schema_versions() -> None:
         "total-loss budget must link QROM interactive reduction",
     )
     require(
+        total_related.get("productFiniteProtocolLossObstruction") == "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
+        "total-loss budget must link finite-protocol loss obstruction evidence",
+    )
+    require(
         total_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
         "total-loss budget must link release distribution evidence",
+    )
+    require(
+        total_related.get("numiSealZKSimulatorCouplingEvidence") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+        "total-loss budget must link ZK simulator-coupling evidence",
     )
     release_distribution = read_json("TestVectors/product-release-distribution-evidence-v1.json")
     require(isinstance(release_distribution, dict), "release distribution evidence root must be an object")
@@ -1155,7 +1217,7 @@ def validate_schema_versions() -> None:
     serialization = read_text("SuperNeo-NuMetal/SuperNeoSerialization.swift")
     header_version = re.search(r"public\s+static\s+let\s+version:\s*UInt16\s*=\s*(\d+)", serialization)
     require(header_version is not None, "ProofEnvelopeHeader.version declaration not found")
-    require(header_version.group(1) == "4", "ProofEnvelopeHeader.version must remain 4 until compatibility docs are updated")
+    require(header_version.group(1) == "5", "ProofEnvelopeHeader.version must remain 5 for the selected repeated-tape profile")
     numiseal_kind = re.search(r"case\s+numiSealTerminal\s*=\s*(\d+)", serialization)
     require(numiseal_kind is not None, "ProofEnvelopeKind.numiSealTerminal raw value not found")
     require(numiseal_kind.group(1) == "4", "ProofEnvelopeKind.numiSealTerminal must remain kind 4 until compatibility docs are updated")

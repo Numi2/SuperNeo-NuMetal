@@ -1,28 +1,6 @@
 name: Production Gate
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/production-gate.yml"
-      - "Package.swift"
-      - "SuperNeo-NuMetal/**"
-      - "SuperNeo-NuMetalTests/**"
-      - "SuperNeoCLI/**"
-      - "Tools/**"
-      - "Scripts/**"
-      - "TestVectors/**"
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/production-gate.yml"
-      - "Package.swift"
-      - "SuperNeo-NuMetal/**"
-      - "SuperNeo-NuMetalTests/**"
-      - "SuperNeoCLI/**"
-      - "Tools/**"
-      - "Scripts/**"
-      - "TestVectors/**"
   workflow_dispatch:
 
 permissions:

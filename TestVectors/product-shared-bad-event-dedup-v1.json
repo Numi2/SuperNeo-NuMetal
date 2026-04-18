@@ -72,8 +72,8 @@
     "productionProductSecurityClaimAllowed": false,
     "productionQROMClaimAllowed": false,
     "requiresSharedBadEventDeduplication": false,
-    "requiresInteractiveSecurityBounds": true,
-    "requiresZKSimulatorComposition": true,
+    "requiresInteractiveSecurityBounds": false,
+    "requiresZKSimulatorComposition": false,
     "requiresRemainingTotalLossTerms": true
   }
 }

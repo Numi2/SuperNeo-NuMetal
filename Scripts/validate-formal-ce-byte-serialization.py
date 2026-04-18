@@ -108,8 +108,8 @@ def main() -> None:
 
     require_regex(
         lean_ce,
-        r"def\s+ceOpeningProofRoundCount\s*:\s*Nat\s*:=\s*219",
-        "Lean CE proof round count must be 219",
+        r"def\s+ceOpeningProofRoundCount\s*:\s*Nat\s*:=\s*226",
+        "Lean CE proof round count must be 226",
     )
     require_regex(
         lean_ce,
@@ -152,13 +152,13 @@ def main() -> None:
         r"def\s+ceOpeningProofWireEncode.*"
         r"natCount64Encode\s+ceOpeningProofRoundCount\s+\(by native_decide\)\s*\+\+\s*"
         r"finVectorEncode\s*\n\s*\(ceOpeningProofRoundWireEncode",
-        "Lean CE proof encoder must prefix the exact 219-round count before rounds",
+        "Lean CE proof encoder must prefix the exact 226-round count before rounds",
     )
 
     require_regex(
         swift_protocols,
-        r"public\s+static\s+let\s+roundCount\s*=\s*219",
-        "Swift CEOpeningProof roundCount must be 219",
+        r"public\s+static\s+let\s+roundCount\s*=\s*226",
+        "Swift CEOpeningProof roundCount must be 226",
     )
     require_regex(
         swift_serialization,

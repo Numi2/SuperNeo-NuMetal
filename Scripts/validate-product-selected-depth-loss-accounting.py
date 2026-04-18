@@ -31,6 +31,7 @@ EXPECTED_MANIFESTS = {
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "numiSealConformanceScope": "TestVectors/numiseal-conformance-scope-v1.json",
     "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+    "numiSealZKSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
     "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
@@ -43,6 +44,7 @@ EXPECTED_MANIFESTS = {
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
+    "productFiniteProtocolLossObstruction": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json",
 }
@@ -96,9 +98,7 @@ EXPECTED_COMPONENT_IDS = [
 
 EXPECTED_BLOCKERS = [
     "selected-depth extractor instantiation",
-    "underlying interactive security bounds outside the QROM compiler-overhead term",
     "selected total-loss budget instantiation",
-    "full ZK simulator composition",
     "hosted product operations replay and revocation freshness",
     "release signing and notarization",
     "complete CPU/Swift/LLVM/Metal constant-time evidence closure",
@@ -215,6 +215,10 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         dossier_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
         "product crypto security dossier must link release distribution evidence",
     )
+    require(
+        dossier_related.get("numiSealZKSimulatorCouplingEvidence") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+        "product crypto security dossier must link ZK simulator-coupling evidence",
+    )
     total_budget = read_json(ROOT / EXPECTED_MANIFESTS["productTotalLossBudget"])
     total_related = require_dict(total_budget.get("relatedManifests"), "productTotalLossBudget.relatedManifests")
     require(
@@ -238,12 +242,26 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         "total loss budget must link sampler/encoding evidence",
     )
     require(
+        total_related.get("numiSealZKSimulatorCouplingEvidence") == "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+        "total loss budget must link ZK simulator-coupling evidence",
+    )
+    require(
         total_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
         "total loss budget must link collision/malleability evidence",
     )
     require(
+        total_related.get("productFiniteProtocolLossObstruction") == "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
+        "total loss budget must link finite-protocol loss obstruction evidence",
+    )
+    require(
         total_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
         "total loss budget must link release distribution evidence",
+    )
+    finite_loss = read_json(ROOT / EXPECTED_MANIFESTS["productFiniteProtocolLossObstruction"])
+    finite_related = require_dict(finite_loss.get("relatedManifests"), "productFiniteProtocolLossObstruction.relatedManifests")
+    require(
+        finite_related.get("selectedDepthLossAccounting") == "TestVectors/product-selected-depth-loss-accounting-v1.json",
+        "finite-protocol loss obstruction evidence must link selected-depth loss accounting",
     )
     release_distribution = read_json(ROOT / EXPECTED_MANIFESTS["productReleaseDistributionEvidence"])
     release_related = require_dict(release_distribution.get("relatedManifests"), "productReleaseDistributionEvidence.relatedManifests")
@@ -362,6 +380,33 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
             evidence = require_string(component.get("requiredEvidence"), "shared-cryptographic-core.requiredEvidence")
             for needle in ["product-shared-bad-event-dedup-v1.json", "2^-129", "Module-SIS"]:
                 require(needle in evidence, f"shared-cryptographic-core requiredEvidence must mention {needle}")
+        if component_id in {"source-fold-knowledge", "terminal-numiseal-seal"}:
+            require(
+                component.get("status") == "finite-protocol-repeated-tape-bound-instantiated",
+                f"{component_id} status must record selected repeated-tape finite-protocol instantiation",
+            )
+            require(
+                component.get("accountingManifest") == "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
+                f"{component_id} must link finite-protocol loss obstruction evidence",
+            )
+            require_relative_path(component.get("accountingManifest"), f"{component_id}.accountingManifest")
+            evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
+            for needle in ["product-finite-protocol-loss-obstruction-v1.json", "finite-protocol", "2^-128"]:
+                require(needle in evidence, f"{component_id} requiredEvidence must mention {needle}")
+            if component_id == "terminal-numiseal-seal":
+                require(
+                    "terminal CE is pinned at 226 repeated challenge rounds" in evidence
+                    and "fixed-kind CTCO repeated-tape" in evidence
+                    and "(2/3)^226" in evidence,
+                    "terminal-numiseal-seal evidence must pin terminal CE repeated challenge closure",
+                )
+            if component_id == "source-fold-knowledge":
+                require(
+                    "fixed-kind CTCO repeated-tape" in evidence
+                    and "16/q^4 + 1/5^81" in evidence,
+                    "source-fold evidence must pin the fixed-kind repeated-tape closure route",
+                )
+                require("PiRLC/PiCCS" in evidence, "source-fold evidence must name the PiRLC/PiCCS repeated route")
         if component_id == "extractor-instantiation":
             require(
                 component.get("accountingManifest") == "TestVectors/product-extractor-loss-accounting-v1.json",
@@ -383,8 +428,23 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "TestVectors/product-qrom-interactive-reduction-v1.json" in evidence,
                 "fiat-shamir-qrom requiredEvidence must link QROM interactive reduction",
             )
-            for needle in ["CTCO", "384-bit H_bind", "epsilon_compiler_overhead = 0", "exact finite-probability wiring"]:
+            for needle in ["CTCO", "384-bit H_bind", "ProductPerKindInteractiveSecurityEvidence", "epsilon_compiler_overhead = 0", "exact finite-probability wiring"]:
                 require(needle in evidence, f"fiat-shamir-qrom requiredEvidence must mention {needle}")
+        if component_id == "zk-simulator-composition":
+            require(
+                component.get("status") == "proof-level-simulator-coupling-instantiated-production-side-channel-gated",
+                "zk-simulator-composition status mismatch",
+            )
+            evidence = require_string(component.get("requiredEvidence"), "zk-simulator-composition.requiredEvidence")
+            for needle in [
+                "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
+                "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
+                "declared leakage model",
+            ]:
+                require(needle in evidence, f"zk-simulator-composition requiredEvidence must mention {needle}")
+            rule = require_string(component.get("accountingRule"), "zk-simulator-composition.accountingRule")
+            for needle in ["epsilon_zk_sim = 0", "fresh randomness-session", "mask-reuse rejection", "epsilon_ct"]:
+                require(needle in rule, f"zk-simulator-composition accountingRule must mention {needle}")
         if component_id == "transcript-collision-domain-separation":
             require(
                 component.get("accountingManifest") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
@@ -471,6 +531,10 @@ def validate_docs_and_gate() -> None:
     require(
         "run_step Scripts/validate-product-shared-bad-event-dedup.py" in gate,
         "production gate must run shared bad-event dedup validator",
+    )
+    require(
+        "run_step Scripts/validate-product-finite-protocol-loss-obstruction.py" in gate,
+        "production gate must run finite-protocol loss obstruction validator",
     )
 
 

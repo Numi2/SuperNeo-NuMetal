@@ -253,12 +253,12 @@ swift run superneo verify \
   --expected-shape-digest 31c29845341f90a02918b6693f671751b0d5416e05412d4d7b6ff1eab687fb9e \
   --expected-statement-digest 9a8a92e65a81372c4be1b6a853c4fb6417011de99fa1167fae0948e0d20e451e \
   --expected-transcript-domain-digest 018865fb07dbefdbbf9764906781d45b20b36d72ed36c2a13c827e585c7be9de \
-  --expected-public-statement-digest 55e4126528542197ddcb2076bff2f1beec09e731a4e788fd173ababb72df56e6 \
-  --expected-obligation-root ee6178537ce024cdceed53ddf66757ef9819d41e80fa51839312b2835958e9c6 \
-  --expected-lane-summary-root 3c5e225a02db3033af400ac9d83b40ac48400ef61ac71e4c1a01de07309d7402 \
-  --expected-aggregate-digests 70909d6e08b431e1c0d5d29f4250101edc46bac66c8b2ab75caf00b5933632ac \
-  --expected-component-digest-root 7c2dd06c0ba0fede11b2bb65af6e93cbcdeeac053a50c879c19d16d5d6555e3d \
-  --expected-proof-transcript-digest 45497f0235bed172aa5a008baccfda3942c511c11cd56ae88410dd466776686f \
+  --expected-public-statement-digest 2807ca20ac8b4cf3c4456ad6c7b364bd6817f82d23336b0da22d9cf38a70a990 \
+  --expected-obligation-root 5494e62d9f580f10ae803729ce6ef28370e46d9a501edaf90c6b6f0a0ad27554 \
+  --expected-lane-summary-root cd89315cd0a0ec294579e46409c740761805a2297dbfc9149a0963b34b0b56f5 \
+  --expected-aggregate-digests b4db3fcf2b1a23ab6d47f3e7c3d3f9044662e723c141f83134665f189ebfe3b5 \
+  --expected-component-digest-root 533869a4e005a142659d528193f56535840dc50bb608af91631365cc1a96ab79 \
+  --expected-proof-transcript-digest 96c6bafca5f1b278e69f3d740afba96a9e927def9bd87b5819cda8b0783962cc \
   --expected-public-inputs 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 \
   TestVectors/numiseal-terminal-single-aggregate-v1.json
 ```

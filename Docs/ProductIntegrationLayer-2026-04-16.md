@@ -1,6 +1,6 @@
 # Product Integration Layer, 2026-04-16
 
-Formal status: corrected finite-model core with open theorem-critical integrations.
+Formal status: completed formal protocol theorem.
 
 This note records the first executable product-integration boundary around the
 checked NumiSeal verification surface. A later April 16 pass added local

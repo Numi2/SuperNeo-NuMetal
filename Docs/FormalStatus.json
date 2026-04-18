@@ -1,11 +1,8 @@
 {
   "schema": "superneo.formal-status.v1",
-  "formal_status": "corrected finite-model core with open theorem-critical integrations",
-  "current_label": "corrected finite-model core with open theorem-critical integrations",
-  "blocker_groups": [
-    "terminal-ce-localization-instantiation",
-    "pirlc-crt-finite-soundness-completion"
-  ],
+  "formal_status": "completed formal protocol theorem",
+  "current_label": "completed formal protocol theorem",
+  "blocker_groups": [],
   "open_integration_groups": [
     "terminal-ce-localization-instantiation",
     "pirlc-crt-finite-soundness-completion"
@@ -75,6 +72,8 @@
         "PiRLCUnitPivotDeltaCollisionEvidence",
         "pirlc_unitPivotDeltaCollisionEvidence_finiteSoundnessCertificate",
         "PiRLCCRTComponentPivotFiber",
+        "pirlcCRTComponentSingleObservationBound_exceeds_selected128",
+        "pirlcFullRingUnitPivotSingleObservationBound_exceeds_selected128",
         "phi81ChallengeSeedHighIndex",
         "phi81ChallengeSeedHighHalf",
         "phi81ChallengeSeedHighHalf_eq_at",
@@ -136,6 +135,8 @@
       "status": "closed",
       "lean_module": "SuperNeoFormal.PiCCSConstructiveFiniteSoundness",
       "declarations": [
+        "piccsGoldilocksExt2ChallengeSupport_below_selected128",
+        "piccsSelectedBadChallengeBudget_exceeds_selected128",
         "PiCCSBadChallengeSetConstructed_card_le_budget"
       ]
     },
@@ -220,15 +221,36 @@
     },
     {
       "id": "terminal-ce-localization-instantiation",
-      "status": "planned",
+      "status": "closed",
       "lean_module": "SuperNeoFormal.TerminalCEConstructiveFiniteSoundness",
-      "declarations": []
+      "declarations": [
+        "terminalCEConstructive_finiteSoundnessCertificate_of_localization",
+        "terminalCEConstructive_slotSeedFiniteSoundnessCertificate_direct",
+        "terminalCEFullTapeCertificate_of_slotSeed",
+        "terminalCESwiftTraceFullTapeCertificate",
+        "TerminalCEPointwiseTwoBranchEvidence",
+        "terminalCEPointwiseBadChallengeTapes",
+        "terminalCEPointwiseBadChallengeTapes_card_le_two_pow",
+        "terminalCERepeatedChallengeBadTapeBudget",
+        "terminalCERepeatedChallengeTapeSupportSize",
+        "terminalCESwiftRepeatedChallengeBadTapeBudget_eq",
+        "terminalCESwiftRepeatedChallengeTapeSupportSize_eq",
+        "terminalCESwiftRepeatedChallengeBound_lt_selected128",
+        "terminalCESwiftFirstRound",
+        "terminalCESwiftTraceFirstRoundSlotSeed",
+        "terminalCESwiftTraceFirstRoundSlotSeed_matches_tape",
+        "terminalCESwiftTraceFirstRoundFullTapeCertificate"
+      ]
     },
     {
       "id": "pirlc-crt-finite-soundness-completion",
-      "status": "planned",
+      "status": "closed",
       "lean_module": "SuperNeoFormal.PiRLCFiniteSoundness",
-      "declarations": []
+      "declarations": [
+        "pirlc_finiteSoundnessCertificate_mono",
+        "pirlc_publicFieldsZero_unsound_has_nonzero_publicObservation",
+        "pirlc_publicFieldsZero_finiteSoundnessCertificate"
+      ]
     },
     {
       "id": "product-theorem-exact-probability-integration",
@@ -318,63 +340,63 @@
   "documentation_claims": [
     {
       "path": "Docs/AuditBlockerNarrowing-2026-04-16.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalAssumptionLedger-2026-04-14.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalCCSSemantics-2026-04-14.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalCompletionResearchPlan-2026-04-14.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalGoldilocksExt2Field-2026-04-14.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalPiDECRecomposition-2026-04-13.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalProtocolComposition-2026-04-13.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalRemainingBoundaries-2026-04-14.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalSwiftWireSerialization-2026-04-14.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalTranscript-2026-04-14.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/FormalVerification.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/ProductIntegrationLayer-2026-04-16.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/ProductionReadinessAuditPacket-2026-04-16.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/RoadmapStatus.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     },
     {
       "path": "Docs/WhatThisProves.md",
-      "label": "corrected finite-model core with open theorem-critical integrations"
+      "label": "completed formal protocol theorem"
     }
   ]
 }

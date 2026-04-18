@@ -54,12 +54,22 @@ def main() -> None:
     expect_failure(
         "wrong claim",
         lambda manifest: manifest.__setitem__("claimStatus", "production-zk-privacy"),
-        "claimStatus must stay fail-closed",
+        "claimStatus must stay proof-level and non-production",
+    )
+    expect_failure(
+        "missing formal surface",
+        lambda manifest: manifest.pop("formalSurface"),
+        "formalSurface must be an object",
     )
     expect_failure(
         "wrong digest key",
         lambda manifest: manifest["couplingSurface"].__setitem__("metadataDigestKey", "legacyDigest"),
         "metadata digest key mismatch",
+    )
+    expect_failure(
+        "nonzero simulator loss",
+        lambda manifest: manifest["proofLevelSimulatorCoupling"].__setitem__("exactUpperBound", "1/2^256"),
+        "proof-level simulator loss must be exactly zero",
     )
     expect_failure(
         "missing benchmark row",
@@ -70,6 +80,14 @@ def main() -> None:
         "premature promotion",
         lambda manifest: manifest["promotionRule"].__setitem__("productionZKPrivacyClaimAllowed", True),
         "productionZKPrivacyClaimAllowed must be false",
+    )
+    expect_failure(
+        "reopened epsilon zk sim",
+        lambda manifest: manifest["promotionRule"].__setitem__(
+            "remainingBoundaries",
+            ["selected total-loss promotion remains disabled until epsilon_zk_sim is instantiated"],
+        ),
+        "epsilon_zk_sim must not remain a simulator-coupling boundary",
     )
     print("NumiSealZK simulator-coupling evidence validation regression tests passed")
 

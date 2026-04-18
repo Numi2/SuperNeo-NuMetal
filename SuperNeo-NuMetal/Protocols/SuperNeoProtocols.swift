@@ -42,6 +42,32 @@ public struct PiDECSection: Equatable, Sendable {
     }
 }
 
+public struct PiRLCBranch: Equatable, Sendable {
+    public let piRLC: PiRLCSection
+    public let piDEC: PiDECSection
+
+    public init(piRLC: PiRLCSection, piDEC: PiDECSection) {
+        self.piRLC = piRLC
+        self.piDEC = piDEC
+    }
+
+    public var challenges: [CyclotomicRing54] {
+        piRLC.challenges
+    }
+
+    public var foldedClaim: CCSEvaluationClaim {
+        piRLC.foldedClaim
+    }
+
+    public var decomposition: DecompositionProof {
+        piDEC.decomposition
+    }
+
+    public var outputClaims: [CCSEvaluationClaim] {
+        piDEC.outputClaims
+    }
+}
+
 public struct FoldStepProof: Equatable, Sendable {
     public let piCCS: PiCCSSection
     public let piRLC: PiRLCSection
@@ -59,12 +85,17 @@ public struct FoldStepProof: Equatable, Sendable {
 }
 
 public struct FoldProof: Equatable, Sendable {
+    public static let selectedPiCCSTapeCount = 2
+    public static let selectedPiRLCBranchCount = 3
+
     public let sumCheck: SumcheckProof
     public let randomLinearCombinationChallenges: [CyclotomicRing54]
     public let piCCSClaims: [CCSEvaluationClaim]
     public let foldedClaim: CCSEvaluationClaim
     public let decomposition: DecompositionProof
     public let outputClaims: [CCSEvaluationClaim]
+    public let auxiliaryPiCCSTapes: [PiCCSSection]
+    public let auxiliaryPiRLCBranches: [PiRLCBranch]
 
     public init(
         sumCheck: SumcheckProof,
@@ -72,7 +103,9 @@ public struct FoldProof: Equatable, Sendable {
         piCCSClaims: [CCSEvaluationClaim],
         foldedClaim: CCSEvaluationClaim,
         decomposition: DecompositionProof,
-        outputClaims: [CCSEvaluationClaim]
+        outputClaims: [CCSEvaluationClaim],
+        auxiliaryPiCCSTapes: [PiCCSSection] = [],
+        auxiliaryPiRLCBranches: [PiRLCBranch] = []
     ) {
         self.sumCheck = sumCheck
         self.randomLinearCombinationChallenges = randomLinearCombinationChallenges
@@ -80,16 +113,26 @@ public struct FoldProof: Equatable, Sendable {
         self.foldedClaim = foldedClaim.publicDataOnly
         self.decomposition = decomposition
         self.outputClaims = outputClaims.map(\.publicDataOnly)
+        self.auxiliaryPiCCSTapes = auxiliaryPiCCSTapes
+        self.auxiliaryPiRLCBranches = auxiliaryPiRLCBranches
     }
 
-    public init(piCCS: PiCCSSection, piRLC: PiRLCSection, piDEC: PiDECSection) {
+    public init(
+        piCCS: PiCCSSection,
+        piRLC: PiRLCSection,
+        piDEC: PiDECSection,
+        auxiliaryPiCCSTapes: [PiCCSSection] = [],
+        auxiliaryPiRLCBranches: [PiRLCBranch] = []
+    ) {
         self.init(
             sumCheck: piCCS.sumCheck,
             randomLinearCombinationChallenges: piRLC.challenges,
             piCCSClaims: piCCS.finalClaims,
             foldedClaim: piRLC.foldedClaim,
             decomposition: piDEC.decomposition,
-            outputClaims: piDEC.outputClaims
+            outputClaims: piDEC.outputClaims,
+            auxiliaryPiCCSTapes: auxiliaryPiCCSTapes,
+            auxiliaryPiRLCBranches: auxiliaryPiRLCBranches
         )
     }
 
@@ -103,6 +146,23 @@ public struct FoldProof: Equatable, Sendable {
 
     public var piDEC: PiDECSection {
         PiDECSection(decomposition: decomposition, outputClaims: outputClaims)
+    }
+
+    public var canonicalPiRLCBranch: PiRLCBranch {
+        PiRLCBranch(piRLC: piRLC, piDEC: piDEC)
+    }
+
+    public var piCCSTapes: [PiCCSSection] {
+        [piCCS] + auxiliaryPiCCSTapes
+    }
+
+    public var piRLCBranches: [PiRLCBranch] {
+        [canonicalPiRLCBranch] + auxiliaryPiRLCBranches
+    }
+
+    public var usesSelectedRepeatedTapeProfile: Bool {
+        piCCSTapes.count == Self.selectedPiCCSTapeCount
+            && piRLCBranches.count == Self.selectedPiRLCBranchCount
     }
 
     public var stepProof: FoldStepProof {
@@ -394,7 +454,7 @@ public struct CEOpeningProofRound: Equatable, Sendable {
 }
 
 public struct CEOpeningProof: Equatable, Sendable {
-    public static let roundCount = 219
+    public static let roundCount = 226
     @available(*, unavailable, renamed: "roundCount", message: "CE opening proofs are canonical and must contain exactly roundCount rounds.")
     public static let minimumRoundCount = roundCount
     public let rounds: [CEOpeningProofRound]
@@ -1519,39 +1579,77 @@ public final class SuperNeoProver: @unchecked Sendable {
         let compiledShape = preparedContext.compiledShape
         let metalWorkspace = preparedContext.metalWorkspace
 
-        var transcript = makeFoldTranscript(input: input, transcriptSeed: transcriptSeed)
-        let sumCheck = try SuperNeoBenchmarkSignpost.measure("sumcheck") {
-            try makeSumCheckProof(input: input, compiledShape: compiledShape, transcript: &transcript)
+        let piCCSTapeMaterials = try SuperNeoBenchmarkSignpost.measure("piCCSRepeatedTapes") {
+            try (0..<FoldProof.selectedPiCCSTapeCount).map { tapeIndex -> (section: PiCCSSection, claimsWithWitness: [CCSEvaluationClaim]) in
+                let label = FoldRepeatedTapeLabel.piCCS(tapeIndex)
+                var transcript = makeFoldTranscript(
+                    input: input,
+                    transcriptSeed: repeatedTapeSeed(base: transcriptSeed, label: label),
+                    tapeLabel: label
+                )
+                let sumCheck = try makeSumCheckProof(
+                    input: input,
+                    compiledShape: compiledShape,
+                    transcript: &transcript
+                )
+                let piCCSClaims = try makePiCCSOutputClaims(
+                    input: input,
+                    point: sumCheck.finalPoint,
+                    compiledShape: compiledShape,
+                    metalWorkspace: metalWorkspace
+                )
+                return (
+                    PiCCSSection(sumCheck: sumCheck, finalClaims: piCCSClaims),
+                    piCCSClaims
+                )
+            }
         }
-        let piCCSClaims = try SuperNeoBenchmarkSignpost.measure("piCCSClaims") {
-            try makePiCCSOutputClaims(
-                input: input,
-                point: sumCheck.finalPoint,
-                compiledShape: compiledShape,
-                metalWorkspace: metalWorkspace
-            )
+        let piCCSTapes = piCCSTapeMaterials.map(\.section)
+        guard let canonicalPiCCS = piCCSTapes.first else {
+            throw SuperNeoError.invalidParameter("selected repeated-tape profile requires a canonical PiCCS tape")
         }
-        absorbEvaluationClaimBatch(piCCSClaims, into: &transcript)
-        let rlc = try SuperNeoBenchmarkSignpost.measure("piRLC") {
-            try randomLinearCombination(claims: piCCSClaims, transcript: &transcript)
+        guard let canonicalPiCCSClaimsWithWitness = piCCSTapeMaterials.first?.claimsWithWitness else {
+            throw SuperNeoError.invalidParameter("selected repeated-tape profile requires canonical PiCCS witnesses")
         }
-        let decomposition = try SuperNeoBenchmarkSignpost.measure("piDEC") {
-            try decompose(
-                rlc.foldedClaim,
-                shape: input.shape,
-                compiledShape: compiledShape,
-                metalWorkspace: metalWorkspace
-            )
+        let piRLCBranchMaterials = try SuperNeoBenchmarkSignpost.measure("piRLCRepeatedBranches") {
+            try (0..<FoldProof.selectedPiRLCBranchCount).map { branchIndex -> (branch: PiRLCBranch, outputClaimsWithWitness: [CCSEvaluationClaim]) in
+                var transcript = makePiRLCBranchTranscript(
+                    input: input,
+                    transcriptSeed: transcriptSeed,
+                    canonicalPiCCS: canonicalPiCCS,
+                    branchIndex: branchIndex
+                )
+                let rlc = try randomLinearCombination(claims: canonicalPiCCSClaimsWithWitness, transcript: &transcript)
+                let decomposition = try decompose(
+                    rlc.foldedClaim,
+                    shape: input.shape,
+                    compiledShape: compiledShape,
+                    metalWorkspace: metalWorkspace
+                )
+                return (
+                    PiRLCBranch(
+                        piRLC: PiRLCSection(challenges: rlc.challenges, foldedClaim: rlc.foldedClaim),
+                        piDEC: PiDECSection(decomposition: decomposition.proof, outputClaims: decomposition.claims)
+                    ),
+                    decomposition.claims
+                )
+            }
+        }
+        let piRLCBranches = piRLCBranchMaterials.map(\.branch)
+        guard let canonicalBranch = piRLCBranches.first else {
+            throw SuperNeoError.invalidParameter("selected repeated-tape profile requires a canonical PiRLC branch")
+        }
+        guard let canonicalOutputClaimsWithWitness = piRLCBranchMaterials.first?.outputClaimsWithWitness else {
+            throw SuperNeoError.invalidParameter("selected repeated-tape profile requires canonical decomposition witnesses")
         }
         let proof = FoldProof(
-            sumCheck: sumCheck,
-            randomLinearCombinationChallenges: rlc.challenges,
-            piCCSClaims: piCCSClaims,
-            foldedClaim: rlc.foldedClaim,
-            decomposition: decomposition.proof,
-            outputClaims: decomposition.claims
+            piCCS: canonicalPiCCS,
+            piRLC: canonicalBranch.piRLC,
+            piDEC: canonicalBranch.piDEC,
+            auxiliaryPiCCSTapes: Array(piCCSTapes.dropFirst()),
+            auxiliaryPiRLCBranches: Array(piRLCBranches.dropFirst())
         )
-        return FoldProverOutput(proof: proof, outputClaims: decomposition.claims)
+        return FoldProverOutput(proof: proof, outputClaims: canonicalOutputClaimsWithWitness)
     }
 
     private func validatePreparedFoldContext(
@@ -1882,7 +1980,7 @@ public final class SuperNeoProver: @unchecked Sendable {
         claims: [CCSEvaluationClaim],
         transcript: inout SumCheckTranscript
     ) throws -> (foldedClaim: CCSEvaluationClaim, challenges: [CyclotomicRing54]) {
-        let challenges = claims.map { _ in transcript.challengeRing() }
+        let challenges = claims.map { _ in transcript.challengeRing(parameters: parameters) }
         return (
             try SuperNeoProtocolOracle.randomLinearCombination(
                 claims: claims,
@@ -2129,66 +2227,34 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             guard key.parameters == parameters else { return .invalid("verifier key parameters do not match verifier parameters") }
             try validateCommitmentKey(key, matches: publicInput.shape, role: "verifier")
             try validatePublicFoldInput(publicInput, parameters: parameters)
-            guard proof.outputClaims.count == parameters.decompositionLength else {
-                return .invalid("decomposition output count must equal \(parameters.decompositionLength)")
-            }
-            guard proof.decomposition.commitments == proof.outputClaims.map(\.commitment) else {
-                return .invalid("decomposition commitments must match output claims")
-            }
-            guard proof.decomposition.evaluations == proof.outputClaims.map(\.evaluations) else {
-                return .invalid("decomposition evaluations must match output claims")
-            }
-            guard proof.foldedClaim.commitment.elements.count == parameters.kappa else {
-                return .invalid("folded commitment has wrong length")
-            }
-            guard proof.piCCSClaims.count == publicInput.instances.count + publicInput.priorClaims.count else {
-                return .invalid("proof PiCCS final claim count mismatch")
-            }
             try validateProofPublicData(publicInput: publicInput, proof: proof, parameters: parameters)
 
-            var transcript = makeFoldTranscript(input: publicInput, transcriptSeed: transcriptSeed)
-            let qState = try makePublicQState(input: publicInput, transcript: &transcript, parameters: parameters)
-            let claimedSum = try qState.claimedSum(from: publicInput.priorClaims)
-            guard proof.sumCheck.claimedSum == claimedSum else {
-                return .invalid("sum-check claimed sum mismatch")
-            }
-            let sumcheckAccepted = try SumcheckVerifier.verify(
-                proof: proof.sumCheck,
-                transcript: &transcript,
-                expectedDegree: qState.maxDegreePerRound,
-                expectedRoundCount: qState.numVars
-            ) { point, value in
-                try qState.finalEvaluation(
-                    instances: publicInput.instances,
-                    priorClaims: publicInput.priorClaims,
-                    proofClaims: proof.piCCSClaims,
-                    point: point
-                ) == value
-            }
-            guard sumcheckAccepted else {
-                return .invalid("sum-check verification failed")
-            }
-            absorbEvaluationClaimBatch(proof.piCCSClaims, into: &transcript)
-
-            guard proof.randomLinearCombinationChallenges.count == proof.piCCSClaims.count else {
-                return .invalid("wrong number of random-linear-combination challenges")
+            let piCCSTapes = proof.piCCSTapes
+            for (tapeIndex, tape) in piCCSTapes.enumerated() {
+                guard try validatePiCCSTape(
+                    tape,
+                    publicInput: publicInput,
+                    transcriptSeed: transcriptSeed,
+                    tapeIndex: tapeIndex,
+                    parameters: parameters
+                ) else {
+                    return .invalid("repeated PiCCS tape \(tapeIndex) verification failed")
+                }
             }
 
-            let expectedChallenges = proof.piCCSClaims.map { _ in transcript.challengeRing() }
-            guard proof.randomLinearCombinationChallenges == expectedChallenges else {
-                return .invalid("random-linear-combination challenge mismatch")
-            }
-
-            let expectedRLC = try randomLinearCombination(
-                claims: proof.piCCSClaims,
-                challenges: proof.randomLinearCombinationChallenges
-            )
-            guard proof.foldedClaim.hasSamePublicData(as: expectedRLC) else {
-                return .invalid("folded claim does not match random linear combination")
-            }
-
-            guard try verifyDecomposition(folded: expectedRLC, parts: proof.outputClaims, shape: publicInput.shape) else {
-                return .invalid("decomposition does not match folded witness")
+            let canonicalPiCCS = piCCSTapes[0]
+            for (branchIndex, branch) in proof.piRLCBranches.enumerated() {
+                guard try validatePiRLCBranch(
+                    branch,
+                    canonicalPiCCS: canonicalPiCCS,
+                    publicInput: publicInput,
+                    transcriptSeed: transcriptSeed,
+                    branchIndex: branchIndex,
+                    parameters: parameters,
+                    expectedOutputClaims: branchIndex == 0 ? proof.outputClaims : nil
+                ) else {
+                    return .invalid("repeated PiRLC branch \(branchIndex) verification failed")
+                }
             }
             return .reduced(outputClaims: proof.outputClaims)
         } catch {
@@ -3387,7 +3453,14 @@ private func validateProofPublicData(
     parameters: SuperNeoParameters
 ) throws {
     let numVars = try log2Exact(publicInput.shape.m)
-    let allClaims = proof.piCCSClaims + [proof.foldedClaim] + proof.outputClaims
+    var allClaims: [CCSEvaluationClaim] = []
+    for tape in proof.piCCSTapes {
+        allClaims.append(contentsOf: tape.finalClaims)
+    }
+    for branch in proof.piRLCBranches {
+        allClaims.append(branch.foldedClaim)
+        allClaims.append(contentsOf: branch.outputClaims)
+    }
     for claim in allClaims {
         guard claim.commitment.elements.count == parameters.kappa else {
             throw SuperNeoError.invalidParameter("proof commitment has wrong length")
@@ -3402,11 +3475,178 @@ private func validateProofPublicData(
             throw SuperNeoError.invalidParameter("proof evaluation arity mismatch")
         }
     }
-    for claim in proof.piCCSClaims {
-        guard claim.point == proof.sumCheck.finalPoint else {
-            throw SuperNeoError.invalidParameter("PiCCS final claims must be evaluated at the sum-check final point")
+    guard proof.usesSelectedRepeatedTapeProfile else {
+        throw SuperNeoError.invalidParameter(
+            "selected repeated-tape fold proof requires \(FoldProof.selectedPiCCSTapeCount) PiCCS tapes and \(FoldProof.selectedPiRLCBranchCount) PiRLC branches"
+        )
+    }
+    for tape in proof.piCCSTapes {
+        for claim in tape.finalClaims {
+            guard claim.point == tape.sumCheck.finalPoint else {
+                throw SuperNeoError.invalidParameter("PiCCS final claims must be evaluated at the sum-check final point")
+            }
         }
     }
+    for branch in proof.piRLCBranches {
+        guard branch.outputClaims.count == parameters.decompositionLength else {
+            throw SuperNeoError.invalidParameter("decomposition output count must equal \(parameters.decompositionLength)")
+        }
+        guard branch.decomposition.commitments == branch.outputClaims.map(\.commitment) else {
+            throw SuperNeoError.invalidParameter("decomposition commitments must match output claims")
+        }
+        guard branch.decomposition.evaluations == branch.outputClaims.map(\.evaluations) else {
+            throw SuperNeoError.invalidParameter("decomposition evaluations must match output claims")
+        }
+        guard branch.foldedClaim.commitment.elements.count == parameters.kappa else {
+            throw SuperNeoError.invalidParameter("folded commitment has wrong length")
+        }
+    }
+}
+
+private enum FoldRepeatedTapeLabel {
+    static let version = "selected-repeated-tape-v1"
+
+    static func piCCS(_ index: Int) -> String {
+        "\(version)/piccs-tape-\(index)"
+    }
+
+    static func piRLC(_ index: Int) -> String {
+        "\(version)/pirlc-branch-\(index)"
+    }
+}
+
+private func repeatedTapeSeed(
+    base transcriptSeed: [UInt8],
+    label: String,
+    extra: [UInt8] = []
+) -> [UInt8] {
+    transcriptSeed
+        + transcriptEncodeCount(FoldRepeatedTapeLabel.version.utf8.count)
+        + Array(FoldRepeatedTapeLabel.version.utf8)
+        + transcriptEncodeCount(label.utf8.count)
+        + Array(label.utf8)
+        + transcriptEncodeCount(extra.count)
+        + extra
+}
+
+private func repeatedPiRLCTranscriptExtra(canonicalPiCCS: PiCCSSection) -> [UInt8] {
+    canonicalPiCCS.sumCheck.superNeoBytes
+        + transcriptEncodeCount(canonicalPiCCS.finalClaims.count)
+        + canonicalPiCCS.finalClaims.flatMap(\.superNeoBytes)
+}
+
+private func makePiRLCBranchTranscript(
+    input: SuperNeoPublicFoldInput,
+    transcriptSeed: [UInt8],
+    canonicalPiCCS: PiCCSSection,
+    branchIndex: Int
+) -> SumCheckTranscript {
+    let label = FoldRepeatedTapeLabel.piRLC(branchIndex)
+    var transcript = makeFoldTranscript(
+        input: input,
+        transcriptSeed: repeatedTapeSeed(
+            base: transcriptSeed,
+            label: label,
+            extra: repeatedPiRLCTranscriptExtra(canonicalPiCCS: canonicalPiCCS)
+        ),
+        tapeLabel: label
+    )
+    transcript.absorb(canonicalPiCCS.sumCheck.superNeoBytes)
+    absorbEvaluationClaimBatch(canonicalPiCCS.finalClaims, into: &transcript)
+    return transcript
+}
+
+private func makePiRLCBranchTranscript(
+    input: SuperNeoFoldInput,
+    transcriptSeed: [UInt8],
+    canonicalPiCCS: PiCCSSection,
+    branchIndex: Int
+) -> SumCheckTranscript {
+    makePiRLCBranchTranscript(
+        input: SuperNeoPublicFoldInput(input),
+        transcriptSeed: transcriptSeed,
+        canonicalPiCCS: canonicalPiCCS,
+        branchIndex: branchIndex
+    )
+}
+
+private func validatePiCCSTape(
+    _ tape: PiCCSSection,
+    publicInput: SuperNeoPublicFoldInput,
+    transcriptSeed: [UInt8],
+    tapeIndex: Int,
+    parameters: SuperNeoParameters
+) throws -> Bool {
+    guard tape.finalClaims.count == publicInput.instances.count + publicInput.priorClaims.count else {
+        return false
+    }
+    let label = FoldRepeatedTapeLabel.piCCS(tapeIndex)
+    var transcript = makeFoldTranscript(
+        input: publicInput,
+        transcriptSeed: repeatedTapeSeed(base: transcriptSeed, label: label),
+        tapeLabel: label
+    )
+    let qState = try makePublicQState(input: publicInput, transcript: &transcript, parameters: parameters)
+    let claimedSum = try qState.claimedSum(from: publicInput.priorClaims)
+    guard tape.sumCheck.claimedSum == claimedSum else {
+        return false
+    }
+    return try SumcheckVerifier.verify(
+        proof: tape.sumCheck,
+        transcript: &transcript,
+        expectedDegree: qState.maxDegreePerRound,
+        expectedRoundCount: qState.numVars
+    ) { point, value in
+        try qState.finalEvaluation(
+            instances: publicInput.instances,
+            priorClaims: publicInput.priorClaims,
+            proofClaims: tape.finalClaims,
+            point: point
+        ) == value
+    }
+}
+
+private func validatePiRLCBranch(
+    _ branch: PiRLCBranch,
+    canonicalPiCCS: PiCCSSection,
+    publicInput: SuperNeoPublicFoldInput,
+    transcriptSeed: [UInt8],
+    branchIndex: Int,
+    parameters: SuperNeoParameters,
+    expectedOutputClaims: [CCSEvaluationClaim]? = nil
+) throws -> Bool {
+    let canonicalClaims = canonicalPiCCS.finalClaims
+    guard branch.challenges.count == canonicalClaims.count else {
+        return false
+    }
+    var transcript = makePiRLCBranchTranscript(
+        input: publicInput,
+        transcriptSeed: transcriptSeed,
+        canonicalPiCCS: canonicalPiCCS,
+        branchIndex: branchIndex
+    )
+    let expectedChallenges = canonicalClaims.map { _ in transcript.challengeRing(parameters: parameters) }
+    guard branch.challenges == expectedChallenges else {
+        return false
+    }
+    let expectedRLC = try SuperNeoProtocolOracle.randomLinearCombination(
+        claims: canonicalClaims,
+        challenges: branch.challenges
+    )
+    guard branch.foldedClaim.hasSamePublicData(as: expectedRLC) else {
+        return false
+    }
+    if let expectedOutputClaims {
+        guard branch.outputClaims.hasSamePublicData(as: expectedOutputClaims) else {
+            return false
+        }
+    }
+    return try SuperNeoProtocolOracle.verifyDecomposition(
+        folded: expectedRLC,
+        parts: branch.outputClaims,
+        shape: publicInput.shape,
+        parameters: parameters
+    )
 }
 
 private func makePublicQState(
@@ -3427,18 +3667,37 @@ private func makePublicQState(
     )
 }
 
-private func makeFoldTranscript(input: SuperNeoFoldInput, transcriptSeed: [UInt8]) -> SumCheckTranscript {
-    return makeFoldTranscript(input: SuperNeoPublicFoldInput(input), transcriptSeed: transcriptSeed)
+private func makeFoldTranscript(
+    input: SuperNeoFoldInput,
+    transcriptSeed: [UInt8],
+    tapeLabel: String? = nil
+) -> SumCheckTranscript {
+    makeFoldTranscript(
+        input: SuperNeoPublicFoldInput(input),
+        transcriptSeed: transcriptSeed,
+        tapeLabel: tapeLabel
+    )
 }
 
-private func makeFoldTranscript(input: SuperNeoPublicFoldInput, transcriptSeed: [UInt8]) -> SumCheckTranscript {
+private func makeFoldTranscript(
+    input: SuperNeoPublicFoldInput,
+    transcriptSeed: [UInt8],
+    tapeLabel: String? = nil
+) -> SumCheckTranscript {
+    let labelBytes = tapeLabel.map { Array($0.utf8) } ?? []
+    let labelFrame = tapeLabel == nil ? [] : transcriptEncodeCount(labelBytes.count) + labelBytes
     let contextSeed = transcriptSeed
+        + labelFrame
         + input.shape.shapeDigest.superNeoBytes
         + transcriptEncodeCount(input.instances.count)
         + input.instances.flatMap(\.superNeoBytes)
         + transcriptEncodeCount(input.priorClaims.count)
         + input.priorClaims.flatMap(\.superNeoBytes)
-    var transcript = SumCheckTranscript(domainSeparator: "SuperNeo-NuMetal.fold", seed: contextSeed)
+    let domainSeparator = tapeLabel.map { "SuperNeo-NuMetal.fold/\($0)" } ?? "SuperNeo-NuMetal.fold"
+    var transcript = SumCheckTranscript(domainSeparator: domainSeparator, seed: contextSeed)
+    if !labelBytes.isEmpty {
+        transcript.absorb(labelBytes)
+    }
     transcript.absorb(input.shape.shapeDigest.superNeoBytes)
     transcript.absorb(transcriptEncodeCount(input.instances.count))
     input.instances.forEach { transcript.absorb($0.superNeoBytes) }

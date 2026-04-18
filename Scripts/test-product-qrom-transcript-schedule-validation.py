@@ -119,7 +119,7 @@ def main() -> None:
 
         missing_blocker = copy.deepcopy(schedule)
         missing_blocker["hardClaimBlockers"].remove(
-            "NumiSealZK simulator composition remains outside the transcript-schedule query bound"
+            "concrete SHAKE256-to-split-QRO promotion remains outside the ideal transcript-schedule theorem model"
         )
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)

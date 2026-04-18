@@ -30,7 +30,7 @@ candidate. It does not authorize production-security release claims.
   boundary changes.
 - `TestVectors/product-selected-depth-loss-accounting-v1.json` reflects any
   selected-depth loss-accounting changes for extractor, QROM, transcript
-  collision, ZK simulator, product-ops replay, CT, or release-distribution
+  collision, proof-level ZK simulator loss, product-ops replay, CT, or release-distribution
   terms.
 - `TestVectors/product-extractor-loss-accounting-v1.json` reflects any
   extractor input, rewind schedule, source-fold extractor, terminal-seal
@@ -62,8 +62,9 @@ candidate. It does not authorize production-security release claims.
   root, `Q_H = 2^64`, binding-collision arithmetic, or proof-kind
   malleability-bound change.
 - `TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json` reflects any
-  NumiSealZK simulator-coupling digest field, product benchmark pin, or
-  side-channel promotion-boundary change.
+  NumiSealZK proof-level simulator-coupling digest field, declared-leakage
+  model, mask/session reuse rule, product benchmark pin, or side-channel
+  promotion-boundary change.
 - `TestVectors/product-qrom-transform-preconditions-v1.json` reflects any
   product QROM transform precondition changes for CTCO/Merkle-straightline
   theorem-family fit, challenge uniformity, well-formed transcript encoding,

@@ -213,6 +213,101 @@ theorem terminalCEChallengeTapeBadSeedsFromSlots_card_le
     _ ≤ slotBound * 3 ^ (roundCount - 1) := by
           exact Nat.mul_le_mul_right _ hSlotBound
 
+structure TerminalCEPointwiseTwoBranchEvidence
+    (roundCount : Nat) where
+  badSymbols : Fin roundCount → Finset CEOpeningChallengeSymbol
+  encodeBadSymbol :
+    ∀ round, { symbol // symbol ∈ badSymbols round } → Fin 2
+  encodeBadSymbol_injective :
+    ∀ round, Function.Injective (encodeBadSymbol round)
+
+def terminalCEPointwiseBadChallengeTapes
+    {roundCount : Nat}
+    (evidence : TerminalCEPointwiseTwoBranchEvidence roundCount) :
+    Finset (TerminalCEChallengeTape roundCount) :=
+  univ.filter fun tape => ∀ round, tape round ∈ evidence.badSymbols round
+
+theorem terminalCEPointwiseBadChallengeTapes_mem_iff
+    {roundCount : Nat}
+    (evidence : TerminalCEPointwiseTwoBranchEvidence roundCount)
+    (tape : TerminalCEChallengeTape roundCount) :
+    tape ∈ terminalCEPointwiseBadChallengeTapes evidence ↔
+      ∀ round, tape round ∈ evidence.badSymbols round := by
+  simp [terminalCEPointwiseBadChallengeTapes]
+
+def terminalCEPointwiseBadTapeEncode
+    {roundCount : Nat}
+    (evidence : TerminalCEPointwiseTwoBranchEvidence roundCount)
+    (tape :
+      { tape // tape ∈ terminalCEPointwiseBadChallengeTapes evidence }) :
+    Fin roundCount → Fin 2 :=
+  fun round =>
+    evidence.encodeBadSymbol round
+      ⟨tape.1 round,
+        (terminalCEPointwiseBadChallengeTapes_mem_iff evidence tape.1).mp
+          tape.2
+          round⟩
+
+theorem terminalCEPointwiseBadTapeEncode_injective
+    {roundCount : Nat}
+    (evidence : TerminalCEPointwiseTwoBranchEvidence roundCount) :
+    Function.Injective (terminalCEPointwiseBadTapeEncode evidence) := by
+  intro lhs rhs hEncode
+  apply Subtype.ext
+  funext round
+  have hRound := congrFun hEncode round
+  have hSubtype :
+      (⟨lhs.1 round,
+        (terminalCEPointwiseBadChallengeTapes_mem_iff evidence lhs.1).mp
+          lhs.2
+          round⟩ :
+        { symbol // symbol ∈ evidence.badSymbols round }) =
+      (⟨rhs.1 round,
+        (terminalCEPointwiseBadChallengeTapes_mem_iff evidence rhs.1).mp
+          rhs.2
+          round⟩ :
+        { symbol // symbol ∈ evidence.badSymbols round }) :=
+    evidence.encodeBadSymbol_injective round hRound
+  exact congrArg Subtype.val hSubtype
+
+theorem terminalCEPointwiseBadChallengeTapes_card_le_two_pow
+    {roundCount : Nat}
+    (evidence : TerminalCEPointwiseTwoBranchEvidence roundCount) :
+    (terminalCEPointwiseBadChallengeTapes evidence).card ≤
+      2 ^ roundCount := by
+  have hCard :
+      Fintype.card
+          { tape // tape ∈ terminalCEPointwiseBadChallengeTapes evidence } ≤
+        Fintype.card (Fin roundCount → Fin 2) :=
+    Fintype.card_le_of_injective
+      (terminalCEPointwiseBadTapeEncode evidence)
+      (terminalCEPointwiseBadTapeEncode_injective evidence)
+  simpa [Fintype.card_coe, Fintype.card_fun] using hCard
+
+def terminalCERepeatedChallengeBadTapeBudget
+    (roundCount : Nat) : Nat :=
+  2 ^ roundCount
+
+def terminalCERepeatedChallengeTapeSupportSize
+    (roundCount : Nat) : Nat :=
+  3 ^ roundCount
+
+theorem terminalCESwiftRepeatedChallengeBadTapeBudget_eq :
+    terminalCERepeatedChallengeBadTapeBudget terminalCESwiftRoundCount =
+      2 ^ 226 := by
+  native_decide
+
+theorem terminalCESwiftRepeatedChallengeTapeSupportSize_eq :
+    terminalCERepeatedChallengeTapeSupportSize terminalCESwiftRoundCount =
+      3 ^ 226 := by
+  native_decide
+
+theorem terminalCESwiftRepeatedChallengeBound_lt_selected128 :
+    terminalCERepeatedChallengeBadTapeBudget terminalCESwiftRoundCount *
+        2 ^ 128 <
+      terminalCERepeatedChallengeTapeSupportSize terminalCESwiftRoundCount := by
+  native_decide
+
 def swiftCETraceChallengeTape
     {Commitment Response Witness Seed : Type}
     {roundCount : Nat}
@@ -369,6 +464,54 @@ structure TerminalCEConstructiveFiniteSoundnessCertificate
         proofSeed proof ∉ badSeeds →
           ∃ witnesses : Fin count → Witness,
             TerminalLocalBatchRelation statement witnesses opens
+
+def terminalCEConstructive_finiteSoundnessCertificate_of_localization
+    {Claim Proof Witness Seed : Type}
+    [Fintype Seed] [DecidableEq Seed]
+    {count roundCount : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → Seed}
+    [DecidablePred (TerminalCESeedExtracts verifyProof opens proofSeed)]
+    (localization :
+      TerminalCEConstructiveFailureLocalization
+        (roundCount := roundCount)
+        verifyProof
+        opens
+        proofSeed) :
+    TerminalCEConstructiveFiniteSoundnessCertificate
+      verifyProof
+      opens
+      proofSeed
+      (TerminalCEProofBadSeedBudget roundCount) where
+  badSeeds := TerminalCEConstructiveBadSeeds verifyProof opens proofSeed
+  card_le := terminalCEConstructive_badSeeds_probability_le localization
+  extract_outside_bad := by
+    intro statement proof hVerify hSeed
+    exact terminalCEConcrete_extract_of_seed_not_bad
+      (verifyProof := verifyProof)
+      (opens := opens)
+      (proofSeed := proofSeed)
+      hVerify
+      hSeed
+
+def terminalCEConstructive_slotSeedFiniteSoundnessCertificate_direct
+    {Claim Proof Witness : Type}
+    {count roundCount : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → TerminalCEFailureSlotSeed roundCount}
+    [DecidablePred (TerminalCESeedExtracts verifyProof opens proofSeed)] :
+    TerminalCEConstructiveFiniteSoundnessCertificate
+      verifyProof
+      opens
+      proofSeed
+      (TerminalCEProofBadSeedBudget roundCount) :=
+  terminalCEConstructive_finiteSoundnessCertificate_of_localization
+    (terminalCEConstructive_slotFailureLocalization
+      verifyProof
+      opens
+      proofSeed)
 
 def terminalCEConstructive_finiteSoundnessCertificate
     {Claim Proof Witness Seed Commitment Response : Type}
@@ -568,6 +711,29 @@ def terminalCEFullTapeCertificate_of_slotCertificate
       hVerify
       hSlotSeed
 
+def terminalCEFullTapeCertificate_of_slotSeed
+    {Claim Proof Witness : Type}
+    {count roundCount : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {slotSeed : Proof → TerminalCEFailureSlotSeed roundCount}
+    {tapeSeed : Proof → TerminalCEChallengeTape roundCount}
+    [DecidablePred (TerminalCESeedExtracts verifyProof opens slotSeed)]
+    (hMatches : ∀ proof, tapeSeed proof (slotSeed proof).1 = (slotSeed proof).2) :
+    TerminalCEConstructiveFiniteSoundnessCertificate
+      verifyProof
+      opens
+      tapeSeed
+      (TerminalCEProofBadSeedBudget roundCount * 3 ^ (roundCount - 1)) :=
+  terminalCEFullTapeCertificate_of_slotCertificate
+    (slotBound := TerminalCEProofBadSeedBudget roundCount)
+    {
+      slotSeed := slotSeed
+      slotSeed_matches_tape := hMatches
+      slotCertificate :=
+        terminalCEConstructive_slotSeedFiniteSoundnessCertificate_direct
+    }
+
 def terminalCESwiftFullTapeCertificate_of_slotEvidence
     {Claim Proof Witness Commitment Response : Type}
     {count : Nat}
@@ -598,6 +764,28 @@ def terminalCESwiftFullTapeCertificate_of_slotEvidence
         terminalCESwiftSlotSeedFiniteSoundnessCertificate
           slotEvidence
     }
+
+def terminalCESwiftTraceFullTapeCertificate
+    {Claim Proof Witness Commitment Response Seed : Type}
+    {count roundCount : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofTrace : Proof → SwiftCEVerifierTrace Commitment Response Witness Seed roundCount}
+    {badRound : Proof → Fin roundCount}
+    [DecidablePred
+      (TerminalCESeedExtracts
+        verifyProof
+        opens
+        (terminalCESwiftTraceProofSlotSeed proofTrace badRound))] :
+    TerminalCEConstructiveFiniteSoundnessCertificate
+      verifyProof
+      opens
+      (terminalCESwiftTraceProofTape proofTrace)
+      (TerminalCEProofBadSeedBudget roundCount * 3 ^ (roundCount - 1)) :=
+  terminalCEFullTapeCertificate_of_slotSeed
+    (slotSeed := terminalCESwiftTraceProofSlotSeed proofTrace badRound)
+    (hMatches :=
+      terminalCESwiftTraceProofSlotSeed_matches_tape proofTrace badRound)
 
 def terminalCESwiftTraceFullTapeCertificate_of_slotEvidence
     {Claim Proof Witness Commitment Response Seed : Type}
@@ -633,5 +821,73 @@ def terminalCESwiftTraceFullTapeCertificate_of_slotEvidence
         terminalCEConstructive_certificate_of_slotSeedLocalizationEvidence
           slotEvidence
     }
+
+def terminalCESwiftFirstRound
+    {Proof : Type}
+    (_proof : Proof) :
+    Fin terminalCESwiftRoundCount :=
+  ⟨0, terminalCESwiftRoundCount_positive⟩
+
+def terminalCESwiftTraceFirstRoundSlotSeed
+    {Proof Commitment Response Witness Seed : Type}
+    (proofTrace :
+      Proof →
+        SwiftCEVerifierTrace
+          Commitment
+          Response
+          Witness
+          Seed
+          terminalCESwiftRoundCount) :
+    Proof → TerminalCEFailureSlotSeed terminalCESwiftRoundCount :=
+  terminalCESwiftTraceProofSlotSeed proofTrace terminalCESwiftFirstRound
+
+theorem terminalCESwiftTraceFirstRoundSlotSeed_matches_tape
+    {Proof Commitment Response Witness Seed : Type}
+    (proofTrace :
+      Proof →
+        SwiftCEVerifierTrace
+          Commitment
+          Response
+          Witness
+          Seed
+          terminalCESwiftRoundCount)
+    (proof : Proof) :
+    terminalCESwiftTraceProofTape proofTrace proof
+        (terminalCESwiftTraceFirstRoundSlotSeed proofTrace proof).1 =
+      (terminalCESwiftTraceFirstRoundSlotSeed proofTrace proof).2 := by
+  rfl
+
+def terminalCESwiftTraceFirstRoundFullTapeCertificate
+    {Claim Proof Witness Commitment Response Seed : Type}
+    {count : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofTrace :
+      Proof →
+        SwiftCEVerifierTrace
+          Commitment
+          Response
+          Witness
+          Seed
+          terminalCESwiftRoundCount}
+    [DecidablePred
+      (TerminalCESeedExtracts
+        verifyProof
+        opens
+        (terminalCESwiftTraceFirstRoundSlotSeed proofTrace))] :
+    TerminalCEConstructiveFiniteSoundnessCertificate
+      verifyProof
+      opens
+      (terminalCESwiftTraceProofTape proofTrace)
+      (terminalCESwiftProofBadSeedBudget *
+        3 ^ (terminalCESwiftRoundCount - 1)) := by
+  simpa [terminalCESwiftProofBadSeedBudget] using
+    terminalCEFullTapeCertificate_of_slotSeed
+      (verifyProof := verifyProof)
+      (opens := opens)
+      (slotSeed := terminalCESwiftTraceFirstRoundSlotSeed proofTrace)
+      (tapeSeed := terminalCESwiftTraceProofTape proofTrace)
+      (hMatches :=
+        terminalCESwiftTraceFirstRoundSlotSeed_matches_tape proofTrace)
 
 end SuperNeoFormal

@@ -205,17 +205,18 @@ def validate_fiat_shamir_model(accounting: dict[str, Any]) -> None:
     for key in [
         "interactiveProtocolSpecified",
         "publicCoinChallengeScheduleSpecified",
+        "transformPreconditionsSatisfied",
         "quantumOracleQueryBoundAccounted",
         "transcriptDomainSeparatorsBound",
         "proofKindSeparationBound",
         "structuralTranscriptCollisionMalleabilityExcluded",
         "transcriptCollisionMalleabilityExcluded",
         "interactiveLossChargedOutsideQROM",
+        "interactiveSecurityBoundsInstantiated",
         "legacyDFM20InterfaceDeprecated",
+        "sourceImplementationComplete",
     ]:
         require_true(model.get(key), f"fiatShamirModel.{key}")
-    require_false(model.get("transformPreconditionsSatisfied"), "fiatShamirModel.transformPreconditionsSatisfied")
-    require_false(model.get("sourceImplementationComplete"), "fiatShamirModel.sourceImplementationComplete")
     require_false(model.get("productionQROMClaimAllowed"), "fiatShamirModel.productionQROMClaimAllowed")
 
 
@@ -235,6 +236,15 @@ def validate_transcript_interfaces(accounting: dict[str, Any]) -> None:
         require("Root_" in require_string(row.get("rootCommitment"), f"{proof_kind}.rootCommitment"), f"{proof_kind} must name Root_k")
         challenges = " ".join(require_string_list(row.get("challengeFamilies"), f"{proof_kind}.challengeFamilies")).lower()
         require("one 256-bit seed" in challenges, f"{proof_kind} challenge family must use one seed")
+        fixed_kind = require_string(row.get("fixedKindAccounting"), f"{proof_kind}.fixedKindAccounting")
+        require("does not flat-sum unrelated proof-kind finite terms" in fixed_kind, f"{proof_kind}.fixedKindAccounting must reject flat sums")
+        if proof_kind == "fold":
+            require(
+                "selected-repeated-tape-v1" in challenges
+                and "2 PiCCS" in row.get("fixedKindAccounting", "")
+                and "3 PiRLC" in row.get("fixedKindAccounting", ""),
+                "fold transcript interface must pin selected repeated tape profile",
+            )
         joined_rows.append(json.dumps(row, sort_keys=True).lower())
     require(seen == EXPECTED_PROOF_KINDS, "transcriptInterfaces must stay in proof-kind order")
     joined = " ".join(joined_rows)
@@ -256,6 +266,8 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     for proof_kind, count in challenge_counts.items():
         require(count == 1, f"{proof_kind} CTCO challenge count must be 1")
     require(rule.get("proofKindMalleabilityFormula") == "0; charged inside epsilon_collision through binding-target events", "proof-kind malleability formula mismatch")
+    fixed_kind = require_string(rule.get("fixedKindAccountingRule"), "lossRule.fixedKindAccountingRule")
+    require("H_bind" in fixed_kind and "fixed expected proof kind" in fixed_kind and "does not flat-sum unrelated proof-kind finite terms" in fixed_kind, "lossRule.fixedKindAccountingRule mismatch")
     require(rule.get("bindingCollisionFormula") == "4 * bindingTargetEventCount * Q_H^2 / 2^bindingOracle.outputBits", "binding collision formula mismatch")
     require("36 * 2^-256" in require_string(rule.get("bindingCollisionInstantiatedExpression"), "bindingCollisionInstantiatedExpression"), "binding collision instantiation mismatch")
     require(
@@ -264,6 +276,7 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     )
     require("ideal split-QRO" in require_string(rule.get("hashModelGapInstantiatedExpression"), "hashModelGapInstantiatedExpression"), "hash-model gap instantiation mismatch")
     require_true(rule.get("interactiveLossChargedOutsideQROM"), "lossRule.interactiveLossChargedOutsideQROM")
+    require_true(rule.get("interactiveSecurityBoundsInstantiated"), "lossRule.interactiveSecurityBoundsInstantiated")
     require_true(rule.get("sharedBadEventTagsPinned"), "lossRule.sharedBadEventTagsPinned")
     require(
         rule.get("sharedBadEventDeduplicationManifest") == "TestVectors/product-shared-bad-event-dedup-v1.json",
@@ -295,8 +308,10 @@ def validate_legacy_status(accounting: dict[str, Any]) -> None:
 
 def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
     blockers = " ".join(require_string_list(accounting.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["special-soundness", "zk simulator", "epsilon_replay"]:
+    for needle in ["epsilon_replay", "epsilon_ct", "epsilon_release"]:
         require(needle in blockers, f"hardClaimBlockers must mention {needle}")
+    require("zk simulator" not in blockers, "ZK simulator composition must not remain a QROM blocker")
+    require("special-soundness" not in blockers, "interactive special-soundness must not remain a QROM blocker")
     require("deduplicate shared" not in blockers, "shared bad-event dedup must not remain a QROM blocker")
     promotion = require_dict(accounting.get("promotionRule"), "promotionRule")
     for key in [
@@ -307,9 +322,6 @@ def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
         require_false(promotion.get(key), f"promotionRule.{key}")
     for key in [
         "requiresInteractiveSecurityBounds",
-    ]:
-        require_true(promotion.get(key), f"promotionRule.{key}")
-    for key in [
         "requiresCTCOProtocolImplementation",
         "requiresCompilerOverheadInstantiation",
         "requiresSharedBadEventDeduplication",
