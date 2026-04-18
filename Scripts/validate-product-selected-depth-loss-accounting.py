@@ -42,6 +42,7 @@ EXPECTED_MANIFESTS = {
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+    "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json",
 }
@@ -59,18 +60,28 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductQROMInteractiveReductionAccepted",
     "ProductFiatShamirLossAccounting",
     "ProductFiatShamirLossAccountingAccepted",
+    "ProductQROMCompilerOverheadBound",
+    "ProductQROMCompilerOverheadBoundAccepted",
+    "ProductSharedBadEventDeduplication",
+    "ProductSharedBadEventDeduplicationAccepted",
     "ProductTotalLossBudget",
     "ProductTotalLossBudgetAccepted",
+    "ProductExactFiniteProbabilityWiring",
+    "ProductExactFiniteProbabilityWiringAccepted",
     "productSecurityTheorem_requires_selected_depth_loss_accounting",
     "productSecurityTheorem_requires_extractor_loss_accounting",
     "productSecurityTheorem_requires_qrom_transcript_schedule",
     "productSecurityTheorem_requires_qrom_transform_preconditions",
     "productSecurityTheorem_requires_qrom_interactive_reduction",
+    "productSecurityTheorem_requires_qrom_compiler_overhead_bound",
+    "productSecurityTheorem_requires_shared_bad_event_deduplication",
     "productSecurityTheorem_requires_qrom_loss_accounting",
     "productSecurityTheorem_requires_total_loss_budget",
+    "productSecurityTheorem_requires_exact_finite_probability_wiring",
 }
 
 EXPECTED_COMPONENT_IDS = [
+    "shared-cryptographic-core",
     "source-fold-knowledge",
     "terminal-numiseal-seal",
     "typed-recursive-carry",
@@ -85,8 +96,7 @@ EXPECTED_COMPONENT_IDS = [
 
 EXPECTED_BLOCKERS = [
     "selected-depth extractor instantiation",
-    "QROM transform preconditions, interactive reduction, and split-QRO accounting",
-    "CTCO interactive special-soundness, delayed-message, unique-response, and compiler-overhead instantiation",
+    "underlying interactive security bounds outside the QROM compiler-overhead term",
     "selected total-loss budget instantiation",
     "full ZK simulator composition",
     "hosted product operations replay and revocation freshness",
@@ -307,6 +317,7 @@ def validate_loss_notation(ledger: dict[str, Any]) -> None:
     required_symbols = {
         "securityParameter",
         "adversarySuccess",
+        "sharedCoreLoss",
         "sourceFoldLoss",
         "terminalSealLoss",
         "recursiveCarryLoss",
@@ -339,6 +350,18 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
         require_string(component.get("accountingRule"), f"{component_id}.accountingRule")
         require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
         require_false(component.get("productionClaimAllowed"), f"{component_id}.productionClaimAllowed")
+        if component_id == "shared-cryptographic-core":
+            require(
+                component.get("status") == "shared-core-bad-event-dedup-instantiated",
+                "shared-cryptographic-core status mismatch",
+            )
+            require(
+                component.get("accountingManifest") == "TestVectors/product-shared-bad-event-dedup-v1.json",
+                "shared-cryptographic-core must link shared bad-event dedup evidence",
+            )
+            evidence = require_string(component.get("requiredEvidence"), "shared-cryptographic-core.requiredEvidence")
+            for needle in ["product-shared-bad-event-dedup-v1.json", "2^-129", "Module-SIS"]:
+                require(needle in evidence, f"shared-cryptographic-core requiredEvidence must mention {needle}")
         if component_id == "extractor-instantiation":
             require(
                 component.get("accountingManifest") == "TestVectors/product-extractor-loss-accounting-v1.json",
@@ -360,7 +383,7 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "TestVectors/product-qrom-interactive-reduction-v1.json" in evidence,
                 "fiat-shamir-qrom requiredEvidence must link QROM interactive reduction",
             )
-            for needle in ["CTCO", "384-bit H_bind", "epsilon_compiler_overhead"]:
+            for needle in ["CTCO", "384-bit H_bind", "epsilon_compiler_overhead = 0", "exact finite-probability wiring"]:
                 require(needle in evidence, f"fiat-shamir-qrom requiredEvidence must mention {needle}")
         if component_id == "transcript-collision-domain-separation":
             require(
@@ -404,6 +427,7 @@ def validate_total_loss_rule(ledger: dict[str, Any]) -> None:
     recursive = require_string(total.get("recursivePromotionExpression"), "totalLossRule.recursivePromotionExpression")
     for symbol in [
         "epsilon_fold",
+        "epsilon_core_shared",
         "epsilon_terminal",
         "epsilon_zk_sim",
         "epsilon_qrom",
@@ -443,6 +467,10 @@ def validate_docs_and_gate() -> None:
     require(
         "run_step Scripts/validate-product-qrom-collision-malleability-evidence.py" in gate,
         "production gate must run QROM collision/malleability evidence validator",
+    )
+    require(
+        "run_step Scripts/validate-product-shared-bad-event-dedup.py" in gate,
+        "production gate must run shared bad-event dedup validator",
     )
 
 

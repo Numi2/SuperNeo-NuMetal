@@ -127,8 +127,12 @@ def validate(path: Path) -> None:
     require(promotion.get("productionQROMClaimAllowed") is False, "productionQROMClaimAllowed must be false")
     require(promotion.get("selectedTotalLossClaimAllowed") is False, "selectedTotalLossClaimAllowed must be false")
     boundaries = " ".join(require_string_list(promotion.get("remainingBoundaries"), "remainingBoundaries")).lower()
-    for needle in ["compiler_overhead", "interactive security", "total-loss"]:
+    for needle in ["epsilon_compiler_overhead is instantiated as 0", "delayed-message", "unique-response", "interactive security", "total-loss"]:
         require(needle in boundaries, f"remaining boundaries must mention {needle}")
+    require(
+        "compiler_overhead remains uninstantiated" not in boundaries,
+        "remaining boundaries must not leave epsilon_compiler_overhead open",
+    )
 
 
 def main() -> None:

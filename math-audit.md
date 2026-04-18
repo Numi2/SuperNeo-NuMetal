@@ -1,12 +1,14 @@
 # SuperNeo / NumiSeal Formal Audit
 
-Date: 2026-04-17
+Date: 2026-04-18
 
 This note supersedes the earlier audit addenda that asked for a well-formed
 transcript object, 384-bit theorem-critical bindings, constructive terminal CE
 finite soundness, constructive PiCCS finite soundness, and a finite-uniform
-probability bridge. Those items are now implemented in the Lean formal stack and
-build through the top-level `SuperNeoFormal` import wall.
+probability bridge. Those items are now implemented in the Lean formal stack.
+The current formal status is still the corrected finite-model core with open
+theorem-critical integrations; it is not promoted to a completed protocol
+theorem while terminal CE and PiRLC semantic-localization evidence remains open.
 
 Verified command:
 
@@ -31,7 +33,19 @@ evidence-parametric theorem surfaces:
 - PiCCS finite soundness consumes the constructive sum-check prefix bad-set
   proofs directly;
 - terminal CE finite soundness has a constructive replacement surface over the
-  concrete extraction-failure bad-seed set;
+  concrete extraction-failure bad-seed set, including a slot-seed certificate
+  endpoint, a Swift-round certificate endpoint, and a checked lift from slot
+  bad seeds to full ternary challenge-tape bad seeds with the exact
+  `3^(roundCount - 1)` fiber factor. The Swift response-tag trace now supplies
+  the full ternary challenge tape and verifier-branch match;
+- PiRLC finite soundness has a constructive bad-seed surface, a strong
+  full-ring unit-pivot endpoint, and CRT-component certificate constructors
+  from delta collision plus the concrete upper-half challenge-coefficient fiber.
+  The checked linear-defect semantics route is the final Lean input shape for
+  the conservative PiRLC path, and concrete folded-claim observations cover
+  commitment, public-input, and evaluation coordinates with a finite
+  observation-family union-bound lift. The full public-field family is
+  instantiated with the concrete `(rows + publicCount + evalCount)` multiplier;
 - transcript finite probability is connected to the finite-uniform error ledger
   and selected-depth numerator arithmetic.
 
@@ -185,11 +199,17 @@ The following files are still useful, but should be cited precisely:
 
 ## Remaining Boundaries
 
-The old mandatory Lean implementation list is closed. Remaining work is now
-outside that list:
+The old broad Lean implementation list is closed, but two theorem-critical
+formal integrations remain open and are intentionally tracked as planned groups:
 
-- instantiate the QROM compiler evidence for the selected split-oracle CTCO or
-  Merkle-straightline theorem family;
+- connect accepted Swift/trace terminal CE failure seeds to concrete bad rounds,
+  instantiating the checked terminal CE evidence package;
+- instantiate the checked PiRLC linear-defect semantics for the selected
+  concrete Swift/trace folded relation's product-level defect predicate, or
+  prove the stronger full-ring unit-pivot evidence package for that selected
+  path. The full public-field observation family can now be discharged through
+  the checked finite-family bad-seed certificate once that defect predicate is
+  proved;
 - connect deployed Swift verifier/prover behavior to the formal trace
   semantics at release-grade assurance, beyond grammar/vector conformance;
 - close product operations evidence for hosted context/provenance/replay,
@@ -201,11 +221,13 @@ outside that list:
 
 Safe:
 
-> The corrected finite formal model has a completed Lean protocol theorem path
-> with well-formed transcript injectivity, 384-bit theorem-critical bindings,
-> constructive PiCCS and terminal CE finite bad-set theorems, and exact
-> finite-uniform probability accounting.
+> The corrected finite formal model has checked Lean endpoints for well-formed
+> transcript injectivity, 384-bit theorem-critical bindings, constructive PiCCS
+> and terminal CE finite bad-set theorems, PiRLC finite-soundness certificates
+> under explicit localization hypotheses, and exact finite-uniform probability
+> accounting.
 
 Not safe:
 
-> The repository is production QROM-secure or production side-channel certified.
+> The repository has a completed formal protocol theorem, production QROM
+> security, or production side-channel certification.

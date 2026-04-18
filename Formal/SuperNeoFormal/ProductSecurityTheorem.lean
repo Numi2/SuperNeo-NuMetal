@@ -1,4 +1,5 @@
 import SuperNeoFormal.NumiSealProductTheorem
+import SuperNeoFormal.ProductBadEventLedger
 
 /-!
 Product cryptographic security theorem surface.
@@ -360,6 +361,72 @@ def ProductQROMTotalLossInstantiatedAccepted
     ∧ loss.cryptographicSliceWithinBudget
     ∧ loss.repoWideNonMathTermsClosed
 
+structure ProductQROMCompilerOverheadBound where
+  selectedFamily : ProductCompilerFamily
+  selectedDepth : Nat
+  idealSplitQROModelPinned : Prop
+  onlineExtractabilityAssumptionPinned : Prop
+  compilerAddsNoLegacyRoundFactor : Prop
+  compilerOverheadExactZeroInIdealModel : Prop
+  hashModelGapSeparated : Prop
+  totalLossLedgerReceivesQROMTerm : Prop
+
+def ProductQROMCompilerOverheadBoundAccepted
+    (bound : ProductQROMCompilerOverheadBound) : Prop :=
+  (bound.selectedFamily = ProductQROMTransformFamily.ctco
+      ∨ bound.selectedFamily = ProductQROMTransformFamily.merkleStraightline)
+    ∧ 0 < bound.selectedDepth
+    ∧ bound.idealSplitQROModelPinned
+    ∧ bound.onlineExtractabilityAssumptionPinned
+    ∧ bound.compilerAddsNoLegacyRoundFactor
+    ∧ bound.compilerOverheadExactZeroInIdealModel
+    ∧ bound.hashModelGapSeparated
+    ∧ bound.totalLossLedgerReceivesQROMTerm
+
+structure ProductSharedBadEventDeduplication where
+  moduleSISSharedTagPinned : Prop
+  commitmentSharedTagPinned : Prop
+  sourceFoldUsesResidualNonCoreTerm : Prop
+  terminalUsesResidualNonCoreTerm : Prop
+  extractorUsesResidualNonCoreTerm : Prop
+  qromCollisionSeparatedFromCore : Prop
+  selectedDepthLedgerUsesSharedCoreTerm : Prop
+  totalLossBudgetChargesSharedCoreOnce : Prop
+  formalAggregateUnionBoundPinned : Prop
+
+def ProductSharedBadEventDeduplicationAccepted
+    (dedup : ProductSharedBadEventDeduplication) : Prop :=
+  dedup.moduleSISSharedTagPinned
+    ∧ dedup.commitmentSharedTagPinned
+    ∧ dedup.sourceFoldUsesResidualNonCoreTerm
+    ∧ dedup.terminalUsesResidualNonCoreTerm
+    ∧ dedup.extractorUsesResidualNonCoreTerm
+    ∧ dedup.qromCollisionSeparatedFromCore
+    ∧ dedup.selectedDepthLedgerUsesSharedCoreTerm
+    ∧ dedup.totalLossBudgetChargesSharedCoreOnce
+    ∧ dedup.formalAggregateUnionBoundPinned
+
+structure ProductExactFiniteProbabilityWiring where
+  selectedDepth : Nat
+  dyadicRationalArithmeticPinned : Prop
+  zeroLossTermsRepresentedExactly : Prop
+  instantiatedTermPartialSumComputed : Prop
+  missingRequiredTermsKeepTotalUninstantiated : Prop
+  qromTermSeparatedFromCollisionLedger : Prop
+  hbindCollisionExpressionExact : Prop
+  selectedDepthBudgetComparisonUsesExactRationals : Prop
+
+def ProductExactFiniteProbabilityWiringAccepted
+    (wiring : ProductExactFiniteProbabilityWiring) : Prop :=
+  0 < wiring.selectedDepth
+    ∧ wiring.dyadicRationalArithmeticPinned
+    ∧ wiring.zeroLossTermsRepresentedExactly
+    ∧ wiring.instantiatedTermPartialSumComputed
+    ∧ wiring.missingRequiredTermsKeepTotalUninstantiated
+    ∧ wiring.qromTermSeparatedFromCollisionLedger
+    ∧ wiring.hbindCollisionExpressionExact
+    ∧ wiring.selectedDepthBudgetComparisonUsesExactRationals
+
 structure ProductInstantiatedQROMEvidence where
   hashInstantiation : ProductHashOracleInstantiation
   protocolDefinitions : ProductInteractiveProtocolDefinitions
@@ -370,6 +437,8 @@ structure ProductInstantiatedQROMEvidence where
   collisionBound : ProductQROMCollisionBound
   malleabilityBound : ProductQROMMalleabilityBound
   interactiveBounds : ProductInteractiveSecurityBounds
+  compilerOverheadBound : ProductQROMCompilerOverheadBound
+  exactFiniteProbabilityWiring : ProductExactFiniteProbabilityWiring
   totalLoss : ProductQROMTotalLossInstantiated
 
 def ProductInstantiatedQROMEvidenceAccepted
@@ -383,6 +452,8 @@ def ProductInstantiatedQROMEvidenceAccepted
     ∧ ProductQROMCollisionBoundAccepted evidence.collisionBound
     ∧ ProductQROMMalleabilityBoundAccepted evidence.malleabilityBound
     ∧ ProductInteractiveSecurityBoundsAccepted evidence.interactiveBounds
+    ∧ ProductQROMCompilerOverheadBoundAccepted evidence.compilerOverheadBound
+    ∧ ProductExactFiniteProbabilityWiringAccepted evidence.exactFiniteProbabilityWiring
     ∧ ProductQROMTotalLossInstantiatedAccepted evidence.totalLoss
 
 structure ProductFiatShamirTranscriptSchedule where
@@ -813,7 +884,9 @@ theorem productSecurityTheorem_from_instantiated_qrom
     (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence) :
     evidence.totalLoss.cryptographicSliceWithinBudget
       ∧ evidence.totalLoss.collisionLedgerIntegrated
-      ∧ evidence.interactiveBounds.sharedBadEventTagsPinned := by
+      ∧ evidence.interactiveBounds.sharedBadEventTagsPinned
+      ∧ evidence.compilerOverheadBound.compilerOverheadExactZeroInIdealModel
+      ∧ evidence.exactFiniteProbabilityWiring.instantiatedTermPartialSumComputed := by
   rcases hEvidence with
     ⟨_,
       _,
@@ -824,9 +897,15 @@ theorem productSecurityTheorem_from_instantiated_qrom
       _,
       _,
       hInteractive,
+      hCompilerOverhead,
+      hWiring,
       hLoss⟩
   rcases hInteractive with
     ⟨_, hSharedTags, _, _, _, _, _, _⟩
+  rcases hCompilerOverhead with
+    ⟨_, _, _, _, _, hCompilerOverheadZero, _, _⟩
+  rcases hWiring with
+    ⟨_, _, _, hPartialSum, _, _, _, _⟩
   rcases hLoss with
     ⟨_,
       _,
@@ -834,7 +913,12 @@ theorem productSecurityTheorem_from_instantiated_qrom
       hCollisionIntegrated,
       hCryptographicBudget,
       _⟩
-  exact ⟨hCryptographicBudget, hCollisionIntegrated, hSharedTags⟩
+  exact
+    ⟨hCryptographicBudget,
+      hCollisionIntegrated,
+      hSharedTags,
+      hCompilerOverheadZero,
+      hPartialSum⟩
 
 theorem productSecurityTheorem_requires_qrom_loss_accounting
     {accounting : ProductFiatShamirLossAccounting}
@@ -880,6 +964,36 @@ theorem productSecurityTheorem_requires_qrom_collision_malleability_exclusion
       hCollision,
       _⟩
   exact ⟨hTranscriptDomain, hProofKind, hCollision⟩
+
+theorem productSecurityTheorem_requires_theorem_critical_hbind
+    {hashes : ProductHashOracleInstantiation}
+    (hHashes : ProductHashOracleInstantiationAccepted hashes) :
+    hashes.bindingOracleBits = 384
+      ∧ hashes.bindingTargetEventCount = 9
+      ∧ hashes.theoremCriticalBindingsUseHBind
+      ∧ hashes.bindingDomainsSeparated
+      ∧ hashes.bindingTargetEventCountPinned
+      ∧ hashes.hashQROInstantiationAssumptionPinned := by
+  rcases hHashes with
+    ⟨_,
+      hBindingBits,
+      hTargetCount,
+      _,
+      hHBind,
+      _,
+      _,
+      _,
+      hBindingDomains,
+      hTargetPinned,
+      _,
+      hQROAssumption⟩
+  exact
+    ⟨hBindingBits,
+      hTargetCount,
+      hHBind,
+      hBindingDomains,
+      hTargetPinned,
+      hQROAssumption⟩
 
 theorem productSecurityTheorem_requires_challenge_tape_expansion
     {expansion : ProductChallengeTapeExpansion}
@@ -1005,6 +1119,34 @@ theorem productSecurityTheorem_requires_qrom_interactive_reduction
       hBudget,
       hPromotion⟩
 
+theorem productSecurityTheorem_requires_qrom_compiler_overhead_bound
+    {bound : ProductQROMCompilerOverheadBound}
+    (hBound : ProductQROMCompilerOverheadBoundAccepted bound) :
+    (bound.selectedFamily = ProductQROMTransformFamily.ctco
+        ∨ bound.selectedFamily = ProductQROMTransformFamily.merkleStraightline)
+      ∧ 0 < bound.selectedDepth
+      ∧ bound.idealSplitQROModelPinned
+      ∧ bound.onlineExtractabilityAssumptionPinned
+      ∧ bound.compilerAddsNoLegacyRoundFactor
+      ∧ bound.compilerOverheadExactZeroInIdealModel
+      ∧ bound.hashModelGapSeparated
+      ∧ bound.totalLossLedgerReceivesQROMTerm := by
+  exact hBound
+
+theorem productSecurityTheorem_requires_shared_bad_event_deduplication
+    {dedup : ProductSharedBadEventDeduplication}
+    (hDedup : ProductSharedBadEventDeduplicationAccepted dedup) :
+    dedup.moduleSISSharedTagPinned
+      ∧ dedup.commitmentSharedTagPinned
+      ∧ dedup.sourceFoldUsesResidualNonCoreTerm
+      ∧ dedup.terminalUsesResidualNonCoreTerm
+      ∧ dedup.extractorUsesResidualNonCoreTerm
+      ∧ dedup.qromCollisionSeparatedFromCore
+      ∧ dedup.selectedDepthLedgerUsesSharedCoreTerm
+      ∧ dedup.totalLossBudgetChargesSharedCoreOnce
+      ∧ dedup.formalAggregateUnionBoundPinned := by
+  exact hDedup
+
 theorem productSecurityTheorem_requires_total_loss_budget
     {budget : ProductTotalLossBudget}
     (hBudget : ProductTotalLossBudgetAccepted budget) :
@@ -1025,6 +1167,19 @@ theorem productSecurityTheorem_requires_total_loss_budget
       hWithin,
       hPromotion⟩
   exact ⟨hArithmetic, hQROM, hExtractor, hAll, hMissing, hWithin, hPromotion⟩
+
+theorem productSecurityTheorem_requires_exact_finite_probability_wiring
+    {wiring : ProductExactFiniteProbabilityWiring}
+    (hWiring : ProductExactFiniteProbabilityWiringAccepted wiring) :
+    0 < wiring.selectedDepth
+      ∧ wiring.dyadicRationalArithmeticPinned
+      ∧ wiring.zeroLossTermsRepresentedExactly
+      ∧ wiring.instantiatedTermPartialSumComputed
+      ∧ wiring.missingRequiredTermsKeepTotalUninstantiated
+      ∧ wiring.qromTermSeparatedFromCollisionLedger
+      ∧ wiring.hbindCollisionExpressionExact
+      ∧ wiring.selectedDepthBudgetComparisonUsesExactRationals := by
+  exact hWiring
 
 theorem productSecurityTheorem_requires_release_distribution_evidence
     {evidence : ProductReleaseDistributionEvidence}

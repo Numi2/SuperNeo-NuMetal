@@ -11,6 +11,7 @@
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+    "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json"
   },
@@ -29,8 +30,11 @@
       "ProductInteractiveSecurityBoundsAccepted",
       "ProductQROMTotalLossInstantiated",
       "ProductQROMTotalLossInstantiatedAccepted",
+      "ProductSharedBadEventDeduplication",
+      "ProductSharedBadEventDeduplicationAccepted",
       "ProductQROMTightTransform",
       "productSecurityTheorem_from_instantiated_qrom",
+      "productSecurityTheorem_requires_shared_bad_event_deduplication",
       "productSecurityTheorem_requires_qrom_loss_accounting"
     ]
   },
@@ -173,10 +177,13 @@
     "bindingCollisionFormula": "4 * bindingTargetEventCount * Q_H^2 / 2^bindingOracle.outputBits",
     "bindingCollisionInstantiatedExpression": "4 * 9 * 2^128 / 2^384 = 36 * 2^-256",
     "bindingCollisionBoundLog2": 250.83007499855768,
+    "compilerOverheadInstantiatedExpression": "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO theorem model",
+    "hashModelGapInstantiatedExpression": "epsilon_hash_model_gap = 0 in the ideal split-QRO model; concrete SHAKE256 promotion remains a separate hash-instantiation claim",
     "interactiveLossChargedOutsideQROM": true,
     "sharedBadEventTagsPinned": true,
-    "allQROMLossTermsInstantiated": false,
-    "qromLossWithinBudget": false,
+    "sharedBadEventDeduplicationManifest": "TestVectors/product-shared-bad-event-dedup-v1.json",
+    "allQROMLossTermsInstantiated": true,
+    "qromLossWithinBudget": true,
     "productionQROMClaimAllowed": false
   },
   "ledgerTermMapping": {
@@ -186,7 +193,7 @@
         "epsilon_compiler_overhead",
         "epsilon_hash_model_gap"
       ],
-      "selectedDepthContribution": "epsilon_qrom(depth=1) = epsilon_compiler_overhead + epsilon_hash_model_gap"
+      "selectedDepthContribution": "epsilon_qrom(depth=1) = epsilon_compiler_overhead + epsilon_hash_model_gap = 0 in the ideal split-QRO model"
     },
     "transcriptCollisionLoss": {
       "ledgerSymbol": "epsilon_collision",
@@ -205,20 +212,19 @@
     "legacyLossExpression": "max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)"
   },
   "hardClaimBlockers": [
-    "interactive special-soundness, delayed-message, and unique-response data must be instantiated for every accepted proof kind",
-    "epsilon_compiler_overhead must be instantiated for the selected CTCO or merkle-straightline theorem family",
-    "the selected-depth ledger must deduplicate shared Module-SIS and shared commitment bad-event tags",
+    "interactive special-soundness data must be instantiated for every accepted proof kind",
+    "NumiSealZK simulator composition remains outside epsilon_qrom and must be instantiated separately",
     "repo-wide epsilon_replay, epsilon_ct, and epsilon_release remain outside the QROM theorem and still block production security"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
     "productionPostQuantumClaimAllowed": false,
     "productionQROMClaimAllowed": false,
-    "requiresCTCOProtocolImplementation": true,
+    "requiresCTCOProtocolImplementation": false,
     "requiresHBind384Implementation": false,
     "requiresInteractiveSecurityBounds": true,
-    "requiresCompilerOverheadInstantiation": true,
-    "requiresSharedBadEventDeduplication": true,
-    "requiresSelectedDepthLedgerUpdate": true
+    "requiresCompilerOverheadInstantiation": false,
+    "requiresSharedBadEventDeduplication": false,
+    "requiresSelectedDepthLedgerUpdate": false
   }
 }

@@ -44,10 +44,11 @@ Machine-readable files:
   terminal, and NumiSealZK product transcript interfaces. It records QROM loss
   symbols, proof-kind separation, and the mapping from
   `epsilon_transcript_collision` to ledger `epsilon_collision`. The
-  conditional `Q_H = 2^64` query cap is instantiated; split-oracle
-  CTCO/Merkle-straightline product evidence, numeric 384-bit binding collision
-  bounds, total-loss integration, and the production QROM loss claim remain
-  open.
+  conditional `Q_H = 2^64` query cap is instantiated; split-oracle CTCO product
+  evidence, numeric 384-bit binding collision bounds, and exact partial
+  total-loss integration are pinned, while underlying interactive-security
+  bounds, NumiSealZK simulator composition outside the QROM term, concrete
+  hash/QRO promotion, and the production QROM loss claim remain open.
 - `product-qrom-transcript-schedule-v1.json`: checked QROM transcript schedule
   contract for fold, terminal, compressed-terminal, NumiSeal terminal, and
   NumiSealZK product proof kinds. It pins public challenge labels, transcript
@@ -58,9 +59,10 @@ Machine-readable files:
   transcript-encoding evidence under the QRO abstraction. It pins the exact
   rejection-sampling arithmetic for Goldilocks, Ext2, Phi81, CE ternary, and
   NumiSealZK masked-residual challenges, plus well-formed 64-bit
-  length-prefixed transcript frame injectivity, while keeping hash
-  instantiation, numeric 384-bit binding collision bounds, proof-kind
-  malleability bounds, and production QROM claims disabled.
+  length-prefixed transcript frame injectivity. The theorem-critical 384-bit
+  binding collision arithmetic and proof-kind malleability charge are pinned in
+  the CTCO/collision manifests; concrete hash instantiation and production QROM
+  claims remain disabled.
 - `product-qrom-collision-malleability-evidence-v1.json`: checked QROM
   collision/malleability structural evidence. It pins accepted proof-kind
   separation, proof-envelope transcript-binding injectivity, transcript-domain
@@ -83,8 +85,9 @@ Machine-readable files:
   split-oracle CTCO or Merkle-straightline with 384-bit binding digests.
 - `product-total-loss-budget-v1.json`: checked total-loss budget contract for
   the current selected-depth security boundary. It records exact rational
-  summation, the `2^-128` selected threshold, ten component bounds, nine
-  selected-depth required terms, and the fail-closed promotion rule.
+  summation, the `2^-128` selected threshold, eleven component bounds, ten
+  selected-depth required terms, shared-core bad-event deduplication, and the
+  fail-closed promotion rule.
 - `product-release-distribution-evidence-v1.json`: checked release
   distribution evidence contract for source archives, Swift CLI binaries, test
   vector bundles, release-candidate evidence, benchmark/estimator artifacts,

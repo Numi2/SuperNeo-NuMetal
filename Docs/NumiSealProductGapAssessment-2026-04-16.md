@@ -67,8 +67,10 @@ NumiSeal-specific product work and the formal integration work tracked in
   probability ledger. Remaining NumiSeal-specific work is release-grade Swift
   review of the pinned Swift extractor/trace surface, hosted selected-depth
   typed carry policy, release-hardware simulator-coupling evidence, and numeric
-  total-loss instantiation for extractor, QROM compiler overhead, ZK simulator,
-  product operations, side-channel, and release terms.
+  total-loss instantiation for extractor, interactive security, ZK simulator,
+  product operations, side-channel, and release terms. The ideal split-QRO
+  compiler-overhead term is now instantiated as zero and wired into the exact
+  partial total-loss budget.
 - [ ] Self-owned review: cryptographic review, implementation review, and
   side-channel assessment recorded in repository evidence.
 

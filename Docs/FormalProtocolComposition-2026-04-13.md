@@ -37,8 +37,18 @@ separates their deterministic cores from the remaining boundaries:
 
 - `pirlc-recomposition-core`, `pirlc-finite-support-core`, and
   `pirlc-scalar-collision-core` are historical closure labels. The current
-  theorem-facing PiRLC path uses the CRT localization endpoint rather than the
-  older quotient-ring folded-claim collision certificate boundary.
+  theorem-facing PiRLC path uses explicit CRT localization endpoints rather
+  than the older quotient-ring folded-claim collision certificate boundary. The
+  strong remaining-seed count requires a full-ring unit-pivot collision
+  hypothesis; the component-only CRT path carries the `5^27` fiber factor and
+  is now constructed from the checked delta-collision evidence package plus the
+  concrete upper-half challenge-coefficient fiber. The checked linear-defect
+  route derives that evidence from accepted folded claims once the concrete
+  folded relation supplies the product-level defect predicate; the folded-claim
+  observation core already covers commitment, public-input, and evaluation
+  coordinates, and the finite observation-family lift now gives the explicit
+  selected-family union bound. The full public-field family is instantiated
+  with the concrete `(rows + publicCount + evalCount)` multiplier.
 - `piccs-acceptance-core` and `piccs-deterministic-sumcheck-bridge` are closed;
   `sumcheck-low-degree-root-count-core` closes the finite-field root-count
   lemma; `piccs-sumcheck-boundary` remains scoped to the remaining

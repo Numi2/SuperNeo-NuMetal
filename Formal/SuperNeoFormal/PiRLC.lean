@@ -54,6 +54,106 @@ def rlcWeightedClaim {count rows publicCount evalCount pointVars : Nat}
   point := point
   evaluations := rlcWeightedVector challenges (fun index => (claims index).evaluations)
 
+structure RLCClaimLinearObservation
+    (RF : Type) [CommRing RF]
+    (rows publicCount evalCount pointVars : Nat) where
+  observe : EvaluationClaim RF rows publicCount evalCount pointVars → RF
+  observe_rlcWeightedClaim :
+    ∀ {count : Nat}
+      (point : ProtocolVector RF pointVars)
+      (challenges : Fin count → RF)
+      (claims : Fin count →
+        EvaluationClaim RF rows publicCount evalCount pointVars),
+      observe (rlcWeightedClaim point challenges claims) =
+        rlcWeightedSum challenges (fun index => observe (claims index))
+
+def rlcCommitmentCoordinateObservation
+    {rows publicCount evalCount pointVars : Nat}
+    (row : Fin rows) :
+    RLCClaimLinearObservation RF rows publicCount evalCount pointVars where
+  observe := fun claim => claim.commitment row
+  observe_rlcWeightedClaim := by
+    intro count point challenges claims
+    rfl
+
+def rlcPublicInputCoordinateObservation
+    {rows publicCount evalCount pointVars : Nat}
+    (coordinate : Fin publicCount) :
+    RLCClaimLinearObservation RF rows publicCount evalCount pointVars where
+  observe := fun claim => claim.publicInput coordinate
+  observe_rlcWeightedClaim := by
+    intro count point challenges claims
+    rfl
+
+def rlcEvaluationCoordinateObservation
+    {rows publicCount evalCount pointVars : Nat}
+    (coordinate : Fin evalCount) :
+    RLCClaimLinearObservation RF rows publicCount evalCount pointVars where
+  observe := fun claim => claim.evaluations coordinate
+  observe_rlcWeightedClaim := by
+    intro count point challenges claims
+    rfl
+
+abbrev RLCClaimPublicFieldIndex
+    (rows publicCount evalCount : Nat) :=
+  (Fin rows ⊕ Fin publicCount) ⊕ Fin evalCount
+
+theorem rlcPublicFieldObservationIndex_card
+    (rows publicCount evalCount : Nat) :
+    Fintype.card (RLCClaimPublicFieldIndex rows publicCount evalCount) =
+      rows + publicCount + evalCount := by
+  simp [RLCClaimPublicFieldIndex, Nat.add_assoc]
+
+def rlcPublicFieldObservation
+    {rows publicCount evalCount pointVars : Nat}
+    (index : RLCClaimPublicFieldIndex rows publicCount evalCount) :
+    RLCClaimLinearObservation RF rows publicCount evalCount pointVars :=
+  match index with
+  | Sum.inl (Sum.inl row) => rlcCommitmentCoordinateObservation row
+  | Sum.inl (Sum.inr coordinate) => rlcPublicInputCoordinateObservation coordinate
+  | Sum.inr coordinate => rlcEvaluationCoordinateObservation coordinate
+
+def RLCClaimPublicFieldsZero
+    {rows publicCount evalCount pointVars : Nat}
+    (claim : EvaluationClaim RF rows publicCount evalCount pointVars) : Prop :=
+  (∀ row, claim.commitment row = 0) ∧
+    (∀ coordinate, claim.publicInput coordinate = 0) ∧
+      (∀ coordinate, claim.evaluations coordinate = 0)
+
+def RLCClaimPublicFieldObservationSound
+    {rows publicCount evalCount pointVars : Nat}
+    (claim : EvaluationClaim RF rows publicCount evalCount pointVars) : Prop :=
+  ∀ index : RLCClaimPublicFieldIndex rows publicCount evalCount,
+    (rlcPublicFieldObservation (RF := RF) (pointVars := pointVars) index).observe claim = 0
+
+theorem rlcPublicFieldObservationSound_iff_fields_zero
+    {rows publicCount evalCount pointVars : Nat}
+    (claim : EvaluationClaim RF rows publicCount evalCount pointVars) :
+    RLCClaimPublicFieldObservationSound claim ↔
+      RLCClaimPublicFieldsZero claim := by
+  constructor
+  · intro hSound
+    refine ⟨?_, ?_, ?_⟩
+    · intro row
+      simpa [RLCClaimPublicFieldObservationSound, rlcPublicFieldObservation]
+        using hSound (Sum.inl (Sum.inl row))
+    · intro coordinate
+      simpa [RLCClaimPublicFieldObservationSound, rlcPublicFieldObservation]
+        using hSound (Sum.inl (Sum.inr coordinate))
+    · intro coordinate
+      simpa [RLCClaimPublicFieldObservationSound, rlcPublicFieldObservation]
+        using hSound (Sum.inr coordinate)
+  · intro hZero index
+    rcases hZero with ⟨hCommitment, hPublicInput, hEvaluations⟩
+    rcases index with (index | coordinate)
+    · rcases index with (row | coordinate)
+      · simpa [RLCClaimPublicFieldObservationSound, rlcPublicFieldObservation]
+          using hCommitment row
+      · simpa [RLCClaimPublicFieldObservationSound, rlcPublicFieldObservation]
+          using hPublicInput coordinate
+    · simpa [RLCClaimPublicFieldObservationSound, rlcPublicFieldObservation]
+        using hEvaluations coordinate
+
 def RLCClaimPubliclyConsistent {count rows publicCount evalCount pointVars : Nat}
     (point : ProtocolVector RF pointVars)
     (challenges : Fin count → RF)

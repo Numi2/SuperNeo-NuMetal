@@ -12,6 +12,7 @@
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+    "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
     "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -24,7 +25,13 @@
     "declarations": [
       "ProductTotalLossBudget",
       "ProductTotalLossBudgetAccepted",
-      "productSecurityTheorem_requires_total_loss_budget"
+      "ProductSharedBadEventDeduplication",
+      "ProductSharedBadEventDeduplicationAccepted",
+      "ProductExactFiniteProbabilityWiring",
+      "ProductExactFiniteProbabilityWiringAccepted",
+      "productSecurityTheorem_requires_total_loss_budget",
+      "productSecurityTheorem_requires_shared_bad_event_deduplication",
+      "productSecurityTheorem_requires_exact_finite_probability_wiring"
     ]
   },
   "selectedDepth": {
@@ -36,14 +43,25 @@
   },
   "budgetModel": {
     "lossBoundFormat": "negative-log2-upper-bound-bits",
-    "exactArithmetic": "sum exact rational terms multiplicity * 2^-boundLog2",
+    "exactArithmetic": "sum exact rational upper-bound terms; dyadic terms use exact numerator / 2^k and zero terms are represented as 0",
     "selectedSecurityBudgetBits": 128,
     "maximumAllowedTotalLoss": "2^-128",
     "requiresEveryRequiredTermInstantiated": true,
     "zeroMultiplicityTermsExcludedFromSelectedSum": true,
-    "doubleCountingPolicy": "epsilon_collision is mapped from epsilon_bind and is not included inside epsilon_qrom"
+    "doubleCountingPolicy": "epsilon_core_shared is a tagged union of shared Module-SIS and shared commitment failures; epsilon_collision is mapped from epsilon_bind and is not included inside epsilon_qrom or epsilon_core_shared"
   },
   "componentBounds": [
+    {
+      "id": "shared-cryptographic-core",
+      "ledgerSymbol": "epsilon_core_shared",
+      "sourceManifest": "TestVectors/product-shared-bad-event-dedup-v1.json",
+      "currentMultiplicityAtSelectedDepth": 1,
+      "requiredForSelectedDepth": true,
+      "lossInstantiated": true,
+      "boundLog2": 129,
+      "exactUpperBound": "1/2^129",
+      "requiredEvidence": "TestVectors/product-shared-bad-event-dedup-v1.json tagged-union deduplication plus conservative shared core bound epsilon_core_shared <= 2^-129 from the pinned Module-SIS lane"
+    },
     {
       "id": "source-fold-knowledge",
       "ledgerSymbol": "epsilon_fold",
@@ -52,7 +70,8 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
-      "requiredEvidence": "source fold transcript-loss instantiation for accepted proof-envelope bytes"
+      "exactUpperBound": null,
+      "requiredEvidence": "residual source fold transcript-loss instantiation for accepted proof-envelope bytes after shared core failures are charged once through epsilon_core_shared"
     },
     {
       "id": "terminal-numiseal-seal",
@@ -62,7 +81,8 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
-      "requiredEvidence": "terminal aggregation, residual opening, and component-root reduction loss instantiated for depth 1"
+      "exactUpperBound": null,
+      "requiredEvidence": "residual terminal aggregation, residual opening, and component-root reduction loss instantiated for depth 1 after shared core failures are charged once through epsilon_core_shared"
     },
     {
       "id": "typed-recursive-carry",
@@ -72,6 +92,7 @@
       "requiredForSelectedDepth": false,
       "lossInstantiated": false,
       "boundLog2": null,
+      "exactUpperBound": null,
       "requiredEvidence": "typed carry producer/consumer loss before recursive depth promotion"
     },
     {
@@ -82,6 +103,7 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
+      "exactUpperBound": null,
       "requiredEvidence": "full simulator coupling for repeated product proofs under the declared leakage model"
     },
     {
@@ -90,9 +112,10 @@
       "sourceManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
       "currentMultiplicityAtSelectedDepth": 1,
       "requiredForSelectedDepth": true,
-      "lossInstantiated": false,
-      "boundLog2": null,
-      "requiredEvidence": "pinned CTCO split-QRO transcript target with Q_H = 2^64, one 256-bit challenge seed per accepted proof kind, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, implemented 384-bit H_bind acceptance binders, implemented CTCO move-1 root coverage for all accepted proof-kind trace bodies, and epsilon_compiler_overhead instantiation"
+      "lossInstantiated": true,
+      "boundLog2": 384,
+      "exactUpperBound": "0",
+      "requiredEvidence": "pinned CTCO split-QRO transcript target with Q_H = 2^64, one 256-bit challenge seed per accepted proof kind, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, implemented 384-bit H_bind acceptance binders, implemented CTCO move-1 root coverage for all accepted proof-kind trace bodies, pinned delayed-message/unique-response data, and epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO model"
     },
     {
       "id": "extractor-instantiation",
@@ -102,7 +125,8 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
-      "requiredEvidence": "concrete Swift extractor failure bound for source fold, terminal seal, and product-envelope composition"
+      "exactUpperBound": null,
+      "requiredEvidence": "residual concrete Swift extractor failure bound for source fold, terminal seal, and product-envelope composition after shared core failures are charged once through epsilon_core_shared"
     },
     {
       "id": "transcript-collision-domain-separation",
@@ -112,7 +136,8 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": true,
       "boundLog2": 250,
-      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json structural binding plus 384-bit H_bind target bound epsilon_bind = 36 * 2^-256; proof-kind malleability is charged inside epsilon_collision"
+      "exactUpperBound": "9/2^254",
+      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json structural binding plus 384-bit H_bind target bound epsilon_bind = 36 * 2^-256 = 9/2^254; proof-kind malleability is charged inside epsilon_collision"
     },
     {
       "id": "product-ops-replay",
@@ -122,6 +147,7 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
+      "exactUpperBound": null,
       "requiredEvidence": "hosted tenant replay, revocation freshness, key rotation, and audit retention/export loss bound"
     },
     {
@@ -132,6 +158,7 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
+      "exactUpperBound": null,
       "requiredEvidence": "CPU/Swift/LLVM/assembly/Metal/GPU/runtime/failure-path side-channel evidence closure"
     },
     {
@@ -142,25 +169,38 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": false,
       "boundLog2": null,
+      "exactUpperBound": null,
       "requiredEvidence": "TestVectors/product-release-distribution-evidence-v1.json plus signed artifacts, signed release provenance, notarization/publication proof, hosted branch-protection evidence, archived release evidence, and numeric epsilon_release bound"
     }
   ],
   "computedBudget": {
-    "requiredTermCount": 9,
-    "instantiatedRequiredTermCount": 1,
+    "requiredTermCount": 10,
+    "instantiatedRequiredTermCount": 3,
     "missingRequiredTermIDs": [
       "source-fold-knowledge",
       "terminal-numiseal-seal",
       "zk-simulator-composition",
-      "fiat-shamir-qrom",
       "extractor-instantiation",
       "product-ops-replay",
       "constant-time-side-channel",
       "release-signing-notarization"
     ],
+    "exactInstantiatedRequiredTermUpperBound": "42535295865117307932921825928971026441/2^254",
     "exactSelectedDepthLossUpperBound": null,
     "selectedDepthLossWithinBudget": false,
     "allRequiredTermsInstantiated": false,
+    "productionTotalLossClaimAllowed": false
+  },
+  "exactFiniteProbabilityWiring": {
+    "selectedDepth": 1,
+    "dyadicRationalArithmeticPinned": true,
+    "zeroLossTermsRepresentedExactly": true,
+    "instantiatedTermPartialSumComputed": true,
+    "missingRequiredTermsKeepTotalUninstantiated": true,
+    "qromTermSeparatedFromCollisionLedger": true,
+    "hbindCollisionExpressionExact": "epsilon_bind = 36 * 2^-256 = 9/2^254",
+    "sharedCoreExpressionExact": "epsilon_core_shared = 2^-129 = 1/2^129 and is charged once as a tagged union",
+    "selectedDepthBudgetComparisonUsesExactRationals": true,
     "productionTotalLossClaimAllowed": false
   },
   "promotionRule": {

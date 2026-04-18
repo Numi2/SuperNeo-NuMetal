@@ -86,6 +86,8 @@ conditional path depends only on mechanized closed groups.
   `TerminalCEConstructiveFiniteSoundness.lean` is the current theorem-facing
   CE finite endpoint: it uses the concrete extraction-failure bad-seed set and
   derives the `roundCount * 3` budget from an injective bad-seed localization.
+  The concrete Swift/Fiat-Shamir tape-to-slot localization remains an explicit
+  integration obligation.
 - SuperNeo acceptance decomposition is tracked as closed deterministic
   composition. `superneo-finite-bad-seed-composition` composes terminal
   verifier acceptance with the constructive finite CE bad-seed evidence.

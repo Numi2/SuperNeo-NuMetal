@@ -154,6 +154,34 @@ theorem phi81CRTRightPolynomial_irreducible :
       (a := phi81CRTRightRadicand)).mpr
         phi81CRTRightRadicand_not_cube
 
+theorem phi81CRTLeftPolynomial_monic :
+    phi81CRTLeftPolynomial.Monic := by
+  simpa [phi81CRTLeftPolynomial] using
+    (monic_X_pow_sub_C
+      (R := Goldilocks)
+      phi81CRTLeftRadicand
+      (n := 27)
+      (by decide))
+
+theorem phi81CRTRightPolynomial_monic :
+    phi81CRTRightPolynomial.Monic := by
+  rw [phi81CRTRightPolynomial_eq_X_pow_sub_C]
+  simpa using
+    (monic_X_pow_sub_C
+      (R := Goldilocks)
+      phi81CRTRightRadicand
+      (n := 27)
+      (by decide))
+
+theorem phi81CRTLeftPolynomial_natDegree :
+    phi81CRTLeftPolynomial.natDegree = 27 := by
+  simp [phi81CRTLeftPolynomial]
+
+theorem phi81CRTRightPolynomial_natDegree :
+    phi81CRTRightPolynomial.natDegree = 27 := by
+  rw [phi81CRTRightPolynomial_eq_X_pow_sub_C]
+  simp
+
 instance phi81CRTLeftPolynomial_irreducible_fact :
     Fact (Irreducible phi81CRTLeftPolynomial) :=
   ⟨phi81CRTLeftPolynomial_irreducible⟩

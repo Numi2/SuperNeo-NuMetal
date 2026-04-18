@@ -68,13 +68,17 @@ Do not carry forward these older blocker statements:
 The remaining work includes theorem-critical integrations and product/security
 evidence:
 
-- wire the 384-bit typed-digest layer through the upper theorem boundary;
-- instantiate constructive terminal CE localization evidence;
-- complete CRT-based PiRLC finite soundness;
-- keep exact finite probability wired through the selected-depth ledger and
-  product theorem;
-- instantiate the split-oracle CTCO or Merkle-straightline QROM compiler
-  evidence records;
+- instantiate constructive terminal CE localization evidence by proving the
+  concrete Swift/trace failure seed maps into the checked `(round, challenge)`
+  slot evidence package. The Swift response-tag trace already supplies the full
+  ternary challenge-tape seed and proof-level full-tape certificate constructor;
+- instantiate the checked PiRLC linear-defect semantics for the selected
+  concrete Swift/trace folded relation's product-level defect predicate, or
+  prove the stronger full-ring unit-pivot evidence package. The Lean surface now
+  includes finite-family bad-seed accounting for selected linear observations,
+  and the full public-field family is instantiated with the concrete
+  `(rows + publicCount + evalCount)` multiplier. The remaining work is to prove
+  the Swift/trace relation implies that family-level defect;
 - provide release-grade Swift trace/extractor equivalence evidence;
 - finish hosted product operations evidence for context, provenance, replay,
   authorization, audit retention, and signed distribution;

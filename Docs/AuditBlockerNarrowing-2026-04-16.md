@@ -197,17 +197,29 @@ still requires deployed durable implementations and operational review.
 `Docs/FormalStatus.json` now records the corrected finite-model core and keeps
 the theorem-critical integrations explicit as open planned groups:
 
-- `upper-typed-digest-binding-integration`
 - `terminal-ce-localization-instantiation`
 - `pirlc-crt-finite-soundness-completion`
-- `product-theorem-exact-probability-integration`
 
 The formal-status validator rejects documentation that claims a future completed
 theorem label before those integrations are closed. Supporting work includes
 Goldilocks/Phi81 algebra, Ext2 wire grammar, CE byte grammar, Swift/Lean Ext2
 vectors, Swift/Lean CE vectors, tagged bad-event bookkeeping, finite
 transcript-seed accounting, Swift-facing byte equivalence declarations, and CE
-verifier-trace bridging.
+verifier-trace bridging. The terminal CE and PiRLC hard-math surfaces now have
+checked evidence-package constructors: terminal slot-seed evidence yields the
+Swift-round bad-seed budget and now lifts to the full ternary challenge-tape
+seed model with the exact `3^(roundCount - 1)` per-slot fiber factor; the Swift
+response-tag trace supplies the full tape and verifier-branch match. PiRLC CRT
+component evidence yields the conservative delta-collision
+certificate with the `5^27` concrete upper-half coefficient fiber factor, and
+the checked linear-defect route derives that evidence from accepted folded
+claims. Concrete folded-claim observations cover commitment, public-input, and
+evaluation coordinates, and finite observation-family accounting now unions the
+selected-coordinate bad seeds with an explicit family-cardinality multiplier.
+The full public-field family is instantiated with the concrete
+`(rows + publicCount + evalCount)` multiplier. The open part is instantiating
+the selected product-level defect predicate for the concrete Swift/trace folded
+relation.
 
 Conclusion: the formal status is now narrower and validated by checked Lean
 declarations plus fail-closed validator mutation tests. This does not close the

@@ -90,7 +90,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         premature_bound = copy.deepcopy(budget)
-        premature_bound["componentBounds"][0]["boundLog2"] = 256
+        premature_bound["componentBounds"][1]["boundLog2"] = 256
         path = tmp / "premature-bound.json"
         write_json(path, premature_bound)
         run_fail(str(VALIDATE), str(path))
@@ -99,6 +99,36 @@ def main() -> None:
         stale_missing_list["computedBudget"]["missingRequiredTermIDs"] = []
         path = tmp / "stale-missing-list.json"
         write_json(path, stale_missing_list)
+        run_fail(str(VALIDATE), str(path))
+
+        stale_partial_sum = copy.deepcopy(budget)
+        stale_partial_sum["computedBudget"]["exactInstantiatedRequiredTermUpperBound"] = "1/2^128"
+        path = tmp / "stale-partial-sum.json"
+        write_json(path, stale_partial_sum)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_qrom_exact_bound = copy.deepcopy(budget)
+        for row in wrong_qrom_exact_bound["componentBounds"]:
+            if row["id"] == "fiat-shamir-qrom":
+                row["exactUpperBound"] = "1/2^256"
+        path = tmp / "wrong-qrom-exact-bound.json"
+        write_json(path, wrong_qrom_exact_bound)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_shared_core_exact_bound = copy.deepcopy(budget)
+        for row in wrong_shared_core_exact_bound["componentBounds"]:
+            if row["id"] == "shared-cryptographic-core":
+                row["exactUpperBound"] = "1/2^128"
+        path = tmp / "wrong-shared-core-exact-bound.json"
+        write_json(path, wrong_shared_core_exact_bound)
+        run_fail(str(VALIDATE), str(path))
+
+        wrong_collision_exact_bound = copy.deepcopy(budget)
+        for row in wrong_collision_exact_bound["componentBounds"]:
+            if row["id"] == "transcript-collision-domain-separation":
+                row["exactUpperBound"] = "35/2^256"
+        path = tmp / "wrong-collision-exact-bound.json"
+        write_json(path, wrong_collision_exact_bound)
         run_fail(str(VALIDATE), str(path))
 
         premature_within_budget = copy.deepcopy(budget)

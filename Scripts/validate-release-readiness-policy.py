@@ -556,7 +556,11 @@ def validate_schema_versions() -> None:
         "selected-depth loss-accounting must not prematurely allow product-security loss claims",
     )
     blockers = selected_depth_loss.get("hardClaimBlockers")
-    require(isinstance(blockers, list) and len(blockers) == 8, "selected-depth loss-accounting must pin eight hard blockers")
+    require(isinstance(blockers, list) and len(blockers) == 7, "selected-depth loss-accounting must pin seven hard blockers")
+    require(
+        "underlying interactive security bounds outside the QROM compiler-overhead term" in blockers,
+        "selected-depth loss-accounting must keep only the underlying QROM interactive-security blocker",
+    )
     selected_related = selected_depth_loss.get("relatedManifests")
     require(isinstance(selected_related, dict), "selected-depth loss-accounting relatedManifests must be an object")
     require(
@@ -620,6 +624,14 @@ def validate_schema_versions() -> None:
     require(
         qrom_rule.get("productionQROMClaimAllowed") is False,
         "QROM Fiat-Shamir accounting must not prematurely allow QROM claims",
+    )
+    require(
+        qrom_rule.get("allQROMLossTermsInstantiated") is True,
+        "QROM Fiat-Shamir accounting must instantiate the ideal split-QRO loss terms",
+    )
+    require(
+        qrom_rule.get("qromLossWithinBudget") is True,
+        "QROM Fiat-Shamir accounting must keep the ideal split-QRO loss within budget",
     )
     qrom_mapping = qrom_accounting.get("ledgerTermMapping")
     require(isinstance(qrom_mapping, dict), "QROM Fiat-Shamir accounting ledgerTermMapping must be an object")
@@ -841,14 +853,20 @@ def validate_schema_versions() -> None:
     for key in [
         "requiresInteractiveProtocolImplementation",
         "requiresUnderlyingInteractiveSecurity",
+    ]:
+        require(
+            precondition_promotion.get(key) is True,
+            f"QROM transform preconditions must keep {key} open",
+        )
+    for key in [
         "requiresDelayedMessageData",
         "requiresUniqueResponseData",
         "requiresQROMLossInstantiation",
         "requiresTotalLossBudgetUpdate",
     ]:
         require(
-            precondition_promotion.get(key) is True,
-            f"QROM transform preconditions must keep {key} open",
+            precondition_promotion.get(key) is False,
+            f"QROM transform preconditions must consume {key}",
         )
     require(
         precondition_promotion.get("requiresHBind384Implementation") is False,
@@ -878,8 +896,12 @@ def validate_schema_versions() -> None:
     reduction_loss = qrom_reduction.get("qromQueryAndLossInstantiation")
     require(isinstance(reduction_loss, dict), "QROM interactive reduction qromQueryAndLossInstantiation must be an object")
     require(
-        reduction_loss.get("allNumericLossTermsInstantiated") is False,
-        "QROM interactive reduction must not prematurely instantiate all numeric loss terms",
+        reduction_loss.get("allNumericLossTermsInstantiated") is True,
+        "QROM interactive reduction must instantiate the ideal split-QRO numeric loss terms",
+    )
+    require(
+        reduction_loss.get("qromLossWithinBudget") is True,
+        "QROM interactive reduction must keep the ideal split-QRO loss within budget",
     )
     legacy_budget = reduction_loss.get("legacyScheduleDerivedQueryBudget")
     require(isinstance(legacy_budget, dict), "QROM interactive reduction legacyScheduleDerivedQueryBudget must be an object")
@@ -924,16 +946,19 @@ def validate_schema_versions() -> None:
         reduction_promotion.get("requiresCTCORootCommitments") is False,
         "QROM interactive reduction must consume CTCO root commitment implementation evidence",
     )
+    require(
+        reduction_promotion.get("requiresInteractiveSecurityBounds") is True,
+        "QROM interactive reduction must keep requiresInteractiveSecurityBounds open",
+    )
     for key in [
-        "requiresInteractiveSecurityBounds",
         "requiresDelayedMessageData",
         "requiresUniqueResponseData",
         "requiresQROMLossWithinBudget",
         "requiresTotalLossBudgetUpdate",
     ]:
         require(
-            reduction_promotion.get(key) is True,
-            f"QROM interactive reduction must keep {key} open",
+            reduction_promotion.get(key) is False,
+            f"QROM interactive reduction must consume {key}",
         )
     require(
         reduction_promotion.get("requiresHBind384SourceImplementation") is False,

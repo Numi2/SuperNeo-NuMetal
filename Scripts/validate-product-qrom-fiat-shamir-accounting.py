@@ -38,6 +38,7 @@ EXPECTED_MANIFESTS = {
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+    "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
 }
@@ -57,8 +58,10 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductQROMMalleabilityBound",
     "ProductInteractiveSecurityBounds",
     "ProductQROMTotalLossInstantiated",
+    "ProductSharedBadEventDeduplication",
     "ProductQROMTightTransform",
     "productSecurityTheorem_from_instantiated_qrom",
+    "productSecurityTheorem_requires_shared_bad_event_deduplication",
     "productSecurityTheorem_requires_qrom_loss_accounting",
 }
 
@@ -255,10 +258,19 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     require(rule.get("proofKindMalleabilityFormula") == "0; charged inside epsilon_collision through binding-target events", "proof-kind malleability formula mismatch")
     require(rule.get("bindingCollisionFormula") == "4 * bindingTargetEventCount * Q_H^2 / 2^bindingOracle.outputBits", "binding collision formula mismatch")
     require("36 * 2^-256" in require_string(rule.get("bindingCollisionInstantiatedExpression"), "bindingCollisionInstantiatedExpression"), "binding collision instantiation mismatch")
+    require(
+        rule.get("compilerOverheadInstantiatedExpression") == "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO theorem model",
+        "compiler overhead instantiation mismatch",
+    )
+    require("ideal split-QRO" in require_string(rule.get("hashModelGapInstantiatedExpression"), "hashModelGapInstantiatedExpression"), "hash-model gap instantiation mismatch")
     require_true(rule.get("interactiveLossChargedOutsideQROM"), "lossRule.interactiveLossChargedOutsideQROM")
     require_true(rule.get("sharedBadEventTagsPinned"), "lossRule.sharedBadEventTagsPinned")
-    require_false(rule.get("allQROMLossTermsInstantiated"), "lossRule.allQROMLossTermsInstantiated")
-    require_false(rule.get("qromLossWithinBudget"), "lossRule.qromLossWithinBudget")
+    require(
+        rule.get("sharedBadEventDeduplicationManifest") == "TestVectors/product-shared-bad-event-dedup-v1.json",
+        "lossRule.sharedBadEventDeduplicationManifest mismatch",
+    )
+    require_true(rule.get("allQROMLossTermsInstantiated"), "lossRule.allQROMLossTermsInstantiated")
+    require_true(rule.get("qromLossWithinBudget"), "lossRule.qromLossWithinBudget")
     require_false(rule.get("productionQROMClaimAllowed"), "lossRule.productionQROMClaimAllowed")
 
 
@@ -283,8 +295,9 @@ def validate_legacy_status(accounting: dict[str, Any]) -> None:
 
 def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
     blockers = " ".join(require_string_list(accounting.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["ctco", "special-soundness", "compiler_overhead", "epsilon_replay"]:
+    for needle in ["special-soundness", "zk simulator", "epsilon_replay"]:
         require(needle in blockers, f"hardClaimBlockers must mention {needle}")
+    require("deduplicate shared" not in blockers, "shared bad-event dedup must not remain a QROM blocker")
     promotion = require_dict(accounting.get("promotionRule"), "promotionRule")
     for key in [
         "productionProductSecurityClaimAllowed",
@@ -293,13 +306,16 @@ def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
     for key in [
-        "requiresCTCOProtocolImplementation",
         "requiresInteractiveSecurityBounds",
+    ]:
+        require_true(promotion.get(key), f"promotionRule.{key}")
+    for key in [
+        "requiresCTCOProtocolImplementation",
         "requiresCompilerOverheadInstantiation",
         "requiresSharedBadEventDeduplication",
         "requiresSelectedDepthLedgerUpdate",
     ]:
-        require_true(promotion.get(key), f"promotionRule.{key}")
+        require_false(promotion.get(key), f"promotionRule.{key}")
     require_false(promotion.get("requiresHBind384Implementation"), "promotionRule.requiresHBind384Implementation")
 
 

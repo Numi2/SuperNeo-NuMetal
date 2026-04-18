@@ -57,9 +57,9 @@
     "productionQROMClaimAllowed": false,
     "selectedTotalLossClaimAllowed": false,
     "remainingBoundaries": [
-      "epsilon_compiler_overhead remains uninstantiated",
+      "epsilon_compiler_overhead is instantiated as 0 in the ideal split-QRO CTCO theorem model; delayed-message and unique-response CTCO data are pinned in the transform and interactive-reduction manifests",
       "interactive security bounds remain charged outside the QROM transform term",
-      "selected total-loss promotion remains disabled until all required terms are instantiated"
+      "selected total-loss promotion remains disabled until all non-QROM required terms are instantiated"
     ]
   }
 }

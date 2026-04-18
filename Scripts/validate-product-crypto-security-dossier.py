@@ -70,6 +70,10 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductQROMInteractiveReductionAccepted",
     "ProductFiatShamirLossAccounting",
     "ProductFiatShamirLossAccountingAccepted",
+    "ProductQROMCompilerOverheadBound",
+    "ProductQROMCompilerOverheadBoundAccepted",
+    "ProductSharedBadEventDeduplication",
+    "ProductSharedBadEventDeduplicationAccepted",
     "ProductQROMTransformFamily",
     "ProductCompilerFamily",
     "ProductHashOracleInstantiation",
@@ -97,6 +101,8 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductQROMTightTransform",
     "ProductTotalLossBudget",
     "ProductTotalLossBudgetAccepted",
+    "ProductExactFiniteProbabilityWiring",
+    "ProductExactFiniteProbabilityWiringAccepted",
     "ProductReleaseDistributionEvidence",
     "ProductReleaseDistributionEvidenceAccepted",
     "productSecurityTheorem_from_evidence",
@@ -106,9 +112,12 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "productSecurityTheorem_requires_qrom_transcript_schedule",
     "productSecurityTheorem_requires_qrom_transform_preconditions",
     "productSecurityTheorem_requires_qrom_interactive_reduction",
+    "productSecurityTheorem_requires_qrom_compiler_overhead_bound",
+    "productSecurityTheorem_requires_shared_bad_event_deduplication",
     "productSecurityTheorem_requires_qrom_loss_accounting",
     "productSecurityTheorem_requires_qrom_collision_malleability_exclusion",
     "productSecurityTheorem_requires_total_loss_budget",
+    "productSecurityTheorem_requires_exact_finite_probability_wiring",
     "productSecurityTheorem_requires_release_distribution_evidence",
     "productSecurityTheorem_requires_qrom_accounting",
     "productSecurityTheorem_requires_artifact_envelope_binding",
@@ -132,6 +141,7 @@ EXPECTED_MANIFESTS = {
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+    "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json",
     "latticeEstimator": "lattice-estimator-results/superneo-goldilocks-phi81.json",
@@ -308,6 +318,10 @@ def validate_depth(dossier: dict[str, Any]) -> None:
     require(
         ledger_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
         "selected-depth ledger must link QROM collision/malleability evidence",
+    )
+    require(
+        ledger_related.get("productSharedBadEventDedup") == "TestVectors/product-shared-bad-event-dedup-v1.json",
+        "selected-depth ledger must link shared bad-event dedup evidence",
     )
     require(
         ledger_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
@@ -495,7 +509,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         "QROM ledgerTermMapping.epsilon_collision mismatch",
     )
     obligations = " ".join(require_string_list(qrom.get("remainingObligations"), "fiatShamirQROMPosition.remainingObligations")).lower()
-    for needle in ["ctco", "special-soundness", "epsilon_compiler_overhead", "epsilon_replay"]:
+    for needle in ["special-soundness", "simulator", "epsilon_replay"]:
         require(needle in obligations, f"QROM obligations must mention {needle}")
     schedule = read_json(ROOT / "TestVectors/product-qrom-transcript-schedule-v1.json")
     require(schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
@@ -537,9 +551,24 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     manifest_expression = require_string(loss_rule.get("selectedDepthExpression"), "QROM accounting selectedDepthExpression")
     for symbol in ["epsilon_compiler_overhead", "epsilon_hash_model_gap"]:
         require(symbol in manifest_expression, f"QROM accounting selectedDepthExpression must include {symbol}")
+    require(
+        loss_rule.get("compilerOverheadInstantiatedExpression") == "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO theorem model",
+        "QROM accounting compiler overhead instantiation mismatch",
+    )
+    require(
+        loss_rule.get("hashModelGapInstantiatedExpression")
+        == "epsilon_hash_model_gap = 0 in the ideal split-QRO model; concrete SHAKE256 promotion remains a separate hash-instantiation claim",
+        "QROM accounting hash-model gap instantiation mismatch",
+    )
+    require(loss_rule.get("allQROMLossTermsInstantiated") is True, "QROM accounting allQROMLossTermsInstantiated must be true")
+    require(loss_rule.get("qromLossWithinBudget") is True, "QROM accounting qromLossWithinBudget must be true")
     require("n_kind!" not in manifest_expression, "QROM accounting selectedDepthExpression must not carry legacy factorial loss")
     require(loss_rule.get("interactiveLossChargedOutsideQROM") is True, "QROM accounting must charge interactive loss outside QROM")
     require(loss_rule.get("sharedBadEventTagsPinned") is True, "QROM accounting must pin shared bad-event tags")
+    require(
+        loss_rule.get("sharedBadEventDeduplicationManifest") == "TestVectors/product-shared-bad-event-dedup-v1.json",
+        "QROM accounting shared bad-event dedup manifest mismatch",
+    )
     require(
         loss_rule.get("proofKindMalleabilityFormula") == "0; charged inside epsilon_collision through binding-target events",
         "proof-kind malleability formula mismatch",
@@ -570,8 +599,13 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(profile.get("bindingOracleBits") == 384, "QROM transform binding bits mismatch")
     require(profile.get("legacyDFM20InterfaceDeprecated") is True, "QROM transform must deprecate DFM20")
     loss_interface = require_dict(preconditions.get("lossInterface"), "QROM transform preconditions lossInterface")
-    require_false(loss_interface.get("numericLossInstantiated"), "QROM transform preconditions numericLossInstantiated")
+    require(loss_interface.get("numericLossInstantiated") is True, "QROM transform preconditions numericLossInstantiated must be true")
+    require(loss_interface.get("qromLossWithinBudget") is True, "QROM transform preconditions qromLossWithinBudget must be true")
     require(loss_interface.get("compilerOverheadSymbol") == "epsilon_compiler_overhead", "QROM transform compiler overhead symbol mismatch")
+    require(
+        loss_interface.get("compilerOverheadExpression") == "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO theorem model",
+        "QROM transform compiler overhead expression mismatch",
+    )
     reduction = read_json(ROOT / "TestVectors/product-qrom-interactive-reduction-v1.json")
     require(
         reduction.get("claimStatus") == "qrom-ctco-interactive-reduction-contract-not-production-claim",
@@ -595,7 +629,8 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(reduction_loss.get("bindingDigestBits") == 384, "QROM interactive bindingDigestBits mismatch")
     legacy_budget = require_dict(reduction_loss.get("legacyScheduleDerivedQueryBudget"), "QROM interactive legacyScheduleDerivedQueryBudget")
     require(legacy_budget.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "legacy schedule derivation count mismatch")
-    require_false(reduction_loss.get("allNumericLossTermsInstantiated"), "QROM interactive reduction allNumericLossTermsInstantiated")
+    require(reduction_loss.get("allNumericLossTermsInstantiated") is True, "QROM interactive reduction allNumericLossTermsInstantiated must be true")
+    require(reduction_loss.get("qromLossWithinBudget") is True, "QROM interactive reduction qromLossWithinBudget must be true")
     sampler = read_json(ROOT / "TestVectors/product-qrom-sampler-encoding-evidence-v1.json")
     require(
         sampler.get("claimStatus") == "qrom-sampler-encoding-evidence-conditional-not-production-qrom-theorem",
@@ -649,7 +684,7 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
     require(total.get("selectedSecurityBudgetBits") == 128, "totalLossBudget.selectedSecurityBudgetBits must be 128")
     require(total.get("maximumAllowedTotalLoss") == "2^-128", "totalLossBudget.maximumAllowedTotalLoss mismatch")
     require(
-        total.get("exactArithmetic") == "sum exact rational terms multiplicity * 2^-boundLog2",
+        total.get("exactArithmetic") == "sum exact rational upper-bound terms; dyadic terms use exact numerator / 2^k and zero terms are represented as 0",
         "totalLossBudget.exactArithmetic mismatch",
     )
     for key in [
@@ -669,6 +704,10 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
         "total loss budget claimStatus must stay precise",
     )
     computed = require_dict(manifest.get("computedBudget"), "total loss budget computedBudget")
+    require(
+        computed.get("exactInstantiatedRequiredTermUpperBound") == "42535295865117307932921825928971026441/2^254",
+        "total loss budget instantiated partial sum must include shared core and H_bind collision terms",
+    )
     require_false(computed.get("productionTotalLossClaimAllowed"), "total loss budget productionTotalLossClaimAllowed")
     require_false(computed.get("selectedDepthLossWithinBudget"), "total loss budget selectedDepthLossWithinBudget")
 

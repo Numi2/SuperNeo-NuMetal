@@ -243,7 +243,7 @@ def main() -> None:
                 "corrected finite-model core with open theorem-critical integrations"
             ][
                 "required_theorem_groups"
-            ].remove("product-theorem-exact-probability-integration"),
+            ].remove("terminal-ce-localization-instantiation"),
         ),
         "current corrected finite-model label must include open integration",
     )
@@ -263,10 +263,10 @@ def main() -> None:
         "open integration must remain planned before promotion",
         mutate_group(
             manifest,
-            "upper-typed-digest-binding-integration",
+            "pirlc-crt-finite-soundness-completion",
             lambda group: group.update({
                 "status": "closed",
-                "declarations": ["ProductSystemBindings"],
+                "declarations": ["pirlc_allInputsSound_of_seed_not_bad"],
             }),
         ),
         "must remain planned before promotion",

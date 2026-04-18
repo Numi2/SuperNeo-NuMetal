@@ -72,9 +72,8 @@ EXPECTED_QUERY_FAMILY_PREFIXES = [
 ]
 
 EXPECTED_BLOCKERS = [
-    "Fiat-Shamir transform precondition proof for the pinned transcript schedule",
-    "numeric digest collision and proof-kind malleability bound for the structurally pinned residual event",
-    "integration of the instantiated Q_H bound into a repaired QROM loss model that fits the selected total-loss budget",
+    "underlying interactive security bounds for the pinned transcript schedule",
+    "NumiSealZK simulator composition remains outside the transcript-schedule query bound",
 ]
 
 
@@ -469,7 +468,7 @@ def validate_ledger_binding(schedule: dict[str, Any]) -> None:
     require(binding.get("selectedQHBound") == "2^64", "ledgerBinding.selectedQHBound must be 2^64")
     require(binding.get("selectedQHLog2") == 64, "ledgerBinding.selectedQHLog2 must be 64")
     require_true(binding.get("numericQueryBoundInstantiated"), "ledgerBinding.numericQueryBoundInstantiated")
-    require_false(binding.get("qromLossWithinBudget"), "ledgerBinding.qromLossWithinBudget")
+    require_true(binding.get("qromLossWithinBudget"), "ledgerBinding.qromLossWithinBudget")
 
 
 def validate_promotion_and_blockers(schedule: dict[str, Any]) -> None:
@@ -483,12 +482,12 @@ def validate_promotion_and_blockers(schedule: dict[str, Any]) -> None:
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
     require(promotion.get("requiresInteractiveProtocol") is False, "promotionRule.requiresInteractiveProtocol must be false after interactive reduction manifest closure")
+    require(promotion.get("requiresTransformPreconditions") is True, "promotionRule.requiresTransformPreconditions must be true")
     for key in [
-        "requiresTransformPreconditions",
         "requiresQROMAccountingUpdate",
         "requiresTotalLossBudgetUpdate",
     ]:
-        require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+        require(promotion.get(key) is False, f"promotionRule.{key} must be false after QROM loss wiring closure")
     require(promotion.get("requiresQuantumOracleQueryBound") is False, "promotionRule.requiresQuantumOracleQueryBound must be false after Q_H bound instantiation")
     require(
         promotion.get("requiresStructuralCollisionMalleabilityEvidence") is False,

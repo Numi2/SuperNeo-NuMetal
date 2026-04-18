@@ -16,10 +16,14 @@ verifier keys, transcript byte injectivity is theorem-facing only for
 well-formed length-counted transcript states, theorem-critical bindings have a
 384-bit typed digest layer, and finite PiRLC/PiCCS/terminal-CE/transcript
 probability accounting exists over explicit bad challenge/seed sets. The active
-status still keeps four integrations open in `Docs/FormalStatus.json`: upper
-384-bit typed-digest binding, constructive terminal CE localization
-instantiation, CRT-based PiRLC finite-soundness completion, and product-theorem
-probability wiring.
+status still keeps two integrations open in `Docs/FormalStatus.json`:
+constructive terminal CE localization instantiation for the concrete
+Swift/Fiat-Shamir tape and CRT-based PiRLC finite-soundness completion. The
+PiRLC completion is narrowed to selected Swift/trace defect evidence: Lean now
+has concrete folded-claim linear observations and finite observation-family
+bad-seed accounting with an explicit family-cardinality multiplier. The full
+public-field family is instantiated with the concrete
+`(rows + publicCount + evalCount)` multiplier.
 
 The historical `closed_under_*` groups remain documented for auditability, but
 the manifest now uses corrected-core group IDs plus explicit planned integration

@@ -145,7 +145,7 @@ def main() -> None:
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         missing_selected_loss_component = copy.deepcopy(evidence)
-        missing_selected_loss_component["publicSurfaces"]["productSelectedDepthLossComponentCount"] = 8
+        missing_selected_loss_component["publicSurfaces"]["productSelectedDepthLossComponentCount"] = 10
         path = tmp / "missing-selected-loss-component.json"
         write_json(path, missing_selected_loss_component)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
@@ -332,6 +332,30 @@ def main() -> None:
         write_json(path, missing_qrom_interactive_reduction_kind)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
+        wrong_shared_bad_event_dedup = copy.deepcopy(evidence)
+        wrong_shared_bad_event_dedup["publicSurfaces"]["productSharedBadEventDedupVersion"] = 2
+        path = tmp / "wrong-shared-bad-event-dedup.json"
+        write_json(path, wrong_shared_bad_event_dedup)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        vague_shared_bad_event_dedup = copy.deepcopy(evidence)
+        vague_shared_bad_event_dedup["publicSurfaces"]["productSharedBadEventDedupClaimStatus"] = "production-total-loss-proof"
+        path = tmp / "vague-shared-bad-event-dedup.json"
+        write_json(path, vague_shared_bad_event_dedup)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        missing_shared_bad_event_tag = copy.deepcopy(evidence)
+        missing_shared_bad_event_tag["publicSurfaces"]["productSharedBadEventDedupTagCount"] = 1
+        path = tmp / "missing-shared-bad-event-tag.json"
+        write_json(path, missing_shared_bad_event_tag)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        weak_shared_bad_event_bound = copy.deepcopy(evidence)
+        weak_shared_bad_event_bound["publicSurfaces"]["productSharedBadEventDedupCoreBoundLog2"] = 128
+        path = tmp / "weak-shared-bad-event-bound.json"
+        write_json(path, weak_shared_bad_event_bound)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
         wrong_total_loss_budget = copy.deepcopy(evidence)
         wrong_total_loss_budget["publicSurfaces"]["productTotalLossBudgetVersion"] = 2
         path = tmp / "wrong-total-loss-budget.json"
@@ -345,7 +369,7 @@ def main() -> None:
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         missing_total_loss_component = copy.deepcopy(evidence)
-        missing_total_loss_component["publicSurfaces"]["productTotalLossBudgetComponentCount"] = 9
+        missing_total_loss_component["publicSurfaces"]["productTotalLossBudgetComponentCount"] = 10
         path = tmp / "missing-total-loss-component.json"
         write_json(path, missing_total_loss_component)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))

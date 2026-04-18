@@ -80,8 +80,8 @@ claims remain blocked by the release packet no-go items.
   exact rejection-sampling arithmetic for Goldilocks, Ext2, Phi81, CE ternary,
   and NumiSealZK masked-residual challenges plus well-formed transcript frame
   injectivity under the QRO abstraction, while leaving hash instantiation,
-  numeric 384-bit binding collision bounds, proof-kind malleability bounds,
-  product QROM compiler evidence, and the final production QROM theorem
+  concrete hash/QRO promotion, underlying interactive-security bounds,
+  NumiSealZK simulator composition, and the final production QROM theorem
   disabled.
 - Added checked QROM collision/malleability evidence, validator, mutation
   tests, release-evidence wiring, production-gate coverage, and Lean
@@ -89,13 +89,15 @@ claims remain blocked by the release packet no-go items.
   kinds. The evidence pins structural cross-kind, cross-domain,
   cross-product-session, and cross-carry binding outside digest collision
   events while keeping concrete hash/QRO instantiation, numeric digest
-  collision bounds, proof-kind malleability bounds, product QROM compiler
-  evidence, and total-loss integration disabled.
+  concrete hash/QRO promotion, underlying interactive-security bounds,
+  NumiSealZK simulator composition, and the remaining non-QROM total-loss terms
+  disabled.
 - Added a checked total-loss budget manifest, validator, mutation tests,
   release-evidence wiring, and Lean theorem hook. The budget pins exact
-  rational selected-depth summation, ten component bounds, nine required
-  selected-depth numeric terms, and the `2^-128` threshold while keeping
-  production claims disabled.
+  rational selected-depth summation, eleven component bounds, ten required
+  selected-depth numeric terms, the `epsilon_core_shared` bad-event
+  deduplication charge, and the `2^-128` threshold while keeping production
+  claims disabled.
 - Added a checked release distribution evidence manifest, validator, mutation
   tests, release-evidence wiring, and Lean theorem hook. The evidence pins
   required artifact families, provenance fields, unsigned research-artifact
@@ -164,12 +166,12 @@ claims remain blocked by the release packet no-go items.
   concrete Swift extractor implementation, numeric extractor loss
   instantiation, product recursive typed carry vectors, selected total-loss
   budget instantiation, simulator coupling beyond the exact field-mask
-  distribution lemma, split-oracle CTCO or Merkle-straightline product QROM
-  evidence, numeric 384-bit binding collision and proof-kind malleability bounds
-  over the structurally pinned residual events, per-kind interactive security
-  bounds, conservative
+  distribution lemma, per-kind interactive security bounds, conservative
   post-quantum parameter closure, competitive proof-size/latency evidence, and
-  side-channel evidence.
+  side-channel evidence. The split-oracle CTCO/Merkle-straightline QROM path,
+  384-bit H_bind collision arithmetic, proof-kind malleability charge, and
+  shared-core bad-event deduplication are now pinned as checked evidence rather
+  than left as open sync drift.
 - Signed artifacts, signed provenance, notarization/publication proof, archived
   release evidence, numeric `epsilon_release` budget instantiation, and
   repository branch-protection enforcement.

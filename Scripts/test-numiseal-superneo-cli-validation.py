@@ -167,7 +167,7 @@ def main() -> None:
         "transcript-domain",
         artifact,
         lambda item: item.__setitem__("transcriptDomainHex", ZERO_DIGEST),
-        "transcript domain",
+        "CTCO context binder",
     )
     run_mutated_artifact(
         cli,

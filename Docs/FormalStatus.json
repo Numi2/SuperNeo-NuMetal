@@ -3,16 +3,12 @@
   "formal_status": "corrected finite-model core with open theorem-critical integrations",
   "current_label": "corrected finite-model core with open theorem-critical integrations",
   "blocker_groups": [
-    "upper-typed-digest-binding-integration",
     "terminal-ce-localization-instantiation",
-    "pirlc-crt-finite-soundness-completion",
-    "product-theorem-exact-probability-integration"
+    "pirlc-crt-finite-soundness-completion"
   ],
   "open_integration_groups": [
-    "upper-typed-digest-binding-integration",
     "terminal-ce-localization-instantiation",
-    "pirlc-crt-finite-soundness-completion",
-    "product-theorem-exact-probability-integration"
+    "pirlc-crt-finite-soundness-completion"
   ],
   "theorem_groups": [
     {
@@ -46,6 +42,10 @@
       "status": "closed",
       "lean_module": "SuperNeoFormal.Phi81CRT",
       "declarations": [
+        "phi81CRTLeftPolynomial_monic",
+        "phi81CRTRightPolynomial_monic",
+        "phi81CRTLeftPolynomial_natDegree",
+        "phi81CRTRightPolynomial_natDegree",
         "phi81CRTHom_injective",
         "phi81CRT_nonzero_has_nonzero_component"
       ]
@@ -58,7 +58,77 @@
         "pirlcCRTComponentNonzero_exists_of_pivot_ne_zero",
         "PiRLCConstructiveBadSeeds",
         "PiRLCCRTConstructiveFailureLocalization",
-        "pirlc_constructive_badSeedCount_le_of_crtLocalization"
+        "pirlc_constructive_badSeedCount_le_of_crtLocalization",
+        "PiRLCCRTComponentBadSeedBudget",
+        "PiRLCCRTComponentFailureLocalization",
+        "pirlc_constructive_badSeedCount_le_of_crtComponentLocalization",
+        "PiRLCFailureDeltaCollision",
+        "PiRLCLinearDefectSemantics",
+        "pirlc_failureDeltaCollision_of_linearDefectSemantics",
+        "pirlc_linearDefectSemantics_exists_nonzero_pivot",
+        "PiRLCObservationSound",
+        "pirlc_linearObservationDefectSemantics",
+        "pirlc_constructive_badSeedCount_le_of_unitPivotDeltaCollision",
+        "PiRLCConstructiveFiniteSoundnessCertificate",
+        "pirlc_unitPivotDeltaCollision_finiteSoundnessCertificate",
+        "pirlc_constructive_finiteSoundnessCertificate_of_allInputsSound",
+        "PiRLCUnitPivotDeltaCollisionEvidence",
+        "pirlc_unitPivotDeltaCollisionEvidence_finiteSoundnessCertificate",
+        "PiRLCCRTComponentPivotFiber",
+        "phi81ChallengeSeedHighIndex",
+        "phi81ChallengeSeedHighHalf",
+        "phi81ChallengeSeedHighHalf_eq_at",
+        "phi81ChallengePolynomial_sub_natDegree_lt_component",
+        "phi81CRTLeftProjection_eq_and_highHalf_eq_imp_seed_eq",
+        "phi81CRTRightProjection_eq_and_highHalf_eq_imp_seed_eq",
+        "PiRLCCRTLeftPivotFiberIndex",
+        "PiRLCCRTRightPivotFiberIndex",
+        "pirlcCRTLeftHighHalfPivotFiberIndex",
+        "pirlcCRTRightHighHalfPivotFiberIndex",
+        "pirlcCRTLeft_badSeeds_same_remaining_have_same_pivot_projection",
+        "pirlcCRTRight_badSeeds_same_remaining_have_same_pivot_projection",
+        "pirlc_leftCRTComponentFailureLocalization_of_deltaCollision",
+        "pirlc_rightCRTComponentFailureLocalization_of_deltaCollision",
+        "pirlc_crtComponentLocalization_finiteSoundnessCertificate",
+        "pirlc_leftCRTComponentDeltaCollision_finiteSoundnessCertificate",
+        "pirlc_rightCRTComponentDeltaCollision_finiteSoundnessCertificate",
+        "pirlc_leftCRTComponentHighHalfFailureLocalization_of_deltaCollision",
+        "pirlc_rightCRTComponentHighHalfFailureLocalization_of_deltaCollision",
+        "pirlc_leftCRTComponentDeltaCollision_highHalfFiniteSoundnessCertificate",
+        "pirlc_rightCRTComponentDeltaCollision_highHalfFiniteSoundnessCertificate",
+        "PiRLCCRTComponentDeltaCollisionEvidence",
+        "pirlc_crtComponentDeltaCollisionEvidence_finiteSoundnessCertificate",
+        "PiRLCCRTConcreteComponentDeltaCollisionEvidence",
+        "pirlc_crtConcreteComponentEvidence_of_linearDefectSemantics",
+        "pirlc_crtConcreteComponentDeltaCollisionEvidence_finiteSoundnessCertificate",
+        "pirlc_linearDefectSemantics_finiteSoundnessCertificate",
+        "pirlc_linearObservation_finiteSoundnessCertificate",
+        "PiRLCObservationFamilySound",
+        "pirlc_linearObservationFamilyBadSeeds",
+        "pirlc_linearObservationFamilyBadSeeds_card_le",
+        "pirlc_linearObservationFamily_finiteSoundnessCertificate",
+        "PiRLCPublicFieldObservationSound",
+        "pirlc_publicFieldObservationSound_iff_fields_zero",
+        "PiRLCPublicFieldObservationBadSeedBudget",
+        "pirlc_publicFieldObservation_finiteSoundnessCertificate",
+        "pirlc_crtLocalization_finiteSoundnessCertificate"
+      ]
+    },
+    {
+      "id": "pirlc-linear-observation-core",
+      "status": "closed",
+      "lean_module": "SuperNeoFormal.PiRLC",
+      "declarations": [
+        "RLCClaimLinearObservation",
+        "rlcCommitmentCoordinateObservation",
+        "rlcPublicInputCoordinateObservation",
+        "rlcEvaluationCoordinateObservation",
+        "RLCClaimPublicFieldIndex",
+        "rlcPublicFieldObservationIndex_card",
+        "rlcPublicFieldObservation",
+        "RLCClaimPublicFieldsZero",
+        "RLCClaimPublicFieldObservationSound",
+        "rlcPublicFieldObservationSound_iff_fields_zero"
       ]
     },
     {
@@ -85,7 +155,33 @@
       "status": "closed",
       "lean_module": "SuperNeoFormal.TerminalCEConstructiveFiniteSoundness",
       "declarations": [
-        "terminalCEConstructive_badSeeds_probability_le"
+        "terminalCEConstructive_badSeeds_probability_le",
+        "TerminalCEFailureSlotSeed",
+        "terminalCEConstructive_slotFailureLocalization",
+        "terminalCEConstructive_slotBadSeeds_card_le_budget",
+        "TerminalCEConstructiveFiniteSoundnessCertificate",
+        "terminalCEConstructive_finiteSoundnessCertificate",
+        "terminalCEConstructive_slotSeedFiniteSoundnessCertificate",
+        "TerminalCESlotSeedLocalizationEvidence",
+        "terminalCEConstructive_certificate_of_slotSeedLocalizationEvidence",
+        "terminalCESwiftSlotSeedFiniteSoundnessCertificate",
+        "terminalCEConstructive_certificate_extract_outside_bad",
+        "TerminalCEChallengeTape",
+        "terminalCEChallengeTapeSlotFiber",
+        "terminalCEChallengeTapeSlotFiber_card_le",
+        "terminalCEChallengeTapeBadSeedsFromSlots",
+        "terminalCEChallengeTapeBadSeedsFromSlots_card_le",
+        "swiftCETraceChallengeTape",
+        "swiftCETraceSlotSeed",
+        "swiftCETraceSlotSeed_matches_challengeTape",
+        "swiftCETraceChallengeTape_matches_verifier_branch",
+        "terminalCESwiftTraceProofTape",
+        "terminalCESwiftTraceProofSlotSeed",
+        "terminalCESwiftTraceProofSlotSeed_matches_tape",
+        "TerminalCEFullTapeFromSlotCertificateEvidence",
+        "terminalCEFullTapeCertificate_of_slotCertificate",
+        "terminalCESwiftFullTapeCertificate_of_slotEvidence",
+        "terminalCESwiftTraceFullTapeCertificate_of_slotEvidence"
       ]
     },
     {
@@ -116,9 +212,11 @@
     },
     {
       "id": "upper-typed-digest-binding-integration",
-      "status": "planned",
+      "status": "closed",
       "lean_module": "SuperNeoFormal.ProductSecurityTheorem",
-      "declarations": []
+      "declarations": [
+        "productSecurityTheorem_requires_theorem_critical_hbind"
+      ]
     },
     {
       "id": "terminal-ce-localization-instantiation",
@@ -134,9 +232,11 @@
     },
     {
       "id": "product-theorem-exact-probability-integration",
-      "status": "planned",
+      "status": "closed",
       "lean_module": "SuperNeoFormal.ProductSecurityTheorem",
-      "declarations": []
+      "declarations": [
+        "productSecurityTheorem_requires_exact_finite_probability_wiring"
+      ]
     }
   ],
   "labels": {
@@ -176,6 +276,7 @@
         "digest384-serialization",
         "typed-digest-width-parameterization",
         "phi81-crt-decomposition",
+        "pirlc-linear-observation-core",
         "pirlc-crt-constructive-surface",
         "piccs-constructive-finite-soundness",
         "terminal-ce-verifier-semantics",
@@ -199,6 +300,7 @@
         "digest384-serialization",
         "typed-digest-width-parameterization",
         "phi81-crt-decomposition",
+        "pirlc-linear-observation-core",
         "pirlc-crt-constructive-surface",
         "piccs-constructive-finite-soundness",
         "terminal-ce-verifier-semantics",

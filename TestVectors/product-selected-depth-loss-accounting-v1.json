@@ -18,6 +18,7 @@
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+    "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "productReleaseDistributionEvidence": "TestVectors/product-release-distribution-evidence-v1.json"
   },
@@ -36,15 +37,24 @@
       "ProductQROMInteractiveReductionAccepted",
       "ProductFiatShamirLossAccounting",
       "ProductFiatShamirLossAccountingAccepted",
+      "ProductQROMCompilerOverheadBound",
+      "ProductQROMCompilerOverheadBoundAccepted",
+      "ProductSharedBadEventDeduplication",
+      "ProductSharedBadEventDeduplicationAccepted",
       "ProductTotalLossBudget",
       "ProductTotalLossBudgetAccepted",
+      "ProductExactFiniteProbabilityWiring",
+      "ProductExactFiniteProbabilityWiringAccepted",
       "productSecurityTheorem_requires_selected_depth_loss_accounting",
       "productSecurityTheorem_requires_extractor_loss_accounting",
       "productSecurityTheorem_requires_qrom_transcript_schedule",
       "productSecurityTheorem_requires_qrom_transform_preconditions",
       "productSecurityTheorem_requires_qrom_interactive_reduction",
+      "productSecurityTheorem_requires_qrom_compiler_overhead_bound",
+      "productSecurityTheorem_requires_shared_bad_event_deduplication",
       "productSecurityTheorem_requires_qrom_loss_accounting",
-      "productSecurityTheorem_requires_total_loss_budget"
+      "productSecurityTheorem_requires_total_loss_budget",
+      "productSecurityTheorem_requires_exact_finite_probability_wiring"
     ]
   },
   "selectedDepth": {
@@ -58,6 +68,7 @@
   "lossNotation": {
     "securityParameter": "lambda",
     "adversarySuccess": "epsilon_adv",
+    "sharedCoreLoss": "epsilon_core_shared",
     "sourceFoldLoss": "epsilon_fold",
     "terminalSealLoss": "epsilon_terminal",
     "recursiveCarryLoss": "epsilon_carry",
@@ -71,12 +82,22 @@
   },
   "componentLosses": [
     {
+      "id": "shared-cryptographic-core",
+      "appliesPerAcceptedLayer": false,
+      "status": "shared-core-bad-event-dedup-instantiated",
+      "lossSymbol": "epsilon_core_shared",
+      "accountingRule": "one global tagged-union core term for shared Module-SIS/no-short-kernel and commitment-opening failures across source fold, terminal seal, and extractor paths",
+      "requiredEvidence": "TestVectors/product-shared-bad-event-dedup-v1.json plus conservative 2^-129 shared core bound from the pinned Module-SIS lane",
+      "accountingManifest": "TestVectors/product-shared-bad-event-dedup-v1.json",
+      "productionClaimAllowed": false
+    },
+    {
       "id": "source-fold-knowledge",
       "appliesPerAcceptedLayer": true,
       "status": "evidence-parametric-not-instantiated",
       "lossSymbol": "epsilon_fold",
-      "accountingRule": "one source fold relation loss per accepted product layer",
-      "requiredEvidence": "concrete Swift extractor schedule and source fold transcript-loss instantiation for accepted proof-envelope bytes",
+      "accountingRule": "one residual source fold relation loss per accepted product layer after shared core bad-event tags are charged through epsilon_core_shared",
+      "requiredEvidence": "concrete Swift extractor schedule and source fold transcript-loss instantiation for accepted proof-envelope bytes, excluding shared Module-SIS and shared commitment-opening failures already charged through TestVectors/product-shared-bad-event-dedup-v1.json",
       "productionClaimAllowed": false
     },
     {
@@ -84,8 +105,8 @@
       "appliesPerAcceptedLayer": true,
       "status": "evidence-parametric-not-instantiated",
       "lossSymbol": "epsilon_terminal",
-      "accountingRule": "one terminal seal relation loss per accepted NumiSeal terminal proof envelope",
-      "requiredEvidence": "terminal aggregation, residual opening, and component-root reduction loss instantiated for the selected depth",
+      "accountingRule": "one residual terminal seal relation loss per accepted NumiSeal terminal proof envelope after shared core bad-event tags are charged through epsilon_core_shared",
+      "requiredEvidence": "terminal aggregation, residual opening, and component-root reduction loss instantiated for the selected depth, excluding shared Module-SIS and shared commitment-opening failures already charged through TestVectors/product-shared-bad-event-dedup-v1.json",
       "productionClaimAllowed": false
     },
     {
@@ -109,10 +130,10 @@
     {
       "id": "fiat-shamir-qrom",
       "appliesPerAcceptedLayer": true,
-      "status": "ctco-split-qro-contract-pinned-source-implementation-open",
+      "status": "ideal-split-qro-qrom-loss-instantiated-interactive-security-open",
       "lossSymbol": "epsilon_qrom",
       "accountingRule": "one CTCO split-QRO transform overhead per accepted product transcript; interactive soundness is charged outside epsilon_qrom and binding failures are exported to epsilon_collision",
-      "requiredEvidence": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json, TestVectors/product-qrom-transcript-schedule-v1.json, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, and TestVectors/product-qrom-collision-malleability-evidence-v1.json plus implemented 384-bit H_bind acceptance binders, implemented CTCO move-1 root coverage for all accepted proof-kind trace bodies, per-kind interactive security bounds, delayed-message/unique-response data, and epsilon_compiler_overhead instantiation",
+      "requiredEvidence": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json, TestVectors/product-qrom-transcript-schedule-v1.json, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, and TestVectors/product-qrom-collision-malleability-evidence-v1.json plus implemented 384-bit H_bind acceptance binders, implemented CTCO move-1 root coverage for all accepted proof-kind trace bodies, pinned delayed-message/unique-response data, epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO model, and exact finite-probability wiring into TestVectors/product-total-loss-budget-v1.json",
       "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
       "productionClaimAllowed": false
     },
@@ -121,8 +142,8 @@
       "appliesPerAcceptedLayer": true,
       "status": "extractor-accounting-contract-pinned-concrete-instantiation-open",
       "lossSymbol": "epsilon_extract",
-      "accountingRule": "one concrete extractor failure term per accepted product layer and recursive transcript schedule",
-      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus extractor implementation evidence over product proof bytes, source fold bytes, terminal seal bytes, recursive carry context bytes, and transcript rewind schedule",
+      "accountingRule": "one residual concrete extractor failure term per accepted product layer and recursive transcript schedule after shared core bad-event tags are charged through epsilon_core_shared",
+      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus extractor implementation evidence over product proof bytes, source fold bytes, terminal seal bytes, recursive carry context bytes, and transcript rewind schedule, excluding shared core bad-event tags already charged through TestVectors/product-shared-bad-event-dedup-v1.json",
       "accountingManifest": "TestVectors/product-extractor-loss-accounting-v1.json",
       "productionClaimAllowed": false
     },
@@ -165,16 +186,15 @@
     }
   ],
   "totalLossRule": {
-    "selectedDepthExpression": "epsilon_total(depth=1) = epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract + epsilon_collision + epsilon_replay + epsilon_ct + epsilon_release",
-    "recursivePromotionExpression": "epsilon_total(depth=d) = d * (epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract) + max(d - 1, 0) * epsilon_carry + epsilon_collision + epsilon_replay + epsilon_ct + epsilon_release",
+    "selectedDepthExpression": "epsilon_total(depth=1) = epsilon_core_shared + epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract + epsilon_collision + epsilon_replay + epsilon_ct + epsilon_release",
+    "recursivePromotionExpression": "epsilon_total(depth=d) = epsilon_core_shared + d * (epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract) + max(d - 1, 0) * epsilon_carry + epsilon_collision + epsilon_replay + epsilon_ct + epsilon_release",
     "allComponentLossesInstantiated": false,
     "totalLossWithinBudget": false,
     "selectedDepthLossClaimAllowed": false
   },
   "hardClaimBlockers": [
     "selected-depth extractor instantiation",
-    "QROM transform preconditions, interactive reduction, and split-QRO accounting",
-    "CTCO interactive special-soundness, delayed-message, unique-response, and compiler-overhead instantiation",
+    "underlying interactive security bounds outside the QROM compiler-overhead term",
     "selected total-loss budget instantiation",
     "full ZK simulator composition",
     "hosted product operations replay and revocation freshness",

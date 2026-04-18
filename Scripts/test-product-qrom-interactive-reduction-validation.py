@@ -60,10 +60,10 @@ def main() -> None:
         write_json(path, weak_binding)
         run_fail(str(VALIDATE), str(path))
 
-        premature_numeric_loss = copy.deepcopy(reduction)
-        premature_numeric_loss["selectedTheoremFamily"]["numericSelectedLossInstantiated"] = True
-        path = tmp / "premature-numeric-loss.json"
-        write_json(path, premature_numeric_loss)
+        missing_numeric_loss = copy.deepcopy(reduction)
+        missing_numeric_loss["selectedTheoremFamily"]["numericSelectedLossInstantiated"] = False
+        path = tmp / "missing-numeric-loss.json"
+        write_json(path, missing_numeric_loss)
         run_fail(str(VALIDATE), str(path))
 
         missing_proof_kind = copy.deepcopy(reduction)

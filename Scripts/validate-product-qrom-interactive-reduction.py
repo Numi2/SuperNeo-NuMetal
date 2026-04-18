@@ -23,6 +23,9 @@ EXPECTED_TOP_LEVEL_KEYS = {
     "productProtocolModel",
     "proofKindProtocols",
     "transcriptOracleEncodingProof",
+    "delayedMessageData",
+    "uniqueResponseData",
+    "compilerOverheadInstantiation",
     "qromQueryAndLossInstantiation",
     "ledgerIntegration",
     "hardClaimBlockers",
@@ -50,7 +53,9 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductInteractiveDelayedMessageData",
     "ProductInteractiveUniqueResponseData",
     "ProductChallengeTapeCommitOpenCompiler",
+    "ProductQROMCompilerOverheadBound",
     "productSecurityTheorem_requires_qrom_interactive_reduction",
+    "productSecurityTheorem_requires_qrom_compiler_overhead_bound",
 }
 
 EXPECTED_PROOF_KINDS = [
@@ -172,7 +177,7 @@ def validate_selected_theorem(reduction: dict[str, Any]) -> None:
     require(theorem.get("selectedQHBound") == "2^64", "selectedQHBound must be 2^64")
     require(theorem.get("selectedQHLog2") == 64, "selectedQHLog2 must be 64")
     require_true(theorem.get("legacyDFM20InterfaceDeprecated"), "selectedTheoremFamily.legacyDFM20InterfaceDeprecated")
-    require_false(theorem.get("numericSelectedLossInstantiated"), "selectedTheoremFamily.numericSelectedLossInstantiated")
+    require_true(theorem.get("numericSelectedLossInstantiated"), "selectedTheoremFamily.numericSelectedLossInstantiated")
     require_false(theorem.get("productionQROMTheoremClaimAllowed"), "selectedTheoremFamily.productionQROMTheoremClaimAllowed")
 
 
@@ -213,11 +218,11 @@ def validate_proof_kind_protocols(reduction: dict[str, Any]) -> None:
         require("p1" in protocol and "rho" in protocol and "p2" in protocol, f"{expected_kind} must have P1/rho/P2 CTCO schedule")
         require_string(row.get("extractorTarget"), f"{expected_kind}.extractorTarget")
         require("independent of legacy" in require_string(row.get("numericLossExpression"), f"{expected_kind}.numericLossExpression"), f"{expected_kind}.numericLossExpression must reject legacy n dependence")
-        require_false(row.get("numericLossInstantiated"), f"{expected_kind}.numericLossInstantiated")
+        require_true(row.get("numericLossInstantiated"), f"{expected_kind}.numericLossInstantiated")
         require_false(row.get("productionQROMClaimAllowed"), f"{expected_kind}.productionQROMClaimAllowed")
 
 
-def validate_encoding_and_loss(reduction: dict[str, Any]) -> None:
+def validate_encoding_delayed_unique_and_loss(reduction: dict[str, Any]) -> None:
     encoding = require_dict(reduction.get("transcriptOracleEncodingProof"), "transcriptOracleEncodingProof")
     require("length-delimited" in require_string(encoding.get("encoding"), "encoding"), "encoding must be length-delimited")
     require("CtxBind" in require_string(encoding.get("domainSeparation"), "domainSeparation"), "domain separation must mention CtxBind")
@@ -225,6 +230,44 @@ def validate_encoding_and_loss(reduction: dict[str, Any]) -> None:
     require_true(encoding.get("witnessIndependentLabelsPinned"), "witnessIndependentLabelsPinned")
     require_true(encoding.get("failurePathScheduleIndependent"), "failurePathScheduleIndependent")
     require_false(encoding.get("productionEncodingClaimAllowed"), "productionEncodingClaimAllowed")
+
+    delayed = require_dict(reduction.get("delayedMessageData"), "delayedMessageData")
+    require(delayed.get("status") == "pinned-for-ctco-extraction", "delayedMessageData.status mismatch")
+    require_true(delayed.get("allBinderTargetsCovered"), "delayedMessageData.allBinderTargetsCovered")
+    require(
+        require_string_list(delayed.get("binderTargets"), "delayedMessageData.binderTargets")
+        == ["artifact", "provenance", "replay", "component-root", "randomness-session", "leakage", "typed-carry"],
+        "delayedMessageData.binderTargets mismatch",
+    )
+    acceptance = require_string(delayed.get("acceptanceRule"), "delayedMessageData.acceptanceRule")
+    for needle in ["Move 1", "H_bind", "Root_k", "Move 3"]:
+        require(needle in acceptance, f"delayedMessageData.acceptanceRule must mention {needle}")
+    ambiguity = " ".join(require_string_list(delayed.get("ambiguityChargedTo"), "delayedMessageData.ambiguityChargedTo"))
+    for needle in ["Root_k", "H_bind", "canonical decompression"]:
+        require(needle in ambiguity, f"delayedMessageData.ambiguityChargedTo must mention {needle}")
+    require_false(delayed.get("productionQROMClaimAllowed"), "delayedMessageData.productionQROMClaimAllowed")
+
+    unique = require_dict(reduction.get("uniqueResponseData"), "uniqueResponseData")
+    require(unique.get("status") == "pinned-for-ctco-extraction", "uniqueResponseData.status mismatch")
+    require_true(unique.get("allAcceptedProofKindsCovered"), "uniqueResponseData.allAcceptedProofKindsCovered")
+    response_rule = require_string(unique.get("responseRule"), "uniqueResponseData.responseRule")
+    for needle in ["Root_k", "rho_k", "deterministic"]:
+        require(needle in response_rule, f"uniqueResponseData.responseRule must mention {needle}")
+    unique_rows = unique.get("proofKinds")
+    require(isinstance(unique_rows, list) and len(unique_rows) == len(EXPECTED_PROOF_KINDS), "uniqueResponseData.proofKinds length mismatch")
+    for index, (expected_kind, _, _) in enumerate(EXPECTED_PROOF_KINDS):
+        row = require_dict(unique_rows[index], f"uniqueResponseData.proofKinds[{index}]")
+        require(row.get("proofKind") == expected_kind, f"{expected_kind}.uniqueResponseData proofKind mismatch")
+        require_string(row.get("responseUniqueness"), f"{expected_kind}.responseUniqueness")
+    require_false(unique.get("productionQROMClaimAllowed"), "uniqueResponseData.productionQROMClaimAllowed")
+
+    compiler = require_dict(reduction.get("compilerOverheadInstantiation"), "compilerOverheadInstantiation")
+    require(compiler.get("status") == "ideal-split-qro-ctco-overhead-instantiated", "compilerOverheadInstantiation.status mismatch")
+    require(compiler.get("compilerOverheadSymbol") == "epsilon_compiler_overhead", "compilerOverheadInstantiation symbol mismatch")
+    require(compiler.get("exactExpression") == "epsilon_compiler_overhead = 0", "compilerOverheadInstantiation exact expression mismatch")
+    require("ideal split-QRO" in require_string(compiler.get("modelScope"), "compilerOverheadInstantiation.modelScope"), "compiler model scope mismatch")
+    require("charged outside" in require_string(compiler.get("lossSeparation"), "compilerOverheadInstantiation.lossSeparation"), "compiler loss separation mismatch")
+    require_false(compiler.get("productionQROMClaimAllowed"), "compilerOverheadInstantiation.productionQROMClaimAllowed")
 
     loss = require_dict(reduction.get("qromQueryAndLossInstantiation"), "qromQueryAndLossInstantiation")
     require(loss.get("queryBoundQH") == "2^64", "queryBoundQH mismatch")
@@ -241,23 +284,20 @@ def validate_encoding_and_loss(reduction: dict[str, Any]) -> None:
     finding = require_dict(loss.get("legacyNumericBudgetFinding"), "legacyNumericBudgetFinding")
     require(finding.get("smallestAcceptedChallengeCountN") == 204, "legacy finding smallest n mismatch")
     require("deprecated" in require_string(finding.get("smallestAcceptedOrderingTermConclusion"), "legacy conclusion"), "legacy conclusion must deprecate DFM20")
-    for key in [
-        "allInteractiveSecurityBoundsInstantiated",
-        "allNumericLossTermsInstantiated",
-        "qromLossWithinBudget",
-        "productionQROMClaimAllowed",
-    ]:
-        require_false(loss.get(key), f"qromQueryAndLossInstantiation.{key}")
+    require_false(loss.get("allInteractiveSecurityBoundsInstantiated"), "qromQueryAndLossInstantiation.allInteractiveSecurityBoundsInstantiated")
+    require_true(loss.get("allNumericLossTermsInstantiated"), "qromQueryAndLossInstantiation.allNumericLossTermsInstantiated")
+    require_true(loss.get("qromLossWithinBudget"), "qromQueryAndLossInstantiation.qromLossWithinBudget")
+    require_false(loss.get("productionQROMClaimAllowed"), "qromQueryAndLossInstantiation.productionQROMClaimAllowed")
 
 
 def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
     ledger = require_dict(reduction.get("ledgerIntegration"), "ledgerIntegration")
     require(ledger.get("ledgerSymbol") == "epsilon_qrom", "ledger symbol mismatch")
     require(require_string_list(ledger.get("sourceSymbols"), "ledgerIntegration.sourceSymbols") == ["epsilon_compiler_overhead", "epsilon_hash_model_gap"], "ledger source symbols mismatch")
-    require_false(ledger.get("qromLossWithinBudget"), "ledgerIntegration.qromLossWithinBudget")
+    require_true(ledger.get("qromLossWithinBudget"), "ledgerIntegration.qromLossWithinBudget")
     require_true(ledger.get("totalLossBudgetUpdated"), "ledgerIntegration.totalLossBudgetUpdated")
     blockers = " ".join(require_string_list(reduction.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["special-soundness", "delayed-message", "unique-response"]:
+    for needle in ["special-soundness", "zk simulator"]:
         require(needle in blockers, f"hardClaimBlockers must mention {needle}")
     promotion = require_dict(reduction.get("promotionRule"), "promotionRule")
     for key in [
@@ -267,15 +307,15 @@ def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
     require_false(promotion.get("requiresCTCORootCommitments"), "promotionRule.requiresCTCORootCommitments")
+    require_true(promotion.get("requiresInteractiveSecurityBounds"), "promotionRule.requiresInteractiveSecurityBounds")
     for key in [
-        "requiresInteractiveSecurityBounds",
+        "requiresHBind384SourceImplementation",
         "requiresDelayedMessageData",
         "requiresUniqueResponseData",
         "requiresQROMLossWithinBudget",
         "requiresTotalLossBudgetUpdate",
     ]:
-        require_true(promotion.get(key), f"promotionRule.{key}")
-    require_false(promotion.get("requiresHBind384SourceImplementation"), "promotionRule.requiresHBind384SourceImplementation")
+        require_false(promotion.get(key), f"promotionRule.{key}")
 
 
 def validate_reduction(path: Path) -> None:
@@ -292,7 +332,7 @@ def validate_reduction(path: Path) -> None:
     validate_selected_theorem(reduction)
     validate_protocol_model(reduction)
     validate_proof_kind_protocols(reduction)
-    validate_encoding_and_loss(reduction)
+    validate_encoding_delayed_unique_and_loss(reduction)
     validate_ledger_and_promotion(reduction)
 
 

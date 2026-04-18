@@ -38,10 +38,8 @@ COMPLETED_LABEL = "completed formal protocol theorem"
 CONDITIONAL_LABEL = "conditional protocol formalization"
 CURRENT_CORE_LABEL = "corrected finite-model core with open theorem-critical integrations"
 REQUIRED_OPEN_INTEGRATIONS = {
-    "upper-typed-digest-binding-integration",
     "terminal-ce-localization-instantiation",
     "pirlc-crt-finite-soundness-completion",
-    "product-theorem-exact-probability-integration",
 }
 
 

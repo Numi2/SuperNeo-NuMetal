@@ -52,7 +52,10 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductInteractiveSpecialSoundnessData",
     "ProductInteractiveDelayedMessageData",
     "ProductInteractiveUniqueResponseData",
+    "ProductQROMCompilerOverheadBound",
+    "ProductQROMCompilerOverheadBoundAccepted",
     "productSecurityTheorem_requires_challenge_tape_expansion",
+    "productSecurityTheorem_requires_qrom_compiler_overhead_bound",
     "productSecurityTheorem_requires_qrom_transform_preconditions",
 }
 
@@ -216,8 +219,22 @@ def validate_precondition_rows(preconditions: dict[str, Any]) -> None:
         else:
             fail(f"{row_id}.satisfied must be boolean")
     require(seen == EXPECTED_PRECONDITION_IDS, "preconditions order mismatch")
-    require({"ctco-public-coin-protocol", "single-seed-challenge-tape", "hbind-384-acceptance-bindings", "challenge-space-uniformity", "transcript-oracle-input-encoding", "quantum-query-bound", "collision-and-malleability-exclusion"}.issubset(satisfied), "closed structural preconditions mismatch")
-    require({"delayed-message-binding", "unique-response-data", "underlying-interactive-security", "zero-knowledge-or-simulator-preconditions", "qrom-compiler-overhead-instantiation"}.issubset(unsatisfied), "open CTCO implementation/security preconditions mismatch")
+    require({
+        "ctco-public-coin-protocol",
+        "single-seed-challenge-tape",
+        "hbind-384-acceptance-bindings",
+        "challenge-space-uniformity",
+        "transcript-oracle-input-encoding",
+        "delayed-message-binding",
+        "unique-response-data",
+        "quantum-query-bound",
+        "qrom-compiler-overhead-instantiation",
+        "collision-and-malleability-exclusion",
+    }.issubset(satisfied), "closed CTCO/QROM preconditions mismatch")
+    require(
+        unsatisfied == {"underlying-interactive-security", "zero-knowledge-or-simulator-preconditions"},
+        "open CTCO implementation/security preconditions mismatch",
+    )
 
 
 def validate_proof_kind_fit(preconditions: dict[str, Any]) -> None:
@@ -256,13 +273,18 @@ def validate_loss_interface(preconditions: dict[str, Any]) -> None:
     require(interface.get("hashModelGapSymbol") == "epsilon_hash_model_gap", "hashModelGapSymbol mismatch")
     selected = require_string(interface.get("selectedDepthExpression"), "selectedDepthExpression")
     require("epsilon_compiler_overhead" in selected and "epsilon_hash_model_gap" in selected, "selectedDepthExpression mismatch")
-    require_false(interface.get("numericLossInstantiated"), "lossInterface.numericLossInstantiated")
-    require_false(interface.get("qromLossWithinBudget"), "lossInterface.qromLossWithinBudget")
+    require(
+        interface.get("compilerOverheadExpression") == "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO theorem model",
+        "lossInterface.compilerOverheadExpression mismatch",
+    )
+    require("ideal split-QRO" in require_string(interface.get("hashModelGapExpression"), "lossInterface.hashModelGapExpression"), "hash model gap expression mismatch")
+    require_true(interface.get("numericLossInstantiated"), "lossInterface.numericLossInstantiated")
+    require_true(interface.get("qromLossWithinBudget"), "lossInterface.qromLossWithinBudget")
 
 
 def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
     blockers = " ".join(require_string_list(preconditions.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["special-soundness", "delayed-message", "unique-response", "compiler_overhead"]:
+    for needle in ["special-soundness", "zero-knowledge", "total-loss"]:
         require(needle in blockers, f"hardClaimBlockers must mention {needle}")
     promotion = require_dict(preconditions.get("promotionRule"), "promotionRule")
     for key in [
@@ -274,14 +296,14 @@ def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
     for key in [
         "requiresInteractiveProtocolImplementation",
         "requiresUnderlyingInteractiveSecurity",
+    ]:
+        require_true(promotion.get(key), f"promotionRule.{key}")
+    for key in [
+        "requiresHBind384Implementation",
         "requiresDelayedMessageData",
         "requiresUniqueResponseData",
         "requiresQROMLossInstantiation",
         "requiresTotalLossBudgetUpdate",
-    ]:
-        require_true(promotion.get(key), f"promotionRule.{key}")
-    require_false(promotion.get("requiresHBind384Implementation"), "promotionRule.requiresHBind384Implementation")
-    for key in [
         "requiresChallengeUniformity",
         "requiresTranscriptEncodingProof",
         "requiresStructuralCollisionMalleabilityEvidence",

@@ -116,7 +116,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(ledger)
-        missing_blocker["hardClaimBlockers"].remove("QROM transform preconditions, interactive reduction, and split-QRO accounting")
+        missing_blocker["hardClaimBlockers"].remove("underlying interactive security bounds outside the QROM compiler-overhead term")
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))

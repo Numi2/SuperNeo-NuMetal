@@ -306,9 +306,8 @@ These are the remaining blockers before using production-security language:
    simulator-coupling evidence is checked in
    `TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json`. Hosted
    selected-depth carry/loss accounting, release-grade Swift trace/extractor
-   review, QROM compiler-overhead loss, interactive-security bounds,
-   total-loss budget instantiation, release-hardware ZK benchmark refresh, and
-   side-channel evidence still have
+   review, interactive-security bounds, remaining non-QROM total-loss budget
+   instantiation, release-hardware ZK benchmark refresh, and side-channel evidence still have
    to be supplied before production-security NumiSeal theorem language is
    allowed.
    `TestVectors/product-crypto-security-dossier-v1.json` and

@@ -22,8 +22,18 @@ but their upper theorem-critical integration points remain tracked explicitly.
   concrete CRT endpoint in `Phi81CRT.lean`.
 - PiRLC now has a constructive finite bad-seed endpoint:
   `PiRLCConstructiveBadSeeds` is the filtered fold-failure set, and
-  `PiRLCCRTConstructiveFailureLocalization` records the CRT component
-  localization needed for the remaining-seed count.
+  `PiRLCCRTConstructiveFailureLocalization` records the full-ring unit-pivot
+  localization needed for the remaining-seed count. The CRT component endpoint
+  uses a conservative component budget with the `5^27` fiber factor. The
+  checked component-certificate constructors now derive that endpoint from a
+  delta-collision proof, a nonzero CRT component pivot, and the concrete
+  upper-half challenge-coefficient fiber. The checked
+  `PiRLCLinearDefectSemantics` route now derives that certificate from an
+  accepted-fold defect functional, including the nonzero pivot when inputs are
+  not all sound. `RLCClaimLinearObservation` instantiates the field-coordinate
+  linearity for commitment, public-input, and evaluation coordinates of the
+  folded claim. The concrete Swift/trace folded relation still must select and
+  supply the product-level defect predicate.
 - PiCCS/sum-check now has a GoldilocksExt2 wire model and a constructive finite
   bad-challenge path. `PiCCSConstructiveFiniteSoundness.lean` constructs the
   bad set directly from `SumcheckSoundness.lean` and
@@ -33,8 +43,17 @@ but their upper theorem-critical integration points remain tracked explicitly.
   surfaces and a constructive finite bad-seed endpoint.
   `TerminalCEConstructiveFiniteSoundness.lean` uses the concrete
   extraction-failure bad-seed set and derives the `roundCount * 3` budget from
-  an injective bad-seed localization. `TerminalCEFiniteSoundness.lean` remains
-  as a compatibility wrapper.
+  an injective bad-seed localization. The checked slot-seed endpoint is not yet
+  a proof that every Swift/Fiat-Shamir challenge tape failure localizes to a
+  unique slot. The checked `TerminalCESlotSeedLocalizationEvidence` and
+  `terminalCESwiftSlotSeedFiniteSoundnessCertificate` declarations are the
+  final formal input shape for that localization evidence. The checked
+  `swiftCETraceChallengeTape_matches_verifier_branch` declaration derives the
+  full ternary tape from Swift response tags, and
+  `terminalCEFullTapeCertificate_of_slotCertificate` lifts any slot certificate
+  to the full challenge-tape seed model with the exact per-slot fiber factor
+  `3^(roundCount - 1)`.
+  `TerminalCEFiniteSoundness.lean` remains as a compatibility wrapper.
 - SuperNeo composition now has
   `superneo_end_to_end_outside_constructive_ce_badSeeds`, which composes
   terminal verifier acceptance with constructive terminal CE bad-seed semantics.
@@ -105,18 +124,27 @@ integration groups. The active label is `corrected finite-model core with open t
 
 The remaining theorem-critical integration groups are:
 
-- `upper-typed-digest-binding-integration`, which wires the 384-bit
-  theorem-critical typed-digest binding path through the upper theorem
-  boundary.
 - `terminal-ce-localization-instantiation`, which instantiates constructive
-  terminal CE localization evidence beyond the current constructive composition
-  endpoint.
+  terminal CE localization evidence beyond the checked slot and full-tape
+  certificate endpoints by proving the accepted Swift/trace parser supplies the
+  concrete bad-round selector. The full ternary challenge tape and the
+  proof-level full-tape certificate constructor are already checked from the
+  Swift response-tag trace.
 - `pirlc-crt-finite-soundness-completion`, which completes the CRT-based PiRLC
   finite-soundness count on top of `Phi81CRT.lean` and
-  `PiRLCConcreteCollision.lean`.
-- `product-theorem-exact-probability-integration`, which keeps exact
-  finite-uniform probability wired through the selected-depth ledger and
-  top-level product theorem.
+  `PiRLCConcreteCollision.lean`. The checked surface includes a conservative
+  component bad-seed budget with the `5^27` CRT fiber factor and certificate
+  constructors from delta collision plus the checked upper-half coefficient
+  fiber. The checked `PiRLCLinearDefectSemantics` certificate route is now the
+  exact formal target, with checked linear observations for the folded claim
+  fields and a finite observation-family lift that unions bad seeds across the
+  selected coordinate family with the explicit family-cardinality multiplier.
+  The full public-field family is now instantiated with a concrete
+  `(rows + publicCount + evalCount)` multiplier; completion still requires the
+  selected concrete Swift/trace folded relation to instantiate the selected
+  defect predicate. The stronger
+  remaining-seed count is exposed only under an explicit full-ring unit-pivot
+  collision evidence package.
 
 The existing CE byte grammar remains the supporting parser model for counted CE
 proof bytes, response tags, commitments, responses, rounds, and complete proof
@@ -124,8 +152,9 @@ objects. The Ext2 caller byte surface remains the supporting grammar for counted
 Ext2 vectors, counted Ext2 ring vectors, sum-check Ext2 proof fragments, and
 CCS/CE point-evaluation caller bytes. The tagged bad-event, error-ledger, and
 Fiat-Shamir finite-seed accounting groups are connected to an exact
-finite-uniform probability bridge and selected-depth numerator arithmetic, but
-the product-theorem integration remains an open planned group.
+finite-uniform probability bridge and selected-depth numerator arithmetic; the
+remaining open groups are the terminal CE and PiRLC semantic-localization
+integrations listed above.
 
 The Lean `goldilocks-ext2-field-instance` group is now closed by transferring
 mathlib's root-free quadratic-algebra field instance onto the existing

@@ -23,6 +23,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
     "budgetModel",
     "componentBounds",
     "computedBudget",
+    "exactFiniteProbabilityWiring",
     "promotionRule",
 }
 
@@ -36,6 +37,7 @@ EXPECTED_MANIFESTS = {
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
+    "productSharedBadEventDedup": "TestVectors/product-shared-bad-event-dedup-v1.json",
     "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
     "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
     "constantTimeReleaseEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
@@ -47,10 +49,17 @@ EXPECTED_MANIFESTS = {
 EXPECTED_FORMAL_DECLARATIONS = {
     "ProductTotalLossBudget",
     "ProductTotalLossBudgetAccepted",
+    "ProductSharedBadEventDeduplication",
+    "ProductSharedBadEventDeduplicationAccepted",
+    "ProductExactFiniteProbabilityWiring",
+    "ProductExactFiniteProbabilityWiringAccepted",
     "productSecurityTheorem_requires_total_loss_budget",
+    "productSecurityTheorem_requires_shared_bad_event_deduplication",
+    "productSecurityTheorem_requires_exact_finite_probability_wiring",
 }
 
 EXPECTED_COMPONENT_IDS = [
+    "shared-cryptographic-core",
     "source-fold-knowledge",
     "terminal-numiseal-seal",
     "typed-recursive-carry",
@@ -64,6 +73,7 @@ EXPECTED_COMPONENT_IDS = [
 ]
 
 EXPECTED_REQUIRED_IDS = [
+    "shared-cryptographic-core",
     "source-fold-knowledge",
     "terminal-numiseal-seal",
     "zk-simulator-composition",
@@ -145,6 +155,47 @@ def format_fraction(value: Fraction) -> str:
     return f"{value.numerator}/{value.denominator}"
 
 
+def format_dyadic_fraction(value: Fraction) -> str:
+    if value == 0:
+        return "0"
+    denominator = value.denominator
+    if denominator > 0 and denominator & (denominator - 1) == 0:
+        return f"{value.numerator}/2^{denominator.bit_length() - 1}"
+    return format_fraction(value)
+
+
+def parse_exact_bound(value: Any, label: str) -> Fraction | None:
+    if value is None:
+        return None
+    text = require_string(value, label)
+    if text == "0":
+        return Fraction(0, 1)
+    if "/2^" in text:
+        numerator_text, exponent_text = text.split("/2^", 1)
+        try:
+            numerator = int(numerator_text)
+            exponent = int(exponent_text)
+        except ValueError:
+            fail(f"{label} must use numerator/2^exponent form")
+        require(numerator >= 0 and exponent >= 0, f"{label} must be non-negative")
+        return Fraction(numerator, 1 << exponent)
+    if "/" in text:
+        numerator_text, denominator_text = text.split("/", 1)
+        try:
+            numerator = int(numerator_text)
+            denominator = int(denominator_text)
+        except ValueError:
+            fail(f"{label} must use numerator/denominator form")
+        require(numerator >= 0 and denominator > 0, f"{label} must be a non-negative rational")
+        return Fraction(numerator, denominator)
+    try:
+        integer = int(text)
+    except ValueError:
+        fail(f"{label} must be an exact rational string")
+    require(integer >= 0, f"{label} must be non-negative")
+    return Fraction(integer, 1)
+
+
 def validate_related_manifests(budget: dict[str, Any]) -> None:
     related = require_dict(budget.get("relatedManifests"), "relatedManifests")
     require(related == EXPECTED_MANIFESTS, "relatedManifests must pin the total-loss evidence set exactly")
@@ -188,6 +239,10 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
     require(
         ledger_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
         "selected-depth ledger must link collision/malleability evidence",
+    )
+    require(
+        ledger_related.get("productSharedBadEventDedup") == "TestVectors/product-shared-bad-event-dedup-v1.json",
+        "selected-depth ledger must link shared bad-event dedup evidence",
     )
     require(
         ledger_related.get("productReleaseDistributionEvidence") == "TestVectors/product-release-distribution-evidence-v1.json",
@@ -249,7 +304,10 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
         loss_interface.get("totalLossBudgetManifest") == "TestVectors/product-total-loss-budget-v1.json",
         "QROM transform preconditions must link total-loss budget",
     )
-    require_false(loss_interface.get("numericLossInstantiated"), "QROM transform preconditions numericLossInstantiated")
+    require(
+        loss_interface.get("numericLossInstantiated") is True,
+        "QROM transform preconditions numericLossInstantiated must be true",
+    )
     require(
         require_dict(preconditions.get("relatedManifests"), "productQROMTransformPreconditions.relatedManifests").get("productQROMSamplerEncodingEvidence")
         == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
@@ -261,13 +319,23 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
         "QROM transform preconditions must link collision/malleability evidence",
     )
 
+    shared_dedup = read_json(ROOT / EXPECTED_MANIFESTS["productSharedBadEventDedup"])
+    shared_related = require_dict(shared_dedup.get("relatedManifests"), "productSharedBadEventDedup.relatedManifests")
+    require(
+        shared_related.get("productTotalLossBudget") == "TestVectors/product-total-loss-budget-v1.json",
+        "shared bad-event dedup evidence must link total-loss budget",
+    )
+
     reduction = read_json(ROOT / EXPECTED_MANIFESTS["productQROMInteractiveReduction"])
     integration = require_dict(reduction.get("ledgerIntegration"), "productQROMInteractiveReduction.ledgerIntegration")
     require(
         integration.get("totalLossBudgetManifest") == "TestVectors/product-total-loss-budget-v1.json",
         "QROM interactive reduction must link total-loss budget",
     )
-    require_false(integration.get("qromLossWithinBudget"), "QROM interactive reduction qromLossWithinBudget")
+    require(
+        integration.get("qromLossWithinBudget") is True,
+        "QROM interactive reduction qromLossWithinBudget must be true",
+    )
     require(
         require_dict(reduction.get("relatedManifests"), "productQROMInteractiveReduction.relatedManifests").get("productQROMSamplerEncodingEvidence")
         == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
@@ -303,7 +371,7 @@ def validate_budget_model(budget: dict[str, Any]) -> int:
     model = require_dict(budget.get("budgetModel"), "budgetModel")
     require(model.get("lossBoundFormat") == "negative-log2-upper-bound-bits", "budgetModel.lossBoundFormat mismatch")
     require(
-        model.get("exactArithmetic") == "sum exact rational terms multiplicity * 2^-boundLog2",
+        "exact rational upper-bound terms" in require_string(model.get("exactArithmetic"), "budgetModel.exactArithmetic"),
         "budgetModel.exactArithmetic mismatch",
     )
     bits = require_int(model.get("selectedSecurityBudgetBits"), "budgetModel.selectedSecurityBudgetBits")
@@ -312,11 +380,17 @@ def validate_budget_model(budget: dict[str, Any]) -> int:
     require(model.get("requiresEveryRequiredTermInstantiated") is True, "requiresEveryRequiredTermInstantiated must be true")
     require(model.get("zeroMultiplicityTermsExcludedFromSelectedSum") is True, "zeroMultiplicityTermsExcludedFromSelectedSum must be true")
     policy = require_string(model.get("doubleCountingPolicy"), "budgetModel.doubleCountingPolicy")
-    require("epsilon_bind" in policy and "not included inside epsilon_qrom" in policy, "doubleCountingPolicy must pin collision mapping")
+    require(
+        "epsilon_core_shared" in policy
+        and "epsilon_bind" in policy
+        and "not included inside epsilon_qrom" in policy
+        and "epsilon_core_shared" in policy,
+        "doubleCountingPolicy must pin shared core and collision mapping",
+    )
     return bits
 
 
-def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[str], Fraction | None]:
+def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[str], Fraction | None, Fraction]:
     components = budget.get("componentBounds")
     require(isinstance(components, list), "componentBounds must be a list")
     require(len(components) == len(EXPECTED_COMPONENT_IDS), "componentBounds length mismatch")
@@ -324,7 +398,7 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
     required_ids: list[str] = []
     missing_ids: list[str] = []
     instantiated_required = 0
-    total = Fraction(0, 1)
+    instantiated_total = Fraction(0, 1)
 
     for index, item in enumerate(components):
         component = require_dict(item, f"componentBounds[{index}]")
@@ -339,11 +413,31 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
         instantiated = component.get("lossInstantiated")
         require(isinstance(instantiated, bool), f"{component_id}.lossInstantiated must be boolean")
         bound_log2 = component.get("boundLog2")
+        exact_bound = parse_exact_bound(component.get("exactUpperBound"), f"{component_id}.exactUpperBound")
         if instantiated:
             require(type(bound_log2) is int and bound_log2 > 0, f"{component_id}.boundLog2 must be a positive integer when instantiated")
+            require(exact_bound is not None, f"{component_id}.exactUpperBound must be present when instantiated")
+            require(
+                component.get("exactUpperBound") == format_dyadic_fraction(exact_bound),
+                f"{component_id}.exactUpperBound must use canonical exact dyadic form",
+            )
         else:
             require(bound_log2 is None, f"{component_id}.boundLog2 must be null until the term is instantiated")
+            require(exact_bound is None, f"{component_id}.exactUpperBound must be null until the term is instantiated")
         require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
+        if component_id == "shared-cryptographic-core":
+            evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
+            require(
+                component.get("sourceManifest") == "TestVectors/product-shared-bad-event-dedup-v1.json",
+                "shared-cryptographic-core sourceManifest must be shared bad-event dedup evidence",
+            )
+            for needle in ["product-shared-bad-event-dedup-v1.json", "2^-129", "Module-SIS"]:
+                require(needle in evidence, f"shared-cryptographic-core requiredEvidence must mention {needle}")
+            if instantiated:
+                require(
+                    exact_bound == Fraction(1, 1 << 129),
+                    "shared-cryptographic-core exactUpperBound must be 1/2^129",
+                )
         if component_id == "fiat-shamir-qrom":
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
@@ -354,8 +448,10 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                 "TestVectors/product-qrom-interactive-reduction-v1.json" in evidence,
                 "fiat-shamir-qrom requiredEvidence must link QROM interactive reduction",
             )
-            for needle in ["CTCO", "384-bit H_bind", "epsilon_compiler_overhead"]:
+            for needle in ["CTCO", "384-bit H_bind", "epsilon_compiler_overhead = 0"]:
                 require(needle in evidence, f"fiat-shamir-qrom requiredEvidence must mention {needle}")
+            if instantiated:
+                require(exact_bound == 0, "fiat-shamir-qrom exactUpperBound must be exactly 0")
         if component_id == "transcript-collision-domain-separation":
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
@@ -363,9 +459,14 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                 "transcript-collision-domain-separation requiredEvidence must link collision/malleability evidence",
             )
             require(
-                "epsilon_bind = 36 * 2^-256" in evidence,
-                "transcript-collision-domain-separation requiredEvidence must pin epsilon_bind bound",
+                "epsilon_bind = 36 * 2^-256 = 9/2^254" in evidence,
+                "transcript-collision-domain-separation requiredEvidence must pin exact epsilon_bind bound",
             )
+            if instantiated:
+                require(
+                    exact_bound == Fraction(9, 1 << 254),
+                    "transcript-collision-domain-separation exactUpperBound must be 9/2^254",
+                )
         if component_id == "release-signing-notarization":
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
@@ -385,7 +486,7 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
             required_ids.append(component_id)
             if instantiated:
                 instantiated_required += 1
-                total += Fraction(multiplicity, 1 << int(bound_log2))
+                instantiated_total += multiplicity * exact_bound
             else:
                 missing_ids.append(component_id)
         else:
@@ -393,8 +494,8 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
 
     require(seen_ids == EXPECTED_COMPONENT_IDS, "componentBounds must stay in the pinned budget order")
     require(required_ids == EXPECTED_REQUIRED_IDS, "required selected-depth budget terms mismatch")
-    exact_total = total if not missing_ids else None
-    return len(required_ids), instantiated_required, missing_ids, exact_total
+    exact_total = instantiated_total if not missing_ids else None
+    return len(required_ids), instantiated_required, missing_ids, exact_total, instantiated_total
 
 
 def validate_computed_budget(
@@ -404,6 +505,7 @@ def validate_computed_budget(
     instantiated_count: int,
     missing_ids: list[str],
     exact_total: Fraction | None,
+    instantiated_total: Fraction,
 ) -> None:
     computed = require_dict(budget.get("computedBudget"), "computedBudget")
     require(computed.get("requiredTermCount") == required_count, "computedBudget.requiredTermCount mismatch")
@@ -412,6 +514,10 @@ def validate_computed_budget(
         "computedBudget.instantiatedRequiredTermCount mismatch",
     )
     require(computed.get("missingRequiredTermIDs") == missing_ids, "computedBudget.missingRequiredTermIDs mismatch")
+    require(
+        computed.get("exactInstantiatedRequiredTermUpperBound") == format_dyadic_fraction(instantiated_total),
+        "computedBudget.exactInstantiatedRequiredTermUpperBound mismatch",
+    )
     all_required = not missing_ids
     within_budget = exact_total is not None and exact_total <= Fraction(1, 1 << security_bits)
     expected_bound = format_fraction(exact_total) if exact_total is not None else None
@@ -424,6 +530,36 @@ def validate_computed_budget(
     require_false(computed.get("productionTotalLossClaimAllowed"), "computedBudget.productionTotalLossClaimAllowed")
     if not all_required:
         require_false(computed.get("selectedDepthLossWithinBudget"), "computedBudget.selectedDepthLossWithinBudget")
+
+
+def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiated_total: Fraction) -> None:
+    wiring = require_dict(budget.get("exactFiniteProbabilityWiring"), "exactFiniteProbabilityWiring")
+    require(wiring.get("selectedDepth") == 1, "exactFiniteProbabilityWiring.selectedDepth must be 1")
+    for key in [
+        "dyadicRationalArithmeticPinned",
+        "zeroLossTermsRepresentedExactly",
+        "instantiatedTermPartialSumComputed",
+        "missingRequiredTermsKeepTotalUninstantiated",
+        "qromTermSeparatedFromCollisionLedger",
+        "selectedDepthBudgetComparisonUsesExactRationals",
+    ]:
+        require(wiring.get(key) is True, f"exactFiniteProbabilityWiring.{key} must be true")
+    require(
+        wiring.get("hbindCollisionExpressionExact") == "epsilon_bind = 36 * 2^-256 = 9/2^254",
+        "exactFiniteProbabilityWiring.hbindCollisionExpressionExact mismatch",
+    )
+    require(
+        instantiated_total == Fraction(1, 1 << 129) + Fraction(9, 1 << 254),
+        "exactFiniteProbabilityWiring instantiated partial sum must include shared core and H_bind collision terms",
+    )
+    require(
+        wiring.get("sharedCoreExpressionExact") == "epsilon_core_shared = 2^-129 = 1/2^129 and is charged once as a tagged union",
+        "exactFiniteProbabilityWiring.sharedCoreExpressionExact mismatch",
+    )
+    require_false(
+        wiring.get("productionTotalLossClaimAllowed"),
+        "exactFiniteProbabilityWiring.productionTotalLossClaimAllowed",
+    )
 
 
 def validate_promotion_rule(budget: dict[str, Any]) -> None:
@@ -452,6 +588,14 @@ def validate_docs_and_gate() -> None:
         "run_step Scripts/validate-product-qrom-collision-malleability-evidence.py" in gate,
         "production gate must run QROM collision/malleability evidence validator",
     )
+    require(
+        "run_step Scripts/validate-product-shared-bad-event-dedup.py" in gate,
+        "production gate must run shared bad-event dedup validator",
+    )
+    require(
+        "run_step Scripts/test-product-shared-bad-event-dedup-validation.py" in gate,
+        "production gate must run shared bad-event dedup regression tests",
+    )
 
 
 def validate_budget(path: Path) -> None:
@@ -469,8 +613,17 @@ def validate_budget(path: Path) -> None:
     validate_formal_surface(budget)
     validate_selected_depth(budget)
     security_bits = validate_budget_model(budget)
-    required_count, instantiated_count, missing_ids, exact_total = validate_component_bounds(budget)
-    validate_computed_budget(budget, security_bits, required_count, instantiated_count, missing_ids, exact_total)
+    required_count, instantiated_count, missing_ids, exact_total, instantiated_total = validate_component_bounds(budget)
+    validate_computed_budget(
+        budget,
+        security_bits,
+        required_count,
+        instantiated_count,
+        missing_ids,
+        exact_total,
+        instantiated_total,
+    )
+    validate_exact_finite_probability_wiring(budget, instantiated_total)
     validate_promotion_rule(budget)
     validate_docs_and_gate()
 

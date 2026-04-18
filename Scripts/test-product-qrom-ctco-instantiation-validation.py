@@ -76,6 +76,18 @@ def main() -> None:
         lambda manifest: manifest["promotionRule"].__setitem__("productionQROMClaimAllowed", True),
         "productionQROMClaimAllowed must be false",
     )
+    expect_failure(
+        "stale compiler overhead boundary",
+        lambda manifest: manifest["promotionRule"].__setitem__(
+            "remainingBoundaries",
+            [
+                "epsilon_compiler_overhead remains uninstantiated",
+                "interactive security bounds remain charged outside the QROM transform term",
+                "selected total-loss promotion remains disabled until all required terms are instantiated",
+            ],
+        ),
+        "remaining boundaries must mention epsilon_compiler_overhead is instantiated as 0",
+    )
     print("product QROM CTCO instantiation validation regression tests passed")
 
 

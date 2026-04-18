@@ -60,11 +60,10 @@ At minimum, this requires:
 - NumiSeal conformance-scope promotion plus concrete Swift extractor
   implementation and numeric extractor loss accounting, product recursive
   typed carry vectors, simulator coupling beyond the exact rejection-sampled
-  field mask distribution, split-oracle CTCO or Merkle-straightline product
-  QROM evidence, numeric 384-bit binding collision and proof-kind malleability
-  bounds, selected total-loss budget closure, and product
-  cryptographic security dossier promotion beyond depth 1,
-- selected-depth loss accounting instantiated for extractor, QROM,
+  field mask distribution, underlying interactive-security bounds, selected
+  total-loss budget closure, and product cryptographic security dossier
+  promotion beyond depth 1,
+- selected-depth loss accounting instantiated for extractor, interactive,
   ZK-simulator, hosted product-ops replay, constant-time side-channel, and
   signed release-distribution terms,
 - pinned Sage-backed lattice-estimator evidence,
@@ -173,9 +172,9 @@ product QROM collision/malleability structural evidence, accepted proof-kind
 separation, proof-envelope transcript-binding injectivity, artifact/provenance
 digest binding, product replay identity binding, NumiSeal component-root
 binding, typed carry replay binding, and the fail-closed boundary that keeps
-concrete hash/QRO instantiation and total-loss integration open. Numeric
-384-bit binding collision arithmetic, proof-kind malleability, and the CTCO
-source instantiation are checked by
+concrete hash/QRO instantiation and the remaining non-QROM total-loss terms
+open. Numeric 384-bit binding collision arithmetic, proof-kind malleability,
+and the CTCO source instantiation are checked by
 `Scripts/validate-product-qrom-ctco-instantiation.py`.
 `Scripts/validate-product-qrom-ctco-instantiation.py` checks
 `TestVectors/product-qrom-ctco-instantiation-v1.json`, including split-oracle
@@ -198,8 +197,9 @@ rule. The DFM20 row is retained as a diagnostic and is not the active theorem
 target.
 `Scripts/validate-product-total-loss-budget.py` checks
 `TestVectors/product-total-loss-budget-v1.json`, including exact rational
-summation, the `2^-128` selected threshold, ten component bounds, nine
-selected-depth required terms, and the fail-closed total-loss budget validation.
+summation, the `2^-128` selected threshold, eleven component bounds, ten
+selected-depth required terms, shared-core bad-event deduplication, and the
+fail-closed total-loss budget validation.
 `Scripts/validate-product-release-distribution-evidence.py` checks
 `TestVectors/product-release-distribution-evidence-v1.json`, including product
 release distribution evidence for required artifact families, provenance

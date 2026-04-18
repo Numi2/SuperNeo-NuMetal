@@ -206,12 +206,11 @@
     "selectedQHBound": "2^64",
     "selectedQHLog2": 64,
     "numericQueryBoundInstantiated": true,
-    "qromLossWithinBudget": false
+    "qromLossWithinBudget": true
   },
   "hardClaimBlockers": [
-    "Fiat-Shamir transform precondition proof for the pinned transcript schedule",
-    "numeric digest collision and proof-kind malleability bound for the structurally pinned residual event",
-    "integration of the instantiated Q_H bound into a repaired QROM loss model that fits the selected total-loss budget"
+    "underlying interactive security bounds for the pinned transcript schedule",
+    "NumiSealZK simulator composition remains outside the transcript-schedule query bound"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
@@ -222,7 +221,7 @@
     "requiresQuantumOracleQueryBound": false,
     "requiresStructuralCollisionMalleabilityEvidence": false,
     "requiresDigestCollisionBound": true,
-    "requiresQROMAccountingUpdate": true,
-    "requiresTotalLossBudgetUpdate": true
+    "requiresQROMAccountingUpdate": false,
+    "requiresTotalLossBudgetUpdate": false
   }
 }

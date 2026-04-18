@@ -181,14 +181,31 @@ Component budgets currently exposed by Lean include:
 - For R1CS-like degree-2 CCS with the current norm polynomial,
   `maxDegreePerRound = max(shape.relationDegree, 3) + 1 = 4`.
 - Terminal CE finite bad-seed budget:
-  `219 * 3 = 657` over the modeled seed type.
+  `219 * 3 = 657` over the modeled slot-seed type.
 - The theorem-facing PiCCS and terminal CE paths are now constructive:
   `PiCCSConstructiveFiniteSoundness.lean` consumes the sum-check bad-set proofs
   directly, and `TerminalCEConstructiveFiniteSoundness.lean` derives the
-  `roundCount * 3` budget from concrete extraction-failure localization.
+  `roundCount * 3` budget from an injective extraction-failure localization.
+  The terminal CE file now also lifts slot bad seeds to the full ternary
+  challenge-tape seed model with the exact `3^(roundCount - 1)` slot-fiber
+  factor, and the Swift response-tag trace supplies the full tape and
+  verifier-branch match. The actual Swift/Fiat-Shamir parser still needs a
+  proved map from failures to these concrete bad `(round, challenge)` slots
+  before this budget can be promoted.
 - PiRLC finite bad-seed soundness requires the explicit split/finite bad-seed
-  certificate; this dossier does not replace that certificate with a one-line
-  field Schwartz-Zippel claim.
+  localization. The CRT component path now constructs the conservative
+  certificate from a delta-collision proof, a nonzero CRT component pivot, and
+  the concrete upper-half challenge-coefficient fiber, and it carries the
+  necessary `5^27` fiber factor unless a full-ring unit-pivot collision evidence
+  package is supplied. The checked linear-defect route derives the
+  delta-collision and nonzero pivot from accepted folded claims once the
+  selected concrete folded relation supplies the product-level defect predicate.
+  Concrete folded-claim observations already cover commitment, public-input, and
+  evaluation coordinates, and finite observation-family accounting now supplies
+  the selected-family union bound with an explicit family-cardinality
+  multiplier. The full public-field family is instantiated with the concrete
+  `(rows + publicCount + evalCount)` multiplier. This dossier does not replace
+  that certificate with a one-line field Schwartz-Zippel claim.
 
 ## Estimator Results
 

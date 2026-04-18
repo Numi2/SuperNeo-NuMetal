@@ -200,8 +200,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_int(
             surfaces.get("productSelectedDepthLossComponentCount"),
             "productSelectedDepthLossComponentCount",
-        ) == 10,
-        "product selected-depth loss accounting must pin ten component losses",
+        ) == 11,
+        "product selected-depth loss accounting must pin eleven component losses",
     )
     require(
         require_int(
@@ -432,6 +432,38 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require(
         require_int(
+            surfaces.get("productSharedBadEventDedupVersion"),
+            "productSharedBadEventDedupVersion",
+        ) == 1,
+        "product shared bad-event dedup version must be 1",
+    )
+    require_hex_digest(
+        surfaces.get("productSharedBadEventDedupDigestHex"),
+        "productSharedBadEventDedupDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("productSharedBadEventDedupClaimStatus"),
+            "productSharedBadEventDedupClaimStatus",
+        ) == "shared-bad-event-dedup-pinned-not-production-total-loss-claim",
+        "product shared bad-event dedup claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("productSharedBadEventDedupTagCount"),
+            "productSharedBadEventDedupTagCount",
+        ) == 2,
+        "product shared bad-event dedup must pin two shared-core tags",
+    )
+    require(
+        require_int(
+            surfaces.get("productSharedBadEventDedupCoreBoundLog2"),
+            "productSharedBadEventDedupCoreBoundLog2",
+        ) == 129,
+        "product shared bad-event dedup must pin the 2^-129 shared-core bound",
+    )
+    require(
+        require_int(
             surfaces.get("productTotalLossBudgetVersion"),
             "productTotalLossBudgetVersion",
         ) == 1,
@@ -452,22 +484,22 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_int(
             surfaces.get("productTotalLossBudgetComponentCount"),
             "productTotalLossBudgetComponentCount",
-        ) == 10,
-        "product total-loss budget must pin ten component bounds",
+        ) == 11,
+        "product total-loss budget must pin eleven component bounds",
     )
     require(
         require_int(
             surfaces.get("productTotalLossBudgetRequiredTermCount"),
             "productTotalLossBudgetRequiredTermCount",
-        ) == 9,
-        "product total-loss budget must require nine selected-depth terms",
+        ) == 10,
+        "product total-loss budget must require ten selected-depth terms",
     )
     require(
         require_int(
             surfaces.get("productTotalLossBudgetInstantiatedRequiredTermCount"),
             "productTotalLossBudgetInstantiatedRequiredTermCount",
-        ) == 1,
-        "product total-loss budget must only instantiate the collision term",
+        ) == 3,
+        "product total-loss budget must instantiate exactly shared-core, CTCO compiler, and H_bind collision terms",
     )
     require(
         surfaces.get("productTotalLossBudgetWithinBudget") is False,

@@ -232,11 +232,11 @@ The current Lean surface exposes the theorem-critical replacement objects:
 
 Remaining QROM work is therefore:
 
-- instantiate the selected CTCO or Merkle-straightline compiler evidence;
-- prove or otherwise pin the release-grade trace/extractor equivalences consumed
-  by the product theorem surface;
-- instantiate concrete hash/QRO assumptions, 384-bit binding collision bounds,
-  proof-kind malleability bounds, and total-loss integration; and
+- instantiate the underlying interactive special-soundness bounds consumed by
+  the product theorem surface;
+- instantiate NumiSealZK simulator composition outside the QROM transform term;
+- keep concrete SHAKE256-to-QRO promotion separate from the ideal split-QRO
+  theorem model; and
 - keep production QROM claims disabled until those evidence objects are present.
 
 ## QROM Transform Preconditions
@@ -266,10 +266,12 @@ stack:
   for the future tighter commit-and-open extractor track if product proofs are
   refactored to fit that family.
 
-Promotion now requires CTCO or Merkle-straightline compiler evidence, underlying
-interactive security against quantum dishonest provers, a split-challenge/binding
-oracle instantiation, 384-bit binding collision accounting, proof-kind
-malleability accounting, and integration into the selected total-loss budget.
+Promotion now requires underlying interactive security against quantum dishonest
+provers, concrete hash/QRO promotion when leaving the ideal split-QRO model,
+and the remaining non-QROM terms in the selected total-loss budget. The CTCO
+delayed-message/unique-response data, ideal split-QRO compiler-overhead term,
+384-bit H_bind collision accounting, proof-kind malleability accounting, and
+exact partial total-loss wiring are pinned by the checked manifests.
 Uniform challenge-space and well-formed structured transcript-oracle input
 encoding are pinned by the sampler/encoding evidence plus the Lean
 `WellFormedTranscript` and `Digest384Serialization` layers, while concrete
@@ -294,8 +296,7 @@ frame counters agree with payload lengths. `Digest384Serialization.lean` and
 `TypedDigestSemantics.lean` add the 384-bit theorem-critical binding layer used
 by the product theorem surface. This closes the old canonical-transcript and
 binding-width documentation gap. It does not prove a concrete hash
-instantiation as a QRO, instantiate the product compiler evidence, or close the
-final total-loss budget.
+instantiation as a QRO or close the remaining non-QROM total-loss budget terms.
 
 ## QROM Collision/Malleability Structural Evidence
 
@@ -311,12 +312,12 @@ This evidence closes structural cross-kind, cross-domain, cross-product-session,
 and cross-carry swap paths outside digest collision events. The theorem-critical
 digest taxonomy is now parameterized and includes explicit 384-bit binding
 domains for artifact, provenance, replay, component root, randomness session,
-leakage, and carry. It intentionally does not instantiate a concrete hash/QRO
-proof, numeric 384-bit binding collision bounds, numeric proof-kind
-malleability bounds, product compiler evidence, or total-loss budget
-integration. Those residual events remain mapped into
-`epsilon_transcript_collision`, `epsilon_proof_kind_malleability`, and the
-selected-depth `epsilon_collision`/`epsilon_qrom` ledger terms.
+leakage, and carry. It instantiates the 384-bit H_bind collision target count
+and zero proof-kind malleability outside the collision ledger. It intentionally
+does not prove a concrete hash/QRO instantiation. The residual collision events
+are mapped into the selected-depth `epsilon_collision` ledger term, while the
+ideal split-QRO `epsilon_qrom` compiler-overhead term is zero in the checked
+CTCO model.
 
 ## QROM Interactive Reduction
 
@@ -342,9 +343,9 @@ and `n_numiseal_zk_product <= 4,377,150`.
 The ledger also records the decisive fail-closed budget result. Under the legacy
 DFM20/256-bit challenge accounting, `log2(204!)` is already greater than 1276,
 so the additive `204! / 2^256` ordering term is greater than 1 for the smallest
-accepted proof kind. That route is not being promoted. The active route is to
-instantiate CTCO or Merkle-straightline product compiler evidence with 384-bit
-binding digests and separate interactive soundness from QROM transform loss.
+accepted proof kind. That route is not being promoted. The active route is the
+CTCO split-QRO product compiler with 384-bit binding digests and interactive
+soundness charged outside the QROM transform loss.
 
 ## QROM Transcript Schedule
 
@@ -356,10 +357,11 @@ terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK product proof
 kinds. It also pins the conditional `Q_H = 2^64` adversary-query cap and
 `8755125` selected-depth protocol challenge derivations. It is intentionally
 not a production QROM proof. The transcript-canonicality gap is now closed by
-the well-formed Lean transcript object, and the binding-width gap is closed by
-the 384-bit digest layer. Remaining QROM work is product compiler evidence,
-concrete hash/QRO assumptions, numeric collision/malleability bounds, and
-integration into the total-loss budget.
+the well-formed Lean transcript object, the binding-width gap is closed by the
+384-bit digest layer, and the ideal split-QRO compiler-overhead term is wired
+as zero into the total-loss budget. Remaining QROM work is underlying
+interactive security, NumiSealZK simulator composition outside the QROM term,
+and concrete hash/QRO promotion.
 
 ## Total Loss Budget
 
@@ -371,26 +373,32 @@ readiness, release evidence, and constant-time evidence.
 The budget uses exact rational arithmetic over terms of the form:
 
 ```text
-multiplicity * 2^-boundLog2
+exact rational upper-bound terms, with dyadic terms as numerator / 2^k
 ```
 
 For this contract, the selected threshold is `2^-128`. The current manifest
-records ten component bounds, nine of which are required at selected depth 1.
+records eleven component bounds, ten of which are required at selected depth 1.
 The typed recursive carry term has zero selected-depth multiplicity and remains
-closed only for the current base depth, not for recursive depth promotion.
+closed only for the current base depth, not for recursive depth promotion. The
+shared cryptographic core is charged once as `epsilon_core_shared = 1/2^129`;
+source-fold, terminal, and extractor rows are residual terms after that shared
+charge rather than a flat duplicate sum of the same core event.
 
 The current manifest intentionally records:
 
-- `requiredTermCount = 9`,
-- `instantiatedRequiredTermCount = 0`,
+- `requiredTermCount = 10`,
+- `instantiatedRequiredTermCount = 3`,
+- `exactInstantiatedRequiredTermUpperBound =
+  42535295865117307932921825928971026441/2^254`
+  (`1/2^129 + 9/2^254`),
 - `exactSelectedDepthLossUpperBound = null`,
 - `selectedDepthLossWithinBudget = false`, and
 - `productionTotalLossClaimAllowed = false`.
 
 This does not prove product security. It prevents a future product-security
-claim from bypassing numeric extractor, QROM, ZK, operations, constant-time,
-and release-distribution loss terms or from double-counting
-`epsilon_transcript_collision` inside `epsilon_qrom`.
+claim from bypassing numeric extractor, interactive-security, ZK, operations,
+constant-time, and release-distribution loss terms or from double-counting
+`epsilon_core_shared` or `epsilon_collision` inside another ledger term.
 
 ## Release Distribution Evidence
 

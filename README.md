@@ -15,12 +15,15 @@ Current safe claim:
 > acceptance-critical Swift paths now compare theorem-critical public metadata
 > through 384-bit H_bind binders. Product proof-envelope paths now have
 > Merkle-style CTCO root coverage and a source H_chal challenge-tape expansion
-> primitive used by the algebraic transcript challenge paths. Some
-> theorem-critical integrations remain open: delayed-message and unique-response
-> CTCO data, underlying interactive security bounds, ZK simulator loss,
-> epsilon_compiler_overhead, constructive terminal CE localization evidence,
-> CRT-based PiRLC finite soundness, and full wiring of exact finite probability
-> into the top-level product theorem.
+> primitive used by the algebraic transcript challenge paths. The CTCO
+> delayed-message and unique-response data are pinned, the ideal split-QRO
+> compiler-overhead term is instantiated as zero, and the exact finite
+> probability wiring is recorded in the selected total-loss budget. The shared
+> cryptographic core bad events are charged once through `epsilon_core_shared`.
+> Some theorem-critical integrations remain open: underlying interactive
+> security bounds, ZK simulator loss, concrete Swift/trace terminal CE
+> localization evidence, concrete PiRLC fold-failure-to-delta-collision
+> localization, and the remaining non-QROM selected total-loss terms.
 
 This is not a production-security claim. The repo does not claim production
 post-quantum security, production QROM security, whole-stack constant-time
@@ -38,25 +41,51 @@ formal solution is built around:
 - constructive PiCCS finite bad-challenge sets built from the sum-check
   soundness layer;
 - constructive terminal CE finite bad-seed accounting over concrete
-  extraction-failure semantics;
+  extraction-failure semantics, including slot-seed and Swift-round certificate
+  endpoints plus checked Swift-trace challenge-tape matching and a
+  slot-to-full-challenge-tape finite preimage bridge;
+- PiRLC finite-soundness evidence packages for full-ring unit-pivot delta
+  collision and conservative CRT-component delta collision with the `5^27`
+  projection-fiber factor, now using the concrete upper-half challenge-coefficient
+  fiber index, plus a checked linear-defect route from accepted folded claims to
+  the concrete CRT component certificate. The linear-observation core covers
+  commitment, public-input, and evaluation coordinates of the actual folded
+  claim, and the finite observation-family lift unions the checked bad seeds
+  across a selected family with the explicit family-cardinality multiplier. The
+  full public-field family is instantiated with a concrete
+  `(rows + publicCount + evalCount)` multiplier;
 - exact finite-uniform Fiat-Shamir seed probability modules and a selected-depth
   ledger interface.
+- checked proof-size and whole-stack benchmark coverage manifests, including
+  `TestVectors/e2e-proof-metrics-v1.json` and
+  `TestVectors/benchmark-coverage-v1.json`, used as evidence gates rather than
+  latency claims.
 
 The remaining Lean integration gaps are theorem-critical and must not be folded
 into product/security evidence status:
 
-- wire the theorem-critical typed-digest binding path through the upper theorem
-  boundary on the 384-bit instantiation;
-- instantiate constructive terminal CE localization evidence beyond the current
-  constructive composition endpoint;
+- instantiate constructive terminal CE localization evidence beyond the checked
+  slot and full-tape certificate endpoints, by proving the concrete Swift/trace
+  parser supplies the required bad-round selector. The full ternary tape and
+  proof-level full-tape certificate constructor are now checked directly from
+  the Swift response-tag trace;
 - complete CRT-based PiRLC finite soundness on top of `Phi81CRT.lean` and
-  `PiRLCConcreteCollision.lean`;
-- keep exact finite-uniform probability wired through the selected-depth error
-  ledger and top-level product theorem.
+  `PiRLCConcreteCollision.lean`. The formal surface now includes a conservative
+  CRT component bad-seed budget with the necessary `5^27` fiber factor and
+  constructs the component-localization certificate from a delta-collision
+  proof plus the checked upper-half coefficient fiber used by the Swift
+  challenge encoding. It also proves that any accepted fold with a sound folded
+  output reaches that certificate from a linear defect functional, and provides
+  concrete linear observations for the folded claim fields, including a finite
+  observation-family soundness certificate for the full public field family.
+  Closing the integration still requires concrete protocol evidence that the
+  selected Swift/trace folded relation supplies the selected defect predicate. The
+  stronger `1/5^54`-style count is exposed only under an explicit full-ring
+  unit-pivot collision evidence package.
 
 The remaining product/security evidence gaps are separate:
 
-- instantiate numeric extractor, QROM compiler-overhead, ZK-simulator,
+- instantiate numeric extractor, interactive-security, ZK-simulator,
   operations, side-channel, and release-distribution loss terms in the selected
   total-loss budget;
 - complete release-grade Swift trace/extractor equivalence review for the

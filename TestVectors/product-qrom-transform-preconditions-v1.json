@@ -34,7 +34,10 @@
       "ProductInteractiveDelayedMessageDataAccepted",
       "ProductInteractiveUniqueResponseData",
       "ProductInteractiveUniqueResponseDataAccepted",
+      "ProductQROMCompilerOverheadBound",
+      "ProductQROMCompilerOverheadBoundAccepted",
       "productSecurityTheorem_requires_challenge_tape_expansion",
+      "productSecurityTheorem_requires_qrom_compiler_overhead_bound",
       "productSecurityTheorem_requires_qrom_transform_preconditions"
     ]
   },
@@ -160,10 +163,10 @@
     },
     {
       "id": "delayed-message-binding",
-      "status": "open",
+      "status": "ctco-delayed-message-binder-data-pinned",
       "required": true,
-      "satisfied": false,
-      "evidence": "artifact, provenance, replay, component-root, randomness-session, leakage, and carry binders need delayed-message soundness data",
+      "satisfied": true,
+      "evidence": "ProductInteractiveDelayedMessageData pins artifact, provenance, replay, component-root, randomness-session, leakage, and carry binders as first-message H_bind targets; later witness-dependent openings are accepted only after verifier recomputation of the corresponding binders and Root_k",
       "sourceBasis": [
         "DFMS22",
         "RotemTessaro"
@@ -171,10 +174,10 @@
     },
     {
       "id": "unique-response-data",
-      "status": "open",
+      "status": "ctco-unique-response-data-pinned",
       "required": true,
-      "satisfied": false,
-      "evidence": "each accepted proof kind needs unique or quasi-unique response data for the CTCO extractor target",
+      "satisfied": true,
+      "evidence": "ProductInteractiveUniqueResponseData pins per-kind deterministic response rules: fold, terminal, compressed-terminal after canonical decompression, NumiSeal terminal, and NumiSealZK product responses are unique relative to Root_k, rho_k, framed context binders, and verified local openings, with ambiguity charged to Root_k/H_bind/canonical-decompression bad events",
       "sourceBasis": [
         "DFMS22"
       ]
@@ -212,10 +215,10 @@
     },
     {
       "id": "qrom-compiler-overhead-instantiation",
-      "status": "open",
+      "status": "ideal-split-qro-compiler-overhead-instantiated",
       "required": true,
-      "satisfied": false,
-      "evidence": "epsilon_compiler_overhead must be instantiated for CTCO or the merkle-straightline fallback and integrated into epsilon_qrom",
+      "satisfied": true,
+      "evidence": "ProductQROMCompilerOverheadBound pins epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO model: online extractability is assumed by the theorem, legacy micro-round/factorial loss is excluded, H_bind target failures are exported to epsilon_collision, and remaining interactive/extractor/simulator losses are charged outside epsilon_qrom",
       "sourceBasis": [
         "DFMS22",
         "RotemTessaro"
@@ -311,14 +314,15 @@
     "hashModelGapSymbol": "epsilon_hash_model_gap",
     "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_compiler_overhead + epsilon_hash_model_gap",
     "recursivePromotionExpression": "epsilon_qrom(depth=d) = d * (epsilon_compiler_overhead + epsilon_hash_model_gap)",
-    "numericLossInstantiated": false,
-    "qromLossWithinBudget": false
+    "compilerOverheadExpression": "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO theorem model",
+    "hashModelGapExpression": "epsilon_hash_model_gap = 0 in the ideal split-QRO model; concrete SHAKE256 promotion remains a separate hash-instantiation claim",
+    "numericLossInstantiated": true,
+    "qromLossWithinBudget": true
   },
   "hardClaimBlockers": [
     "interactive special-soundness bounds for every accepted proof kind",
-    "delayed-message binding data for artifact/provenance/replay/session/leakage/carry binders",
-    "unique-response or quasi-unique-response data for CTCO extraction",
-    "epsilon_compiler_overhead instantiation and selected total-loss budget integration"
+    "zero-knowledge simulator composition for the masked residual product relation",
+    "selected total-loss budget remains blocked by non-QROM required terms"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
@@ -327,10 +331,10 @@
     "requiresInteractiveProtocolImplementation": true,
     "requiresHBind384Implementation": false,
     "requiresUnderlyingInteractiveSecurity": true,
-    "requiresDelayedMessageData": true,
-    "requiresUniqueResponseData": true,
-    "requiresQROMLossInstantiation": true,
-    "requiresTotalLossBudgetUpdate": true,
+    "requiresDelayedMessageData": false,
+    "requiresUniqueResponseData": false,
+    "requiresQROMLossInstantiation": false,
+    "requiresTotalLossBudgetUpdate": false,
     "requiresChallengeUniformity": false,
     "requiresTranscriptEncodingProof": false,
     "requiresStructuralCollisionMalleabilityEvidence": false,

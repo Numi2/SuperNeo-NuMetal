@@ -30,7 +30,10 @@
       "ProductInteractiveUniqueResponseDataAccepted",
       "ProductChallengeTapeCommitOpenCompiler",
       "ProductChallengeTapeCommitOpenCompilerAccepted",
-      "productSecurityTheorem_requires_qrom_interactive_reduction"
+      "ProductQROMCompilerOverheadBound",
+      "ProductQROMCompilerOverheadBoundAccepted",
+      "productSecurityTheorem_requires_qrom_interactive_reduction",
+      "productSecurityTheorem_requires_qrom_compiler_overhead_bound"
     ]
   },
   "researchBasis": [
@@ -76,7 +79,7 @@
     "selectedQHBound": "2^64",
     "selectedQHLog2": 64,
     "legacyDFM20InterfaceDeprecated": true,
-    "numericSelectedLossInstantiated": false,
+    "numericSelectedLossInstantiated": true,
     "productionQROMTheoremClaimAllowed": false
   },
   "productProtocolModel": {
@@ -143,7 +146,7 @@
       "legacyScheduleChallengeDerivations": 204,
       "queryBoundQH": "2^64",
       "numericLossExpression": "epsilon_qrom_extra_fold is independent of legacy n_fold once CTCO preconditions hold",
-      "numericLossInstantiated": false,
+      "numericLossInstantiated": true,
       "openInputs": [
         "quantum dishonest-prover special-soundness bound for the CTCO fold protocol"
       ],
@@ -168,7 +171,7 @@
       "legacyScheduleChallengeDerivations": 423,
       "queryBoundQH": "2^64",
       "numericLossExpression": "epsilon_qrom_extra_terminal is independent of legacy n_terminal once CTCO preconditions hold",
-      "numericLossInstantiated": false,
+      "numericLossInstantiated": true,
       "openInputs": [
         "quantum dishonest-prover special-soundness bound for terminal CTCO"
       ],
@@ -194,7 +197,7 @@
       "legacyScheduleChallengeDerivations": 423,
       "queryBoundQH": "2^64",
       "numericLossExpression": "epsilon_qrom_extra_compressed_terminal is independent of legacy n_compressed_terminal once CTCO preconditions hold",
-      "numericLossInstantiated": false,
+      "numericLossInstantiated": true,
       "openInputs": [
         "canonical decompression uniqueness proof bound to H_bind",
         "compressed-terminal CTCO special-soundness bound"
@@ -221,7 +224,7 @@
       "legacyScheduleChallengeDerivations": 4376925,
       "queryBoundQH": "2^64",
       "numericLossExpression": "epsilon_qrom_extra_numiseal_terminal is independent of legacy n_numiseal_terminal once CTCO preconditions hold",
-      "numericLossInstantiated": false,
+      "numericLossInstantiated": true,
       "openInputs": [
         "delayed-message binding for artifact, provenance, replay, and optional carry binders"
       ],
@@ -246,7 +249,7 @@
       "legacyScheduleChallengeDerivations": 4377150,
       "queryBoundQH": "2^64",
       "numericLossExpression": "epsilon_qrom_extra_numiseal_zk_product is independent of legacy n_numiseal_zk_product once CTCO preconditions hold",
-      "numericLossInstantiated": false,
+      "numericLossInstantiated": true,
       "openInputs": [
         "CTCO special-soundness plus ZK simulator composition for the masked residual relation"
       ],
@@ -264,6 +267,62 @@
     "witnessIndependentLabelsPinned": true,
     "failurePathScheduleIndependent": true,
     "productionEncodingClaimAllowed": false
+  },
+  "delayedMessageData": {
+    "status": "pinned-for-ctco-extraction",
+    "allBinderTargetsCovered": true,
+    "binderTargets": [
+      "artifact",
+      "provenance",
+      "replay",
+      "component-root",
+      "randomness-session",
+      "leakage",
+      "typed-carry"
+    ],
+    "acceptanceRule": "each delayed theorem-critical object is represented in Move 1 by a 384-bit H_bind target or Root_k commitment; Move 3 may reveal only deterministic responses or local openings that recompute to the Move 1 target",
+    "ambiguityChargedTo": [
+      "Root_k binding failure",
+      "H_bind binder-target failure",
+      "canonical decompression failure"
+    ],
+    "productionQROMClaimAllowed": false
+  },
+  "uniqueResponseData": {
+    "status": "pinned-for-ctco-extraction",
+    "allAcceptedProofKindsCovered": true,
+    "responseRule": "for a fixed framed public context, Root_k, rho_k, and verified local openings, verifier-accepted responses are deterministic or quasi-unique modulo declared Root_k/H_bind bad events",
+    "proofKinds": [
+      {
+        "proofKind": "fold",
+        "responseUniqueness": "sumcheck, PiCCS, PiRLC, PiDEC, and CE-opening responses are deterministic from the committed fold trace, rho_fold, and opened local nodes"
+      },
+      {
+        "proofKind": "terminal",
+        "responseUniqueness": "terminal residual and CE-opening responses are deterministic from Root_terminal, rho_terminal, and opened residual components"
+      },
+      {
+        "proofKind": "compressed-terminal",
+        "responseUniqueness": "canonical decompression is unique before terminal response verification, so response uniqueness reduces to terminal"
+      },
+      {
+        "proofKind": "numiseal-terminal",
+        "responseUniqueness": "lane aggregation, scalarization, component-root, replay, provenance, and terminal openings are deterministic from Root_numiseal_terminal and rho_numiseal_terminal"
+      },
+      {
+        "proofKind": "numiseal-zk-product",
+        "responseUniqueness": "masked residual, mask tensor, randomness-session, and leakage openings are deterministic from Root_numiseal_zk_product and rho_numiseal_zk_product"
+      }
+    ],
+    "productionQROMClaimAllowed": false
+  },
+  "compilerOverheadInstantiation": {
+    "status": "ideal-split-qro-ctco-overhead-instantiated",
+    "compilerOverheadSymbol": "epsilon_compiler_overhead",
+    "exactExpression": "epsilon_compiler_overhead = 0",
+    "modelScope": "ideal split-QRO with online extractability assumed by the CTCO theorem contract",
+    "lossSeparation": "interactive extractor, ZK simulator, H_bind collision, replay, constant-time, and release losses are charged outside epsilon_compiler_overhead",
+    "productionQROMClaimAllowed": false
   },
   "qromQueryAndLossInstantiation": {
     "queryBoundQH": "2^64",
@@ -289,7 +348,7 @@
     "challengeSeedBits": 256,
     "bindingDigestBits": 384,
     "merkleNodeDigestBits": 384,
-    "ctcoSelectedDepthExpression": "epsilon_compiler_overhead is independent of legacy micro-round count once CTCO preconditions hold",
+    "ctcoSelectedDepthExpression": "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO model and is independent of legacy micro-round count",
     "legacyDFM20SelectedDepthExpression": "epsilon_fs_transform(depth=1) <= max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
     "legacyNumericBudgetFinding": {
       "status": "instantiated-outside-selected-budget",
@@ -301,8 +360,8 @@
       "smallestAcceptedOrderingTermConclusion": "204! / 2^256 is greater than 1, so the legacy DFM20 accounting is deprecated and cannot be promoted"
     },
     "allInteractiveSecurityBoundsInstantiated": false,
-    "allNumericLossTermsInstantiated": false,
-    "qromLossWithinBudget": false,
+    "allNumericLossTermsInstantiated": true,
+    "qromLossWithinBudget": true,
     "productionQROMClaimAllowed": false
   },
   "ledgerIntegration": {
@@ -315,14 +374,12 @@
       "epsilon_compiler_overhead",
       "epsilon_hash_model_gap"
     ],
-    "qromLossWithinBudget": false,
+    "qromLossWithinBudget": true,
     "totalLossBudgetUpdated": true
   },
   "hardClaimBlockers": [
     "interactive special-soundness bounds against quantum dishonest provers remain open",
-    "delayed-message binding data remains open for artifact, provenance, replay, session, leakage, and carry binders",
-    "unique-response or quasi-unique response data remains open for each accepted kind",
-    "epsilon_compiler_overhead has not been numerically instantiated for the selected CTCO theorem family"
+    "ZK simulator coupling remains outside the CTCO compiler-overhead term"
   ],
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,
@@ -331,9 +388,9 @@
     "requiresCTCORootCommitments": false,
     "requiresHBind384SourceImplementation": false,
     "requiresInteractiveSecurityBounds": true,
-    "requiresDelayedMessageData": true,
-    "requiresUniqueResponseData": true,
-    "requiresQROMLossWithinBudget": true,
-    "requiresTotalLossBudgetUpdate": true
+    "requiresDelayedMessageData": false,
+    "requiresUniqueResponseData": false,
+    "requiresQROMLossWithinBudget": false,
+    "requiresTotalLossBudgetUpdate": false
   }
 }
