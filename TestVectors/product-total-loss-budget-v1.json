@@ -164,7 +164,7 @@
       "requiredEvidence": "non-probabilistic deployment boundary recorded outside the repository-local selected-depth loss budget"
     },
     {
-      "id": "release-signing-notarization",
+      "id": "release-distribution",
       "ledgerSymbol": "epsilon_release",
       "sourceManifest": "TestVectors/product-release-distribution-evidence-v1.json",
       "currentMultiplicityAtSelectedDepth": 0,

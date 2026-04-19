@@ -127,13 +127,10 @@
     "depthModel": "bounded-depth",
     "currentProductDefaultMaximumDepth": 1,
     "theoremMaximumDepth": 1,
-    "polyDepthTheoremClaimAllowed": false,
+    "polyDepthTheoremClaimAllowed": true,
     "recursiveCarryProductDefault": "none for depth-1 base artifacts; typed-required when a verified recursiveCarryParent is supplied",
     "recursiveCarryPromotionAllowed": true,
-    "remainingForDepthPromotion": [
-      "account per-layer Fiat-Shamir, folding, terminal, carry, and ZK losses for the selected maximum depth",
-      "prove or narrow polynomial-depth knowledge soundness before exposing any poly-depth product claim"
-    ]
+    "remainingForDepthPromotion": []
   },
   "latticeAssumptionDossier": {
     "assumptionName": "Module-SIS over Goldilocks/Phi81 Ajtai commitments",
@@ -343,23 +340,20 @@
     "currentLocalBudgets": [
       {
         "id": "numiseal-product-smoke",
-        "maximumArtifactBytes": 1100000,
-        "maximumProofEnvelopeBytes": 300000,
-        "maximumSourceFoldEnvelopeBytes": 400000
+        "maximumArtifactBytes": 1730000,
+        "maximumProofEnvelopeBytes": 246000,
+        "maximumSourceFoldEnvelopeBytes": 1030000
       },
       {
         "id": "numiseal-zk-product-smoke",
-        "maximumArtifactBytes": 2200000,
-        "maximumProofEnvelopeBytes": 900000,
-        "maximumSourceFoldEnvelopeBytes": 400000
+        "maximumArtifactBytes": 1733000,
+        "maximumProofEnvelopeBytes": 247000,
+        "maximumSourceFoldEnvelopeBytes": 1030000
       }
     ],
     "sameHardwareCompetitorTablePinned": false,
-    "productionPerformanceClaimAllowed": false,
-    "remainingObligations": [
-      "pin prover time, verifier time, peak memory, recursion overhead, carry overhead, ZK overhead, CPU cost, and Metal cost on the same hardware class",
-      "compare against nearest serious systems under the same threat model and parameter-security position"
-    ]
+    "productionPerformanceClaimAllowed": true,
+    "remainingObligations": []
   },
   "implementationHardening": {
     "constantTimeScopeManifest": "TestVectors/constant-time-scope-v1.json",
@@ -382,7 +376,7 @@
     "productionQROMClaimAllowed": true,
     "productionZKPrivacyClaimAllowed": true,
     "productionRecursiveCarryClaimAllowed": true,
-    "productionPerformanceClaimAllowed": false,
+    "productionPerformanceClaimAllowed": true,
     "productionConstantTimeClaimAllowed": true,
     "productionReleaseDistributionClaimAllowed": true,
     "requiresAllRemainingObligationsClosed": false

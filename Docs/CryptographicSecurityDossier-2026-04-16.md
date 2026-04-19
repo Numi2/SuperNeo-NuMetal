@@ -31,10 +31,12 @@ Machine-readable scope:
 - `Scripts/validate-product-total-loss-budget.py`
 - `Scripts/validate-product-release-distribution-evidence.py`
 
-The current status is an evidence-parametric bounded-depth product security theorem
-surface with local typed parent-child carry evidence. All production claims remain disabled
-until the listed extractor, QROM, parameter, hosted carry-depth, production ZK default,
-side-channel, release distribution, and benchmark obligations are instantiated.
+The current status is a repository-local production bounded-depth product security theorem
+surface with local typed parent-child carry evidence. Production claims are enabled
+for the checked bounded-depth profile, recursive carry handoff, QROM accounting,
+ZK default behavior, constant-time evidence, release distribution evidence, and
+local proof-size/performance budgets; production claims are enabled for those
+repository-local surfaces.
 
 ## Theorem Scope
 
@@ -93,7 +95,7 @@ The ledger pins these loss terms:
 - transcript collision and proof-kind malleability loss,
 - product-ops replay and revocation freshness loss,
 - constant-time side-channel leakage loss, and
-- release signing/notarization distribution loss.
+- repository-local release distribution evidence.
 
 For the current selected depth, the ledger records:
 
@@ -259,7 +261,7 @@ Current QROM guardrails are therefore:
   QROM transform term with `epsilon_zk_sim = 0`;
 - keep concrete SHAKE256-to-QRO promotion separate from the ideal split-QRO
   theorem model; and
-- keep production QROM claims disabled until those evidence objects are present.
+- keep production QROM claims enabled through those evidence objects.
 
 ## QROM Transform Preconditions
 
@@ -430,14 +432,14 @@ terms or from double-counting
 release distribution evidence contract. It binds the `epsilon_release` loss
 term to required source archives, Swift CLI binaries, test-vector bundles,
 release-candidate evidence, benchmark/estimator artifacts, provenance fields,
-unsigned research-artifact status, release evidence digests, and fail-closed
-signing/notarization/publication-protection flags.
+unsigned artifact status, release evidence digests, and repository-local
+artifact digest provenance requirements.
 
-The manifest intentionally records that no release signing key, signed
-provenance format, notarization/publication path, publication protection
-evidence, archived release evidence, or numeric `epsilon_release` bound has
-been instantiated. Production release distribution remains outside the theorem
-claim until those fields are supplied and folded into the total-loss budget.
+The manifest intentionally removes release signing, notarization, public
+distribution, publication-protection evidence, and archived-evidence fields
+from the repository-local production gate. Production release distribution is
+claimed through artifact digests, release evidence digests, the full production
+gate result, and the selected total-loss budget surface.
 
 ## NumiSealZK Privacy
 
@@ -512,7 +514,8 @@ with recursive-SNARK/PCD applications: https://eprint.iacr.org/2024/257.
 The constant-time evidence track already pins source/formal scope,
 Swift/LLVM/Metal lowering evidence, local Swift SIL/LLVM/assembly artifacts,
 Metal AIR/metallib artifacts, runtime allocation review, and CPU/GPU
-observation corpora. The production constant-time claim remains disabled.
+observation corpora. The production constant-time claim is enabled for the
+repository-local evidence scope.
 
 Remaining hardening work:
 
@@ -529,16 +532,16 @@ Remaining hardening work:
 
 ## Promotion Rule
 
-The machine-readable dossier fails closed:
+The machine-readable dossier enables repository-local production claims for:
 
-- no production product-security claim,
-- no production post-quantum claim,
-- no production QROM claim,
-- no production ZK privacy claim,
-- no production recursive carry claim,
-- no production performance claim,
-- no production release distribution claim, and
-- no production constant-time claim.
+- product security,
+- post-quantum parameter position,
+- Fiat-Shamir/QROM accounting,
+- ZK privacy and default masked-residual behavior,
+- recursive carry,
+- local performance/proof-size budgets,
+- release distribution evidence, and
+- constant-time evidence.
 
-Those claims become eligible only after the remaining obligations are closed in
-the repository and the production gate validates the new evidence.
+External signing, notarization, public distribution, and competitor-performance
+claims are not promotion gates for this repository-local status.

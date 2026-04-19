@@ -48,6 +48,12 @@ def main() -> None:
         write_json(path, premature_depth)
         run_fail(str(VALIDATE), str(path))
 
+        stale_poly_depth = copy.deepcopy(ledger)
+        stale_poly_depth["selectedDepth"]["polyDepthClaimAllowed"] = False
+        path = tmp / "stale-poly-depth.json"
+        write_json(path, stale_poly_depth)
+        run_fail(str(VALIDATE), str(path))
+
         stale_total = copy.deepcopy(ledger)
         stale_total["totalLossRule"]["totalLossWithinBudget"] = False
         path = tmp / "stale-total.json"

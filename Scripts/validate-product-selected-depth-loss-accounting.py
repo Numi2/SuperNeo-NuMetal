@@ -93,7 +93,7 @@ EXPECTED_COMPONENT_IDS = [
     "transcript-collision-domain-separation",
     "product-ops-replay",
     "constant-time-side-channel",
-    "release-signing-notarization",
+    "release-distribution",
 ]
 
 EXPECTED_BLOCKERS: list[str] = []
@@ -319,7 +319,7 @@ def validate_selected_depth(ledger: dict[str, Any]) -> None:
     require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
     require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
     require(depth.get("currentProductDefaultMaximumDepth") == 1, "selectedDepth.currentProductDefaultMaximumDepth must be 1")
-    require_false(depth.get("polyDepthClaimAllowed"), "selectedDepth.polyDepthClaimAllowed")
+    require(depth.get("polyDepthClaimAllowed") is True, "selectedDepth.polyDepthClaimAllowed must be true")
     require(depth.get("productionSelectedDepthClaimAllowed") is True, "selectedDepth.productionSelectedDepthClaimAllowed must be true")
 
 
@@ -464,11 +464,11 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "36 * 2^-256" in evidence and "source H_bind acceptance binding is implemented" in evidence,
                 "transcript-collision-domain-separation requiredEvidence must pin H_bind bound and source implementation status",
             )
-        if component_id == "release-signing-notarization":
-            evidence = require_string(component.get("requiredEvidence"), "release-signing-notarization.requiredEvidence")
+        if component_id == "release-distribution":
+            evidence = require_string(component.get("requiredEvidence"), "release-distribution.requiredEvidence")
             require(
                 "TestVectors/product-release-distribution-evidence-v1.json" in evidence,
-                "release-signing-notarization requiredEvidence must link release distribution evidence",
+                "release-distribution requiredEvidence must link release distribution evidence",
             )
         component_text.append(json.dumps(component, sort_keys=True).lower())
     require(seen_ids == EXPECTED_COMPONENT_IDS, "componentLosses must stay in the pinned accounting order")

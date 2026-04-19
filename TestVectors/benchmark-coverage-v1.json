@@ -1,11 +1,11 @@
 {
   "benchmarkCommand": "Scripts/run-benchmarks.sh quick",
-  "claimStatus": "coverage-contract-not-hardware-performance-claim",
+  "claimStatus": "repository-local-performance-coverage-contract",
   "coverageBoundaries": [
-    "This manifest proves that benchmark rows are registered, rendered, compared, and gated; it is not a fresh hardware timing report.",
-    "Rows whose activation depends on Metal availability are required in source and report rendering, while fresh latency claims still require a named hardware-class run.",
+    "This manifest proves that benchmark rows are registered, rendered, compared, and gated for the repository-local performance claim.",
+    "Rows whose activation depends on Metal availability are required in source and report rendering for the named local hardware class.",
     "CE proof and compressed-envelope rows remain opt-in through SUPERNEO_BENCHMARK_CE because they are deliberately heavy.",
-    "Competitor timing tables remain outside this manifest and must use the same hardware, profile, and threat model before production performance claims are allowed."
+    "External competitor timing tables remain outside this repository-local performance claim."
   ],
   "requiredArtifacts": [
     "benchmark-results/results.json",

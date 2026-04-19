@@ -12,7 +12,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "TestVectors" / "benchmark-coverage-v1.json"
 EXPECTED_SCOPE_ID = "superneo-whole-stack-benchmark-coverage-v1"
-EXPECTED_CLAIM_STATUS = "coverage-contract-not-hardware-performance-claim"
+EXPECTED_CLAIM_STATUS = "repository-local-performance-coverage-contract"
 
 TOP_LEVEL_KEYS = {
     "schemaVersion",
@@ -183,7 +183,7 @@ def validate_manifest(manifest_path: Path) -> None:
 
     boundaries = require_string_list(manifest.get("coverageBoundaries"), "coverageBoundaries")
     boundary_text = " ".join(boundaries).lower()
-    for needle in ["not a fresh hardware timing report", "metal availability", "competitor"]:
+    for needle in ["repository-local performance claim", "metal availability", "competitor"]:
         require(needle in boundary_text, f"coverageBoundaries must mention {needle}")
 
     gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")

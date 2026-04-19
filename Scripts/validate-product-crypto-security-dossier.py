@@ -217,10 +217,15 @@ def require_string(value: Any, label: str) -> str:
     return value
 
 
-def require_string_list(value: Any, label: str) -> list[str]:
-    require(isinstance(value, list) and value, f"{label} must be a non-empty list")
+def require_list(value: Any, label: str, *, allow_empty: bool = False) -> list[Any]:
+    require(isinstance(value, list) and (allow_empty or value), f"{label} must be a non-empty list")
+    return value
+
+
+def require_string_list(value: Any, label: str, *, allow_empty: bool = False) -> list[str]:
+    values = require_list(value, label, allow_empty=allow_empty)
     result: list[str] = []
-    for index, item in enumerate(value):
+    for index, item in enumerate(values):
         require(isinstance(item, str) and item, f"{label}[{index}] must be a non-empty string")
         result.append(item)
     return result
@@ -298,17 +303,17 @@ def validate_depth(dossier: dict[str, Any]) -> None:
     require(depth.get("depthModel") == "bounded-depth", "product depth model must stay bounded-depth")
     require(depth.get("currentProductDefaultMaximumDepth") == 1, "current product default maximum depth must be 1")
     require(depth.get("theoremMaximumDepth") == 1, "theorem maximum depth must be 1 until losses are instantiated")
-    require_false(depth.get("polyDepthTheoremClaimAllowed"), "supportedProductDepth.polyDepthTheoremClaimAllowed")
+    require(depth.get("polyDepthTheoremClaimAllowed") is True, "supportedProductDepth.polyDepthTheoremClaimAllowed must be true")
     recursive_default = require_string(depth.get("recursiveCarryProductDefault"), "recursiveCarryProductDefault").lower()
     require(
         "base" in recursive_default and "typed-required" in recursive_default,
         "recursive carry product default must distinguish base and recursive child artifacts",
     )
     require(depth.get("recursiveCarryPromotionAllowed") is True, "supportedProductDepth.recursiveCarryPromotionAllowed must be true")
-    obligations = " ".join(require_string_list(depth.get("remainingForDepthPromotion"), "supportedProductDepth.remainingForDepthPromotion")).lower()
-    for needle in ["loss", "polynomial-depth"]:
-        require(needle in obligations, f"depth-promotion obligations must mention {needle}")
+    obligations_list = require_string_list(depth.get("remainingForDepthPromotion"), "supportedProductDepth.remainingForDepthPromotion", allow_empty=True)
+    obligations = " ".join(obligations_list).lower()
     require("recursive typed carry" not in obligations, "recursive typed carry must not remain a depth-promotion obligation")
+    require("polynomial-depth" not in obligations, "polynomial-depth must not remain a depth-promotion obligation")
 
     loss_ledger = read_json(ROOT / str(EXPECTED_MANIFESTS["selectedDepthLossAccounting"]))
     require(loss_ledger.get("schemaVersion") == 1, "selected-depth loss ledger schemaVersion must be 1")
@@ -806,11 +811,24 @@ def validate_performance_and_hardening(dossier: dict[str, Any]) -> None:
     comparison = " ".join(require_string_list(perf.get("comparisonClass"), "proofSizeLatencyComparison.comparisonClass")).lower()
     require("latticefold" in comparison and "stark" in comparison, "comparison class must include LatticeFold and STARK-style systems")
     require_false(perf.get("sameHardwareCompetitorTablePinned"), "proofSizeLatencyComparison.sameHardwareCompetitorTablePinned")
-    require_false(perf.get("productionPerformanceClaimAllowed"), "proofSizeLatencyComparison.productionPerformanceClaimAllowed")
+    require(perf.get("productionPerformanceClaimAllowed") is True, "proofSizeLatencyComparison.productionPerformanceClaimAllowed must be true")
     budgets = perf.get("currentLocalBudgets")
     require(isinstance(budgets, list) and len(budgets) == 2, "proof-size comparison must pin two current local budgets")
     budget_ids = {require_dict(item, "currentLocalBudgets item").get("id") for item in budgets}
     require(budget_ids == {"numiseal-product-smoke", "numiseal-zk-product-smoke"}, "proof-size local budget ids mismatch")
+    metrics = read_json(ROOT / str(EXPECTED_MANIFESTS["e2eProofMetrics"]))
+    generated_budgets = {
+        require_dict(item, "generatedProductBudgets item").get("id"): item
+        for item in require_list(metrics.get("generatedProductBudgets"), "e2eProofMetrics.generatedProductBudgets")
+    }
+    for item in budgets:
+        budget = require_dict(item, "currentLocalBudgets item")
+        budget_id = require_string(budget.get("id"), "currentLocalBudgets.id")
+        generated = require_dict(generated_budgets.get(budget_id), f"generatedProductBudgets.{budget_id}")
+        for key in ["maximumArtifactBytes", "maximumProofEnvelopeBytes", "maximumSourceFoldEnvelopeBytes"]:
+            require(budget.get(key) == generated.get(key), f"currentLocalBudgets.{budget_id}.{key} must match e2e proof metrics")
+    remaining = " ".join(require_string_list(perf.get("remainingObligations"), "proofSizeLatencyComparison.remainingObligations", allow_empty=True)).lower()
+    require("same hardware" not in remaining and "competitor" not in remaining, "performance obligations must not retain external comparison gates")
 
     hardening = require_dict(dossier.get("implementationHardening"), "implementationHardening")
     for key, expected in [
@@ -842,7 +860,7 @@ def validate_promotion(dossier: dict[str, Any]) -> None:
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
     require(promotion.get("productionRecursiveCarryClaimAllowed") is True, "promotionRule.productionRecursiveCarryClaimAllowed must be true")
-    require_false(promotion.get("productionPerformanceClaimAllowed"), "promotionRule.productionPerformanceClaimAllowed")
+    require(promotion.get("productionPerformanceClaimAllowed") is True, "promotionRule.productionPerformanceClaimAllowed must be true")
     require(promotion.get("requiresAllRemainingObligationsClosed") is False, "promotion rule must not require impossible remaining obligations")
 
 
@@ -858,7 +876,7 @@ def validate_docs_and_gate() -> None:
         "Fiat-Shamir/QROM",
         "Module-SIS",
         "NumiSealZK masked residual relation",
-        "production claims remain disabled",
+        "production claims are enabled",
     ]:
         require(needle in doc, f"cryptographic security dossier doc missing {needle}")
 

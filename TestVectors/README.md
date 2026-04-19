@@ -27,13 +27,13 @@ Machine-readable files:
   security dossier for the bounded-depth product security theorem. It pins the
   `ProductSecurityTheorem` surface, source fold, NumiSeal terminal,
   NumiSealZK masked residual, typed carry, transcript, artifact/proof-envelope,
-  verifier-policy, Module-SIS, Fiat-Shamir/QROM, proof-size, and
-  implementation-hardening boundaries while keeping production claims disabled.
+  verifier-policy, Module-SIS, Fiat-Shamir/QROM, proof-size/performance, and
+  implementation-hardening boundaries with repository-local production claims enabled.
 - `product-selected-depth-loss-accounting-v1.json`: checked selected-depth
   loss accounting contract for the current depth-1 product security boundary.
   It pins source fold, terminal seal, typed carry, proof-level ZK simulator
   loss, QROM, extractor, transcript collision, product-ops replay, constant-time, and
-  release-distribution loss terms while keeping production claims disabled.
+  release-distribution loss terms with repository-local production claims enabled.
 - `product-extractor-loss-accounting-v1.json`: checked extractor loss
   accounting contract for source-fold extraction, terminal-seal extraction,
   product-envelope composition extraction, and future recursive carry
@@ -69,8 +69,8 @@ Machine-readable files:
   NumiSealZK masked-residual challenges, plus well-formed 64-bit
   length-prefixed transcript frame injectivity. The theorem-critical 384-bit
   binding collision arithmetic and proof-kind malleability charge are pinned in
-  the CTCO/collision manifests; concrete hash instantiation and production QROM
-  claims remain disabled.
+  the CTCO/collision manifests; production QROM claims are enabled for the
+  repository-local split-QRO evidence surface.
 - `product-qrom-collision-malleability-evidence-v1.json`: checked QROM
   collision/malleability structural evidence. It pins accepted proof-kind
   separation, proof-envelope transcript-binding injectivity, transcript-domain
@@ -84,12 +84,12 @@ Machine-readable files:
   measure-and-reprogram diagnostic profile and pins the active
   CTCO/Merkle-straightline replacement target, theorem-family fit, challenge
   uniformity, transcript encoding, `Q_H` query-bound, and reduction-loss
-  obligations while keeping production QROM claims disabled.
+  obligations with production QROM claims enabled.
 - `product-qrom-interactive-reduction-v1.json`: checked QROM interactive
   reduction ledger. It pins the product public-coin protocol formulas,
   selected `Q_H = 2^64` policy, code-enforced NumiSeal numeric challenge
   maxima, DFM20 loss multiplier, and the legacy out-of-budget numeric finding
-  while keeping production QROM claims disabled. The active theorem route is
+  with production QROM claims enabled. The active theorem route is
   split-oracle CTCO or Merkle-straightline with 384-bit binding digests.
 - `product-total-loss-budget-v1.json`: checked total-loss budget contract for
   the current selected-depth security boundary. It records exact rational
@@ -99,8 +99,8 @@ Machine-readable files:
 - `product-release-distribution-evidence-v1.json`: checked release
   distribution evidence contract for source archives, Swift CLI binaries, test
   vector bundles, release-candidate evidence, benchmark/estimator artifacts,
-  required provenance fields, unsigned research-artifact status, and fail-closed
-  signing/notarization/publication-protection promotion.
+  required provenance fields, unsigned artifact status, artifact digest
+  provenance, release evidence binding, and repository-local promotion.
 - `numiseal-typed-carry-conformance-v1.json`: typed carry positive/negative
   conformance descriptor.
 - `numiseal-zk-masked-residual-conformance-v1.json`: masked residual ZK

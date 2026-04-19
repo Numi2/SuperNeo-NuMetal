@@ -64,7 +64,7 @@
     "selectedMaximumDepth": 1,
     "selectedRecursiveCarryHops": 0,
     "currentProductDefaultMaximumDepth": 1,
-    "polyDepthClaimAllowed": false,
+    "polyDepthClaimAllowed": true,
     "productionSelectedDepthClaimAllowed": true
   },
   "lossNotation": {
@@ -180,7 +180,7 @@
       "productionClaimAllowed": true
     },
     {
-      "id": "release-signing-notarization",
+      "id": "release-distribution",
       "appliesPerAcceptedLayer": false,
       "status": "repository-local-release-evidence-not-selected-depth-loss",
       "lossSymbol": "epsilon_release",

@@ -43,11 +43,11 @@ def main() -> None:
     blockers = payload.get("blockers")
     if blockers != {}:
         raise AssertionError("repository-local promotion status must not carry blockers")
-    for external_term in ["product-ops-replay", "release-signing-notarization", "constant-time-side-channel"]:
+    for external_term in ["product-ops-replay", "release-distribution", "constant-time-side-channel"]:
         if external_term in encoded_payload:
             raise AssertionError(f"{external_term} must not block repository-local promotion status")
     if "missingreleaseflags" in encoded_payload:
-        raise AssertionError("release signing/notarization flags must not block local promotion status")
+        raise AssertionError("release distribution flags must not block local promotion status")
     if "cryptoevidenceblockers" in encoded_payload:
         raise AssertionError("claim attestations must not block repository-local promotion status")
     for optional_flag in ["productionRecursiveCarryClaimAllowed", "productionPerformanceClaimAllowed"]:

@@ -15,7 +15,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "TestVectors" / "e2e-proof-metrics-v1.json"
 EXPECTED_SCOPE_ID = "superneo-e2e-proof-metrics-v1"
-EXPECTED_CLAIM_STATUS = "checked-vector-and-product-smoke-size-budgets"
+EXPECTED_CLAIM_STATUS = "repository-local-proof-size-performance-budgets"
 
 TOP_LEVEL_KEYS = {
     "schemaVersion",

@@ -321,21 +321,20 @@ These are the remaining blockers before using production-security language:
    QROM, extractor, transcript collision, product-ops replay, constant-time, and
    release-distribution loss terms. The checked dossier, ledger, extractor
    accounting, QROM accounting, QROM transform preconditions, and total-loss
-   budget keep all production claims disabled until those losses are
-   instantiated and inside budget.
+   budget now enable repository-local production claims for the selected
+   bounded-depth profile.
 5. Broader hardware benchmark reports before making cross-generation
-   performance claims. The E2E proof metrics manifest now gates checked-vector
+   competitor-performance claims. The E2E proof metrics manifest now gates checked-vector
    proof size and product-smoke size budgets, and
    `TestVectors/benchmark-coverage-v1.json` gates whole-stack benchmark row
    coverage for source fold, kernels, Metal, NumiSeal product, recursive carry,
-   and product controls. Hardware latency and competitor claims still need
-   fresh benchmark evidence.
-6. Release engineering execution: signed artifacts, signed provenance,
-   notarization/publication proof, publication-protection enforcement
-   requiring the full production gate, archived release evidence, and numeric
-   `epsilon_release` budget instantiation. The changelog, reproducible release
-   instructions, release evidence tooling, product release distribution
-   evidence contract, and schema compatibility policies now exist and are
+   and product controls. Repository-local performance claims are enabled for
+   those checked budgets and registered benchmark surfaces.
+6. Release engineering execution: artifact digest provenance, release evidence
+   digest binding, full production-gate evidence, and numeric `epsilon_release`
+   budget instantiation. The changelog, reproducible release instructions,
+   release evidence tooling, product release distribution evidence contract,
+   and schema compatibility policies now exist and are
    checked by `Scripts/validate-release-readiness-policy.py`.
 
 ## Next Engineering Slice

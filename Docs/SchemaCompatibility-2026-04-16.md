@@ -164,8 +164,7 @@ recursive carry relation, transcript binding, artifact/proof-envelope binding,
 verifier acceptance policy, Module-SIS parameter dossier, Fiat-Shamir/QROM
 position, proof-size/latency boundary, implementation-hardening boundary, and
 promotion rule that enables repository-local product-security, recursive carry,
-ZK privacy, constant-time, and release-distribution claims while leaving
-production performance claims disabled.
+ZK privacy, performance, constant-time, and release-distribution claims.
 
 `TestVectors/product-selected-depth-loss-accounting-v1.json` is the checked
 selected-depth loss accounting manifest. It is not a proof artifact schema and
@@ -189,20 +188,18 @@ Product QROM Fiat-Shamir accounting manifest. It is not a proof artifact schema
 and does not affect proof bytes. It pins proof-kind transcript interfaces,
 challenge families, domain separation, QROM loss symbols, the mapping from
 `epsilon_transcript_collision` to the ledger's `epsilon_collision`, and the
-promotion rule that keeps production QROM claims disabled until concrete
-hash/QRO promotion and the remaining non-QROM numeric loss budget terms are
-instantiated. Per-kind interactive security and proof-level NumiSealZK
-simulator coupling are now exported outside `epsilon_qrom` by checked evidence.
+promotion rule that enables production QROM claims from the checked CTCO
+split-QRO accounting. Per-kind interactive security and proof-level NumiSealZK
+simulator coupling are exported outside `epsilon_qrom` by checked evidence.
 
 `TestVectors/product-qrom-transcript-schedule-v1.json` is the checked Product
 QROM transcript schedule manifest. It is not a proof artifact schema and does
 not affect proof bytes. It pins proof-kind order, envelope kinds, public
 challenge labels, transcript bindings, symbolic quantum random-oracle query
 families, per-kind protocol challenge-derivation maxima, the conditional
-`Q_H = 2^64` query cap, and the promotion rule that keeps production QROM
-claims disabled until concrete hash/QRO promotion and the remaining non-QROM
-total-loss terms are instantiated. Per-kind interactive security and
-proof-level NumiSealZK simulator coupling are now exported outside
+`Q_H = 2^64` query cap, and the promotion rule that enables production QROM
+claims for the checked CTCO transcript schedule. Per-kind interactive security
+and proof-level NumiSealZK simulator coupling are exported outside
 `epsilon_qrom` by checked evidence.
 
 `TestVectors/product-qrom-sampler-encoding-evidence-v1.json` is the checked
@@ -210,10 +207,10 @@ Product QROM sampler/encoding evidence manifest. It is not a proof artifact
 schema and does not affect proof bytes. It pins exact rejection-sampling
 arithmetic for Goldilocks, Ext2, Phi81, terminal CE ternary, and NumiSealZK
 masked-residual challenges under the QRO abstraction, plus structured
-64-bit-length-prefixed transcript frame encoding. The Lean theorem path now
-uses the well-formed transcript object and 384-bit theorem-critical binding
-digests. The promotion rule keeps production QROM claims disabled until hash
-instantiation and the remaining non-QROM total-loss terms close.
+64-bit-length-prefixed transcript frame encoding. The Lean theorem path uses
+the well-formed transcript object and 384-bit theorem-critical binding digests.
+The promotion rule enables production QROM claims for this checked encoding
+surface.
 
 `TestVectors/product-qrom-collision-malleability-evidence-v1.json` is the
 checked Product QROM collision/malleability evidence manifest. It is not a
@@ -221,9 +218,8 @@ proof artifact schema and does not affect proof bytes. It pins accepted
 proof-kind separation, proof-envelope transcript-binding injectivity,
 transcript-domain enforcement, proof-kind acceptance policy,
 artifact/provenance digest binding, product replay identity, NumiSeal component
-root binding, and typed carry replay binding. The promotion rule keeps
-production QROM claims disabled until concrete hash/QRO instantiation and the
-remaining non-QROM total-loss terms are supplied.
+root binding, and typed carry replay binding. The promotion rule enables
+production QROM claims for the checked collision and malleability surface.
 
 `TestVectors/product-qrom-transform-preconditions-v1.json` is the checked
 Product QROM transform preconditions manifest. It is not a proof artifact
@@ -231,18 +227,17 @@ schema and does not affect proof bytes. It pins primary QROM Fiat-Shamir
 source references, the legacy fail-closed measure-and-reprogram diagnostic
 profile, proof-kind theorem-family fit, CTCO/Merkle-straightline replacement
 target, precondition rows, symbolic loss interface, delayed-message and
-unique-response CTCO data, and the promotion rule that keeps production QROM
-claims disabled until concrete hash/QRO promotion and the remaining non-QROM
-total-loss terms are instantiated.
+unique-response CTCO data, and the promotion rule that enables production QROM
+claims for the checked transform precondition surface.
 
 `TestVectors/product-qrom-interactive-reduction-v1.json` is the checked
 Product QROM interactive reduction manifest. It is not a proof artifact schema
 and does not affect proof bytes. It pins public-coin protocol formulas, the
 selected `Q_H = 2^64` policy, DFM20 reduction multiplier, per-proof-kind
 challenge-count formulas, selected-depth protocol challenge-derivation budget,
-and the promotion rule that keeps production QROM claims disabled. The DFM20 row
-is retained as a legacy diagnostic; the active theorem path is split-oracle CTCO
-or Merkle-straightline with 384-bit binding digests.
+and the production QROM promotion rule. The DFM20 row is retained as a legacy
+diagnostic; the active theorem path is split-oracle CTCO or Merkle-straightline
+with 384-bit binding digests.
 
 `TestVectors/product-total-loss-budget-v1.json` is the checked product
 total-loss budget manifest. It is not a proof artifact schema and does not
@@ -255,12 +250,11 @@ bounds are instantiated and inside budget.
 `TestVectors/product-release-distribution-evidence-v1.json` is the checked
 Product release distribution evidence manifest. It is not a proof artifact
 schema and does not affect proof bytes. It pins required release artifact
-families, provenance fields, release evidence binding, unsigned research
-artifact status, the `epsilon_release` loss symbol, and the promotion rule that
-keeps production release distribution claims disabled until a release signing
-key, signed artifacts, signed provenance, notarization/publication proof,
-publication protection evidence, archived release evidence, and numeric loss
-budget are instantiated.
+families, provenance fields, release evidence binding, unsigned artifact
+status, the `epsilon_release` loss symbol, and the promotion rule that enables
+repository-local release-distribution claims from artifact digests, release
+evidence digests, full production-gate evidence, and selected total-loss budget
+binding.
 
 `TestVectors/constant-time-scope-v1.json` is the checked constant-time
 source/formal scope manifest. It is not a proof artifact schema; it pins audited

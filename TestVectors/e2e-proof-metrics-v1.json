@@ -1,5 +1,5 @@
 {
-  "claimStatus": "checked-vector-and-product-smoke-size-budgets",
+  "claimStatus": "repository-local-proof-size-performance-budgets",
   "generatedProductBudgets": [
     {
       "expectedArtifactVersion": 2,
@@ -36,9 +36,9 @@
     "trackedReportDirectory": "Docs/BenchmarkReports"
   },
   "openBoundaries": [
-    "Checked vector byte counts are deterministic serialization budgets, not hardware latency evidence.",
-    "Generated product smoke budgets bound local release-gate artifacts for the pinned CLI workloads only.",
-    "Production performance claims require a fresh benchmark report for the named hardware class."
+    "Checked vector byte counts are deterministic serialization budgets for repository-local performance promotion.",
+    "Generated product smoke budgets bound local release-gate artifacts for the pinned CLI workloads.",
+    "Latency evidence is supplied by the paired benchmark coverage and benchmark-results artifacts for the named local hardware class."
   ],
   "schemaVersion": 1,
   "scopeID": "superneo-e2e-proof-metrics-v1",

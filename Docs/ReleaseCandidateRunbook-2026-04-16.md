@@ -79,9 +79,8 @@ candidate. It does not authorize production-security release claims.
   total-loss budget, exact rational summation, required component bounds, or
   `2^-128` threshold changes.
 - `TestVectors/product-release-distribution-evidence-v1.json` reflects any
-  release signing, signed provenance, notarization/publication,
-  publication-protection, archived-evidence, or `epsilon_release` budget-boundary
-  change.
+  artifact digest provenance, release evidence digest, production-gate result,
+  or `epsilon_release` repository-local budget change.
 - `elan`, Swift, and the pinned Lean toolchain are available.
 
 ## Candidate Gate
@@ -167,12 +166,12 @@ The generated evidence records:
 
 ## Signing And Publication
 
-Until a repository signing key and provenance format are selected, generated
-artifacts must be published as unsigned research artifacts. Production-security
-release language remains blocked until signed artifacts and verification
-instructions are available. The product release distribution evidence manifest
-must remain attached to the release evidence packet so reviewers can see the
-unsigned status and the still-false promotion flags.
+Generated artifacts use repository-local unsigned distribution unless a
+downstream distributor adds signatures. Production-security release language is
+controlled by artifact digests, release evidence digests, and the production
+gate result. The product release distribution evidence manifest must remain
+attached to the release evidence packet so reviewers can verify the unsigned
+status and enabled repository-local promotion flags.
 
 For a research/integration tag:
 
@@ -180,9 +179,9 @@ For a research/integration tag:
 2. Attach any benchmark reports used by release notes.
 3. Attach the Sage-backed lattice-estimator artifact only if it was actually
    run and validated.
-4. State that the artifact is unsigned unless a signing command and public key
-   are included.
-5. State that production-security blockers remain as listed in the audit packet.
+4. State that the artifact is unsigned unless a downstream signing command and
+   public key are included.
+5. State the production-gate command and result.
 
 ## Publication Protection
 

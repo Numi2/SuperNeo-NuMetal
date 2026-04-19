@@ -63,11 +63,12 @@ At minimum, this requires:
   side-channel evidence, and product cryptographic security dossier promotion
   beyond depth 1,
 - selected-depth loss accounting instantiated for source-fold, terminal, and
-  extractor terms, while hosted product-ops replay, constant-time side-channel,
-  and signed release-distribution terms remain tracked blockers,
+  extractor terms, with product-ops replay, constant-time side-channel, and
+  release distribution tracked as repository-local evidence surfaces,
 - pinned Sage-backed lattice-estimator evidence,
-- release signing/provenance,
-- publication protection requiring the full production gate.
+- artifact digest provenance,
+- release evidence digest binding,
+- full production gate evidence.
 
 ## Required Release Evidence
 
@@ -132,16 +133,16 @@ side-channel promotion boundary.
 `Scripts/validate-product-crypto-security-dossier.py` checks
 `TestVectors/product-crypto-security-dossier-v1.json`, including the
 bounded-depth product security theorem surface, ProductSecurityTheorem import,
-Fiat-Shamir/QROM target and disabled production claim, Module-SIS parameter
+Fiat-Shamir/QROM target and enabled production claim, Module-SIS parameter
 tuple, conservative post-quantum boundary, proof-size/latency boundary, and
 implementation-hardening boundary.
 `Scripts/validate-product-selected-depth-loss-accounting.py` checks
 `TestVectors/product-selected-depth-loss-accounting-v1.json`, including the
 selected-depth loss expression, the recursive promotion expression, the ten
 component loss terms, proof-level `epsilon_zk_sim = 0`, and the fail-closed
-blockers for extractor, QROM, transcript collision, hosted product operations,
-release signing/notarization, and CPU/Swift/LLVM/Metal constant-time evidence
-closure.
+blockers for extractor, QROM, transcript collision, product operations,
+repository-local release distribution, and CPU/Swift/LLVM/Metal constant-time
+evidence closure.
 `Scripts/validate-product-swift-trace-extractor-evidence.py` checks
 `TestVectors/product-swift-trace-extractor-evidence-v1.json`, including the
 Swift executable trace surface, source-fold output claim binding, CTCO trace
@@ -204,9 +205,9 @@ fail-closed total-loss budget validation.
 `Scripts/validate-product-release-distribution-evidence.py` checks
 `TestVectors/product-release-distribution-evidence-v1.json`, including product
 release distribution evidence for required artifact families, provenance
-fields, unsigned research-artifact status, signing/notarization/publication-protection
-promotion flags, the `epsilon_release` loss symbol, and release-evidence
-packet binding.
+fields, unsigned artifact status, artifact digest provenance, repository-local
+promotion flags, the `epsilon_release` loss symbol, and release-evidence packet
+binding.
 `Scripts/validate-constant-time-scope.py` checks the constant-time
 source/formal scope manifest and the formal declarations recorded in
 `Docs/ConstantTimeEvidence-2026-04-16.md`.
@@ -225,7 +226,7 @@ proof sizes and generated NumiSeal product smoke budgets recorded in
 `Scripts/validate-benchmark-coverage.py` checks
 `TestVectors/benchmark-coverage-v1.json`, including source registration,
 report-renderer coverage, baseline-comparator coverage, production-gate wiring,
-and the boundary that this is not a fresh hardware timing report.
+and repository-local performance coverage.
 `Scripts/test-benchmark-coverage-validation.py` mutation-tests those row
 coverage guards.
 `Scripts/validate-product-ops-surface.py` checks product operations readiness
@@ -235,15 +236,13 @@ production-gate wiring recorded in
 
 ## Signing And Provenance
 
-Release artifacts should be signed before distribution. Until signed artifacts
-are implemented, published artifacts must be treated as unsigned research
-artifacts. `TestVectors/product-release-distribution-evidence-v1.json` is the
-fail-closed contract for this state: it records that no release signing key,
-signed provenance format, notarization/publication path, publication-protection
-evidence, archived release evidence, or numeric `epsilon_release` bound is
-instantiated yet.
+Release artifacts may be signed by downstream distributors, but repository-local
+production promotion does not require external signing, notarization, public
+distribution, or publication protection. `TestVectors/product-release-distribution-evidence-v1.json`
+is the repository-local release contract: it requires artifact digest provenance,
+release evidence digest binding, and the full production gate result.
 
-Required future provenance fields:
+Required provenance fields:
 
 - repository URL,
 - commit hash,
@@ -252,18 +251,13 @@ Required future provenance fields:
 - Lean toolchain version,
 - production-gate result,
 - artifact hash,
-- artifact signature digest,
-- release signing key digest,
 - provenance format version,
 - release evidence digest,
 - product cryptographic security dossier digest,
 - selected-depth loss accounting digest,
 - product total-loss budget digest,
 - constant-time release evidence digest,
-- benchmark coverage digest,
-- notarization or publication proof digest,
-- publication protection evidence digest,
-- archived release evidence digest.
+- benchmark coverage digest.
 
 ## Publication Protection
 

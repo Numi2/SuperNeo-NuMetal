@@ -48,10 +48,10 @@ def main() -> None:
         write_json(path, wrong_depth)
         run_fail(str(VALIDATE), str(path))
 
-        premature_poly_depth = copy.deepcopy(dossier)
-        premature_poly_depth["supportedProductDepth"]["polyDepthTheoremClaimAllowed"] = True
-        path = tmp / "premature-poly-depth.json"
-        write_json(path, premature_poly_depth)
+        stale_poly_depth = copy.deepcopy(dossier)
+        stale_poly_depth["supportedProductDepth"]["polyDepthTheoremClaimAllowed"] = False
+        path = tmp / "stale-poly-depth.json"
+        write_json(path, stale_poly_depth)
         run_fail(str(VALIDATE), str(path))
 
         stale_recursive_depth = copy.deepcopy(dossier)
@@ -216,6 +216,12 @@ def main() -> None:
         stale_all_clear["promotionRule"]["productionProductSecurityClaimAllowed"] = False
         path = tmp / "stale-all-clear.json"
         write_json(path, stale_all_clear)
+        run_fail(str(VALIDATE), str(path))
+
+        stale_performance = copy.deepcopy(dossier)
+        stale_performance["promotionRule"]["productionPerformanceClaimAllowed"] = False
+        path = tmp / "stale-performance.json"
+        write_json(path, stale_performance)
         run_fail(str(VALIDATE), str(path))
 
         stale_recursive_promotion = copy.deepcopy(dossier)

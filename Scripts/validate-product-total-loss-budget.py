@@ -75,7 +75,7 @@ EXPECTED_COMPONENT_IDS = [
     "transcript-collision-domain-separation",
     "product-ops-replay",
     "constant-time-side-channel",
-    "release-signing-notarization",
+    "release-distribution",
 ]
 
 EXPECTED_REQUIRED_IDS = [
@@ -553,7 +553,7 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                     exact_bound == Fraction(9, 1 << 254),
                     "transcript-collision-domain-separation exactUpperBound must be 9/2^254",
                 )
-        if component_id in {"product-ops-replay", "constant-time-side-channel", "release-signing-notarization"}:
+        if component_id in {"product-ops-replay", "constant-time-side-channel", "release-distribution"}:
             require(required is False, f"{component_id} must not be a selected-depth required loss term")
             require(multiplicity == 0, f"{component_id} must have zero selected-depth multiplicity")
             require(instantiated is False, f"{component_id} must stay outside instantiated selected-depth losses")

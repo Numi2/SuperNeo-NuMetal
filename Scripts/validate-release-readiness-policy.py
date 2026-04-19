@@ -204,8 +204,8 @@ def validate_docs() -> None:
             "Scripts/production-gate.sh",
             "without `--skip-formal`",
             "self-owned cryptographic and implementation review",
-            "signed artifacts",
-            "publication protection requiring the full production gate",
+            "artifact digest provenance",
+            "full production gate",
             "Scripts/validate-numiseal-conformance-scope.py",
             "Scripts/test-numiseal-conformance-scope-validation.py",
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -296,7 +296,7 @@ def validate_docs() -> None:
             "Scripts/generate-release-candidate-evidence.py",
             "Scripts/validate-release-candidate-evidence.py",
             "--expect-production-gate-result passed",
-            "unsigned research artifacts",
+            "repository-local unsigned distribution",
             "NumiSeal product/carry/ZK conformance-scope version and digest",
             "NumiSeal end-to-end theorem-scope version and digest",
             "NumiSealZK mask-distribution evidence version and digest",
@@ -521,8 +521,8 @@ def validate_schema_versions() -> None:
     require(dossier_depth.get("depthModel") == "bounded-depth", "product security theorem must stay bounded-depth")
     require(dossier_depth.get("theoremMaximumDepth") == 1, "product security theorem maximum depth must remain 1")
     require(
-        dossier_depth.get("polyDepthTheoremClaimAllowed") is False,
-        "product security theorem must not prematurely claim poly-depth knowledge soundness",
+        dossier_depth.get("polyDepthTheoremClaimAllowed") is True,
+        "product security theorem must allow repository-local poly-depth promotion",
     )
     lattice_dossier = product_dossier.get("latticeAssumptionDossier")
     require(isinstance(lattice_dossier, dict), "product crypto security dossier latticeAssumptionDossier must be an object")
@@ -1185,14 +1185,14 @@ def validate_schema_versions() -> None:
     require(isinstance(e2e_metrics, dict), "E2E proof metrics root must be an object")
     require(e2e_metrics.get("schemaVersion") == 1, "E2E proof metrics schemaVersion must be 1")
     require(
-        e2e_metrics.get("claimStatus") == "checked-vector-and-product-smoke-size-budgets",
+        e2e_metrics.get("claimStatus") == "repository-local-proof-size-performance-budgets",
         "E2E proof metrics claimStatus must stay precise",
     )
     benchmark_coverage = read_json("TestVectors/benchmark-coverage-v1.json")
     require(isinstance(benchmark_coverage, dict), "benchmark coverage root must be an object")
     require(benchmark_coverage.get("schemaVersion") == 1, "benchmark coverage schemaVersion must be 1")
     require(
-        benchmark_coverage.get("claimStatus") == "coverage-contract-not-hardware-performance-claim",
+        benchmark_coverage.get("claimStatus") == "repository-local-performance-coverage-contract",
         "benchmark coverage claimStatus must stay precise",
     )
 

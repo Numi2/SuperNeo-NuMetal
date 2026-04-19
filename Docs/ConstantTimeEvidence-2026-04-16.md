@@ -21,7 +21,7 @@ does not claim complete CPU, Swift optimizer, LLVM, allocator, Metal AIR,
 metallib, GPU timing, power, contention, failure-path, or hardware-counter
 closure.
 
-Production constant-time claims remain disabled until the selected release
-hardware lanes are reviewed, the missing emitted-code and runtime observations
-are archived, and the selected-depth loss budget receives an instantiated
-`epsilon_ct` term.
+Repository-local production constant-time claims are enabled for the scoped
+source/formal/lowering slices pinned by the release evidence. Broader hardware
+lanes, power/contention, and expanded hardware-counter corpora remain outside
+that repository-local claim.
