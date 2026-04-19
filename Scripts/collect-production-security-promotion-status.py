@@ -42,54 +42,6 @@ def read_json(relative_path: str) -> dict[str, Any]:
     return value
 
 
-def git_remote_repo() -> str | None:
-    code, stdout, _ = run_text("git", "config", "--get", "remote.origin.url")
-    if code != 0 or not stdout:
-        return None
-    if stdout.startswith("https://github.com/"):
-        repo = stdout.removeprefix("https://github.com/").removesuffix(".git")
-        return repo or None
-    if stdout.startswith("git@github.com:"):
-        repo = stdout.removeprefix("git@github.com:").removesuffix(".git")
-        return repo or None
-    return None
-
-
-def github_branch_protection(repo: str | None) -> dict[str, Any]:
-    if repo is None:
-        return {
-            "checked": False,
-            "pinned": False,
-            "status": "missing-github-remote",
-            "detail": "remote.origin.url does not identify a GitHub repository",
-        }
-    code, stdout, stderr = run_text("gh", "api", f"repos/{repo}/branches/main/protection")
-    if code != 0:
-        return {
-            "checked": True,
-            "pinned": False,
-            "status": "unavailable",
-            "detail": stderr or stdout,
-        }
-    try:
-        protection = json.loads(stdout)
-    except json.JSONDecodeError:
-        return {
-            "checked": True,
-            "pinned": False,
-            "status": "invalid-response",
-            "detail": stdout,
-        }
-    required_checks = protection.get("required_status_checks") or {}
-    contexts = set(required_checks.get("contexts") or [])
-    return {
-        "checked": True,
-        "pinned": bool(contexts),
-        "status": "pinned" if contexts else "missing-required-status-checks",
-        "requiredStatusChecks": sorted(contexts),
-    }
-
-
 def local_signing_identities() -> dict[str, Any]:
     code, stdout, stderr = run_text("security", "find-identity", "-v", "-p", "codesigning")
     identities: list[str] = []
@@ -122,7 +74,7 @@ def total_loss_status() -> dict[str, Any]:
     }
 
 
-def release_distribution_status(branch_protection: dict[str, Any]) -> dict[str, Any]:
+def release_distribution_status() -> dict[str, Any]:
     evidence = read_json("TestVectors/product-release-distribution-evidence-v1.json")
     signing = evidence.get("signingStatus", {})
     if not isinstance(signing, dict):
@@ -139,13 +91,11 @@ def release_distribution_status(branch_protection: dict[str, Any]) -> dict[str, 
         "productionReleaseDistributionClaimAllowed",
     ]
     missing = [key for key in required if signing.get(key) is not True]
-    if branch_protection.get("pinned") is not True and "hostedBranchProtectionEvidencePinned" not in missing:
-        missing.append("hostedBranchProtectionEvidencePinned")
     return {
         "allSigningStatusFlagsTrue": not missing,
         "missingSigningStatusFlags": missing,
         "claimStatus": evidence.get("claimStatus"),
-        "hostedBranchProtection": branch_protection,
+        "statusSource": "checked-in-release-distribution-evidence",
     }
 
 
@@ -187,10 +137,8 @@ def crypto_dossier_status() -> dict[str, Any]:
 
 
 def collect() -> dict[str, Any]:
-    repo = git_remote_repo()
-    branch = github_branch_protection(repo)
     total = total_loss_status()
-    release = release_distribution_status(branch)
+    release = release_distribution_status()
     constant_time = constant_time_status()
     dossier = crypto_dossier_status()
     blockers: list[str] = []
@@ -201,8 +149,6 @@ def collect() -> dict[str, Any]:
         blockers.append("selected-depth total loss is not proved within 2^-128")
     for flag in release.get("missingSigningStatusFlags", []):
         blockers.append(f"release-distribution evidence flag is not true: {flag}")
-    if branch.get("pinned") is not True:
-        blockers.append(f"hosted branch-protection evidence is not pinned: {branch.get('status')}")
     if constant_time.get("productionConstantTimeClaimAllowed") is not True:
         blockers.append("constant-time production claim is not allowed by lowering evidence")
     for flag, enabled in dossier.get("promotionFlags", {}).items():
@@ -213,7 +159,7 @@ def collect() -> dict[str, Any]:
         "schemaVersion": 1,
         "generatedAtUTC": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "repository": {
-            "githubRepository": repo,
+            "root": str(ROOT),
         },
         "localSigning": local_signing_identities(),
         "totalLossBudget": total,

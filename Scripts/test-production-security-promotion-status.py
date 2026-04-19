@@ -30,6 +30,14 @@ def main() -> None:
     if status.returncode != 0:
         raise AssertionError(status.stderr or status.stdout)
     payload = json.loads(status.stdout)
+    encoded_payload = json.dumps(payload, sort_keys=True).lower()
+    if "github" in encoded_payload:
+        raise AssertionError("production promotion status must not depend on GitHub state")
+    release_distribution = payload.get("releaseDistribution")
+    if not isinstance(release_distribution, dict):
+        raise AssertionError("collector must report releaseDistribution")
+    if release_distribution.get("statusSource") != "checked-in-release-distribution-evidence":
+        raise AssertionError("release distribution status must come from checked-in evidence")
     if payload.get("productionSecurityClaimsPromotable") is not False:
         raise AssertionError("current checked-in evidence must not be promotable")
     blockers = payload.get("blockers")
