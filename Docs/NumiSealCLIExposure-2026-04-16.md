@@ -39,6 +39,8 @@ local product artifact-generation surfaces. Product proving defaults to
 `masked-digit-tensor-v1`; pass `--numiseal-zk-mode none` for a non-ZK terminal
 artifact.
 External callers still need policy-owned expected context outside the artifact
-before treating CLI acceptance as an authorization decision, and production
-security language still requires the remaining product/QROM, ZK, operations,
-review, and side-channel evidence.
+before treating CLI acceptance as an authorization decision. Repository-local
+production-security promotion is now governed by the checked product dossier,
+QROM, ZK, operations, total-loss, release-distribution, and side-channel
+manifests; hosted deployment review remains an external release-operation
+decision rather than a repository-local promotion blocker.

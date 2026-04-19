@@ -200,10 +200,11 @@ def validate_docs() -> None:
         "Docs/ReleaseEngineering-2026-04-16.md",
         [
             "Research or Integration Release",
-            "Production-Security Release",
+            "Repository-Local Production-Security Promotion",
+            "repository-local production-security promotion",
             "Scripts/production-gate.sh",
             "without `--skip-formal`",
-            "self-owned cryptographic and implementation review",
+            "independent cryptographic and implementation review",
             "artifact digest provenance",
             "full production gate",
             "Scripts/validate-numiseal-conformance-scope.py",

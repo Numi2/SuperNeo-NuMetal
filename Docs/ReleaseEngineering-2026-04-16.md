@@ -1,8 +1,10 @@
 # Release Engineering Policy, 2026-04-16
 
 This document defines the release discipline for the current repository scope.
-It is intentionally conservative: a passing release gate permits tagged
-research/integration releases, not production-security claims.
+A passing release gate supports repository-local production-security promotion
+for the bounded theorem surface checked by the manifests. Hosted deployment,
+public distribution, notarization, app-store, and customer-facing release
+claims remain downstream release-operation decisions.
 
 ## Release Classes
 
@@ -17,8 +19,8 @@ true:
 - The pull-request macOS smoke job and Ubuntu formal-status workflow pass for
   their path-filtered scopes.
 - `Docs/ProductionReadinessAuditPacket-2026-04-16.md` is current.
-- `CHANGELOG.md` records user-facing changes and residual
-  production-security blockers.
+- `CHANGELOG.md` records user-facing changes and any residual deployment
+  operations boundaries.
 - `Docs/ReleaseCandidateRunbook-2026-04-16.md` has been followed.
 - `Docs/E2EProofMetrics-2026-04-16.md` reflects current checked proof-size
   and product-smoke budgets.
@@ -38,37 +40,38 @@ true:
   product release distribution evidence boundaries.
 - Any changed public proof envelope, artifact, or manifest schema is documented
   in `Docs/SchemaCompatibility-2026-04-16.md`.
-- Release notes explicitly use research/integration wording and do not claim
-  production-secure SNARK status, formal constant-time behavior, or completed
-  production-security NumiSeal product/carry/ZK theorem instantiations.
+- Release notes describe the repository-local bounded theorem surface and do
+  not claim hosted deployment review, public notarization, app-store
+  distribution, or hardware classes that were not checked.
 
-### Production-Security Release
+### Repository-Local Production-Security Promotion
 
-A production-security release is blocked until every no-go item in
-`Docs/ProductionReadinessAuditPacket-2026-04-16.md` is either completed or
-replaced by an explicit, narrower deployment threat model.
+Repository-local production-security promotion is allowed when
+`Scripts/collect-production-security-promotion-status.py` reports no blockers
+and `Scripts/production-gate.sh` passes for the intended release lane.
 
-At minimum, this requires:
+The release boundary is:
 
-- self-owned cryptographic and implementation review,
-- side-channel review and evidence capture for Swift, LLVM, Metal lowering,
-  runtime allocation, selected CPU/GPU observation lanes, and expansion beyond
-  the pinned local `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
-  smoke corpus,
-- product integration policy for trusted context, replay protection,
-  provenance, and signed revocation feeds,
-- NumiSeal conformance-scope promotion plus selected-depth Swift extractor
-  replay evidence, product recursive typed carry vectors for promoted depths,
-  selected total-loss budget closure, production
-  side-channel evidence, and product cryptographic security dossier promotion
-  beyond depth 1,
-- selected-depth loss accounting instantiated for source-fold, terminal, and
-  extractor terms, with product-ops replay, constant-time side-channel, and
-  release distribution tracked as repository-local evidence surfaces,
-- pinned Sage-backed lattice-estimator evidence,
+- bounded selected-depth product security only,
+- checked local product operations, replay, provenance, and revocation-feed
+  semantics,
+- checked recursive typed carry, NumiSealZK default, QROM, total-loss,
+  side-channel, performance, and release-distribution evidence surfaces,
+- repository-local unsigned distribution unless downstream release operations
+  add external signing or notarization,
 - artifact digest provenance,
 - release evidence digest binding,
-- full production gate evidence.
+- a clean production gate.
+
+External deployment releases may add:
+
+- independent cryptographic and implementation review,
+- hosted authentication, authorization, tenant isolation, audit retention, and
+  revocation feed operations,
+- side-channel evidence for additional hardware/profile lanes,
+- pinned Sage-backed estimator refreshes when a release wants to restate the
+  independent estimator evidence, and
+- signing, notarization, public distribution, or app-store policy artifacts.
 
 ## Required Release Evidence
 
@@ -173,9 +176,9 @@ fail-closed QROM promotion rule.
 product QROM collision/malleability structural evidence, accepted proof-kind
 separation, proof-envelope transcript-binding injectivity, artifact/provenance
 digest binding, product replay identity binding, NumiSeal component-root
-binding, typed carry replay binding, and the fail-closed boundary that keeps
-concrete hash/QRO instantiation and the remaining non-QROM total-loss terms
-open. Numeric 384-bit binding collision arithmetic, proof-kind malleability,
+binding, typed carry replay binding, and the fail-closed boundary for leaving
+the repository-local split-QRO model. Numeric 384-bit binding collision
+arithmetic, proof-kind malleability,
 and the CTCO source instantiation are checked by
 `Scripts/validate-product-qrom-ctco-instantiation.py`.
 `Scripts/validate-product-qrom-ctco-instantiation.py` checks

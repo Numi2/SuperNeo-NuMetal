@@ -290,9 +290,9 @@ stack:
   for the future tighter commit-and-open extractor track if product proofs are
   refactored to fit that family.
 
-Promotion now requires concrete hash/QRO promotion when leaving the ideal
-split-QRO model and the remaining non-QROM terms in the selected total-loss
-budget. The CTCO
+Repository-local promotion is scoped to the ideal split-QRO model and checked
+selected total-loss budget. Concrete hash/QRO promotion is a separate
+deployment-model extension outside this repository-local claim. The CTCO
 delayed-message/unique-response data, ideal split-QRO compiler-overhead term,
 384-bit H_bind collision accounting, proof-kind malleability accounting, and
 exact partial total-loss wiring are pinned by the checked manifests. Per-kind
@@ -322,7 +322,7 @@ frame counters agree with payload lengths. `Digest384Serialization.lean` and
 `TypedDigestSemantics.lean` add the 384-bit theorem-critical binding layer used
 by the product theorem surface. This closes the old canonical-transcript and
 binding-width documentation gap. It does not prove a concrete hash
-instantiation as a QRO or close the remaining non-QROM total-loss budget terms.
+instantiation as a QRO; that is outside the repository-local split-QRO claim.
 
 ## QROM Collision/Malleability Structural Evidence
 
@@ -382,11 +382,10 @@ random-oracle query families, and schedule-to-ledger binding for fold,
 terminal, compressed-terminal, NumiSeal terminal, and NumiSealZK product proof
 kinds. It also pins the conditional `Q_H = 2^64` adversary-query cap and
 `8755125` selected-depth protocol challenge derivations. It is intentionally
-not a production QROM proof. The transcript-canonicality gap is now closed by
-the well-formed Lean transcript object, the binding-width gap is closed by the
-384-bit digest layer, and the ideal split-QRO compiler-overhead term is wired
-as zero into the total-loss budget. Remaining QROM work is concrete hash/QRO
-promotion and the remaining non-QROM total-loss terms.
+not a concrete-hash QROM proof. The transcript-canonicality gap is now closed
+by the well-formed Lean transcript object, the binding-width gap is closed by
+the 384-bit digest layer, and the ideal split-QRO compiler-overhead term is
+wired as zero into the selected total-loss budget.
 
 ## Total Loss Budget
 

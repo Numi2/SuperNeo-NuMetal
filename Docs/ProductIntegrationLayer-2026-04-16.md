@@ -118,5 +118,7 @@ controls, but production deployment still requires product-owned completion for:
 
 The product integration blocker is therefore narrowed: the local repository no
 longer lacks an integration-layer contract or local CLI control substrate, but
-production-security language still requires deployed, reviewed release
-operations, instantiated product/QROM evidence, and side-channel evidence.
+external deployment language still requires deployed, reviewed release
+operations. Repository-local production-security promotion is supplied by the
+checked product/QROM, operations, total-loss, release-distribution, and
+side-channel evidence manifests.

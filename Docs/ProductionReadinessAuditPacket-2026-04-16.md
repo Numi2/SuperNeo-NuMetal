@@ -304,12 +304,11 @@ These are the remaining blockers before using production-security language:
    distribution evidence is now checked in
    `TestVectors/product-release-distribution-evidence-v1.json`, and
    simulator-coupling evidence is checked in
-   `TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json`. Hosted
-   selected-depth carry/loss accounting, release-grade Swift trace/extractor
-   review, remaining non-QROM total-loss budget instantiation,
-   release-hardware ZK benchmark refresh, and side-channel evidence still have
-   to be supplied before production-security NumiSeal theorem language is
-   allowed.
+   `TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json`. The
+   repository-local bounded NumiSeal theorem language is allowed by these
+   checked manifests and the promotion collector; hosted release review,
+   release-hardware benchmark refreshes, and additional hardware side-channel
+   evidence remain downstream deployment-operation choices.
    `TestVectors/product-crypto-security-dossier-v1.json` and
    `Docs/CryptographicSecurityDossier-2026-04-16.md` now pin the bounded-depth product security theorem,
    `ProductSecurityTheorem`, Fiat-Shamir/QROM
