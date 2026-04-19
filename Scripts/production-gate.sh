@@ -30,6 +30,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - optional signed NumiSealZK side-channel certificate binding tests
   - release policy, schema compatibility, doc-link, and CI gate drift validation
   - release-candidate evidence tooling validation
+  - production-security promotion status tooling validation
   - release CLI fold, terminal, compressed-terminal, and NumiSeal prove/verify smoke
 
 Pass --with-benchmarks to include Scripts/run-benchmarks.sh quick.
@@ -212,6 +213,7 @@ run_step Scripts/test-product-ops-surface-validation.py
 run_step Scripts/validate-doc-links.py
 run_step Scripts/validate-release-readiness-policy.py
 run_step Scripts/test-release-candidate-evidence-validation.py
+run_step Scripts/test-production-security-promotion-status.py
 run_step Scripts/test-benchmark-tooling-validation.py
 run_step swift Scripts/validate-test-vectors.swift
 run_step "${NUMISEAL_VECTOR_CLI}" validate
