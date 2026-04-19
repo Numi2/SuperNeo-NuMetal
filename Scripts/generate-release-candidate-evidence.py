@@ -16,10 +16,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_text(*command: str) -> str:
+def run_text(*command: str, cwd: Path = ROOT) -> str:
     completed = subprocess.run(
         command,
-        cwd=ROOT,
+        cwd=cwd,
         check=False,
         text=True,
         stdout=subprocess.PIPE,
@@ -75,6 +75,7 @@ def sha256_hex(relative_path: str) -> str:
 
 
 def build_evidence(args: argparse.Namespace) -> dict:
+    formal_dir = ROOT / "Formal"
     status_short = run_text("git", "status", "--short")
     dirty = bool(status_short)
     if dirty and not args.allow_dirty:
@@ -140,8 +141,8 @@ def build_evidence(args: argparse.Namespace) -> dict:
         },
         "toolchain": {
             "swift": run_text("swift", "--version").splitlines()[0],
-            "lean": run_text("lean", "--version").splitlines()[0],
-            "lake": run_text("lake", "--version").splitlines()[0],
+            "lean": run_text("lean", "--version", cwd=formal_dir).splitlines()[0],
+            "lake": run_text("lake", "--version", cwd=formal_dir).splitlines()[0],
         },
         "productionGate": {
             "command": args.production_gate_command,

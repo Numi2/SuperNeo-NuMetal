@@ -41,11 +41,21 @@ def main() -> None:
         )
         run_ok(str(VALIDATE), "--allow-dirty", "--expect-production-gate-result", "passed", str(evidence_path))
         evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+        for key in ("swift", "lean", "lake"):
+            value = evidence["toolchain"][key]
+            if value.startswith("unavailable:"):
+                raise AssertionError(f"expected generated toolchain.{key} to be available, got {value!r}")
 
         wrong_schema = copy.deepcopy(evidence)
         wrong_schema["schemaVersion"] = 2
         path = tmp / "wrong-schema.json"
         write_json(path, wrong_schema)
+        run_fail(str(VALIDATE), "--allow-dirty", str(path))
+
+        unavailable_toolchain = copy.deepcopy(evidence)
+        unavailable_toolchain["toolchain"]["lean"] = "unavailable: lean --version"
+        path = tmp / "unavailable-toolchain.json"
+        write_json(path, unavailable_toolchain)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         dirty_not_allowed = copy.deepcopy(evidence)

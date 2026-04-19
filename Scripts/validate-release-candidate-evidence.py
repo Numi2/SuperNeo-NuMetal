@@ -75,6 +75,11 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     if result == "passed":
         require(command == "Scripts/production-gate.sh", "passed release evidence must come from the full production gate")
 
+    toolchain = require_dict(evidence.get("toolchain"), "toolchain")
+    for key in ("swift", "lean", "lake"):
+        value = require_string(toolchain.get(key), f"toolchain.{key}")
+        require(not value.startswith("unavailable:"), f"toolchain.{key} must record the actual tool version")
+
     surfaces = require_dict(evidence.get("publicSurfaces"), "publicSurfaces")
     require(require_int(surfaces.get("r1csArtifactVersion"), "r1csArtifactVersion") == 1, "R1CS artifact version must be 1")
     require(require_int(surfaces.get("r1csManifestVersion"), "r1csManifestVersion") == 1, "R1CS manifest version must be 1")
