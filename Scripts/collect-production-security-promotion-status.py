@@ -9,26 +9,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def run_text(*command: str) -> tuple[int, str, str]:
-    completed = subprocess.run(
-        command,
-        cwd=ROOT,
-        check=False,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    return completed.returncode, completed.stdout.strip(), completed.stderr.strip()
 
 
 def read_json(relative_path: str) -> dict[str, Any]:
@@ -42,24 +28,6 @@ def read_json(relative_path: str) -> dict[str, Any]:
     return value
 
 
-def local_signing_identities() -> dict[str, Any]:
-    code, stdout, stderr = run_text("security", "find-identity", "-v", "-p", "codesigning")
-    identities: list[str] = []
-    if code == 0:
-        for line in stdout.splitlines():
-            stripped = line.strip()
-            if stripped and ")" in stripped and '"' in stripped:
-                identities.append(stripped)
-    gpg_code, gpg_stdout, gpg_stderr = run_text("gpg", "--list-secret-keys", "--keyid-format=long")
-    return {
-        "appleCodeSigningIdentityCount": len(identities),
-        "appleCodeSigningIdentities": identities,
-        "gpgSecretKeyAvailable": gpg_code == 0 and bool(gpg_stdout.strip()),
-        "gpgStatus": "available" if gpg_code == 0 and bool(gpg_stdout.strip()) else "unavailable",
-        "gpgDetail": "" if gpg_code == 0 else gpg_stderr,
-    }
-
-
 def total_loss_status() -> dict[str, Any]:
     budget = read_json("TestVectors/product-total-loss-budget-v1.json")
     computed = budget.get("computedBudget", {})
@@ -70,7 +38,6 @@ def total_loss_status() -> dict[str, Any]:
         "selectedDepthLossWithinBudget": computed.get("selectedDepthLossWithinBudget") is True,
         "productionTotalLossClaimAllowed": computed.get("productionTotalLossClaimAllowed") is True,
         "missingRequiredTermIDs": computed.get("missingRequiredTermIDs", []),
-        "exactSelectedDepthLossUpperBound": computed.get("exactSelectedDepthLossUpperBound"),
     }
 
 
@@ -92,10 +59,8 @@ def release_distribution_status() -> dict[str, Any]:
     ]
     missing = [key for key in required if signing.get(key) is not True]
     return {
-        "allSigningStatusFlagsTrue": not missing,
-        "missingSigningStatusFlags": missing,
-        "claimStatus": evidence.get("claimStatus"),
-        "statusSource": "checked-in-release-distribution-evidence",
+        "ready": not missing,
+        "missingFlags": missing,
     }
 
 
@@ -106,8 +71,6 @@ def constant_time_status() -> dict[str, Any]:
         promotion = {}
     return {
         "productionConstantTimeClaimAllowed": promotion.get("productionConstantTimeClaimAllowed") is True,
-        "releaseEvidenceOnly": promotion.get("releaseEvidenceOnly") is True,
-        "unblockRequires": promotion.get("unblockRequires", []),
     }
 
 
@@ -130,7 +93,6 @@ def crypto_dossier_status() -> dict[str, Any]:
         ]
     }
     return {
-        "claimStatus": dossier.get("claimStatus"),
         "promotionFlags": flags,
         "allPromotionFlagsTrue": all(flags.values()),
     }
@@ -141,32 +103,27 @@ def collect() -> dict[str, Any]:
     release = release_distribution_status()
     constant_time = constant_time_status()
     dossier = crypto_dossier_status()
-    blockers: list[str] = []
-
-    for term in total.get("missingRequiredTermIDs", []):
-        blockers.append(f"total-loss term not instantiated: {term}")
-    if total.get("selectedDepthLossWithinBudget") is not True:
-        blockers.append("selected-depth total loss is not proved within 2^-128")
-    for flag in release.get("missingSigningStatusFlags", []):
-        blockers.append(f"release-distribution evidence flag is not true: {flag}")
-    if constant_time.get("productionConstantTimeClaimAllowed") is not True:
-        blockers.append("constant-time production claim is not allowed by lowering evidence")
-    for flag, enabled in dossier.get("promotionFlags", {}).items():
-        if not enabled:
-            blockers.append(f"crypto dossier promotion flag is not true: {flag}")
+    missing_dossier_flags = [
+        flag for flag, enabled in dossier.get("promotionFlags", {}).items() if not enabled
+    ]
+    blockers = {
+        "missingTotalLossTerms": total.get("missingRequiredTermIDs", []),
+        "totalLossWithinBudget": total.get("selectedDepthLossWithinBudget") is True,
+        "missingReleaseFlags": release.get("missingFlags", []),
+        "constantTimeClaimAllowed": constant_time.get("productionConstantTimeClaimAllowed") is True,
+        "missingDossierFlags": missing_dossier_flags,
+    }
+    promotable = (
+        not blockers["missingTotalLossTerms"]
+        and blockers["totalLossWithinBudget"]
+        and not blockers["missingReleaseFlags"]
+        and blockers["constantTimeClaimAllowed"]
+        and not blockers["missingDossierFlags"]
+    )
 
     return {
         "schemaVersion": 1,
-        "generatedAtUTC": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
-        "repository": {
-            "root": str(ROOT),
-        },
-        "localSigning": local_signing_identities(),
-        "totalLossBudget": total,
-        "releaseDistribution": release,
-        "constantTime": constant_time,
-        "cryptoSecurityDossier": dossier,
-        "productionSecurityClaimsPromotable": not blockers,
+        "productionSecurityClaimsPromotable": promotable,
         "blockers": blockers,
     }
 
@@ -191,8 +148,7 @@ def main() -> None:
         sys.stdout.write(encoded)
     if args.require_promotable and not status["productionSecurityClaimsPromotable"]:
         print("production-security promotion is blocked", file=sys.stderr)
-        for blocker in status["blockers"]:
-            print(f"- {blocker}", file=sys.stderr)
+        print(json.dumps(status["blockers"], indent=2, sort_keys=True), file=sys.stderr)
         raise SystemExit(1)
 
 

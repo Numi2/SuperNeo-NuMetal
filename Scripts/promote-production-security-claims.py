@@ -35,23 +35,17 @@ def read_json(path: Path) -> dict[str, Any]:
 def require_promotable(status: dict[str, Any]) -> None:
     if status.get("productionSecurityClaimsPromotable") is not True:
         blockers = status.get("blockers", [])
-        if not isinstance(blockers, list):
-            blockers = ["status packet did not include a blocker list"]
-        detail = "\n".join(f"- {item}" for item in blockers)
+        if isinstance(blockers, dict):
+            detail = json.dumps(blockers, indent=2, sort_keys=True)
+        elif isinstance(blockers, list):
+            detail = "\n".join(f"- {item}" for item in blockers)
+        else:
+            detail = "status packet did not include blockers"
         fail(f"evidence is not promotable:\n{detail}")
 
-    total = status.get("totalLossBudget")
-    release = status.get("releaseDistribution")
-    constant_time = status.get("constantTime")
-    dossier = status.get("cryptoSecurityDossier")
-    if not isinstance(total, dict) or total.get("productionTotalLossClaimAllowed") is not True:
-        fail("status packet does not prove productionTotalLossClaimAllowed")
-    if not isinstance(release, dict) or release.get("allSigningStatusFlagsTrue") is not True:
-        fail("status packet does not prove release-distribution signing closure")
-    if not isinstance(constant_time, dict) or constant_time.get("productionConstantTimeClaimAllowed") is not True:
-        fail("status packet does not prove production constant-time closure")
-    if not isinstance(dossier, dict) or dossier.get("allPromotionFlagsTrue") is not True:
-        fail("status packet does not prove crypto dossier promotion closure")
+    blockers = status.get("blockers")
+    if not isinstance(blockers, dict) or any(blockers.values()):
+        fail("status packet is promotable but still contains blockers")
 
 
 def main() -> None:

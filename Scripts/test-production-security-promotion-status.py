@@ -33,17 +33,18 @@ def main() -> None:
     encoded_payload = json.dumps(payload, sort_keys=True).lower()
     if "github" in encoded_payload:
         raise AssertionError("production promotion status must not depend on GitHub state")
-    release_distribution = payload.get("releaseDistribution")
-    if not isinstance(release_distribution, dict):
-        raise AssertionError("collector must report releaseDistribution")
-    if release_distribution.get("statusSource") != "checked-in-release-distribution-evidence":
-        raise AssertionError("release distribution status must come from checked-in evidence")
+    if "localsigning" in encoded_payload or "repository" in encoded_payload:
+        raise AssertionError("production promotion status must stay compact")
+    allowed_keys = {"schemaVersion", "productionSecurityClaimsPromotable", "blockers"}
+    if set(payload) != allowed_keys:
+        raise AssertionError(f"collector payload must stay compact: {sorted(payload)}")
     if payload.get("productionSecurityClaimsPromotable") is not False:
         raise AssertionError("current checked-in evidence must not be promotable")
     blockers = payload.get("blockers")
-    if not isinstance(blockers, list) or not blockers:
-        raise AssertionError("collector must report concrete blockers")
-    if not any("total-loss term not instantiated" in blocker for blocker in blockers):
+    if not isinstance(blockers, dict) or not blockers:
+        raise AssertionError("collector must report compact blocker groups")
+    missing_terms = blockers.get("missingTotalLossTerms")
+    if not isinstance(missing_terms, list) or "product-ops-replay" not in missing_terms:
         raise AssertionError("collector must report missing total-loss terms")
 
     required = run(str(COLLECT), "--require-promotable")
