@@ -125,9 +125,10 @@ import os
             input: input,
             point: referenceFold.proof.sumCheck.finalPoint
         )
-        let rlcWithWitness = try prover.benchmarkPiRLC(
+        let rlcWithWitness = try prover.benchmarkPiRLCBranch(
             input: input,
             claims: piCCSClaimsWithWitness,
+            sumCheck: referenceFold.proof.sumCheck,
             transcriptSeed: transcriptSeed
         )
         let statement = CCSStatement(

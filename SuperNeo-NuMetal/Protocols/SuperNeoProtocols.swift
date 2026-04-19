@@ -221,6 +221,25 @@ public struct FoldProverOutput: Equatable, Sendable {
     }
 }
 
+@_spi(Benchmarking) public struct SuperNeoPreparedPiRLCBranchTranscript: Sendable {
+    fileprivate let transcriptAfterCanonicalClaims: SumCheckTranscript
+    public let sumCheckFinalPoint: [GoldilocksExt2]
+    public let claimCount: Int
+    public let branchIndex: Int
+
+    fileprivate init(
+        transcriptAfterCanonicalClaims: SumCheckTranscript,
+        sumCheckFinalPoint: [GoldilocksExt2],
+        claimCount: Int,
+        branchIndex: Int
+    ) {
+        self.transcriptAfterCanonicalClaims = transcriptAfterCanonicalClaims
+        self.sumCheckFinalPoint = sumCheckFinalPoint
+        self.claimCount = claimCount
+        self.branchIndex = branchIndex
+    }
+}
+
 public struct TerminalFoldProof: Equatable, Sendable {
     public let foldProof: FoldProof
     public let terminalStatement: TerminalCEStatement
@@ -3243,6 +3262,79 @@ private enum SuperNeoProtocolOracle {
         var transcript = preparedTranscript.transcriptAfterSumCheck
         absorbEvaluationClaimBatch(claims, into: &transcript)
         return try randomLinearCombination(claims: claims, transcript: &transcript)
+    }
+
+    public func prepareBenchmarkPiRLCBranchTranscript(
+        input: SuperNeoFoldInput,
+        sumCheck: SumcheckProof,
+        claims: [CCSEvaluationClaim],
+        transcriptSeed: [UInt8] = [],
+        branchIndex: Int = 0
+    ) throws -> SuperNeoPreparedPiRLCBranchTranscript {
+        try validateFoldInput(input, parameters: parameters)
+        guard branchIndex >= 0, branchIndex < FoldProof.selectedPiRLCBranchCount else {
+            throw SuperNeoError.invalidParameter("PiRLC branch index out of range")
+        }
+        let publicInput = SuperNeoPublicFoldInput(input)
+        guard claims.count == publicInput.instances.count + publicInput.priorClaims.count else {
+            throw SuperNeoError.invalidParameter("PiRLC claim count must match fold input")
+        }
+        guard claims.allSatisfy({ $0.point == sumCheck.finalPoint }) else {
+            throw SuperNeoError.invalidParameter("PiRLC claims must use the canonical PiCCS sum-check final point")
+        }
+        let canonicalPiCCS = PiCCSSection(sumCheck: sumCheck, finalClaims: claims)
+        guard try validatePiCCSTape(
+            canonicalPiCCS,
+            publicInput: publicInput,
+            transcriptSeed: transcriptSeed,
+            tapeIndex: 0,
+            parameters: parameters
+        ) else {
+            throw SuperNeoError.invalidParameter("canonical PiCCS tape failed repeated-tape validation")
+        }
+        let transcript = makePiRLCBranchTranscript(
+            input: publicInput,
+            transcriptSeed: transcriptSeed,
+            canonicalPiCCS: canonicalPiCCS,
+            branchIndex: branchIndex
+        )
+        return SuperNeoPreparedPiRLCBranchTranscript(
+            transcriptAfterCanonicalClaims: transcript,
+            sumCheckFinalPoint: sumCheck.finalPoint,
+            claimCount: claims.count,
+            branchIndex: branchIndex
+        )
+    }
+
+    public func benchmarkPiRLCBranch(
+        claims: [CCSEvaluationClaim],
+        preparedTranscript: SuperNeoPreparedPiRLCBranchTranscript
+    ) throws -> (foldedClaim: CCSEvaluationClaim, challenges: [CyclotomicRing54]) {
+        guard claims.count == preparedTranscript.claimCount else {
+            throw SuperNeoError.invalidParameter("PiRLC claim count does not match prepared branch transcript")
+        }
+        guard claims.allSatisfy({ $0.point == preparedTranscript.sumCheckFinalPoint }) else {
+            throw SuperNeoError.invalidParameter("PiRLC claims must use the canonical PiCCS sum-check final point")
+        }
+        var transcript = preparedTranscript.transcriptAfterCanonicalClaims
+        return try randomLinearCombination(claims: claims, transcript: &transcript)
+    }
+
+    public func benchmarkPiRLCBranch(
+        input: SuperNeoFoldInput,
+        claims: [CCSEvaluationClaim],
+        sumCheck: SumcheckProof,
+        transcriptSeed: [UInt8] = [],
+        branchIndex: Int = 0
+    ) throws -> (foldedClaim: CCSEvaluationClaim, challenges: [CyclotomicRing54]) {
+        let preparedTranscript = try prepareBenchmarkPiRLCBranchTranscript(
+            input: input,
+            sumCheck: sumCheck,
+            claims: claims,
+            transcriptSeed: transcriptSeed,
+            branchIndex: branchIndex
+        )
+        return try benchmarkPiRLCBranch(claims: claims, preparedTranscript: preparedTranscript)
     }
 
     public func benchmarkPiRLC(

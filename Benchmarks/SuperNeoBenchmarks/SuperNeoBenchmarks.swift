@@ -80,7 +80,7 @@ private func benchmarkSetupValue<T>(_ message: String, _ body: () throws -> T) -
     } catch let error as BenchmarkInvariantError {
         failBenchmarkSetup("\(message): \(error.message)")
     } catch {
-        failBenchmarkSetup(message)
+        failBenchmarkSetup("\(message): \(error)")
     }
 }
 
@@ -440,8 +440,8 @@ private func registerStageBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     let preparedContext = benchmarkSetupValue("failed to prepare stage fold context for \(label)") {
         try prover.prepareFoldContext(for: fixture.input)
     }
-    let preparedPiRLCTranscript = benchmarkSetupValue("failed to prepare PiRLC transcript for \(label)") {
-        try prover.preparePiRLCTranscript(
+    let preparedPiRLCTranscript = benchmarkSetupValue("failed to prepare PiRLC branch transcript for \(label)") {
+        try prover.prepareBenchmarkPiRLCBranchTranscript(
             input: fixture.input,
             sumCheck: fixture.referenceFold.proof.sumCheck,
             claims: claims,
@@ -484,15 +484,17 @@ private func registerStageBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
     }
 
     Benchmark("stage/piRLC/\(label)", configuration: defaultConfiguration) { _ in
-        let rlc = try prover.benchmarkPiRLC(
+        let rlc = try prover.benchmarkPiRLCBranch(
+            input: fixture.input,
             claims: claims,
-            preparedTranscript: preparedPiRLCTranscript
+            sumCheck: fixture.referenceFold.proof.sumCheck,
+            transcriptSeed: fixture.transcriptSeed
         )
         blackHole(rlc.challenges.count)
     }
 
     Benchmark("stage/prepared/piRLC/\(label)", configuration: defaultConfiguration) { _ in
-        let rlc = try prover.benchmarkPiRLC(
+        let rlc = try prover.benchmarkPiRLCBranch(
             claims: claims,
             preparedTranscript: preparedPiRLCTranscript
         )
