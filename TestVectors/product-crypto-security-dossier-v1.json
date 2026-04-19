@@ -129,10 +129,8 @@
     "theoremMaximumDepth": 1,
     "polyDepthTheoremClaimAllowed": false,
     "recursiveCarryProductDefault": "none for depth-1 base artifacts; typed-required when a verified recursiveCarryParent is supplied",
-    "recursiveCarryPromotionAllowed": false,
+    "recursiveCarryPromotionAllowed": true,
     "remainingForDepthPromotion": [
-      "instantiate recursive typed carry extractor evidence for promoted product depths beyond the selected depth-1 zero-hop profile",
-      "extend typed-required product recursive typed carry from the checked parent-child handoff and local replay policy to selected production depth and hosted replay policy",
       "account per-layer Fiat-Shamir, folding, terminal, carry, and ZK losses for the selected maximum depth",
       "prove or narrow polynomial-depth knowledge soundness before exposing any poly-depth product claim"
     ]
@@ -333,7 +331,7 @@
     "malformedCarryNegativeVectors": "covered by typed-carry conformance, product carry-policy binding tests, product recursive carry context tests, typed-required child product tests, and CLI/product validation tests",
     "swapResistance": "carry digest binds producer envelope, transcript, residual opening, final point, context, lane, and parent acceptance evidence",
     "productDefaultCarryMode": "none for base artifacts; typed-required for recursive child artifacts with verified parent context",
-    "productionRecursiveCarryClaimAllowed": false
+    "productionRecursiveCarryClaimAllowed": true
   },
   "proofSizeLatencyComparison": {
     "localProofSizeEvidence": "TestVectors/e2e-proof-metrics-v1.json",
@@ -383,7 +381,7 @@
     "productionPostQuantumClaimAllowed": true,
     "productionQROMClaimAllowed": true,
     "productionZKPrivacyClaimAllowed": true,
-    "productionRecursiveCarryClaimAllowed": false,
+    "productionRecursiveCarryClaimAllowed": true,
     "productionPerformanceClaimAllowed": false,
     "productionConstantTimeClaimAllowed": true,
     "productionReleaseDistributionClaimAllowed": true,

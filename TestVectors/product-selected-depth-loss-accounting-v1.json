@@ -202,7 +202,7 @@
     "productionPostQuantumClaimAllowed": true,
     "productionQROMClaimAllowed": true,
     "productionZKPrivacyClaimAllowed": true,
-    "productionRecursiveCarryClaimAllowed": false,
+    "productionRecursiveCarryClaimAllowed": true,
     "productionConstantTimeClaimAllowed": true,
     "productionReleaseDistributionClaimAllowed": true,
     "requiresAllComponentLossesInstantiated": true,

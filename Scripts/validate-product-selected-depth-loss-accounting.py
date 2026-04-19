@@ -506,7 +506,10 @@ def validate_promotion_and_blockers(ledger: dict[str, Any]) -> None:
     promotion = require_dict(ledger.get("promotionRule"), "promotionRule")
     for key in EXPECTED_PROMOTION_TRUE_FLAGS:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
-    require_false(promotion.get("productionRecursiveCarryClaimAllowed"), "promotionRule.productionRecursiveCarryClaimAllowed")
+    require(
+        promotion.get("productionRecursiveCarryClaimAllowed") is True,
+        "promotionRule.productionRecursiveCarryClaimAllowed must be true",
+    )
     require(promotion.get("requiresAllComponentLossesInstantiated") is True, "promotionRule.requiresAllComponentLossesInstantiated must be true")
     require(promotion.get("requiresTotalLossWithinBudget") is True, "promotionRule.requiresTotalLossWithinBudget must be true")
 

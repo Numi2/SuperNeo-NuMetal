@@ -165,7 +165,7 @@ def validate(path: Path) -> None:
 
     promotion = require_dict(manifest.get("promotionRule"), "promotionRule")
     require(promotion.get("productionZKPrivacyClaimAllowed") is True, "productionZKPrivacyClaimAllowed must be true")
-    require(promotion.get("zkDefaultPromotionAllowed") is False, "zkDefaultPromotionAllowed must be false")
+    require(promotion.get("zkDefaultPromotionAllowed") is True, "zkDefaultPromotionAllowed must be true")
     require(promotion.get("proofLevelSimulatorLossInstantiated") is True, "proofLevelSimulatorLossInstantiated must be true")
     boundaries = " ".join(require_string_list(promotion.get("remainingBoundaries"), "remainingBoundaries")).lower()
     require("epsilon_zk_sim" not in boundaries, "epsilon_zk_sim must not remain a simulator-coupling boundary")

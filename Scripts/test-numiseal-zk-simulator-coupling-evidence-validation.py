@@ -82,6 +82,11 @@ def main() -> None:
         "productionZKPrivacyClaimAllowed must be true",
     )
     expect_failure(
+        "default promotion disabled",
+        lambda manifest: manifest["promotionRule"].__setitem__("zkDefaultPromotionAllowed", False),
+        "zkDefaultPromotionAllowed must be true",
+    )
+    expect_failure(
         "reopened epsilon zk sim",
         lambda manifest: manifest["promotionRule"].__setitem__(
             "remainingBoundaries",

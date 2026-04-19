@@ -71,7 +71,7 @@
   ],
   "promotionRule": {
     "productionZKPrivacyClaimAllowed": true,
-    "zkDefaultPromotionAllowed": false,
+    "zkDefaultPromotionAllowed": true,
     "proofLevelSimulatorLossInstantiated": true,
     "remainingBoundaries": [
       "side-channel review must cover CPU, Swift, LLVM, allocator, Metal, GPU, and failure paths"

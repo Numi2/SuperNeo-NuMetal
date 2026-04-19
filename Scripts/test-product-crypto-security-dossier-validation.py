@@ -54,6 +54,20 @@ def main() -> None:
         write_json(path, premature_poly_depth)
         run_fail(str(VALIDATE), str(path))
 
+        stale_recursive_depth = copy.deepcopy(dossier)
+        stale_recursive_depth["supportedProductDepth"]["recursiveCarryPromotionAllowed"] = False
+        path = tmp / "stale-recursive-depth.json"
+        write_json(path, stale_recursive_depth)
+        run_fail(str(VALIDATE), str(path))
+
+        stale_recursive_obligation = copy.deepcopy(dossier)
+        stale_recursive_obligation["supportedProductDepth"]["remainingForDepthPromotion"].append(
+            "recursive typed carry proof remains open"
+        )
+        path = tmp / "stale-recursive-obligation.json"
+        write_json(path, stale_recursive_obligation)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_q = copy.deepcopy(dossier)
         wrong_q["latticeAssumptionDossier"]["qDecimal"] = "18446744073709551557"
         path = tmp / "wrong-q.json"
@@ -186,6 +200,12 @@ def main() -> None:
         write_json(path, reopened_zk_simulator)
         run_fail(str(VALIDATE), str(path))
 
+        stale_carry_closure = copy.deepcopy(dossier)
+        stale_carry_closure["carryRecursionClosure"]["productionRecursiveCarryClaimAllowed"] = False
+        path = tmp / "stale-carry-closure.json"
+        write_json(path, stale_carry_closure)
+        run_fail(str(VALIDATE), str(path))
+
         outsourced_review = copy.deepcopy(dossier)
         outsourced_review["supportedProductDepth"]["remainingForDepthPromotion"].append("External" + " audit required.")
         path = tmp / "outsourced-review.json"
@@ -196,6 +216,12 @@ def main() -> None:
         stale_all_clear["promotionRule"]["productionProductSecurityClaimAllowed"] = False
         path = tmp / "stale-all-clear.json"
         write_json(path, stale_all_clear)
+        run_fail(str(VALIDATE), str(path))
+
+        stale_recursive_promotion = copy.deepcopy(dossier)
+        stale_recursive_promotion["promotionRule"]["productionRecursiveCarryClaimAllowed"] = False
+        path = tmp / "stale-recursive-promotion.json"
+        write_json(path, stale_recursive_promotion)
         run_fail(str(VALIDATE), str(path))
 
     print("product crypto security dossier validation regression tests passed")

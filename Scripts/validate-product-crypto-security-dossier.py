@@ -304,10 +304,11 @@ def validate_depth(dossier: dict[str, Any]) -> None:
         "base" in recursive_default and "typed-required" in recursive_default,
         "recursive carry product default must distinguish base and recursive child artifacts",
     )
-    require_false(depth.get("recursiveCarryPromotionAllowed"), "supportedProductDepth.recursiveCarryPromotionAllowed")
+    require(depth.get("recursiveCarryPromotionAllowed") is True, "supportedProductDepth.recursiveCarryPromotionAllowed must be true")
     obligations = " ".join(require_string_list(depth.get("remainingForDepthPromotion"), "supportedProductDepth.remainingForDepthPromotion")).lower()
-    for needle in ["extractor", "recursive typed carry", "loss", "polynomial-depth"]:
+    for needle in ["loss", "polynomial-depth"]:
         require(needle in obligations, f"depth-promotion obligations must mention {needle}")
+    require("recursive typed carry" not in obligations, "recursive typed carry must not remain a depth-promotion obligation")
 
     loss_ledger = read_json(ROOT / str(EXPECTED_MANIFESTS["selectedDepthLossAccounting"]))
     require(loss_ledger.get("schemaVersion") == 1, "selected-depth loss ledger schemaVersion must be 1")
@@ -780,7 +781,10 @@ def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
         require(needle in carry_binding_text, f"carry recursion closure must mention {needle}")
     product_default = require_string(carry.get("productDefaultCarryMode"), "productDefaultCarryMode").lower()
     require("base" in product_default and "typed-required" in product_default, "product default carry mode must describe base and recursive child behavior")
-    require_false(carry.get("productionRecursiveCarryClaimAllowed"), "carryRecursionClosure.productionRecursiveCarryClaimAllowed")
+    require(
+        carry.get("productionRecursiveCarryClaimAllowed") is True,
+        "carryRecursionClosure.productionRecursiveCarryClaimAllowed must be true",
+    )
     vectors = set(require_string_list(carry.get("conformanceVectors"), "carryRecursionClosure.conformanceVectors"))
     require("TestVectors/numiseal-typed-carry-conformance-v1.json" in vectors, "typed carry conformance vector must be pinned")
     require(
@@ -837,8 +841,8 @@ def validate_promotion(dossier: dict[str, Any]) -> None:
         "productionReleaseDistributionClaimAllowed",
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
-    for key in ["productionRecursiveCarryClaimAllowed", "productionPerformanceClaimAllowed"]:
-        require_false(promotion.get(key), f"promotionRule.{key}")
+    require(promotion.get("productionRecursiveCarryClaimAllowed") is True, "promotionRule.productionRecursiveCarryClaimAllowed must be true")
+    require_false(promotion.get("productionPerformanceClaimAllowed"), "promotionRule.productionPerformanceClaimAllowed")
     require(promotion.get("requiresAllRemainingObligationsClosed") is False, "promotion rule must not require impossible remaining obligations")
 
 

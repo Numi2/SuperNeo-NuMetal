@@ -170,6 +170,12 @@ def main() -> None:
         write_json(path, stale_promotion)
         run_fail(str(VALIDATE), str(path))
 
+        stale_recursive_promotion = copy.deepcopy(ledger)
+        stale_recursive_promotion["promotionRule"]["productionRecursiveCarryClaimAllowed"] = False
+        path = tmp / "stale-recursive-promotion.json"
+        write_json(path, stale_recursive_promotion)
+        run_fail(str(VALIDATE), str(path))
+
     print("product selected-depth loss accounting validation regression tests passed")
 
 

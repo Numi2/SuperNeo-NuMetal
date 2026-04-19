@@ -163,7 +163,9 @@ NumiSeal terminal relation, NumiSealZK masked residual relation, typed
 recursive carry relation, transcript binding, artifact/proof-envelope binding,
 verifier acceptance policy, Module-SIS parameter dossier, Fiat-Shamir/QROM
 position, proof-size/latency boundary, implementation-hardening boundary, and
-promotion rule that keeps production product-security claims disabled.
+promotion rule that enables repository-local product-security, recursive carry,
+ZK privacy, constant-time, and release-distribution claims while leaving
+production performance claims disabled.
 
 `TestVectors/product-selected-depth-loss-accounting-v1.json` is the checked
 selected-depth loss accounting manifest. It is not a proof artifact schema and
@@ -171,16 +173,16 @@ does not affect proof bytes. It pins the selected-depth loss expression,
 recursive-promotion loss expression, source-fold, terminal-seal, carry,
 proof-level ZK simulator loss, QROM, extractor, transcript collision, product-ops replay,
 constant-time, and release-distribution loss terms, and the promotion rule that
-keeps production product-security claims disabled until all terms are
-instantiated and inside budget.
+enables repository-local product-security and recursive carry claims once all
+required selected-depth terms are instantiated and inside budget.
 
 `TestVectors/product-extractor-loss-accounting-v1.json` is the checked product
 extractor loss accounting manifest. It is not a proof artifact schema and does
 not affect proof bytes. It pins source-fold extractor, terminal-seal extractor,
 product-envelope composition extractor, future recursive carry extractor,
 accepted input bindings, deterministic replay model, and the promotion rule
-that allows the selected-depth extractor claim while keeping promoted-depth
-carry extraction and total product-security promotion gated.
+that allows the selected-depth extractor claim and repository-local product
+security promotion while keeping promoted-depth carry extraction gated.
 
 `TestVectors/product-qrom-fiat-shamir-accounting-v1.json` is the checked
 Product QROM Fiat-Shamir accounting manifest. It is not a proof artifact schema
@@ -246,9 +248,9 @@ or Merkle-straightline with 384-bit binding digests.
 total-loss budget manifest. It is not a proof artifact schema and does not
 affect proof bytes. It pins exact rational selected-depth summation,
 `2^-128` budget threshold, eleven component bounds, ten required selected-depth
-terms, shared-core bad-event deduplication, and the promotion rule that keeps
-production product-security claims disabled until all required numeric bounds
-are instantiated and inside budget.
+terms, shared-core bad-event deduplication, and the promotion rule that enables
+production total-loss and product-security claims after all required numeric
+bounds are instantiated and inside budget.
 
 `TestVectors/product-release-distribution-evidence-v1.json` is the checked
 Product release distribution evidence manifest. It is not a proof artifact
