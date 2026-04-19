@@ -46,6 +46,12 @@ def main() -> None:
     missing_terms = blockers.get("missingTotalLossTerms")
     if not isinstance(missing_terms, list) or "product-ops-replay" not in missing_terms:
         raise AssertionError("collector must report missing total-loss terms")
+    missing_dossier = blockers.get("missingDossierFlags")
+    if not isinstance(missing_dossier, list):
+        raise AssertionError("collector must report missing dossier flags")
+    for optional_flag in ["productionRecursiveCarryClaimAllowed", "productionPerformanceClaimAllowed"]:
+        if optional_flag in missing_dossier:
+            raise AssertionError(f"{optional_flag} must not block core production-security promotion")
 
     required = run(str(COLLECT), "--require-promotable")
     if required.returncode == 0:

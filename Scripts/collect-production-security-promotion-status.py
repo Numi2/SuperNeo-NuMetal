@@ -16,6 +16,15 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
+REQUIRED_DOSSIER_PROMOTION_FLAGS = [
+    "productionProductSecurityClaimAllowed",
+    "productionPostQuantumClaimAllowed",
+    "productionQROMClaimAllowed",
+    "productionZKPrivacyClaimAllowed",
+    "productionConstantTimeClaimAllowed",
+    "productionReleaseDistributionClaimAllowed",
+]
+
 
 def read_json(relative_path: str) -> dict[str, Any]:
     path = ROOT / relative_path
@@ -81,16 +90,7 @@ def crypto_dossier_status() -> dict[str, Any]:
         promotion = {}
     flags = {
         key: promotion.get(key) is True
-        for key in [
-            "productionProductSecurityClaimAllowed",
-            "productionPostQuantumClaimAllowed",
-            "productionQROMClaimAllowed",
-            "productionZKPrivacyClaimAllowed",
-            "productionRecursiveCarryClaimAllowed",
-            "productionPerformanceClaimAllowed",
-            "productionConstantTimeClaimAllowed",
-            "productionReleaseDistributionClaimAllowed",
-        ]
+        for key in REQUIRED_DOSSIER_PROMOTION_FLAGS
     }
     return {
         "promotionFlags": flags,
