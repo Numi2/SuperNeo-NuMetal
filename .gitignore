@@ -40,3 +40,11 @@ tmp/
 # Generated Metal artifacts
 *.air
 *.metallib
+
+benchmark-results/
+paper-reproduction/
+lattice-estimator-results/
+release-evidence/
+output/pdf/
+.external/
+tmp/
