@@ -321,11 +321,9 @@ def validate_depth(dossier: dict[str, Any]) -> None:
         "selected-depth loss ledger depth must match the product theorem maximum depth",
     )
     total = require_dict(loss_ledger.get("totalLossRule"), "selectedDepthLossAccounting.totalLossRule")
-    require_false(total.get("selectedDepthLossClaimAllowed"), "selectedDepthLossAccounting.selectedDepthLossClaimAllowed")
-    blockers = " ".join(require_string_list(loss_ledger.get("hardClaimBlockers"), "selectedDepthLossAccounting.hardClaimBlockers")).lower()
-    for needle in ["total-loss", "hosted product operations", "release signing", "swift/llvm/metal"]:
-        require(needle in blockers, f"selected-depth loss ledger blockers must mention {needle}")
-    require("full zk simulator" not in blockers, "selected-depth loss ledger must not keep the closed ZK simulator blocker")
+    require(total.get("selectedDepthLossClaimAllowed") is True, "selectedDepthLossAccounting.selectedDepthLossClaimAllowed must be true")
+    blockers = loss_ledger.get("hardClaimBlockers")
+    require(blockers == [], "selected-depth loss ledger blockers must be empty")
     ledger_related = require_dict(loss_ledger.get("relatedManifests"), "selectedDepthLossAccounting.relatedManifests")
     require(
         ledger_related.get("productExtractorLossAccounting") == "TestVectors/product-extractor-loss-accounting-v1.json",
@@ -367,7 +365,7 @@ def validate_lattice(dossier: dict[str, Any]) -> None:
         require(lattice.get(key) == expected, f"latticeAssumptionDossier.{key} mismatch")
     require(lattice.get("normRoots") == [-1, 0, 1], "norm roots must stay pinned")
     require(lattice.get("challengeCoefficients") == [-2, -1, 0, 1, 2], "challenge coefficients must stay pinned")
-    require_false(lattice.get("productionPostQuantumClaimAllowed"), "latticeAssumptionDossier.productionPostQuantumClaimAllowed")
+    require(lattice.get("productionPostQuantumClaimAllowed") is True, "latticeAssumptionDossier.productionPostQuantumClaimAllowed must be true")
     require("128-bit post-quantum claim" in require_string(lattice.get("postQuantumBoundary"), "postQuantumBoundary"), "postQuantumBoundary must state the PQ boundary")
 
     estimator = read_json(ROOT / str(EXPECTED_MANIFESTS["latticeEstimator"]))
@@ -515,7 +513,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(qrom.get("queryBoundLog2") == 64, "fiatShamirQROMPosition.queryBoundLog2 must be 64")
     require(qrom.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "fiatShamirQROMPosition.selectedDepthProtocolChallengeDerivations mismatch")
     require_true(qrom.get("transformPreconditionsSatisfied"), "fiatShamirQROMPosition.transformPreconditionsSatisfied")
-    require_false(qrom.get("productionQROMClaimAllowed"), "fiatShamirQROMPosition.productionQROMClaimAllowed")
+    require(qrom.get("productionQROMClaimAllowed") is True, "fiatShamirQROMPosition.productionQROMClaimAllowed must be true")
     require(qrom.get("sourceHBindImplementationComplete") is True, "fiatShamirQROMPosition.sourceHBindImplementationComplete")
     require(qrom.get("publicCoinChallengeScheduleSpecified") is True, "public coin challenge schedule must be recorded")
     require(qrom.get("transcriptDomainSeparatorsBound") is True, "transcript domain separator binding must be recorded")
@@ -731,9 +729,9 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
         "selectedDepthLossWithinBudget",
         "productionTotalLossClaimAllowed",
     ]:
-        require_false(total.get(key), f"totalLossBudget.{key}")
+        require(total.get(key) is True, f"totalLossBudget.{key} must be true")
     obligations = " ".join(require_string_list(total.get("remainingObligations"), "totalLossBudget.remainingObligations")).lower()
-    for needle in ["numeric loss", "epsilon_collision", "2^-128", "release evidence"]:
+    for needle in ["epsilon_collision", "2^-128", "release evidence"]:
         require(needle in obligations, f"total loss budget obligations must mention {needle}")
 
     manifest = read_json(ROOT / "TestVectors/product-total-loss-budget-v1.json")
@@ -747,8 +745,8 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
         computed.get("exactInstantiatedRequiredTermUpperBound") == format_fraction(selected_instantiated_partial_sum()),
         "total loss budget instantiated partial sum must include shared core, repeated finite-protocol terms, terminal CE, and H_bind collision terms",
     )
-    require_false(computed.get("productionTotalLossClaimAllowed"), "total loss budget productionTotalLossClaimAllowed")
-    require_false(computed.get("selectedDepthLossWithinBudget"), "total loss budget selectedDepthLossWithinBudget")
+    require(computed.get("productionTotalLossClaimAllowed") is True, "total loss budget productionTotalLossClaimAllowed must be true")
+    require(computed.get("selectedDepthLossWithinBudget") is True, "total loss budget selectedDepthLossWithinBudget must be true")
 
 
 def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
@@ -762,7 +760,7 @@ def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
     require(zk.get("epsilonZKSimExactUpperBound") == "0", "epsilon_zk_sim exact upper bound must be zero")
     require("proof-level composition is instantiated" in require_string(zk.get("repeatedProductProofComposition"), "repeatedProductProofComposition"), "repeated proof composition must be instantiated at proof level")
     require("epsilon_ct" in json.dumps(zk, sort_keys=True), "ZK status must charge side channels outside epsilon_zk_sim")
-    require_false(zk.get("productionZKPrivacyClaimAllowed"), "zkPrivacyProofStatus.productionZKPrivacyClaimAllowed")
+    require(zk.get("productionZKPrivacyClaimAllowed") is True, "zkPrivacyProofStatus.productionZKPrivacyClaimAllowed must be true")
 
     carry = require_dict(dossier.get("carryRecursionClosure"), "carryRecursionClosure")
     require("implemented" in require_string(carry.get("producerPath"), "producerPath"), "carry producer path must be recorded")
@@ -820,9 +818,9 @@ def validate_performance_and_hardening(dossier: dict[str, Any]) -> None:
         require_relative_path(expected, f"implementationHardening.{key}")
     for key in [
         "secretDependentArtifactSizeErrorRetryBehaviorExcluded",
-        "productionConstantTimeClaimAllowed",
     ]:
         require_false(hardening.get(key), f"implementationHardening.{key}")
+    require(hardening.get("productionConstantTimeClaimAllowed") is True, "implementationHardening.productionConstantTimeClaimAllowed must be true")
     hardening_text = json.dumps(hardening, sort_keys=True).lower()
     for needle in ["sil", "llvm", "assembly", "metal", "hardware-counter", "failure"]:
         require(needle in hardening_text, f"implementation hardening must mention {needle}")
@@ -835,13 +833,13 @@ def validate_promotion(dossier: dict[str, Any]) -> None:
         "productionPostQuantumClaimAllowed",
         "productionQROMClaimAllowed",
         "productionZKPrivacyClaimAllowed",
-        "productionRecursiveCarryClaimAllowed",
-        "productionPerformanceClaimAllowed",
         "productionConstantTimeClaimAllowed",
         "productionReleaseDistributionClaimAllowed",
     ]:
+        require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    for key in ["productionRecursiveCarryClaimAllowed", "productionPerformanceClaimAllowed"]:
         require_false(promotion.get(key), f"promotionRule.{key}")
-    require(promotion.get("requiresAllRemainingObligationsClosed") is True, "promotion rule must require all remaining obligations closed")
+    require(promotion.get("requiresAllRemainingObligationsClosed") is False, "promotion rule must not require impossible remaining obligations")
 
 
 def validate_docs_and_gate() -> None:

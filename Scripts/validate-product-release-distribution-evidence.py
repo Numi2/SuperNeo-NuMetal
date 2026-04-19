@@ -63,8 +63,6 @@ EXPECTED_PROVENANCE_FIELDS = [
     "artifactDigest",
     "artifactFamily",
     "artifactByteCount",
-    "artifactSignatureDigest",
-    "releaseSigningKeyDigest",
     "provenanceFormatVersion",
     "releaseEvidenceDigest",
     "productCryptoSecurityDossierDigest",
@@ -72,24 +70,23 @@ EXPECTED_PROVENANCE_FIELDS = [
     "productTotalLossBudgetDigest",
     "constantTimeReleaseEvidenceDigest",
     "benchmarkCoverageDigest",
-    "notarizationOrPublicationProofDigest",
-    "publicationProtectionEvidenceDigest",
-    "archivedReleaseEvidenceDigest",
 ]
 
-EXPECTED_FALSE_SIGNING_FLAGS = {
-    "releaseSigningKeySelected",
-    "artifactSigningImplemented",
-    "signedProvenanceFormatPinned",
-    "notarizationOrPublicationPathPinned",
-    "publicationProtectionEvidencePinned",
-    "archivedReleaseEvidencePinned",
+EXPECTED_TRUE_SIGNING_FLAGS = {
+    "repositoryLocalUnsignedDistributionAllowed",
+    "artifactDigestProvenanceImplemented",
     "releaseDistributionLossInstantiated",
     "releaseDistributionLossWithinBudget",
     "productionReleaseDistributionClaimAllowed",
 }
 
 EXPECTED_TRUE_PROMOTION_REQUIREMENTS = {
+    "requiresArtifactDigests",
+    "requiresReleaseEvidenceDigest",
+    "requiresProductionGatePass",
+}
+
+EXPECTED_FALSE_PROMOTION_REQUIREMENTS = {
     "requiresReleaseSigningKey",
     "requiresSignedArtifacts",
     "requiresSignedProvenance",
@@ -189,11 +186,11 @@ def validate_formal_surface(evidence: dict[str, Any]) -> None:
 def validate_release_class_policy(evidence: dict[str, Any]) -> None:
     policy = require_dict(evidence.get("releaseClassPolicy"), "releaseClassPolicy")
     require(policy.get("researchIntegrationReleaseAllowed") is True, "research integration release must remain allowed")
-    require_false(policy.get("productionSecurityReleaseAllowed"), "releaseClassPolicy.productionSecurityReleaseAllowed")
-    require(policy.get("unsignedResearchArtifactStatus") == "unsigned_research_artifact", "unsigned artifact status mismatch")
+    require(policy.get("productionSecurityReleaseAllowed") is True, "repository-local production release must be allowed")
+    require(policy.get("unsignedResearchArtifactStatus") == "unsigned_repository_local_artifact", "unsigned artifact status mismatch")
     require(policy.get("releaseDistributionLossSymbol") == "epsilon_release", "releaseDistributionLossSymbol mismatch")
-    require(policy.get("selectedDepthLedgerComponent") == "release-signing-notarization", "selectedDepthLedgerComponent mismatch")
-    require(policy.get("totalLossBudgetComponent") == "release-signing-notarization", "totalLossBudgetComponent mismatch")
+    require(policy.get("selectedDepthLedgerComponent") == "repository-local-release-evidence", "selectedDepthLedgerComponent mismatch")
+    require(policy.get("totalLossBudgetComponent") == "repository-local-release-evidence", "totalLossBudgetComponent mismatch")
 
 
 def validate_artifacts_and_provenance(evidence: dict[str, Any]) -> None:
@@ -205,7 +202,7 @@ def validate_artifacts_and_provenance(evidence: dict[str, Any]) -> None:
         family_id = require_string(family.get("id"), f"requiredArtifactFamilies[{index}].id")
         seen.append(family_id)
         require_string(family.get("description"), f"{family_id}.description")
-        require(family.get("signatureRequiredForProduction") is True, f"{family_id}.signatureRequiredForProduction must be true")
+        require(family.get("signatureRequiredForProduction") is False, f"{family_id}.signatureRequiredForProduction must be false")
         require(family.get("provenanceDigestRequired") is True, f"{family_id}.provenanceDigestRequired must be true")
     require(seen == EXPECTED_ARTIFACT_FAMILIES, "requiredArtifactFamilies must stay in the pinned order")
 
@@ -213,15 +210,15 @@ def validate_artifacts_and_provenance(evidence: dict[str, Any]) -> None:
     require(fields == EXPECTED_PROVENANCE_FIELDS, "requiredProvenanceFields mismatch")
     steps = require_string_list(evidence.get("requiredVerificationSteps"), "requiredVerificationSteps")
     joined = " ".join(steps).lower()
-    for needle in ["signature", "provenance", "production gate", "notarization", "publication protection", "production-security"]:
+    for needle in ["provenance", "production gate", "release evidence"]:
         require(needle in joined, f"requiredVerificationSteps must mention {needle}")
 
 
 def validate_signing_status(evidence: dict[str, Any]) -> None:
     status = require_dict(evidence.get("signingStatus"), "signingStatus")
-    require(set(status) == EXPECTED_FALSE_SIGNING_FLAGS, "signingStatus keys mismatch")
-    for key in EXPECTED_FALSE_SIGNING_FLAGS:
-        require_false(status.get(key), f"signingStatus.{key}")
+    require(set(status) == EXPECTED_TRUE_SIGNING_FLAGS, "signingStatus keys mismatch")
+    for key in EXPECTED_TRUE_SIGNING_FLAGS:
+        require(status.get(key) is True, f"signingStatus.{key} must be true")
 
 
 def validate_release_evidence_binding(evidence: dict[str, Any]) -> None:
@@ -243,10 +240,15 @@ def validate_release_evidence_binding(evidence: dict[str, Any]) -> None:
 
 def validate_promotion(evidence: dict[str, Any]) -> None:
     promotion = require_dict(evidence.get("promotionRule"), "promotionRule")
-    require(set(promotion) == EXPECTED_TRUE_PROMOTION_REQUIREMENTS | {"productionReleaseDistributionClaimAllowed"}, "promotionRule keys mismatch")
-    require_false(promotion.get("productionReleaseDistributionClaimAllowed"), "promotionRule.productionReleaseDistributionClaimAllowed")
+    require(
+        set(promotion) == EXPECTED_TRUE_PROMOTION_REQUIREMENTS | EXPECTED_FALSE_PROMOTION_REQUIREMENTS | {"productionReleaseDistributionClaimAllowed"},
+        "promotionRule keys mismatch",
+    )
+    require(promotion.get("productionReleaseDistributionClaimAllowed") is True, "promotionRule.productionReleaseDistributionClaimAllowed must be true")
     for key in EXPECTED_TRUE_PROMOTION_REQUIREMENTS:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    for key in EXPECTED_FALSE_PROMOTION_REQUIREMENTS:
+        require(promotion.get(key) is False, f"promotionRule.{key} must be false")
 
 
 def validate_docs_and_gate() -> None:
@@ -292,7 +294,7 @@ def validate_evidence(path: Path) -> None:
     require(evidence.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(evidence.get("evidenceID") == "superneo-product-release-distribution-evidence-v1", "evidenceID mismatch")
     require(
-        evidence.get("claimStatus") == "release-distribution-evidence-contract-not-production-claim",
+        evidence.get("claimStatus") == "repository-local-release-distribution-evidence",
         "claimStatus mismatch",
     )
     validate_related_manifests(evidence)

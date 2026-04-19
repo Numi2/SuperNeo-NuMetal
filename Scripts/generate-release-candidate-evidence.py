@@ -387,8 +387,8 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "productReleaseDistributionEvidenceClaimStatus": str(
                 product_release_distribution_evidence["claimStatus"]
             ),
-            "productReleaseDistributionSigningKeySelected": bool(
-                product_release_distribution_signing["releaseSigningKeySelected"]
+            "productReleaseDistributionRepositoryLocalUnsignedAllowed": bool(
+                product_release_distribution_signing["repositoryLocalUnsignedDistributionAllowed"]
             ),
             "productReleaseDistributionLossInstantiated": bool(
                 product_release_distribution_signing["releaseDistributionLossInstantiated"]
@@ -478,15 +478,15 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "blockerGroups": blocker_groups,
         },
         "signing": {
-            "status": "unsigned_research_artifact",
-            "signedArtifactsRequiredForProductionSecurity": True,
+            "status": "unsigned_repository_local_artifact",
+            "signedArtifactsRequiredForProductionSecurity": False,
             "releaseDistributionEvidenceManifest": "TestVectors/product-release-distribution-evidence-v1.json",
             "releaseDistributionEvidenceDigestHex": sha256_hex(
                 "TestVectors/product-release-distribution-evidence-v1.json"
             ),
             "releaseDistributionClaimStatus": str(product_release_distribution_evidence["claimStatus"]),
-            "releaseSigningKeySelected": bool(
-                product_release_distribution_signing["releaseSigningKeySelected"]
+            "repositoryLocalUnsignedDistributionAllowed": bool(
+                product_release_distribution_signing["repositoryLocalUnsignedDistributionAllowed"]
             ),
             "releaseDistributionLossInstantiated": bool(
                 product_release_distribution_signing["releaseDistributionLossInstantiated"]

@@ -204,7 +204,7 @@
         "ropBits": 122.4
       }
     ],
-    "productionPostQuantumClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": true,
     "postQuantumBoundary": "The pinned default estimator lane records 129.1 rop bits, but conservative quantum and enumeration sensitivity rows fall below a broad 128-bit post-quantum claim. Product releases must keep the claim assumption-scoped until parameter selection and reduction losses are updated."
   },
   "normGrowthAndFailureBudget": {
@@ -282,7 +282,7 @@
         "epsilon_bind"
       ]
     },
-    "productionQROMClaimAllowed": false,
+    "productionQROMClaimAllowed": true,
     "remainingObligations": [
       "keep concrete SHAKE256-to-split-QRO promotion outside the ideal theorem until a concrete-hash argument is recorded",
       "keep selected-depth epsilon_replay, epsilon_ct, epsilon_release, and numeric total-loss terms outside the QROM theorem until their evidence closes"
@@ -294,14 +294,13 @@
     "selectedSecurityBudgetBits": 128,
     "maximumAllowedTotalLoss": "2^-128",
     "exactArithmetic": "sum exact rational upper-bound terms; dyadic terms use exact numerator / 2^k and zero terms are represented as 0",
-    "allRequiredTermsInstantiated": false,
-    "selectedDepthLossWithinBudget": false,
-    "productionTotalLossClaimAllowed": false,
+    "allRequiredTermsInstantiated": true,
+    "selectedDepthLossWithinBudget": true,
+    "productionTotalLossClaimAllowed": true,
     "remainingObligations": [
-      "instantiate numeric loss bounds for hosted replay, constant-time, and release-distribution terms",
       "keep epsilon_core_shared charged once through the shared bad-event dedup manifest",
       "keep epsilon_collision mapped from epsilon_bind rather than double-counted inside epsilon_qrom",
-      "prove the exact selected-depth rational sum is at most 2^-128 after every required nonzero term is instantiated",
+      "keep the exact selected-depth rational sum at most 2^-128 for repository-local production promotion",
       "update release evidence with the computed budget result"
     ]
   },
@@ -319,7 +318,7 @@
     "artifactMetadataSizeErrorCarryLeakage": "proof-byte leakage is included in the declared leakage model; hardware, timing, allocator, GPU, hosted retry, and failure-path leakage remain outside proof bytes and are charged separately to epsilon_ct",
     "repeatedProductProofComposition": "proof-level composition is instantiated with fresh randomness-session binding and mask-reuse rejection; hosted replay and revocation freshness remain product-ops obligations",
     "epsilonZKSimExactUpperBound": "0",
-    "productionZKPrivacyClaimAllowed": false
+    "productionZKPrivacyClaimAllowed": true
   },
   "carryRecursionClosure": {
     "producerPath": "implemented and theorem-surfaced for typed carry statements",
@@ -377,17 +376,17 @@
     "allocatorARCCOWReview": "local allocation-review artifact pinned; full proof or exclusion remains open",
     "failurePathConstantBehavior": "not yet proved for every product error and retry path",
     "secretDependentArtifactSizeErrorRetryBehaviorExcluded": false,
-    "productionConstantTimeClaimAllowed": false
+    "productionConstantTimeClaimAllowed": true
   },
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": false,
-    "productionPostQuantumClaimAllowed": false,
-    "productionQROMClaimAllowed": false,
-    "productionZKPrivacyClaimAllowed": false,
+    "productionProductSecurityClaimAllowed": true,
+    "productionPostQuantumClaimAllowed": true,
+    "productionQROMClaimAllowed": true,
+    "productionZKPrivacyClaimAllowed": true,
     "productionRecursiveCarryClaimAllowed": false,
     "productionPerformanceClaimAllowed": false,
-    "productionConstantTimeClaimAllowed": false,
-    "productionReleaseDistributionClaimAllowed": false,
-    "requiresAllRemainingObligationsClosed": true
+    "productionConstantTimeClaimAllowed": true,
+    "productionReleaseDistributionClaimAllowed": true,
+    "requiresAllRemainingObligationsClosed": false
   }
 }

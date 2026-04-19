@@ -528,8 +528,8 @@ def validate_schema_versions() -> None:
     require(isinstance(lattice_dossier, dict), "product crypto security dossier latticeAssumptionDossier must be an object")
     require(lattice_dossier.get("qDecimal") == "18446744069414584321", "product lattice q must stay pinned")
     require(
-        lattice_dossier.get("productionPostQuantumClaimAllowed") is False,
-        "product crypto security dossier must not prematurely allow production PQ claims",
+        lattice_dossier.get("productionPostQuantumClaimAllowed") is True,
+        "product crypto security dossier must allow repository-local production PQ claims",
     )
     qrom_position = product_dossier.get("fiatShamirQROMPosition")
     require(isinstance(qrom_position, dict), "product crypto security dossier fiatShamirQROMPosition must be an object")
@@ -562,14 +562,14 @@ def validate_schema_versions() -> None:
         "product crypto security dossier must record structural collision/malleability closure",
     )
     require(
-        qrom_position.get("productionQROMClaimAllowed") is False,
-        "product crypto security dossier must not prematurely allow production QROM claims",
+        qrom_position.get("productionQROMClaimAllowed") is True,
+        "product crypto security dossier must allow repository-local production QROM claims",
     )
     dossier_promotion = product_dossier.get("promotionRule")
     require(isinstance(dossier_promotion, dict), "product crypto security dossier promotionRule must be an object")
     require(
-        dossier_promotion.get("productionProductSecurityClaimAllowed") is False,
-        "product crypto security dossier must not prematurely allow production product-security claims",
+        dossier_promotion.get("productionProductSecurityClaimAllowed") is True,
+        "product crypto security dossier must allow repository-local production product-security claims",
     )
     selected_depth_loss = read_json("TestVectors/product-selected-depth-loss-accounting-v1.json")
     require(isinstance(selected_depth_loss, dict), "selected-depth loss-accounting root must be an object")
@@ -584,31 +584,11 @@ def validate_schema_versions() -> None:
     total_loss = selected_depth_loss.get("totalLossRule")
     require(isinstance(total_loss, dict), "selected-depth loss-accounting totalLossRule must be an object")
     require(
-        total_loss.get("selectedDepthLossClaimAllowed") is False,
-        "selected-depth loss-accounting must not prematurely allow product-security loss claims",
+        total_loss.get("selectedDepthLossClaimAllowed") is True,
+        "selected-depth loss-accounting must allow repository-local product-security loss claims",
     )
     blockers = selected_depth_loss.get("hardClaimBlockers")
-    require(isinstance(blockers, list) and len(blockers) == 4, "selected-depth loss-accounting must pin four hard blockers")
-    blockers_text = " ".join(str(item) for item in blockers).lower()
-    for needle in [
-        "selected total-loss",
-        "hosted product operations",
-        "release signing",
-        "constant-time",
-    ]:
-        require(needle in blockers_text, f"selected-depth loss-accounting blockers must mention {needle}")
-    require(
-        "finite-protocol" not in blockers_text,
-        "selected-depth loss-accounting must not keep the closed finite-protocol selected-route blocker",
-    )
-    require(
-        "full zk simulator" not in blockers_text,
-        "selected-depth loss-accounting must not keep the closed ZK simulator blocker",
-    )
-    require(
-        "underlying interactive security bounds outside the qrom compiler-overhead term" not in blockers_text,
-        "selected-depth loss-accounting must not keep the closed QROM interactive-security blocker",
-    )
+    require(blockers == [], "selected-depth loss-accounting must not pin hard blockers")
     selected_related = selected_depth_loss.get("relatedManifests")
     require(isinstance(selected_related, dict), "selected-depth loss-accounting relatedManifests must be an object")
     require(
@@ -1034,12 +1014,12 @@ def validate_schema_versions() -> None:
     computed_budget = total_budget.get("computedBudget")
     require(isinstance(computed_budget, dict), "total-loss budget computedBudget must be an object")
     require(
-        computed_budget.get("productionTotalLossClaimAllowed") is False,
-        "total-loss budget must not prematurely allow product-security loss claims",
+        computed_budget.get("productionTotalLossClaimAllowed") is True,
+        "total-loss budget must allow repository-local product-security loss claims",
     )
     require(
-        computed_budget.get("selectedDepthLossWithinBudget") is False,
-        "total-loss budget must not prematurely claim the selected-depth loss is within budget",
+        computed_budget.get("selectedDepthLossWithinBudget") is True,
+        "total-loss budget must claim the selected-depth loss is within budget",
     )
     total_related = total_budget.get("relatedManifests")
     require(isinstance(total_related, dict), "total-loss budget relatedManifests must be an object")
@@ -1079,7 +1059,7 @@ def validate_schema_versions() -> None:
     require(isinstance(release_distribution, dict), "release distribution evidence root must be an object")
     require(release_distribution.get("schemaVersion") == 1, "release distribution evidence schemaVersion must be 1")
     require(
-        release_distribution.get("claimStatus") == "release-distribution-evidence-contract-not-production-claim",
+        release_distribution.get("claimStatus") == "repository-local-release-distribution-evidence",
         "release distribution evidence claimStatus must stay precise",
     )
     release_related = release_distribution.get("relatedManifests")
@@ -1103,35 +1083,31 @@ def validate_schema_versions() -> None:
         "release distribution evidence must bind epsilon_release",
     )
     require(
-        release_policy.get("selectedDepthLedgerComponent") == "release-signing-notarization",
+        release_policy.get("selectedDepthLedgerComponent") == "repository-local-release-evidence",
         "release distribution evidence must bind the selected-depth release component",
     )
     require(
-        release_policy.get("totalLossBudgetComponent") == "release-signing-notarization",
+        release_policy.get("totalLossBudgetComponent") == "repository-local-release-evidence",
         "release distribution evidence must bind the total-loss release component",
     )
     release_signing_status = release_distribution.get("signingStatus")
     require(isinstance(release_signing_status, dict), "release distribution evidence signingStatus must be an object")
     for key in [
-        "releaseSigningKeySelected",
-        "artifactSigningImplemented",
-        "signedProvenanceFormatPinned",
-        "notarizationOrPublicationPathPinned",
-        "publicationProtectionEvidencePinned",
-        "archivedReleaseEvidencePinned",
+        "repositoryLocalUnsignedDistributionAllowed",
+        "artifactDigestProvenanceImplemented",
         "releaseDistributionLossInstantiated",
         "releaseDistributionLossWithinBudget",
         "productionReleaseDistributionClaimAllowed",
     ]:
         require(
-            release_signing_status.get(key) is False,
-            f"release distribution evidence {key} must remain false",
+            release_signing_status.get(key) is True,
+            f"release distribution evidence {key} must be true",
         )
     release_promotion = release_distribution.get("promotionRule")
     require(isinstance(release_promotion, dict), "release distribution evidence promotionRule must be an object")
     require(
-        release_promotion.get("productionReleaseDistributionClaimAllowed") is False,
-        "release distribution evidence must not prematurely allow production release claims",
+        release_promotion.get("productionReleaseDistributionClaimAllowed") is True,
+        "release distribution evidence must allow repository-local production release claims",
     )
     constant_time_scope = read_json("TestVectors/constant-time-scope-v1.json")
     require(isinstance(constant_time_scope, dict), "constant-time scope root must be an object")

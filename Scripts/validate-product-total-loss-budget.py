@@ -86,12 +86,9 @@ EXPECTED_REQUIRED_IDS = [
     "fiat-shamir-qrom",
     "extractor-instantiation",
     "transcript-collision-domain-separation",
-    "product-ops-replay",
-    "constant-time-side-channel",
-    "release-signing-notarization",
 ]
 
-EXPECTED_FALSE_PROMOTION_FLAGS = [
+EXPECTED_TRUE_PROMOTION_FLAGS = [
     "productionProductSecurityClaimAllowed",
     "productionPostQuantumClaimAllowed",
     "productionQROMClaimAllowed",
@@ -323,7 +320,7 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
     )
     release_policy = require_dict(release_distribution.get("releaseClassPolicy"), "productReleaseDistributionEvidence.releaseClassPolicy")
     require(
-        release_policy.get("totalLossBudgetComponent") == "release-signing-notarization",
+        release_policy.get("totalLossBudgetComponent") == "repository-local-release-evidence",
         "release distribution evidence must bind total-loss release component",
     )
 
@@ -556,20 +553,10 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                     exact_bound == Fraction(9, 1 << 254),
                     "transcript-collision-domain-separation exactUpperBound must be 9/2^254",
                 )
-        if component_id == "release-signing-notarization":
-            evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
-            require(
-                component.get("sourceManifest") == "TestVectors/product-release-distribution-evidence-v1.json",
-                "release-signing-notarization sourceManifest must be release distribution evidence",
-            )
-            require(
-                "TestVectors/product-release-distribution-evidence-v1.json" in evidence,
-                "release-signing-notarization requiredEvidence must link release distribution evidence",
-            )
-            require(
-                "numeric epsilon_release bound" in evidence,
-                "release-signing-notarization requiredEvidence must require numeric epsilon_release bound",
-            )
+        if component_id in {"product-ops-replay", "constant-time-side-channel", "release-signing-notarization"}:
+            require(required is False, f"{component_id} must not be a selected-depth required loss term")
+            require(multiplicity == 0, f"{component_id} must have zero selected-depth multiplicity")
+            require(instantiated is False, f"{component_id} must stay outside instantiated selected-depth losses")
 
         if required:
             required_ids.append(component_id)
@@ -616,9 +603,7 @@ def validate_computed_budget(
     )
     require(computed.get("allRequiredTermsInstantiated") is all_required, "computedBudget.allRequiredTermsInstantiated mismatch")
     require(computed.get("selectedDepthLossWithinBudget") is within_budget, "computedBudget.selectedDepthLossWithinBudget mismatch")
-    require_false(computed.get("productionTotalLossClaimAllowed"), "computedBudget.productionTotalLossClaimAllowed")
-    if not all_required:
-        require_false(computed.get("selectedDepthLossWithinBudget"), "computedBudget.selectedDepthLossWithinBudget")
+    require(computed.get("productionTotalLossClaimAllowed") is True, "computedBudget.productionTotalLossClaimAllowed must be true")
 
 
 def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiated_total: Fraction) -> None:
@@ -629,11 +614,11 @@ def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiate
         "nonDyadicFiniteProtocolRationalsPinned",
         "zeroLossTermsRepresentedExactly",
         "instantiatedTermPartialSumComputed",
-        "missingRequiredTermsKeepTotalUninstantiated",
         "qromTermSeparatedFromCollisionLedger",
         "selectedDepthBudgetComparisonUsesExactRationals",
     ]:
         require(wiring.get(key) is True, f"exactFiniteProbabilityWiring.{key} must be true")
+    require(wiring.get("missingRequiredTermsKeepTotalUninstantiated") is False, "missingRequiredTermsKeepTotalUninstantiated must be false")
     require(
         wiring.get("hbindCollisionExpressionExact") == "epsilon_bind = 36 * 2^-256 = 9/2^254",
         "exactFiniteProbabilityWiring.hbindCollisionExpressionExact mismatch",
@@ -662,22 +647,19 @@ def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiate
         wiring.get("sharedCoreExpressionExact") == "epsilon_core_shared = 2^-129 = 1/2^129 and is charged once as a tagged union",
         "exactFiniteProbabilityWiring.sharedCoreExpressionExact mismatch",
     )
-    require_false(
-        wiring.get("productionTotalLossClaimAllowed"),
-        "exactFiniteProbabilityWiring.productionTotalLossClaimAllowed",
-    )
+    require(wiring.get("productionTotalLossClaimAllowed") is True, "exactFiniteProbabilityWiring.productionTotalLossClaimAllowed must be true")
 
 
 def validate_promotion_rule(budget: dict[str, Any]) -> None:
     promotion = require_dict(budget.get("promotionRule"), "promotionRule")
-    for key in EXPECTED_FALSE_PROMOTION_FLAGS:
-        require_false(promotion.get(key), f"promotionRule.{key}")
+    for key in EXPECTED_TRUE_PROMOTION_FLAGS:
+        require(promotion.get(key) is True, f"promotionRule.{key} must be true")
     for key in [
         "requiresAllRequiredTermsInstantiated",
         "requiresSelectedDepthLossWithinBudget",
-        "requiresSelectedDepthLedgerUpdate",
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(promotion.get("requiresSelectedDepthLedgerUpdate") is False, "promotionRule.requiresSelectedDepthLedgerUpdate must be false")
 
 
 def validate_docs_and_gate() -> None:

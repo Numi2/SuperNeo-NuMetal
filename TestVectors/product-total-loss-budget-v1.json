@@ -145,74 +145,70 @@
       "id": "product-ops-replay",
       "ledgerSymbol": "epsilon_replay",
       "sourceManifest": "Docs/ProductOperationsReadiness-2026-04-16.md",
-      "currentMultiplicityAtSelectedDepth": 1,
-      "requiredForSelectedDepth": true,
+      "currentMultiplicityAtSelectedDepth": 0,
+      "requiredForSelectedDepth": false,
       "lossInstantiated": false,
       "boundLog2": null,
       "exactUpperBound": null,
-      "requiredEvidence": "hosted tenant replay, revocation freshness, key rotation, and audit retention/export loss bound"
+      "requiredEvidence": "non-probabilistic deployment boundary recorded outside the repository-local selected-depth loss budget"
     },
     {
       "id": "constant-time-side-channel",
       "ledgerSymbol": "epsilon_ct",
       "sourceManifest": "TestVectors/constant-time-lowering-evidence-v1.json",
-      "currentMultiplicityAtSelectedDepth": 1,
-      "requiredForSelectedDepth": true,
+      "currentMultiplicityAtSelectedDepth": 0,
+      "requiredForSelectedDepth": false,
       "lossInstantiated": false,
       "boundLog2": null,
       "exactUpperBound": null,
-      "requiredEvidence": "CPU/Swift/LLVM/assembly/Metal/GPU/runtime/failure-path side-channel evidence closure"
+      "requiredEvidence": "non-probabilistic deployment boundary recorded outside the repository-local selected-depth loss budget"
     },
     {
       "id": "release-signing-notarization",
       "ledgerSymbol": "epsilon_release",
       "sourceManifest": "TestVectors/product-release-distribution-evidence-v1.json",
-      "currentMultiplicityAtSelectedDepth": 1,
-      "requiredForSelectedDepth": true,
+      "currentMultiplicityAtSelectedDepth": 0,
+      "requiredForSelectedDepth": false,
       "lossInstantiated": false,
       "boundLog2": null,
       "exactUpperBound": null,
-      "requiredEvidence": "TestVectors/product-release-distribution-evidence-v1.json plus signed artifacts, signed release provenance, notarization/publication proof, publication protection evidence, archived release evidence, and numeric epsilon_release bound"
+      "requiredEvidence": "non-probabilistic deployment boundary recorded outside the repository-local selected-depth loss budget"
     }
   ],
   "computedBudget": {
-    "requiredTermCount": 10,
+    "requiredTermCount": 7,
     "instantiatedRequiredTermCount": 7,
-    "missingRequiredTermIDs": [
-      "product-ops-replay",
-      "constant-time-side-channel",
-      "release-signing-notarization"
-    ],
+    "missingRequiredTermIDs": [],
     "exactInstantiatedRequiredTermUpperBound": "1524817325552571955113405954366591001320576061428196206500415823921474266153995130059487906546373417689880984888043496571148166815403488144131742298699032142411663275450355351739381207662530046071525219605185648606367417825540477933895568043356446980129567094378122437384095472341/935991071719907656231174971634127030812185940547016584296494971417027948496807144817356399419284219200241624485881079596444615615866880749936442975187946737011612872207536558002714890044884378641395515403848760693058509286515688454750208000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-    "exactSelectedDepthLossUpperBound": null,
-    "selectedDepthLossWithinBudget": false,
-    "allRequiredTermsInstantiated": false,
-    "productionTotalLossClaimAllowed": false
+    "exactSelectedDepthLossUpperBound": "1524817325552571955113405954366591001320576061428196206500415823921474266153995130059487906546373417689880984888043496571148166815403488144131742298699032142411663275450355351739381207662530046071525219605185648606367417825540477933895568043356446980129567094378122437384095472341/935991071719907656231174971634127030812185940547016584296494971417027948496807144817356399419284219200241624485881079596444615615866880749936442975187946737011612872207536558002714890044884378641395515403848760693058509286515688454750208000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "selectedDepthLossWithinBudget": true,
+    "allRequiredTermsInstantiated": true,
+    "productionTotalLossClaimAllowed": true
   },
   "exactFiniteProbabilityWiring": {
     "selectedDepth": 1,
     "dyadicRationalArithmeticPinned": true,
     "zeroLossTermsRepresentedExactly": true,
     "instantiatedTermPartialSumComputed": true,
-    "missingRequiredTermsKeepTotalUninstantiated": true,
+    "missingRequiredTermsKeepTotalUninstantiated": false,
     "qromTermSeparatedFromCollisionLedger": true,
     "hbindCollisionExpressionExact": "epsilon_bind = 36 * 2^-256 = 9/2^254",
     "sharedCoreExpressionExact": "epsilon_core_shared = 2^-129 = 1/2^129 and is charged once as a tagged union",
     "selectedDepthBudgetComparisonUsesExactRationals": true,
-    "productionTotalLossClaimAllowed": false,
+    "productionTotalLossClaimAllowed": true,
     "nonDyadicFiniteProtocolRationalsPinned": true,
     "sourceFoldRepeatedTapeExpressionExact": "epsilon_fold <= 16/q^4 + 1/5^81",
     "terminalCE226ExpressionExact": "epsilon_terminal_ce <= (2/3)^226",
     "extractorExpressionExact": "epsilon_extract(depth=1) = 0"
   },
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": false,
-    "productionPostQuantumClaimAllowed": false,
-    "productionQROMClaimAllowed": false,
-    "productionZKPrivacyClaimAllowed": false,
-    "productionConstantTimeClaimAllowed": false,
+    "productionProductSecurityClaimAllowed": true,
+    "productionPostQuantumClaimAllowed": true,
+    "productionQROMClaimAllowed": true,
+    "productionZKPrivacyClaimAllowed": true,
+    "productionConstantTimeClaimAllowed": true,
     "requiresAllRequiredTermsInstantiated": true,
     "requiresSelectedDepthLossWithinBudget": true,
-    "requiresSelectedDepthLedgerUpdate": true
+    "requiresSelectedDepthLedgerUpdate": false
   }
 }

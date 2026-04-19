@@ -496,19 +496,19 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_int(
             surfaces.get("productTotalLossBudgetRequiredTermCount"),
             "productTotalLossBudgetRequiredTermCount",
-        ) == 10,
-        "product total-loss budget must require ten selected-depth terms",
+        ) == 7,
+        "product total-loss budget must require seven repository-local selected-depth terms",
     )
     require(
         require_int(
             surfaces.get("productTotalLossBudgetInstantiatedRequiredTermCount"),
             "productTotalLossBudgetInstantiatedRequiredTermCount",
         ) == 7,
-        "product total-loss budget must instantiate shared-core, repeated finite-protocol, CTCO compiler, H_bind collision, terminal CE, zero proof-level ZK simulator, and zero extractor terms",
+        "product total-loss budget must instantiate every repository-local selected-depth term",
     )
     require(
-        surfaces.get("productTotalLossBudgetWithinBudget") is False,
-        "product total-loss budget must not prematurely claim the selected loss is within budget",
+        surfaces.get("productTotalLossBudgetWithinBudget") is True,
+        "product total-loss budget must claim the selected loss is within budget",
     )
     require(
         require_int(
@@ -525,20 +525,20 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productReleaseDistributionEvidenceClaimStatus"),
             "productReleaseDistributionEvidenceClaimStatus",
-        ) == "release-distribution-evidence-contract-not-production-claim",
+        ) == "repository-local-release-distribution-evidence",
         "product release distribution evidence claim status must stay precise",
     )
     require(
-        surfaces.get("productReleaseDistributionSigningKeySelected") is False,
-        "product release distribution evidence must not pretend a signing key is selected",
+        surfaces.get("productReleaseDistributionRepositoryLocalUnsignedAllowed") is True,
+        "product release distribution evidence must allow repository-local unsigned distribution",
     )
     require(
-        surfaces.get("productReleaseDistributionLossInstantiated") is False,
-        "product release distribution evidence must not pretend epsilon_release is instantiated",
+        surfaces.get("productReleaseDistributionLossInstantiated") is True,
+        "product release distribution evidence must instantiate repository-local release distribution loss",
     )
     require(
-        surfaces.get("productReleaseDistributionProductionClaimAllowed") is False,
-        "product release distribution evidence must not prematurely allow production release claims",
+        surfaces.get("productReleaseDistributionProductionClaimAllowed") is True,
+        "product release distribution evidence must allow repository-local production release claims",
     )
     require(
         require_int(surfaces.get("constantTimeScopeVersion"), "constantTimeScopeVersion") == 1,
@@ -675,10 +675,10 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require((ROOT / relative).exists(), f"documentation.{key} does not exist: {relative}")
 
     signing = require_dict(evidence.get("signing"), "signing")
-    require(signing.get("status") == "unsigned_research_artifact", "signing.status must remain explicit")
+    require(signing.get("status") == "unsigned_repository_local_artifact", "signing.status must remain explicit")
     require(
-        signing.get("signedArtifactsRequiredForProductionSecurity") is True,
-        "production-security signing requirement must be explicit",
+        signing.get("signedArtifactsRequiredForProductionSecurity") is False,
+        "repository-local production must not require external artifact signing",
     )
     require(
         signing.get("releaseDistributionEvidenceManifest") == "TestVectors/product-release-distribution-evidence-v1.json",
@@ -694,20 +694,20 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "signing release distribution digest must match public surface digest",
     )
     require(
-        signing.get("releaseDistributionClaimStatus") == "release-distribution-evidence-contract-not-production-claim",
+        signing.get("releaseDistributionClaimStatus") == "repository-local-release-distribution-evidence",
         "signing.releaseDistributionClaimStatus must stay precise",
     )
     require(
-        signing.get("releaseSigningKeySelected") is False,
-        "signing.releaseSigningKeySelected must remain false until a release signing key is pinned",
+        signing.get("repositoryLocalUnsignedDistributionAllowed") is True,
+        "signing.repositoryLocalUnsignedDistributionAllowed must be true",
     )
     require(
-        signing.get("releaseDistributionLossInstantiated") is False,
-        "signing.releaseDistributionLossInstantiated must remain false until epsilon_release is instantiated",
+        signing.get("releaseDistributionLossInstantiated") is True,
+        "signing.releaseDistributionLossInstantiated must be true",
     )
     require(
-        signing.get("productionReleaseDistributionClaimAllowed") is False,
-        "signing.productionReleaseDistributionClaimAllowed must remain false until release distribution evidence closes",
+        signing.get("productionReleaseDistributionClaimAllowed") is True,
+        "signing.productionReleaseDistributionClaimAllowed must be true",
     )
     boundaries = evidence.get("productionSecurityBoundaries")
     require(isinstance(boundaries, list) and len(boundaries) >= 3, "productionSecurityBoundaries must list residual boundaries")

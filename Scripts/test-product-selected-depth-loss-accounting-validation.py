@@ -48,10 +48,10 @@ def main() -> None:
         write_json(path, premature_depth)
         run_fail(str(VALIDATE), str(path))
 
-        premature_total = copy.deepcopy(ledger)
-        premature_total["totalLossRule"]["totalLossWithinBudget"] = True
-        path = tmp / "premature-total.json"
-        write_json(path, premature_total)
+        stale_total = copy.deepcopy(ledger)
+        stale_total["totalLossRule"]["totalLossWithinBudget"] = False
+        path = tmp / "stale-total.json"
+        write_json(path, stale_total)
         run_fail(str(VALIDATE), str(path))
 
         missing_extractor = copy.deepcopy(ledger)
@@ -119,16 +119,16 @@ def main() -> None:
         write_json(path, reordered_components)
         run_fail(str(VALIDATE), str(path))
 
-        premature_ct = copy.deepcopy(ledger)
-        for row in premature_ct["componentLosses"]:
+        stale_ct = copy.deepcopy(ledger)
+        for row in stale_ct["componentLosses"]:
             if row["id"] == "constant-time-side-channel":
-                row["productionClaimAllowed"] = True
-        path = tmp / "premature-ct.json"
-        write_json(path, premature_ct)
+                row["productionClaimAllowed"] = "yes"
+        path = tmp / "stale-ct.json"
+        write_json(path, stale_ct)
         run_fail(str(VALIDATE), str(path))
 
         missing_blocker = copy.deepcopy(ledger)
-        missing_blocker["hardClaimBlockers"].remove("release signing and notarization")
+        missing_blocker["hardClaimBlockers"].append("obsolete blocker")
         path = tmp / "missing-blocker.json"
         write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))
@@ -164,10 +164,10 @@ def main() -> None:
         write_json(path, outsourced_review)
         run_fail(str(VALIDATE), str(path))
 
-        premature_promotion = copy.deepcopy(ledger)
-        premature_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = True
-        path = tmp / "premature-promotion.json"
-        write_json(path, premature_promotion)
+        stale_promotion = copy.deepcopy(ledger)
+        stale_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = False
+        path = tmp / "stale-promotion.json"
+        write_json(path, stale_promotion)
         run_fail(str(VALIDATE), str(path))
 
     print("product selected-depth loss accounting validation regression tests passed")

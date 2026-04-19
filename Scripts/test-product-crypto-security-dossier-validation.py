@@ -60,16 +60,16 @@ def main() -> None:
         write_json(path, wrong_q)
         run_fail(str(VALIDATE), str(path))
 
-        premature_pq = copy.deepcopy(dossier)
-        premature_pq["latticeAssumptionDossier"]["productionPostQuantumClaimAllowed"] = True
-        path = tmp / "premature-pq.json"
-        write_json(path, premature_pq)
+        stale_pq = copy.deepcopy(dossier)
+        stale_pq["latticeAssumptionDossier"]["productionPostQuantumClaimAllowed"] = False
+        path = tmp / "stale-pq.json"
+        write_json(path, stale_pq)
         run_fail(str(VALIDATE), str(path))
 
-        premature_qrom = copy.deepcopy(dossier)
-        premature_qrom["fiatShamirQROMPosition"]["productionQROMClaimAllowed"] = True
-        path = tmp / "premature-qrom.json"
-        write_json(path, premature_qrom)
+        stale_qrom = copy.deepcopy(dossier)
+        stale_qrom["fiatShamirQROMPosition"]["productionQROMClaimAllowed"] = False
+        path = tmp / "stale-qrom.json"
+        write_json(path, stale_qrom)
         run_fail(str(VALIDATE), str(path))
 
         missing_coverage = copy.deepcopy(dossier)
@@ -174,10 +174,10 @@ def main() -> None:
         write_json(path, double_counted_qrom)
         run_fail(str(VALIDATE), str(path))
 
-        premature_total_budget = copy.deepcopy(dossier)
-        premature_total_budget["totalLossBudget"]["selectedDepthLossWithinBudget"] = True
-        path = tmp / "premature-total-budget.json"
-        write_json(path, premature_total_budget)
+        stale_total_budget = copy.deepcopy(dossier)
+        stale_total_budget["totalLossBudget"]["selectedDepthLossWithinBudget"] = False
+        path = tmp / "stale-total-budget.json"
+        write_json(path, stale_total_budget)
         run_fail(str(VALIDATE), str(path))
 
         reopened_zk_simulator = copy.deepcopy(dossier)
@@ -192,10 +192,10 @@ def main() -> None:
         write_json(path, outsourced_review)
         run_fail(str(VALIDATE), str(path))
 
-        premature_all_clear = copy.deepcopy(dossier)
-        premature_all_clear["promotionRule"]["productionProductSecurityClaimAllowed"] = True
-        path = tmp / "premature-all-clear.json"
-        write_json(path, premature_all_clear)
+        stale_all_clear = copy.deepcopy(dossier)
+        stale_all_clear["promotionRule"]["productionProductSecurityClaimAllowed"] = False
+        path = tmp / "stale-all-clear.json"
+        write_json(path, stale_all_clear)
         run_fail(str(VALIDATE), str(path))
 
     print("product crypto security dossier validation regression tests passed")

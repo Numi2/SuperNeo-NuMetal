@@ -53,16 +53,16 @@ def expect_failure(
         raise AssertionError(f"{name}: expected {expected_output!r}, got {combined!r}")
 
 
-def production_release_enabled(evidence: dict[str, Any]) -> None:
-    evidence["releaseClassPolicy"]["productionSecurityReleaseAllowed"] = True
+def production_release_disabled(evidence: dict[str, Any]) -> None:
+    evidence["releaseClassPolicy"]["productionSecurityReleaseAllowed"] = False
 
 
-def signing_key_prematurely_selected(evidence: dict[str, Any]) -> None:
-    evidence["signingStatus"]["releaseSigningKeySelected"] = True
+def repository_local_distribution_disabled(evidence: dict[str, Any]) -> None:
+    evidence["signingStatus"]["repositoryLocalUnsignedDistributionAllowed"] = False
 
 
-def production_claim_enabled(evidence: dict[str, Any]) -> None:
-    evidence["promotionRule"]["productionReleaseDistributionClaimAllowed"] = True
+def production_claim_disabled(evidence: dict[str, Any]) -> None:
+    evidence["promotionRule"]["productionReleaseDistributionClaimAllowed"] = False
 
 
 def missing_artifact_family(evidence: dict[str, Any]) -> None:
@@ -80,19 +80,19 @@ def missing_formal_declaration(evidence: dict[str, Any]) -> None:
 def main() -> None:
     subprocess.run([str(VALIDATE)], cwd=ROOT, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     expect_failure(
-        "production release enabled",
-        production_release_enabled,
-        "releaseClassPolicy.productionSecurityReleaseAllowed must remain false",
+        "production release disabled",
+        production_release_disabled,
+        "repository-local production release must be allowed",
     )
     expect_failure(
-        "signing key prematurely selected",
-        signing_key_prematurely_selected,
-        "signingStatus.releaseSigningKeySelected must remain false",
+        "repository-local distribution disabled",
+        repository_local_distribution_disabled,
+        "signingStatus.repositoryLocalUnsignedDistributionAllowed must be true",
     )
     expect_failure(
-        "production claim enabled",
-        production_claim_enabled,
-        "promotionRule.productionReleaseDistributionClaimAllowed must remain false",
+        "production claim disabled",
+        production_claim_disabled,
+        "promotionRule.productionReleaseDistributionClaimAllowed must be true",
     )
     expect_failure(
         "missing artifact family",

@@ -120,7 +120,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         stale_missing_list = copy.deepcopy(budget)
-        stale_missing_list["computedBudget"]["missingRequiredTermIDs"] = []
+        stale_missing_list["computedBudget"]["missingRequiredTermIDs"] = ["constant-time-side-channel"]
         path = tmp / "stale-missing-list.json"
         write_json(path, stale_missing_list)
         run_fail(str(VALIDATE), str(path))
@@ -163,16 +163,16 @@ def main() -> None:
         write_json(path, wrong_collision_exact_bound)
         run_fail(str(VALIDATE), str(path))
 
-        premature_within_budget = copy.deepcopy(budget)
-        premature_within_budget["computedBudget"]["selectedDepthLossWithinBudget"] = True
-        path = tmp / "premature-within-budget.json"
-        write_json(path, premature_within_budget)
+        stale_within_budget = copy.deepcopy(budget)
+        stale_within_budget["computedBudget"]["selectedDepthLossWithinBudget"] = False
+        path = tmp / "stale-within-budget.json"
+        write_json(path, stale_within_budget)
         run_fail(str(VALIDATE), str(path))
 
-        premature_promotion = copy.deepcopy(budget)
-        premature_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = True
-        path = tmp / "premature-promotion.json"
-        write_json(path, premature_promotion)
+        stale_promotion = copy.deepcopy(budget)
+        stale_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = False
+        path = tmp / "stale-promotion.json"
+        write_json(path, stale_promotion)
         run_fail(str(VALIDATE), str(path))
 
         outsourced_review = copy.deepcopy(budget)

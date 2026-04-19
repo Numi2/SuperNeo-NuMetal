@@ -390,10 +390,10 @@ def main() -> None:
         write_json(path, premature_total_loss_instantiation)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
-        premature_total_loss_budget = copy.deepcopy(evidence)
-        premature_total_loss_budget["publicSurfaces"]["productTotalLossBudgetWithinBudget"] = True
-        path = tmp / "premature-total-loss-budget.json"
-        write_json(path, premature_total_loss_budget)
+        stale_total_loss_budget = copy.deepcopy(evidence)
+        stale_total_loss_budget["publicSurfaces"]["productTotalLossBudgetWithinBudget"] = False
+        path = tmp / "stale-total-loss-budget.json"
+        write_json(path, stale_total_loss_budget)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         wrong_release_distribution = copy.deepcopy(evidence)
@@ -410,22 +410,22 @@ def main() -> None:
         write_json(path, vague_release_distribution)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
-        premature_release_signing_key = copy.deepcopy(evidence)
-        premature_release_signing_key["publicSurfaces"]["productReleaseDistributionSigningKeySelected"] = True
-        path = tmp / "premature-release-signing-key.json"
-        write_json(path, premature_release_signing_key)
+        stale_release_unsigned = copy.deepcopy(evidence)
+        stale_release_unsigned["publicSurfaces"]["productReleaseDistributionRepositoryLocalUnsignedAllowed"] = False
+        path = tmp / "stale-release-unsigned.json"
+        write_json(path, stale_release_unsigned)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
-        premature_release_loss = copy.deepcopy(evidence)
-        premature_release_loss["publicSurfaces"]["productReleaseDistributionLossInstantiated"] = True
-        path = tmp / "premature-release-loss.json"
-        write_json(path, premature_release_loss)
+        stale_release_loss = copy.deepcopy(evidence)
+        stale_release_loss["publicSurfaces"]["productReleaseDistributionLossInstantiated"] = False
+        path = tmp / "stale-release-loss.json"
+        write_json(path, stale_release_loss)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
-        premature_release_claim = copy.deepcopy(evidence)
-        premature_release_claim["publicSurfaces"]["productReleaseDistributionProductionClaimAllowed"] = True
-        path = tmp / "premature-release-claim.json"
-        write_json(path, premature_release_claim)
+        stale_release_claim = copy.deepcopy(evidence)
+        stale_release_claim["publicSurfaces"]["productReleaseDistributionProductionClaimAllowed"] = False
+        path = tmp / "stale-release-claim.json"
+        write_json(path, stale_release_claim)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         wrong_constant_time_scope = copy.deepcopy(evidence)
@@ -518,16 +518,16 @@ def main() -> None:
         write_json(path, vague_signing)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
-        premature_signing_key = copy.deepcopy(evidence)
-        premature_signing_key["signing"]["releaseSigningKeySelected"] = True
-        path = tmp / "premature-signing-key.json"
-        write_json(path, premature_signing_key)
+        disabled_unsigned_distribution = copy.deepcopy(evidence)
+        disabled_unsigned_distribution["signing"]["repositoryLocalUnsignedDistributionAllowed"] = False
+        path = tmp / "disabled-unsigned-distribution.json"
+        write_json(path, disabled_unsigned_distribution)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
-        premature_signing_loss = copy.deepcopy(evidence)
-        premature_signing_loss["signing"]["releaseDistributionLossInstantiated"] = True
-        path = tmp / "premature-signing-loss.json"
-        write_json(path, premature_signing_loss)
+        stale_signing_loss = copy.deepcopy(evidence)
+        stale_signing_loss["signing"]["releaseDistributionLossInstantiated"] = False
+        path = tmp / "stale-signing-loss.json"
+        write_json(path, stale_signing_loss)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         mismatched_signing_release_digest = copy.deepcopy(evidence)

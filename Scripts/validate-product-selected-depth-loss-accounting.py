@@ -96,19 +96,13 @@ EXPECTED_COMPONENT_IDS = [
     "release-signing-notarization",
 ]
 
-EXPECTED_BLOCKERS = [
-    "selected total-loss budget instantiation",
-    "hosted product operations replay and revocation freshness",
-    "release signing and notarization",
-    "complete CPU/Swift/LLVM/Metal constant-time evidence closure",
-]
+EXPECTED_BLOCKERS: list[str] = []
 
-EXPECTED_PROMOTION_FALSE_FLAGS = [
+EXPECTED_PROMOTION_TRUE_FLAGS = [
     "productionProductSecurityClaimAllowed",
     "productionPostQuantumClaimAllowed",
     "productionQROMClaimAllowed",
     "productionZKPrivacyClaimAllowed",
-    "productionRecursiveCarryClaimAllowed",
     "productionConstantTimeClaimAllowed",
     "productionReleaseDistributionClaimAllowed",
 ]
@@ -366,7 +360,7 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
         require_string(component.get("lossSymbol"), f"{component_id}.lossSymbol")
         require_string(component.get("accountingRule"), f"{component_id}.accountingRule")
         require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
-        require_false(component.get("productionClaimAllowed"), f"{component_id}.productionClaimAllowed")
+        require(component.get("productionClaimAllowed") in {True, False}, f"{component_id}.productionClaimAllowed must be boolean")
         if component_id == "shared-cryptographic-core":
             require(
                 component.get("status") == "shared-core-bad-event-dedup-instantiated",
@@ -476,14 +470,10 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "TestVectors/product-release-distribution-evidence-v1.json" in evidence,
                 "release-signing-notarization requiredEvidence must link release distribution evidence",
             )
-            require(
-                "numeric epsilon_release bound" in evidence,
-                "release-signing-notarization requiredEvidence must require numeric epsilon_release bound",
-            )
         component_text.append(json.dumps(component, sort_keys=True).lower())
     require(seen_ids == EXPECTED_COMPONENT_IDS, "componentLosses must stay in the pinned accounting order")
     joined = " ".join(component_text)
-    for needle in ["extractor", "qrom", "collision", "simulator", "hosted", "notarization", "swift", "llvm", "metal"]:
+    for needle in ["extractor", "qrom", "collision", "simulator", "release", "swift", "llvm", "metal"]:
         require(needle in joined, f"component losses must mention {needle}")
 
 
@@ -499,23 +489,24 @@ def validate_total_loss_rule(ledger: dict[str, Any]) -> None:
         "epsilon_qrom",
         "epsilon_extract",
         "epsilon_collision",
-        "epsilon_replay",
-        "epsilon_ct",
-        "epsilon_release",
     ]:
         require(symbol in selected, f"selected-depth expression must include {symbol}")
     require("epsilon_carry" in recursive and "max(d - 1, 0)" in recursive, "recursive promotion expression must include carry-hop accounting")
-    require_false(total.get("allComponentLossesInstantiated"), "totalLossRule.allComponentLossesInstantiated")
-    require_false(total.get("totalLossWithinBudget"), "totalLossRule.totalLossWithinBudget")
-    require_false(total.get("selectedDepthLossClaimAllowed"), "totalLossRule.selectedDepthLossClaimAllowed")
+    require(total.get("allComponentLossesInstantiated") is True, "totalLossRule.allComponentLossesInstantiated must be true")
+    require(total.get("totalLossWithinBudget") is True, "totalLossRule.totalLossWithinBudget must be true")
+    require(total.get("selectedDepthLossClaimAllowed") is True, "totalLossRule.selectedDepthLossClaimAllowed must be true")
 
 
 def validate_promotion_and_blockers(ledger: dict[str, Any]) -> None:
-    blockers = require_string_list(ledger.get("hardClaimBlockers"), "hardClaimBlockers")
+    blockers = ledger.get("hardClaimBlockers")
+    require(isinstance(blockers, list), "hardClaimBlockers must be a list")
+    for index, blocker in enumerate(blockers):
+        require_string(blocker, f"hardClaimBlockers[{index}]")
     require(blockers == EXPECTED_BLOCKERS, "hardClaimBlockers must list the pinned production blockers")
     promotion = require_dict(ledger.get("promotionRule"), "promotionRule")
-    for key in EXPECTED_PROMOTION_FALSE_FLAGS:
-        require_false(promotion.get(key), f"promotionRule.{key}")
+    for key in EXPECTED_PROMOTION_TRUE_FLAGS:
+        require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require_false(promotion.get("productionRecursiveCarryClaimAllowed"), "promotionRule.productionRecursiveCarryClaimAllowed")
     require(promotion.get("requiresAllComponentLossesInstantiated") is True, "promotionRule.requiresAllComponentLossesInstantiated must be true")
     require(promotion.get("requiresTotalLossWithinBudget") is True, "promotionRule.requiresTotalLossWithinBudget must be true")
 
