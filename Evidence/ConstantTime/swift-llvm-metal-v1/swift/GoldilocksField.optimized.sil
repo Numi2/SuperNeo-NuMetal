@@ -4402,7 +4402,7 @@ bb2:                                              // Preds: bb1
   %69 = struct $String (%68)                      // user: %70
   %70 = apply %54(%69, %22) : $@convention(method) (@guaranteed String, @inout String) -> ()
   %71 = existential_metatype $@thick any AnyObject.Type, %9 // user: %72
-  %72 = open_existential_metatype %71 to $@thick (@opened("1D80FC4A-39BC-11F1-8804-6EB078955701", AnyObject) Self).Type // user: %73
+  %72 = open_existential_metatype %71 to $@thick (@opened("C9A03E1E-3BD8-11F1-97FF-6EB078955701", AnyObject) Self).Type // user: %73
   %73 = init_existential_metatype %72, $@thick any Any.Type // user: %74
   %74 = apply %59(%73, %58) : $@convention(thin) (@thick any Any.Type, Bool) -> @owned String // users: %76, %75
   %75 = apply %54(%74, %22) : $@convention(method) (@guaranteed String, @inout String) -> ()
@@ -4522,7 +4522,7 @@ bb5:                                              // Preds: bb4
   %177 = struct $String (%176)                    // user: %178
   %178 = apply %162(%177, %131) : $@convention(method) (@guaranteed String, @inout String) -> ()
   %179 = existential_metatype $@thick any AnyObject.Type, %115 // user: %180
-  %180 = open_existential_metatype %179 to $@thick (@opened("1D8100DC-39BC-11F1-8804-6EB078955701", AnyObject) Self).Type // user: %181
+  %180 = open_existential_metatype %179 to $@thick (@opened("C9A03F86-3BD8-11F1-97FF-6EB078955701", AnyObject) Self).Type // user: %181
   %181 = init_existential_metatype %180, $@thick any Any.Type // user: %182
   %182 = apply %167(%181, %166) : $@convention(thin) (@thick any Any.Type, Bool) -> @owned String // users: %184, %183
   %183 = apply %162(%182, %131) : $@convention(method) (@guaranteed String, @inout String) -> ()

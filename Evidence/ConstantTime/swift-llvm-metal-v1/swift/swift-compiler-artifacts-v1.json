@@ -19,7 +19,7 @@
       ],
       "id": "emit-optimized-sil",
       "outputPath": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.optimized.sil",
-      "outputSHA256Hex": "b256db753452f52695dfffee09882445129abfb0cb458b3ab07cebe9dd1b994b"
+      "outputSHA256Hex": "71de37fcfb8108bb5a123d384df8299af877f8ebb4e999d3ccaade9135d3bc31"
     },
     {
       "argv": [
@@ -64,7 +64,7 @@
     "swift-goldilocks-common-arithmetic",
     "swift-goldilocks-fixed-exponentiation"
   ],
-  "generatedAtUTC": "2026-04-16T17:45:54Z",
+  "generatedAtUTC": "2026-04-19T10:16:11Z",
   "positiveFindings": [
     "Optimized SIL was emitted from the checked GoldilocksField.swift source with the release Swift frontend.",
     "Optimized LLVM IR was emitted from the checked GoldilocksField.swift source with the release Swift frontend.",

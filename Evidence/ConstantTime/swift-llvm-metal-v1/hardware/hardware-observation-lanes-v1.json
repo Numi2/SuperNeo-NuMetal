@@ -1,6 +1,6 @@
 {
   "claimStatus": "hardware-observation-lanes-local-non-certifying",
-  "generatedAtUTC": "2026-04-16T17:45:57Z",
+  "generatedAtUTC": "2026-04-19T10:18:16Z",
   "hardware": {
     "machine": "arm64e",
     "swVers": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5\nBuildVersion:\t\t25F5042g",
