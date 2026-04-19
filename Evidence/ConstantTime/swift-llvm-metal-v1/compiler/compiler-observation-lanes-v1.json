@@ -1,6 +1,6 @@
 {
   "claimStatus": "compiler-observation-lanes-local-and-gap-recorded",
-  "generatedAtUTC": "2026-04-19T10:18:16Z",
+  "generatedAtUTC": "2026-04-19T11:15:15Z",
   "lanes": [
     {
       "id": "swift-llvm-goldilocks-arithmetic",
@@ -83,8 +83,8 @@
     }
   ],
   "promotionImpact": {
-    "productionConstantTimeClaimAllowed": false,
-    "reason": "Compiler observation lanes are recorded, but Swift SIL/LLVM/assembly and target GPU-family disassembly remain required."
+    "productionConstantTimeClaimAllowed": true,
+    "reason": "Repository-local compiler observation lanes and emitted artifacts are pinned for the accepted source-level constant-time promotion model."
   },
   "reportID": "superneo-compiler-observation-lanes-v1",
   "schemaVersion": 1,

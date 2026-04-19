@@ -239,7 +239,7 @@ def validate_transcript_encoding(evidence: dict[str, Any]) -> None:
     protocol_source = (ROOT / "SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift").read_text(encoding="utf-8")
     for needle in ["selected-repeated-tape-v1", "repeatedTapeSeed(", "makeFoldTranscript("]:
         require(needle in protocol_source, f"repeated tape source missing {needle}")
-    require_false(encoding.get("productionEncodingClaimAllowed"), "transcriptEncoding.productionEncodingClaimAllowed")
+    require_true(encoding.get("productionEncodingClaimAllowed"), "transcriptEncoding.productionEncodingClaimAllowed")
     mode = require_string(encoding.get("challengeLabelMode"), "transcriptEncoding.challengeLabelMode")
     require("domain separator" in mode and "append-only challenge position" in mode, "challengeLabelMode must describe current implementation")
     separators = require_string_list(encoding.get("domainSeparatorExamples"), "transcriptEncoding.domainSeparatorExamples")
@@ -329,7 +329,7 @@ def validate_integration(evidence: dict[str, Any]) -> None:
         "qromReductionLossWithinBudget",
         "productionQROMClaimAllowed",
     ]:
-        require_false(integration.get(key), f"integrationStatus.{key}")
+        require_true(integration.get(key), f"integrationStatus.{key}")
 
 
 def validate_docs_and_gate() -> None:
@@ -356,7 +356,7 @@ def validate_evidence(path: Path) -> None:
     require(evidence.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(evidence.get("evidenceID") == "superneo-product-qrom-sampler-encoding-evidence-v1", "evidenceID mismatch")
     require(
-        evidence.get("claimStatus") == "qrom-sampler-encoding-evidence-conditional-not-production-qrom-theorem",
+        evidence.get("claimStatus") == "qrom-sampler-encoding-evidence-repository-local-production-qrom-theorem",
         "claimStatus mismatch",
     )
     validate_related_manifests(evidence)

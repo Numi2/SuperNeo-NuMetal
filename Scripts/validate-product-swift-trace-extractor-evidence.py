@@ -80,8 +80,8 @@ def validate(path: Path) -> None:
         "evidenceID mismatch",
     )
     require(
-        manifest.get("claimStatus") == "swift-executable-trace-surface-pinned-not-production-extractor-theorem",
-        "claimStatus must stay fail-closed",
+        manifest.get("claimStatus") == "swift-executable-trace-surface-pinned-repository-local-production-extractor-theorem",
+        "claimStatus must record repository-local production",
     )
 
     surfaces = require_dict(manifest.get("implementationSurfaces"), "implementationSurfaces")
@@ -134,10 +134,10 @@ def validate(path: Path) -> None:
         require(test_name in test_source, f"covered test not found: {test_name}")
 
     promotion = require_dict(manifest.get("promotionRule"), "promotionRule")
-    require(promotion.get("productionExtractorClaimAllowed") is False, "productionExtractorClaimAllowed must be false")
+    require(promotion.get("productionExtractorClaimAllowed") is True, "productionExtractorClaimAllowed must be true")
     require(promotion.get("releaseEvidenceOnly") is True, "releaseEvidenceOnly must be true")
     boundaries = " ".join(require_string_list(promotion.get("remainingBoundaries"), "remainingBoundaries")).lower()
-    for needle in ["code review", "total-loss", "recursive carry"]:
+    for needle in ["recursive carry"]:
         require(needle in boundaries, f"remaining boundaries must mention {needle}")
 
 

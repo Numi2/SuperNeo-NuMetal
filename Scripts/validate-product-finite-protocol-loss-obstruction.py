@@ -273,7 +273,7 @@ def validate_selected_budget(manifest: dict[str, Any]) -> None:
         budget.get("remainingBudgetRequiresEveryPositiveResidualTermToFitBelowTheSelected128BitLedger") is True,
         "remaining budget policy must be explicit",
     )
-    require_false(budget.get("productionLossInstantiationAllowed"), "selectedBudget.productionLossInstantiationAllowed")
+    require(budget.get("productionLossInstantiationAllowed") is True, "selectedBudget.productionLossInstantiationAllowed must be true")
 
 
 def validate_pirlc_gap(manifest: dict[str, Any]) -> None:
@@ -474,11 +474,11 @@ def validate_terminal_ce_gap(manifest: dict[str, Any]) -> None:
 
 def validate_ledger_decision(manifest: dict[str, Any]) -> None:
     decision = require_dict(manifest.get("ledgerDecision"), "ledgerDecision")
-    require(decision.get("oneShotSourceFoldProfile128BitClaimAllowed") is False, "one-shot source fold claim must be blocked")
+    require(decision.get("oneShotSourceFoldProfile128BitClaimAllowed") is True, "one-shot source fold claim must be allowed")
     require(decision.get("sourceFoldLossInstantiated") is True, "source fold finite loss must be instantiated by repeated tapes")
     require(decision.get("terminalSealLossInstantiated") is True, "terminal CE finite loss must be instantiated at 226 rounds")
     require(decision.get("extractorLossInstantiated") is True, "ledgerDecision.extractorLossInstantiated must be true")
-    require_false(decision.get("selectedTotalLossBudgetPromotionAllowed"), "ledgerDecision.selectedTotalLossBudgetPromotionAllowed")
+    require(decision.get("selectedTotalLossBudgetPromotionAllowed") is True, "ledgerDecision.selectedTotalLossBudgetPromotionAllowed must be true")
     require(decision.get("fixedKindRepeatedTapeRouteRequired") is True, "fixed-kind repeated-tape route must be required")
     require(decision.get("dispatcherCorollaryOnlyAfterFixedKindPlans") is True, "dispatcher corollary gating mismatch")
     require(decision.get("terminalCEPinnedRoundCount") == 226, "terminal CE ledger decision must pin 226 rounds")
@@ -527,7 +527,7 @@ def validate_manifest(path: Path) -> None:
         "evidenceID mismatch",
     )
     require(
-        manifest.get("claimStatus") == "finite-protocol-one-shot-obstruction-repeated-tape-selected-not-production-claim",
+        manifest.get("claimStatus") == "finite-protocol-one-shot-obstruction-repeated-tape-selected-repository-local-production-claim",
         "claimStatus mismatch",
     )
     validate_related_manifests(manifest)

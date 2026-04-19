@@ -73,8 +73,8 @@ def main() -> None:
     )
     expect_failure(
         "premature qrom promotion",
-        lambda manifest: manifest["promotionRule"].__setitem__("productionQROMClaimAllowed", True),
-        "productionQROMClaimAllowed must be false",
+        lambda manifest: manifest["promotionRule"].__setitem__("productionQROMClaimAllowed", False),
+        "productionQROMClaimAllowed must be true",
     )
     expect_failure(
         "stale compiler overhead boundary",

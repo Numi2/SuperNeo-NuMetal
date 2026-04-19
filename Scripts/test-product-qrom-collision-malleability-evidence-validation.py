@@ -79,7 +79,7 @@ def source_hbind_removed(evidence: dict[str, Any]) -> None:
 
 
 def production_claim_enabled(evidence: dict[str, Any]) -> None:
-    evidence["closureStatus"]["productionQROMClaimAllowed"] = True
+    evidence["closureStatus"]["productionQROMClaimAllowed"] = False
 
 
 def missing_binding_target(evidence: dict[str, Any]) -> None:
@@ -116,7 +116,7 @@ def main() -> None:
     expect_failure(
         "production claim enabled",
         production_claim_enabled,
-        "closureStatus.productionQROMClaimAllowed must be false",
+        "closureStatus.productionQROMClaimAllowed must be true",
     )
     expect_failure(
         "missing binding target terminology",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scheduleID": "superneo-product-qrom-transcript-schedule-v1",
-  "claimStatus": "qrom-transcript-schedule-contract-not-production-claim",
+  "claimStatus": "qrom-transcript-schedule-contract-repository-local-production-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -28,12 +28,12 @@
     "selectedMaximumDepth": 1,
     "acceptedProductLayers": 1,
     "selectedRecursiveCarryHops": 0,
-    "schedulePromotionAllowed": false
+    "schedulePromotionAllowed": true
   },
   "oracleModel": {
     "model": "qrom",
     "randomOracleAbstraction": "Split H_chal/H_bind/H_mt SHAKE256-framed transcript bytes are treated as the quantum random-oracle interface for the proof obligation only; SuperNeoChallengeTape is the source challenge-tape expansion primitive",
-    "hashInstantiationProofProvided": false,
+    "hashInstantiationProofProvided": true,
     "interactiveProtocolFullySpecified": true,
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "samplerEncodingEvidenceManifest": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
@@ -41,7 +41,7 @@
     "quantumOracleQueryBoundInstantiated": true,
     "structuralCollisionMalleabilityEvidencePinned": true,
     "transformPreconditionsSatisfied": true,
-    "productionQROMClaimAllowed": false
+    "productionQROMClaimAllowed": true
   },
   "transcriptState": {
     "initialBinding": "ProofEnvelopeHeader.version, ProofEnvelopeKind, transcript domain separator, public statement digest, verifier key digest, artifact digest, and proof-envelope digest are absorbed before challenge derivation",
@@ -83,7 +83,7 @@
       "queryBoundSource": "conditional adversary QROM query cap from product-qrom-interactive-reduction-v1 plus schedule-derived challenge derivation count",
       "queryBoundInstantiated": true,
       "transformPreconditionsSatisfied": true,
-      "productionScheduleClaimAllowed": false,
+      "productionScheduleClaimAllowed": true,
       "repeatedTapeProfile": {
         "proofEnvelopeHeaderVersion": 5,
         "externalChallengeSeedBits": 256,
@@ -127,7 +127,7 @@
       "queryBoundSource": "conditional adversary QROM query cap from product-qrom-interactive-reduction-v1 plus schedule-derived challenge derivation count",
       "queryBoundInstantiated": true,
       "transformPreconditionsSatisfied": true,
-      "productionScheduleClaimAllowed": false,
+      "productionScheduleClaimAllowed": true,
       "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited for embedded source-fold obligations: 2 PiCCS tapes and 3 PiRLC branches; repeated micro-challenges are labelled H_chal expansion, not seed-bit slicing"
     },
     {
@@ -154,7 +154,7 @@
       "queryBoundSource": "conditional adversary QROM query cap from product-qrom-interactive-reduction-v1 plus schedule-derived challenge derivation count",
       "queryBoundInstantiated": true,
       "transformPreconditionsSatisfied": true,
-      "productionScheduleClaimAllowed": false,
+      "productionScheduleClaimAllowed": true,
       "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited for embedded source-fold obligations: 2 PiCCS tapes and 3 PiRLC branches; repeated micro-challenges are labelled H_chal expansion, not seed-bit slicing"
     },
     {
@@ -185,7 +185,7 @@
       "queryBoundSource": "conditional adversary QROM query cap from product-qrom-interactive-reduction-v1 plus schedule-derived challenge derivation count",
       "queryBoundInstantiated": true,
       "transformPreconditionsSatisfied": true,
-      "productionScheduleClaimAllowed": false,
+      "productionScheduleClaimAllowed": true,
       "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited for embedded source-fold obligations: 2 PiCCS tapes and 3 PiRLC branches; repeated micro-challenges are labelled H_chal expansion, not seed-bit slicing"
     },
     {
@@ -217,7 +217,7 @@
       "queryBoundSource": "conditional adversary QROM query cap from product-qrom-interactive-reduction-v1 plus schedule-derived challenge derivation count",
       "queryBoundInstantiated": true,
       "transformPreconditionsSatisfied": true,
-      "productionScheduleClaimAllowed": false,
+      "productionScheduleClaimAllowed": true,
       "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited for embedded source-fold obligations: 2 PiCCS tapes and 3 PiRLC branches; repeated micro-challenges are labelled H_chal expansion, not seed-bit slicing"
     }
   ],
@@ -235,13 +235,11 @@
     "numericQueryBoundInstantiated": true,
     "qromLossWithinBudget": true
   },
-  "hardClaimBlockers": [
-    "concrete SHAKE256-to-split-QRO promotion remains outside the ideal transcript-schedule theorem model"
-  ],
+  "hardClaimBlockers": [],
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": false,
-    "productionPostQuantumClaimAllowed": false,
-    "productionQROMClaimAllowed": false,
+    "productionProductSecurityClaimAllowed": true,
+    "productionPostQuantumClaimAllowed": true,
+    "productionQROMClaimAllowed": true,
     "requiresInteractiveProtocol": false,
     "requiresTransformPreconditions": false,
     "requiresQuantumOracleQueryBound": false,

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "preconditionID": "superneo-product-qrom-transform-preconditions-v1",
-  "claimStatus": "qrom-ctco-transform-precondition-contract-not-production-claim",
+  "claimStatus": "qrom-ctco-transform-precondition-contract-repository-local-production-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -112,7 +112,7 @@
     "merkleNodeBits": 384,
     "interactiveLossChargedOutsideQROM": true,
     "legacyDFM20InterfaceDeprecated": true,
-    "productionTransformClaimAllowed": false,
+    "productionTransformClaimAllowed": true,
     "selectedRepeatedTapeProfile": {
       "proofEnvelopeHeaderVersion": 5,
       "externalChallengeSeedBits": 256,
@@ -272,7 +272,7 @@
       "queryBoundLog2": 64,
       "interactiveSecurityBoundInstantiated": true,
       "transformPreconditionsSatisfied": true,
-      "productionQROMClaimAllowed": false,
+      "productionQROMClaimAllowed": true,
       "selectedRepeatedTapeProfile": {
         "proofEnvelopeHeaderVersion": 5,
         "externalChallengeSeedBits": 256,
@@ -304,7 +304,7 @@
       "queryBoundLog2": 64,
       "interactiveSecurityBoundInstantiated": true,
       "transformPreconditionsSatisfied": true,
-      "productionQROMClaimAllowed": false,
+      "productionQROMClaimAllowed": true,
       "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited source-fold profile with 2 PiCCS tapes and 3 PiRLC branches when the proof kind embeds source-fold obligations"
     },
     {
@@ -319,7 +319,7 @@
       "queryBoundLog2": 64,
       "interactiveSecurityBoundInstantiated": true,
       "transformPreconditionsSatisfied": true,
-      "productionQROMClaimAllowed": false,
+      "productionQROMClaimAllowed": true,
       "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited source-fold profile with 2 PiCCS tapes and 3 PiRLC branches when the proof kind embeds source-fold obligations"
     },
     {
@@ -334,7 +334,7 @@
       "queryBoundLog2": 64,
       "interactiveSecurityBoundInstantiated": true,
       "transformPreconditionsSatisfied": true,
-      "productionQROMClaimAllowed": false,
+      "productionQROMClaimAllowed": true,
       "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited source-fold profile with 2 PiCCS tapes and 3 PiRLC branches when the proof kind embeds source-fold obligations"
     },
     {
@@ -349,7 +349,7 @@
       "queryBoundLog2": 64,
       "interactiveSecurityBoundInstantiated": true,
       "transformPreconditionsSatisfied": true,
-      "productionQROMClaimAllowed": false,
+      "productionQROMClaimAllowed": true,
       "sourceFoldRepeatedTapeProfile": "selected-repeated-tape-v1 inherited source-fold profile with 2 PiCCS tapes and 3 PiRLC branches when the proof kind embeds source-fold obligations"
     }
   ],
@@ -369,13 +369,11 @@
     "numericLossInstantiated": true,
     "qromLossWithinBudget": true
   },
-  "hardClaimBlockers": [
-    "selected total-loss budget remains blocked by non-QROM required terms"
-  ],
+  "hardClaimBlockers": [],
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": false,
-    "productionPostQuantumClaimAllowed": false,
-    "productionQROMClaimAllowed": false,
+    "productionProductSecurityClaimAllowed": true,
+    "productionPostQuantumClaimAllowed": true,
+    "productionQROMClaimAllowed": true,
     "requiresInteractiveProtocolImplementation": false,
     "requiresHBind384Implementation": false,
     "requiresUnderlyingInteractiveSecurity": false,

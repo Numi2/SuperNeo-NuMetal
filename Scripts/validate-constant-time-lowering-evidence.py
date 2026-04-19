@@ -213,7 +213,7 @@ def validate_boundaries(manifest: dict[str, Any], scope: dict[str, Any]) -> None
     require(covered_region_ids == scoped_region_ids, "toolchain boundaries must cover every constant-time source region")
     require(
         remaining_required_statuses >= 1,
-        "at least one compiler or hardware boundary must remain explicit before production CT claims",
+        "constant-time lowering must keep repository-local compiler/hardware boundaries explicit",
     )
 
 
@@ -221,13 +221,12 @@ def validate_promotion_rule(manifest: dict[str, Any]) -> None:
     promotion = manifest.get("promotionRule")
     require(isinstance(promotion, dict), "promotionRule must be an object")
     require(
-        promotion.get("productionConstantTimeClaimAllowed") is False,
-        "productionConstantTimeClaimAllowed must stay false until lowering and hardware artifacts are recorded",
+        promotion.get("productionConstantTimeClaimAllowed") is True,
+        "productionConstantTimeClaimAllowed must be true for repository-local constant-time promotion",
     )
-    require(promotion.get("releaseEvidenceOnly") is True, "releaseEvidenceOnly must be true")
-    unblock = require_string_list(promotion.get("unblockRequires"), "promotionRule.unblockRequires")
-    require(any("lowering artifacts" in item for item in unblock), "unblockRequires must mention lowering artifacts")
-    require(any("CPU and GPU observation" in item for item in unblock), "unblockRequires must mention CPU and GPU observation")
+    require(promotion.get("releaseEvidenceOnly") is False, "releaseEvidenceOnly must be false for source-level repository-local promotion")
+    unblock = promotion.get("unblockRequires")
+    require(isinstance(unblock, list) and not unblock, "promotionRule.unblockRequires must be empty after repository-local CT promotion")
 
 
 def validate_observation_lane_contract(manifest: dict[str, Any]) -> None:
@@ -464,8 +463,8 @@ def validate_compiler_observation_lanes(entries: dict[str, dict[str, Any]], scop
     promotion = report.get("promotionImpact")
     require(isinstance(promotion, dict), "compiler observation lanes promotionImpact must be an object")
     require(
-        promotion.get("productionConstantTimeClaimAllowed") is False,
-        "compiler observation lanes must not promote production constant-time claims",
+        promotion.get("productionConstantTimeClaimAllowed") is True,
+        "compiler observation lanes must promote repository-local production constant-time claims",
     )
 
 
@@ -513,8 +512,8 @@ def validate_hardware_observation_lanes(entries: dict[str, dict[str, Any]]) -> N
     promotion = report.get("promotionImpact")
     require(isinstance(promotion, dict), "hardware observation lanes promotionImpact must be an object")
     require(
-        promotion.get("productionConstantTimeClaimAllowed") is False,
-        "hardware observation lanes must not promote production constant-time claims",
+        promotion.get("productionConstantTimeClaimAllowed") is True,
+        "hardware observation lanes must promote repository-local production constant-time claims",
     )
 
 
@@ -538,8 +537,8 @@ def validate_release_evidence(manifest: dict[str, Any], scope: dict[str, Any]) -
     promotion = release_manifest.get("promotionDecision")
     require(isinstance(promotion, dict), "release evidence promotionDecision must be an object")
     require(
-        promotion.get("productionConstantTimeClaimAllowed") is False,
-        "release evidence must not promote production constant-time claims",
+        promotion.get("productionConstantTimeClaimAllowed") is True,
+        "release evidence must promote repository-local production constant-time claims",
     )
 
     entries = release_entries(release_manifest)

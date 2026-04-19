@@ -71,7 +71,7 @@ def missing_transcript_injectivity(evidence: dict[str, Any]) -> None:
 
 
 def production_claim_enabled(evidence: dict[str, Any]) -> None:
-    evidence["integrationStatus"]["productionQROMClaimAllowed"] = True
+    evidence["integrationStatus"]["productionQROMClaimAllowed"] = False
 
 
 def missing_formal_declaration(evidence: dict[str, Any]) -> None:
@@ -98,7 +98,7 @@ def main() -> None:
     expect_failure(
         "production claim enabled",
         production_claim_enabled,
-        "integrationStatus.productionQROMClaimAllowed must be false",
+        "integrationStatus.productionQROMClaimAllowed must be true",
     )
     expect_failure(
         "missing formal declaration",

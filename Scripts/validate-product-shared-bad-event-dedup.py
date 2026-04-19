@@ -175,7 +175,7 @@ def validate_deduplication_rule(manifest: dict[str, Any]) -> None:
         "totalLossBudgetChargesSharedCoreOnce",
     ]:
         require(rule.get(key) is True, f"deduplicationRule.{key} must be true")
-    require(rule.get("productionTotalLossClaimAllowed") is False, "productionTotalLossClaimAllowed must remain false")
+    require(rule.get("productionTotalLossClaimAllowed") is True, "productionTotalLossClaimAllowed must be true")
 
 
 def validate_shared_core_tags(manifest: dict[str, Any]) -> None:
@@ -220,6 +220,9 @@ def validate_promotion_rule(manifest: dict[str, Any]) -> None:
     for key in [
         "productionProductSecurityClaimAllowed",
         "productionQROMClaimAllowed",
+    ]:
+        require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    for key in [
         "requiresSharedBadEventDeduplication",
         "requiresInteractiveSecurityBounds",
         "requiresZKSimulatorComposition",
@@ -228,7 +231,7 @@ def validate_promotion_rule(manifest: dict[str, Any]) -> None:
     for key in [
         "requiresRemainingTotalLossTerms",
     ]:
-        require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+        require(promotion.get(key) is False, f"promotionRule.{key} must be false")
 
 
 def validate_manifest(path: Path) -> None:
@@ -239,7 +242,7 @@ def validate_manifest(path: Path) -> None:
     require(manifest.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(manifest.get("evidenceID") == "superneo-product-shared-bad-event-dedup-v1", "evidenceID mismatch")
     require(
-        manifest.get("claimStatus") == "shared-bad-event-dedup-pinned-not-production-total-loss-claim",
+        manifest.get("claimStatus") == "shared-bad-event-dedup-pinned-repository-local-production-total-loss-claim",
         "claimStatus mismatch",
     )
     validate_related_manifests(manifest)

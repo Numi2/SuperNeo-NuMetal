@@ -18,7 +18,7 @@
     "\\btry\\b",
     "\\bthrow\\b"
   ],
-  "generatedAtUTC": "2026-04-19T10:16:14Z",
+  "generatedAtUTC": "2026-04-19T11:15:13Z",
   "positiveFindings": [
     "Scoped Swift arithmetic regions contain no local Array/Data/String/Dictionary/Set construction.",
     "Scoped Swift arithmetic regions contain no append/reserveCapacity/malloc/realloc/free tokens.",

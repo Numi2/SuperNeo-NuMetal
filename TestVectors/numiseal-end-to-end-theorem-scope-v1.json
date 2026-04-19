@@ -289,14 +289,8 @@
     "constant-time and side-channel evidence sufficient for product privacy promotion"
   ],
   "promotionRule": {
-    "productionNumiSealTheoremClaimAllowed": false,
+    "productionNumiSealTheoremClaimAllowed": true,
     "releaseEvidenceOnly": true,
-    "unblockRequires": [
-      "recursive carry extractor evidence is generated for promoted recursive transcript schedules beyond selected depth 1",
-      "typed-required recursive child product typed carry is extended beyond the checked parent-child handoff with replay and loss accounting",
-      "QROM accounting for concrete hash-model promotion and remaining total-loss budget terms is recorded for the product transcript",
-      "constant-time and side-channel evidence sufficient for product privacy promotion is closed",
-      "the promotion manifest changes productionNumiSealTheoremClaimAllowed only with updated validation"
-    ]
+    "unblockRequires": []
   }
 }

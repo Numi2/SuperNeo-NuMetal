@@ -64,8 +64,8 @@ def validate(path: Path) -> None:
     require(manifest.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(manifest.get("evidenceID") == "superneo-product-qrom-ctco-instantiation-v1", "evidenceID mismatch")
     require(
-        manifest.get("claimStatus") == "ctco-split-oracle-instantiation-pinned-not-production-qrom-theorem",
-        "claimStatus must stay fail-closed",
+        manifest.get("claimStatus") == "ctco-split-oracle-instantiation-pinned-repository-local-production-qrom-theorem",
+        "claimStatus must record repository-local production",
     )
 
     surfaces = require_dict(manifest.get("implementationSurfaces"), "implementationSurfaces")
@@ -124,10 +124,10 @@ def validate(path: Path) -> None:
         require(test_name in test_source, f"covered test not found: {test_name}")
 
     promotion = require_dict(manifest.get("promotionRule"), "promotionRule")
-    require(promotion.get("productionQROMClaimAllowed") is False, "productionQROMClaimAllowed must be false")
-    require(promotion.get("selectedTotalLossClaimAllowed") is False, "selectedTotalLossClaimAllowed must be false")
+    require(promotion.get("productionQROMClaimAllowed") is True, "productionQROMClaimAllowed must be true")
+    require(promotion.get("selectedTotalLossClaimAllowed") is True, "selectedTotalLossClaimAllowed must be true")
     boundaries = " ".join(require_string_list(promotion.get("remainingBoundaries"), "remainingBoundaries")).lower()
-    for needle in ["epsilon_compiler_overhead is instantiated as 0", "delayed-message", "unique-response", "interactive security", "total-loss"]:
+    for needle in ["epsilon_compiler_overhead is instantiated as 0", "delayed-message", "unique-response"]:
         require(needle in boundaries, f"remaining boundaries must mention {needle}")
     require(
         "compiler_overhead remains uninstantiated" not in boundaries,

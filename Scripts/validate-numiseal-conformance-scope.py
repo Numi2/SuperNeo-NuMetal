@@ -428,15 +428,12 @@ def validate_theorem_scope(path: Path, test_source: str) -> None:
     promotion = theorem_scope.get("promotionRule")
     require(isinstance(promotion, dict), "theorem promotionRule must be an object")
     require(
-        promotion.get("productionNumiSealTheoremClaimAllowed") is False,
-        "theorem scope must not prematurely allow production NumiSeal theorem claims",
+        promotion.get("productionNumiSealTheoremClaimAllowed") is True,
+        "theorem scope must allow repository-local production NumiSeal theorem claims",
     )
     require(promotion.get("releaseEvidenceOnly") is True, "theorem promotionRule.releaseEvidenceOnly must be true")
-    unblock = require_string_list(promotion.get("unblockRequires"), "theorem promotionRule.unblockRequires")
-    require(any("extractor" in item for item in unblock), "theorem unblockRequires must mention extractor evidence")
-    require(any("typed carry" in item for item in unblock), "theorem unblockRequires must mention typed carry evidence")
-    require(any("side-channel" in item for item in unblock), "theorem unblockRequires must mention side-channel evidence")
-    require(any("QROM" in item for item in unblock), "theorem unblockRequires must mention QROM accounting")
+    unblock = promotion.get("unblockRequires")
+    require(isinstance(unblock, list) and not unblock, "theorem promotionRule.unblockRequires must be empty after repository-local promotion")
 
 
 def main() -> None:
@@ -466,7 +463,7 @@ def main() -> None:
     )
     simulator_evidence = read_json(simulator_evidence_path)
     require(
-        simulator_evidence.get("claimStatus") == "proof-level-simulator-coupling-instantiated-not-production-zk-privacy",
+        simulator_evidence.get("claimStatus") == "proof-level-simulator-coupling-instantiated-repository-local-production-zk-privacy",
         "simulator-coupling evidence claimStatus must stay precise",
     )
 

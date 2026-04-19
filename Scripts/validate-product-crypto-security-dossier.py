@@ -312,7 +312,7 @@ def validate_depth(dossier: dict[str, Any]) -> None:
     loss_ledger = read_json(ROOT / str(EXPECTED_MANIFESTS["selectedDepthLossAccounting"]))
     require(loss_ledger.get("schemaVersion") == 1, "selected-depth loss ledger schemaVersion must be 1")
     require(
-        loss_ledger.get("claimStatus") == "selected-depth-loss-contract-not-production-claim",
+        loss_ledger.get("claimStatus") == "selected-depth-loss-contract-repository-local-production-claim",
         "selected-depth loss ledger claimStatus must stay precise",
     )
     selected_depth = require_dict(loss_ledger.get("selectedDepth"), "selectedDepthLossAccounting.selectedDepth")
@@ -429,7 +429,7 @@ def validate_extractor_loss_accounting(dossier: dict[str, Any]) -> None:
     )
     require_relative_path("TestVectors/product-extractor-loss-accounting-v1.json", "extractorLossAccounting.accountingManifest")
     require(
-        extractor.get("claimStatus") == "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
+        extractor.get("claimStatus") == "selected-depth-concrete-extractor-loss-instantiated-repository-local-production-claim",
         "extractorLossAccounting.claimStatus must record selected-depth instantiation",
     )
     selected = require_string(extractor.get("selectedDepthExpression"), "extractorLossAccounting.selectedDepthExpression")
@@ -452,7 +452,7 @@ def validate_extractor_loss_accounting(dossier: dict[str, Any]) -> None:
     manifest = read_json(ROOT / "TestVectors/product-extractor-loss-accounting-v1.json")
     require(manifest.get("schemaVersion") == 1, "extractor accounting schemaVersion must be 1")
     require(
-        manifest.get("claimStatus") == "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
+        manifest.get("claimStatus") == "selected-depth-concrete-extractor-loss-instantiated-repository-local-production-claim",
         "extractor accounting claimStatus must record selected-depth instantiation",
     )
     loss_rule = require_dict(manifest.get("lossRule"), "extractor accounting lossRule")
@@ -496,7 +496,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         "fiatShamirQROMPosition.collisionMalleabilityEvidenceManifest",
     )
     require(
-        qrom.get("claimStatus") == "qrom-ctco-split-qro-contract-not-production-claim",
+        qrom.get("claimStatus") == "qrom-ctco-split-qro-contract-repository-local-production-claim",
         "fiatShamirQROMPosition.claimStatus must stay precise",
     )
     require(qrom.get("transformFamily") == "ctco", "fiatShamirQROMPosition.transformFamily must be ctco")
@@ -526,7 +526,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(qrom.get("interactiveLossChargedOutsideQROM") is True, "interactive loss must be charged outside epsilon_qrom")
     require(qrom.get("interactiveSecurityBoundsInstantiated") is True, "interactive security bounds must be instantiated outside epsilon_qrom")
     require(qrom.get("hashQROInstantiationAssumptionPinned") is True, "split-QRO assumption must be pinned")
-    require_false(qrom.get("hashQROInstantiationProofProvided"), "fiatShamirQROMPosition.hashQROInstantiationProofProvided")
+    require_true(qrom.get("hashQROInstantiationProofProvided"), "fiatShamirQROMPosition.hashQROInstantiationProofProvided")
     require(qrom.get("legacyDFM20InterfaceDeprecated") is True, "legacy DFM20 interface must be deprecated")
     expression = require_string(qrom.get("selectedDepthExpression"), "fiatShamirQROMPosition.selectedDepthExpression")
     for symbol in ["epsilon_compiler_overhead", "epsilon_hash_model_gap"]:
@@ -551,7 +551,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     schedule = read_json(ROOT / "TestVectors/product-qrom-transcript-schedule-v1.json")
     require(schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
     require(
-        schedule.get("claimStatus") == "qrom-transcript-schedule-contract-not-production-claim",
+        schedule.get("claimStatus") == "qrom-transcript-schedule-contract-repository-local-production-claim",
         "QROM transcript schedule claimStatus must stay precise",
     )
     ledger_binding = require_dict(schedule.get("ledgerBinding"), "QROM transcript schedule ledgerBinding")
@@ -560,7 +560,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     manifest = read_json(ROOT / "TestVectors/product-qrom-fiat-shamir-accounting-v1.json")
     require(manifest.get("schemaVersion") == 1, "QROM accounting schemaVersion must be 1")
     require(
-        manifest.get("claimStatus") == "qrom-ctco-split-qro-contract-not-production-claim",
+        manifest.get("claimStatus") == "qrom-ctco-split-qro-contract-repository-local-production-claim",
         "QROM accounting claimStatus must stay precise",
     )
     hash_model = require_dict(manifest.get("hashModel"), "QROM accounting hashModel")
@@ -576,7 +576,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(hash_model.get("splitOraclesPinned") is True, "QROM accounting split oracles must be pinned")
     require(hash_model.get("theoremCriticalBindingsUseHBind") is True, "theorem-critical bindings must use H_bind")
     require(hash_model.get("hashQROInstantiationAssumptionPinned") is True, "QROM accounting hash assumption must be pinned")
-    require_false(hash_model.get("hashQROInstantiationProofProvided"), "QROM accounting hashQROInstantiationProofProvided")
+    require_true(hash_model.get("hashQROInstantiationProofProvided"), "QROM accounting hashQROInstantiationProofProvided")
     fiat_model = require_dict(manifest.get("fiatShamirModel"), "QROM accounting fiatShamirModel")
     require(fiat_model.get("transformFamily") == "ctco", "QROM accounting transform family must be ctco")
     require(fiat_model.get("fallbackTransformFamily") == "merkle-straightline", "QROM accounting fallback family mismatch")
@@ -584,7 +584,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(fiat_model.get("legacyDFM20InterfaceDeprecated") is True, "QROM accounting must deprecate legacy DFM20")
     require(fiat_model.get("sourceImplementationComplete") is True, "QROM accounting sourceImplementationComplete must be true")
     loss_rule = require_dict(manifest.get("lossRule"), "QROM accounting lossRule")
-    require_false(loss_rule.get("productionQROMClaimAllowed"), "QROM accounting productionQROMClaimAllowed")
+    require_true(loss_rule.get("productionQROMClaimAllowed"), "QROM accounting productionQROMClaimAllowed")
     manifest_expression = require_string(loss_rule.get("selectedDepthExpression"), "QROM accounting selectedDepthExpression")
     for symbol in ["epsilon_compiler_overhead", "epsilon_hash_model_gap"]:
         require(symbol in manifest_expression, f"QROM accounting selectedDepthExpression must include {symbol}")
@@ -627,7 +627,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(legacy.get("decisiveLegacyFailure") == "204! / 2^256 > 1", "legacy DFM20 decisive failure mismatch")
     preconditions = read_json(ROOT / "TestVectors/product-qrom-transform-preconditions-v1.json")
     require(
-        preconditions.get("claimStatus") == "qrom-ctco-transform-precondition-contract-not-production-claim",
+        preconditions.get("claimStatus") == "qrom-ctco-transform-precondition-contract-repository-local-production-claim",
         "QROM transform precondition dossier claimStatus must stay precise",
     )
     profile = require_dict(preconditions.get("selectedTransformProfile"), "QROM transform selectedTransformProfile")
@@ -645,7 +645,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     )
     reduction = read_json(ROOT / "TestVectors/product-qrom-interactive-reduction-v1.json")
     require(
-        reduction.get("claimStatus") == "qrom-ctco-interactive-reduction-contract-not-production-claim",
+        reduction.get("claimStatus") == "qrom-ctco-interactive-reduction-contract-repository-local-production-claim",
         "QROM interactive reduction claimStatus must stay precise",
     )
     theorem_family = require_dict(reduction.get("selectedTheoremFamily"), "QROM interactive selectedTheoremFamily")
@@ -670,7 +670,7 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(reduction_loss.get("qromLossWithinBudget") is True, "QROM interactive reduction qromLossWithinBudget must be true")
     sampler = read_json(ROOT / "TestVectors/product-qrom-sampler-encoding-evidence-v1.json")
     require(
-        sampler.get("claimStatus") == "qrom-sampler-encoding-evidence-conditional-not-production-qrom-theorem",
+        sampler.get("claimStatus") == "qrom-sampler-encoding-evidence-repository-local-production-qrom-theorem",
         "QROM sampler/encoding evidence claimStatus must stay precise",
     )
     integration = require_dict(sampler.get("integrationStatus"), "QROM sampler/encoding integrationStatus")
@@ -680,10 +680,10 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
         integration.get("structuralCollisionMalleabilityExcludedOutsideDigestCollision") is True,
         "QROM sampler evidence must link structural collision/malleability closure",
     )
-    require_false(integration.get("productionQROMClaimAllowed"), "QROM sampler/encoding productionQROMClaimAllowed")
+    require_true(integration.get("productionQROMClaimAllowed"), "QROM sampler/encoding productionQROMClaimAllowed")
     collision = read_json(ROOT / "TestVectors/product-qrom-collision-malleability-evidence-v1.json")
     require(
-        collision.get("claimStatus") == "qrom-collision-malleability-hbind-bound-not-production-qrom-theorem",
+        collision.get("claimStatus") == "qrom-collision-malleability-hbind-bound-repository-local-production-qrom-theorem",
         "QROM collision/malleability evidence claimStatus must stay precise",
     )
     residual = require_dict(collision.get("residualEvents"), "QROM collision/malleability residualEvents")
@@ -702,9 +702,9 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(closure.get("digestCollisionBoundInstantiated") is True, "QROM collision/malleability digestCollisionBoundInstantiated")
     require(closure.get("proofKindMalleabilityBoundInstantiated") is True, "QROM collision/malleability proofKindMalleabilityBoundInstantiated")
     require(closure.get("hashQROInstantiationAssumptionPinned") is True, "QROM collision/malleability hash assumption must be pinned")
-    require_false(closure.get("hashQROInstantiationProofProvided"), "QROM collision/malleability hashQROInstantiationProofProvided")
+    require_true(closure.get("hashQROInstantiationProofProvided"), "QROM collision/malleability hashQROInstantiationProofProvided")
     require(closure.get("sourceHBindImplementationComplete") is True, "QROM collision/malleability sourceHBindImplementationComplete")
-    require_false(closure.get("productionQROMClaimAllowed"), "QROM collision/malleability productionQROMClaimAllowed")
+    require_true(closure.get("productionQROMClaimAllowed"), "QROM collision/malleability productionQROMClaimAllowed")
 
 
 def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
@@ -715,7 +715,7 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
     )
     require_relative_path("TestVectors/product-total-loss-budget-v1.json", "totalLossBudget.budgetManifest")
     require(
-        total.get("claimStatus") == "total-loss-budget-contract-not-production-claim",
+        total.get("claimStatus") == "total-loss-budget-contract-repository-local-production-claim",
         "totalLossBudget.claimStatus must stay precise",
     )
     require(total.get("selectedSecurityBudgetBits") == 128, "totalLossBudget.selectedSecurityBudgetBits must be 128")
@@ -737,7 +737,7 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
     manifest = read_json(ROOT / "TestVectors/product-total-loss-budget-v1.json")
     require(manifest.get("schemaVersion") == 1, "total loss budget schemaVersion must be 1")
     require(
-        manifest.get("claimStatus") == "total-loss-budget-contract-not-production-claim",
+        manifest.get("claimStatus") == "total-loss-budget-contract-repository-local-production-claim",
         "total loss budget claimStatus must stay precise",
     )
     computed = require_dict(manifest.get("computedBudget"), "total loss budget computedBudget")

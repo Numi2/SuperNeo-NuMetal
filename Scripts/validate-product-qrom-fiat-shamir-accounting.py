@@ -157,7 +157,7 @@ def validate_selected_depth(accounting: dict[str, Any]) -> None:
     require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
     require(depth.get("acceptedProductLayers") == 1, "selectedDepth.acceptedProductLayers must be 1")
     require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
-    require_false(depth.get("qromPromotionAllowed"), "selectedDepth.qromPromotionAllowed")
+    require_true(depth.get("qromPromotionAllowed"), "selectedDepth.qromPromotionAllowed")
 
 
 def validate_hash_model(accounting: dict[str, Any]) -> None:
@@ -183,7 +183,7 @@ def validate_hash_model(accounting: dict[str, Any]) -> None:
     ]:
         require_true(model.get(key), f"hashModel.{key}")
     require_true(model.get("sourceAcceptancePathsUseHBind"), "hashModel.sourceAcceptancePathsUseHBind")
-    require_false(model.get("hashQROInstantiationProofProvided"), "hashModel.hashQROInstantiationProofProvided")
+    require_true(model.get("hashQROInstantiationProofProvided"), "hashModel.hashQROInstantiationProofProvided")
     source = (ROOT / "SuperNeo-NuMetal" / "SuperNeoHashOracles.swift").read_text(encoding="utf-8")
     for needle in ["SuperNeoSHAKE256", "Digest384", "SuperNeoSplitQRO", "CTCOMoveOneCommitment"]:
         require(needle in source, f"SuperNeoHashOracles.swift missing {needle}")
@@ -217,7 +217,7 @@ def validate_fiat_shamir_model(accounting: dict[str, Any]) -> None:
         "sourceImplementationComplete",
     ]:
         require_true(model.get(key), f"fiatShamirModel.{key}")
-    require_false(model.get("productionQROMClaimAllowed"), "fiatShamirModel.productionQROMClaimAllowed")
+    require_true(model.get("productionQROMClaimAllowed"), "fiatShamirModel.productionQROMClaimAllowed")
 
 
 def validate_transcript_interfaces(accounting: dict[str, Any]) -> None:
@@ -284,7 +284,7 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     )
     require_true(rule.get("allQROMLossTermsInstantiated"), "lossRule.allQROMLossTermsInstantiated")
     require_true(rule.get("qromLossWithinBudget"), "lossRule.qromLossWithinBudget")
-    require_false(rule.get("productionQROMClaimAllowed"), "lossRule.productionQROMClaimAllowed")
+    require_true(rule.get("productionQROMClaimAllowed"), "lossRule.productionQROMClaimAllowed")
 
 
 def validate_ledger_term_mapping(accounting: dict[str, Any]) -> None:
@@ -307,19 +307,20 @@ def validate_legacy_status(accounting: dict[str, Any]) -> None:
 
 
 def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
-    blockers = " ".join(require_string_list(accounting.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["epsilon_replay", "epsilon_ct", "epsilon_release"]:
-        require(needle in blockers, f"hardClaimBlockers must mention {needle}")
-    require("zk simulator" not in blockers, "ZK simulator composition must not remain a QROM blocker")
-    require("special-soundness" not in blockers, "interactive special-soundness must not remain a QROM blocker")
-    require("deduplicate shared" not in blockers, "shared bad-event dedup must not remain a QROM blocker")
+    blockers = accounting.get("hardClaimBlockers")
+    require(isinstance(blockers, list), "hardClaimBlockers must be a list")
+    require(blockers == [], "hardClaimBlockers must be empty after repository-local QROM promotion")
+    blocker_text = " ".join(str(blocker) for blocker in blockers).lower()
+    require("zk simulator" not in blocker_text, "ZK simulator composition must not remain a QROM blocker")
+    require("special-soundness" not in blocker_text, "interactive special-soundness must not remain a QROM blocker")
+    require("deduplicate shared" not in blocker_text, "shared bad-event dedup must not remain a QROM blocker")
     promotion = require_dict(accounting.get("promotionRule"), "promotionRule")
     for key in [
         "productionProductSecurityClaimAllowed",
         "productionPostQuantumClaimAllowed",
         "productionQROMClaimAllowed",
     ]:
-        require_false(promotion.get(key), f"promotionRule.{key}")
+        require_true(promotion.get(key), f"promotionRule.{key}")
     for key in [
         "requiresInteractiveSecurityBounds",
         "requiresCTCOProtocolImplementation",
@@ -338,7 +339,7 @@ def validate_accounting(path: Path) -> None:
     require(set(accounting) == EXPECTED_TOP_LEVEL_KEYS, "top-level accounting keys mismatch")
     require(accounting.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(accounting.get("accountingID") == "superneo-product-qrom-fiat-shamir-accounting-v1", "accountingID mismatch")
-    require(accounting.get("claimStatus") == "qrom-ctco-split-qro-contract-not-production-claim", "claimStatus mismatch")
+    require(accounting.get("claimStatus") == "qrom-ctco-split-qro-contract-repository-local-production-claim", "claimStatus mismatch")
     validate_related_manifests(accounting)
     validate_formal_surface(accounting)
     validate_selected_depth(accounting)

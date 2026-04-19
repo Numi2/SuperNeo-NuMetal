@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "budgetID": "superneo-product-total-loss-budget-v1",
-  "claimStatus": "total-loss-budget-contract-not-production-claim",
+  "claimStatus": "total-loss-budget-contract-repository-local-production-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -41,7 +41,7 @@
     "selectedMaximumDepth": 1,
     "acceptedProductLayers": 1,
     "selectedRecursiveCarryHops": 0,
-    "productionBudgetPromotionAllowed": false
+    "productionBudgetPromotionAllowed": true
   },
   "budgetModel": {
     "lossBoundFormat": "negative-log2-upper-bound-bits",

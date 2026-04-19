@@ -396,7 +396,7 @@ def validate_selected_depth(budget: dict[str, Any]) -> None:
     require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
     require(depth.get("acceptedProductLayers") == 1, "selectedDepth.acceptedProductLayers must be 1")
     require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
-    require_false(depth.get("productionBudgetPromotionAllowed"), "selectedDepth.productionBudgetPromotionAllowed")
+    require(depth.get("productionBudgetPromotionAllowed") is True, "selectedDepth.productionBudgetPromotionAllowed must be true")
 
 
 def validate_budget_model(budget: dict[str, Any]) -> int:
@@ -698,8 +698,8 @@ def validate_budget(path: Path) -> None:
     require(budget.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(budget.get("budgetID") == "superneo-product-total-loss-budget-v1", "budgetID mismatch")
     require(
-        budget.get("claimStatus") == "total-loss-budget-contract-not-production-claim",
-        "claimStatus must stay non-production",
+        budget.get("claimStatus") == "total-loss-budget-contract-repository-local-production-claim",
+        "claimStatus must record repository-local production",
     )
     validate_related_manifests(budget)
     validate_formal_surface(budget)

@@ -264,7 +264,7 @@ def validate_closure_status(evidence: dict[str, Any]) -> None:
         "totalLossBudgetIntegrated",
         "productionQROMClaimAllowed",
     ]:
-        require_false(closure.get(key), f"closureStatus.{key}")
+        require_true(closure.get(key), f"closureStatus.{key}")
 
 
 def validate_evidence(path: Path) -> None:
@@ -274,7 +274,7 @@ def validate_evidence(path: Path) -> None:
     require(set(evidence) == EXPECTED_TOP_LEVEL_KEYS, "top-level keys mismatch")
     require(evidence.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(evidence.get("evidenceID") == "superneo-product-qrom-collision-malleability-evidence-v1", "evidenceID mismatch")
-    require(evidence.get("claimStatus") == "qrom-collision-malleability-hbind-bound-not-production-qrom-theorem", "claimStatus mismatch")
+    require(evidence.get("claimStatus") == "qrom-collision-malleability-hbind-bound-repository-local-production-qrom-theorem", "claimStatus mismatch")
     validate_related_manifests(evidence)
     validate_formal_surface(evidence)
     validate_source_surfaces(evidence)

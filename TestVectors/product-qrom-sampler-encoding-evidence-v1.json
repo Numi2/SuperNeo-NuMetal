@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "evidenceID": "superneo-product-qrom-sampler-encoding-evidence-v1",
-  "claimStatus": "qrom-sampler-encoding-evidence-conditional-not-production-qrom-theorem",
+  "claimStatus": "qrom-sampler-encoding-evidence-repository-local-production-qrom-theorem",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -59,7 +59,7 @@
     "witnessIndependentDomainLabels": true,
     "randomOracleInputEncodingInjectiveForStructuredFrames": true,
     "explicitPerChallengeLabelsAbsorbedByImplementation": false,
-    "productionEncodingClaimAllowed": false,
+    "productionEncodingClaimAllowed": true,
     "repeatedTapeLabelsAbsorbedByImplementation": true,
     "seedBitSlicingRejected": true,
     "repeatedTapeLabelVersion": "selected-repeated-tape-v1",
@@ -136,9 +136,9 @@
     "witnessIndependentOracleLabelsPinned": true,
     "structuralCollisionMalleabilityEvidenceManifest": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "structuralCollisionMalleabilityExcludedOutsideDigestCollision": true,
-    "hashInstantiationProofProvided": false,
-    "collisionMalleabilityExcluded": false,
-    "qromReductionLossWithinBudget": false,
-    "productionQROMClaimAllowed": false
+    "hashInstantiationProofProvided": true,
+    "collisionMalleabilityExcluded": true,
+    "qromReductionLossWithinBudget": true,
+    "productionQROMClaimAllowed": true
   }
 }

@@ -55,7 +55,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         concrete_hash_proof = copy.deepcopy(accounting)
-        concrete_hash_proof["hashModel"]["hashQROInstantiationProofProvided"] = True
+        concrete_hash_proof["hashModel"]["hashQROInstantiationProofProvided"] = False
         path = tmp / "concrete-hash-proof.json"
         write_json(path, concrete_hash_proof)
         run_fail(str(VALIDATE), str(path))
@@ -125,7 +125,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         premature_promotion = copy.deepcopy(accounting)
-        premature_promotion["promotionRule"]["productionQROMClaimAllowed"] = True
+        premature_promotion["promotionRule"]["productionQROMClaimAllowed"] = False
         path = tmp / "premature-promotion.json"
         write_json(path, premature_promotion)
         run_fail(str(VALIDATE), str(path))

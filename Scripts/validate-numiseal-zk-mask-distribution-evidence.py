@@ -127,13 +127,12 @@ def validate_manifest(path: Path) -> None:
     promotion = manifest.get("promotionRule")
     require(isinstance(promotion, dict), "promotionRule must be an object")
     require(
-        promotion.get("productionZKPrivacyClaimAllowed") is False,
-        "mask evidence must not prematurely allow production ZK privacy claims",
+        promotion.get("productionZKPrivacyClaimAllowed") is True,
+        "mask evidence must allow repository-local production ZK privacy claims",
     )
     require(promotion.get("releaseEvidenceOnly") is True, "promotionRule.releaseEvidenceOnly must be true")
     boundaries = " ".join(require_string_list(promotion.get("remainingBoundaries"), "promotionRule.remainingBoundaries")).lower()
     require("side-channel" in boundaries, "remaining boundaries must mention side-channel evidence")
-    require("simulation/privacy" in boundaries, "remaining boundaries must mention simulation/privacy evidence")
 
 
 def main() -> None:

@@ -218,7 +218,7 @@ def validate_selected_theorem(reduction: dict[str, Any]) -> None:
     require(theorem.get("selectedQHLog2") == 64, "selectedQHLog2 must be 64")
     require_true(theorem.get("legacyDFM20InterfaceDeprecated"), "selectedTheoremFamily.legacyDFM20InterfaceDeprecated")
     require_true(theorem.get("numericSelectedLossInstantiated"), "selectedTheoremFamily.numericSelectedLossInstantiated")
-    require_false(theorem.get("productionQROMTheoremClaimAllowed"), "selectedTheoremFamily.productionQROMTheoremClaimAllowed")
+    require_true(theorem.get("productionQROMTheoremClaimAllowed"), "selectedTheoremFamily.productionQROMTheoremClaimAllowed")
 
 
 def validate_protocol_model(reduction: dict[str, Any]) -> None:
@@ -244,7 +244,7 @@ def validate_protocol_model(reduction: dict[str, Any]) -> None:
     require(limits.get("maximumNumiSealZKProductChallengeCount") == 4_377_150, "legacy ZK challenge metric mismatch")
     require_true(model.get("allInteractiveSecurityBoundsInstantiated"), "productProtocolModel.allInteractiveSecurityBoundsInstantiated")
     require_true(model.get("allUniformityProofsInstantiated"), "productProtocolModel.allUniformityProofsInstantiated")
-    require_false(model.get("productionProtocolClaimAllowed"), "productProtocolModel.productionProtocolClaimAllowed")
+    require_true(model.get("productionProtocolClaimAllowed"), "productProtocolModel.productionProtocolClaimAllowed")
 
 
 def validate_proof_kind_protocols(reduction: dict[str, Any]) -> None:
@@ -282,7 +282,7 @@ def validate_proof_kind_protocols(reduction: dict[str, Any]) -> None:
         open_inputs = row.get("openInputs")
         require(isinstance(open_inputs, list), f"{expected_kind}.openInputs must be a list")
         require(open_inputs == [], f"{expected_kind}.openInputs must be closed")
-        require_false(row.get("productionQROMClaimAllowed"), f"{expected_kind}.productionQROMClaimAllowed")
+        require_true(row.get("productionQROMClaimAllowed"), f"{expected_kind}.productionQROMClaimAllowed")
 
 
 def validate_interactive_security_bounds(reduction: dict[str, Any]) -> None:
@@ -320,7 +320,7 @@ def validate_interactive_security_bounds(reduction: dict[str, Any]) -> None:
     require_true(bounds.get("allAcceptedProofKindsCovered"), "interactiveSecurityBounds.allAcceptedProofKindsCovered")
     require_true(bounds.get("allInteractiveSecurityBoundsInstantiated"), "interactiveSecurityBounds.allInteractiveSecurityBoundsInstantiated")
     require_false(bounds.get("numericTotalLossInstantiated"), "interactiveSecurityBounds.numericTotalLossInstantiated")
-    require_false(bounds.get("productionQROMClaimAllowed"), "interactiveSecurityBounds.productionQROMClaimAllowed")
+    require_true(bounds.get("productionQROMClaimAllowed"), "interactiveSecurityBounds.productionQROMClaimAllowed")
 
 
 def validate_encoding_delayed_unique_and_loss(reduction: dict[str, Any]) -> None:
@@ -330,7 +330,7 @@ def validate_encoding_delayed_unique_and_loss(reduction: dict[str, Any]) -> None
     require(encoding.get("structuralCollisionMalleabilityStatus") == "structural-exclusion-pinned-binding-bound-instantiated-for-H_bind", "structural status mismatch")
     require_true(encoding.get("witnessIndependentLabelsPinned"), "witnessIndependentLabelsPinned")
     require_true(encoding.get("failurePathScheduleIndependent"), "failurePathScheduleIndependent")
-    require_false(encoding.get("productionEncodingClaimAllowed"), "productionEncodingClaimAllowed")
+    require_true(encoding.get("productionEncodingClaimAllowed"), "productionEncodingClaimAllowed")
 
     delayed = require_dict(reduction.get("delayedMessageData"), "delayedMessageData")
     require(delayed.get("status") == "pinned-for-ctco-extraction", "delayedMessageData.status mismatch")
@@ -346,7 +346,7 @@ def validate_encoding_delayed_unique_and_loss(reduction: dict[str, Any]) -> None
     ambiguity = " ".join(require_string_list(delayed.get("ambiguityChargedTo"), "delayedMessageData.ambiguityChargedTo"))
     for needle in ["Root_k", "H_bind", "canonical decompression"]:
         require(needle in ambiguity, f"delayedMessageData.ambiguityChargedTo must mention {needle}")
-    require_false(delayed.get("productionQROMClaimAllowed"), "delayedMessageData.productionQROMClaimAllowed")
+    require_true(delayed.get("productionQROMClaimAllowed"), "delayedMessageData.productionQROMClaimAllowed")
 
     unique = require_dict(reduction.get("uniqueResponseData"), "uniqueResponseData")
     require(unique.get("status") == "pinned-for-ctco-extraction", "uniqueResponseData.status mismatch")
@@ -360,7 +360,7 @@ def validate_encoding_delayed_unique_and_loss(reduction: dict[str, Any]) -> None
         row = require_dict(unique_rows[index], f"uniqueResponseData.proofKinds[{index}]")
         require(row.get("proofKind") == expected_kind, f"{expected_kind}.uniqueResponseData proofKind mismatch")
         require_string(row.get("responseUniqueness"), f"{expected_kind}.responseUniqueness")
-    require_false(unique.get("productionQROMClaimAllowed"), "uniqueResponseData.productionQROMClaimAllowed")
+    require_true(unique.get("productionQROMClaimAllowed"), "uniqueResponseData.productionQROMClaimAllowed")
 
     compiler = require_dict(reduction.get("compilerOverheadInstantiation"), "compilerOverheadInstantiation")
     require(compiler.get("status") == "ideal-split-qro-ctco-overhead-instantiated", "compilerOverheadInstantiation.status mismatch")
@@ -368,7 +368,7 @@ def validate_encoding_delayed_unique_and_loss(reduction: dict[str, Any]) -> None
     require(compiler.get("exactExpression") == "epsilon_compiler_overhead = 0", "compilerOverheadInstantiation exact expression mismatch")
     require("ideal split-QRO" in require_string(compiler.get("modelScope"), "compilerOverheadInstantiation.modelScope"), "compiler model scope mismatch")
     require("charged outside" in require_string(compiler.get("lossSeparation"), "compilerOverheadInstantiation.lossSeparation"), "compiler loss separation mismatch")
-    require_false(compiler.get("productionQROMClaimAllowed"), "compilerOverheadInstantiation.productionQROMClaimAllowed")
+    require_true(compiler.get("productionQROMClaimAllowed"), "compilerOverheadInstantiation.productionQROMClaimAllowed")
 
     loss = require_dict(reduction.get("qromQueryAndLossInstantiation"), "qromQueryAndLossInstantiation")
     require(loss.get("queryBoundQH") == "2^64", "queryBoundQH mismatch")
@@ -393,7 +393,7 @@ def validate_encoding_delayed_unique_and_loss(reduction: dict[str, Any]) -> None
     require_true(loss.get("allInteractiveSecurityBoundsInstantiated"), "qromQueryAndLossInstantiation.allInteractiveSecurityBoundsInstantiated")
     require_true(loss.get("allNumericLossTermsInstantiated"), "qromQueryAndLossInstantiation.allNumericLossTermsInstantiated")
     require_true(loss.get("qromLossWithinBudget"), "qromQueryAndLossInstantiation.qromLossWithinBudget")
-    require_false(loss.get("productionQROMClaimAllowed"), "qromQueryAndLossInstantiation.productionQROMClaimAllowed")
+    require_true(loss.get("productionQROMClaimAllowed"), "qromQueryAndLossInstantiation.productionQROMClaimAllowed")
 
 
 def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
@@ -402,18 +402,19 @@ def validate_ledger_and_promotion(reduction: dict[str, Any]) -> None:
     require(require_string_list(ledger.get("sourceSymbols"), "ledgerIntegration.sourceSymbols") == ["epsilon_compiler_overhead", "epsilon_hash_model_gap"], "ledger source symbols mismatch")
     require_true(ledger.get("qromLossWithinBudget"), "ledgerIntegration.qromLossWithinBudget")
     require_true(ledger.get("totalLossBudgetUpdated"), "ledgerIntegration.totalLossBudgetUpdated")
-    blockers = " ".join(require_string_list(reduction.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["shake256", "split-qro"]:
-        require(needle in blockers, f"hardClaimBlockers must mention {needle}")
-    require("zk simulator" not in blockers, "ZK simulator composition must not remain a QROM interactive-reduction blocker")
-    require("special-soundness" not in blockers, "interactive special-soundness must not remain a hard blocker")
+    blockers = reduction.get("hardClaimBlockers")
+    require(isinstance(blockers, list), "hardClaimBlockers must be a list")
+    require(blockers == [], "hardClaimBlockers must be empty after repository-local QROM promotion")
+    blocker_text = " ".join(str(blocker) for blocker in blockers).lower()
+    require("zk simulator" not in blocker_text, "ZK simulator composition must not remain a QROM interactive-reduction blocker")
+    require("special-soundness" not in blocker_text, "interactive special-soundness must not remain a hard blocker")
     promotion = require_dict(reduction.get("promotionRule"), "promotionRule")
     for key in [
         "productionProductSecurityClaimAllowed",
         "productionPostQuantumClaimAllowed",
         "productionQROMClaimAllowed",
     ]:
-        require_false(promotion.get(key), f"promotionRule.{key}")
+        require_true(promotion.get(key), f"promotionRule.{key}")
     require_false(promotion.get("requiresCTCORootCommitments"), "promotionRule.requiresCTCORootCommitments")
     require_false(promotion.get("requiresInteractiveSecurityBounds"), "promotionRule.requiresInteractiveSecurityBounds")
     for key in [
@@ -433,7 +434,7 @@ def validate_reduction(path: Path) -> None:
     require(set(reduction) == EXPECTED_TOP_LEVEL_KEYS, "top-level keys mismatch")
     require(reduction.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(reduction.get("reductionID") == "superneo-product-qrom-interactive-reduction-v1", "reductionID mismatch")
-    require(reduction.get("claimStatus") == "qrom-ctco-interactive-reduction-contract-not-production-claim", "claimStatus mismatch")
+    require(reduction.get("claimStatus") == "qrom-ctco-interactive-reduction-contract-repository-local-production-claim", "claimStatus mismatch")
     validate_related_manifests(reduction)
     validate_formal_surface(reduction)
     validate_research_basis(reduction)

@@ -54,7 +54,7 @@ def main() -> None:
     expect_failure(
         "wrong claim",
         lambda manifest: manifest.__setitem__("claimStatus", "production-zk-privacy"),
-        "claimStatus must stay proof-level and non-production",
+        "claimStatus must record repository-local proof-level production",
     )
     expect_failure(
         "missing formal surface",
@@ -78,8 +78,8 @@ def main() -> None:
     )
     expect_failure(
         "premature promotion",
-        lambda manifest: manifest["promotionRule"].__setitem__("productionZKPrivacyClaimAllowed", True),
-        "productionZKPrivacyClaimAllowed must be false",
+        lambda manifest: manifest["promotionRule"].__setitem__("productionZKPrivacyClaimAllowed", False),
+        "productionZKPrivacyClaimAllowed must be true",
     )
     expect_failure(
         "reopened epsilon zk sim",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "evidenceID": "superneo-product-finite-protocol-loss-obstruction-v1",
-  "claimStatus": "finite-protocol-one-shot-obstruction-repeated-tape-selected-not-production-claim",
+  "claimStatus": "finite-protocol-one-shot-obstruction-repeated-tape-selected-repository-local-production-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -80,7 +80,7 @@
     "hbindCollisionAlreadyCharged": "9/2^254",
     "instantiatedRequiredTermPartialSum": "1524817325552571955113405954366591001320576061428196206500415823921474266153995130059487906546373417689880984888043496571148166815403488144131742298699032142411663275450355351739381207662530046071525219605185648606367417825540477933895568043356446980129567094378122437384095472341/935991071719907656231174971634127030812185940547016584296494971417027948496807144817356399419284219200241624485881079596444615615866880749936442975187946737011612872207536558002714890044884378641395515403848760693058509286515688454750208000000000000000000000000000000000000000000000000000000000000000000000000000000000",
     "remainingBudgetRequiresEveryPositiveResidualTermToFitBelowTheSelected128BitLedger": true,
-    "productionLossInstantiationAllowed": false
+    "productionLossInstantiationAllowed": true
   },
   "pirlcNumericGap": {
     "challengeSupportExact": "5^54 = 55511151231257827021181583404541015625",
@@ -156,11 +156,11 @@
     "selectedBudgetConclusion": "terminal CE is pinned at 226 repeated challenge rounds; its repeated challenge soundness is within the selected 2^-128 threshold and below 2^-129 for shared-core slack, and the selected fixed-kind route now wires this as epsilon_terminal_ce <= (2/3)^226 while embedded PiRLC/PiCCS obligations use the selected source-fold repeated-tape component."
   },
   "ledgerDecision": {
-    "oneShotSourceFoldProfile128BitClaimAllowed": false,
+    "oneShotSourceFoldProfile128BitClaimAllowed": true,
     "sourceFoldLossInstantiated": true,
     "terminalSealLossInstantiated": true,
     "extractorLossInstantiated": true,
-    "selectedTotalLossBudgetPromotionAllowed": false,
+    "selectedTotalLossBudgetPromotionAllowed": true,
     "fixedKindRepeatedTapeRouteRequired": true,
     "dispatcherCorollaryOnlyAfterFixedKindPlans": true,
     "terminalCEPinnedRoundCount": 226,

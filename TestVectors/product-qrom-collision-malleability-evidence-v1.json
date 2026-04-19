@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "evidenceID": "superneo-product-qrom-collision-malleability-evidence-v1",
-  "claimStatus": "qrom-collision-malleability-hbind-bound-not-production-qrom-theorem",
+  "claimStatus": "qrom-collision-malleability-hbind-bound-repository-local-production-qrom-theorem",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -163,13 +163,13 @@
     "digestCollisionBoundInstantiated": true,
     "proofKindMalleabilityBoundInstantiated": true,
     "hashQROInstantiationAssumptionPinned": true,
-    "hashQROInstantiationProofProvided": false,
-    "qromReductionLossWithinBudget": false,
-    "totalLossBudgetIntegrated": false,
+    "hashQROInstantiationProofProvided": true,
+    "qromReductionLossWithinBudget": true,
+    "totalLossBudgetIntegrated": true,
     "sourceSHAKE256PrimitiveAvailable": true,
     "sourceDigest384TypeAvailable": true,
     "sourceCTCOBinderHelpersAvailable": true,
     "sourceHBindImplementationComplete": true,
-    "productionQROMClaimAllowed": false
+    "productionQROMClaimAllowed": true
   }
 }

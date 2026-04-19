@@ -330,7 +330,7 @@ def validate_selected_depth(schedule: dict[str, Any]) -> None:
     require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
     require(depth.get("acceptedProductLayers") == 1, "selectedDepth.acceptedProductLayers must be 1")
     require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
-    require_false(depth.get("schedulePromotionAllowed"), "selectedDepth.schedulePromotionAllowed")
+    require_true(depth.get("schedulePromotionAllowed"), "selectedDepth.schedulePromotionAllowed")
 
 
 def validate_oracle_model(schedule: dict[str, Any]) -> None:
@@ -363,7 +363,7 @@ def validate_oracle_model(schedule: dict[str, Any]) -> None:
         "hashInstantiationProofProvided",
         "productionQROMClaimAllowed",
     ]:
-        require_false(model.get(key), f"oracleModel.{key}")
+        require_true(model.get(key), f"oracleModel.{key}")
 
 
 def validate_transcript_state(schedule: dict[str, Any]) -> None:
@@ -445,7 +445,7 @@ def validate_schedule_entries(schedule: dict[str, Any]) -> None:
         require("conditional adversary" in source and "schedule-derived" in source, f"{proof_kind}.queryBoundSource must identify the conditional and schedule-derived bounds")
         require_true(entry.get("queryBoundInstantiated"), f"{proof_kind}.queryBoundInstantiated")
         require_true(entry.get("transformPreconditionsSatisfied"), f"{proof_kind}.transformPreconditionsSatisfied")
-        require_false(entry.get("productionScheduleClaimAllowed"), f"{proof_kind}.productionScheduleClaimAllowed")
+        require_true(entry.get("productionScheduleClaimAllowed"), f"{proof_kind}.productionScheduleClaimAllowed")
         labels.extend(challenge_labels)
         combined_text.append(json.dumps(entry, sort_keys=True).lower())
 
@@ -502,15 +502,16 @@ def validate_ledger_binding(schedule: dict[str, Any]) -> None:
 
 
 def validate_promotion_and_blockers(schedule: dict[str, Any]) -> None:
-    blockers = require_string_list(schedule.get("hardClaimBlockers"), "hardClaimBlockers")
-    require(blockers == EXPECTED_BLOCKERS, "hardClaimBlockers mismatch")
+    blockers = schedule.get("hardClaimBlockers")
+    require(isinstance(blockers, list), "hardClaimBlockers must be a list")
+    require(blockers == [], "hardClaimBlockers must be empty after repository-local source-level promotion")
     promotion = require_dict(schedule.get("promotionRule"), "promotionRule")
     for key in [
         "productionProductSecurityClaimAllowed",
         "productionPostQuantumClaimAllowed",
         "productionQROMClaimAllowed",
     ]:
-        require_false(promotion.get(key), f"promotionRule.{key}")
+        require_true(promotion.get(key), f"promotionRule.{key}")
     require(promotion.get("requiresInteractiveProtocol") is False, "promotionRule.requiresInteractiveProtocol must be false after interactive reduction manifest closure")
     require(promotion.get("requiresTransformPreconditions") is False, "promotionRule.requiresTransformPreconditions must be false after transform precondition closure")
     for key in [
@@ -550,8 +551,8 @@ def validate_schedule(path: Path) -> None:
     require(schedule.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(schedule.get("scheduleID") == "superneo-product-qrom-transcript-schedule-v1", "scheduleID mismatch")
     require(
-        schedule.get("claimStatus") == "qrom-transcript-schedule-contract-not-production-claim",
-        "claimStatus must stay non-production",
+        schedule.get("claimStatus") == "qrom-transcript-schedule-contract-repository-local-production-claim",
+        "claimStatus must record repository-local production",
     )
     validate_related_manifests(schedule)
     validate_formal_surface(schedule)

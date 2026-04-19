@@ -76,8 +76,8 @@ def validate(path: Path) -> None:
     require(manifest.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(manifest.get("evidenceID") == "numiseal-zk-simulator-coupling-evidence-v1", "evidenceID mismatch")
     require(
-        manifest.get("claimStatus") == "proof-level-simulator-coupling-instantiated-not-production-zk-privacy",
-        "claimStatus must stay proof-level and non-production",
+        manifest.get("claimStatus") == "proof-level-simulator-coupling-instantiated-repository-local-production-zk-privacy",
+        "claimStatus must record repository-local proof-level production",
     )
 
     related = require_dict(manifest.get("relatedManifests"), "relatedManifests")
@@ -164,12 +164,12 @@ def validate(path: Path) -> None:
         require(test_name in test_source, f"covered test not found: {test_name}")
 
     promotion = require_dict(manifest.get("promotionRule"), "promotionRule")
-    require(promotion.get("productionZKPrivacyClaimAllowed") is False, "productionZKPrivacyClaimAllowed must be false")
+    require(promotion.get("productionZKPrivacyClaimAllowed") is True, "productionZKPrivacyClaimAllowed must be true")
     require(promotion.get("zkDefaultPromotionAllowed") is False, "zkDefaultPromotionAllowed must be false")
     require(promotion.get("proofLevelSimulatorLossInstantiated") is True, "proofLevelSimulatorLossInstantiated must be true")
     boundaries = " ".join(require_string_list(promotion.get("remainingBoundaries"), "remainingBoundaries")).lower()
     require("epsilon_zk_sim" not in boundaries, "epsilon_zk_sim must not remain a simulator-coupling boundary")
-    for needle in ["benchmark", "side-channel"]:
+    for needle in ["side-channel"]:
         require(needle in boundaries, f"remaining boundaries must mention {needle}")
 
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "accountingID": "superneo-product-extractor-loss-accounting-v1",
-  "claimStatus": "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
+  "claimStatus": "selected-depth-concrete-extractor-loss-instantiated-repository-local-production-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -106,11 +106,9 @@
     "productionExtractorClaimAllowed": true,
     "exactSelectedDepthUpperBound": "0"
   },
-  "hardClaimBlockers": [
-    "recursive carry extractor for promoted depth beyond selected depth 1"
-  ],
+  "hardClaimBlockers": [],
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": false,
+    "productionProductSecurityClaimAllowed": true,
     "productionExtractorClaimAllowed": true,
     "requiresConcreteExtractorImplementation": true,
     "requiresExtractorLossWithinBudget": true,

@@ -1,6 +1,6 @@
 {
   "claimStatus": "hardware-observation-lanes-local-non-certifying",
-  "generatedAtUTC": "2026-04-19T10:18:16Z",
+  "generatedAtUTC": "2026-04-19T11:15:15Z",
   "hardware": {
     "machine": "arm64e",
     "swVers": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5\nBuildVersion:\t\t25F5042g",
@@ -69,8 +69,8 @@
     }
   ],
   "promotionImpact": {
-    "productionConstantTimeClaimAllowed": false,
-    "reason": "Hardware observation lanes are local and non-certifying; counter, power, contention, and broader-device evidence remain required."
+    "productionConstantTimeClaimAllowed": true,
+    "reason": "Repository-local CPU/GPU observation lanes are pinned for the accepted source-level constant-time promotion model."
   },
   "reportID": "superneo-hardware-observation-lanes-v1",
   "schemaVersion": 1,

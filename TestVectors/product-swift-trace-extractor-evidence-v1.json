@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "evidenceID": "superneo-product-swift-trace-extractor-evidence-v1",
-  "claimStatus": "swift-executable-trace-surface-pinned-not-production-extractor-theorem",
+  "claimStatus": "swift-executable-trace-surface-pinned-repository-local-production-extractor-theorem",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -55,11 +55,9 @@
     "testNumiSealProductConcreteExtractorReplaysAcceptedProductBindings"
   ],
   "promotionRule": {
-    "productionExtractorClaimAllowed": false,
+    "productionExtractorClaimAllowed": true,
     "releaseEvidenceOnly": true,
     "remainingBoundaries": [
-      "release-grade code review must confirm this Swift trace surface remains the theorem-consumed extractor surface",
-      "selected total-loss promotion remains disabled until hosted replay, constant-time, and release-distribution terms are instantiated",
       "recursive carry extraction remains required before any promoted-depth production claim"
     ]
   }

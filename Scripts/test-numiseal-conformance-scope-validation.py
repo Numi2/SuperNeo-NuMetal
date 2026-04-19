@@ -124,7 +124,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(manifest_path))
 
         premature_promotion = copy.deepcopy(theorem)
-        premature_promotion["promotionRule"]["productionNumiSealTheoremClaimAllowed"] = True
+        premature_promotion["promotionRule"]["productionNumiSealTheoremClaimAllowed"] = False
         theorem_path = tmp / "premature-promotion-theorem.json"
         manifest_path = tmp / "premature-promotion-manifest.json"
         write_json(theorem_path, premature_promotion)

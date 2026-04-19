@@ -126,9 +126,9 @@ def duplicate_artifact_json_key(manifest: dict[str, Any], vectors_dir: Path) -> 
     vector_path = vectors_dir / file_name
     vector_path.unlink()
     text = (VECTORS / file_name).read_text(encoding="utf-8")
-    marker = '    "selectedCount" : "1"\n'
+    marker = '    "selectedCount": "1"\n'
     vector_path.write_text(
-        replace_once(text, marker, '    "selectedCount" : "1",\n' + marker),
+        replace_once(text, marker, '    "selectedCount": "1",\n' + marker),
         encoding="utf-8",
     )
     data = vector_path.read_bytes()

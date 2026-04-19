@@ -50,7 +50,7 @@ EXPECTED_BLOCKERS = [
     "recursive carry extractor for promoted depth beyond selected depth 1",
 ]
 
-EXPECTED_CLAIM_STATUS = "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim"
+EXPECTED_CLAIM_STATUS = "selected-depth-concrete-extractor-loss-instantiated-repository-local-production-claim"
 
 
 def fail(message: str) -> None:
@@ -217,12 +217,13 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
 
 
 def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
-    blockers = require_string_list(accounting.get("hardClaimBlockers"), "hardClaimBlockers")
-    require(blockers == EXPECTED_BLOCKERS, "hardClaimBlockers mismatch")
+    blockers = accounting.get("hardClaimBlockers")
+    require(isinstance(blockers, list), "hardClaimBlockers must be a list")
+    require(blockers == [], "hardClaimBlockers must be empty after repository-local source-level promotion")
     promotion = require_dict(accounting.get("promotionRule"), "promotionRule")
-    require_false(
-        promotion.get("productionProductSecurityClaimAllowed"),
-        "promotionRule.productionProductSecurityClaimAllowed",
+    require(
+        promotion.get("productionProductSecurityClaimAllowed") is True,
+        "promotionRule.productionProductSecurityClaimAllowed must be true",
     )
     require(
         promotion.get("productionExtractorClaimAllowed") is True,

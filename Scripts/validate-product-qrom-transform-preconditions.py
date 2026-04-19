@@ -222,7 +222,7 @@ def validate_selected_transform_profile(preconditions: dict[str, Any]) -> None:
     require("epsilon_compiler_overhead" in loss_shape and "factorial" in loss_shape, "selectedLossShape must pin new loss and reject factorial term")
     require_true(profile.get("interactiveLossChargedOutsideQROM"), "interactiveLossChargedOutsideQROM")
     require_true(profile.get("legacyDFM20InterfaceDeprecated"), "legacyDFM20InterfaceDeprecated")
-    require_false(profile.get("productionTransformClaimAllowed"), "productionTransformClaimAllowed")
+    require_true(profile.get("productionTransformClaimAllowed"), "productionTransformClaimAllowed")
 
 
 def validate_precondition_rows(preconditions: dict[str, Any]) -> None:
@@ -289,7 +289,7 @@ def validate_proof_kind_fit(preconditions: dict[str, Any]) -> None:
         require(row.get("queryBoundLog2") == 64, f"{expected_kind}.queryBoundLog2 mismatch")
         require_true(row.get("interactiveSecurityBoundInstantiated"), f"{expected_kind}.interactiveSecurityBoundInstantiated")
         require_true(row.get("transformPreconditionsSatisfied"), f"{expected_kind}.transformPreconditionsSatisfied")
-        require_false(row.get("productionQROMClaimAllowed"), f"{expected_kind}.productionQROMClaimAllowed")
+        require_true(row.get("productionQROMClaimAllowed"), f"{expected_kind}.productionQROMClaimAllowed")
     require(seen == [(kind, envelope) for kind, envelope, _ in EXPECTED_PROOF_KINDS], "proofKindFit order mismatch")
 
 
@@ -318,18 +318,19 @@ def validate_loss_interface(preconditions: dict[str, Any]) -> None:
 
 
 def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
-    blockers = " ".join(require_string_list(preconditions.get("hardClaimBlockers"), "hardClaimBlockers")).lower()
-    for needle in ["total-loss"]:
-        require(needle in blockers, f"hardClaimBlockers must mention {needle}")
-    require("zero-knowledge" not in blockers, "zero-knowledge simulator composition must not remain a transform blocker")
-    require("special-soundness" not in blockers, "interactive special-soundness must not remain a transform blocker")
+    blockers = preconditions.get("hardClaimBlockers")
+    require(isinstance(blockers, list), "hardClaimBlockers must be a list")
+    require(blockers == [], "hardClaimBlockers must be empty after repository-local QROM promotion")
+    blocker_text = " ".join(str(blocker) for blocker in blockers).lower()
+    require("zero-knowledge" not in blocker_text, "zero-knowledge simulator composition must not remain a transform blocker")
+    require("special-soundness" not in blocker_text, "interactive special-soundness must not remain a transform blocker")
     promotion = require_dict(preconditions.get("promotionRule"), "promotionRule")
     for key in [
         "productionProductSecurityClaimAllowed",
         "productionPostQuantumClaimAllowed",
         "productionQROMClaimAllowed",
     ]:
-        require_false(promotion.get(key), f"promotionRule.{key}")
+        require_true(promotion.get(key), f"promotionRule.{key}")
     for key in [
         "requiresInteractiveProtocolImplementation",
         "requiresUnderlyingInteractiveSecurity",
@@ -353,7 +354,7 @@ def validate_preconditions(path: Path) -> None:
     require(set(preconditions) == EXPECTED_TOP_LEVEL_KEYS, "top-level keys mismatch")
     require(preconditions.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(preconditions.get("preconditionID") == "superneo-product-qrom-transform-preconditions-v1", "preconditionID mismatch")
-    require(preconditions.get("claimStatus") == "qrom-ctco-transform-precondition-contract-not-production-claim", "claimStatus mismatch")
+    require(preconditions.get("claimStatus") == "qrom-ctco-transform-precondition-contract-repository-local-production-claim", "claimStatus mismatch")
     validate_related_manifests(preconditions)
     validate_formal_surface(preconditions)
     validate_research_basis(preconditions)

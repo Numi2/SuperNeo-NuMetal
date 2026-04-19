@@ -5,8 +5,8 @@
   "vectors": [
     {
       "file": "one-hot-vector-fold-v1.json",
-      "sha256": "82df62676d7dc90163068ae0ecbfddd1e44afb06516f40f2623a10c317adc9dc",
-      "byteCount": 1387926,
+      "sha256": "5f982fd2af135e2550f64cb0843996afad60a9c5cad4c22cb5ae5a8764f37fe9",
+      "byteCount": 1382789,
       "workload": "one-hot-vector-v1",
       "proofKind": "fold",
       "bitCount": 8,
@@ -22,8 +22,8 @@
     },
     {
       "file": "one-hot-vector-terminal-v1.json",
-      "sha256": "769e264d7a5df304be28cf44fb8ecba57270ea946ea36ef15d57019140cd3d13",
-      "byteCount": 5781736,
+      "sha256": "8914adff778ab332a7bc8ead574ffa458ff73a278354529169daeaa6f198deac",
+      "byteCount": 5734857,
       "workload": "one-hot-vector-v1",
       "proofKind": "terminal",
       "bitCount": 8,
@@ -39,8 +39,8 @@
     },
     {
       "file": "one-hot-vector-compressed-terminal-v1.json",
-      "sha256": "4426859722d0fd9c2ccb7072eb987ee04b8880b80353eba841bdcd57895f9487",
-      "byteCount": 5552394,
+      "sha256": "76d52670162c79aa2c6678a506ccab1f73fa3848f4b9fd8eed50ccf7e6422964",
+      "byteCount": 5505828,
       "workload": "one-hot-vector-v1",
       "proofKind": "compressed-terminal",
       "bitCount": 8,
@@ -56,8 +56,8 @@
     },
     {
       "file": "binary-addition-u8-fold-v1.json",
-      "sha256": "fabf5061c5fe20d3e3897c1139e6a8ec98bccebb64c596b9eb5179532620fb95",
-      "byteCount": 1391450,
+      "sha256": "12bcb3359dc6ea25838b24515c981d897936768f1be96a0b2dcba98a97a41046",
+      "byteCount": 1384129,
       "workload": "binary-addition-v1",
       "proofKind": "fold",
       "bitCount": 8,
@@ -82,8 +82,8 @@
     },
     {
       "file": "binary-addition-u8-terminal-v1.json",
-      "sha256": "4cd860fd914dc14de725c34e627e94ae6c5c5ba425fbae1e23d592a9ca5114e6",
-      "byteCount": 9460555,
+      "sha256": "1eebbeb118f5f77262fef25f20575d1c0523d03dc78869f9271d356131f70b08",
+      "byteCount": 9381425,
       "workload": "binary-addition-v1",
       "proofKind": "terminal",
       "bitCount": 8,

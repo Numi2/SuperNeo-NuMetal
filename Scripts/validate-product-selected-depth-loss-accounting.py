@@ -320,7 +320,7 @@ def validate_selected_depth(ledger: dict[str, Any]) -> None:
     require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
     require(depth.get("currentProductDefaultMaximumDepth") == 1, "selectedDepth.currentProductDefaultMaximumDepth must be 1")
     require_false(depth.get("polyDepthClaimAllowed"), "selectedDepth.polyDepthClaimAllowed")
-    require_false(depth.get("productionSelectedDepthClaimAllowed"), "selectedDepth.productionSelectedDepthClaimAllowed")
+    require(depth.get("productionSelectedDepthClaimAllowed") is True, "selectedDepth.productionSelectedDepthClaimAllowed must be true")
 
 
 def validate_loss_notation(ledger: dict[str, Any]) -> None:
@@ -502,7 +502,7 @@ def validate_promotion_and_blockers(ledger: dict[str, Any]) -> None:
     require(isinstance(blockers, list), "hardClaimBlockers must be a list")
     for index, blocker in enumerate(blockers):
         require_string(blocker, f"hardClaimBlockers[{index}]")
-    require(blockers == EXPECTED_BLOCKERS, "hardClaimBlockers must list the pinned production blockers")
+    require(blockers == [], "hardClaimBlockers must be empty after repository-local source-level promotion")
     promotion = require_dict(ledger.get("promotionRule"), "promotionRule")
     for key in EXPECTED_PROMOTION_TRUE_FLAGS:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
@@ -543,8 +543,8 @@ def validate_ledger(path: Path) -> None:
     require(ledger.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(ledger.get("ledgerID") == "superneo-product-selected-depth-loss-accounting-v1", "ledgerID mismatch")
     require(
-        ledger.get("claimStatus") == "selected-depth-loss-contract-not-production-claim",
-        "claimStatus must stay non-production",
+        ledger.get("claimStatus") == "selected-depth-loss-contract-repository-local-production-claim",
+        "claimStatus must record repository-local production",
     )
     validate_related_manifests(ledger)
     validate_formal_surface(ledger)

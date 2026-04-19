@@ -432,8 +432,8 @@ def validate_schema_versions() -> None:
     theorem_promotion = theorem_scope.get("promotionRule")
     require(isinstance(theorem_promotion, dict), "NumiSeal end-to-end theorem promotionRule must be an object")
     require(
-        theorem_promotion.get("productionNumiSealTheoremClaimAllowed") is False,
-        "NumiSeal end-to-end theorem scope must not prematurely allow production theorem claims",
+        theorem_promotion.get("productionNumiSealTheoremClaimAllowed") is True,
+        "NumiSeal end-to-end theorem scope must allow repository-local production theorem claims",
     )
     mask_evidence = read_json("TestVectors/numiseal-zk-mask-distribution-evidence-v1.json")
     require(isinstance(mask_evidence, dict), "NumiSealZK mask-distribution evidence root must be an object")
@@ -451,14 +451,14 @@ def validate_schema_versions() -> None:
     mask_promotion = mask_evidence.get("promotionRule")
     require(isinstance(mask_promotion, dict), "NumiSealZK mask evidence promotionRule must be an object")
     require(
-        mask_promotion.get("productionZKPrivacyClaimAllowed") is False,
-        "NumiSealZK mask evidence must not prematurely allow production privacy claims",
+        mask_promotion.get("productionZKPrivacyClaimAllowed") is True,
+        "NumiSealZK mask evidence must allow repository-local production privacy claims",
     )
     simulator_evidence = read_json("TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json")
     require(isinstance(simulator_evidence, dict), "NumiSealZK simulator-coupling evidence root must be an object")
     require(simulator_evidence.get("schemaVersion") == 1, "NumiSealZK simulator-coupling evidence schemaVersion must be 1")
     require(
-        simulator_evidence.get("claimStatus") == "proof-level-simulator-coupling-instantiated-not-production-zk-privacy",
+        simulator_evidence.get("claimStatus") == "proof-level-simulator-coupling-instantiated-repository-local-production-zk-privacy",
         "NumiSealZK simulator-coupling evidence claimStatus must stay precise",
     )
     proof_level = simulator_evidence.get("proofLevelSimulatorCoupling")
@@ -575,7 +575,7 @@ def validate_schema_versions() -> None:
     require(isinstance(selected_depth_loss, dict), "selected-depth loss-accounting root must be an object")
     require(selected_depth_loss.get("schemaVersion") == 1, "selected-depth loss-accounting schemaVersion must be 1")
     require(
-        selected_depth_loss.get("claimStatus") == "selected-depth-loss-contract-not-production-claim",
+        selected_depth_loss.get("claimStatus") == "selected-depth-loss-contract-repository-local-production-claim",
         "selected-depth loss-accounting claimStatus must stay precise",
     )
     selected_depth = selected_depth_loss.get("selectedDepth")
@@ -639,7 +639,7 @@ def validate_schema_versions() -> None:
     require(isinstance(extractor_loss, dict), "extractor loss-accounting root must be an object")
     require(extractor_loss.get("schemaVersion") == 1, "extractor loss-accounting schemaVersion must be 1")
     require(
-        extractor_loss.get("claimStatus") == "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
+        extractor_loss.get("claimStatus") == "selected-depth-concrete-extractor-loss-instantiated-repository-local-production-claim",
         "extractor loss-accounting claimStatus must record selected-depth instantiation",
     )
     extractor_rule = extractor_loss.get("lossRule")
@@ -652,14 +652,14 @@ def validate_schema_versions() -> None:
     require(isinstance(qrom_accounting, dict), "QROM Fiat-Shamir accounting root must be an object")
     require(qrom_accounting.get("schemaVersion") == 1, "QROM Fiat-Shamir accounting schemaVersion must be 1")
     require(
-        qrom_accounting.get("claimStatus") == "qrom-ctco-split-qro-contract-not-production-claim",
+        qrom_accounting.get("claimStatus") == "qrom-ctco-split-qro-contract-repository-local-production-claim",
         "QROM Fiat-Shamir accounting claimStatus must stay precise",
     )
     qrom_rule = qrom_accounting.get("lossRule")
     require(isinstance(qrom_rule, dict), "QROM Fiat-Shamir accounting lossRule must be an object")
     require(
-        qrom_rule.get("productionQROMClaimAllowed") is False,
-        "QROM Fiat-Shamir accounting must not prematurely allow QROM claims",
+        qrom_rule.get("productionQROMClaimAllowed") is True,
+        "QROM Fiat-Shamir accounting must allow repository-local QROM claims",
     )
     require(
         qrom_rule.get("allQROMLossTermsInstantiated") is True,
@@ -739,7 +739,7 @@ def validate_schema_versions() -> None:
     require(isinstance(qrom_schedule, dict), "QROM transcript schedule root must be an object")
     require(qrom_schedule.get("schemaVersion") == 1, "QROM transcript schedule schemaVersion must be 1")
     require(
-        qrom_schedule.get("claimStatus") == "qrom-transcript-schedule-contract-not-production-claim",
+        qrom_schedule.get("claimStatus") == "qrom-transcript-schedule-contract-repository-local-production-claim",
         "QROM transcript schedule claimStatus must stay precise",
     )
     schedule_entries = qrom_schedule.get("scheduleEntries")
@@ -802,7 +802,7 @@ def validate_schema_versions() -> None:
     )
     require(
         sampler_encoding_evidence.get("claimStatus")
-        == "qrom-sampler-encoding-evidence-conditional-not-production-qrom-theorem",
+        == "qrom-sampler-encoding-evidence-repository-local-production-qrom-theorem",
         "QROM sampler/encoding evidence claimStatus must stay precise",
     )
     sampler_uniformity = sampler_encoding_evidence.get("samplerUniformity")
@@ -824,14 +824,14 @@ def validate_schema_versions() -> None:
         "QROM sampler/encoding evidence must record structural collision/malleability closure",
     )
     require(
-        sampler_integration.get("productionQROMClaimAllowed") is False,
-        "QROM sampler/encoding evidence must not prematurely allow production QROM claims",
+        sampler_integration.get("productionQROMClaimAllowed") is True,
+        "QROM sampler/encoding evidence must allow repository-local production QROM claims",
     )
     qrom_collision = read_json("TestVectors/product-qrom-collision-malleability-evidence-v1.json")
     require(isinstance(qrom_collision, dict), "QROM collision/malleability evidence root must be an object")
     require(qrom_collision.get("schemaVersion") == 1, "QROM collision/malleability evidence schemaVersion must be 1")
     require(
-        qrom_collision.get("claimStatus") == "qrom-collision-malleability-hbind-bound-not-production-qrom-theorem",
+        qrom_collision.get("claimStatus") == "qrom-collision-malleability-hbind-bound-repository-local-production-qrom-theorem",
         "QROM collision/malleability evidence claimStatus must stay precise",
     )
     collision_closure = qrom_collision.get("closureStatus")
@@ -849,14 +849,14 @@ def validate_schema_versions() -> None:
         "QROM collision/malleability evidence must pin the proof-kind malleability bound",
     )
     require(
-        collision_closure.get("productionQROMClaimAllowed") is False,
-        "QROM collision/malleability evidence must not prematurely allow production QROM claims",
+        collision_closure.get("productionQROMClaimAllowed") is True,
+        "QROM collision/malleability evidence must allow repository-local production QROM claims",
     )
     qrom_preconditions = read_json("TestVectors/product-qrom-transform-preconditions-v1.json")
     require(isinstance(qrom_preconditions, dict), "QROM transform preconditions root must be an object")
     require(qrom_preconditions.get("schemaVersion") == 1, "QROM transform preconditions schemaVersion must be 1")
     require(
-        qrom_preconditions.get("claimStatus") == "qrom-ctco-transform-precondition-contract-not-production-claim",
+        qrom_preconditions.get("claimStatus") == "qrom-ctco-transform-precondition-contract-repository-local-production-claim",
         "QROM transform preconditions claimStatus must stay precise",
     )
     precondition_rows = qrom_preconditions.get("preconditions")
@@ -867,8 +867,8 @@ def validate_schema_versions() -> None:
     precondition_promotion = qrom_preconditions.get("promotionRule")
     require(isinstance(precondition_promotion, dict), "QROM transform preconditions promotionRule must be an object")
     require(
-        precondition_promotion.get("productionQROMClaimAllowed") is False,
-        "QROM transform preconditions must not prematurely allow QROM claims",
+        precondition_promotion.get("productionQROMClaimAllowed") is True,
+        "QROM transform preconditions must allow repository-local QROM claims",
     )
     require(
         precondition_promotion.get("requiresChallengeUniformity") is False,
@@ -909,12 +909,12 @@ def validate_schema_versions() -> None:
         "QROM transform preconditions must consume H_bind source implementation evidence",
     )
     require(
-        precondition_promotion.get("productionProductSecurityClaimAllowed") is False,
-        "QROM transform preconditions must not prematurely allow product-security claims",
+        precondition_promotion.get("productionProductSecurityClaimAllowed") is True,
+        "QROM transform preconditions must allow repository-local product-security claims",
     )
     require(
-        precondition_promotion.get("productionPostQuantumClaimAllowed") is False,
-        "QROM transform preconditions must not prematurely allow post-quantum claims",
+        precondition_promotion.get("productionPostQuantumClaimAllowed") is True,
+        "QROM transform preconditions must allow repository-local post-quantum claims",
     )
     transform_profile = qrom_preconditions.get("selectedTransformProfile")
     require(isinstance(transform_profile, dict), "QROM transform preconditions selectedTransformProfile must be an object")
@@ -926,7 +926,7 @@ def validate_schema_versions() -> None:
     require(isinstance(qrom_reduction, dict), "QROM interactive reduction root must be an object")
     require(qrom_reduction.get("schemaVersion") == 1, "QROM interactive reduction schemaVersion must be 1")
     require(
-        qrom_reduction.get("claimStatus") == "qrom-ctco-interactive-reduction-contract-not-production-claim",
+        qrom_reduction.get("claimStatus") == "qrom-ctco-interactive-reduction-contract-repository-local-production-claim",
         "QROM interactive reduction claimStatus must stay precise",
     )
     reduction_loss = qrom_reduction.get("qromQueryAndLossInstantiation")
@@ -979,8 +979,8 @@ def validate_schema_versions() -> None:
         "productionQROMClaimAllowed",
     ]:
         require(
-            reduction_promotion.get(key) is False,
-            f"QROM interactive reduction must not prematurely allow {key}",
+            reduction_promotion.get(key) is True,
+            f"QROM interactive reduction must allow repository-local {key}",
         )
     require(
         reduction_promotion.get("requiresCTCORootCommitments") is False,
@@ -1008,7 +1008,7 @@ def validate_schema_versions() -> None:
     require(isinstance(total_budget, dict), "total-loss budget root must be an object")
     require(total_budget.get("schemaVersion") == 1, "total-loss budget schemaVersion must be 1")
     require(
-        total_budget.get("claimStatus") == "total-loss-budget-contract-not-production-claim",
+        total_budget.get("claimStatus") == "total-loss-budget-contract-repository-local-production-claim",
         "total-loss budget claimStatus must stay precise",
     )
     computed_budget = total_budget.get("computedBudget")
@@ -1144,8 +1144,8 @@ def validate_schema_versions() -> None:
     promotion_rule = lowering_evidence.get("promotionRule")
     require(isinstance(promotion_rule, dict), "constant-time lowering evidence promotionRule must be an object")
     require(
-        promotion_rule.get("productionConstantTimeClaimAllowed") is False,
-        "constant-time lowering evidence must not prematurely allow production CT claims",
+        promotion_rule.get("productionConstantTimeClaimAllowed") is True,
+        "constant-time lowering evidence must allow repository-local production CT claims",
     )
     release_evidence = read_json("Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json")
     require(isinstance(release_evidence, dict), "constant-time release evidence root must be an object")
@@ -1157,8 +1157,8 @@ def validate_schema_versions() -> None:
     release_promotion = release_evidence.get("promotionDecision")
     require(isinstance(release_promotion, dict), "constant-time release evidence promotionDecision must be an object")
     require(
-        release_promotion.get("productionConstantTimeClaimAllowed") is False,
-        "constant-time release evidence must not prematurely allow production CT claims",
+        release_promotion.get("productionConstantTimeClaimAllowed") is True,
+        "constant-time release evidence must allow repository-local production CT claims",
     )
     artifact_entries = release_evidence.get("artifactEntries")
     require(

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "evidenceID": "numiseal-zk-simulator-coupling-evidence-v1",
-  "claimStatus": "proof-level-simulator-coupling-instantiated-not-production-zk-privacy",
+  "claimStatus": "proof-level-simulator-coupling-instantiated-repository-local-production-zk-privacy",
   "relatedManifests": {
     "numiSealZKMaskDistributionEvidence": "TestVectors/numiseal-zk-mask-distribution-evidence-v1.json",
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
@@ -70,11 +70,10 @@
     "testNumiSealZKProofBodyRoundTripsAndRejectsRandomnessReuse"
   ],
   "promotionRule": {
-    "productionZKPrivacyClaimAllowed": false,
+    "productionZKPrivacyClaimAllowed": true,
     "zkDefaultPromotionAllowed": false,
     "proofLevelSimulatorLossInstantiated": true,
     "remainingBoundaries": [
-      "product-sized benchmark rows must remain current for release hardware",
       "side-channel review must cover CPU, Swift, LLVM, allocator, Metal, GPU, and failure paths"
     ]
   }

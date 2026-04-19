@@ -74,10 +74,10 @@ def main() -> None:
         write_json(path, missing_carry_symbol)
         run_fail(str(VALIDATE), str(path))
 
-        missing_blocker = copy.deepcopy(accounting)
-        missing_blocker["hardClaimBlockers"].remove("recursive carry extractor for promoted depth beyond selected depth 1")
-        path = tmp / "missing-blocker.json"
-        write_json(path, missing_blocker)
+        reopened_blocker = copy.deepcopy(accounting)
+        reopened_blocker["hardClaimBlockers"].append("recursive carry extractor for promoted depth beyond selected depth 1")
+        path = tmp / "reopened-blocker.json"
+        write_json(path, reopened_blocker)
         run_fail(str(VALIDATE), str(path))
 
         outsourced_review = copy.deepcopy(accounting)

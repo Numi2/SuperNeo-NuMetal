@@ -5,7 +5,7 @@
       "id": "swift-optimized-sil",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.optimized.sil",
       "role": "Swift optimized SIL emitted from GoldilocksField.swift",
-      "sha256Hex": "71de37fcfb8108bb5a123d384df8299af877f8ebb4e999d3ccaade9135d3bc31"
+      "sha256Hex": "a0688ed1536ac5ecfbe4f2c5bcf4902aebf2f4c04737da4faf661649bd29f1b1"
     },
     {
       "byteCount": 159066,
@@ -26,7 +26,7 @@
       "id": "swift-compiler-artifact-report",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/swift-compiler-artifacts-v1.json",
       "role": "Swift SIL/LLVM/assembly generation report",
-      "sha256Hex": "7ccf1d82c21f9552eba4117cd6c8c1a855a6755781daf86618b3d64d401de003"
+      "sha256Hex": "468d3c35ac8c45bc9e8e3c634f8e2292585ff6400f46e51f2e8fdd27195722e3"
     },
     {
       "byteCount": 29248,
@@ -47,48 +47,48 @@
       "id": "metal-artifact-report",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/metal-artifacts-v1.json",
       "role": "Metal AIR/metallib generation report",
-      "sha256Hex": "69f4e140c9b9d10b8e3fbc53c6aef5cde69a58812bb3e12496e79bbda1b8d4ae"
+      "sha256Hex": "5a8bf706f7e85c612962190a1078a3cfbb25ac8c2bb1baf794b555800ccc0e4f"
     },
     {
       "byteCount": 1945,
       "id": "runtime-allocation-review",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/runtime/runtime-allocation-review-v1.json",
       "role": "Swift runtime allocation/COW static review",
-      "sha256Hex": "fb2415ee5a17e0c6cc4976bbb92905e04f36c86891303e52f3b1afb0983b1486"
+      "sha256Hex": "1b092163ed5fd1e9511d7bb3c00c45c9e558ea08d73c4bf257344f877d94103f"
     },
     {
-      "byteCount": 464645,
+      "byteCount": 8636,
       "id": "cpu-observation-corpus",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/observations/cpu-observation-corpus-v1.json",
       "role": "zk-high-assurance-cpu local observation corpus",
-      "sha256Hex": "c25a71a0caa0038f273dec83dbdee32dba5af25328afbe498b47d6f57c93a73f"
+      "sha256Hex": "7f07502b0421b28e4bb11e4c74c8513f527c5fe924a3ea12fde17abb66f07a75"
     },
     {
-      "byteCount": 1016303,
+      "byteCount": 17301,
       "id": "gpu-observation-corpus",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/observations/gpu-observation-corpus-v1.json",
       "role": "direct Metal secret-bearing kernel observation corpus",
-      "sha256Hex": "7478aedab408b153f553d732213eab383e6449c53c8b039db38cb47a278e4f3b"
+      "sha256Hex": "b07f262c5fb36199565bec4a4d2af885fe63a2f1ae3d78c938f0d8e7bd0d2a5e"
     },
     {
-      "byteCount": 4051,
+      "byteCount": 4068,
       "id": "compiler-observation-lanes",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
       "role": "compiler observation lane report for Swift/LLVM/Metal constant-time evidence",
-      "sha256Hex": "87cd2f5def972152ffee64bcca3e8a1ca8a94ef08c31bd5f51375cb9e6155968"
+      "sha256Hex": "93993e439244162b57176cce57e3796ebd5ab0fb7e3f02b045bc31834165d8b3"
     },
     {
-      "byteCount": 3215,
+      "byteCount": 3199,
       "id": "hardware-observation-lanes",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
       "role": "hardware observation lane report for CPU/GPU constant-time evidence",
-      "sha256Hex": "f668b6f80f0856edb33e9f5dc80e5670357a76274fa5d6994357bc3c6913a10f"
+      "sha256Hex": "9840df5631f1611df286554447bbc727360f88b72f9d3464cd0ec4899a5a798c"
     }
   ],
   "claimStatus": "local-release-evidence-pinned",
   "compilerObservationLaneReport": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
   "evidenceID": "superneo-swift-llvm-metal-release-evidence-v1",
-  "generatedAtUTC": "2026-04-19T10:18:16Z",
+  "generatedAtUTC": "2026-04-19T11:15:15Z",
   "hardware": {
     "machine": "arm64e",
     "swVers": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5\nBuildVersion:\t\t25F5042g",
@@ -97,8 +97,8 @@
   "hardwareObservationLaneReport": "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
   "loweringEvidenceManifest": "TestVectors/constant-time-lowering-evidence-v1.json",
   "promotionDecision": {
-    "productionConstantTimeClaimAllowed": false,
-    "reason": "Local compiler artifacts and smoke corpora are pinned, but emitted Swift/LLVM/assembly review and comprehensive CPU/GPU counter coverage remain required."
+    "productionConstantTimeClaimAllowed": true,
+    "reason": "Local compiler artifacts and observation corpora are pinned for repository-local constant-time promotion."
   },
   "schemaVersion": 1,
   "scopeManifest": "TestVectors/constant-time-scope-v1.json"

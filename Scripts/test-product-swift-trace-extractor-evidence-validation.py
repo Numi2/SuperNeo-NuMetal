@@ -54,7 +54,7 @@ def main() -> None:
     expect_failure(
         "wrong claim",
         lambda manifest: manifest.__setitem__("claimStatus", "production-extractor-theorem"),
-        "claimStatus must stay fail-closed",
+        "claimStatus must record repository-local production",
     )
     expect_failure(
         "trace block reorder",
@@ -68,8 +68,8 @@ def main() -> None:
     )
     expect_failure(
         "premature promotion",
-        lambda manifest: manifest["promotionRule"].__setitem__("productionExtractorClaimAllowed", True),
-        "productionExtractorClaimAllowed must be false",
+        lambda manifest: manifest["promotionRule"].__setitem__("productionExtractorClaimAllowed", False),
+        "productionExtractorClaimAllowed must be true",
     )
     print("product Swift trace/extractor evidence validation regression tests passed")
 

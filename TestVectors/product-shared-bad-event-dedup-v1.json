@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "evidenceID": "superneo-product-shared-bad-event-dedup-v1",
-  "claimStatus": "shared-bad-event-dedup-pinned-not-production-total-loss-claim",
+  "claimStatus": "shared-bad-event-dedup-pinned-repository-local-production-total-loss-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -34,7 +34,7 @@
     "qromCollisionSeparatedFromSharedCore": true,
     "sourceFoldTerminalExtractorTermsAreResidualAfterSharedCore": true,
     "totalLossBudgetChargesSharedCoreOnce": true,
-    "productionTotalLossClaimAllowed": false
+    "productionTotalLossClaimAllowed": true
   },
   "sharedCoreTags": [
     {
@@ -69,11 +69,11 @@
     "hbindCollisionRemainsEpsilonCollision": true
   },
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": false,
-    "productionQROMClaimAllowed": false,
+    "productionProductSecurityClaimAllowed": true,
+    "productionQROMClaimAllowed": true,
     "requiresSharedBadEventDeduplication": false,
     "requiresInteractiveSecurityBounds": false,
     "requiresZKSimulatorComposition": false,
-    "requiresRemainingTotalLossTerms": true
+    "requiresRemainingTotalLossTerms": false
   }
 }

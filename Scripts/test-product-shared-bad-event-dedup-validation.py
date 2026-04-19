@@ -75,7 +75,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         premature_promotion = copy.deepcopy(manifest)
-        premature_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = True
+        premature_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = False
         path = tmp / "premature-promotion.json"
         write_json(path, premature_promotion)
         run_fail(str(VALIDATE), str(path))

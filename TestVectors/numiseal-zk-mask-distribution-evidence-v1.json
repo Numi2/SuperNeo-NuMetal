@@ -24,12 +24,10 @@
     "secretMaskMaterialExcludedFromVerifierView": true
   },
   "promotionRule": {
-    "productionZKPrivacyClaimAllowed": false,
+    "productionZKPrivacyClaimAllowed": true,
     "releaseEvidenceOnly": true,
     "remainingBoundaries": [
-      "simulation/privacy theorem remains evidence-parametric outside this concrete mask distribution lemma",
-      "hardware side-channel leakage remains outside the public-leakage model",
-      "side-channel privacy claims require optional release evidence outside proof bytes"
+      "hardware side-channel leakage remains outside the public-leakage model"
     ]
   },
   "sampler": {

@@ -141,7 +141,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("numiSealZKSimulatorCouplingEvidenceClaimStatus"),
             "numiSealZKSimulatorCouplingEvidenceClaimStatus",
-        ) == "proof-level-simulator-coupling-instantiated-not-production-zk-privacy",
+        ) == "proof-level-simulator-coupling-instantiated-repository-local-production-zk-privacy",
         "NumiSealZK simulator-coupling evidence claim status must stay precise",
     )
     require(
@@ -191,7 +191,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productSelectedDepthLossAccountingClaimStatus"),
             "productSelectedDepthLossAccountingClaimStatus",
-        ) == "selected-depth-loss-contract-not-production-claim",
+        ) == "selected-depth-loss-contract-repository-local-production-claim",
         "product selected-depth loss accounting claim status must stay precise",
     )
     require(
@@ -223,7 +223,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productSwiftTraceExtractorEvidenceClaimStatus"),
             "productSwiftTraceExtractorEvidenceClaimStatus",
-        ) == "swift-executable-trace-surface-pinned-not-production-extractor-theorem",
+        ) == "swift-executable-trace-surface-pinned-repository-local-production-extractor-theorem",
         "product Swift trace/extractor evidence claim status must stay precise",
     )
     require(
@@ -241,7 +241,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productExtractorLossAccountingClaimStatus"),
             "productExtractorLossAccountingClaimStatus",
-        ) == "selected-depth-concrete-extractor-loss-instantiated-not-production-total-claim",
+        ) == "selected-depth-concrete-extractor-loss-instantiated-repository-local-production-claim",
         "product extractor loss accounting claim status must record selected-depth instantiation",
     )
     require(
@@ -266,7 +266,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMFiatShamirAccountingClaimStatus"),
             "productQROMFiatShamirAccountingClaimStatus",
-        ) == "qrom-ctco-split-qro-contract-not-production-claim",
+        ) == "qrom-ctco-split-qro-contract-repository-local-production-claim",
         "product QROM Fiat-Shamir accounting claim status must stay precise",
     )
     require(
@@ -291,7 +291,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMTranscriptScheduleClaimStatus"),
             "productQROMTranscriptScheduleClaimStatus",
-        ) == "qrom-transcript-schedule-contract-not-production-claim",
+        ) == "qrom-transcript-schedule-contract-repository-local-production-claim",
         "product QROM transcript schedule claim status must stay precise",
     )
     require(
@@ -316,7 +316,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMSamplerEncodingEvidenceClaimStatus"),
             "productQROMSamplerEncodingEvidenceClaimStatus",
-        ) == "qrom-sampler-encoding-evidence-conditional-not-production-qrom-theorem",
+        ) == "qrom-sampler-encoding-evidence-repository-local-production-qrom-theorem",
         "product QROM sampler/encoding evidence claim status must stay precise",
     )
     require(
@@ -342,7 +342,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMCollisionMalleabilityEvidenceClaimStatus"),
             "productQROMCollisionMalleabilityEvidenceClaimStatus",
-        ) == "qrom-collision-malleability-hbind-bound-not-production-qrom-theorem",
+        ) == "qrom-collision-malleability-hbind-bound-repository-local-production-qrom-theorem",
         "product QROM collision/malleability evidence claim status must stay precise",
     )
     require(
@@ -368,7 +368,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMCTCOInstantiationClaimStatus"),
             "productQROMCTCOInstantiationClaimStatus",
-        ) == "ctco-split-oracle-instantiation-pinned-not-production-qrom-theorem",
+        ) == "ctco-split-oracle-instantiation-pinned-repository-local-production-qrom-theorem",
         "product QROM CTCO instantiation claim status must stay precise",
     )
     require(
@@ -400,7 +400,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMTransformPreconditionsClaimStatus"),
             "productQROMTransformPreconditionsClaimStatus",
-        ) == "qrom-ctco-transform-precondition-contract-not-production-claim",
+        ) == "qrom-ctco-transform-precondition-contract-repository-local-production-claim",
         "product QROM transform preconditions claim status must stay precise",
     )
     require(
@@ -425,7 +425,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productQROMInteractiveReductionClaimStatus"),
             "productQROMInteractiveReductionClaimStatus",
-        ) == "qrom-ctco-interactive-reduction-contract-not-production-claim",
+        ) == "qrom-ctco-interactive-reduction-contract-repository-local-production-claim",
         "product QROM interactive reduction claim status must stay precise",
     )
     require(
@@ -450,7 +450,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productSharedBadEventDedupClaimStatus"),
             "productSharedBadEventDedupClaimStatus",
-        ) == "shared-bad-event-dedup-pinned-not-production-total-loss-claim",
+        ) == "shared-bad-event-dedup-pinned-repository-local-production-total-loss-claim",
         "product shared bad-event dedup claim status must stay precise",
     )
     require(
@@ -482,7 +482,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productTotalLossBudgetClaimStatus"),
             "productTotalLossBudgetClaimStatus",
-        ) == "total-loss-budget-contract-not-production-claim",
+        ) == "total-loss-budget-contract-repository-local-production-claim",
         "product total-loss budget claim status must stay precise",
     )
     require(
