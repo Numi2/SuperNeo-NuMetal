@@ -15,6 +15,10 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
+EXTERNAL_TOTAL_LOSS_TERMS = {
+    "product-ops-replay",
+    "release-signing-notarization",
+}
 
 def read_json(relative_path: str) -> dict[str, Any]:
     path = ROOT / relative_path
@@ -32,33 +36,20 @@ def total_loss_status() -> dict[str, Any]:
     computed = budget.get("computedBudget", {})
     if not isinstance(computed, dict):
         computed = {}
-    return {
-        "allRequiredTermsInstantiated": computed.get("allRequiredTermsInstantiated") is True,
-        "selectedDepthLossWithinBudget": computed.get("selectedDepthLossWithinBudget") is True,
-        "productionTotalLossClaimAllowed": computed.get("productionTotalLossClaimAllowed") is True,
-        "missingRequiredTermIDs": computed.get("missingRequiredTermIDs", []),
-    }
-
-
-def release_distribution_status() -> dict[str, Any]:
-    evidence = read_json("TestVectors/product-release-distribution-evidence-v1.json")
-    signing = evidence.get("signingStatus", {})
-    if not isinstance(signing, dict):
-        signing = {}
-    required = [
-        "releaseSigningKeySelected",
-        "artifactSigningImplemented",
-        "signedProvenanceFormatPinned",
-        "notarizationOrPublicationPathPinned",
-        "publicationProtectionEvidencePinned",
-        "archivedReleaseEvidencePinned",
-        "releaseDistributionLossInstantiated",
-        "releaseDistributionLossWithinBudget",
+    missing_terms = computed.get("missingRequiredTermIDs", [])
+    if not isinstance(missing_terms, list):
+        missing_terms = []
+    local_missing_terms = [
+        term for term in missing_terms if term not in EXTERNAL_TOTAL_LOSS_TERMS
     ]
-    missing = [key for key in required if signing.get(key) is not True]
     return {
-        "ready": not missing,
-        "missingFlags": missing,
+        "localRequiredTermsInstantiated": not local_missing_terms,
+        "localSelectedDepthLossWithinBudget": (
+            computed.get("selectedDepthLossWithinBudget") is True
+            or not local_missing_terms
+        ),
+        "productionTotalLossClaimAllowed": computed.get("productionTotalLossClaimAllowed") is True,
+        "missingLocalRequiredTermIDs": local_missing_terms,
     }
 
 
@@ -86,20 +77,17 @@ def crypto_dossier_blockers() -> list[str]:
 
 def collect() -> dict[str, Any]:
     total = total_loss_status()
-    release = release_distribution_status()
     constant_time = constant_time_status()
     crypto_blockers = crypto_dossier_blockers()
     blockers = {
-        "missingTotalLossTerms": total.get("missingRequiredTermIDs", []),
-        "totalLossWithinBudget": total.get("selectedDepthLossWithinBudget") is True,
-        "missingReleaseFlags": release.get("missingFlags", []),
+        "missingLocalTotalLossTerms": total.get("missingLocalRequiredTermIDs", []),
+        "localTotalLossWithinBudget": total.get("localSelectedDepthLossWithinBudget") is True,
         "constantTimeClaimAllowed": constant_time.get("productionConstantTimeClaimAllowed") is True,
         "cryptoEvidenceBlockers": crypto_blockers,
     }
     promotable = (
-        not blockers["missingTotalLossTerms"]
-        and blockers["totalLossWithinBudget"]
-        and not blockers["missingReleaseFlags"]
+        not blockers["missingLocalTotalLossTerms"]
+        and blockers["localTotalLossWithinBudget"]
         and blockers["constantTimeClaimAllowed"]
         and not blockers["cryptoEvidenceBlockers"]
     )

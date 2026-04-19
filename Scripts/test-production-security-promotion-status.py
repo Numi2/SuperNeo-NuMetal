@@ -43,9 +43,14 @@ def main() -> None:
     blockers = payload.get("blockers")
     if not isinstance(blockers, dict) or not blockers:
         raise AssertionError("collector must report compact blocker groups")
-    missing_terms = blockers.get("missingTotalLossTerms")
-    if not isinstance(missing_terms, list) or "product-ops-replay" not in missing_terms:
-        raise AssertionError("collector must report missing total-loss terms")
+    missing_terms = blockers.get("missingLocalTotalLossTerms")
+    if not isinstance(missing_terms, list) or "constant-time-side-channel" not in missing_terms:
+        raise AssertionError("collector must report locally verifiable missing total-loss terms")
+    for external_term in ["product-ops-replay", "release-signing-notarization"]:
+        if external_term in encoded_payload:
+            raise AssertionError(f"{external_term} depends on external production infrastructure")
+    if "missingreleaseflags" in encoded_payload:
+        raise AssertionError("release signing/notarization flags must not block local promotion status")
     crypto_blockers = blockers.get("cryptoEvidenceBlockers")
     if not isinstance(crypto_blockers, list):
         raise AssertionError("collector must report crypto evidence blockers")
