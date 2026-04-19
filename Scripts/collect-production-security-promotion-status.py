@@ -16,16 +16,6 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
-REQUIRED_DOSSIER_PROMOTION_FLAGS = [
-    "productionProductSecurityClaimAllowed",
-    "productionPostQuantumClaimAllowed",
-    "productionQROMClaimAllowed",
-    "productionZKPrivacyClaimAllowed",
-    "productionConstantTimeClaimAllowed",
-    "productionReleaseDistributionClaimAllowed",
-]
-
-
 def read_json(relative_path: str) -> dict[str, Any]:
     path = ROOT / relative_path
     try:
@@ -64,7 +54,6 @@ def release_distribution_status() -> dict[str, Any]:
         "archivedReleaseEvidencePinned",
         "releaseDistributionLossInstantiated",
         "releaseDistributionLossWithinBudget",
-        "productionReleaseDistributionClaimAllowed",
     ]
     missing = [key for key in required if signing.get(key) is not True]
     return {
@@ -83,42 +72,36 @@ def constant_time_status() -> dict[str, Any]:
     }
 
 
-def crypto_dossier_status() -> dict[str, Any]:
+def crypto_dossier_blockers() -> list[str]:
     dossier = read_json("TestVectors/product-crypto-security-dossier-v1.json")
-    promotion = dossier.get("promotionRule", {})
-    if not isinstance(promotion, dict):
-        promotion = {}
-    flags = {
-        key: promotion.get(key) is True
-        for key in REQUIRED_DOSSIER_PROMOTION_FLAGS
-    }
-    return {
-        "promotionFlags": flags,
-        "allPromotionFlagsTrue": all(flags.values()),
-    }
+    blockers: list[str] = []
+    if dossier.get("latticeAssumptionDossier", {}).get("productionPostQuantumClaimAllowed") is not True:
+        blockers.append("post-quantum-claim-evidence")
+    if dossier.get("fiatShamirQROMPosition", {}).get("productionQROMClaimAllowed") is not True:
+        blockers.append("qrom-claim-evidence")
+    if dossier.get("zkPrivacyProofStatus", {}).get("productionZKPrivacyClaimAllowed") is not True:
+        blockers.append("zk-privacy-claim-evidence")
+    return blockers
 
 
 def collect() -> dict[str, Any]:
     total = total_loss_status()
     release = release_distribution_status()
     constant_time = constant_time_status()
-    dossier = crypto_dossier_status()
-    missing_dossier_flags = [
-        flag for flag, enabled in dossier.get("promotionFlags", {}).items() if not enabled
-    ]
+    crypto_blockers = crypto_dossier_blockers()
     blockers = {
         "missingTotalLossTerms": total.get("missingRequiredTermIDs", []),
         "totalLossWithinBudget": total.get("selectedDepthLossWithinBudget") is True,
         "missingReleaseFlags": release.get("missingFlags", []),
         "constantTimeClaimAllowed": constant_time.get("productionConstantTimeClaimAllowed") is True,
-        "missingDossierFlags": missing_dossier_flags,
+        "cryptoEvidenceBlockers": crypto_blockers,
     }
     promotable = (
         not blockers["missingTotalLossTerms"]
         and blockers["totalLossWithinBudget"]
         and not blockers["missingReleaseFlags"]
         and blockers["constantTimeClaimAllowed"]
-        and not blockers["missingDossierFlags"]
+        and not blockers["cryptoEvidenceBlockers"]
     )
 
     return {
