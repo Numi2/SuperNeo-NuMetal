@@ -80,7 +80,7 @@ to the checklist below.
 - [ ] Deployed product operations.
   Done when hosted trusted context storage, key distribution/rotation rollout,
   tenant authz, hosted audit retention, revocation distribution, incident
-  response, signed releases, and hosted branch protection exist. Local signed
+  response, signed releases, and publication protection exist. Local signed
   context/provenance/revocation feed, SQLite replay, hash-chained audit export, and
   product-ops readiness status are implemented.
 

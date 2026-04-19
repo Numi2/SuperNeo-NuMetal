@@ -184,8 +184,8 @@
       "appliesPerAcceptedLayer": false,
       "status": "unsigned-research-artifact",
       "lossSymbol": "epsilon_release",
-      "accountingRule": "release distribution is outside the proof until signed artifacts, provenance, notarization, and branch-protection evidence are pinned",
-      "requiredEvidence": "TestVectors/product-release-distribution-evidence-v1.json plus release signing key, signed release provenance, notarization/publication path, hosted branch-protection evidence, archived release evidence, and numeric epsilon_release bound",
+      "accountingRule": "release distribution is outside the proof until signed artifacts, provenance, notarization, and publication protection evidence are pinned",
+      "requiredEvidence": "TestVectors/product-release-distribution-evidence-v1.json plus release signing key, signed release provenance, notarization/publication path, publication protection evidence, archived release evidence, and numeric epsilon_release bound",
       "productionClaimAllowed": false
     }
   ],

@@ -431,10 +431,10 @@ release distribution evidence contract. It binds the `epsilon_release` loss
 term to required source archives, Swift CLI binaries, test-vector bundles,
 release-candidate evidence, benchmark/estimator artifacts, provenance fields,
 unsigned research-artifact status, release evidence digests, and fail-closed
-signing/notarization/branch-protection flags.
+signing/notarization/publication-protection flags.
 
 The manifest intentionally records that no release signing key, signed
-provenance format, notarization/publication path, hosted branch-protection
+provenance format, notarization/publication path, publication protection
 evidence, archived release evidence, or numeric `epsilon_release` bound has
 been instantiated. Production release distribution remains outside the theorem
 claim until those fields are supplied and folded into the total-loss budget.

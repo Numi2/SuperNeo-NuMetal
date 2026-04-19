@@ -205,7 +205,7 @@ def validate_docs() -> None:
             "without `--skip-formal`",
             "self-owned cryptographic and implementation review",
             "signed artifacts",
-            "branch protection requiring the full production gate",
+            "publication protection requiring the full production gate",
             "Scripts/validate-numiseal-conformance-scope.py",
             "Scripts/test-numiseal-conformance-scope-validation.py",
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -317,7 +317,7 @@ def validate_docs() -> None:
             "product operations readiness status",
             "signed revocation feed",
             "Docs/ProductOperationsReadiness-2026-04-16.md",
-            "Branch Protection",
+            "Publication Protection",
         ],
     )
     require_contains(
@@ -1117,7 +1117,7 @@ def validate_schema_versions() -> None:
         "artifactSigningImplemented",
         "signedProvenanceFormatPinned",
         "notarizationOrPublicationPathPinned",
-        "hostedBranchProtectionEvidencePinned",
+        "publicationProtectionEvidencePinned",
         "archivedReleaseEvidencePinned",
         "releaseDistributionLossInstantiated",
         "releaseDistributionLossWithinBudget",

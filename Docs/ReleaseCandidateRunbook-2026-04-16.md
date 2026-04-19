@@ -80,7 +80,7 @@ candidate. It does not authorize production-security release claims.
   `2^-128` threshold changes.
 - `TestVectors/product-release-distribution-evidence-v1.json` reflects any
   release signing, signed provenance, notarization/publication,
-  branch-protection, archived-evidence, or `epsilon_release` budget-boundary
+  publication-protection, archived-evidence, or `epsilon_release` budget-boundary
   change.
 - `elan`, Swift, and the pinned Lean toolchain are available.
 
@@ -184,9 +184,9 @@ For a research/integration tag:
    are included.
 5. State that production-security blockers remain as listed in the audit packet.
 
-## Branch Protection
+## Publication Protection
 
-Protected release branches should require:
+Release publication controls should require:
 
 - `.github/workflows/production-gate.yml` macOS PR smoke,
 - `.github/workflows/formal-status.yml` Ubuntu Lean formal validation,
@@ -195,5 +195,6 @@ Protected release branches should require:
 - review for changes under `SuperNeo-NuMetal/`, `SuperNeoCLI/`, `Tools/`,
   `Scripts/`, `Formal/`, `.github/workflows/`, `TestVectors/`, and `Docs/`.
 
-Branch-protection configuration is repository-hosting state, so this runbook can
-define the required policy but cannot prove the hosted setting is enabled.
+Publication-protection configuration is release-infrastructure state, so this
+runbook can define the required policy but cannot prove the hosted setting is
+enabled.

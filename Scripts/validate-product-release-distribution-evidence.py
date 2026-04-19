@@ -73,7 +73,7 @@ EXPECTED_PROVENANCE_FIELDS = [
     "constantTimeReleaseEvidenceDigest",
     "benchmarkCoverageDigest",
     "notarizationOrPublicationProofDigest",
-    "hostedBranchProtectionEvidenceDigest",
+    "publicationProtectionEvidenceDigest",
     "archivedReleaseEvidenceDigest",
 ]
 
@@ -82,7 +82,7 @@ EXPECTED_FALSE_SIGNING_FLAGS = {
     "artifactSigningImplemented",
     "signedProvenanceFormatPinned",
     "notarizationOrPublicationPathPinned",
-    "hostedBranchProtectionEvidencePinned",
+    "publicationProtectionEvidencePinned",
     "archivedReleaseEvidencePinned",
     "releaseDistributionLossInstantiated",
     "releaseDistributionLossWithinBudget",
@@ -94,7 +94,7 @@ EXPECTED_TRUE_PROMOTION_REQUIREMENTS = {
     "requiresSignedArtifacts",
     "requiresSignedProvenance",
     "requiresNotarizationOrPublicationProof",
-    "requiresHostedBranchProtectionEvidence",
+    "requiresPublicationProtectionEvidence",
     "requiresArchivedReleaseEvidence",
     "requiresReleaseDistributionLossBudget",
 }
@@ -213,7 +213,7 @@ def validate_artifacts_and_provenance(evidence: dict[str, Any]) -> None:
     require(fields == EXPECTED_PROVENANCE_FIELDS, "requiredProvenanceFields mismatch")
     steps = require_string_list(evidence.get("requiredVerificationSteps"), "requiredVerificationSteps")
     joined = " ".join(steps).lower()
-    for needle in ["signature", "provenance", "production gate", "notarization", "branch-protection", "production-security"]:
+    for needle in ["signature", "provenance", "production gate", "notarization", "publication protection", "production-security"]:
         require(needle in joined, f"requiredVerificationSteps must mention {needle}")
 
 

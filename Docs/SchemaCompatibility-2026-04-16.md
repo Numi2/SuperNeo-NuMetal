@@ -257,7 +257,7 @@ families, provenance fields, release evidence binding, unsigned research
 artifact status, the `epsilon_release` loss symbol, and the promotion rule that
 keeps production release distribution claims disabled until a release signing
 key, signed artifacts, signed provenance, notarization/publication proof,
-hosted branch-protection evidence, archived release evidence, and numeric loss
+publication protection evidence, archived release evidence, and numeric loss
 budget are instantiated.
 
 `TestVectors/constant-time-scope-v1.json` is the checked constant-time

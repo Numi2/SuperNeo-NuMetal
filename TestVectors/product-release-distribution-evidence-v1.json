@@ -81,7 +81,7 @@
     "constantTimeReleaseEvidenceDigest",
     "benchmarkCoverageDigest",
     "notarizationOrPublicationProofDigest",
-    "hostedBranchProtectionEvidenceDigest",
+    "publicationProtectionEvidenceDigest",
     "archivedReleaseEvidenceDigest"
   ],
   "requiredVerificationSteps": [
@@ -91,7 +91,7 @@
     "verify the signing key digest is pinned in the release evidence",
     "verify production gate result equals passed for release candidates that claim the full local gate",
     "verify notarization ticket or platform publication proof before production-security distribution",
-    "verify hosted branch-protection evidence before production-security distribution",
+    "verify publication protection evidence before production-security distribution",
     "reject production-security language while any release-distribution promotion flag remains false"
   ],
   "signingStatus": {
@@ -99,7 +99,7 @@
     "artifactSigningImplemented": false,
     "signedProvenanceFormatPinned": false,
     "notarizationOrPublicationPathPinned": false,
-    "hostedBranchProtectionEvidencePinned": false,
+    "publicationProtectionEvidencePinned": false,
     "archivedReleaseEvidencePinned": false,
     "releaseDistributionLossInstantiated": false,
     "releaseDistributionLossWithinBudget": false,
@@ -120,7 +120,7 @@
     "requiresSignedArtifacts": true,
     "requiresSignedProvenance": true,
     "requiresNotarizationOrPublicationProof": true,
-    "requiresHostedBranchProtectionEvidence": true,
+    "requiresPublicationProtectionEvidence": true,
     "requiresArchivedReleaseEvidence": true,
     "requiresReleaseDistributionLossBudget": true
   }

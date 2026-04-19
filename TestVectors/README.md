@@ -100,7 +100,7 @@ Machine-readable files:
   distribution evidence contract for source archives, Swift CLI binaries, test
   vector bundles, release-candidate evidence, benchmark/estimator artifacts,
   required provenance fields, unsigned research-artifact status, and fail-closed
-  signing/notarization/branch-protection promotion.
+  signing/notarization/publication-protection promotion.
 - `numiseal-typed-carry-conformance-v1.json`: typed carry positive/negative
   conformance descriptor.
 - `numiseal-zk-masked-residual-conformance-v1.json`: masked residual ZK

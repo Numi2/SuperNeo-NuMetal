@@ -63,7 +63,7 @@ Production-security wording remains blocked by:
 4. instantiated product/QROM evidence records for the selected split-oracle
    CTCO or Merkle-straightline compiler family, plus release-grade Swift
    trace/extractor equivalence evidence,
-5. release signing plus hosted branch-protection enforcement, and
+5. release signing plus publication-protection enforcement, and
 6. broader benchmark evidence before cross-generation performance claims.
 
 ## Side-Channel Review
@@ -267,7 +267,7 @@ artifact separately.
 | Formal blocker completion | Promoted to completed formal protocol theorem for the finite model; production-security blockers remain separate. |
 | Full Sage estimator | Closed for the pinned local lane; SageMath 10.8 ran and the generated artifact validated. |
 | Broader benchmarks | Not run in this pass; no new cross-generation performance claim. |
-| Release signing and branch protection | Not locally provable; remains hosting/release-infrastructure work. |
+| Release signing and publication protection | Not locally provable; remains release-infrastructure work. |
 
 ## Next Closure Slice
 

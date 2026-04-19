@@ -67,7 +67,7 @@ At minimum, this requires:
   and signed release-distribution terms remain tracked blockers,
 - pinned Sage-backed lattice-estimator evidence,
 - release signing/provenance,
-- branch protection requiring the full production gate.
+- publication protection requiring the full production gate.
 
 ## Required Release Evidence
 
@@ -204,7 +204,7 @@ fail-closed total-loss budget validation.
 `Scripts/validate-product-release-distribution-evidence.py` checks
 `TestVectors/product-release-distribution-evidence-v1.json`, including product
 release distribution evidence for required artifact families, provenance
-fields, unsigned research-artifact status, signing/notarization/branch-protection
+fields, unsigned research-artifact status, signing/notarization/publication-protection
 promotion flags, the `epsilon_release` loss symbol, and release-evidence
 packet binding.
 `Scripts/validate-constant-time-scope.py` checks the constant-time
@@ -239,7 +239,7 @@ Release artifacts should be signed before distribution. Until signed artifacts
 are implemented, published artifacts must be treated as unsigned research
 artifacts. `TestVectors/product-release-distribution-evidence-v1.json` is the
 fail-closed contract for this state: it records that no release signing key,
-signed provenance format, notarization/publication path, hosted branch-protection
+signed provenance format, notarization/publication path, publication-protection
 evidence, archived release evidence, or numeric `epsilon_release` bound is
 instantiated yet.
 
@@ -262,12 +262,12 @@ Required future provenance fields:
 - constant-time release evidence digest,
 - benchmark coverage digest,
 - notarization or publication proof digest,
-- hosted branch-protection evidence digest,
+- publication protection evidence digest,
 - archived release evidence digest.
 
-## Branch Protection
+## Publication Protection
 
-Protected branches should require:
+Publication and promotion controls should require:
 
 - the macOS full production gate job,
 - the Ubuntu Lean formal cross-check job,

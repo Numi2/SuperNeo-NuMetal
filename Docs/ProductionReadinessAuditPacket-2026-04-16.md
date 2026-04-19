@@ -331,7 +331,7 @@ These are the remaining blockers before using production-security language:
    and product controls. Hardware latency and competitor claims still need
    fresh benchmark evidence.
 6. Release engineering execution: signed artifacts, signed provenance,
-   notarization/publication proof, hosted branch-protection enforcement
+   notarization/publication proof, publication-protection enforcement
    requiring the full production gate, archived release evidence, and numeric
    `epsilon_release` budget instantiation. The changelog, reproducible release
    instructions, release evidence tooling, product release distribution

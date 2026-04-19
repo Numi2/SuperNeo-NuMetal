@@ -51,7 +51,7 @@ def release_distribution_status() -> dict[str, Any]:
         "artifactSigningImplemented",
         "signedProvenanceFormatPinned",
         "notarizationOrPublicationPathPinned",
-        "hostedBranchProtectionEvidencePinned",
+        "publicationProtectionEvidencePinned",
         "archivedReleaseEvidencePinned",
         "releaseDistributionLossInstantiated",
         "releaseDistributionLossWithinBudget",

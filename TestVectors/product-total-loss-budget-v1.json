@@ -172,7 +172,7 @@
       "lossInstantiated": false,
       "boundLog2": null,
       "exactUpperBound": null,
-      "requiredEvidence": "TestVectors/product-release-distribution-evidence-v1.json plus signed artifacts, signed release provenance, notarization/publication proof, hosted branch-protection evidence, archived release evidence, and numeric epsilon_release bound"
+      "requiredEvidence": "TestVectors/product-release-distribution-evidence-v1.json plus signed artifacts, signed release provenance, notarization/publication proof, publication protection evidence, archived release evidence, and numeric epsilon_release bound"
     }
   ],
   "computedBudget": {
