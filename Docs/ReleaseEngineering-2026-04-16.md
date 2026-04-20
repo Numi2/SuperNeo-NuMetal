@@ -142,10 +142,10 @@ implementation-hardening boundary.
 `Scripts/validate-product-selected-depth-loss-accounting.py` checks
 `TestVectors/product-selected-depth-loss-accounting-v1.json`, including the
 selected-depth loss expression, the recursive promotion expression, the ten
-component loss terms, proof-level `epsilon_zk_sim = 0`, and the fail-closed
-blockers for extractor, QROM, transcript collision, product operations,
+component loss terms, proof-level `epsilon_zk_sim = 0`, and the checked closure
+requirements for extractor, QROM, transcript collision, product operations,
 repository-local release distribution, and CPU/Swift/LLVM/Metal constant-time
-evidence closure.
+evidence.
 `Scripts/validate-product-swift-trace-extractor-evidence.py` checks
 `TestVectors/product-swift-trace-extractor-evidence-v1.json`, including the
 Swift executable trace surface, source-fold output claim binding, CTCO trace

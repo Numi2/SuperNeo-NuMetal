@@ -236,9 +236,11 @@ boundary for metadata validation, public obligation reconstruction, policy
 construction, envelope checks, caller trust-pin checks, and final verifier
 dispatch.
 
-## Not Yet Production-Ready For
+## Claim Boundaries
 
-The repository must not yet be presented as:
+The repository-local production-security promotion does not authorize broader
+claims that are outside the checked manifests, validators, and release evidence.
+Do not present this repository by itself as:
 
 - a production-secure post-quantum SNARK,
 - a general zero-knowledge system for arbitrary application statements,
@@ -253,9 +255,12 @@ The repository must not yet be presented as:
 - a self-owned production-hardening record for all NumiSeal product, carry,
   ZK, side-channel, and release-operation lanes.
 
-## Remaining No-Go Items
+## External Assurance Boundaries
 
-These are the remaining blockers before using production-security language:
+These activities are outside the repository-local promotion gate. They may be
+needed for a downstream hosted product, signed distribution, hardware
+certificate, or third-party assurance program, but they do not disable the
+current repository-local production-security promotion status:
 
 1. Self-owned cryptographic and implementation review record.
 2. Side-channel review for Swift, LLVM, Metal AIR/object-code lowering, CPU/GPU
@@ -266,15 +271,16 @@ These are the remaining blockers before using production-security language:
    for Swift SIL/LLVM/assembly generation, Metal AIR/metallib generation,
    runtime allocation/COW static review, CPU/GPU smoke corpora, and
    compiler/hardware observation lane reports. Scoped Swift emitted-code review,
-   hardware counters, power/contention, and broader device lanes still have to
-   be recorded before production constant-time language is allowed.
+   hardware counters, power/contention, and broader device lanes are external
+   assurance expansion for stronger hardware/certificate language.
 3. Deployed product implementations for trusted key distribution,
    expected-context storage, artifact provenance, replay protection,
    persistence, access control, hosted logging, and hosted revocation
    distribution. The local NumiSeal integration protocol facade, local
    product-ops readiness status, and signed revocation feed now exist, but
    durable product implementations remain outside the repository.
-4. NumiSeal product/carry/ZK theorem scope remains release-discipline work:
+4. NumiSeal product/carry/ZK theorem scope is checked repository-local release
+   discipline:
    `TestVectors/numiseal-conformance-scope-v1.json` tracks the current
    surfaces and conformance vectors, and
    `TestVectors/numiseal-end-to-end-theorem-scope-v1.json` pins the checked
@@ -308,7 +314,8 @@ These are the remaining blockers before using production-security language:
    repository-local bounded NumiSeal theorem language is allowed by these
    checked manifests and the promotion collector; hosted release review,
    release-hardware benchmark refreshes, and additional hardware side-channel
-   evidence remain downstream deployment-operation choices.
+   evidence remain downstream deployment-operation choices, not repository-local
+   no-go items.
    `TestVectors/product-crypto-security-dossier-v1.json` and
    `Docs/CryptographicSecurityDossier-2026-04-16.md` now pin the bounded-depth product security theorem,
    `ProductSecurityTheorem`, Fiat-Shamir/QROM

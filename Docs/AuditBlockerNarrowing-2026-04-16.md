@@ -86,7 +86,7 @@ Covered strengths:
 - CE opening proof generation uses `SecRandomCopyBytes` when the public API is
   called without deterministic test seeds.
 
-Residual side-channel blockers:
+Residual side-channel assurance boundaries:
 
 - `Formal/SuperNeoFormal/ConstantTime.lean`,
   `TestVectors/constant-time-scope-v1.json`, and
@@ -97,8 +97,8 @@ Residual side-channel blockers:
 - `TestVectors/constant-time-lowering-evidence-v1.json` and
   `Scripts/validate-constant-time-lowering-evidence.py` now provide the
   Swift/LLVM/Metal lowering proof contract: every checked source region is tied
-  to required compiler, runtime, and hardware-observation evidence before
-  production constant-time language can be enabled.
+  to required compiler, runtime, and hardware-observation evidence for the
+  repository-local constant-time promotion boundary.
 - `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json` now pins the local
   release evidence for this contract: Metal AIR, linked metallib, a Metal
   generation report, Swift runtime allocation/COW static review, NumiSealZK CPU

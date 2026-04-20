@@ -476,10 +476,12 @@ replay identity and JSONL audit evidence. The child path also requires signed
 parent provenance and prior parent replay-ledger acceptance, and SQLite enforces
 single-use local acceptance for each recursive carry replay-binding digest.
 
-Production recursive carry promotion still requires extending that parent-child
-handoff to the selected production depth, hosted replay/loss accounting for
-accepted product sessions, and a theorem showing carry cannot be swapped across
-contexts, lanes, proofs, or product sessions at the promoted depth.
+Repository-local recursive carry promotion is enabled for the checked selected
+depth and parent-child edge. Extending that handoff to deeper hosted recursion
+bounds requires corresponding multi-depth vectors, hosted replay/loss
+accounting for accepted product sessions, and theorem coverage showing carry
+cannot be swapped across contexts, lanes, proofs, or product sessions at the
+new promoted depth.
 
 ## Proof Size And Latency
 
@@ -492,7 +494,7 @@ NumiSeal product, recursive carry, and product-control timing. That is coverage
 evidence for the local benchmarking stack, not a substitute for fresh hardware
 latency measurements.
 
-State-of-art comparison requires same-hardware tables for:
+State-of-art comparison claims require fresh same-hardware tables for:
 
 - proof bytes,
 - prover time,

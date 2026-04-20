@@ -105,8 +105,8 @@ def validate_docs() -> None:
         [
             "Scripts/production-gate.sh",
             "Result: passed.",
-            "Not Yet Production-Ready For",
-            "Remaining No-Go Items",
+            "Claim Boundaries",
+            "External Assurance Boundaries",
             "self-owned production-hardening record",
             "Docs/ReleaseEngineering-2026-04-16.md",
             "Docs/SchemaCompatibility-2026-04-16.md",
