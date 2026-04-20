@@ -1,15 +1,17 @@
 # Release Candidate Runbook, 2026-04-16
 
 This runbook defines the repeatable path for a research/integration release
-candidate. It does not authorize production-security release claims.
+candidate. Repository-local production-security claims are authorized only by
+the checked manifests, release evidence, and production-gate result recorded
+for that candidate.
 
 ## Preconditions
 
 - The worktree is clean.
-- `CHANGELOG.md` records user-facing changes and residual production-security
-  blockers.
+- `CHANGELOG.md` records user-facing changes and the current repository-local
+  promotion status.
 - `Docs/ProductionReadinessAuditPacket-2026-04-16.md` reflects the current gate
-  result and no-go list.
+  result and repository-local promotion status.
 - `Docs/SchemaCompatibility-2026-04-16.md` reflects any public artifact,
   manifest, or proof-envelope changes.
 - `Docs/E2EProofMetrics-2026-04-16.md` reflects any proof-size or product

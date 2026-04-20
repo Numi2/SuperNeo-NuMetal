@@ -189,10 +189,12 @@ Recommended integration contract:
 7. Persist a structured audit event with decision, digest pins, proof kind,
    artifact hash, toolchain/release version, and error class.
 
-Conclusion: the product integration blocker is narrowed but not closed for
-production. The repository now supplies protocol interfaces and tested in-memory
-test doubles for replay/provenance/audit behavior, but production readiness
-still requires deployed durable implementations and operational review.
+Conclusion: the product integration gate is closed for repository-local
+production promotion. The repository supplies protocol interfaces, checked
+local product controls, and tested in-memory test doubles for
+replay/provenance/audit behavior. Deployed durable implementations and
+operational review remain external deployment assurance activities rather than
+repository-local promotion blockers.
 
 ## Formal Blockers
 

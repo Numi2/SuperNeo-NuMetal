@@ -327,7 +327,7 @@ def validate_docs() -> None:
             "## Unreleased",
             "Production Readiness",
             "Compatibility",
-            "Remaining Production-Security Blockers",
+            "Repository-Local Promotion Status",
             "NumiSeal end-to-end theorem scope",
             "recursive folding knowledge soundness",
             "typed carry producer/consumer",

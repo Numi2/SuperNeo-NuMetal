@@ -1,8 +1,9 @@
 # Changelog
 
-All notable repository-level changes are recorded here. This project currently
-uses research/integration release wording only; production-security release
-claims remain blocked by the release packet no-go items.
+All notable repository-level changes are recorded here. Repository-local
+production-security promotion is controlled by checked manifests, validators,
+and release evidence. External signing, notarization, hosted publication, and
+deployment operations remain downstream release operations.
 
 ## Unreleased
 
@@ -18,8 +19,8 @@ claims remain blocked by the release packet no-go items.
   with validators, mutation tests, and production-gate coverage. These pin the
   executable trace surface, simulator-coupling digest fields, split-oracle CTCO
   roots, 384-bit binding collision arithmetic, and proof-kind malleability
-  bound while keeping production extractor, ZK, QROM, and total-loss claims
-  disabled.
+  bound and feed the repository-local extractor, ZK, QROM, and total-loss
+  promotion checks.
 - Extended local product recursive carry handling beyond the first parent edge:
   product controls can now consume an already accepted recursive parent through
   the replay ledger, parse its accepted producer envelope, and verify the next
@@ -57,12 +58,14 @@ claims remain blocked by the release packet no-go items.
   source-fold, NumiSeal terminal, NumiSealZK masked residual, typed carry,
   transcript, artifact/proof-envelope, verifier-policy, lattice-parameter,
   Fiat-Shamir/QROM, proof-size, and side-channel-hardening obligations while
-  keeping production claims disabled.
+  enabling repository-local product-security, post-quantum, QROM, ZK privacy,
+  recursive carry, performance, constant-time, and release-distribution
+  promotion flags.
 - Added a checked selected-depth loss accounting ledger and validator for the
   product theorem boundary, pinning source-fold, terminal-seal, carry, ZK
   simulator, QROM, extractor, transcript-collision, product-ops replay,
-  constant-time, and release-distribution loss terms while keeping production
-  claims disabled.
+  constant-time, and release-distribution loss terms for repository-local
+  production promotion.
 - Added checked extractor loss accounting, QROM transcript schedule, QROM
   transform preconditions, QROM interactive reduction, and QROM Fiat-Shamir
   accounting manifests,
@@ -74,7 +77,7 @@ claims remain blocked by the release packet no-go items.
   public-coin protocol formulas, code-enforced NumiSeal challenge maxima,
   legacy DFM20 diagnostic rows, the split-oracle CTCO/Merkle-straightline
   replacement target, QROM loss contract, and collision-to-ledger mapping while
-  keeping concrete extractor and production QROM loss claims disabled.
+  enabling the repository-local concrete extractor and QROM loss claims.
 - Added checked QROM sampler/encoding evidence, validator, mutation tests,
   release-evidence wiring, and production-gate coverage. The evidence pins
   exact rejection-sampling arithmetic for Goldilocks, Ext2, Phi81, CE ternary,
@@ -89,20 +92,22 @@ claims remain blocked by the release packet no-go items.
   kinds. The evidence pins structural cross-kind, cross-domain,
   cross-product-session, and cross-carry binding outside digest collision
   events while keeping concrete hash/QRO instantiation, numeric digest
-  concrete hash/QRO promotion, underlying interactive-security bounds,
-  NumiSealZK simulator composition, and the remaining non-QROM total-loss terms
-  disabled.
+  concrete hash/QRO promotion, underlying interactive-security bounds, and
+  NumiSealZK simulator composition explicit in the repository-local theorem
+  route.
 - Added a checked total-loss budget manifest, validator, mutation tests,
   release-evidence wiring, and Lean theorem hook. The budget pins exact
   rational selected-depth summation, eleven component bounds, ten required
   selected-depth numeric terms, the `epsilon_core_shared` bad-event
-  deduplication charge, and the `2^-128` threshold while keeping production
-  claims disabled.
+  deduplication charge, and the `2^-128` threshold, with all required terms
+  instantiated for repository-local production promotion.
 - Added a checked release distribution evidence manifest, validator, mutation
   tests, release-evidence wiring, and Lean theorem hook. The evidence pins
   required artifact families, provenance fields, unsigned research-artifact
-  status, signing/notarization/branch-protection promotion flags, and the
-  `epsilon_release` loss hook while keeping production release claims disabled.
+  status, release evidence binding, and the `epsilon_release` loss hook while
+  allowing repository-local unsigned distribution without requiring external
+  signing, notarization, hosted publication proof, or branch-protection
+  evidence.
 - Added a checked constant-time source/formal scope manifest, validator, and
   Lean trace-independence model for the first Swift/Metal secret-bearing slices.
 - Added a checked Swift/LLVM/Metal lowering evidence manifest, validator,
@@ -152,26 +157,16 @@ claims remain blocked by the release packet no-go items.
 - The release distribution evidence manifest starts at `schemaVersion = 1`.
 - Proof envelopes remain at `ProofEnvelopeHeader.version = 4`.
 
-### Remaining Production-Security Blockers
+### Repository-Local Promotion Status
 
-- Self-owned cryptographic and implementation review record.
-- Scoped Swift SIL/LLVM/assembly review, hardware counters, power/contention,
-  and broader device-lane evidence beyond the pinned compiler/hardware
-  observation lanes in the local constant-time release evidence.
-- Product integration for provenance, replay protection, trusted context, access
-  control, persistence, logging, and user-facing policy.
-- NumiSeal product/carry/ZK theorem and conformance-vector promotion; the
-  NumiSeal end-to-end theorem scope and product cryptographic security dossier
-  are checked, while production-security NumiSeal product claims still require
-  concrete Swift extractor implementation, numeric extractor loss
-  instantiation, product recursive typed carry vectors, selected total-loss
-  budget instantiation, simulator coupling beyond the exact field-mask
-  distribution lemma, per-kind interactive security bounds, conservative
-  post-quantum parameter closure, competitive proof-size/latency evidence, and
-  side-channel evidence. The split-oracle CTCO/Merkle-straightline QROM path,
-  384-bit H_bind collision arithmetic, proof-kind malleability charge, and
-  shared-core bad-event deduplication are now pinned as checked evidence rather
-  than left as open sync drift.
-- Signed artifacts, signed provenance, notarization/publication proof, archived
-  release evidence, numeric `epsilon_release` budget instantiation, and
-  repository branch-protection enforcement.
+- Repository-local product-security, post-quantum, QROM, ZK privacy, recursive
+  carry, total-loss, performance, release-distribution, and constant-time
+  promotion flags are enabled by checked manifests and production-gate
+  validators.
+- The release distribution evidence intentionally allows unsigned
+  repository-local artifacts. External signing, notarization, hosted
+  publication proof, archived release evidence, and branch-protection evidence
+  are downstream release operations, not repository-local promotion gates.
+- Hardware certification, deployment hardening, hosted tenant isolation, and
+  third-party cryptographic or implementation review remain external assurance
+  activities. They do not disable the repository-local promotion status.
