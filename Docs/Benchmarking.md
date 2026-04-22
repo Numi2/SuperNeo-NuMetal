@@ -42,6 +42,9 @@ coverage contract. It requires benchmark rows to remain registered in
 `Scripts/production-gate.sh`. It authorizes the repository-local performance
 claim for the checked proof-size budgets and registered benchmark surfaces.
 External competitor-comparison claims remain outside this repository-local gate.
+Fresh same-hardware comparison evidence is now pinned separately in
+`Docs/CompetitivePerformance-2026-04-21.md` and
+`TestVectors/competitive-performance-comparison-v1.json`.
 
 Benchmarks are built and run from `Benchmarks/Package.swift` with `package-benchmark`, keeping the benchmark plugin out of the main `swift test` graph. The dependency disables package-benchmark's default Jemalloc trait so the suite runs on stock macOS without `brew install jemalloc`. The script records wall-clock, total malloc count, leaked-memory, GPU command-buffer time, Metal encode wall time, Metal commit wall time, and Metal wait wall time metrics, then renders a Markdown summary with proof sizes and derived folds/sec, constraints/sec, and commitments/sec where applicable. The GPU column reports device command-buffer execution time for Metal rows; Encode, Commit, and Wait split host-side dispatch overhead for the same command buffer. Wall-clock still includes allocation, upload, readback, and any work outside the centralized Metal dispatch path. The script disables SwiftPM's command-plugin sandbox so the benchmark child process can discover the system Metal device, and passes package-directory write permission so benchmark exports can be written under `benchmark-results/`. The Xcode project remains the source of truth for app/framework development; the root `Package.swift` exists to run tests reproducibly from the command line, while the benchmark package owns benchmark-only dependencies.
 

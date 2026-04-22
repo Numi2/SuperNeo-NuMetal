@@ -89,6 +89,22 @@ endpoints and must still not be confused with product/security evidence status:
   remains exposed only under an explicit full-ring unit-pivot collision evidence
   package.
 
+## Recent Benchmark Record
+
+The latest optimization experiment targeted proof-envelope round trips by
+caching parsed envelope body bytes instead of rebuilding the nested proof body
+for every `superNeoBytes` request.
+
+On the same Apple M4 quick benchmark profile captured on 2026-04-21, the saved
+comparison in `Docs/BenchmarkReports/envelope-cache-2026-04-21-comparison.md`
+records:
+
+- `proofEnvelope/roundTrip/m64-K1-k0-binary`: `17 ms -> 8.62 ms` (`1.97x` faster)
+- `proofEnvelope/roundTrip/m256-K2-k1-binary`: `28 ms -> 18 ms` (`1.56x` faster)
+
+That record should be read as a targeted envelope-serialization improvement, not
+as a claim that the whole quick benchmark suite moved by the same factor.
+
 The remaining product/security evidence gaps are separate:
 
 - instantiate operations, side-channel, and
@@ -194,6 +210,7 @@ The release distribution evidence ledger is pinned at
 - `Docs/FormalVerification.md`: formal-track overview.
 - `Docs/WhatThisProves.md`: public claim boundaries.
 - `Docs/CryptographicSecurityDossier-2026-04-16.md`: product/security dossier.
+- `Docs/CompetitivePerformance-2026-04-21.md`: fresh same-hardware competitor table.
 - `Docs/FormalCompletionResearchPlan-2026-04-14.md`: historical closure record,
   no longer an active blocker plan.
 

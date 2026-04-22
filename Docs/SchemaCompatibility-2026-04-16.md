@@ -289,7 +289,8 @@ and ZK proving/verifying, typed recursive carry child proving/verifying, and
 local product-control replay/audit encoding. It proves row registration,
 report-renderer inclusion, baseline-comparator inclusion, and production-gate
 wiring; fresh hardware timing and competitor-performance claims remain separate
-release evidence.
+release evidence, now pinned in `Docs/CompetitivePerformance-2026-04-21.md`
+and `TestVectors/competitive-performance-comparison-v1.json`.
 
 `SuperNeoProductOperationsStatus.formatVersion = 2` is the local product
 operations readiness document version. It is emitted by

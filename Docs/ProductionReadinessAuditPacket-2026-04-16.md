@@ -335,7 +335,10 @@ current repository-local production-security promotion status:
    `TestVectors/benchmark-coverage-v1.json` gates whole-stack benchmark row
    coverage for source fold, kernels, Metal, NumiSeal product, recursive carry,
    and product controls. Repository-local performance claims are enabled for
-   those checked budgets and registered benchmark surfaces.
+   those checked budgets and registered benchmark surfaces. Fresh same-hardware
+   comparator evidence is now pinned separately in
+   `Docs/CompetitivePerformance-2026-04-21.md` and
+   `TestVectors/competitive-performance-comparison-v1.json`.
 6. Release engineering execution: artifact digest provenance, release evidence
    digest binding, full production-gate evidence, and numeric `epsilon_release`
    budget instantiation. The changelog, reproducible release instructions,

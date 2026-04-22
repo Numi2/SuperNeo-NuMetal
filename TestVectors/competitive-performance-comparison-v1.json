@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "scopeID": "superneo-competitive-performance-comparison-v1",
+  "claimStatus": "same-hardware-competitive-performance-evidence",
+  "capturedAtUTC": "2026-04-21T20:44:50Z",
+  "localBenchmarkEvidence": {
+    "metadata": "Docs/BenchmarkReports/competitive-performance-2026-04-21-metadata.json",
+    "report": "Docs/BenchmarkReports/competitive-performance-2026-04-21-report.md",
+    "generatedAtUTC": "2026-04-21T20:44:50Z"
+  },
+  "sameHardwareEnvironment": {
+    "model": "MacBook Air",
+    "chip": "Apple M4",
+    "memoryGB": 24,
+    "metalDevice": "Apple M4",
+    "osVersion": "Version 26.5 (Build 25F5058e)"
+  },
+  "claimBoundaries": [
+    "Same hardware does not mean the same arithmetic relation, statement size, or security target.",
+    "The repository-local promotion gate still authorizes only local proof-size budgets and benchmark-surface coverage.",
+    "This artifact is the pinned evidence table to cite when release notes or external materials quote competitor-comparison numbers."
+  ],
+  "requiredColumns": [
+    "proof bytes",
+    "prover time",
+    "verifier time",
+    "peak memory",
+    "recursion overhead",
+    "Metal vs CPU cost",
+    "ZK overhead",
+    "parameter-security level"
+  ],
+  "systems": [
+    {
+      "id": "superneo-numiseal-terminal",
+      "label": "SuperNeo NumiSeal product",
+      "family": "lattice-based source fold plus NumiSeal terminal product",
+      "workload": "one-hot-u2 product smoke, terminal seal",
+      "measurementDateUTC": "2026-04-21",
+      "measurementCommands": [
+        "/usr/bin/time -l .build/release/superneo prove --seal numiseal --numiseal-zk-mode none --numiseal-execution-policy zk-high-assurance-cpu --bits 0,1 --max-obligations-per-aggregate 32 --output /tmp/numiseal-terminal.json",
+        "/usr/bin/time -l .build/release/superneo verify /tmp/numiseal-terminal.json",
+        "/usr/bin/time -l .build/release/superneo prove --seal numiseal --numiseal-zk-mode masked-digit-tensor-v1 --numiseal-execution-policy zk-high-assurance-cpu --bits 0,1 --max-obligations-per-aggregate 32 --output /tmp/numiseal-zk.json",
+        "/usr/bin/time -l .build/release/superneo verify /tmp/numiseal-zk.json"
+      ],
+      "proofBytes": {
+        "reported": "244225 B proof envelope; 1726630 B product artifact; 1028837 B embedded source fold envelope",
+        "proofEnvelopeBytes": 244225,
+        "artifactBytes": 1726630,
+        "sourceFoldEnvelopeBytes": 1028837
+      },
+      "proverTime": {
+        "reported": "420 ms from the local quick benchmark row numisealProduct/prove/cpu/one-hot-u2-terminal",
+        "milliseconds": 420,
+        "benchmarkRow": "numisealProduct/prove/cpu/one-hot-u2-terminal"
+      },
+      "verifierTime": {
+        "reported": "165 ms from the local quick benchmark row numisealProduct/verify/cpu/one-hot-u2-terminal",
+        "milliseconds": 165,
+        "benchmarkRow": "numisealProduct/verify/cpu/one-hot-u2-terminal"
+      },
+      "peakMemory": {
+        "reported": "23724032 B max RSS during prove; 26001408 B max RSS during verify",
+        "proveMaxResidentSetBytes": 23724032,
+        "verifyMaxResidentSetBytes": 26001408
+      },
+      "recursionOverhead": {
+        "reported": "+65 ms prover (+15.4762%), -9 ms verifier (-5.4545%) vs terminal from the local recursive-carry benchmark rows",
+        "childProverMilliseconds": 485,
+        "childVerifierMilliseconds": 156,
+        "proverDeltaMilliseconds": 65,
+        "proverDeltaPercent": 15.4762,
+        "verifierDeltaMilliseconds": -9,
+        "verifierDeltaPercent": -5.4545,
+        "proverBenchmarkRow": "numisealProduct/recursiveCarry/prove/cpu/one-hot-u2-child",
+        "verifierBenchmarkRow": "numisealProduct/recursiveCarry/verify/cpu/one-hot-u2-child"
+      },
+      "metalVsCpuCost": {
+        "reported": "fold m256 proxy: Metal 88 ms vs CPU 56 ms (1.5714x slower)",
+        "cpuMilliseconds": 56,
+        "metalMilliseconds": 88,
+        "deltaMilliseconds": 32,
+        "metalToCpuRatio": 1.5714,
+        "cpuBenchmarkRow": "fold/cpu/m256-K2-k1-binary",
+        "metalBenchmarkRow": "fold/metal/m256-K2-k1-binary"
+      },
+      "zkOverhead": {
+        "reported": "-1 ms prover (-0.2381%), -9 ms verifier (-5.4545%), +1210 B proof envelope (+0.4954%), +2072 B artifact (+0.12%) vs terminal",
+        "zkProofEnvelopeBytes": 245435,
+        "zkArtifactBytes": 1728702,
+        "zkProverMilliseconds": 419,
+        "zkVerifierMilliseconds": 156,
+        "proverDeltaMilliseconds": -1,
+        "proverDeltaPercent": -0.2381,
+        "verifierDeltaMilliseconds": -9,
+        "verifierDeltaPercent": -5.4545,
+        "proofEnvelopeDeltaBytes": 1210,
+        "proofEnvelopeDeltaPercent": 0.4954,
+        "artifactDeltaBytes": 2072,
+        "artifactDeltaPercent": 0.12,
+        "proverBenchmarkRow": "numisealProduct/prove/cpu/one-hot-u2-zk",
+        "verifierBenchmarkRow": "numisealProduct/verify/cpu/one-hot-u2-zk"
+      },
+      "parameterSecurityLevel": {
+        "reported": "Module-SIS over Goldilocks/Phi81 Ajtai commitments; kappa=18; default estimator lane 129.1 rop bits; broad 128-bit post-quantum claim remains assumption-scoped",
+        "kappa": 18,
+        "defaultEstimatorRopBits": 129.1
+      }
+    },
+    {
+      "id": "latticefold-e2e",
+      "label": "LatticeFold e2e example",
+      "family": "lattice folding / NIFS example",
+      "workload": "upstream e2e example with compressed proof serialization",
+      "measurementDateUTC": "2026-04-21",
+      "measurementCommands": [
+        "/usr/bin/time -l /tmp/superneo-competitors/latticefold/target/release/examples/e2e"
+      ],
+      "upstreamRepository": "latticefold",
+      "upstreamCommit": "48333f8aea9760e242fdd503b12ee94d9e4d7f2f",
+      "examplePath": "crates/latticefold/examples/e2e.rs",
+      "proofBytes": {
+        "reported": "124.78 KiB compressed; 249.56 KiB uncompressed"
+      },
+      "proverTime": {
+        "reported": "38.7335 ms",
+        "milliseconds": 38.7335
+      },
+      "verifierTime": {
+        "reported": "36.122791 ms",
+        "milliseconds": 36.122791
+      },
+      "peakMemory": {
+        "reported": "4472832 B max RSS",
+        "maxResidentSetBytes": 4472832
+      },
+      "recursionOverhead": {
+        "reported": "n/a; the selected upstream example emits a single proof and does not publish a recursive delta"
+      },
+      "metalVsCpuCost": {
+        "reported": "n/a; the selected upstream example is CPU-only"
+      },
+      "zkOverhead": {
+        "reported": "n/a; the selected upstream example does not expose a toggled ZK/non-ZK comparison"
+      },
+      "parameterSecurityLevel": {
+        "reported": "generated example constants pin KAPPA=4; the upstream example does not emit a bit-level security estimate",
+        "kappa": 4
+      }
+    },
+    {
+      "id": "winterfell-lamport-a-64",
+      "label": "Winterfell Lamport aggregate example",
+      "family": "STARK-style transparent proof",
+      "workload": "64 Lamport+ signatures, upstream lamport-a example",
+      "measurementDateUTC": "2026-04-21",
+      "measurementCommands": [
+        "/usr/bin/time -l /tmp/superneo-competitors/winterfell/target/release/winterfell lamport-a -n 64"
+      ],
+      "upstreamRepository": "winterfell",
+      "upstreamCommit": "2f78ee9bf667a561bdfcdfa68668d0f9b18b8315",
+      "examplePath": "examples/src/main.rs",
+      "proofBytes": {
+        "reported": "72.7 KB"
+      },
+      "proverTime": {
+        "reported": "831 ms",
+        "milliseconds": 831
+      },
+      "verifierTime": {
+        "reported": "0.8 ms",
+        "milliseconds": 0.8
+      },
+      "peakMemory": {
+        "reported": "607846400 B max RSS",
+        "maxResidentSetBytes": 607846400
+      },
+      "recursionOverhead": {
+        "reported": "n/a; the selected Lamport aggregate example is non-recursive"
+      },
+      "metalVsCpuCost": {
+        "reported": "n/a; the selected upstream example is CPU-only"
+      },
+      "zkOverhead": {
+        "reported": "n/a; the selected upstream example does not expose a toggled ZK/non-ZK mode"
+      },
+      "parameterSecurityLevel": {
+        "reported": "Conjectured 99 bits; proven 56 bits list-decoding regime / 39 bits unique-decoding regime",
+        "conjecturedBits": 99,
+        "provenListDecodingBits": 56,
+        "provenUniqueDecodingBits": 39
+      }
+    }
+  ]
+}

@@ -106,6 +106,15 @@ The benchmark coverage manifest is mandatory release evidence, but it is only
 the coverage contract for row registration, report rendering, comparison, and
 gate wiring. A fresh `--with-benchmarks` run is still required before release
 notes quote latency, throughput, or competitor-comparison numbers.
+When release notes or external materials quote competitor-comparison numbers,
+also refresh `Docs/CompetitivePerformance-2026-04-21.md`,
+`Docs/BenchmarkReports/competitive-performance-2026-04-21-report.md`,
+`Docs/BenchmarkReports/competitive-performance-2026-04-21-metadata.json`, and
+`TestVectors/competitive-performance-comparison-v1.json`, then run:
+
+```sh
+Scripts/validate-competitive-performance-comparison.py
+```
 
 ## Evidence Packet
 

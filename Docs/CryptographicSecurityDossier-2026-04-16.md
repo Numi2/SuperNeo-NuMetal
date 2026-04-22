@@ -505,6 +505,11 @@ State-of-art comparison claims require fresh same-hardware tables for:
 - ZK overhead, and
 - parameter-security level.
 
+That evidence is now pinned separately in
+`Docs/CompetitivePerformance-2026-04-21.md` and
+`TestVectors/competitive-performance-comparison-v1.json`. It remains separate
+from the repository-local production gate surfaced by this dossier.
+
 The relevant comparison class includes LatticeFold/LatticeFold+ style lattice
 folding systems and STARK-style transparent systems. LatticeFold is tracked as
 a nearby comparison target because it is a lattice-based folding construction
@@ -545,4 +550,7 @@ The machine-readable dossier enables repository-local production claims for:
 - constant-time evidence.
 
 External signing, notarization, public distribution, and competitor-performance
-claims are not promotion gates for this repository-local status.
+claims are not promotion gates for this repository-local status. When external
+materials quote competitor numbers, cite
+`Docs/CompetitivePerformance-2026-04-21.md` and
+`TestVectors/competitive-performance-comparison-v1.json`.

@@ -281,13 +281,14 @@ public struct FoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncodable {
 
     public let header: ProofEnvelopeHeader
     public let proof: FoldProof
+    private let bodyBytes: [UInt8]
 
     public init(context: ProofEnvelopeContext, proof: FoldProof) throws {
         guard context.kind == .foldReduction else {
             throw SuperNeoError.invalidParameter("FoldProofEnvelope only supports foldReduction kind")
         }
-        let body = proof.superNeoBytes
-        guard body.count <= Int(UInt32.max) else {
+        let bodyBytes = proof.superNeoBytes
+        guard bodyBytes.count <= Int(UInt32.max) else {
             throw SuperNeoError.invalidEncoding("proof body too large")
         }
         self.header = ProofEnvelopeHeader(
@@ -297,9 +298,10 @@ public struct FoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncodable {
             statementDigest: context.statementDigest,
             verifierKeyDigest: context.verifierKeyDigest,
             transcriptDomain: context.transcriptDomain,
-            bodyLength: UInt32(body.count)
+            bodyLength: UInt32(bodyBytes.count)
         )
         self.proof = proof
+        self.bodyBytes = bodyBytes
     }
 
     public init(bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
@@ -316,10 +318,16 @@ public struct FoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncodable {
         self.proof = try bodyReader.readFoldProof(parameters: parameters)
         try bodyReader.finish()
         self.header = header
+        self.bodyBytes = body
     }
 
     public var superNeoBytes: [UInt8] {
-        header.superNeoBytes + proof.superNeoBytes
+        let headerBytes = header.superNeoBytes
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(headerBytes.count + bodyBytes.count)
+        bytes.append(contentsOf: headerBytes)
+        bytes.append(contentsOf: bodyBytes)
+        return bytes
     }
 }
 
@@ -328,6 +336,7 @@ public struct TerminalFoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncoda
 
     public let header: ProofEnvelopeHeader
     public let proof: TerminalFoldProof
+    private let bodyBytes: [UInt8]
 
     public init(context: ProofEnvelopeContext, proof: TerminalFoldProof) throws {
         guard context.kind == .terminalLocal else {
@@ -336,8 +345,8 @@ public struct TerminalFoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncoda
         guard proof.outputClaims == proof.foldProof.outputClaims else {
             throw SuperNeoError.invalidParameter("terminal CE statement must match fold proof output claims")
         }
-        let body = proof.superNeoBytes
-        guard body.count <= Int(UInt32.max) else {
+        let bodyBytes = proof.superNeoBytes
+        guard bodyBytes.count <= Int(UInt32.max) else {
             throw SuperNeoError.invalidEncoding("terminal proof body too large")
         }
         self.header = ProofEnvelopeHeader(
@@ -347,9 +356,10 @@ public struct TerminalFoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncoda
             statementDigest: context.statementDigest,
             verifierKeyDigest: context.verifierKeyDigest,
             transcriptDomain: context.transcriptDomain,
-            bodyLength: UInt32(body.count)
+            bodyLength: UInt32(bodyBytes.count)
         )
         self.proof = proof
+        self.bodyBytes = bodyBytes
     }
 
     public init(bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
@@ -366,10 +376,16 @@ public struct TerminalFoldProofEnvelope: Equatable, Sendable, SuperNeoByteEncoda
         self.proof = try bodyReader.readTerminalFoldProof(parameters: parameters)
         try bodyReader.finish()
         self.header = header
+        self.bodyBytes = body
     }
 
     public var superNeoBytes: [UInt8] {
-        header.superNeoBytes + proof.superNeoBytes
+        let headerBytes = header.superNeoBytes
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(headerBytes.count + bodyBytes.count)
+        bytes.append(contentsOf: headerBytes)
+        bytes.append(contentsOf: bodyBytes)
+        return bytes
     }
 }
 
@@ -493,6 +509,7 @@ public struct CompressedTerminalProofEnvelope: Equatable, Sendable, SuperNeoByte
 
     public let header: ProofEnvelopeHeader
     public let proof: CompressedTerminalProof
+    private let bodyBytes: [UInt8]
 
     public init(context: ProofEnvelopeContext, proof: CompressedTerminalProof) throws {
         guard context.kind == .compressedPublic else {
@@ -501,8 +518,8 @@ public struct CompressedTerminalProofEnvelope: Equatable, Sendable, SuperNeoByte
         guard proof.statement.context == context else {
             throw SuperNeoError.invalidParameter("compressed statement context mismatch")
         }
-        let body = proof.superNeoBytes
-        guard body.count <= Int(UInt32.max) else {
+        let bodyBytes = proof.superNeoBytes
+        guard bodyBytes.count <= Int(UInt32.max) else {
             throw SuperNeoError.invalidEncoding("compressed proof body too large")
         }
         self.header = ProofEnvelopeHeader(
@@ -512,9 +529,10 @@ public struct CompressedTerminalProofEnvelope: Equatable, Sendable, SuperNeoByte
             statementDigest: context.statementDigest,
             verifierKeyDigest: context.verifierKeyDigest,
             transcriptDomain: context.transcriptDomain,
-            bodyLength: UInt32(body.count)
+            bodyLength: UInt32(bodyBytes.count)
         )
         self.proof = proof
+        self.bodyBytes = bodyBytes
     }
 
     public init(bytes: [UInt8], parameters: SuperNeoParameters = .goldilocks) throws {
@@ -531,10 +549,16 @@ public struct CompressedTerminalProofEnvelope: Equatable, Sendable, SuperNeoByte
         self.proof = try bodyReader.readCompressedTerminalProof(parameters: parameters)
         try bodyReader.finish()
         self.header = header
+        self.bodyBytes = body
     }
 
     public var superNeoBytes: [UInt8] {
-        header.superNeoBytes + proof.superNeoBytes
+        let headerBytes = header.superNeoBytes
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(headerBytes.count + bodyBytes.count)
+        bytes.append(contentsOf: headerBytes)
+        bytes.append(contentsOf: bodyBytes)
+        return bytes
     }
 }
 
