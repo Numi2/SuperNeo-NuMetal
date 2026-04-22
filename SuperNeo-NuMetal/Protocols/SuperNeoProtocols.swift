@@ -3098,6 +3098,22 @@ private enum SuperNeoProtocolOracle {
             limbCommitments = openingArtifacts.map(\.commitment)
             limbEvaluations = openingArtifacts.map(\.evaluations)
         }
+        guard try verifyDecomposition(
+            folded: claim,
+            parts: limbCommitments.indices,
+            shape: shape,
+            parameters: parameters,
+            partData: { index in
+                (
+                    commitment: limbCommitments[index],
+                    publicInput: publicInputLimbs[index],
+                    point: claim.point,
+                    evaluations: limbEvaluations[index]
+                )
+            }
+        ) else {
+            throw SuperNeoError.verificationFailed("decomposition limbs do not recompose to folded claim")
+        }
         let limbClaims = limbs.enumerated().map { index, limb -> CCSEvaluationClaim in
             let commitment = limbCommitments[index]
             return CCSEvaluationClaim(
@@ -3107,9 +3123,6 @@ private enum SuperNeoProtocolOracle {
                 evaluations: limbEvaluations[index],
                 witness: limb
             )
-        }
-        guard try verifyDecomposition(folded: claim, parts: limbClaims, shape: shape, parameters: parameters) else {
-            throw SuperNeoError.verificationFailed("decomposition limbs do not recompose to folded claim")
         }
         return (
             DecompositionProof(commitments: limbClaims.map(\.commitment), evaluations: limbClaims.map(\.evaluations)),
@@ -3123,42 +3136,69 @@ private enum SuperNeoProtocolOracle {
         shape: CCSShape,
         parameters: SuperNeoParameters
     ) throws -> Bool {
+        try verifyDecomposition(
+            folded: folded,
+            parts: parts,
+            shape: shape,
+            parameters: parameters,
+            partData: { part in
+                (
+                    commitment: part.commitment,
+                    publicInput: part.publicInput,
+                    point: part.point,
+                    evaluations: part.evaluations
+                )
+            }
+        )
+    }
+
+    private static func verifyDecomposition<Parts: Collection>(
+        folded: CCSEvaluationClaim,
+        parts: Parts,
+        shape: CCSShape,
+        parameters: SuperNeoParameters,
+        partData: (Parts.Element) -> (
+            commitment: AjtaiCommitment,
+            publicInput: [GoldilocksField],
+            point: [GoldilocksExt2],
+            evaluations: [CyclotomicExt2Ring54]
+        )
+    ) throws -> Bool {
         guard parts.count == parameters.decompositionLength else { return false }
         guard folded.evaluations.count == shape.numMatrices else { return false }
         guard folded.point.count == (try log2Exact(shape.m)) else { return false }
         guard folded.publicInput.count == shape.nPublicField else { return false }
 
         var commitment = AjtaiCommitment(Array(repeating: CyclotomicRing54.zero, count: folded.commitment.elements.count))
-        let foldedPackedInput = try SuperNeoEmbedding.packPadded(folded.publicInput)
-        var publicInput = Array(repeating: CyclotomicRing54.zero, count: foldedPackedInput.count)
+        var publicInput = Array(repeating: GoldilocksField.zero, count: folded.publicInput.count)
         var evaluations = Array(repeating: CyclotomicExt2Ring54.zero, count: folded.evaluations.count)
         let scalars = try decompositionScalars(base: parameters.normBound, count: parts.count)
 
-        for (index, part) in parts.enumerated() {
-            guard part.point == folded.point else { return false }
-            guard part.evaluations.count == folded.evaluations.count else { return false }
-            guard part.publicInput.count == folded.publicInput.count else { return false }
-            guard part.commitment.elements.count == folded.commitment.elements.count else { return false }
-            guard part.publicInput.allSatisfy({ signedMagnitude($0) < UInt64(parameters.normBound) }) else { return false }
+        var index = 0
+        for part in parts {
+            let (partCommitment, partPublicInput, partPoint, partEvaluations) = partData(part)
+            guard partPoint == folded.point else { return false }
+            guard partEvaluations.count == folded.evaluations.count else { return false }
+            guard partPublicInput.count == folded.publicInput.count else { return false }
+            guard partCommitment.elements.count == folded.commitment.elements.count else { return false }
+            guard partPublicInput.allSatisfy({ signedMagnitude($0) < UInt64(parameters.normBound) }) else { return false }
 
             let scalar = scalars[index]
             for commitmentIndex in commitment.elements.indices {
                 commitment.elements[commitmentIndex] = commitment.elements[commitmentIndex]
-                    + part.commitment.elements[commitmentIndex].scaled(by: scalar)
+                    + partCommitment.elements[commitmentIndex].scaled(by: scalar)
             }
-
-            let packedPartInput = try SuperNeoEmbedding.packPadded(part.publicInput)
-            guard packedPartInput.count == publicInput.count else { return false }
             for inputIndex in publicInput.indices {
-                publicInput[inputIndex] = publicInput[inputIndex] + packedPartInput[inputIndex].scaled(by: scalar)
+                publicInput[inputIndex] = publicInput[inputIndex] + (partPublicInput[inputIndex] * scalar)
             }
             for evalIndex in evaluations.indices {
-                evaluations[evalIndex] = evaluations[evalIndex] + part.evaluations[evalIndex].scaled(by: scalar)
+                evaluations[evalIndex] = evaluations[evalIndex] + partEvaluations[evalIndex].scaled(by: scalar)
             }
+            index += 1
         }
 
         return commitment == folded.commitment
-            && publicInput == foldedPackedInput
+            && publicInput == folded.publicInput
             && evaluations == folded.evaluations
     }
 }
@@ -3465,7 +3505,7 @@ private func validateFoldInput(_ input: SuperNeoFoldInput, parameters: SuperNeoP
         guard instance.publicInput.count == input.shape.nPublicField else {
             throw SuperNeoError.invalidParameter("public input length must match shape.nPublicField")
         }
-        guard witness.fullZ(for: instance).count == input.shape.nField else {
+        guard instance.publicInput.count + witness.values.count == input.shape.nField else {
             throw SuperNeoError.invalidParameter("full witness length must match shape.nField")
         }
     }
@@ -3484,7 +3524,7 @@ private func validateFoldInput(_ input: SuperNeoFoldInput, parameters: SuperNeoP
                 throw SuperNeoError.invalidParameter("prior CE witness length mismatch")
             }
             guard claim.publicInput.count <= witness.count,
-                  Array(witness.prefix(claim.publicInput.count)) == claim.publicInput else {
+                  claim.publicInput.elementsEqual(witness.prefix(claim.publicInput.count)) else {
                 throw SuperNeoError.invalidParameter("prior CE public input must be a prefix of its witness")
             }
         }
