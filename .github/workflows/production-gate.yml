@@ -61,9 +61,6 @@ jobs:
       - name: Validate checked proof vectors
         run: swift Scripts/validate-test-vectors.swift "${PWD}"
 
-      - name: Validate checked NumiSeal vectors
-        run: swift run superneo-numiseal-vectors validate "${PWD}"
-
   swift:
     name: Full production gate
     if: ${{ github.event_name != 'pull_request' }}

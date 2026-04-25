@@ -9,14 +9,14 @@ This module is the checked boundary for the paper-grade theorem program.  It
 does not manufacture missing extractor, QROM, lattice-loss, or side-channel
 evidence.  Instead it states the actual product theorem shape: accepted product
 relations plus pinned transcript/artifact bindings, a bounded-depth loss
-accounting record, a lattice-assumption dossier, Fiat-Shamir/QROM evidence, and
+accounting record, a lattice-assumption dossier, public-coin QRO/QROM evidence, and
 explicit completeness/soundness/ZK obligations imply the product security
 guarantee used by release policy.
 -/
 
 namespace SuperNeoFormal
 
-inductive ProductFiatShamirModel where
+inductive ProductPublicCoinModel where
   | rom
   | qrom
   deriving DecidableEq, Repr
@@ -42,7 +42,7 @@ structure ProductSecurityParameters where
   claimedQuantumSecurityBits : Nat
   soundnessLossBudgetBits : Nat
   recursionDepthModel : ProductRecursionDepthModel
-  fiatShamirModel : ProductFiatShamirModel
+  publicCoinModel : ProductPublicCoinModel
 
 structure ProductSystemBindings where
   sourceFoldRelationBound : Prop
@@ -72,7 +72,7 @@ structure ProductBoundedDepthLossEvidence
   terminalSealLossAccounted : Prop
   recursiveCarryLossAccounted : Prop
   zkMaskingLossAccounted : Prop
-  fiatShamirLossAccounted : Prop
+  publicCoinLossAccounted : Prop
   totalLossWithinBudget : Prop
 
 def ProductBoundedDepthLossAccepted
@@ -84,7 +84,7 @@ def ProductBoundedDepthLossAccepted
     ∧ losses.terminalSealLossAccounted
     ∧ losses.recursiveCarryLossAccounted
     ∧ losses.zkMaskingLossAccounted
-    ∧ losses.fiatShamirLossAccounted
+    ∧ losses.publicCoinLossAccounted
     ∧ losses.totalLossWithinBudget
 
 structure ProductSelectedDepthLossLedger where
@@ -94,7 +94,7 @@ structure ProductSelectedDepthLossLedger where
   terminalSealLossInstantiated : Prop
   recursiveCarryLossInstantiated : Prop
   zkSimulatorLossInstantiated : Prop
-  fiatShamirQROMLossInstantiated : Prop
+  publicCoinQROMLossInstantiated : Prop
   extractorLossInstantiated : Prop
   productOperationsReplayLossInstantiated : Prop
   constantTimeSideChannelEvidenceClosed : Prop
@@ -108,7 +108,7 @@ def ProductSelectedDepthLossLedgerAccepted
     ∧ ledger.terminalSealLossInstantiated
     ∧ ledger.recursiveCarryLossInstantiated
     ∧ ledger.zkSimulatorLossInstantiated
-    ∧ ledger.fiatShamirQROMLossInstantiated
+    ∧ ledger.publicCoinQROMLossInstantiated
     ∧ ledger.extractorLossInstantiated
     ∧ ledger.productOperationsReplayLossInstantiated
     ∧ ledger.constantTimeSideChannelEvidenceClosed
@@ -595,7 +595,7 @@ def ProductInstantiatedQROMEvidenceAccepted
     ∧ ProductExactFiniteProbabilityWiringAccepted evidence.exactFiniteProbabilityWiring
     ∧ ProductQROMTotalLossInstantiatedAccepted evidence.totalLoss
 
-structure ProductFiatShamirTranscriptSchedule where
+structure ProductPublicCoinTranscriptSchedule where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
   acceptedProofKindsPinned : Prop
@@ -609,8 +609,8 @@ structure ProductFiatShamirTranscriptSchedule where
   numericQuantumQueryBoundsInstantiated : Prop
   productionTranscriptScheduleClaimAllowed : Prop
 
-def ProductFiatShamirTranscriptScheduleAccepted
-    (schedule : ProductFiatShamirTranscriptSchedule) : Prop :=
+def ProductPublicCoinTranscriptScheduleAccepted
+    (schedule : ProductPublicCoinTranscriptSchedule) : Prop :=
   (0 < schedule.selectedDepth)
     ∧ schedule.acceptedProofKindsPinned
     ∧ schedule.interactiveRoundSchedulePinned
@@ -623,7 +623,7 @@ def ProductFiatShamirTranscriptScheduleAccepted
     ∧ schedule.numericQuantumQueryBoundsInstantiated
     ∧ schedule.productionTranscriptScheduleClaimAllowed
 
-structure ProductFiatShamirTransformPreconditions where
+structure ProductPublicCoinTransformPreconditions where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
   theoremFamilyPinned : Prop
@@ -637,8 +637,8 @@ structure ProductFiatShamirTransformPreconditions where
   qromReductionLossInstantiated : Prop
   productionTransformClaimAllowed : Prop
 
-def ProductFiatShamirTransformPreconditionsAccepted
-    (preconditions : ProductFiatShamirTransformPreconditions) : Prop :=
+def ProductPublicCoinTransformPreconditionsAccepted
+    (preconditions : ProductPublicCoinTransformPreconditions) : Prop :=
   (0 < preconditions.selectedDepth)
     ∧ preconditions.theoremFamilyPinned
     ∧ preconditions.publicCoinInteractiveProtocolSpecified
@@ -683,7 +683,7 @@ def ProductQROMInteractiveReductionAccepted
     ∧ reduction.totalLossBudgetInterfacePinned
     ∧ reduction.productionQROMTheoremClaimAllowed
 
-structure ProductFiatShamirLossAccounting where
+structure ProductPublicCoinLossAccounting where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
   interactiveProtocolSpecified : Prop
@@ -695,8 +695,8 @@ structure ProductFiatShamirLossAccounting where
   transcriptCollisionMalleabilityExcluded : Prop
   qromLossWithinBudget : Prop
 
-def ProductFiatShamirLossAccountingAccepted
-    (accounting : ProductFiatShamirLossAccounting) : Prop :=
+def ProductPublicCoinLossAccountingAccepted
+    (accounting : ProductPublicCoinLossAccounting) : Prop :=
   (0 < accounting.selectedDepth)
     ∧ accounting.interactiveProtocolSpecified
     ∧ accounting.publicCoinChallengeScheduleSpecified
@@ -771,7 +771,7 @@ def ProductLatticeAssumptionDossierAccepted
     ∧ dossier.parameterSensitivityRecorded
     ∧ dossier.failureProbabilityBudgetRecorded
 
-structure ProductFiatShamirQROMEvidence where
+structure ProductPublicCoinQROMEvidence where
   interactivePublicCoinProtocolSpecified : Prop
   transformPreconditionsSatisfied : Prop
   quantumOracleQueryBoundAccounted : Prop
@@ -779,8 +779,8 @@ structure ProductFiatShamirQROMEvidence where
   proofKindSeparationBound : Prop
   transcriptCollisionMalleabilityExcluded : Prop
 
-def ProductFiatShamirQROMAccepted
-    (evidence : ProductFiatShamirQROMEvidence) : Prop :=
+def ProductPublicCoinQROMAccepted
+    (evidence : ProductPublicCoinQROMEvidence) : Prop :=
   evidence.interactivePublicCoinProtocolSpecified
     ∧ evidence.transformPreconditionsSatisfied
     ∧ evidence.quantumOracleQueryBoundAccounted
@@ -808,7 +808,7 @@ structure ProductSecurityTheoremObligationStatus where
   selectedDepthLossLedger : TheoremObligationStatus
   extractorLossAccounting : TheoremObligationStatus
   latticeAssumptionDossier : TheoremObligationStatus
-  fiatShamirQROM : TheoremObligationStatus
+  publicCoinQROM : TheoremObligationStatus
   totalLossBudget : TheoremObligationStatus
   releaseDistribution : TheoremObligationStatus
   completeness : TheoremObligationStatus
@@ -825,7 +825,7 @@ def ProductSecurityTheoremObligationStatus.FullyInstantiated
     ∧ status.selectedDepthLossLedger.Accepted
     ∧ status.extractorLossAccounting.Accepted
     ∧ status.latticeAssumptionDossier.Accepted
-    ∧ status.fiatShamirQROM.Accepted
+    ∧ status.publicCoinQROM.Accepted
     ∧ status.totalLossBudget.Accepted
     ∧ status.releaseDistribution.Accepted
     ∧ status.completeness.Accepted
@@ -842,7 +842,7 @@ structure ProductSecurityTheoremEvidence
       NumiSealProductKnowledgeCarryPrivacyRelations depth View Leakage)
     (losses : ProductBoundedDepthLossEvidence parameters)
     (assumptions : ProductLatticeAssumptionDossier)
-    (fiatShamir : ProductFiatShamirQROMEvidence)
+    (publicCoin : ProductPublicCoinQROMEvidence)
     (claim : ProductCompletenessSoundnessZKClaim) where
   productRelationsHold :
     NumiSealProductKnowledgeCarryPrivacyHolds relations
@@ -853,19 +853,19 @@ structure ProductSecurityTheoremEvidence
   knowledgeSoundnessSound :
     ProductBoundedDepthLossAccepted losses →
       ProductLatticeAssumptionDossierAccepted assumptions →
-      ProductFiatShamirQROMAccepted fiatShamir →
+      ProductPublicCoinQROMAccepted publicCoin →
       NumiSealProductKnowledgeCarryPrivacyHolds relations →
         claim.knowledgeSoundness
   zeroKnowledgeSound :
     ProductSystemBindingsAccepted bindings →
-      ProductFiatShamirQROMAccepted fiatShamir →
+      ProductPublicCoinQROMAccepted publicCoin →
       NumiSealProductKnowledgeCarryPrivacyHolds relations →
         claim.zeroKnowledge
   compositionSound :
     ProductSystemBindingsAccepted bindings →
       ProductBoundedDepthLossAccepted losses →
       ProductLatticeAssumptionDossierAccepted assumptions →
-      ProductFiatShamirQROMAccepted fiatShamir →
+      ProductPublicCoinQROMAccepted publicCoin →
         claim.composition
 
 theorem productSecurityTheorem_from_evidence
@@ -877,12 +877,12 @@ theorem productSecurityTheorem_from_evidence
       NumiSealProductKnowledgeCarryPrivacyRelations depth View Leakage}
     {losses : ProductBoundedDepthLossEvidence parameters}
     {assumptions : ProductLatticeAssumptionDossier}
-    {fiatShamir : ProductFiatShamirQROMEvidence}
+    {publicCoin : ProductPublicCoinQROMEvidence}
     {claim : ProductCompletenessSoundnessZKClaim}
     (hBindings : ProductSystemBindingsAccepted bindings)
     (hLosses : ProductBoundedDepthLossAccepted losses)
     (hAssumptions : ProductLatticeAssumptionDossierAccepted assumptions)
-    (hFiatShamir : ProductFiatShamirQROMAccepted fiatShamir)
+    (hPublicCoin : ProductPublicCoinQROMAccepted publicCoin)
     (evidence :
       ProductSecurityTheoremEvidence
         parameters
@@ -890,7 +890,7 @@ theorem productSecurityTheorem_from_evidence
         relations
         losses
         assumptions
-        fiatShamir
+        publicCoin
         claim) :
     ProductCompletenessSoundnessZKHolds claim :=
   ⟨
@@ -898,13 +898,13 @@ theorem productSecurityTheorem_from_evidence
     evidence.knowledgeSoundnessSound
       hLosses
       hAssumptions
-      hFiatShamir
+      hPublicCoin
       evidence.productRelationsHold,
     evidence.zeroKnowledgeSound
       hBindings
-      hFiatShamir
+      hPublicCoin
       evidence.productRelationsHold,
-    evidence.compositionSound hBindings hLosses hAssumptions hFiatShamir
+    evidence.compositionSound hBindings hLosses hAssumptions hPublicCoin
   ⟩
 
 theorem productSecurityTheorem_requires_bounded_depth
@@ -918,7 +918,7 @@ theorem productSecurityTheorem_requires_selected_depth_loss_accounting
     {ledger : ProductSelectedDepthLossLedger}
     (hLedger : ProductSelectedDepthLossLedgerAccepted ledger) :
     ledger.extractorLossInstantiated
-      ∧ ledger.fiatShamirQROMLossInstantiated
+      ∧ ledger.publicCoinQROMLossInstantiated
       ∧ ledger.zkSimulatorLossInstantiated
       ∧ ledger.totalLossWithinBudget := by
   rcases hLedger with
@@ -1123,8 +1123,8 @@ theorem productSecurityTheorem_from_instantiated_qrom
       hPartialSum⟩
 
 theorem productSecurityTheorem_requires_qrom_loss_accounting
-    {accounting : ProductFiatShamirLossAccounting}
-    (hAccounting : ProductFiatShamirLossAccountingAccepted accounting) :
+    {accounting : ProductPublicCoinLossAccounting}
+    (hAccounting : ProductPublicCoinLossAccountingAccepted accounting) :
     accounting.interactiveProtocolSpecified
       ∧ accounting.publicCoinChallengeScheduleSpecified
       ∧ accounting.qromTransformPreconditionsSatisfied
@@ -1150,8 +1150,8 @@ theorem productSecurityTheorem_requires_qrom_loss_accounting
       hBudget⟩
 
 theorem productSecurityTheorem_requires_qrom_collision_malleability_exclusion
-    {accounting : ProductFiatShamirLossAccounting}
-    (hAccounting : ProductFiatShamirLossAccountingAccepted accounting) :
+    {accounting : ProductPublicCoinLossAccounting}
+    (hAccounting : ProductPublicCoinLossAccountingAccepted accounting) :
     accounting.transcriptDomainSeparatorsBound
       ∧ accounting.proofKindSeparationBound
       ∧ accounting.transcriptCollisionMalleabilityExcluded := by
@@ -1210,8 +1210,8 @@ theorem productSecurityTheorem_requires_challenge_tape_expansion
   exact hExpansion
 
 theorem productSecurityTheorem_requires_qrom_transcript_schedule
-    {schedule : ProductFiatShamirTranscriptSchedule}
-    (hSchedule : ProductFiatShamirTranscriptScheduleAccepted schedule) :
+    {schedule : ProductPublicCoinTranscriptSchedule}
+    (hSchedule : ProductPublicCoinTranscriptScheduleAccepted schedule) :
     schedule.acceptedProofKindsPinned
       ∧ schedule.publicCoinChallengeLabelsPinned
       ∧ schedule.oracleQueryFamiliesPinned
@@ -1241,9 +1241,9 @@ theorem productSecurityTheorem_requires_qrom_transcript_schedule
       hPromotion⟩
 
 theorem productSecurityTheorem_requires_qrom_transform_preconditions
-    {preconditions : ProductFiatShamirTransformPreconditions}
+    {preconditions : ProductPublicCoinTransformPreconditions}
     (hPreconditions :
-      ProductFiatShamirTransformPreconditionsAccepted preconditions) :
+      ProductPublicCoinTransformPreconditionsAccepted preconditions) :
     preconditions.theoremFamilyPinned
       ∧ preconditions.publicCoinInteractiveProtocolSpecified
       ∧ preconditions.constantRoundOddMessageScheduleSpecified
@@ -1399,10 +1399,10 @@ theorem productSecurityTheorem_requires_release_distribution_evidence
   exact hEvidence
 
 theorem productSecurityTheorem_requires_qrom_accounting
-    {fiatShamir : ProductFiatShamirQROMEvidence}
-    (hFiatShamir : ProductFiatShamirQROMAccepted fiatShamir) :
-    fiatShamir.quantumOracleQueryBoundAccounted :=
-  hFiatShamir.2.2.1
+    {publicCoin : ProductPublicCoinQROMEvidence}
+    (hPublicCoin : ProductPublicCoinQROMAccepted publicCoin) :
+    publicCoin.quantumOracleQueryBoundAccounted :=
+  hPublicCoin.2.2.1
 
 theorem productSecurityTheorem_requires_artifact_envelope_binding
     {bindings : ProductSystemBindings}

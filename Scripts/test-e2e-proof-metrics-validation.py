@@ -44,12 +44,14 @@ def product_fixture(path: Path, *, proof_kind: str = "numiseal-terminal") -> Non
             "zkMode": "none",
             "metalMode": "cpu-reference",
             "executionPolicy": "zk-high-assurance-cpu",
-            "sourceFoldOutputClaimCount": 14,
+            "sourceFoldOutputClaimCount": 2,
+            "sourceDecompositionProfile": "pay-per-bit-v1",
             "sourceFoldEnvelopeBase64": base64.b64encode(source_bytes).decode("ascii"),
             "numiSealProofEnvelopeBase64": base64.b64encode(proof_bytes).decode("ascii"),
             "sourceFoldEnvelopeDigestHex": hashlib.sha256(source_bytes).hexdigest(),
             "proofEnvelopeDigestHex": hashlib.sha256(proof_bytes).hexdigest(),
             "executionPolicyMetadata": {
+                "sourceDecompositionProfile": "pay-per-bit-v1",
                 "terminalCarryPolicy": "none",
             },
         },
@@ -120,6 +122,20 @@ def main() -> None:
         carry_policy_artifact["executionPolicyMetadata"]["terminalCarryPolicy"] = "typed-required"
         write_json(carry_policy_mismatch, carry_policy_artifact)
         run_fail(str(VALIDATE), str(valid), "--generated-product-artifact", f"numiseal-product-smoke:{carry_policy_mismatch}")
+
+        decomposition_profile_mismatch = tmp / "decomposition-profile-mismatch.json"
+        product_fixture(decomposition_profile_mismatch)
+        profile_artifact = json.loads(decomposition_profile_mismatch.read_text(encoding="utf-8"))
+        profile_artifact["sourceDecompositionProfile"] = "fixed-maximum-v1"
+        write_json(decomposition_profile_mismatch, profile_artifact)
+        run_fail(str(VALIDATE), str(valid), "--generated-product-artifact", f"numiseal-product-smoke:{decomposition_profile_mismatch}")
+
+        decomposition_profile_metadata_mismatch = tmp / "decomposition-profile-metadata-mismatch.json"
+        product_fixture(decomposition_profile_metadata_mismatch)
+        profile_metadata_artifact = json.loads(decomposition_profile_metadata_mismatch.read_text(encoding="utf-8"))
+        profile_metadata_artifact["executionPolicyMetadata"]["sourceDecompositionProfile"] = "fixed-maximum-v1"
+        write_json(decomposition_profile_metadata_mismatch, profile_metadata_artifact)
+        run_fail(str(VALIDATE), str(valid), "--generated-product-artifact", f"numiseal-product-smoke:{decomposition_profile_metadata_mismatch}")
 
     print("e2e proof metrics validation regression tests passed")
 

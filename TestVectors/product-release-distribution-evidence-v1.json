@@ -32,7 +32,7 @@
     },
     {
       "id": "swift-cli-binaries",
-      "description": "superneo, superneo-numiseal-vectors, superneo-formal-vectors, and superneo-ct-observe release binaries",
+      "description": "superneo, superneo-formal-vectors, superneo-ct-observe, and superneo-payperbit-eval release binaries",
       "signatureRequiredForProduction": false,
       "provenanceDigestRequired": true
     },

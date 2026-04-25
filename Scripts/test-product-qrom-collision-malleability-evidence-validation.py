@@ -79,7 +79,11 @@ def source_hbind_removed(evidence: dict[str, Any]) -> None:
 
 
 def production_claim_enabled(evidence: dict[str, Any]) -> None:
-    evidence["closureStatus"]["productionQROMClaimAllowed"] = False
+    evidence["closureStatus"]["productionQROMClaimAllowed"] = True
+
+
+def concrete_hash_proof_enabled(evidence: dict[str, Any]) -> None:
+    evidence["closureStatus"]["hashQROInstantiationProofProvided"] = True
 
 
 def missing_binding_target(evidence: dict[str, Any]) -> None:
@@ -116,7 +120,12 @@ def main() -> None:
     expect_failure(
         "production claim enabled",
         production_claim_enabled,
-        "closureStatus.productionQROMClaimAllowed must be true",
+        "closureStatus.productionQROMClaimAllowed must be false",
+    )
+    expect_failure(
+        "concrete hash proof enabled",
+        concrete_hash_proof_enabled,
+        "closureStatus.hashQROInstantiationProofProvided must be false",
     )
     expect_failure(
         "missing binding target terminology",

@@ -28,7 +28,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
 EXPECTED_MANIFESTS = {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
 }
@@ -130,7 +130,7 @@ def validate_related_manifests(manifest: dict[str, Any]) -> None:
     for manifest_key in [
         "productCryptoSecurityDossier",
         "selectedDepthLossAccounting",
-        "productQROMFiatShamirAccounting",
+        "productQROMPublicCoinAccounting",
         "productTotalLossBudget",
     ]:
         peer = read_json(ROOT / EXPECTED_MANIFESTS[manifest_key])
@@ -217,11 +217,12 @@ def validate_residual_policy(manifest: dict[str, Any]) -> None:
 
 def validate_promotion_rule(manifest: dict[str, Any]) -> None:
     promotion = require_dict(manifest.get("promotionRule"), "promotionRule")
+    require(promotion.get("repositoryLocalIdealQROMClaimAllowed") is True, "promotionRule.repositoryLocalIdealQROMClaimAllowed must be true")
     for key in [
         "productionProductSecurityClaimAllowed",
         "productionQROMClaimAllowed",
     ]:
-        require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+        require(promotion.get(key) is False, f"promotionRule.{key} must stay false until production gates close")
     for key in [
         "requiresSharedBadEventDeduplication",
         "requiresInteractiveSecurityBounds",

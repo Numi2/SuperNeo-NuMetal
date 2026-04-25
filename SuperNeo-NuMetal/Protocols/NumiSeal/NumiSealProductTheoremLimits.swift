@@ -5,9 +5,10 @@ public enum NumiSealProductTheoremLimits {
     public static let selectedDepth = 1
     public static let maximumLaneCount = 1
     public static let maximumSourceFoldOutputClaimCount =
+        SuperNeoParameters.goldilocks.decompositionLength
+    public static let maximumObligationsPerAggregate =
         SuperNeoParameters.goldilocks.maxFreshBatchCount + SuperNeoParameters.goldilocks.maxPriorClaimCount
-    public static let maximumObligationsPerAggregate = maximumSourceFoldOutputClaimCount
-    public static let maximumAggregatesPerLane = maximumSourceFoldOutputClaimCount
+    public static let maximumAggregatesPerLane = maximumObligationsPerAggregate
     public static let maximumPublicInputCount = 1024
     public static let maximumMatrixEvaluationCount = 1024
     public static let maximumDigitTensorColumnCount = 4096
@@ -41,9 +42,15 @@ public enum NumiSealProductTheoremLimits {
         guard request.publicInputs.count <= maximumPublicInputCount else {
             throw SuperNeoError.invalidParameter("NumiSeal product public input count exceeds theorem maximum")
         }
+        guard request.sourceDecompositionProfile == .payPerBit else {
+            throw SuperNeoError.invalidParameter("NumiSeal product source decomposition profile must be pay-per-bit-v1")
+        }
     }
 
     public static func validateSourceFoldOutputClaimCount(_ count: Int) throws {
+        guard count > 0 else {
+            throw SuperNeoError.invalidParameter("NumiSeal product source claim count must be positive")
+        }
         guard count <= maximumSourceFoldOutputClaimCount else {
             throw SuperNeoError.invalidParameter("NumiSeal product source claim count exceeds theorem maximum")
         }
@@ -78,6 +85,9 @@ public enum NumiSealProductTheoremLimits {
         }
         guard artifact.publicInputs.count <= maximumPublicInputCount else {
             throw SuperNeoError.invalidEncoding("NumiSeal product public input count exceeds theorem maximum")
+        }
+        guard artifact.sourceFoldOutputClaimCount > 0 else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product source claim count must be positive")
         }
         guard artifact.sourceFoldOutputClaimCount <= maximumSourceFoldOutputClaimCount else {
             throw SuperNeoError.invalidEncoding("NumiSeal product source claim count exceeds theorem maximum")

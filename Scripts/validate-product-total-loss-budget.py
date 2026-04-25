@@ -25,6 +25,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
     "formalSurface",
     "selectedDepth",
     "budgetModel",
+    "sourceDecompositionProfile",
     "componentBounds",
     "computedBudget",
     "exactFiniteProbabilityWiring",
@@ -36,7 +37,7 @@ EXPECTED_MANIFESTS = {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
@@ -71,7 +72,7 @@ EXPECTED_COMPONENT_IDS = [
     "terminal-numiseal-seal",
     "typed-recursive-carry",
     "zk-simulator-composition",
-    "fiat-shamir-qrom",
+    "public-coin-qrom",
     "extractor-instantiation",
     "transcript-collision-domain-separation",
     "product-ops-replay",
@@ -84,7 +85,7 @@ EXPECTED_REQUIRED_IDS = [
     "source-fold-knowledge",
     "terminal-numiseal-seal",
     "zk-simulator-composition",
-    "fiat-shamir-qrom",
+    "public-coin-qrom",
     "extractor-instantiation",
     "transcript-collision-domain-separation",
 ]
@@ -296,11 +297,11 @@ def validate_related_manifests(budget: dict[str, Any]) -> None:
     for required_id in EXPECTED_COMPONENT_IDS:
         require(required_id in component_ids, f"selected-depth ledger missing budget component {required_id}")
 
-    qrom = read_json(ROOT / EXPECTED_MANIFESTS["productQROMFiatShamirAccounting"])
-    mapping = require_dict(qrom.get("ledgerTermMapping"), "productQROMFiatShamirAccounting.ledgerTermMapping")
-    qrom_loss = require_dict(mapping.get("fiatShamirQROMLoss"), "ledgerTermMapping.fiatShamirQROMLoss")
+    qrom = read_json(ROOT / EXPECTED_MANIFESTS["productQROMPublicCoinAccounting"])
+    mapping = require_dict(qrom.get("ledgerTermMapping"), "productQROMPublicCoinAccounting.ledgerTermMapping")
+    qrom_loss = require_dict(mapping.get("publicCoinQROMLoss"), "ledgerTermMapping.publicCoinQROMLoss")
     collision_loss = require_dict(mapping.get("transcriptCollisionLoss"), "ledgerTermMapping.transcriptCollisionLoss")
-    qrom_sources = require_string_list(qrom_loss.get("sourceSymbols"), "fiatShamirQROMLoss.sourceSymbols")
+    qrom_sources = require_string_list(qrom_loss.get("sourceSymbols"), "publicCoinQROMLoss.sourceSymbols")
     collision_sources = require_string_list(collision_loss.get("sourceSymbols"), "transcriptCollisionLoss.sourceSymbols")
     require("epsilon_transcript_collision" not in qrom_sources, "epsilon_transcript_collision must not be double-counted inside epsilon_qrom")
     require(collision_sources == ["epsilon_bind"], "epsilon_collision must map exactly from epsilon_bind")
@@ -440,6 +441,65 @@ def validate_budget_model(budget: dict[str, Any]) -> int:
     return bits
 
 
+def validate_source_decomposition_profile(budget: dict[str, Any]) -> None:
+    profile = require_dict(budget.get("sourceDecompositionProfile"), "sourceDecompositionProfile")
+    require(
+        profile.get("selectedProfile") == "pay-per-bit-v1",
+        "sourceDecompositionProfile.selectedProfile must be pay-per-bit-v1",
+    )
+    require(
+        profile.get("fixedMaximumProfileRejectedForProduct") is True,
+        "sourceDecompositionProfile.fixedMaximumProfileRejectedForProduct must be true",
+    )
+    require(
+        require_int(profile.get("maximumSourceFoldOutputClaimCount"), "sourceDecompositionProfile.maximumSourceFoldOutputClaimCount") == 14,
+        "sourceDecompositionProfile.maximumSourceFoldOutputClaimCount must pin the Goldilocks maximum",
+    )
+    require(
+        require_string(profile.get("exactCountBoundSource"), "sourceDecompositionProfile.exactCountBoundSource")
+        == "NumiSealProductArtifact.sourceFoldOutputClaimCount",
+        "sourceDecompositionProfile.exactCountBoundSource must bind the artifact count field",
+    )
+    accounting = require_string(
+        profile.get("adaptiveOutputClaimCountAccounting"),
+        "sourceDecompositionProfile.adaptiveOutputClaimCountAccounting",
+    )
+    for needle in [
+        "source CE obligations are adaptive",
+        "not fixed 14",
+        "sourceFoldOutputClaimCount",
+        "sourceFoldOutputClaimDigestsHex",
+        "1...SuperNeoParameters.goldilocks.decompositionLength",
+        "recomposition",
+    ]:
+        require(needle in accounting, f"sourceDecompositionProfile adaptive accounting must mention {needle}")
+    artifact_binding = require_string_list(
+        profile.get("artifactBinding"),
+        "sourceDecompositionProfile.artifactBinding",
+    )
+    require(
+        artifact_binding == [
+            "top-level sourceDecompositionProfile",
+            "executionPolicyMetadata.sourceDecompositionProfile",
+            "sourceFoldOutputClaimCount",
+            "sourceFoldOutputClaimDigestsHex",
+        ],
+        "sourceDecompositionProfile.artifactBinding mismatch",
+    )
+    recomposition = require_string(
+        profile.get("recompositionInvariant"),
+        "sourceDecompositionProfile.recompositionInvariant",
+    )
+    for needle in [
+        "SuperNeoVerifier.reduceFoldEnvelope",
+        "recomposition",
+        "commitments",
+        "public inputs",
+        "evaluations",
+    ]:
+        require(needle in recomposition, f"sourceDecompositionProfile recomposition invariant must mention {needle}")
+
+
 def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[str], Fraction | None, Fraction]:
     components = budget.get("componentBounds")
     require(isinstance(components, list), "componentBounds must be a list")
@@ -488,20 +548,20 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                     exact_bound == Fraction(1, 1 << 129),
                     "shared-cryptographic-core exactUpperBound must be 1/2^129",
                 )
-        if component_id == "fiat-shamir-qrom":
+        if component_id == "public-coin-qrom":
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
                 "TestVectors/product-qrom-transform-preconditions-v1.json" in evidence,
-                "fiat-shamir-qrom requiredEvidence must link QROM transform preconditions",
+                "public-coin-qrom requiredEvidence must link QROM transform preconditions",
             )
             require(
                 "TestVectors/product-qrom-interactive-reduction-v1.json" in evidence,
-                "fiat-shamir-qrom requiredEvidence must link QROM interactive reduction",
+                "public-coin-qrom requiredEvidence must link QROM interactive reduction",
             )
             for needle in ["CTCO", "384-bit H_bind", "epsilon_compiler_overhead = 0"]:
-                require(needle in evidence, f"fiat-shamir-qrom requiredEvidence must mention {needle}")
+                require(needle in evidence, f"public-coin-qrom requiredEvidence must mention {needle}")
             if instantiated:
-                require(exact_bound == 0, "fiat-shamir-qrom exactUpperBound must be exactly 0")
+                require(exact_bound == 0, "public-coin-qrom exactUpperBound must be exactly 0")
         if component_id in {"source-fold-knowledge", "terminal-numiseal-seal"}:
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
@@ -518,6 +578,14 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                     and "fixed-kind CTCO repeated-tape" in evidence,
                     "source fold evidence must pin PiRLC numeric gap and repeated-tape route",
                 )
+                for needle in [
+                    "pay-per-bit-v1",
+                    "adaptive output-claim count",
+                    "sourceFoldOutputClaimCount",
+                    "sourceFoldOutputClaimDigestsHex",
+                    "recomposition",
+                ]:
+                    require(needle in evidence, f"source-fold-knowledge requiredEvidence must mention {needle}")
                 if instantiated:
                     require(exact_bound == source_fold_repeated_tape_bound(), "source-fold-knowledge exactUpperBound mismatch")
             if component_id == "terminal-numiseal-seal":
@@ -790,6 +858,7 @@ def validate_budget(path: Path) -> None:
     validate_formal_surface(budget)
     validate_selected_depth(budget)
     security_bits = validate_budget_model(budget)
+    validate_source_decomposition_profile(budget)
     required_count, instantiated_count, missing_ids, exact_total, instantiated_total = validate_component_bounds(budget)
     validate_computed_budget(
         budget,

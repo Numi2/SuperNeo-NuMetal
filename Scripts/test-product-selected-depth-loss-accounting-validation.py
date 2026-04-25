@@ -75,7 +75,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_qrom_accounting = copy.deepcopy(ledger)
-        missing_qrom_accounting["relatedManifests"].pop("productQROMFiatShamirAccounting")
+        missing_qrom_accounting["relatedManifests"].pop("productQROMPublicCoinAccounting")
         path = tmp / "missing-qrom-accounting.json"
         write_json(path, missing_qrom_accounting)
         run_fail(str(VALIDATE), str(path))

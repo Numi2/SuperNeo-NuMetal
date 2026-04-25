@@ -1,181 +1,92 @@
-# What This Proves And What It Does Not Prove
+# What This Proves
 
-This page is the shortest safe description of SuperNeo NuMetal's proof
-semantics. Use it when explaining the project to someone who needs to know what
-verifier acceptance means.
+This is the compact proof-semantics page. Use it when explaining what verifier
+acceptance means.
 
-Formal status: completed formal protocol theorem.
-
-## The Relation
+## Relation
 
 SuperNeo NuMetal folds committed CCS instance-witness claims over the
-`Goldilocks/Phi81(d=54)` profile. A CCS shape describes sparse matrices and a
-relation polynomial. Public inputs and commitments define public instances.
-Witness vectors remain prover-side inputs; terminal proof paths verify derived
-CE claims rather than making a general application statement automatically true.
+`Goldilocks/Phi81(d=54)` profile. A CCS shape defines sparse matrices and a
+relation polynomial. Public inputs and commitments define the public instance.
+Witness vectors remain prover-side inputs.
 
-The folding protocol reduces many active CCS claims and prior CE claims into a
-fixed number of output CE claims. The decomposition length is 14 for the current
-profile.
+The selected source-fold profile is `pay-per-bit-v1`. The verifier must treat
+source-fold decomposition/output CE obligations as adaptive artifact-bound
+claims, not as a fixed 14-claim rule. Recomposition and matching
+decomposition/output counts are mandatory.
 
-## What `reduceFold` Proves
+## `reduceFold`
 
 `reduceFold` verifies the public fold reduction:
 
-- the public CCS shape and instances are well formed,
-- the sum-check transcript is bound to the public input and proof messages,
-- PiCCS final claims are consistent with the CCS and prior CE checks encoded in
-  the sum-check oracle,
-- PiRLC challenges are transcript-derived and the folded claim is the claimed
-  random linear combination, and
-- PiDEC decomposes the folded claim into 14 output CE claims.
+- the public CCS shape and instances are well formed;
+- sum-check, PiCCS, PiRLC, and PiDEC checks are transcript-bound;
+- the folded claim is the claimed random linear combination; and
+- decomposition output CE obligations match the selected profile.
 
-An accepted reduction means:
+Accepted `reduceFold` output means the reduction verified. It is not terminal
+acceptance; returned CE obligations still need terminal verification.
 
-> The verifier accepts the reduction from the supplied public fold input to the
-> returned CE output claims.
-
-It does not mean:
-
-> The application statement is fully proven.
-
-The output CE claims still need terminal relation verification.
-
-## What `verifyTerminalFold` Proves
+## Terminal Verification
 
 `verifyTerminalFold` verifies the fold reduction and then verifies the terminal
-CE opening relation for the fold output claims. This is the local terminal
-acceptance path. It is the right API when the verifier has the public fold input,
-the terminal proof, and the information needed to check the CE opening relation.
+CE opening relation for the fold output obligations.
 
-An accepted terminal proof means:
+Accepted terminal output means the reduction and terminal CE openings verified
+under the supplied shape, public input, transcript domain, and verifier key. It
+is a proof about the encoded CCS relation, not about an external program unless
+that program was correctly encoded as CCS.
 
-> The fold reduction verified and the terminal CE openings verified for the
-> reduction outputs under the supplied shape and verifier key.
+`verifyCompressedTerminalFoldEnvelope` adds compressed public-input,
+statement-digest, verifier-key, fold-proof, CE-proof, and compression-digest
+binding before reconstructing terminal verification.
 
-This is still a proof about the encoded CCS relation, not an automatic proof
-about an external program unless that program has been correctly encoded as CCS.
+## NumiSeal Product Verification
 
-## What `verifyCompressedTerminalFoldEnvelope` Proves
+The selected product path is the QRO public-coin path in
+`Docs/QROProductArchitecture-2026-04-25.md`.
 
-Compressed public envelopes bind a fold proof and CE opening proof through
-digests and a compressed statement. Verification checks:
+Product NumiSeal verification means:
 
-- envelope context,
-- public input digest,
-- verifier-key digest,
-- compressed terminal statement digest,
-- fold proof digest,
-- CE opening proof digest,
-- compression digest, and
-- reconstructed terminal fold verification.
+- the caller supplied the trusted `SuperNeoQROChallenge`;
+- the product artifact is version 2;
+- the source fold is bound to `pay-per-bit-v1`;
+- source-fold and terminal transcript material are derived from QRO public
+  coins, not from artifact-selected transcript seeds;
+- envelope kind, public statement, verifier key, CTCO roots, lane summaries,
+  aggregate digests, carry context, and proof transcript digests match; and
+- the NumiSeal or NumiSealZK proof verifies under the reconstructed public
+  statement and policy.
 
-An accepted compressed public envelope means:
+Product mode rejects legacy self-described NumiSeal JSON and artifact-selected
+transcript seeds.
 
-> The public compressed artifact verified against the supplied public input,
-> shape, statement digest, verifier key, and terminal CE relation.
+## Proof Envelopes
 
-It does not remove the need for applications to validate they supplied the
-intended public input, intended verifier key, and intended CCS shape.
+Proof envelopes bind proof bytes to profile ID, proof kind, CCS shape digest,
+statement digest, verifier-key digest, transcript domain, and exact body
+length. The envelope prevents proof-kind, key, shape, transcript-domain, and
+length confusion. It does not define application-level semantics; the CCS
+encoder and public-input policy do that.
 
-## What NumiSeal `verify` Proves
+## Formal Status
 
-`superneo verify` accepts checked NumiSeal terminal artifacts with proof envelope
-kind `4`. Verification reconstructs the public NumiSeal
-obligations, accepted lane set, aggregate plan, and terminal policy from the
-artifact's public vector metadata, checks the envelope header, public statement,
-obligation root, lane-summary root, aggregate digests, component digest root, and
-proof-transcript digest, then calls `NumiSealVerifier` to verify immediate
-residual CE openings through the existing CE opening relation.
+The Lean track contains a completed finite-model formal protocol theorem for
+the repository model. Its theorem-facing surfaces include well-formed
+transcript injectivity, 384-bit theorem-critical proof-envelope binding,
+typed digest domains, Phi81 CRT decomposition, PiRLC/PiCCS finite-soundness
+surfaces, terminal CE finite-seed accounting, and selected-depth product
+ledger wiring.
 
-An accepted NumiSeal terminal artifact means:
+The formal track does not by itself certify hosted operations, side-channel
+behavior, release distribution, or arbitrary external program encodings.
 
-> The supplied kind `4` envelope verified against the reconstructed public
-> NumiSeal statement, aggregate policy, shape, verifier key, transcript domain,
-> and immediate residual CE openings.
+## Do Not Claim
 
-`superneo prove --seal numiseal` and `NumiSealProductAPI` can generate public
-product artifacts for supported frontend outputs. Those artifacts bind a
-trusted frontend context digest, Swift trace/extractor evidence digest, CTCO
-root/challenge-tape metadata, and 384-bit binding-width QROM evidence metadata.
+Do not describe this repository as:
 
-This is not a production zero-knowledge claim and not a deployed recursive
-NumiSeal product claim. The deterministic NumiSeal vector generator remains
-test-vector tooling. External callers must pin expected NumiSeal context outside
-the artifact before treating CLI acceptance as a policy decision.
-
-## What The Envelope Adds
-
-A proof envelope prevents context confusion. At the serialized-envelope parser it
-binds proof bytes to:
-
-- profile ID,
-- proof kind,
-- CCS shape digest,
-- statement digest,
-- verifier-key digest,
-- transcript domain, and
-- exact body length.
-
-The Fiat-Shamir transcript seed uses the same context except `bodyLength`: the
-141-byte header includes `bodyLength`, while the transcript-binding payload is
-the 137-byte prefix ending at `transcriptDomain`. The parser still enforces the
-body length before proof verification.
-
-The theorem-critical formal transcript object is the well-formed,
-length-counted transcript layer in Lean. Arbitrary `(count, payload)` transcript
-states are still available as a low-level model, but byte-level injectivity
-claims are made only for well-formed transcript states. The formal binding path
-also has a 384-bit proof-envelope companion for theorem-critical comparisons;
-raw 256-bit digest fields remain compatibility metadata, not the final
-theorem-critical binding width.
-
-The envelope does not define the application-level meaning of a statement. That
-meaning comes from the CCS encoder and the application that chooses the public
-inputs.
-
-## What The Formal Status Proves
-
-This repository does not yet provide:
-
-- a general-purpose frontend from programs to CCS,
-- a production-audited zero-knowledge claim,
-- a production SNARK, IVC, or PCD system,
-- an independent implementation in another language,
-- a formal proof of the paper's lattice-estimator analysis,
-- a QROM Fiat-Shamir theorem for the implemented transcript stack, or
-- formal side-channel resistance.
-
-The repository does include a pinned lattice-estimator reproduction harness and
-opt-in high-assurance execution policies. Those are hardening artifacts; they do
-not change the meaning of proof acceptance by themselves.
-
-The repository also includes a Lean 4 formalization track. The current formal
-status is a completed formal protocol theorem for the finite model:
-
-- Ajtai binding is certified-key binding, not arbitrary-matrix binding.
-- PiRLC, PiCCS/sum-check, and terminal CE proof soundness are finite
-  bad-challenge/bad-seed statements, not zero-error deterministic statements.
-  PiCCS now uses a constructed prefix bad-challenge set, and terminal CE has a
-  constructive finite bad-seed theorem over the concrete extraction-failure set.
-- Transcript and binding claims use well-formed transcript injectivity,
-  384-bit theorem-critical proof-envelope binding, and typed digest domain
-  separation.
-- Swift `GoldilocksField`/`GoldilocksExt2` byte surfaces and Swift CE proof
-  parser/verifier branch selection have Lean byte grammar and terminal CE
-  verifier trace surfaces.
-- The finite PiRLC, PiCCS/sum-check, transcript-stage, terminal CE, and error
-  ledgers expose exact finite-uniform rational error-bound surfaces. Exact
-  finite-probability wiring into the top product theorem is checked.
-- Terminal CE localization and the selected PiRLC public-field
-  finite-soundness integration are closed by explicit Lean declarations.
-
-Historical assumption-boundary IDs remain documented for auditability, but they
-are not active manifest groups. `Docs/FormalStatus.json` records the completed
-formal protocol theorem and the closed theorem groups that support it.
-
-The correct public positioning remains:
-
-> A research-grade Swift/Metal implementation of the SuperNeo folding protocol
-> over `Goldilocks/Phi81(d=54)`, with versioned proof envelopes and CPU/Metal
-> verification paths.
+- a production-secure SNARK;
+- production QROM-secure for every surface;
+- a whole-stack constant-time implementation;
+- a general program compiler to CCS; or
+- an independently audited cryptographic product.

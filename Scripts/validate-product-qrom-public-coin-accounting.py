@@ -10,7 +10,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ACCOUNTING = ROOT / "TestVectors" / "product-qrom-fiat-shamir-accounting-v1.json"
+ACCOUNTING = ROOT / "TestVectors" / "product-qrom-public-coin-accounting-v1.json"
 
 EXPECTED_TOP_LEVEL_KEYS = {
     "schemaVersion",
@@ -20,7 +20,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
     "formalSurface",
     "selectedDepth",
     "hashModel",
-    "fiatShamirModel",
+    "publicCoinQROModel",
     "transcriptInterfaces",
     "lossRule",
     "ledgerTermMapping",
@@ -52,7 +52,7 @@ EXPECTED_PROOF_KINDS = [
 ]
 
 EXPECTED_FORMAL_DECLARATIONS = {
-    "ProductFiatShamirLossAccounting",
+    "ProductPublicCoinLossAccounting",
     "ProductHashOracleInstantiation",
     "ProductQROMCollisionBound",
     "ProductQROMMalleabilityBound",
@@ -127,17 +127,17 @@ def validate_related_manifests(accounting: dict[str, Any]) -> None:
         require_relative_path(relative, f"relatedManifests.{key}")
 
     for manifest_key, nested_key in [
-        ("productCryptoSecurityDossier", "productQROMFiatShamirAccounting"),
-        ("selectedDepthLossAccounting", "productQROMFiatShamirAccounting"),
-        ("productQROMTranscriptSchedule", "productQROMFiatShamirAccounting"),
-        ("productQROMTransformPreconditions", "productQROMFiatShamirAccounting"),
-        ("productQROMInteractiveReduction", "productQROMFiatShamirAccounting"),
+        ("productCryptoSecurityDossier", "productQROMPublicCoinAccounting"),
+        ("selectedDepthLossAccounting", "productQROMPublicCoinAccounting"),
+        ("productQROMTranscriptSchedule", "productQROMPublicCoinAccounting"),
+        ("productQROMTransformPreconditions", "productQROMPublicCoinAccounting"),
+        ("productQROMInteractiveReduction", "productQROMPublicCoinAccounting"),
     ]:
         manifest = read_json(ROOT / EXPECTED_MANIFESTS[manifest_key])
         manifest_related = require_dict(manifest.get("relatedManifests"), f"{manifest_key}.relatedManifests")
         require(
-            manifest_related.get(nested_key) == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
-            f"{manifest_key} must link product-qrom-fiat-shamir-accounting-v1.json",
+            manifest_related.get(nested_key) == "TestVectors/product-qrom-public-coin-accounting-v1.json",
+            f"{manifest_key} must link product-qrom-public-coin-accounting-v1.json",
         )
 
 
@@ -183,15 +183,24 @@ def validate_hash_model(accounting: dict[str, Any]) -> None:
     ]:
         require_true(model.get(key), f"hashModel.{key}")
     require_true(model.get("sourceAcceptancePathsUseHBind"), "hashModel.sourceAcceptancePathsUseHBind")
-    require_true(model.get("hashQROInstantiationProofProvided"), "hashModel.hashQROInstantiationProofProvided")
+    require_true(model.get("idealSplitQROTheoremInstantiated"), "hashModel.idealSplitQROTheoremInstantiated")
+    require_false(
+        model.get("genericOfflineTransformAcceptedForProduction"),
+        "hashModel.genericOfflineTransformAcceptedForProduction",
+    )
+    require_false(
+        model.get("concreteSHAKE256QROInstantiationProofProvided"),
+        "hashModel.concreteSHAKE256QROInstantiationProofProvided",
+    )
+    require_false(model.get("hashQROInstantiationProofProvided"), "hashModel.hashQROInstantiationProofProvided")
     source = (ROOT / "SuperNeo-NuMetal" / "SuperNeoHashOracles.swift").read_text(encoding="utf-8")
     for needle in ["SuperNeoSHAKE256", "Digest384", "SuperNeoSplitQRO", "CTCOMoveOneCommitment"]:
         require(needle in source, f"SuperNeoHashOracles.swift missing {needle}")
 
 
-def validate_fiat_shamir_model(accounting: dict[str, Any]) -> None:
-    model = require_dict(accounting.get("fiatShamirModel"), "fiatShamirModel")
-    require(model.get("model") == "ideal-split-qro", "fiatShamirModel.model must be ideal-split-qro")
+def validate_public_coin_model(accounting: dict[str, Any]) -> None:
+    model = require_dict(accounting.get("publicCoinQROModel"), "publicCoinQROModel")
+    require(model.get("model") == "ideal-split-qro", "publicCoinQROModel.model must be ideal-split-qro")
     require(model.get("transformFamily") == "ctco", "transformFamily must be ctco")
     require(model.get("fallbackTransformFamily") == "merkle-straightline", "fallback transform mismatch")
     for key in [
@@ -201,7 +210,7 @@ def validate_fiat_shamir_model(accounting: dict[str, Any]) -> None:
         "samplerEncodingEvidenceManifest",
         "collisionMalleabilityEvidenceManifest",
     ]:
-        require_relative_path(model.get(key), f"fiatShamirModel.{key}")
+        require_relative_path(model.get(key), f"publicCoinQROModel.{key}")
     for key in [
         "interactiveProtocolSpecified",
         "publicCoinChallengeScheduleSpecified",
@@ -216,8 +225,9 @@ def validate_fiat_shamir_model(accounting: dict[str, Any]) -> None:
         "legacyDFM20InterfaceDeprecated",
         "sourceImplementationComplete",
     ]:
-        require_true(model.get(key), f"fiatShamirModel.{key}")
-    require_true(model.get("productionQROMClaimAllowed"), "fiatShamirModel.productionQROMClaimAllowed")
+        require_true(model.get(key), f"publicCoinQROModel.{key}")
+    require_true(model.get("repositoryLocalIdealQROMClaimAllowed"), "publicCoinQROModel.repositoryLocalIdealQROMClaimAllowed")
+    require_false(model.get("productionQROMClaimAllowed"), "publicCoinQROModel.productionQROMClaimAllowed")
 
 
 def validate_transcript_interfaces(accounting: dict[str, Any]) -> None:
@@ -284,14 +294,15 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     )
     require_true(rule.get("allQROMLossTermsInstantiated"), "lossRule.allQROMLossTermsInstantiated")
     require_true(rule.get("qromLossWithinBudget"), "lossRule.qromLossWithinBudget")
-    require_true(rule.get("productionQROMClaimAllowed"), "lossRule.productionQROMClaimAllowed")
+    require_true(rule.get("repositoryLocalIdealQROMClaimAllowed"), "lossRule.repositoryLocalIdealQROMClaimAllowed")
+    require_false(rule.get("productionQROMClaimAllowed"), "lossRule.productionQROMClaimAllowed")
 
 
 def validate_ledger_term_mapping(accounting: dict[str, Any]) -> None:
     mapping = require_dict(accounting.get("ledgerTermMapping"), "ledgerTermMapping")
-    qrom = require_dict(mapping.get("fiatShamirQROMLoss"), "ledgerTermMapping.fiatShamirQROMLoss")
-    require(qrom.get("ledgerSymbol") == "epsilon_qrom", "fiatShamirQROMLoss ledger symbol mismatch")
-    require(require_string_list(qrom.get("sourceSymbols"), "fiatShamirQROMLoss.sourceSymbols") == ["epsilon_compiler_overhead", "epsilon_hash_model_gap"], "epsilon_qrom source symbols mismatch")
+    qrom = require_dict(mapping.get("publicCoinQROMLoss"), "ledgerTermMapping.publicCoinQROMLoss")
+    require(qrom.get("ledgerSymbol") == "epsilon_qrom", "publicCoinQROMLoss ledger symbol mismatch")
+    require(require_string_list(qrom.get("sourceSymbols"), "publicCoinQROMLoss.sourceSymbols") == ["epsilon_compiler_overhead", "epsilon_hash_model_gap"], "epsilon_qrom source symbols mismatch")
     collision = require_dict(mapping.get("transcriptCollisionLoss"), "ledgerTermMapping.transcriptCollisionLoss")
     require(collision.get("ledgerSymbol") == "epsilon_collision", "collision ledger symbol mismatch")
     require(require_string_list(collision.get("sourceSymbols"), "transcriptCollisionLoss.sourceSymbols") == ["epsilon_bind"], "epsilon_collision must map from epsilon_bind")
@@ -309,18 +320,21 @@ def validate_legacy_status(accounting: dict[str, Any]) -> None:
 def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
     blockers = accounting.get("hardClaimBlockers")
     require(isinstance(blockers, list), "hardClaimBlockers must be a list")
-    require(blockers == [], "hardClaimBlockers must be empty after repository-local QROM promotion")
+    require(blockers, "hardClaimBlockers must record concrete-hash and generic offline production blockers")
     blocker_text = " ".join(str(blocker) for blocker in blockers).lower()
+    require("shake256-to-split-qro" in blocker_text, "hardClaimBlockers must keep concrete SHAKE256 promotion open")
+    require("generic offline" in blocker_text, "hardClaimBlockers must reject generic offline production wording")
     require("zk simulator" not in blocker_text, "ZK simulator composition must not remain a QROM blocker")
     require("special-soundness" not in blocker_text, "interactive special-soundness must not remain a QROM blocker")
     require("deduplicate shared" not in blocker_text, "shared bad-event dedup must not remain a QROM blocker")
     promotion = require_dict(accounting.get("promotionRule"), "promotionRule")
+    require_true(promotion.get("repositoryLocalIdealQROMClaimAllowed"), "promotionRule.repositoryLocalIdealQROMClaimAllowed")
     for key in [
         "productionProductSecurityClaimAllowed",
         "productionPostQuantumClaimAllowed",
         "productionQROMClaimAllowed",
     ]:
-        require_true(promotion.get(key), f"promotionRule.{key}")
+        require_false(promotion.get(key), f"promotionRule.{key}")
     for key in [
         "requiresInteractiveSecurityBounds",
         "requiresCTCOProtocolImplementation",
@@ -330,6 +344,14 @@ def validate_promotion_and_blockers(accounting: dict[str, Any]) -> None:
     ]:
         require_false(promotion.get(key), f"promotionRule.{key}")
     require_false(promotion.get("requiresHBind384Implementation"), "promotionRule.requiresHBind384Implementation")
+    require_true(
+        promotion.get("requiresConcreteHashQROInstantiation"),
+        "promotionRule.requiresConcreteHashQROInstantiation",
+    )
+    require_true(
+        promotion.get("requiresInteractiveVerifierChallengeModeForHighestAssurance"),
+        "promotionRule.requiresInteractiveVerifierChallengeModeForHighestAssurance",
+    )
 
 
 def validate_accounting(path: Path) -> None:
@@ -338,13 +360,13 @@ def validate_accounting(path: Path) -> None:
     require("external" + " audit" not in text, "accounting must not encode outsourced review as a product gate")
     require(set(accounting) == EXPECTED_TOP_LEVEL_KEYS, "top-level accounting keys mismatch")
     require(accounting.get("schemaVersion") == 1, "schemaVersion must be 1")
-    require(accounting.get("accountingID") == "superneo-product-qrom-fiat-shamir-accounting-v1", "accountingID mismatch")
+    require(accounting.get("accountingID") == "superneo-product-qrom-public-coin-accounting-v1", "accountingID mismatch")
     require(accounting.get("claimStatus") == "qrom-ctco-split-qro-contract-repository-local-production-claim", "claimStatus mismatch")
     validate_related_manifests(accounting)
     validate_formal_surface(accounting)
     validate_selected_depth(accounting)
     validate_hash_model(accounting)
-    validate_fiat_shamir_model(accounting)
+    validate_public_coin_model(accounting)
     validate_transcript_interfaces(accounting)
     validate_loss_rule(accounting)
     validate_ledger_term_mapping(accounting)

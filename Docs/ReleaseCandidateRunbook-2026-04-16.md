@@ -1,211 +1,52 @@
 # Release Candidate Runbook, 2026-04-16
 
-This runbook defines the repeatable path for a research/integration release
-candidate. Repository-local production-security claims are authorized only by
-the checked manifests, release evidence, and production-gate result recorded
-for that candidate.
+This is the short release-candidate checklist. Keep release evidence in JSON
+manifests; do not duplicate it here.
 
-## Preconditions
+## Required Steps
 
-- The worktree is clean.
-- `CHANGELOG.md` records user-facing changes and the current repository-local
-  promotion status.
-- `Docs/ProductionReadinessAuditPacket-2026-04-16.md` reflects the current gate
-  result and repository-local promotion status.
-- `Docs/SchemaCompatibility-2026-04-16.md` reflects any public artifact,
-  manifest, or proof-envelope changes.
-- `Docs/E2EProofMetrics-2026-04-16.md` reflects any proof-size or product
-  smoke budget changes.
-- `Docs/Benchmarking.md` and `TestVectors/benchmark-coverage-v1.json` reflect
-  any benchmark row coverage changes.
-- `Docs/ConstantTimeEvidence-2026-04-16.md` reflects any constant-time
-  source/formal or Swift/LLVM/Metal lowering evidence changes.
-- `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json` has been
-  regenerated with `Scripts/generate-constant-time-release-evidence.py` when
-  scoped source, Metal kernels, the release toolchain, or observation tooling
-  changed.
-- `Docs/ProductOperationsReadiness-2026-04-16.md` reflects any product
-  operations readiness status or signed revocation feed changes.
-- `Docs/CryptographicSecurityDossier-2026-04-16.md` and
-  `TestVectors/product-crypto-security-dossier-v1.json` reflect any product
-  theorem, Fiat-Shamir/QROM, Module-SIS parameter, proof-size, or hardening
-  boundary changes.
-- `TestVectors/product-selected-depth-loss-accounting-v1.json` reflects any
-  selected-depth loss-accounting changes for extractor, QROM, transcript
-  collision, proof-level ZK simulator loss, product-ops replay, CT, or release-distribution
-  terms.
-- `TestVectors/product-extractor-loss-accounting-v1.json` reflects any
-  extractor input, rewind schedule, source-fold extractor, terminal-seal
-  extractor, product-envelope composition, or recursive carry extractor changes.
-- `TestVectors/product-swift-trace-extractor-evidence-v1.json` reflects any
-  executable Swift trace surface, frontend-context binding, source-fold output
-  claim binding, CTCO trace block, or theorem-consumed extractor surface
-  change.
-- `TestVectors/product-qrom-fiat-shamir-accounting-v1.json` reflects any
-  QROM Fiat-Shamir accounting changes for proof-kind transcript interfaces,
-  challenge families, domain separation, quantum random-oracle queries, or
-  transcript collision/malleability terms.
-- `TestVectors/product-qrom-transcript-schedule-v1.json` reflects any product
-  QROM transcript schedule changes for proof-kind order, public challenge
-  labels, symbolic `Q_H` query families, per-kind protocol challenge
-  derivation maxima, or schedule-to-ledger binding.
-- `TestVectors/product-qrom-sampler-encoding-evidence-v1.json` reflects any
-  product QROM sampler/encoding evidence changes for rejection-sampling
-  arithmetic, transcript frame encoding, domain separators, or QRO abstraction
-  boundaries.
-- `TestVectors/product-qrom-collision-malleability-evidence-v1.json` reflects
-  any product QROM collision/malleability structural evidence changes for
-  accepted proof-kind separation, proof-envelope transcript-binding
-  injectivity, artifact/provenance digest binding, product replay identity,
-  NumiSeal component-root binding, typed carry replay binding, or residual
-  digest-collision and proof-kind malleability event mapping.
-- `TestVectors/product-qrom-ctco-instantiation-v1.json` reflects any
-  split-oracle CTCO source binding, 256-bit challenge seed, 384-bit H_bind
-  root, `Q_H = 2^64`, binding-collision arithmetic, or proof-kind
-  malleability-bound change.
-- `TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json` reflects any
-  NumiSealZK proof-level simulator-coupling digest field, declared-leakage
-  model, mask/session reuse rule, product benchmark pin, or side-channel
-  promotion-boundary change.
-- `TestVectors/product-qrom-transform-preconditions-v1.json` reflects any
-  product QROM transform precondition changes for CTCO/Merkle-straightline
-  theorem-family fit, challenge uniformity, well-formed transcript encoding,
-  `Q_H` query bounds, or reduction-loss accounting.
-- `TestVectors/product-qrom-interactive-reduction-v1.json` reflects any
-  product QROM interactive reduction diagnostic changes for public-coin protocol
-  formulas, selected `Q_H` policy, legacy DFM20 loss multiplier, challenge-count
-  maxima, or per-kind interactive-security obligations. The release theorem
-  route remains split-oracle CTCO or Merkle-straightline with 384-bit binding
-  digests.
-- `TestVectors/product-total-loss-budget-v1.json` reflects any selected-depth
-  total-loss budget, exact rational summation, required component bounds, or
-  `2^-128` threshold changes.
-- `TestVectors/product-release-distribution-evidence-v1.json` reflects any
-  artifact digest provenance, release evidence digest, production-gate result,
-  or `epsilon_release` repository-local budget change.
-- `elan`, Swift, and the pinned Lean toolchain are available.
-
-## Candidate Gate
-
-Run the full gate without formal skipping:
+1. Run:
 
 ```sh
 Scripts/production-gate.sh
+Scripts/generate-release-candidate-evidence.py --expect-production-gate-result passed
+Scripts/validate-release-candidate-evidence.py
 ```
 
-Optional benchmark and full estimator evidence can be attached when making
-performance or security-estimate claims:
+2. Keep distribution wording at repository-local unsigned distribution unless
+release signing and publication controls are separately documented.
 
-```sh
-Scripts/production-gate.sh --with-benchmarks
-Scripts/reproduce-lattice-estimator.sh release-evidence/lattice-estimator.json
-Scripts/validate-lattice-estimator-artifact.py --expect-status ran --require-claimed-security release-evidence/lattice-estimator.json
-```
+3. Record these version and digest fields:
 
-The benchmark coverage manifest is mandatory release evidence, but it is only
-the coverage contract for row registration, report rendering, comparison, and
-gate wiring. A fresh `--with-benchmarks` run is still required before release
-notes quote latency, throughput, or competitor-comparison numbers.
-When release notes or external materials quote competitor-comparison numbers,
-also refresh `Docs/CompetitivePerformance-2026-04-21.md`,
-`Docs/BenchmarkReports/competitive-performance-2026-04-21-report.md`,
-`Docs/BenchmarkReports/competitive-performance-2026-04-21-metadata.json`, and
-`TestVectors/competitive-performance-comparison-v1.json`, then run:
+- NumiSeal product/carry/ZK conformance-scope version and digest
+- NumiSeal end-to-end theorem-scope version and digest
+- NumiSealZK mask-distribution evidence version and digest
+- product cryptographic security dossier version and digest
+- selected-depth loss-accounting version and digest
+- product extractor loss-accounting version and digest
+- product QROM public-coin accounting version and digest
+- product QROM transcript schedule version and digest
+- product QROM sampler/encoding evidence version and digest
+- product QROM collision/malleability evidence version and digest
+- product QROM transform preconditions version and digest
+- product total-loss budget version and digest
+- product release distribution evidence version and digest
+- constant-time source/formal scope version and digest
+- constant-time lowering evidence version and digest
+- constant-time release evidence version and digest
+- E2E proof metrics version and digest
+- product operations readiness status
+- signed revocation feed
 
-```sh
-Scripts/validate-competitive-performance-comparison.py
-```
+4. Check linked docs:
 
-## Evidence Packet
-
-After the full gate passes, generate release evidence from the clean worktree:
-
-```sh
-Scripts/generate-release-candidate-evidence.py \
-  --release-name <tag-or-candidate-name> \
-  --production-gate-result passed \
-  --output release-evidence/<tag-or-candidate-name>.json
-```
-
-Validate the evidence:
-
-```sh
-Scripts/validate-release-candidate-evidence.py \
-  --expect-production-gate-result passed \
-  release-evidence/<tag-or-candidate-name>.json
-```
-
-The generated evidence records:
-
-- commit, branch, remote, and dirty/clean state,
-- Swift, Lean, and Lake toolchain versions,
-- full production-gate command and result,
-- public artifact, manifest, schema, and proof-envelope versions,
-- NumiSeal product/carry/ZK conformance-scope version and digest,
-- NumiSeal end-to-end theorem-scope version and digest,
-- recursive folding knowledge, typed carry producer/consumer, and NumiSealZK
-  simulation/privacy theorem-surface digests inside the theorem-scope manifest,
-- NumiSealZK mask-distribution evidence version and digest,
-- NumiSealZK simulator-coupling evidence version and digest,
-- exact rejection-sampled field mask distribution evidence status,
-- product cryptographic security dossier version and digest,
-- bounded-depth product security theorem status,
-- selected-depth loss-accounting version and digest,
-- product Swift trace/extractor evidence version and digest,
-- product extractor loss-accounting version and digest,
-- product QROM Fiat-Shamir accounting version and digest,
-- product QROM transcript schedule version and digest,
-- product QROM sampler/encoding evidence version and digest,
-- product QROM collision/malleability evidence version and digest,
-- product QROM CTCO instantiation evidence version and digest,
-- product QROM transform preconditions version and digest,
-- product QROM interactive reduction version and digest,
-- product total-loss budget version and digest,
-- product release distribution evidence version and digest,
-- constant-time source/formal scope version and digest,
-- constant-time lowering evidence version and digest,
-- constant-time release evidence version and digest,
-- constant-time compiler and hardware observation lane versions and digests,
-- E2E proof metrics version and digest,
-- benchmark coverage version, digest, and required-surface count,
-- product operations readiness status version,
-- signed revocation feed policy,
-- release-policy documentation paths,
-- formal status summary,
-- explicit unsigned research-artifact signing status,
-- residual production-security boundaries.
-
-## Signing And Publication
-
-Generated artifacts use repository-local unsigned distribution unless a
-downstream distributor adds signatures. Production-security release language is
-controlled by artifact digests, release evidence digests, and the production
-gate result. The product release distribution evidence manifest must remain
-attached to the release evidence packet so reviewers can verify the unsigned
-status and enabled repository-local promotion flags.
-
-For a research/integration tag:
-
-1. Attach the release evidence JSON.
-2. Attach any benchmark reports used by release notes.
-3. Attach the Sage-backed lattice-estimator artifact only if it was actually
-   run and validated.
-4. State that the artifact is unsigned unless a downstream signing command and
-   public key are included.
-5. State the production-gate command and result.
+- `Docs/ProductOperationsReadiness-2026-04-16.md`
+- `Docs/ProductionReadinessAuditPacket-2026-04-16.md`
+- `Docs/SchemaCompatibility-2026-04-16.md`
+- `Docs/Benchmarking.md`
 
 ## Publication Protection
 
-Release publication controls should require:
-
-- `.github/workflows/production-gate.yml` macOS PR smoke,
-- `.github/workflows/production-gate.yml` macOS PR checked-vector validation,
-- `.github/workflows/formal-status.yml` Ubuntu Lean formal validation,
-- `.github/workflows/production-gate.yml` macOS full production gate before
-  tagging or promoting a release,
-- review for changes under `SuperNeo-NuMetal/`, `SuperNeoCLI/`, `Tools/`,
-  `Scripts/`, `Formal/`, `.github/workflows/`, `TestVectors/`, and `Docs/`.
-
-Publication-protection configuration is release-infrastructure state, so this
-runbook can define the required policy but cannot prove the hosted setting is
-enabled.
+Publication Protection remains outside the repository-local release-candidate
+claim unless explicit release signing, distribution, and publication controls
+are added.

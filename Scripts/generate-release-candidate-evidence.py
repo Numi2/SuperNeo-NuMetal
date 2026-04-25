@@ -107,7 +107,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
         "TestVectors/product-swift-trace-extractor-evidence-v1.json"
     )
     product_extractor_loss = read_json("TestVectors/product-extractor-loss-accounting-v1.json")
-    product_qrom_accounting = read_json("TestVectors/product-qrom-fiat-shamir-accounting-v1.json")
+    product_qrom_accounting = read_json("TestVectors/product-qrom-public-coin-accounting-v1.json")
     product_qrom_transcript_schedule = read_json("TestVectors/product-qrom-transcript-schedule-v1.json")
     product_qrom_sampler_encoding_evidence = read_json(
         "TestVectors/product-qrom-sampler-encoding-evidence-v1.json"
@@ -154,9 +154,8 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "r1csArtifactVersion": artifact_version("TestVectors/artifact.schema.json"),
             "r1csSchemaID": schema_id("TestVectors/artifact.schema.json"),
             "r1csManifestVersion": manifest_version("TestVectors/manifest.json"),
-            "numiSealArtifactVersion": artifact_version("TestVectors/numiseal-artifact.schema.json"),
-            "numiSealSchemaID": schema_id("TestVectors/numiseal-artifact.schema.json"),
-            "numiSealManifestVersion": manifest_version("TestVectors/numiseal-manifest.json"),
+            "numiSealProductArtifactVersion": artifact_version("TestVectors/numiseal-product-artifact-v2.schema.json"),
+            "numiSealProductSchemaDigestHex": sha256_hex("TestVectors/numiseal-product-artifact-v2.schema.json"),
             "numiSealConformanceScopeVersion": int(read_json("TestVectors/numiseal-conformance-scope-v1.json")["schemaVersion"]),
             "numiSealConformanceScopeDigestHex": sha256_hex("TestVectors/numiseal-conformance-scope-v1.json"),
             "numiSealEndToEndTheoremScopeVersion": int(
@@ -237,17 +236,17 @@ def build_evidence(args: argparse.Namespace) -> dict:
                 "TestVectors/product-extractor-loss-accounting-v1.json",
                 "componentLosses",
             ),
-            "productQROMFiatShamirAccountingVersion": int(
+            "productQROMPublicCoinAccountingVersion": int(
                 product_qrom_accounting["schemaVersion"]
             ),
-            "productQROMFiatShamirAccountingDigestHex": sha256_hex(
-                "TestVectors/product-qrom-fiat-shamir-accounting-v1.json"
+            "productQROMPublicCoinAccountingDigestHex": sha256_hex(
+                "TestVectors/product-qrom-public-coin-accounting-v1.json"
             ),
-            "productQROMFiatShamirAccountingClaimStatus": str(
+            "productQROMPublicCoinAccountingClaimStatus": str(
                 product_qrom_accounting["claimStatus"]
             ),
-            "productQROMFiatShamirTranscriptInterfaceCount": list_count(
-                "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+            "productQROMPublicCoinTranscriptInterfaceCount": list_count(
+                "TestVectors/product-qrom-public-coin-accounting-v1.json",
                 "transcriptInterfaces",
             ),
             "productQROMTranscriptScheduleVersion": int(
@@ -460,7 +459,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "productSelectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "productSwiftTraceExtractorEvidence": "TestVectors/product-swift-trace-extractor-evidence-v1.json",
             "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
-            "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+            "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
             "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
             "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
@@ -508,7 +507,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "A conditional source/formal constant-time trace scope and Swift/LLVM/Metal lowering proof contract are recorded; local Swift SIL/LLVM/assembly artifacts, Metal AIR/metallib artifacts, runtime allocation/COW review, CPU/GPU smoke corpora, and compiler/hardware observation lane reports are pinned, while scoped emitted-code review, hardware counters, power/contention, and broader device lanes remain explicit evidence boundaries.",
             "E2E proof-size budgets are checked for deterministic vectors and local product smokes; whole-stack benchmark row coverage is checked for the repository-local performance claim.",
             "Local product-ops readiness and signed revocation-feed verification are machine-readable and audit-exported; no hosted product replay-protection, provenance, persistence, revocation-distribution, or access-control service is recorded.",
-            "NumiSeal product, carry, and ZK formalization has a checked repository-local end-to-end theorem scope, exact rejection-sampled field mask distribution evidence, proof-level ZK simulator coupling with epsilon_zk_sim = 0 under declared leakage, a selected-depth loss-accounting ledger, selected-depth concrete extractor loss accounting with epsilon_extract = 0, QROM Fiat-Shamir accounting with explicit collision mapping and an instantiated conditional Q_H = 2^64 query cap, a QROM transcript schedule, conditional QROM sampler/encoding evidence under the QRO abstraction, QROM collision/malleability structural evidence, QROM transform preconditions, a QROM interactive reduction ledger with code-enforced NumiSeal challenge maxima, shared-core bad-event deduplication, a total-loss budget contract, a product release distribution evidence contract, and a product cryptographic security dossier pinned to bounded depth 1; hosted operations and broader device-side-channel corpora remain outside the repository-local production claim.",
+            "NumiSeal product, carry, and ZK formalization has a checked repository-local end-to-end theorem scope, exact rejection-sampled field mask distribution evidence, proof-level ZK simulator coupling with epsilon_zk_sim = 0 under declared leakage, a selected-depth loss-accounting ledger, selected-depth concrete extractor loss accounting with epsilon_extract = 0, QROM public-coin accounting with explicit collision mapping and an instantiated conditional Q_H = 2^64 query cap, a QROM transcript schedule, conditional QROM sampler/encoding evidence under the QRO abstraction, QROM collision/malleability structural evidence, QROM transform preconditions, a QROM interactive reduction ledger with code-enforced NumiSeal challenge maxima, shared-core bad-event deduplication, a total-loss budget contract, a product release distribution evidence contract, and a product cryptographic security dossier pinned to bounded depth 1; hosted operations and broader device-side-channel corpora remain outside the repository-local production claim.",
         ],
     }
 

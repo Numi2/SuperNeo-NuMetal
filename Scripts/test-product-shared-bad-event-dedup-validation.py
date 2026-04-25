@@ -75,9 +75,15 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         premature_promotion = copy.deepcopy(manifest)
-        premature_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = False
+        premature_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = True
         path = tmp / "premature-promotion.json"
         write_json(path, premature_promotion)
+        run_fail(str(VALIDATE), str(path))
+
+        premature_qrom_promotion = copy.deepcopy(manifest)
+        premature_qrom_promotion["promotionRule"]["productionQROMClaimAllowed"] = True
+        path = tmp / "premature-qrom-promotion.json"
+        write_json(path, premature_qrom_promotion)
         run_fail(str(VALIDATE), str(path))
 
         reopened_interactive_bounds = copy.deepcopy(manifest)

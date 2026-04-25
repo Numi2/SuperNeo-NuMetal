@@ -5,7 +5,7 @@ Scope: the implemented `Goldilocks/Phi81(d=54)` profile only.
 Status: research parameter dossier. The profile has exact implementation
 constants, a pinned default lattice-estimator reproduction at 129.1 bits, and
 Lean-side finite bad-seed accounting. It does not yet support NIST security
-category language, production post-quantum claims, or a QROM Fiat-Shamir theorem.
+category language, production post-quantum claims, or a QROM public-coin theorem.
 
 ## Bottom Line
 
@@ -302,9 +302,9 @@ well-formed length-counted transcript states, and the theorem-critical binding
 surface uses 384-bit typed binding digests. This does not prove SHA-256
 collision resistance, indifferentiability, or random-oracle programmability.
 
-## Fiat-Shamir / QROM Position
+## Public-Coin / QROM Position
 
-The interactive protocol before Fiat-Shamir is:
+The interactive protocol before any offline transcript transform is:
 
 1. PiCCS public-Q and sum-check: verifier sends `alpha`, `gamma`, and one
    `F_q^2` challenge per sum-check round; prover sends the claimed sum and
@@ -318,12 +318,19 @@ The interactive protocol before Fiat-Shamir is:
 5. NumiSeal: lane RLC, scalarization, sum-check, residual-opening, and optional
    ZK component transcripts use separate labels and digest roots.
 
-The implementation applies Fiat-Shamir with SHA-256-derived deterministic
-transcripts. The safe model statement today is ROM/heuristic FS plus the finite
-bad-seed ledger over well-formed transcripts. It is not QROM.
+The legacy non-product verifier surfaces apply Fiat-Shamir with
+SHA-256-derived deterministic transcripts. They remain ROM/heuristic FS plus
+the finite bad-seed ledger over well-formed transcripts. They are not the
+selected QROM product path.
 
-To claim QROM security, the active theorem route must instantiate the split-QRO
-product surface:
+The selected product route is the explicit QRO public-coin architecture:
+NumiSeal product proving and verification require `SuperNeoQROChallenge`, derive
+the source-fold transcript seed and terminal NumiSeal transcript domain from
+that challenge, and bind the QRO challenge digest into artifact-version-2
+metadata and QROM evidence. Artifact-version-1 NumiSeal JSON is legacy
+compatibility material and is rejected by the product CLI.
+
+The active theorem route instantiates the split-QRO product surface:
 
 - use 256-bit challenge seeds and a separate 384-bit binding oracle;
 - fit the accepted proof kinds to CTCO or Merkle-straightline compiler evidence;
@@ -337,11 +344,12 @@ product surface:
 - prove that cross-kind transcript replay is impossible except through a
   collision in the named digest/hash surface.
 
-Don, Fehr, Majenz, and Schaffner give a QROM Fiat-Shamir reduction for
+Don, Fehr, Majenz, and Schaffner give a QROM public-coin reduction for
 sigma-protocols and explicitly handle adversaries making quantum random-oracle
-queries. That is relevant literature, not a drop-in proof for this protocol
-stack as implemented. The old DFM20 multi-round accounting remains a
-fail-closed diagnostic, not the active production theorem route.
+queries. That remains relevant literature, but the product implementation does
+not rely on artifact-selected transcript seeds as the production route. The old
+DFM20 multi-round accounting remains a fail-closed diagnostic, not the active
+production theorem route.
 
 ## Transcript Labels And Cross-Kind Separation
 

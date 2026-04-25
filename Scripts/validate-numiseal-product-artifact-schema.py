@@ -35,6 +35,7 @@ TOP_LEVEL_KEYS = {
     "sealMode",
     "shapeDigestHex",
     "sourceApplicationPathUTF8",
+    "sourceDecompositionProfile",
     "sourceFoldEnvelopeBase64",
     "sourceFoldEnvelopeDigestHex",
     "sourceFoldOutputClaimCount",
@@ -122,6 +123,7 @@ def main() -> None:
     require_const(schema, "profile", "Goldilocks/Phi81(d=54)")
     require_enum(schema, "proofKind", ["numiseal-terminal", "numiseal-zk"])
     require_enum(schema, "sealMode", ["numiseal-terminal-v2", "numiseal-zk-v1"])
+    require_const(schema, "sourceDecompositionProfile", "pay-per-bit-v1")
     metadata = root_properties.get("executionPolicyMetadata", {})
     metadata_properties = metadata.get("properties", {})
     expect(isinstance(metadata_properties, dict), "NumiSeal product metadata properties must be an object")

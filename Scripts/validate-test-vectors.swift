@@ -695,7 +695,7 @@ do {
                 && $0 != "product-selected-depth-loss-accounting-v1.json"
                 && $0 != "product-extractor-loss-accounting-v1.json"
                 && $0 != "product-finite-protocol-loss-obstruction-v1.json"
-                && $0 != "product-qrom-fiat-shamir-accounting-v1.json"
+                && $0 != "product-qrom-public-coin-accounting-v1.json"
                 && $0 != "product-qrom-transcript-schedule-v1.json"
                 && $0 != "product-qrom-sampler-encoding-evidence-v1.json"
                 && $0 != "product-qrom-collision-malleability-evidence-v1.json"

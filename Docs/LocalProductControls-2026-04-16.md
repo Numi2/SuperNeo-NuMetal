@@ -13,12 +13,10 @@ CLI product-control commands discover the operator profile from
 `SUPERNEO_OPERATOR_PROFILE` or `.superneo/operator-profile.json` when
 `--operator-profile` is omitted.
 
-If the signed context accepts `numiseal-zk`, readiness requires a side-channel
-certificate only when the trusted context minimum is stricter than
-`correctness-only`. Certificates remain optional release metadata for
-`correctness-only` contexts; when supplied, product verification checks their
-context, release, leakage, proof policy, Metal workspace, and evidence
-bindings.
+If the signed context accepts `numiseal-zk`, Certificates remain optional release metadata for default `correctness-only` contexts.
+Stricter trusted contexts can require a certificate; when supplied, product
+verification checks certificate context, release, leakage, proof policy, Metal
+workspace, and evidence bindings before acceptance.
 
 ## Signed Revocation Feed
 
@@ -30,5 +28,16 @@ proof-envelope digests, and provenance digests before product-mode acceptance.
 
 Accepted product proofs are recorded in the replay database under an
 H_bind-derived replay identity. Recursive carry metadata is bound into that
-identity when present. The audit log records accepted and rejected decisions and
-exports chain status through `operationsStatus`.
+identity when present. For NumiSealZK product-control verification, the verifier
+public coin must be issued through a signed
+`SuperNeoSignedQROChallengePack`; raw QRO CLI fields are not a product-control
+input. The signed pack binds context ID, frontend-context digest, verifier key,
+shape, statement, public inputs, transcript domain, validity window, and
+single-use policy. Its payload digest is bound into the replay identity, and the
+SQLite ledger enforces `accepted_issued_qro_challenges` single-use acceptance
+even if a different artifact/provenance pair attempts to replay the same issued
+public coin.
+
+The audit log records accepted and rejected decisions, including issued-QRO and
+QRO challenge digests when present, and exports chain status through
+`operationsStatus`.

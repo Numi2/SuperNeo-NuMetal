@@ -43,7 +43,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_qrom = copy.deepcopy(budget)
-        missing_qrom["relatedManifests"].pop("productQROMFiatShamirAccounting")
+        missing_qrom["relatedManifests"].pop("productQROMPublicCoinAccounting")
         path = tmp / "missing-qrom.json"
         write_json(path, missing_qrom)
         run_fail(str(VALIDATE), str(path))
@@ -84,6 +84,18 @@ def main() -> None:
         write_json(path, wrong_security_bits)
         run_fail(str(VALIDATE), str(path))
 
+        missing_source_profile = copy.deepcopy(budget)
+        missing_source_profile.pop("sourceDecompositionProfile")
+        path = tmp / "missing-source-profile.json"
+        write_json(path, missing_source_profile)
+        run_fail(str(VALIDATE), str(path))
+
+        fixed_source_profile = copy.deepcopy(budget)
+        fixed_source_profile["sourceDecompositionProfile"]["selectedProfile"] = "fixed-maximum-v1"
+        path = tmp / "fixed-source-profile.json"
+        write_json(path, fixed_source_profile)
+        run_fail(str(VALIDATE), str(path))
+
         reordered_components = copy.deepcopy(budget)
         reordered_components["componentBounds"][0], reordered_components["componentBounds"][1] = (
             reordered_components["componentBounds"][1],
@@ -113,6 +125,16 @@ def main() -> None:
         write_json(path, hidden_source_fold_gap)
         run_fail(str(VALIDATE), str(path))
 
+        hidden_adaptive_source_profile = copy.deepcopy(budget)
+        hidden_adaptive_source_profile["componentBounds"][1]["requiredEvidence"] = (
+            hidden_adaptive_source_profile["componentBounds"][1]["requiredEvidence"]
+            .replace("pay-per-bit-v1", "fixed-maximum-v1")
+            .replace("adaptive output-claim count", "fixed output claim count")
+        )
+        path = tmp / "hidden-adaptive-source-profile.json"
+        write_json(path, hidden_adaptive_source_profile)
+        run_fail(str(VALIDATE), str(path))
+
         hidden_terminal_ce_closure = copy.deepcopy(budget)
         hidden_terminal_ce_closure["componentBounds"][2]["requiredEvidence"] = "finite-protocol terminal gap"
         path = tmp / "hidden-terminal-ce-closure.json"
@@ -133,7 +155,7 @@ def main() -> None:
 
         wrong_qrom_exact_bound = copy.deepcopy(budget)
         for row in wrong_qrom_exact_bound["componentBounds"]:
-            if row["id"] == "fiat-shamir-qrom":
+            if row["id"] == "public-coin-qrom":
                 row["exactUpperBound"] = "1/2^256"
         path = tmp / "wrong-qrom-exact-bound.json"
         write_json(path, wrong_qrom_exact_bound)

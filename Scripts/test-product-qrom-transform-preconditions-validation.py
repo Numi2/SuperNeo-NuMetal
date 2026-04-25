@@ -145,7 +145,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         premature_promotion = copy.deepcopy(preconditions)
-        premature_promotion["promotionRule"]["productionQROMClaimAllowed"] = False
+        premature_promotion["promotionRule"]["productionQROMClaimAllowed"] = True
         path = tmp / "premature-promotion.json"
         write_json(path, premature_promotion)
         run_fail(str(VALIDATE), str(path))

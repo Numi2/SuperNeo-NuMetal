@@ -284,7 +284,7 @@ def validate_surface(surface: Any, test_source: str) -> str:
             for name in covered_by_tests:
                 require(name in test_source, f"{path} covered test not found in XCTest source: {name}")
         else:
-            require(vector.get("artifactVersion") == 1, f"{path} artifactVersion must be 1")
+            fail(f"{path} must be a surface-scoped QRO/product conformance vector, not a legacy artifact")
 
     test_names = require_string_list(surface.get("testNames"), f"{surface_id}.testNames")
     for name in test_names:

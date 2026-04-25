@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SuperNeo_NuMetal
 
@@ -22,6 +23,7 @@ private struct DemoProofArtifact: Codable {
     var expectedSelectedCount: UInt64?
     var keySeedUTF8: String
     var workloadParameters: [String: String]?
+    var decompositionProfile: String?
     var publicInputs: [UInt64]
     var commitmentBase64: String
     var proofEnvelopeBase64: String
@@ -32,7 +34,6 @@ private struct DemoProofArtifact: Codable {
 
 private enum ProofArtifact {
     case demo(DemoProofArtifact)
-    case numiSeal(NumiSealArtifact)
     case numiSealProduct(NumiSealProductArtifact)
 }
 
@@ -45,6 +46,7 @@ private let demoProofArtifactTopLevelKeys: Set<String> = [
     "expectedSelectedCount",
     "keySeedUTF8",
     "workloadParameters",
+    "decompositionProfile",
     "publicInputs",
     "commitmentBase64",
     "proofEnvelopeBase64",
@@ -92,11 +94,18 @@ private struct ProveOptions {
     var rightOperand: UInt64 = 29
     var keySeed: String?
     var proofKind: DemoProofKind = .fold
+    var decompositionProfile: SuperNeoDecompositionProfile = .payPerBit
     var sealMode: ProveSealMode?
     var numiSealExecutionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct
     var numiSealZKMode: String = NumiSealZK.maskedDigitTensorMode
     var maximumObligationsPerAggregate: Int?
     var sourceApplicationPath: String?
+    var operatorProfilePath: String?
+    var qroChallengePackPath: String?
+    var trustedQROChallengeIssuerKeyDigestsHex: [String] = []
+    var qroSessionID: String?
+    var qroPublicCoinHex: String?
+    var qroDomainSeparator: String?
 }
 
 private struct VerifyOptions {
@@ -118,11 +127,15 @@ private struct VerifyOptions {
     var operatorProfilePath: String?
     var contextPackPath: String?
     var artifactProvenancePath: String?
+    var qroChallengePackPath: String?
     var revocationFeedPath: String?
     var sideChannelCertificatePath: String?
     var recursiveCarryParentPath: String?
     var recursiveCarryParentProvenancePath: String?
     var useProductControls = false
+    var qroSessionID: String?
+    var qroPublicCoinHex: String?
+    var qroDomainSeparator: String?
 }
 
 private struct ProductControlOptions {
@@ -132,6 +145,25 @@ private struct ProductControlOptions {
     var sideChannelCertificatePath: String?
     var outputPath: String?
     var outputFormat: ProductOutputFormat = .text
+}
+
+private struct QROIssueOptions {
+    var outputPath = "superneo-issued-qro.json"
+    var workload: DemoWorkload = .oneHot
+    var bits = [false, false, true, false, false, false, false, false]
+    var operandBits = 8
+    var leftOperand: UInt64 = 13
+    var rightOperand: UInt64 = 29
+    var keySeed: String?
+    var sourceApplicationPath: String?
+    var contextID: String?
+    var issuer = "SuperNeo QRO Issuer"
+    var signingKeyPath: String?
+    var qroSessionID: String?
+    var qroPublicCoinHex: String?
+    var qroDomainSeparator: String?
+    var validFromUTC: String?
+    var validUntilUTC: String?
 }
 
 private let defaultOperatorProfileEnvironmentKey = "SUPERNEO_OPERATOR_PROFILE"
@@ -157,6 +189,8 @@ private struct ProductArtifactMaterial {
     let workload: String
     let carryMode: String?
     let recursiveCarryReplayBinding: NumiSealProductRecursiveCarryReplayBinding?
+    let issuedQROChallengeDigest: Digest256?
+    let qroChallengeDigest: Digest384?
     let proofEnvelopeBytes: [UInt8]
     let proofEnvelopeDigest: Digest256
     let statementDigest: Digest256
@@ -203,15 +237,16 @@ private let productToolVersion = "superneo-cli-product-controls-v1"
 private func usage() -> String {
     """
     Usage:
-      superneo prove [--workload one-hot] [--bits 0,0,1,0] [--kind fold|terminal|compressed-terminal] [--key-seed text] [--output proof.json]
-      superneo prove --seal numiseal [--workload one-hot] [--bits 0,0,1,0] [--numiseal-zk-mode none|masked-digit-tensor-v1] [--numiseal-execution-policy default-product|zk-redundant-metal|zk-metal-accelerated|zk-high-assurance-cpu] [--max-obligations-per-aggregate n] [--output proof.json]
-      superneo prove --workload binary-add [--operand-bits 8] [--lhs 13] [--rhs 29] [--kind fold|terminal|compressed-terminal] [--output proof.json]
-      superneo verify [--key-seed text] [--expected-verifier-key-digest hex] [--expected-shape-digest hex] [--expected-statement-digest hex] [--expected-public-inputs values] [--require-terminal|--require-numiseal] proof.json
-      superneo verify --product --operator-profile profile.json [--context-pack context.json] [--artifact-provenance provenance.json] [--revocation-feed revocations.json] [--side-channel-certificate certificate.json] [--recursive-carry-parent parent-proof.json --recursive-carry-parent-provenance parent-provenance.json] proof.json
+      superneo prove [--workload one-hot] [--bits 0,0,1,0] [--kind fold|terminal|compressed-terminal] [--decomposition-profile pay-per-bit] [--key-seed text] [--output proof.json]
+      superneo prove --seal numiseal (--qro-challenge-pack qro.json --trusted-qro-issuer-key-digest hex | --qro-session-id id --qro-public-coin-hex hex) [--workload one-hot] [--bits 0,0,1,0] [--numiseal-zk-mode masked-digit-tensor-v1|none] [--numiseal-execution-policy default-product|zk-redundant-metal|zk-metal-accelerated|zk-high-assurance-cpu] [--max-obligations-per-aggregate n] [--output proof.json]
+      superneo prove --workload binary-add [--operand-bits 8] [--lhs 13] [--rhs 29] [--kind fold|terminal|compressed-terminal] [--decomposition-profile pay-per-bit] [--output proof.json]
+      superneo verify [--key-seed text] [--qro-session-id id --qro-public-coin-hex hex] [--expected-verifier-key-digest hex] [--expected-shape-digest hex] [--expected-statement-digest hex] [--expected-public-inputs values] [--require-terminal|--require-numiseal] proof.json
+      superneo verify --product --operator-profile profile.json [--context-pack context.json] [--artifact-provenance provenance.json] --qro-challenge-pack qro.json [--revocation-feed revocations.json] [--side-channel-certificate certificate.json] [--recursive-carry-parent parent-proof.json --recursive-carry-parent-provenance parent-provenance.json] proof.json
       superneo inspect proof.json
       superneo product-init-storage --operator-profile profile.json
       superneo product-status --operator-profile profile.json [--context-pack context.json] [--revocation-feed revocations.json] [--side-channel-certificate certificate.json] [--format text|json]
       superneo product-export-audit --operator-profile profile.json [--context-pack context.json] [--revocation-feed revocations.json] [--output audit-export.json]
+      superneo product-issue-qro --context-id id --signing-key-file ed25519-private.b64 --valid-until utc [--workload one-hot] [--bits 0,0,1,0] [--qro-session-id id] [--output qro.json]
 
     Workloads:
       one-hot: proves a committed private bit vector has exactly one selected bit.
@@ -229,8 +264,17 @@ private func usage() -> String {
     --expected-aggregate-digests, --expected-component-digest-root, and
     --expected-proof-transcript-digest. Product controls auto-enable for product
     artifacts when SUPERNEO_OPERATOR_PROFILE or .superneo/operator-profile.json
-    is present. Pass --numiseal-zk-mode none to emit a non-ZK NumiSeal product
-    artifact.
+    is present. Product-control verification accepts only NumiSealZK product
+    artifacts with signed issued-QRO, provenance, context, and replay-ledger
+    material. Side-channel certificates are accepted when supplied and required
+    only by stricter trusted contexts. Pass --numiseal-zk-mode none only for
+    local/dev non-product verification experiments. For product issuance, prove
+    --seal numiseal can take a signed
+    --qro-challenge-pack and validates it against --trusted-qro-issuer-key-digest
+    or --operator-profile before proving.
+    The source fold uses the pay-per-bit decomposition/opening profile. The
+    CLI no longer emits fixed-maximum proofs; use library-level diagnostics for
+    historical profile comparisons.
     """
 }
 
@@ -261,6 +305,8 @@ private func run(_ arguments: [String]) throws {
         try productStatus(parseProductControlOptions(Array(arguments.dropFirst())))
     case "product-export-audit":
         try productExportAudit(parseProductControlOptions(Array(arguments.dropFirst())))
+    case "product-issue-qro":
+        try productIssueQRO(parseQROIssueOptions(Array(arguments.dropFirst())))
     case "-h", "--help", "help":
         print(usage())
     default:
@@ -305,6 +351,13 @@ private func parseProveOptions(_ arguments: [String]) throws -> ProveOptions {
                 throw CLIError.invalidArgument("--kind must be fold, terminal, or compressed-terminal")
             }
             options.proofKind = kind
+        case "--decomposition-profile":
+            let raw = try requireValue()
+            guard let profile = SuperNeoDecompositionProfile(canonicalName: raw),
+                  profile == .payPerBit else {
+                throw CLIError.invalidArgument("--decomposition-profile must be pay-per-bit")
+            }
+            options.decompositionProfile = profile
         case "--seal":
             let raw = try requireValue()
             guard let sealMode = ProveSealMode(rawValue: raw) else {
@@ -332,6 +385,23 @@ private func parseProveOptions(_ arguments: [String]) throws -> ProveOptions {
             )
         case "--source-app":
             options.sourceApplicationPath = try requireValue()
+        case "--operator-profile":
+            options.operatorProfilePath = try requireValue()
+        case "--qro-challenge-pack":
+            options.qroChallengePackPath = try requireValue()
+        case "--trusted-qro-issuer-key-digest":
+            options.trustedQROChallengeIssuerKeyDigestsHex.append(
+                contentsOf: try parseHexDigestList(
+                    try requireValue(),
+                    name: "--trusted-qro-issuer-key-digest"
+                )
+            )
+        case "--qro-session-id":
+            options.qroSessionID = try requireValue()
+        case "--qro-public-coin-hex":
+            options.qroPublicCoinHex = try requireValue()
+        case "--qro-domain":
+            options.qroDomainSeparator = try requireValue()
         default:
             throw CLIError.invalidArgument("unknown prove option: \(argument)")
         }
@@ -342,6 +412,18 @@ private func parseProveOptions(_ arguments: [String]) throws -> ProveOptions {
     }
     guard options.operandBits > 0, options.operandBits <= 62 else {
         throw CLIError.invalidArgument("--operand-bits must be in 1...62")
+    }
+    if options.sealMode == .numiSeal, options.decompositionProfile != .payPerBit {
+        throw CLIError.invalidArgument("NumiSeal product proving requires --decomposition-profile pay-per-bit")
+    }
+    if options.qroChallengePackPath != nil,
+       options.qroSessionID != nil || options.qroPublicCoinHex != nil || options.qroDomainSeparator != nil {
+        throw CLIError.invalidArgument("--qro-challenge-pack cannot be combined with raw QRO challenge options")
+    }
+    if options.sealMode == .numiSeal,
+       options.qroChallengePackPath != nil,
+       options.numiSealZKMode != NumiSealZK.maskedDigitTensorMode {
+        throw CLIError.invalidArgument("signed-QRO product proving requires --numiseal-zk-mode masked-digit-tensor-v1")
     }
     return options
 }
@@ -365,11 +447,15 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
     var operatorProfilePath: String?
     var contextPackPath: String?
     var artifactProvenancePath: String?
+    var qroChallengePackPath: String?
     var revocationFeedPath: String?
     var sideChannelCertificatePath: String?
     var recursiveCarryParentPath: String?
     var recursiveCarryParentProvenancePath: String?
     var useProductControls = false
+    var qroSessionID: String?
+    var qroPublicCoinHex: String?
+    var qroDomainSeparator: String?
     var index = 0
     while index < arguments.count {
         let argument = arguments[index]
@@ -420,6 +506,9 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
         case "--artifact-provenance":
             artifactProvenancePath = try requireValue()
             useProductControls = true
+        case "--qro-challenge-pack":
+            qroChallengePackPath = try requireValue()
+            useProductControls = true
         case "--revocation-feed":
             revocationFeedPath = try requireValue()
             useProductControls = true
@@ -432,6 +521,12 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
         case "--recursive-carry-parent-provenance":
             recursiveCarryParentProvenancePath = try requireValue()
             useProductControls = true
+        case "--qro-session-id":
+            qroSessionID = try requireValue()
+        case "--qro-public-coin-hex":
+            qroPublicCoinHex = try requireValue()
+        case "--qro-domain":
+            qroDomainSeparator = try requireValue()
         default:
             guard !argument.hasPrefix("-") else {
                 throw CLIError.invalidArgument("unknown verify option: \(argument)")
@@ -468,11 +563,15 @@ private func parseVerifyOptions(_ arguments: [String]) throws -> VerifyOptions {
         operatorProfilePath: operatorProfilePath,
         contextPackPath: contextPackPath,
         artifactProvenancePath: artifactProvenancePath,
+        qroChallengePackPath: qroChallengePackPath,
         revocationFeedPath: revocationFeedPath,
         sideChannelCertificatePath: sideChannelCertificatePath,
         recursiveCarryParentPath: recursiveCarryParentPath,
         recursiveCarryParentProvenancePath: recursiveCarryParentProvenancePath,
-        useProductControls: useProductControls
+        useProductControls: useProductControls,
+        qroSessionID: qroSessionID,
+        qroPublicCoinHex: qroPublicCoinHex,
+        qroDomainSeparator: qroDomainSeparator
     )
 }
 
@@ -513,6 +612,257 @@ private func parseProductControlOptions(_ arguments: [String]) throws -> Product
         index += 1
     }
     return options
+}
+
+private func parseQROIssueOptions(_ arguments: [String]) throws -> QROIssueOptions {
+    var options = QROIssueOptions()
+    var index = 0
+    while index < arguments.count {
+        let argument = arguments[index]
+        func requireValue() throws -> String {
+            guard index + 1 < arguments.count else {
+                throw CLIError.invalidArgument("\(argument) requires a value")
+            }
+            index += 1
+            return arguments[index]
+        }
+        switch argument {
+        case "--workload":
+            let raw = try requireValue()
+            guard let workload = DemoWorkload(rawValue: raw) else {
+                throw CLIError.invalidArgument("--workload must be one-hot or binary-add")
+            }
+            options.workload = workload
+        case "--bits":
+            options.bits = try parseBits(try requireValue())
+        case "--operand-bits":
+            options.operandBits = try parsePositiveInt(try requireValue(), name: "--operand-bits")
+        case "--lhs":
+            options.leftOperand = try parseUInt64(try requireValue(), name: "--lhs")
+        case "--rhs":
+            options.rightOperand = try parseUInt64(try requireValue(), name: "--rhs")
+        case "--key-seed":
+            options.keySeed = try requireValue()
+        case "--source-app":
+            options.sourceApplicationPath = try requireValue()
+        case "--context-id":
+            options.contextID = try requireValue()
+        case "--issuer":
+            options.issuer = try requireValue()
+        case "--signing-key-file":
+            options.signingKeyPath = try requireValue()
+        case "--qro-session-id":
+            options.qroSessionID = try requireValue()
+        case "--qro-public-coin-hex":
+            options.qroPublicCoinHex = try requireValue()
+        case "--qro-domain":
+            options.qroDomainSeparator = try requireValue()
+        case "--valid-from":
+            options.validFromUTC = try requireValue()
+        case "--valid-until":
+            options.validUntilUTC = try requireValue()
+        case "--output", "-o":
+            options.outputPath = try requireValue()
+        default:
+            throw CLIError.invalidArgument("unknown product-issue-qro option: \(argument)")
+        }
+        index += 1
+    }
+    guard !options.bits.isEmpty else {
+        throw CLIError.invalidArgument("--bits must contain at least one bit")
+    }
+    guard options.operandBits > 0, options.operandBits <= 62 else {
+        throw CLIError.invalidArgument("--operand-bits must be in 1...62")
+    }
+    guard options.contextID?.isEmpty == false else {
+        throw CLIError.invalidArgument("product-issue-qro requires --context-id")
+    }
+    guard options.signingKeyPath?.isEmpty == false else {
+        throw CLIError.invalidArgument("product-issue-qro requires --signing-key-file")
+    }
+    guard options.validUntilUTC?.isEmpty == false else {
+        throw CLIError.invalidArgument("product-issue-qro requires --valid-until")
+    }
+    return options
+}
+
+private func productIssueQRO(_ options: QROIssueOptions) throws {
+    let signingKeyPath = try requireOption(options.signingKeyPath, name: "--signing-key-file")
+    let contextID = try requireOption(options.contextID, name: "--context-id")
+    let validUntilUTC = try requireOption(options.validUntilUTC, name: "--valid-until")
+    let signingKey = try loadQROSigningKey(path: signingKeyPath)
+    let keySeed = try options.keySeed ?? defaultKeySeed(
+        workload: options.workload,
+        bitCount: options.bits.count,
+        operandBits: options.operandBits
+    )
+    let prepared: SuperNeoPreparedR1CS
+    let workload: String
+    let bitCount: Int
+    let publicInputs: [UInt64]
+    let workloadParameters: [String: String]
+    switch options.workload {
+    case .oneHot:
+        let oneHot = try SuperNeoOneHotVectorWorkload(bitCount: options.bits.count)
+        prepared = try oneHot.prepareForFolding(bits: options.bits, keySeed: Array(keySeed.utf8))
+        workload = "one-hot-vector-v1"
+        bitCount = options.bits.count
+        publicInputs = [1]
+        workloadParameters = [
+            "selectedCount": "\(options.bits.filter { $0 }.count)"
+        ]
+    case .binaryAdd:
+        let binaryAdd = try SuperNeoBinaryAdditionWorkload(bitCount: options.operandBits)
+        let sum = try checkedSum(options.leftOperand, options.rightOperand)
+        prepared = try binaryAdd.prepareForFolding(
+            left: options.leftOperand,
+            right: options.rightOperand,
+            keySeed: Array(keySeed.utf8)
+        )
+        workload = "binary-addition-v1"
+        bitCount = options.operandBits
+        publicInputs = try binaryAdd.publicInput(sum: sum).map(\.rawValue)
+        workloadParameters = [
+            "leftBitCount": "\(options.operandBits)",
+            "publicSum": "\(sum)"
+        ]
+    }
+    let productContext = try NumiSealProductTrustedContext(
+        workload: workload,
+        bitCount: bitCount,
+        publicInputs: publicInputs,
+        workloadParameters: workloadParameters,
+        sourceApplicationPathUTF8: options.sourceApplicationPath ?? FileManager.default.currentDirectoryPath,
+        laneID: .product
+    )
+    let publicInput = prepared.publicFoldInput
+    let statement = CCSStatement(
+        shapeDigest: publicInput.shape.shapeDigest,
+        ccsInstances: publicInput.instances,
+        priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+    )
+    let publicCoin = try options.qroPublicCoinHex.map {
+        try parseHexBytes($0, name: "--qro-public-coin-hex")
+    } ?? secureRandomBytes(count: Digest256.byteCount)
+    let qroChallenge = try SuperNeoQROChallenge(
+        domainSeparator: options.qroDomainSeparator ?? SuperNeoQROChallenge.defaultDomainSeparator,
+        sessionID: options.qroSessionID ?? "issued-qro-\(UUID().uuidString)",
+        verifierPublicCoin: publicCoin,
+        transcriptContext: SuperNeoSplitQRO.framedBytes(
+            domain: "superneo/cli/numiseal-product/qro-context/v1",
+            frames: [productContext.contextDigest.superNeoBytes]
+        )
+    )
+    let issuedAtUTC = options.validFromUTC ?? SuperNeoProductTime.nowUTCString()
+    let transcriptDomainDigest = try qroChallenge.transcriptDomainDigest(label: "numiseal-product-terminal")
+    let payload = SuperNeoIssuedQROChallengePayload(
+        issuer: options.issuer,
+        contextID: contextID,
+        qroSessionID: qroChallenge.sessionID,
+        qroDomainSeparator: qroChallenge.domainSeparator,
+        qroVerifierPublicCoinHex: hex(publicCoin),
+        frontendContextDigestHex: productContext.contextDigest.hexString,
+        expectedVerifierKeyDigestHex: prepared.key.verifierKeyDigest.hexString,
+        expectedShapeDigestHex: publicInput.shape.shapeDigest.hexString,
+        expectedStatementDigestHex: statement.statementDigest.hexString,
+        expectedTranscriptDomainDigestHex: transcriptDomainDigest.hexString,
+        expectedPublicInputs: publicInputs,
+        qroChallengeDigest384Hex: qroChallenge.challengeDigest.hexString,
+        issuedAtUTC: issuedAtUTC,
+        validUntilUTC: validUntilUTC
+    )
+    let pack = SuperNeoSignedQROChallengePack(
+        payload: payload,
+        signature: try productSignature(for: payload, signingKey: signingKey)
+    )
+    let issuerKeyDigest = Digest256.hash([UInt8](signingKey.publicKey.rawRepresentation))
+    let issueNow = try SuperNeoProductTime.parseUTC(issuedAtUTC, name: "QRO issuedAtUTC")
+    _ = try pack.verified(
+        trustedIssuerKeyDigestsHex: [issuerKeyDigest.hexString],
+        expectedContext: SuperNeoIssuedQROChallengeExpectedContext(
+            contextID: contextID,
+            validFromUTC: issuedAtUTC,
+            validUntilUTC: validUntilUTC,
+            frontendContextDigest: productContext.contextDigest,
+            expectedVerifierKeyDigestHex: prepared.key.verifierKeyDigest.hexString,
+            expectedShapeDigestHex: publicInput.shape.shapeDigest.hexString,
+            expectedStatementDigestHex: statement.statementDigest.hexString,
+            expectedTranscriptDomainDigestHex: transcriptDomainDigest.hexString,
+            expectedPublicInputs: publicInputs
+        ),
+        now: issueNow
+    )
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    let data = try encoder.encode(pack)
+    try data.write(to: URL(fileURLWithPath: options.outputPath), options: Data.WritingOptions.atomic)
+    print("wrote \(options.outputPath)")
+    print("context id: \(contextID)")
+    print("workload: \(workload)")
+    print("frontend context digest: \(productContext.contextDigest.hexString)")
+    print("statement digest: \(statement.statementDigest.hexString)")
+    print("transcript domain digest: \(transcriptDomainDigest.hexString)")
+    print("qro challenge digest: \(qroChallenge.challengeDigest.hexString)")
+    print("qro issuer key digest: \(issuerKeyDigest.hexString)")
+}
+
+private func requireOption(_ value: String?, name: String) throws -> String {
+    guard let value, !value.isEmpty else {
+        throw CLIError.invalidArgument("product-issue-qro requires \(name)")
+    }
+    return value
+}
+
+private func loadQROSigningKey(path: String) throws -> Curve25519.Signing.PrivateKey {
+    let data = try SuperNeoLocalFileSecurity.readSecureRegularFile(
+        URL(fileURLWithPath: path),
+        description: "QRO signing private key"
+    )
+    guard let raw = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !raw.isEmpty else {
+        throw CLIError.invalidArgument("QRO signing private key file must contain base64 or hex raw Ed25519 private key bytes")
+    }
+    let keyData: Data
+    if raw.range(of: "^[0-9a-fA-F]+$", options: .regularExpression) != nil, raw.count % 2 == 0 {
+        keyData = Data(try parseHexBytes(raw, name: "QRO signing private key"))
+    } else if let decoded = Data(base64Encoded: raw) {
+        keyData = decoded
+    } else {
+        throw CLIError.invalidArgument("QRO signing private key file must contain base64 or hex raw Ed25519 private key bytes")
+    }
+    do {
+        return try Curve25519.Signing.PrivateKey(rawRepresentation: keyData)
+    } catch {
+        throw CLIError.invalidArgument("QRO signing private key is not a valid raw Ed25519 private key: \(error)")
+    }
+}
+
+private func productSignature<T: Encodable>(
+    for payload: T,
+    signingKey: Curve25519.Signing.PrivateKey
+) throws -> SuperNeoProductSignature {
+    let payloadData = try SuperNeoCanonicalJSON.encode(payload)
+    let signature = try signingKey.signature(for: payloadData)
+    let publicKey = signingKey.publicKey.rawRepresentation
+    return SuperNeoProductSignature(
+        publicKeyBase64: publicKey.base64EncodedString(),
+        publicKeyDigestHex: Digest256.hash([UInt8](publicKey)).hexString,
+        signatureBase64: signature.base64EncodedString()
+    )
+}
+
+private func secureRandomBytes(count: Int) -> [UInt8] {
+    var bytes: [UInt8] = []
+    bytes.reserveCapacity(count)
+    while bytes.count < count {
+        let key = SymmetricKey(size: .bits256)
+        bytes.append(contentsOf: key.withUnsafeBytes { Array($0) })
+    }
+    return Array(bytes.prefix(count))
+}
+
+private func hex(_ bytes: [UInt8]) -> String {
+    bytes.map { String(format: "%02x", $0) }.joined()
 }
 
 private func prove(_ options: ProveOptions) throws {
@@ -576,7 +926,11 @@ private func prove(_ options: ProveOptions) throws {
         statement: statement,
         verifierKeyDigest: prepared.key.verifierKeyDigest
     )
-    let prover = SuperNeoCPUBackend().makeProver(key: prepared.key, executionPolicy: .highAssurance)
+    let prover = SuperNeoCPUBackend().makeProver(
+        key: prepared.key,
+        executionPolicy: .highAssurance,
+        decompositionProfile: options.decompositionProfile
+    )
     let envelopeBytes: [UInt8]
     switch options.proofKind {
     case .fold:
@@ -596,6 +950,7 @@ private func prove(_ options: ProveOptions) throws {
         expectedSelectedCount: options.workload == .oneHot ? 1 : nil,
         keySeedUTF8: keySeed,
         workloadParameters: artifactParameters,
+        decompositionProfile: options.decompositionProfile.canonicalName,
         publicInputs: artifactPublicInputs,
         commitmentBase64: Data(prepared.publicFoldInput.instances[0].commitment.littleEndianBytes).base64EncodedString(),
         proofEnvelopeBase64: Data(envelopeBytes).base64EncodedString(),
@@ -611,6 +966,7 @@ private func prove(_ options: ProveOptions) throws {
     print("workload: \(artifact.workload)")
     print("profile: \(artifact.profile)")
     print("proof kind: \(artifact.proofKind)")
+    print("decomposition profile: \(options.decompositionProfile.canonicalName)")
     print("bit count: \(artifact.bitCount)")
     print("proof envelope bytes: \(envelopeBytes.count)")
     print("artifact bytes: \(data.count)")
@@ -640,14 +996,22 @@ private func proveNumiSealProduct(
         sourceApplicationPathUTF8: options.sourceApplicationPath ?? FileManager.default.currentDirectoryPath,
         laneID: .product
     )
+    let qroChallenge = try makeProvingQROChallenge(
+        options: options,
+        prepared: prepared,
+        publicInputs: publicInputs,
+        frontendContextDigest: trustedContext.contextDigest
+    )
     let output = try NumiSealProductAPI.provePreparedR1CS(
         preparedR1CS: prepared,
         trustedContext: trustedContext,
+        qroChallenge: qroChallenge,
         keySeedUTF8: keySeed,
         executionPolicy: options.numiSealExecutionPolicy,
         zkMode: options.numiSealZKMode,
         aggregationLimits: aggregationLimits,
-        metalContext: metalContext
+        metalContext: metalContext,
+        sourceDecompositionProfile: options.decompositionProfile
     )
     let artifact = output.artifact
     let envelopeBytes = try artifact.proofEnvelopeBytes()
@@ -664,6 +1028,7 @@ private func proveNumiSealProduct(
     print("carry mode: \(artifact.carryMode)")
     print("zk mode: \(artifact.zkMode)")
     print("metal mode: \(artifact.metalMode)")
+    print("source decomposition profile: \(artifact.executionPolicyMetadata["sourceDecompositionProfile"] ?? "missing")")
     print("source fold output claims: \(artifact.sourceFoldOutputClaimCount)")
     print("aggregates: \(artifact.aggregateDigestsHex.count)")
     print("source fold envelope bytes: \(sourceFoldBytes.count)")
@@ -671,9 +1036,62 @@ private func proveNumiSealProduct(
     print("product artifact bytes: \(data.count)")
     print("proof envelope digest: \(artifact.proofEnvelopeDigestHex)")
     print("frontend context digest: \(output.trustedContext.contextDigest.hexString)")
+    print("qro challenge digest: \(qroChallenge.challengeDigest.hexString)")
     print("trace extractor evidence digest: \(output.traceExtractorEvidence.evidenceDigest.hexString)")
     print("qrom evidence digest: \(output.qromEvidence.evidenceDigest.hexString)")
     print(String(format: "prove time: %.3f s", Date().timeIntervalSince(started)))
+}
+
+private func makeProvingQROChallenge(
+    options: ProveOptions,
+    prepared: SuperNeoPreparedR1CS,
+    publicInputs: [UInt64],
+    frontendContextDigest: Digest256
+) throws -> SuperNeoQROChallenge {
+    if let qroChallengePackPath = options.qroChallengePackPath {
+        let pack = try SuperNeoSignedQROChallengePack.load(from: URL(fileURLWithPath: qroChallengePackPath))
+        let publicInput = prepared.publicFoldInput
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances,
+            priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+        )
+        let expectedContext = SuperNeoIssuedQROChallengeExpectedContext(
+            contextID: pack.payload.contextID,
+            validFromUTC: pack.payload.issuedAtUTC,
+            validUntilUTC: pack.payload.validUntilUTC,
+            frontendContextDigest: frontendContextDigest,
+            expectedVerifierKeyDigestHex: prepared.key.verifierKeyDigest.hexString,
+            expectedShapeDigestHex: publicInput.shape.shapeDigest.hexString,
+            expectedStatementDigestHex: statement.statementDigest.hexString,
+            expectedTranscriptDomainDigestHex: pack.payload.expectedTranscriptDomainDigestHex,
+            expectedPublicInputs: publicInputs
+        )
+        return try pack.verified(
+            trustedIssuerKeyDigestsHex: try trustedQROIssuerDigestsForProving(options),
+            expectedContext: expectedContext
+        ).qroChallenge
+    }
+    return try makeNumiSealProductQROChallenge(
+        sessionID: options.qroSessionID,
+        publicCoinHex: options.qroPublicCoinHex,
+        domainSeparator: options.qroDomainSeparator,
+        frontendContextDigest: frontendContextDigest
+    )
+}
+
+private func trustedQROIssuerDigestsForProving(_ options: ProveOptions) throws -> Set<String> {
+    var digests = Set(options.trustedQROChallengeIssuerKeyDigestsHex)
+    if let operatorProfilePath = options.operatorProfilePath {
+        let profile = try SuperNeoLocalOperatorProfile.load(from: URL(fileURLWithPath: operatorProfilePath))
+        digests.formUnion(try profile.trustedQROChallengeIssuerKeyDigestSet())
+    }
+    guard !digests.isEmpty else {
+        throw CLIError.invalidArgument(
+            "--qro-challenge-pack requires --trusted-qro-issuer-key-digest or --operator-profile"
+        )
+    }
+    return digests
 }
 
 private func makeNumiSealMetalContext(policy: NumiSealProvingExecutionPolicy) throws -> MetalExecutionContext? {
@@ -701,8 +1119,6 @@ private func verify(options: VerifyOptions) throws {
     switch artifact {
     case .demo(let artifact):
         try verifyDemoArtifact(artifact, options: resolvedOptions)
-    case .numiSeal(let artifact):
-        try verifyNumiSealArtifact(artifact, options: resolvedOptions)
     case .numiSealProduct(let artifact):
         try verifyNumiSealProductArtifact(artifact, options: resolvedOptions)
     }
@@ -744,6 +1160,8 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
     var carryMode: String?
     var recursiveCarryReplayBinding: NumiSealProductRecursiveCarryReplayBinding?
     var recursiveCarryParentResolution: ProductRecursiveCarryParentResolution?
+    var issuedQROChallengeDigest: Digest256?
+    var qroChallengeDigest: Digest384?
 
     do {
         let artifactData = try readProofArtifactData(
@@ -767,9 +1185,11 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             options: options,
             controls: controls
         )
-        let material = try makeProductArtifactMaterial(
+    let material = try makeProductArtifactMaterial(
             artifact,
             context: context,
+            profile: controls.profile,
+            options: options,
             sideChannelCertificate: controls.sideChannelCertificate,
             recursiveCarryParent: recursiveCarryParentResolution?.parent
         )
@@ -778,6 +1198,8 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
         statementDigest = material.statementDigest
         carryMode = material.carryMode
         recursiveCarryReplayBinding = material.recursiveCarryReplayBinding
+        issuedQROChallengeDigest = material.issuedQROChallengeDigest
+        qroChallengeDigest = material.qroChallengeDigest
         try controls.effectiveRevocation.requireNotRevoked(
             contextID: context.contextID,
             artifactDigest: artifactDigest,
@@ -811,6 +1233,7 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             proofEnvelopeDigest: material.proofEnvelopeDigest,
             artifactDigest: artifactDigest!,
             provenanceDigest: provenance.provenanceDigest,
+            issuedQROChallengeDigest: material.issuedQROChallengeDigest,
             recursiveCarryReplayBindingDigest: material.recursiveCarryReplayBinding?.bindingDigest
         )
         guard try !controls.replayLedger.hasAccepted(identity) else {
@@ -829,6 +1252,8 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             provenanceDigest: provenanceDigest,
             revocationFeedDigest: controls.revocationFeed.feedDigest,
             sideChannelCertificateDigest: controls.sideChannelCertificate?.certificateDigest,
+            issuedQROChallengeDigest: material.issuedQROChallengeDigest,
+            qroChallengeDigest: material.qroChallengeDigest,
             proofKind: proofKind,
             carryMode: carryMode,
             recursiveCarryReplayBinding: recursiveCarryReplayBinding,
@@ -863,6 +1288,8 @@ private func verifyWithProductControls(options: VerifyOptions) throws {
             provenanceDigest: provenanceDigest,
             revocationFeedDigest: controls.revocationFeed.feedDigest,
             sideChannelCertificateDigest: controls.sideChannelCertificate?.certificateDigest,
+            issuedQROChallengeDigest: issuedQROChallengeDigest,
+            qroChallengeDigest: qroChallengeDigest,
             proofKind: proofKind,
             carryMode: carryMode,
             recursiveCarryReplayBinding: recursiveCarryReplayBinding,
@@ -930,6 +1357,8 @@ private func makeProductRecursiveCarryParentIfNeeded(
     let parentMaterial = try makeProductNumiSealProductArtifactMaterial(
         parentArtifact,
         context: context,
+        profile: controls.profile,
+        options: options,
         sideChannelCertificate: controls.sideChannelCertificate,
         recursiveCarryParent: nil,
         allowAcceptedRecursiveParentWithoutContext: true
@@ -962,7 +1391,8 @@ private func makeProductRecursiveCarryParentIfNeeded(
         statementDigest: parentMaterial.statementDigest,
         proofEnvelopeDigest: parentMaterial.proofEnvelopeDigest,
         artifactDigest: parentRawArtifactDigest,
-        provenanceDigest: parentProvenance.provenanceDigest
+        provenanceDigest: parentProvenance.provenanceDigest,
+        issuedQROChallengeDigest: parentMaterial.issuedQROChallengeDigest
     )
     guard try controls.replayLedger.hasAccepted(parentIdentity) else {
         throw SuperNeoProductIntegrationError.verificationFailed(
@@ -1015,6 +1445,10 @@ private func verifyDemoArtifact(_ artifact: DemoProofArtifact, options: VerifyOp
     let header = try parseEnvelopeHeader(proofBytes)
     let kind = try artifact.demoProofKind()
     try validateArtifactEnvelopeHeader(header, artifact: artifact, kind: kind)
+    if let decompositionProfile = artifact.decompositionProfile,
+       SuperNeoDecompositionProfile(canonicalName: decompositionProfile) == nil {
+        throw CLIError.invalidArgument("artifact decomposition profile is not recognized")
+    }
     if let expectedPublicInputs = options.expectedPublicInputs {
         guard artifact.publicInputs == expectedPublicInputs else {
             throw CLIError.invalidArgument("artifact public inputs do not match expected public inputs")
@@ -1100,8 +1534,6 @@ private func inspect(path: String) throws {
     switch try readProofArtifact(path: path) {
     case .demo(let artifact):
         try inspectDemoArtifact(artifact)
-    case .numiSeal(let artifact):
-        try inspectNumiSealArtifact(artifact)
     case .numiSealProduct(let artifact):
         try inspectNumiSealProductArtifact(artifact)
     }
@@ -1135,69 +1567,6 @@ private func inspectDemoArtifact(_ artifact: DemoProofArtifact) throws {
     print("envelope total bytes: \(proofBytes.count)")
 }
 
-private func verifyNumiSealArtifact(_ artifact: NumiSealArtifact, options: VerifyOptions) throws {
-    if options.requireTerminalProof {
-        throw CLIError.invalidArgument("legacy terminal proof required, but artifact contains a NumiSeal terminal proof")
-    }
-    let expectedContext = try makeNumiSealExpectedContext(
-        options: options,
-        artifactKeySeedUTF8: artifact.keySeedUTF8
-    )
-    let started = Date()
-    _ = try NumiSealArtifactVerifier.verify(
-        artifact: artifact,
-        expectedContext: expectedContext,
-        executionPolicy: .highAssurance
-    )
-    print("valid NumiSeal terminal proof")
-    print("lanes: \(Set(artifact.laneIDsUTF8).count)")
-    print("aggregates: \(artifact.aggregateDigestsHex.count)")
-    print("residual mode: \(artifact.residualMode)")
-    print(String(format: "verify time: %.3f s", Date().timeIntervalSince(started)))
-}
-
-private func inspectNumiSealArtifact(_ artifact: NumiSealArtifact) throws {
-    try NumiSealArtifactVerifier.validateMetadata(artifact)
-    let proofBytes = try artifact.proofEnvelopeBytes()
-    let header = try parseEnvelopeHeader(proofBytes)
-    let envelope = try NumiSealArtifactVerifier.validatedEnvelope(from: artifact)
-
-    print("artifact version: \(artifact.artifactVersion)")
-    print("workload: \(artifact.workload)")
-    print("profile: \(artifact.profile)")
-    print("proof kind: \(artifact.proofKind)")
-    print("residual mode: \(artifact.residualMode)")
-    print("key columns: \(artifact.keyColumnCount)")
-    print("public input count: \(artifact.publicInputCount)")
-    print("private witness count: \(artifact.privateWitnessCount)")
-    print("lane ids: \(artifact.laneIDsUTF8.joined(separator: ","))")
-    print("maximum obligations per aggregate: \(artifact.maximumObligationsPerAggregate)")
-    print("maximum lane count: \(artifact.maximumLaneCount)")
-    print("maximum aggregates per lane: \(artifact.maximumAggregatesPerLane)")
-    print("shape digest: \(artifact.shapeDigestHex)")
-    print("statement digest: \(artifact.statementDigestHex)")
-    print("verifier key digest: \(artifact.verifierKeyDigestHex)")
-    print("transcript domain: \(artifact.transcriptDomainHex)")
-    print("public statement digest: \(artifact.publicStatementDigestHex)")
-    print("obligation root: \(artifact.obligationRootHex)")
-    print("lane summary root: \(artifact.laneSummaryRootHex)")
-    print("aggregate count: \(artifact.aggregateDigestsHex.count)")
-    for (index, digest) in artifact.aggregateDigestsHex.enumerated() {
-        print("aggregate digest \(index): \(digest)")
-    }
-    print("component digest root: \(artifact.componentDigestRootHex)")
-    print("proof transcript digest: \(artifact.proofTranscriptDigestHex)")
-    print("parsed lane proof count: \(envelope.proof.laneProofs.count)")
-    print("parsed public statement digest: \(envelope.proof.publicStatement.digest.hexString)")
-    print("envelope magic: \(header.magicHex)")
-    print("envelope version: \(header.version)")
-    print("envelope profile id: \(header.profileID)")
-    print("envelope kind raw: \(header.kind)")
-    print("envelope transcript domain: \(header.transcriptDomainHex)")
-    print("envelope body bytes: \(header.bodyLength)")
-    print("envelope total bytes: \(proofBytes.count)")
-}
-
 private func verifyNumiSealProductArtifact(_ artifact: NumiSealProductArtifact, options: VerifyOptions) throws {
     if options.requireTerminalProof {
         throw CLIError.invalidArgument("legacy terminal proof required, but artifact contains a NumiSeal product proof")
@@ -1213,11 +1582,19 @@ private func verifyNumiSealProductArtifact(_ artifact: NumiSealProductArtifact, 
         throw CLIError.invalidArgument("NumiSeal product verification requires --key-seed when artifact omits keySeedUTF8")
     }
     let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(keySeed.utf8))
+    let trustedContext = try makeNumiSealProductTrustedContext(from: artifact)
+    let qroChallenge = try makeNumiSealProductQROChallenge(
+        sessionID: options.qroSessionID,
+        publicCoinHex: options.qroPublicCoinHex,
+        domainSeparator: options.qroDomainSeparator,
+        frontendContextDigest: trustedContext.contextDigest
+    )
     let started = Date()
     let result = try NumiSealProductVerifier().verify(
         artifact: artifact,
         sourcePublicInput: publicInput,
         key: key,
+        qroChallenge: qroChallenge,
         executionPolicy: .highAssurance
     )
     let sourceBytes = try artifact.sourceFoldEnvelopeBytes()
@@ -1231,6 +1608,7 @@ private func verifyNumiSealProductArtifact(_ artifact: NumiSealProductArtifact, 
     print("metal mode: \(artifact.metalMode)")
     print("source fold envelope bytes: \(sourceBytes.count)")
     print("proof envelope bytes: \(proofBytes.count)")
+    print("qro challenge digest: \(qroChallenge.challengeDigest.hexString)")
     print(String(format: "verify time: %.3f s", Date().timeIntervalSince(started)))
 }
 
@@ -1543,15 +1921,55 @@ private func productArtifactProvenancePath(
     throw CLIError.invalidArgument("--artifact-provenance is required when operator profile does not include artifactProvenancePath")
 }
 
+private func productQROChallengePackPath(
+    options: VerifyOptions,
+    profile: SuperNeoLocalOperatorProfile
+) throws -> String {
+    if let explicitPath = options.qroChallengePackPath {
+        return explicitPath
+    }
+    if let profilePath = profile.qroChallengePackPath {
+        return profilePath
+    }
+    throw CLIError.invalidArgument(
+        "NumiSeal product-control verification requires --qro-challenge-pack or operator-profile qroChallengePackPath"
+    )
+}
+
+private func loadProductQROChallengePack(
+    options: VerifyOptions,
+    profile: SuperNeoLocalOperatorProfile,
+    context: SuperNeoTrustedContextPayload,
+    frontendContextDigest: Digest256
+) throws -> SuperNeoVerifiedQROChallengePack {
+    let path = try productQROChallengePackPath(options: options, profile: profile)
+    guard options.qroSessionID == nil,
+          options.qroPublicCoinHex == nil,
+          options.qroDomainSeparator == nil else {
+        throw CLIError.invalidArgument("product-control verification rejects raw QRO challenge options; use a signed --qro-challenge-pack")
+    }
+    return try SuperNeoSignedQROChallengePack.loadVerified(
+        from: URL(fileURLWithPath: path),
+        trustedIssuerKeyDigestsHex: try profile.trustedQROChallengeIssuerKeyDigestSet(),
+        context: context,
+        frontendContextDigest: frontendContextDigest
+    )
+}
+
 private func rejectLegacyVerifierOptionsInProductMode(_ options: VerifyOptions) throws {
     if options.hasLegacyExpectedContext || options.requireTerminalProof {
         throw CLIError.invalidArgument("product verification must take expected context only from the signed context pack")
+    }
+    if options.qroSessionID != nil || options.qroPublicCoinHex != nil || options.qroDomainSeparator != nil {
+        throw CLIError.invalidArgument("product verification must take QRO public coins only from a signed --qro-challenge-pack")
     }
 }
 
 private func makeProductArtifactMaterial(
     _ artifact: ProofArtifact,
     context: SuperNeoTrustedContextPayload,
+    profile: SuperNeoLocalOperatorProfile,
+    options: VerifyOptions,
     sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?,
     recursiveCarryParent: NumiSealProductRecursiveCarryParent?
 ) throws -> ProductArtifactMaterial {
@@ -1563,17 +1981,12 @@ private func makeProductArtifactMaterial(
             )
         }
         return try makeProductDemoArtifactMaterial(artifact, context: context)
-    case .numiSeal(let artifact):
-        guard recursiveCarryParent == nil else {
-            throw SuperNeoProductIntegrationError.invalidRequest(
-                "recursive carry parent is only valid for typed-required NumiSeal product artifacts"
-            )
-        }
-        return try makeProductNumiSealArtifactMaterial(artifact, context: context)
     case .numiSealProduct(let artifact):
         return try makeProductNumiSealProductArtifactMaterial(
             artifact,
             context: context,
+            profile: profile,
+            options: options,
             sideChannelCertificate: sideChannelCertificate,
             recursiveCarryParent: recursiveCarryParent
         )
@@ -1651,6 +2064,8 @@ private func makeProductDemoArtifactMaterial(
         workload: artifact.workload,
         carryMode: nil,
         recursiveCarryReplayBinding: nil,
+        issuedQROChallengeDigest: nil,
+        qroChallengeDigest: nil,
         proofEnvelopeBytes: proofBytes,
         proofEnvelopeDigest: Digest256.hash(proofBytes),
         statementDigest: statement.statementDigest,
@@ -1695,65 +2110,11 @@ private func makeProductDemoArtifactMaterial(
     )
 }
 
-private func makeProductNumiSealArtifactMaterial(
-    _ artifact: NumiSealArtifact,
-    context: SuperNeoTrustedContextPayload
-) throws -> ProductArtifactMaterial {
-    let productKind = SuperNeoProductProofKind.numiSealTerminal
-    guard context.accepts(productKind) else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("trusted context does not accept \(productKind.rawValue)")
-    }
-    guard context.allowedWorkloads.contains(artifact.workload) else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("artifact workload is not allowed by trusted context")
-    }
-    let proofBytes = try artifact.proofEnvelopeBytes()
-    _ = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: proofBytes)
-    if let maximumProofEnvelopeByteCount = context.maximumProofEnvelopeByteCount {
-        guard proofBytes.count <= maximumProofEnvelopeByteCount else {
-            throw SuperNeoProductIntegrationError.invalidRequest("proof envelope byte count exceeds trusted context maximum")
-        }
-    }
-    let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
-    try header.validateEnvelopeLength(totalByteCount: proofBytes.count)
-    guard header.kind == .numiSealTerminal else {
-        throw SuperNeoProductIntegrationError.invalidRequest("NumiSeal product context requires a NumiSeal terminal proof")
-    }
-    let expectedContext = ProofEnvelopeContext(
-        profileID: SuperNeoParameterProfile.goldilocksPhi81.profileID,
-        kind: .numiSealTerminal,
-        shapeDigest: try context.expectedShapeDigest,
-        statementDigest: try context.expectedStatementDigest,
-        verifierKeyDigest: try context.expectedVerifierKeyDigest,
-        transcriptDomain: try context.expectedTranscriptDomainDigest
-    )
-    guard header.ctcoContextBinder == expectedContext.ctcoContextBinder else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext(
-            "NumiSeal CTCO context binder does not match trusted context"
-        )
-    }
-    let expectedNumiSealContext = try context.numiSealExpectedContext()
-    return ProductArtifactMaterial(
-        proofKind: productKind,
-        workload: artifact.workload,
-        carryMode: nil,
-        recursiveCarryReplayBinding: nil,
-        proofEnvelopeBytes: proofBytes,
-        proofEnvelopeDigest: Digest256.hash(proofBytes),
-        statementDigest: try Digest256(hexDigest: artifact.statementDigestHex, name: "NumiSeal statement digest"),
-        verify: {
-            _ = try NumiSealArtifactVerifier.verify(
-                artifact: artifact,
-                expectedContext: expectedNumiSealContext,
-                executionPolicy: .highAssurance
-            )
-            return .accepted
-        }
-    )
-}
-
 private func makeProductNumiSealProductArtifactMaterial(
     _ artifact: NumiSealProductArtifact,
     context: SuperNeoTrustedContextPayload,
+    profile: SuperNeoLocalOperatorProfile,
+    options: VerifyOptions,
     sideChannelCertificate: SuperNeoVerifiedNumiSealZKSideChannelCertificate?,
     recursiveCarryParent: NumiSealProductRecursiveCarryParent?,
     allowAcceptedRecursiveParentWithoutContext: Bool = false
@@ -1769,6 +2130,11 @@ private func makeProductNumiSealProductArtifactMaterial(
         expectedEnvelopeKind = .numiSealZK
     default:
         throw SuperNeoProductIntegrationError.invalidRequest("unsupported NumiSeal product proof kind")
+    }
+    guard productKind == .numiSealZK else {
+        throw SuperNeoProductIntegrationError.invalidRequest(
+            "product-control verification requires NumiSealZK product artifacts"
+        )
     }
     guard context.accepts(productKind) else {
         throw SuperNeoProductIntegrationError.missingExpectedContext("trusted context does not accept \(productKind.rawValue)")
@@ -1840,7 +2206,7 @@ private func makeProductNumiSealProductArtifactMaterial(
     }
     try validateNumiSealProductArtifactPins(
         artifact: artifact,
-        expectedContext: try context.numiSealExpectedContext()
+        expectedPolicy: try context.requiredNumiSealPolicy()
     )
     let publicInput = try makePublicInput(from: artifact)
     let keySeed = context.expectedKeySeedUTF8 ?? artifact.keySeedUTF8
@@ -1851,6 +2217,14 @@ private func makeProductNumiSealProductArtifactMaterial(
     guard key.verifierKeyDigest == expectedVerifierKeyDigest else {
         throw SuperNeoProductIntegrationError.missingExpectedContext("regenerated verifier key digest does not match trusted context")
     }
+    let productTrustedContext = try makeNumiSealProductTrustedContext(from: artifact)
+    let issuedQROChallengePack = try loadProductQROChallengePack(
+        options: options,
+        profile: profile,
+        context: context,
+        frontendContextDigest: productTrustedContext.contextDigest
+    )
+    let qroChallenge = issuedQROChallengePack.qroChallenge
     let recursiveCarryBinding = try artifact.recursiveCarryReplayBinding()
     if recursiveCarryBinding == nil, recursiveCarryParent != nil {
         throw SuperNeoProductIntegrationError.invalidRequest(
@@ -1867,6 +2241,8 @@ private func makeProductNumiSealProductArtifactMaterial(
         workload: artifact.workload,
         carryMode: artifact.carryMode,
         recursiveCarryReplayBinding: recursiveCarryBinding,
+        issuedQROChallengeDigest: issuedQROChallengePack.payloadDigest,
+        qroChallengeDigest: qroChallenge.challengeDigest,
         proofEnvelopeBytes: proofBytes,
         proofEnvelopeDigest: Digest256.hash(proofBytes),
         statementDigest: try Digest256(hexDigest: artifact.statementDigestHex, name: "NumiSeal product statement digest"),
@@ -1875,6 +2251,7 @@ private func makeProductNumiSealProductArtifactMaterial(
                 artifact: artifact,
                 sourcePublicInput: publicInput,
                 key: key,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance,
                 recursiveCarryParent: recursiveCarryParent
             )
@@ -1885,49 +2262,37 @@ private func makeProductNumiSealProductArtifactMaterial(
 
 private func validateNumiSealProductArtifactPins(
     artifact: NumiSealProductArtifact,
-    expectedContext: NumiSealArtifactExpectedContext
+    expectedPolicy: SuperNeoTrustedNumiSealContext
 ) throws {
-    if let publicStatementDigest = expectedContext.publicStatementDigest {
-        guard artifact.publicStatementDigestHex == publicStatementDigest.hexString else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "NumiSeal product public statement digest does not match trusted context"
-            )
-        }
+    guard artifact.publicStatementDigestHex == expectedPolicy.publicStatementDigestHex else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "NumiSeal product public statement digest does not match trusted context"
+        )
     }
-    if let obligationRoot = expectedContext.obligationRoot {
-        guard artifact.obligationRootHex == obligationRoot.hexString else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "NumiSeal product obligation root does not match trusted context"
-            )
-        }
+    guard artifact.obligationRootHex == expectedPolicy.obligationRootHex else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "NumiSeal product obligation root does not match trusted context"
+        )
     }
-    if let laneSummaryRoot = expectedContext.laneSummaryRoot {
-        guard artifact.laneSummaryRootHex == laneSummaryRoot.hexString else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "NumiSeal product lane summary root does not match trusted context"
-            )
-        }
+    guard artifact.laneSummaryRootHex == expectedPolicy.laneSummaryRootHex else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "NumiSeal product lane summary root does not match trusted context"
+        )
     }
-    if let aggregateDigests = expectedContext.aggregateDigests {
-        guard artifact.aggregateDigestsHex == aggregateDigests.map(\.hexString) else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "NumiSeal product aggregate digests do not match trusted context"
-            )
-        }
+    guard artifact.aggregateDigestsHex == expectedPolicy.aggregateDigestsHex else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "NumiSeal product aggregate digests do not match trusted context"
+        )
     }
-    if let componentDigestRoot = expectedContext.componentDigestRoot {
-        guard artifact.componentDigestRootHex == componentDigestRoot.hexString else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "NumiSeal product component digest root does not match trusted context"
-            )
-        }
+    guard artifact.componentDigestRootHex == expectedPolicy.componentDigestRootHex else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "NumiSeal product component digest root does not match trusted context"
+        )
     }
-    if let proofTranscriptDigest = expectedContext.proofTranscriptDigest {
-        guard artifact.proofTranscriptDigestHex == proofTranscriptDigest.hexString else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "NumiSeal product proof transcript digest does not match trusted context"
-            )
-        }
+    guard artifact.proofTranscriptDigestHex == expectedPolicy.proofTranscriptDigestHex else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "NumiSeal product proof transcript digest does not match trusted context"
+        )
     }
 }
 
@@ -1941,6 +2306,8 @@ private func appendProductAudit(
     provenanceDigest: Digest256?,
     revocationFeedDigest: Digest256?,
     sideChannelCertificateDigest: Digest256?,
+    issuedQROChallengeDigest: Digest256?,
+    qroChallengeDigest: Digest384?,
     proofKind: SuperNeoProductProofKind?,
     carryMode: String?,
     recursiveCarryReplayBinding: NumiSealProductRecursiveCarryReplayBinding?,
@@ -1958,6 +2325,8 @@ private func appendProductAudit(
             provenanceDigestHex: provenanceDigest?.hexString,
             revocationFeedDigestHex: revocationFeedDigest?.hexString,
             sideChannelCertificateDigestHex: sideChannelCertificateDigest?.hexString,
+            issuedQROChallengeDigestHex: issuedQROChallengeDigest?.hexString,
+            qroChallengeDigest384Hex: qroChallengeDigest?.hexString,
             proofKind: proofKind?.rawValue,
             carryMode: carryMode,
             recursiveCarryReplayBindingDigestHex: recursiveCarryReplayBinding?.bindingDigest.hexString,
@@ -2144,49 +2513,6 @@ private func requireWorkloadParameters(
     return parameters
 }
 
-private func makeNumiSealExpectedContext(
-    options: VerifyOptions,
-    artifactKeySeedUTF8: String? = nil
-) throws -> NumiSealArtifactExpectedContext {
-    let trustedKeySeed = options.trustedKeySeed ?? artifactKeySeedUTF8
-    return try NumiSealArtifactExpectedContext(
-        trustedKeySeedUTF8: trustedKeySeed,
-        verifierKeyDigest: options.expectedVerifierKeyDigestHex.map {
-            try parseDigest256($0, name: "--expected-verifier-key-digest")
-        },
-        shapeDigest: options.expectedShapeDigestHex.map {
-            try parseDigest256($0, name: "--expected-shape-digest")
-        },
-        statementDigest: options.expectedStatementDigestHex.map {
-            try parseDigest256($0, name: "--expected-statement-digest")
-        },
-        transcriptDomainDigest: options.expectedTranscriptDomainDigestHex.map {
-            try parseDigest256($0, name: "--expected-transcript-domain-digest")
-        },
-        publicStatementDigest: options.expectedPublicStatementDigestHex.map {
-            try parseDigest256($0, name: "--expected-public-statement-digest")
-        },
-        obligationRoot: options.expectedObligationRootHex.map {
-            try parseDigest256($0, name: "--expected-obligation-root")
-        },
-        laneSummaryRoot: options.expectedLaneSummaryRootHex.map {
-            try parseDigest256($0, name: "--expected-lane-summary-root")
-        },
-        aggregateDigests: options.expectedAggregateDigestsHex.map { values in
-            try values.map {
-                try parseDigest256($0, name: "--expected-aggregate-digests")
-            }
-        },
-        componentDigestRoot: options.expectedComponentDigestRootHex.map {
-            try parseDigest256($0, name: "--expected-component-digest-root")
-        },
-        proofTranscriptDigest: options.expectedProofTranscriptDigestHex.map {
-            try parseDigest256($0, name: "--expected-proof-transcript-digest")
-        },
-        publicInputs: options.expectedPublicInputs
-    )
-}
-
 private func validateNumiSealProductExpectedOptions(
     artifact: NumiSealProductArtifact,
     options: VerifyOptions
@@ -2286,7 +2612,7 @@ private func readProofArtifact(data: Data) throws -> ProofArtifact {
     guard let proofKind = object["proofKind"] as? String else {
         throw CLIError.invalidArgument("proof artifact must include proofKind")
     }
-    if proofKind == NumiSealArtifact.proofKind || proofKind == NumiSealProductArtifact.zkProofKind {
+    if proofKind == NumiSealProductArtifact.proofKind || proofKind == NumiSealProductArtifact.zkProofKind {
         if let artifactVersion = object["artifactVersion"] as? NSNumber,
            artifactVersion.uint32Value == NumiSealProductArtifact.artifactVersion {
             try validateKnownArtifactTopLevelKeys(
@@ -2296,15 +2622,12 @@ private func readProofArtifact(data: Data) throws -> ProofArtifact {
             )
             return .numiSealProduct(try JSONDecoder().decode(NumiSealProductArtifact.self, from: data))
         }
-        guard proofKind == NumiSealArtifact.proofKind else {
+        guard proofKind == NumiSealProductArtifact.proofKind else {
             throw CLIError.invalidArgument("NumiSealZK product artifacts require artifactVersion \(NumiSealProductArtifact.artifactVersion)")
         }
-        try validateKnownArtifactTopLevelKeys(
-            object: object,
-            allowedKeys: NumiSealArtifact.topLevelKeys,
-            artifactName: "NumiSeal proof artifact"
+        throw CLIError.invalidArgument(
+            "legacy NumiSeal artifactVersion 1 is no longer accepted by the product CLI; use NumiSealProductArtifact artifactVersion \(NumiSealProductArtifact.artifactVersion)"
         )
-        return .numiSeal(try JSONDecoder().decode(NumiSealArtifact.self, from: data))
     }
     try validateKnownArtifactTopLevelKeys(
         object: object,
@@ -2669,12 +2992,80 @@ private func parseDigest256(_ raw: String, name: String) throws -> Digest256 {
     return try Digest256(bytes)
 }
 
+private func parseHexBytes(_ raw: String, name: String) throws -> [UInt8] {
+    let hex = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    guard hex.count % 2 == 0, hex.range(of: "^[0-9a-f]+$", options: .regularExpression) != nil else {
+        throw CLIError.invalidArgument("\(name) must be even-length lowercase or uppercase hex")
+    }
+    var bytes: [UInt8] = []
+    bytes.reserveCapacity(hex.count / 2)
+    var index = hex.startIndex
+    while index < hex.endIndex {
+        let next = hex.index(index, offsetBy: 2)
+        guard let byte = UInt8(hex[index..<next], radix: 16) else {
+            throw CLIError.invalidArgument("\(name) must be valid hex")
+        }
+        bytes.append(byte)
+        index = next
+    }
+    return bytes
+}
+
+private func makeNumiSealProductQROChallenge(
+    sessionID: String?,
+    publicCoinHex: String?,
+    domainSeparator: String?,
+    frontendContextDigest: Digest256
+) throws -> SuperNeoQROChallenge {
+    guard let sessionID, !sessionID.isEmpty else {
+        throw CLIError.invalidArgument("NumiSeal product QRO verification requires --qro-session-id")
+    }
+    guard let publicCoinHex else {
+        throw CLIError.invalidArgument("NumiSeal product QRO verification requires --qro-public-coin-hex")
+    }
+    return try SuperNeoQROChallenge(
+        domainSeparator: domainSeparator ?? SuperNeoQROChallenge.defaultDomainSeparator,
+        sessionID: sessionID,
+        verifierPublicCoin: parseHexBytes(publicCoinHex, name: "--qro-public-coin-hex"),
+        transcriptContext: SuperNeoSplitQRO.framedBytes(
+            domain: "superneo/cli/numiseal-product/qro-context/v1",
+            frames: [frontendContextDigest.superNeoBytes]
+        )
+    )
+}
+
+private func makeNumiSealProductTrustedContext(from artifact: NumiSealProductArtifact) throws -> NumiSealProductTrustedContext {
+    guard let laneIDValue = artifact.laneIDsUTF8.first, artifact.laneIDsUTF8.count == 1 else {
+        throw CLIError.invalidArgument("NumiSeal product artifact must carry exactly one lane id")
+    }
+    return try NumiSealProductTrustedContext(
+        workload: artifact.workload,
+        bitCount: artifact.bitCount,
+        publicInputs: artifact.publicInputs,
+        workloadParameters: artifact.workloadParameters,
+        sourceApplicationPathUTF8: artifact.sourceApplicationPathUTF8 ?? "unbound",
+        laneID: NumiSealLaneID(laneIDValue)
+    )
+}
+
 private func defaultKeySeed(for options: ProveOptions) throws -> String {
-    switch options.workload {
+    try defaultKeySeed(
+        workload: options.workload,
+        bitCount: options.bits.count,
+        operandBits: options.operandBits
+    )
+}
+
+private func defaultKeySeed(
+    workload: DemoWorkload,
+    bitCount: Int,
+    operandBits: Int
+) throws -> String {
+    switch workload {
     case .oneHot:
-        return try SuperNeoWorkloadKeySeed.oneHotVector(bitCount: options.bits.count)
+        return try SuperNeoWorkloadKeySeed.oneHotVector(bitCount: bitCount)
     case .binaryAdd:
-        return try SuperNeoWorkloadKeySeed.binaryAddition(operandBits: options.operandBits)
+        return try SuperNeoWorkloadKeySeed.binaryAddition(operandBits: operandBits)
     }
 }
 

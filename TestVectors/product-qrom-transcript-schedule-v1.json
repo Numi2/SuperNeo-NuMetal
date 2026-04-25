@@ -6,7 +6,7 @@
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
@@ -18,8 +18,8 @@
   "formalSurface": {
     "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
     "declarations": [
-      "ProductFiatShamirTranscriptSchedule",
-      "ProductFiatShamirTranscriptScheduleAccepted",
+      "ProductPublicCoinTranscriptSchedule",
+      "ProductPublicCoinTranscriptScheduleAccepted",
       "productSecurityTheorem_requires_qrom_transcript_schedule"
     ]
   },
@@ -33,7 +33,8 @@
   "oracleModel": {
     "model": "qrom",
     "randomOracleAbstraction": "Split H_chal/H_bind/H_mt SHAKE256-framed transcript bytes are treated as the quantum random-oracle interface for the proof obligation only; SuperNeoChallengeTape is the source challenge-tape expansion primitive",
-    "hashInstantiationProofProvided": true,
+    "idealSplitQROTheoremInstantiated": true,
+    "hashInstantiationProofProvided": false,
     "interactiveProtocolFullySpecified": true,
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "samplerEncodingEvidenceManifest": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
@@ -41,7 +42,8 @@
     "quantumOracleQueryBoundInstantiated": true,
     "structuralCollisionMalleabilityEvidencePinned": true,
     "transformPreconditionsSatisfied": true,
-    "productionQROMClaimAllowed": true
+    "repositoryLocalIdealQROMClaimAllowed": true,
+    "productionQROMClaimAllowed": false
   },
   "transcriptState": {
     "initialBinding": "ProofEnvelopeHeader.version, ProofEnvelopeKind, transcript domain separator, public statement digest, verifier key digest, artifact digest, and proof-envelope digest are absorbed before challenge derivation",
@@ -222,7 +224,7 @@
     }
   ],
   "ledgerBinding": {
-    "qromAccountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "qromAccountingManifest": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "totalLossBudgetManifest": "TestVectors/product-total-loss-budget-v1.json",
     "qromLossSymbol": "epsilon_qrom",
@@ -235,16 +237,20 @@
     "numericQueryBoundInstantiated": true,
     "qromLossWithinBudget": true
   },
-  "hardClaimBlockers": [],
+  "hardClaimBlockers": [
+    "concrete SHAKE256-to-split-QRO instantiation proof is not provided"
+  ],
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": true,
-    "productionPostQuantumClaimAllowed": true,
-    "productionQROMClaimAllowed": true,
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
+    "repositoryLocalIdealQROMClaimAllowed": true,
     "requiresInteractiveProtocol": false,
     "requiresTransformPreconditions": false,
     "requiresQuantumOracleQueryBound": false,
     "requiresStructuralCollisionMalleabilityEvidence": false,
     "requiresDigestCollisionBound": true,
+    "requiresConcreteHashQROInstantiation": true,
     "requiresQROMAccountingUpdate": false,
     "requiresTotalLossBudgetUpdate": false
   }

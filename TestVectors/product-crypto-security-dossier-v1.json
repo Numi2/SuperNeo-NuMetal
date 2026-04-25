@@ -6,7 +6,7 @@
     "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
     "rootImport": "import SuperNeoFormal.ProductSecurityTheorem",
     "declarations": [
-      "ProductFiatShamirModel",
+      "ProductPublicCoinModel",
       "ProductRecursionDepthModel",
       "ProductSecurityParameters",
       "ProductSystemBindings",
@@ -15,8 +15,8 @@
       "ProductBoundedDepthLossAccepted",
       "ProductLatticeAssumptionDossier",
       "ProductLatticeAssumptionDossierAccepted",
-      "ProductFiatShamirQROMEvidence",
-      "ProductFiatShamirQROMAccepted",
+      "ProductPublicCoinQROMEvidence",
+      "ProductPublicCoinQROMAccepted",
       "ProductCompletenessSoundnessZKClaim",
       "ProductCompletenessSoundnessZKHolds",
       "ProductSecurityTheoremEvidence",
@@ -26,14 +26,14 @@
       "ProductFiniteProtocolNumericLossObstructionAccepted",
       "ProductExtractorLossAccounting",
       "ProductExtractorLossAccountingAccepted",
-      "ProductFiatShamirTranscriptSchedule",
-      "ProductFiatShamirTranscriptScheduleAccepted",
-      "ProductFiatShamirTransformPreconditions",
-      "ProductFiatShamirTransformPreconditionsAccepted",
+      "ProductPublicCoinTranscriptSchedule",
+      "ProductPublicCoinTranscriptScheduleAccepted",
+      "ProductPublicCoinTransformPreconditions",
+      "ProductPublicCoinTransformPreconditionsAccepted",
       "ProductQROMInteractiveReduction",
       "ProductQROMInteractiveReductionAccepted",
-      "ProductFiatShamirLossAccounting",
-      "ProductFiatShamirLossAccountingAccepted",
+      "ProductPublicCoinLossAccounting",
+      "ProductPublicCoinLossAccountingAccepted",
       "ProductQROMCompilerOverheadBound",
       "ProductQROMCompilerOverheadBoundAccepted",
       "ProductSharedBadEventDeduplication",
@@ -101,7 +101,7 @@
     "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
@@ -214,7 +214,7 @@
     "remainingObligations": [
       "keep the one-shot finite-protocol lower-bound blockers in the ledger so no one-shot 128-bit claim can be promoted",
       "prove typed carry vector norm preservation across producer and consumer recursion handoff",
-      "compose folding, carry, ZK masking, Fiat-Shamir, replay, constant-time, and release losses inside the declared depth budget"
+      "compose folding, carry, ZK masking, QRO/public-coin, replay, constant-time, and release losses inside the declared depth budget"
     ]
   },
   "extractorLossAccounting": {
@@ -235,9 +235,9 @@
     "concreteExtractorSurface": "NumiSealProductConcreteExtractor.extract",
     "selectedDepthExactUpperBound": "0"
   },
-  "fiatShamirQROMPosition": {
+  "publicCoinQROMPosition": {
     "model": "ideal-split-qro",
-    "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "accountingManifest": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "transformPreconditionManifest": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "interactiveReductionManifest": "TestVectors/product-qrom-interactive-reduction-v1.json",
@@ -263,7 +263,10 @@
     "interactiveLossChargedOutsideQROM": true,
     "interactiveSecurityBoundsInstantiated": true,
     "hashQROInstantiationAssumptionPinned": true,
-    "hashQROInstantiationProofProvided": true,
+    "idealSplitQROTheoremInstantiated": true,
+    "genericOfflineTransformAcceptedForProduction": false,
+    "concreteSHAKE256QROInstantiationProofProvided": false,
+    "hashQROInstantiationProofProvided": false,
     "legacyDFM20InterfaceDeprecated": true,
     "sourceHBindImplementationComplete": true,
     "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_compiler_overhead + epsilon_hash_model_gap",
@@ -282,6 +285,7 @@
     "productionQROMClaimAllowed": false,
     "remainingObligations": [
       "keep concrete SHAKE256-to-split-QRO promotion outside the ideal theorem until a concrete-hash argument is recorded",
+      "keep generic offline transforms outside the accepted production architecture; use interactive verifier challenges for highest assurance and DFMS/CTCO only for offline artifacts",
       "keep selected-depth epsilon_replay, epsilon_ct, epsilon_release, and numeric total-loss terms outside the QROM theorem until their evidence closes"
     ]
   },
@@ -323,7 +327,7 @@
     "producerPath": "implemented and theorem-surfaced for typed carry statements",
     "consumerPath": "implemented and theorem-surfaced for typed carry acceptance",
     "carryVectorCommitment": "typed digest binding exists; product verifier carry-mode policy binding is enforced; product recursive carry context vector is pinned; typed-required child product artifacts now bind context and replay roots when a verified recursive parent is supplied",
-    "replaySemantics": "local replay/context freshness is checked for current carry consumers; product carryMode cannot drift from terminalCarryPolicy metadata; product carry context binds parent artifact, source fold, product proof envelope, producer proof envelope, lane, aggregate, session, and next recursion level; local product controls require signed parent provenance, prior parent replay acceptance, and bind the recursive carry replay digest into SQLite replay identity and JSONL audit records with single-use local carry replay-binding enforcement",
+    "replaySemantics": "local replay/context freshness is checked for current carry consumers; product carryMode cannot drift from terminalCarryPolicy metadata; signed issued-QRO challenge packs bind context, frontend context, statement, verifier key, public inputs, transcript domain, validity window, and single-use policy into SQLite replay identity and JSONL audit records; product carry context binds parent artifact, source fold, product proof envelope, producer proof envelope, lane, aggregate, session, and next recursion level; local product controls require signed parent provenance, prior parent replay acceptance, and bind the recursive carry replay digest into SQLite replay identity and JSONL audit records with single-use local carry replay-binding enforcement",
     "recursiveRelationTheorem": "evidence-parametric typed producer/consumer theorem exists",
     "conformanceVectors": [
       "TestVectors/numiseal-typed-carry-conformance-v1.json",
@@ -345,15 +349,15 @@
     "currentLocalBudgets": [
       {
         "id": "numiseal-product-smoke",
-        "maximumArtifactBytes": 1730000,
+        "maximumArtifactBytes": 625000,
         "maximumProofEnvelopeBytes": 246000,
-        "maximumSourceFoldEnvelopeBytes": 1030000
+        "maximumSourceFoldEnvelopeBytes": 201000
       },
       {
         "id": "numiseal-zk-product-smoke",
-        "maximumArtifactBytes": 1733000,
-        "maximumProofEnvelopeBytes": 247000,
-        "maximumSourceFoldEnvelopeBytes": 1030000
+        "maximumArtifactBytes": 626000,
+        "maximumProofEnvelopeBytes": 246500,
+        "maximumSourceFoldEnvelopeBytes": 201000
       }
     ],
     "sameHardwareCompetitorTablePinned": false,

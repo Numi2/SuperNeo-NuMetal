@@ -1,6 +1,100 @@
 import CryptoKit
 import Foundation
 
+public struct SuperNeoQROChallenge: Equatable, Sendable, SuperNeoByteEncodable {
+    public static let minimumVerifierPublicCoinByteCount = 32
+    public static let defaultDomainSeparator = "SuperNeo-NuMetal.qro.public-coin.v1"
+
+    public let domainSeparator: String
+    public let sessionID: String
+    public let verifierPublicCoin: [UInt8]
+    public let transcriptContext: [UInt8]
+
+    public init(
+        domainSeparator: String = Self.defaultDomainSeparator,
+        sessionID: String,
+        verifierPublicCoin: [UInt8],
+        transcriptContext: [UInt8] = []
+    ) throws {
+        guard !domainSeparator.isEmpty else {
+            throw SuperNeoError.invalidParameter("QRO challenge domain separator must not be empty")
+        }
+        guard !sessionID.isEmpty else {
+            throw SuperNeoError.invalidParameter("QRO challenge session ID must not be empty")
+        }
+        guard verifierPublicCoin.count >= Self.minimumVerifierPublicCoinByteCount else {
+            throw SuperNeoError.invalidParameter("QRO challenge verifier public coin must carry at least 256 bits")
+        }
+        self.domainSeparator = domainSeparator
+        self.sessionID = sessionID
+        self.verifierPublicCoin = verifierPublicCoin
+        self.transcriptContext = transcriptContext
+    }
+
+    public var superNeoBytes: [UInt8] {
+        SuperNeoSplitQRO.framedBytes(
+            domain: "superneo/qro/public-coin-challenge/v1",
+            frames: [
+                Array(domainSeparator.utf8),
+                Array(sessionID.utf8),
+                verifierPublicCoin,
+                transcriptContext
+            ]
+        )
+    }
+
+    public var challengeDigest: Digest384 {
+        SuperNeoSplitQRO.hBind(
+            domain: "superneo/qro/public-coin-challenge/digest/v1",
+            frames: [superNeoBytes]
+        )
+    }
+
+    public func bindingTranscriptContext(label: String, context: [UInt8]) throws -> SuperNeoQROChallenge {
+        guard !label.isEmpty else {
+            throw SuperNeoError.invalidParameter("QRO challenge binding label must not be empty")
+        }
+        return try SuperNeoQROChallenge(
+            domainSeparator: "\(domainSeparator)/\(label)",
+            sessionID: sessionID,
+            verifierPublicCoin: verifierPublicCoin,
+            transcriptContext: SuperNeoSplitQRO.framedBytes(
+                domain: "superneo/qro/public-coin-challenge/context-binding/v1",
+                frames: [
+                    transcriptContext,
+                    Array(label.utf8),
+                    context
+                ]
+            )
+        )
+    }
+
+    public func transcriptDomainDigest(label: String) throws -> Digest256 {
+        guard !label.isEmpty else {
+            throw SuperNeoError.invalidParameter("QRO transcript domain label must not be empty")
+        }
+        return SuperNeoSplitQRO.hChal(
+            domain: "superneo/qro/public-coin-challenge/transcript-domain/v1",
+            frames: [
+                Array(label.utf8),
+                challengeDigest.superNeoBytes,
+                superNeoBytes
+            ]
+        )
+    }
+
+    public func transcriptSeed(label: String) -> [UInt8] {
+        SuperNeoSplitQRO.framedBytes(
+            domain: "superneo/qro/public-coin-challenge/transcript-seed/v1",
+            frames: [
+                Array(label.utf8),
+                challengeDigest.superNeoBytes,
+                superNeoBytes
+            ]
+        )
+    }
+}
+
 public struct DeterministicRNG: Sendable {
     private let seed: [UInt8]
     private var counter: UInt64

@@ -48,6 +48,7 @@ GENERATED_BUDGET_KEYS = {
     "expectedZKMode",
     "expectedMetalMode",
     "expectedExecutionPolicy",
+    "expectedSourceDecompositionProfile",
     "expectedSourceFoldOutputClaimCount",
     "maximumArtifactBytes",
     "maximumSourceFoldEnvelopeBytes",
@@ -215,6 +216,7 @@ def validate_generated_budget(entry: Any, seen_ids: set[str]) -> dict[str, Any]:
         "expectedZKMode",
         "expectedMetalMode",
         "expectedExecutionPolicy",
+        "expectedSourceDecompositionProfile",
     ]:
         require_string(entry.get(key), f"{budget_id}.{key}")
     return entry
@@ -260,8 +262,16 @@ def validate_generated_artifact(budget: dict[str, Any], artifact_path: Path) -> 
         require_digest(artifact.get("sourceFoldEnvelopeDigestHex"), source_bytes, f"{budget_id}.sourceFoldEnvelopeDigestHex")
     if "proofEnvelopeDigestHex" in artifact:
         require_digest(artifact.get("proofEnvelopeDigestHex"), proof_bytes, f"{budget_id}.proofEnvelopeDigestHex")
+    require(
+        artifact.get("sourceDecompositionProfile") == budget.get("expectedSourceDecompositionProfile"),
+        f"{budget_id} sourceDecompositionProfile changed: {artifact.get('sourceDecompositionProfile')!r}",
+    )
     metadata = artifact.get("executionPolicyMetadata")
     require(isinstance(metadata, dict), f"{budget_id}.executionPolicyMetadata must be an object")
+    require(
+        metadata.get("sourceDecompositionProfile") == artifact.get("sourceDecompositionProfile"),
+        f"{budget_id} sourceDecompositionProfile metadata changed: {metadata.get('sourceDecompositionProfile')!r}",
+    )
     require(
         metadata.get("terminalCarryPolicy") == artifact.get("carryMode"),
         f"{budget_id} terminalCarryPolicy must match carryMode",
@@ -295,7 +305,7 @@ def validate_manifest(manifest_path: Path, generated_artifacts: list[str]) -> No
     seen_tracked: set[str] = set()
     for entry in tracked:
         validate_tracked_artifact(entry, seen_tracked)
-    require(len(seen_tracked) >= 8, "trackedArtifacts must include the checked R1CS and NumiSeal vector set")
+    require(len(seen_tracked) >= 5, "trackedArtifacts must include the checked R1CS vector set")
 
     generated = manifest.get("generatedProductBudgets")
     require(isinstance(generated, list) and generated, "generatedProductBudgets must be a non-empty list")

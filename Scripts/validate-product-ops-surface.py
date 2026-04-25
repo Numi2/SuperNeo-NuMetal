@@ -43,7 +43,15 @@ def validate_library_surface() -> None:
             "public struct SuperNeoRevocationFeedPayload",
             "public struct SuperNeoSignedRevocationFeed",
             "public struct SuperNeoVerifiedRevocationFeed",
+            "public struct SuperNeoIssuedQROChallengePayload",
+            "public struct SuperNeoSignedQROChallengePack",
+            "public struct SuperNeoVerifiedQROChallengePack",
+            "public struct SuperNeoIssuedQROChallengeExpectedContext",
             "trustedRevocationIssuerKeyDigestsHex",
+            "trustedQROChallengeIssuerKeyDigestsHex",
+            "qroChallengePackPath",
+            "accepted_issued_qro_challenges",
+            "issuedQROChallengeDigestHex",
             "revocationFeedPath",
             "revocationFeedDigestHex",
             "canonicalDigestSet",
@@ -83,6 +91,7 @@ def validate_cli_surface() -> None:
         "SuperNeoCLI/main.swift",
         [
             "product-status --operator-profile profile.json",
+            "product-issue-qro",
             "[--revocation-feed revocations.json]",
             "[--format text|json]",
             "--revocation-feed",
@@ -93,6 +102,9 @@ def validate_cli_surface() -> None:
             "audit retention policy:",
             "retry policy:",
             "numiseal zk minimum side-channel level:",
+            "--trusted-qro-issuer-key-digest",
+            "--qro-challenge-pack requires --trusted-qro-issuer-key-digest or --operator-profile",
+            "product verification must take QRO public coins only from a signed --qro-challenge-pack",
         ],
     )
 
@@ -110,6 +122,10 @@ def validate_docs() -> None:
             "retryPolicy",
             "operationsStatus",
             "local product-ops surface",
+            "accepted_issued_qro_challenges",
+            "product-issue-qro",
+            "--trusted-qro-issuer-key-digest",
+            "sideChannelCertificateStatus",
         ],
     )
     require_contains(
@@ -121,6 +137,9 @@ def validate_docs() -> None:
             "operationsStatus",
             "auditRetentionPolicy",
             "retryPolicy",
+            "SuperNeoSignedQROChallengePack",
+            "accepted_issued_qro_challenges",
+            "Certificates remain optional release metadata",
         ],
     )
     require_contains(

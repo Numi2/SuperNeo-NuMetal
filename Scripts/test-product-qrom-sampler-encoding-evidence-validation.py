@@ -71,7 +71,11 @@ def missing_transcript_injectivity(evidence: dict[str, Any]) -> None:
 
 
 def production_claim_enabled(evidence: dict[str, Any]) -> None:
-    evidence["integrationStatus"]["productionQROMClaimAllowed"] = False
+    evidence["integrationStatus"]["productionQROMClaimAllowed"] = True
+
+
+def concrete_hash_proof_enabled(evidence: dict[str, Any]) -> None:
+    evidence["integrationStatus"]["hashInstantiationProofProvided"] = True
 
 
 def missing_formal_declaration(evidence: dict[str, Any]) -> None:
@@ -98,7 +102,12 @@ def main() -> None:
     expect_failure(
         "production claim enabled",
         production_claim_enabled,
-        "integrationStatus.productionQROMClaimAllowed must be true",
+        "integrationStatus.productionQROMClaimAllowed must be false",
+    )
+    expect_failure(
+        "concrete hash proof enabled",
+        concrete_hash_proof_enabled,
+        "integrationStatus.hashInstantiationProofProvided must be false",
     )
     expect_failure(
         "missing formal declaration",

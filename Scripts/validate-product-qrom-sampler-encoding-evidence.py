@@ -35,7 +35,7 @@ EXPECTED_MANIFESTS = {
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
 }
@@ -152,7 +152,7 @@ def validate_related_manifests(evidence: dict[str, Any]) -> None:
         ("productQROMTranscriptSchedule", "productQROMSamplerEncodingEvidence"),
         ("productQROMTransformPreconditions", "productQROMSamplerEncodingEvidence"),
         ("productQROMInteractiveReduction", "productQROMSamplerEncodingEvidence"),
-        ("productQROMFiatShamirAccounting", "productQROMSamplerEncodingEvidence"),
+        ("productQROMPublicCoinAccounting", "productQROMSamplerEncodingEvidence"),
         ("productTotalLossBudget", "productQROMSamplerEncodingEvidence"),
     ]:
         manifest = read_json(ROOT / EXPECTED_MANIFESTS[manifest_key])
@@ -331,13 +331,15 @@ def validate_integration(evidence: dict[str, Any]) -> None:
         integration.get("structuralCollisionMalleabilityEvidenceManifest"),
         "integrationStatus.structuralCollisionMalleabilityEvidenceManifest",
     )
+    require_true(integration.get("idealSplitQROTheoremInstantiated"), "integrationStatus.idealSplitQROTheoremInstantiated")
+    require_false(integration.get("hashInstantiationProofProvided"), "integrationStatus.hashInstantiationProofProvided")
     for key in [
-        "hashInstantiationProofProvided",
         "collisionMalleabilityExcluded",
         "qromReductionLossWithinBudget",
-        "productionQROMClaimAllowed",
+        "repositoryLocalIdealQROMClaimAllowed",
     ]:
         require_true(integration.get(key), f"integrationStatus.{key}")
+    require_false(integration.get("productionQROMClaimAllowed"), "integrationStatus.productionQROMClaimAllowed")
 
 
 def validate_docs_and_gate() -> None:

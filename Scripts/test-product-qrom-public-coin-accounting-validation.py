@@ -11,8 +11,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ACCOUNTING = ROOT / "TestVectors" / "product-qrom-fiat-shamir-accounting-v1.json"
-VALIDATE = ROOT / "Scripts" / "validate-product-qrom-fiat-shamir-accounting.py"
+ACCOUNTING = ROOT / "TestVectors" / "product-qrom-public-coin-accounting-v1.json"
+VALIDATE = ROOT / "Scripts" / "validate-product-qrom-public-coin-accounting.py"
 
 
 def run_ok(*args: str) -> None:
@@ -55,25 +55,37 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         concrete_hash_proof = copy.deepcopy(accounting)
-        concrete_hash_proof["hashModel"]["hashQROInstantiationProofProvided"] = False
+        concrete_hash_proof["hashModel"]["hashQROInstantiationProofProvided"] = True
         path = tmp / "concrete-hash-proof.json"
         write_json(path, concrete_hash_proof)
         run_fail(str(VALIDATE), str(path))
 
+        concrete_shake_proof = copy.deepcopy(accounting)
+        concrete_shake_proof["hashModel"]["concreteSHAKE256QROInstantiationProofProvided"] = True
+        path = tmp / "concrete-shake-proof.json"
+        write_json(path, concrete_shake_proof)
+        run_fail(str(VALIDATE), str(path))
+
+        generic_fs_promotion = copy.deepcopy(accounting)
+        generic_fs_promotion["hashModel"]["genericOfflineTransformAcceptedForProduction"] = True
+        path = tmp / "generic-fs-promotion.json"
+        write_json(path, generic_fs_promotion)
+        run_fail(str(VALIDATE), str(path))
+
         wrong_transform = copy.deepcopy(accounting)
-        wrong_transform["fiatShamirModel"]["transformFamily"] = "DFM20"
+        wrong_transform["publicCoinQROModel"]["transformFamily"] = "DFM20"
         path = tmp / "wrong-transform.json"
         write_json(path, wrong_transform)
         run_fail(str(VALIDATE), str(path))
 
         hidden_source = copy.deepcopy(accounting)
-        hidden_source["fiatShamirModel"]["sourceImplementationComplete"] = False
+        hidden_source["publicCoinQROModel"]["sourceImplementationComplete"] = False
         path = tmp / "hidden-source.json"
         write_json(path, hidden_source)
         run_fail(str(VALIDATE), str(path))
 
         uninstantiated_model_bounds = copy.deepcopy(accounting)
-        uninstantiated_model_bounds["fiatShamirModel"]["interactiveSecurityBoundsInstantiated"] = False
+        uninstantiated_model_bounds["publicCoinQROModel"]["interactiveSecurityBoundsInstantiated"] = False
         path = tmp / "uninstantiated-model-bounds.json"
         write_json(path, uninstantiated_model_bounds)
         run_fail(str(VALIDATE), str(path))
@@ -125,7 +137,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         premature_promotion = copy.deepcopy(accounting)
-        premature_promotion["promotionRule"]["productionQROMClaimAllowed"] = False
+        premature_promotion["promotionRule"]["productionQROMClaimAllowed"] = True
         path = tmp / "premature-promotion.json"
         write_json(path, premature_promotion)
         run_fail(str(VALIDATE), str(path))

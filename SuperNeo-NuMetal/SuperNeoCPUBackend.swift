@@ -107,9 +107,16 @@ public struct SuperNeoCPUBackend: Sendable {
 
     public func makeProver(
         key: AjtaiCommitmentKey,
-        executionPolicy: SuperNeoExecutionPolicy = .default
+        executionPolicy: SuperNeoExecutionPolicy = .default,
+        decompositionProfile: SuperNeoDecompositionProfile = .payPerBit
     ) -> SuperNeoProver {
-        SuperNeoProver(parameters: parameters, key: key, context: nil, executionPolicy: executionPolicy)
+        SuperNeoProver(
+            parameters: parameters,
+            key: key,
+            context: nil,
+            executionPolicy: executionPolicy,
+            decompositionProfile: decompositionProfile
+        )
     }
 
     public func makeVerifier(

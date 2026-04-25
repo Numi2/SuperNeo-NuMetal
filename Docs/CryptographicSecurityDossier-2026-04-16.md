@@ -9,7 +9,7 @@ Machine-readable scope:
 - `TestVectors/product-crypto-security-dossier-v1.json`
 - `TestVectors/product-selected-depth-loss-accounting-v1.json`
 - `TestVectors/product-extractor-loss-accounting-v1.json`
-- `TestVectors/product-qrom-fiat-shamir-accounting-v1.json`
+- `TestVectors/product-qrom-public-coin-accounting-v1.json`
 - `TestVectors/product-qrom-transcript-schedule-v1.json`
 - `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`
 - `TestVectors/product-qrom-collision-malleability-evidence-v1.json`
@@ -22,7 +22,7 @@ Machine-readable scope:
 - `Scripts/validate-product-crypto-security-dossier.py`
 - `Scripts/validate-product-selected-depth-loss-accounting.py`
 - `Scripts/validate-product-extractor-loss-accounting.py`
-- `Scripts/validate-product-qrom-fiat-shamir-accounting.py`
+- `Scripts/validate-product-qrom-public-coin-accounting.py`
 - `Scripts/validate-product-qrom-transcript-schedule.py`
 - `Scripts/validate-product-qrom-sampler-encoding-evidence.py`
 - `Scripts/validate-product-qrom-collision-malleability-evidence.py`
@@ -39,6 +39,16 @@ release-distribution, and promoted-depth recursive-carry evidence are
 instantiated and accepted. These production gates do not block repository-local
 development, testing, or selected-depth theorem use.
 
+As of 2026-04-25, the selected executable product architecture is the explicit
+QRO public-coin route documented in
+`Docs/QROProductArchitecture-2026-04-25.md`. Product NumiSeal proving and
+verification require `SuperNeoQROChallenge`; the source-fold transcript seed and
+terminal transcript domain are derived from that challenge; the QRO challenge
+digest is bound into artifact-version-2 metadata, CTCO/QROM evidence, and
+verifier checks. Artifact-version-1 `NumiSealArtifact` and artifact-selected
+transcript seeds are compatibility material only, and the product CLI rejects
+them.
+
 ## Theorem Scope
 
 `ProductSecurityTheorem` composes the actual product system surfaces:
@@ -54,10 +64,11 @@ development, testing, or selected-depth theorem use.
 
 The checked Lean theorem is intentionally evidence-parametric. It proves that
 if the product bindings, bounded-depth loss accounting, lattice dossier,
-Fiat-Shamir/QROM evidence, and existing NumiSeal product/carry/ZK relations are
+QRO/QROM evidence, and existing NumiSeal product/carry/ZK relations are
 accepted, then the product completeness, knowledge-soundness, zero-knowledge,
-and composition claims hold. It does not fill in missing concrete extractor,
-hosted operations, concrete hash/QRO, side-channel, or release evidence.
+and composition claims hold. It does not fill in missing hosted operations,
+concrete-hash/QRO, side-channel, release, or promoted-depth recursive-carry
+evidence.
 
 ## Recursion And Knowledge Soundness
 
@@ -73,7 +84,7 @@ Depth promotion requires:
   parent-child handoff to the selected hosted production depth with replay
   semantics,
 - explicit per-layer loss accounting for folding, terminal sealing, carry, ZK,
-  and Fiat-Shamir, and
+  and QRO/public-coin transcript use, and
 - either a bounded-depth theorem for the chosen production depth or a
   polynomial-depth theorem for the actual folding/carry construction.
 
@@ -91,7 +102,7 @@ The ledger pins these loss terms:
 - typed recursive carry loss,
 - proof-level ZK simulator composition loss, now instantiated as zero under the
   declared leakage model,
-- Fiat-Shamir/QROM loss,
+- QRO/QROM loss,
 - concrete extractor failure loss,
 - transcript collision and proof-kind malleability loss,
 - product-ops replay and revocation freshness loss,
@@ -146,7 +157,11 @@ is about `2^-121.83`. The current one-shot route is therefore frozen as
 non-128-bit. The selected route is fixed-kind CTCO repeated-tape accounting:
 PiCCS uses two internal tapes, PiRLC uses three internal CRT-component tapes
 unless a separate semantic unit-pivot theorem is proved, and terminal CE is
-pinned at 226 rounds. The terminal repeated-challenge tape theorem gives
+pinned at 226 rounds. The product source decomposition/opening profile is
+`pay-per-bit-v1`: source CE obligations are adaptive rather than fixed 14,
+`sourceFoldOutputClaimCount` is exact-counted against
+`sourceFoldOutputClaimDigestsHex`, and verifier recomposition remains mandatory
+for every emitted limb. The terminal repeated-challenge tape theorem gives
 `(2/3)^226`, about `2^-132.20`, and Lean pins the exact comparison with
 shared-core slack. The selected product ledger now wires the fixed-kind route as
 `epsilon_fold <= 16/q^4 + 1/5^81` and `epsilon_terminal_ce <= (2/3)^226`; the
@@ -221,9 +236,9 @@ parameter sets and category claims; this repo keeps the current claim
 assumption-scoped until the reduction-loss and parameter story survives that
 style of scrutiny.
 
-## QROM Fiat-Shamir Accounting
+## QROM public-coin Accounting
 
-The Fiat-Shamir/QROM target is no longer the old DFM20 multi-round production
+The QRO/QROM target is no longer the old DFM20 multi-round production
 route. The current theorem path is the split-oracle product surface in
 `ProductSecurityTheorem.lean`: 256-bit challenge seeds, 384-bit
 theorem-critical binding digests, well-formed framed transcripts, CTCO as the
@@ -232,7 +247,7 @@ family. Interactive soundness is charged outside the QROM transform term, and
 shared bad events are carried through the selected-depth ledger instead of being
 duplicated under flat rows.
 
-`TestVectors/product-qrom-fiat-shamir-accounting-v1.json`,
+`TestVectors/product-qrom-public-coin-accounting-v1.json`,
 `TestVectors/product-qrom-transcript-schedule-v1.json`,
 `TestVectors/product-qrom-transform-preconditions-v1.json`, and
 `TestVectors/product-qrom-interactive-reduction-v1.json` remain useful
@@ -251,7 +266,7 @@ The current Lean surface exposes the theorem-critical replacement objects:
 - `ProductQROMCollisionBoundAccepted`
 - `ProductQROMMalleabilityBoundAccepted`
 - `ProductQROMTotalLossInstantiatedAccepted`
-- `ProductFiatShamirQROMAccepted`
+- `ProductPublicCoinQROMAccepted`
 - `ProductQROMTightTransform`
 
 Current QROM guardrails are therefore:
@@ -274,7 +289,7 @@ measure-and-reprogram route. The active theorem target is the split-oracle
 CTCO/Merkle-straightline surface in `ProductSecurityTheorem.lean`, not promotion
 of the DFM20 loss formula.
 
-The manifest follows the QROM Fiat-Shamir literature most relevant to this
+The manifest follows the QROM public-coin literature most relevant to this
 stack:
 
 - Don, Fehr, Majenz, and Schaffner, `Security of the Fiat-Shamir
@@ -459,10 +474,11 @@ The proof-level privacy simulator is now recorded in
 field-mask sampling, fresh randomness-session binding, mask-reuse rejection,
 and the declared proof-byte leakage model, the simulator loss is
 `epsilon_zk_sim = 0`. Product proving now emits NumiSealZK by default. Signed
-side-channel certificates are optional only when the trusted context minimum is
-`correctness-only`; stricter contexts must attach a certificate at or above the
-minimum. The remaining privacy production obligations are side-channel evidence
-plus hosted behavior evidence for artifact metadata, sizes, errors, retry
+side-channel certificates are optional for default `correctness-only` trusted
+contexts so local product development is not blocked; stricter contexts may
+still require a certificate at or above their configured minimum. The remaining
+privacy production obligations are side-channel evidence plus hosted behavior
+evidence for artifact metadata, sizes, errors, retry
 behavior, allocator/GPU behavior, and carry-state exposure outside declared
 proof bytes.
 
@@ -548,7 +564,7 @@ The machine-readable dossier enables repository-local production claims for:
 
 - product security,
 - post-quantum parameter position,
-- Fiat-Shamir/QROM accounting,
+- QRO/QROM accounting,
 - ZK privacy and default masked-residual behavior,
 - recursive carry,
 - local performance/proof-size budgets,

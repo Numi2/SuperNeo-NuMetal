@@ -37,7 +37,7 @@ EXPECTED_MANIFESTS = {
     "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",
     "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
@@ -54,14 +54,14 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductSelectedDepthLossLedgerAccepted",
     "ProductExtractorLossAccounting",
     "ProductExtractorLossAccountingAccepted",
-    "ProductFiatShamirTranscriptSchedule",
-    "ProductFiatShamirTranscriptScheduleAccepted",
-    "ProductFiatShamirTransformPreconditions",
-    "ProductFiatShamirTransformPreconditionsAccepted",
+    "ProductPublicCoinTranscriptSchedule",
+    "ProductPublicCoinTranscriptScheduleAccepted",
+    "ProductPublicCoinTransformPreconditions",
+    "ProductPublicCoinTransformPreconditionsAccepted",
     "ProductQROMInteractiveReduction",
     "ProductQROMInteractiveReductionAccepted",
-    "ProductFiatShamirLossAccounting",
-    "ProductFiatShamirLossAccountingAccepted",
+    "ProductPublicCoinLossAccounting",
+    "ProductPublicCoinLossAccountingAccepted",
     "ProductQROMCompilerOverheadBound",
     "ProductQROMCompilerOverheadBoundAccepted",
     "ProductSharedBadEventDeduplication",
@@ -88,7 +88,7 @@ EXPECTED_COMPONENT_IDS = [
     "terminal-numiseal-seal",
     "typed-recursive-carry",
     "zk-simulator-composition",
-    "fiat-shamir-qrom",
+    "public-coin-qrom",
     "extractor-instantiation",
     "transcript-collision-domain-separation",
     "product-ops-replay",
@@ -176,8 +176,8 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         "product crypto security dossier must link extractor loss accounting",
     )
     require(
-        dossier_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
-        "product crypto security dossier must link QROM Fiat-Shamir accounting",
+        dossier_related.get("productQROMPublicCoinAccounting") == "TestVectors/product-qrom-public-coin-accounting-v1.json",
+        "product crypto security dossier must link QROM public-coin accounting",
     )
     require(
         dossier_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
@@ -339,7 +339,7 @@ def validate_loss_notation(ledger: dict[str, Any]) -> None:
         "terminalSealLoss",
         "recursiveCarryLoss",
         "zkSimulatorLoss",
-        "fiatShamirQROMLoss",
+        "publicCoinQROMLoss",
         "extractorLoss",
         "transcriptCollisionLoss",
         "productOpsReplayLoss",
@@ -424,23 +424,23 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
             evidence = require_string(component.get("requiredEvidence"), "extractor-instantiation.requiredEvidence")
             for needle in ["NumiSealProductConcreteExtractor.extract", "swiftConcreteExtractorEvidenceDigest", "epsilon_extract = 0"]:
                 require(needle in evidence, f"extractor-instantiation requiredEvidence must mention {needle}")
-        if component_id == "fiat-shamir-qrom":
+        if component_id == "public-coin-qrom":
             require(
-                component.get("accountingManifest") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
-                "fiat-shamir-qrom must link product QROM Fiat-Shamir accounting",
+                component.get("accountingManifest") == "TestVectors/product-qrom-public-coin-accounting-v1.json",
+                "public-coin-qrom must link product QROM public-coin accounting",
             )
-            require_relative_path(component.get("accountingManifest"), "fiat-shamir-qrom.accountingManifest")
-            evidence = require_string(component.get("requiredEvidence"), "fiat-shamir-qrom.requiredEvidence")
+            require_relative_path(component.get("accountingManifest"), "public-coin-qrom.accountingManifest")
+            evidence = require_string(component.get("requiredEvidence"), "public-coin-qrom.requiredEvidence")
             require(
                 "TestVectors/product-qrom-transform-preconditions-v1.json" in evidence,
-                "fiat-shamir-qrom requiredEvidence must link QROM transform preconditions",
+                "public-coin-qrom requiredEvidence must link QROM transform preconditions",
             )
             require(
                 "TestVectors/product-qrom-interactive-reduction-v1.json" in evidence,
-                "fiat-shamir-qrom requiredEvidence must link QROM interactive reduction",
+                "public-coin-qrom requiredEvidence must link QROM interactive reduction",
             )
             for needle in ["CTCO", "384-bit H_bind", "ProductPerKindInteractiveSecurityEvidence", "epsilon_compiler_overhead = 0", "exact finite-probability wiring"]:
-                require(needle in evidence, f"fiat-shamir-qrom requiredEvidence must mention {needle}")
+                require(needle in evidence, f"public-coin-qrom requiredEvidence must mention {needle}")
         if component_id == "zk-simulator-composition":
             require(
                 component.get("status") == "proof-level-simulator-coupling-instantiated-production-side-channel-gated",
@@ -458,8 +458,8 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 require(needle in rule, f"zk-simulator-composition accountingRule must mention {needle}")
         if component_id == "transcript-collision-domain-separation":
             require(
-                component.get("accountingManifest") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
-                "transcript-collision-domain-separation must link product QROM Fiat-Shamir accounting",
+                component.get("accountingManifest") == "TestVectors/product-qrom-public-coin-accounting-v1.json",
+                "transcript-collision-domain-separation must link product QROM public-coin accounting",
             )
             require_relative_path(component.get("accountingManifest"), "transcript-collision-domain-separation.accountingManifest")
             require(

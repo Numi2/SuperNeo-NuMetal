@@ -87,15 +87,33 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         stale_qrom = copy.deepcopy(dossier)
-        stale_qrom["fiatShamirQROMPosition"]["repositoryLocalQROMAccountingClaimAllowed"] = False
+        stale_qrom["publicCoinQROMPosition"]["repositoryLocalQROMAccountingClaimAllowed"] = False
         path = tmp / "stale-qrom.json"
         write_json(path, stale_qrom)
         run_fail(str(VALIDATE), str(path))
 
         premature_qrom = copy.deepcopy(dossier)
-        premature_qrom["fiatShamirQROMPosition"]["productionQROMClaimAllowed"] = True
+        premature_qrom["publicCoinQROMPosition"]["productionQROMClaimAllowed"] = True
         path = tmp / "premature-qrom.json"
         write_json(path, premature_qrom)
+        run_fail(str(VALIDATE), str(path))
+
+        premature_qrom_hash_proof = copy.deepcopy(dossier)
+        premature_qrom_hash_proof["publicCoinQROMPosition"]["hashQROInstantiationProofProvided"] = True
+        path = tmp / "premature-qrom-hash-proof.json"
+        write_json(path, premature_qrom_hash_proof)
+        run_fail(str(VALIDATE), str(path))
+
+        premature_shake_proof = copy.deepcopy(dossier)
+        premature_shake_proof["publicCoinQROMPosition"]["concreteSHAKE256QROInstantiationProofProvided"] = True
+        path = tmp / "premature-shake-proof.json"
+        write_json(path, premature_shake_proof)
+        run_fail(str(VALIDATE), str(path))
+
+        generic_fs_production = copy.deepcopy(dossier)
+        generic_fs_production["publicCoinQROMPosition"]["genericOfflineTransformAcceptedForProduction"] = True
+        path = tmp / "generic-fs-production.json"
+        write_json(path, generic_fs_production)
         run_fail(str(VALIDATE), str(path))
 
         missing_coverage = copy.deepcopy(dossier)
@@ -129,7 +147,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_qrom_accounting = copy.deepcopy(dossier)
-        del missing_qrom_accounting["relatedManifests"]["productQROMFiatShamirAccounting"]
+        del missing_qrom_accounting["relatedManifests"]["productQROMPublicCoinAccounting"]
         path = tmp / "missing-qrom-accounting.json"
         write_json(path, missing_qrom_accounting)
         run_fail(str(VALIDATE), str(path))
@@ -153,19 +171,19 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         wrong_qrom_schedule_manifest = copy.deepcopy(dossier)
-        wrong_qrom_schedule_manifest["fiatShamirQROMPosition"]["transcriptScheduleManifest"] = "TestVectors/product-qrom-fiat-shamir-accounting-v1.json"
+        wrong_qrom_schedule_manifest["publicCoinQROMPosition"]["transcriptScheduleManifest"] = "TestVectors/product-qrom-public-coin-accounting-v1.json"
         path = tmp / "wrong-qrom-schedule-manifest.json"
         write_json(path, wrong_qrom_schedule_manifest)
         run_fail(str(VALIDATE), str(path))
 
         wrong_qrom_transform_manifest = copy.deepcopy(dossier)
-        wrong_qrom_transform_manifest["fiatShamirQROMPosition"]["transformPreconditionManifest"] = "TestVectors/product-qrom-transcript-schedule-v1.json"
+        wrong_qrom_transform_manifest["publicCoinQROMPosition"]["transformPreconditionManifest"] = "TestVectors/product-qrom-transcript-schedule-v1.json"
         path = tmp / "wrong-qrom-transform-manifest.json"
         write_json(path, wrong_qrom_transform_manifest)
         run_fail(str(VALIDATE), str(path))
 
         wrong_qrom_query_bound = copy.deepcopy(dossier)
-        wrong_qrom_query_bound["fiatShamirQROMPosition"]["queryBoundLog2"] = 32
+        wrong_qrom_query_bound["publicCoinQROMPosition"]["queryBoundLog2"] = 32
         path = tmp / "wrong-qrom-query-bound.json"
         write_json(path, wrong_qrom_query_bound)
         run_fail(str(VALIDATE), str(path))
@@ -189,13 +207,13 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_qrom_expression = copy.deepcopy(dossier)
-        missing_qrom_expression["fiatShamirQROMPosition"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_fs_transform"
+        missing_qrom_expression["publicCoinQROMPosition"]["selectedDepthExpression"] = "epsilon_qrom(depth=1) = epsilon_public_coin_transform"
         path = tmp / "missing-qrom-expression.json"
         write_json(path, missing_qrom_expression)
         run_fail(str(VALIDATE), str(path))
 
         double_counted_qrom = copy.deepcopy(dossier)
-        double_counted_qrom["fiatShamirQROMPosition"]["selectedDepthExpression"] += " + epsilon_transcript_collision"
+        double_counted_qrom["publicCoinQROMPosition"]["selectedDepthExpression"] += " + epsilon_transcript_collision"
         path = tmp / "double-counted-qrom.json"
         write_json(path, double_counted_qrom)
         run_fail(str(VALIDATE), str(path))

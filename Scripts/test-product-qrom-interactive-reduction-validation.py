@@ -137,7 +137,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         premature_qrom = copy.deepcopy(reduction)
-        premature_qrom["promotionRule"]["productionQROMClaimAllowed"] = False
+        premature_qrom["promotionRule"]["productionQROMClaimAllowed"] = True
         path = tmp / "premature-qrom.json"
         write_json(path, premature_qrom)
         run_fail(str(VALIDATE), str(path))

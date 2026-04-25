@@ -156,6 +156,10 @@
         "null"
       ]
     },
+    "sourceDecompositionProfile": {
+      "const": "pay-per-bit-v1",
+      "type": "string"
+    },
     "sourceFoldEnvelopeBase64": {
       "contentEncoding": "base64",
       "type": "string"
@@ -226,6 +230,7 @@
     "bitCount",
     "workloadParameters",
     "sourceApplicationPathUTF8",
+    "sourceDecompositionProfile",
     "publicInputs",
     "commitmentBase64",
     "sourceFoldEnvelopeBase64",

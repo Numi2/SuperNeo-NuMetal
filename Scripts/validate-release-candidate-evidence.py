@@ -83,8 +83,14 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     surfaces = require_dict(evidence.get("publicSurfaces"), "publicSurfaces")
     require(require_int(surfaces.get("r1csArtifactVersion"), "r1csArtifactVersion") == 1, "R1CS artifact version must be 1")
     require(require_int(surfaces.get("r1csManifestVersion"), "r1csManifestVersion") == 1, "R1CS manifest version must be 1")
-    require(require_int(surfaces.get("numiSealArtifactVersion"), "numiSealArtifactVersion") == 1, "NumiSeal artifact version must be 1")
-    require(require_int(surfaces.get("numiSealManifestVersion"), "numiSealManifestVersion") == 1, "NumiSeal manifest version must be 1")
+    require(
+        require_int(surfaces.get("numiSealProductArtifactVersion"), "numiSealProductArtifactVersion") == 2,
+        "NumiSeal product artifact version must be 2",
+    )
+    require_hex_digest(
+        surfaces.get("numiSealProductSchemaDigestHex"),
+        "numiSealProductSchemaDigestHex",
+    )
     require(
         require_int(surfaces.get("numiSealConformanceScopeVersion"), "numiSealConformanceScopeVersion") == 1,
         "NumiSeal conformance scope version must be 1",
@@ -191,7 +197,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productSelectedDepthLossAccountingClaimStatus"),
             "productSelectedDepthLossAccountingClaimStatus",
-        ) == "selected-depth-loss-contract-repository-local-production-claim",
+        ) == "selected-depth-loss-contract-repository-local-selected-depth-claim",
         "product selected-depth loss accounting claim status must stay precise",
     )
     require(
@@ -253,28 +259,28 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require(
         require_int(
-            surfaces.get("productQROMFiatShamirAccountingVersion"),
-            "productQROMFiatShamirAccountingVersion",
+            surfaces.get("productQROMPublicCoinAccountingVersion"),
+            "productQROMPublicCoinAccountingVersion",
         ) == 1,
-        "product QROM Fiat-Shamir accounting version must be 1",
+        "product QROM public-coin accounting version must be 1",
     )
     require_string(
-        surfaces.get("productQROMFiatShamirAccountingDigestHex"),
-        "productQROMFiatShamirAccountingDigestHex",
+        surfaces.get("productQROMPublicCoinAccountingDigestHex"),
+        "productQROMPublicCoinAccountingDigestHex",
     )
     require(
         require_string(
-            surfaces.get("productQROMFiatShamirAccountingClaimStatus"),
-            "productQROMFiatShamirAccountingClaimStatus",
+            surfaces.get("productQROMPublicCoinAccountingClaimStatus"),
+            "productQROMPublicCoinAccountingClaimStatus",
         ) == "qrom-ctco-split-qro-contract-repository-local-production-claim",
-        "product QROM Fiat-Shamir accounting claim status must stay precise",
+        "product QROM public-coin accounting claim status must stay precise",
     )
     require(
         require_int(
-            surfaces.get("productQROMFiatShamirTranscriptInterfaceCount"),
-            "productQROMFiatShamirTranscriptInterfaceCount",
+            surfaces.get("productQROMPublicCoinTranscriptInterfaceCount"),
+            "productQROMPublicCoinTranscriptInterfaceCount",
         ) == 5,
-        "product QROM Fiat-Shamir accounting must pin five transcript interfaces",
+        "product QROM public-coin accounting must pin five transcript interfaces",
     )
     require(
         require_int(
@@ -482,7 +488,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("productTotalLossBudgetClaimStatus"),
             "productTotalLossBudgetClaimStatus",
-        ) == "total-loss-budget-contract-repository-local-production-claim",
+        ) == "total-loss-budget-contract-repository-local-selected-depth-claim",
         "product total-loss budget claim status must stay precise",
     )
     require(
@@ -633,7 +639,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     )
     require_string(surfaces.get("e2eProofMetricsDigestHex"), "e2eProofMetricsDigestHex")
     require(
-        require_int(surfaces.get("e2eProofMetricsTrackedArtifactCount"), "e2eProofMetricsTrackedArtifactCount") >= 8,
+        require_int(surfaces.get("e2eProofMetricsTrackedArtifactCount"), "e2eProofMetricsTrackedArtifactCount") >= 5,
         "E2E proof metrics must track checked vector artifacts",
     )
     require(
@@ -656,7 +662,6 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     require(require_int(surfaces.get("proofEnvelopeHeaderVersion"), "proofEnvelopeHeaderVersion") == 5, "proof envelope version must be 5")
     require(require_int(surfaces.get("numiSealProofEnvelopeKind"), "numiSealProofEnvelopeKind") == 4, "NumiSeal envelope kind must be 4")
     require_string(surfaces.get("r1csSchemaID"), "r1csSchemaID")
-    require_string(surfaces.get("numiSealSchemaID"), "numiSealSchemaID")
 
     documentation = require_dict(evidence.get("documentation"), "documentation")
     for key in [
@@ -672,7 +677,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "productSelectedDepthLossAccounting",
         "productSwiftTraceExtractorEvidence",
         "productExtractorLossAccounting",
-        "productQROMFiatShamirAccounting",
+        "productQROMPublicCoinAccounting",
         "productQROMTranscriptSchedule",
         "productQROMSamplerEncodingEvidence",
         "productQROMCollisionMalleabilityEvidence",
@@ -750,8 +755,8 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         "productionSecurityBoundaries must mention extractor loss accounting",
     )
     require(
-        any("qrom fiat-shamir accounting" in str(boundary).lower() for boundary in boundaries),
-        "productionSecurityBoundaries must mention QROM Fiat-Shamir accounting",
+        any("qrom public-coin accounting" in str(boundary).lower() for boundary in boundaries),
+        "productionSecurityBoundaries must mention QROM public-coin accounting",
     )
     require(
         any("qrom transcript schedule" in str(boundary).lower() for boundary in boundaries),

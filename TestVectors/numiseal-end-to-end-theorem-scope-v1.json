@@ -111,9 +111,7 @@
         "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealResidualCE.swift"
       ],
       "conformanceVectors": [
-        "TestVectors/numiseal-terminal-single-aggregate-v1.json",
-        "TestVectors/numiseal-terminal-two-aggregate-v1.json",
-        "TestVectors/numiseal-terminal-two-lane-v1.json"
+        "TestVectors/numiseal-product-recursive-carry-context-v1.json"
       ],
       "testNames": [
         "testNumiSealProductProverEmitsVerifiableV2Artifact",
@@ -130,16 +128,15 @@
       "id": "source-fold-product-handoff",
       "implementationPaths": [
         "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
-        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealArtifactVerifier.swift"
+        "SuperNeo-NuMetal/ProductIntegration/NumiSealProductVerifier.swift",
+        "SuperNeo-NuMetal/Transcript/SumCheckTranscript.swift"
       ],
       "conformanceVectors": [
-        "TestVectors/numiseal-terminal-single-aggregate-v1.json",
-        "TestVectors/numiseal-terminal-two-aggregate-v1.json",
-        "TestVectors/numiseal-terminal-two-lane-v1.json"
+        "TestVectors/numiseal-product-recursive-carry-context-v1.json"
       ],
       "testNames": [
         "testNumiSealProductProverEmitsVerifiableV2Artifact",
-        "testNumiSealArtifactVerifierValidatesCheckedVectorWithStrictPins"
+        "testQROChallengeBoundFoldRejectsSwappedVerifierChallenge"
       ],
       "evidenceObligations": [
         "accepted source fold envelope implies the source CCS relation",
@@ -154,9 +151,7 @@
         "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTerminalSeal.swift"
       ],
       "conformanceVectors": [
-        "TestVectors/numiseal-terminal-single-aggregate-v1.json",
-        "TestVectors/numiseal-terminal-two-aggregate-v1.json",
-        "TestVectors/numiseal-terminal-two-lane-v1.json"
+        "TestVectors/numiseal-product-recursive-carry-context-v1.json"
       ],
       "testNames": [
         "testNumiSealProverVerifierAssemblesSingleAggregateEnvelope",
@@ -264,14 +259,13 @@
         "SuperNeo-NuMetal/ProductIntegration/LocalProductControls.swift"
       ],
       "conformanceVectors": [
-        "TestVectors/numiseal-terminal-single-aggregate-v1.json",
+        "TestVectors/numiseal-product-recursive-carry-context-v1.json",
         "TestVectors/numiseal-zk-masked-residual-conformance-v1.json"
       ],
       "testNames": [
-        "testNumiSealProductVerifierAcceptsThroughIntegrationHooks",
         "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
-        "testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification",
-        "testLocalProductControlsVerifySignedContextProvenanceReplayAndAudit"
+        "testLocalProductControlsVerifySignedContextProvenanceReplayAndAudit",
+        "testLocalProductReplayIdentityBindsRecursiveCarryReplayMetadata"
       ],
       "evidenceObligations": [
         "expected context, provenance, replay, byte limit, and proof-kind policy gates are checked before acceptance",

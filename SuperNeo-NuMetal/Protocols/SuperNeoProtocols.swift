@@ -12,6 +12,31 @@ public struct DecompositionProof: Equatable, Sendable {
     }
 }
 
+public enum SuperNeoDecompositionProfile: UInt8, Equatable, Sendable {
+    case fixedMaximum = 0
+    case payPerBit = 1
+
+    public var canonicalName: String {
+        switch self {
+        case .fixedMaximum:
+            return "fixed-maximum-v1"
+        case .payPerBit:
+            return "pay-per-bit-v1"
+        }
+    }
+
+    public init?(canonicalName: String) {
+        switch canonicalName {
+        case "fixed", "fixed-maximum", "fixed-maximum-v1":
+            self = .fixedMaximum
+        case "pay-per-bit", "payperbit", "pay-per-bit-v1":
+            self = .payPerBit
+        default:
+            return nil
+        }
+    }
+}
+
 public struct PiCCSSection: Equatable, Sendable {
     public let sumCheck: SumcheckProof
     public let finalClaims: [CCSEvaluationClaim]
@@ -806,7 +831,7 @@ public enum CEOpeningRelation {
         guard statement.openings.count == witnesses.count else { return false }
         guard !statement.openings.isEmpty else { return false }
         if requireTerminalDecompositionCount {
-            guard statement.openings.count == parameters.decompositionLength else { return false }
+            guard isValidDecompositionLimbCount(statement.openings.count, parameters: parameters) else { return false }
         }
 
         let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
@@ -1497,21 +1522,28 @@ public final class SuperNeoProver: @unchecked Sendable {
     public let key: AjtaiCommitmentKey
     public let context: MetalExecutionContext?
     public let executionPolicy: SuperNeoExecutionPolicy
+    public let decompositionProfile: SuperNeoDecompositionProfile
 
     public init(
         parameters: SuperNeoParameters = .goldilocks,
         key: AjtaiCommitmentKey,
         context: MetalExecutionContext? = nil,
-        executionPolicy: SuperNeoExecutionPolicy = .default
+        executionPolicy: SuperNeoExecutionPolicy = .default,
+        decompositionProfile: SuperNeoDecompositionProfile = .payPerBit
     ) {
         self.parameters = parameters
         self.key = key
         self.context = context
         self.executionPolicy = executionPolicy
+        self.decompositionProfile = decompositionProfile
     }
 
     public func fold(_ input: SuperNeoFoldInput, transcriptSeed: [UInt8] = []) throws -> FoldProof {
         try foldWithOutput(input, transcriptSeed: transcriptSeed).proof
+    }
+
+    public func fold(_ input: SuperNeoFoldInput, qroChallenge: SuperNeoQROChallenge) throws -> FoldProof {
+        try foldWithOutput(input, qroChallenge: qroChallenge).proof
     }
 
     @_spi(Benchmarking) public func prepareFoldContext(
@@ -1580,6 +1612,16 @@ public final class SuperNeoProver: @unchecked Sendable {
             input,
             transcriptSeed: transcriptSeed,
             preparedContext: preparedContext
+        )
+    }
+
+    public func foldWithOutput(
+        _ input: SuperNeoFoldInput,
+        qroChallenge: SuperNeoQROChallenge
+    ) throws -> FoldProverOutput {
+        try foldWithOutput(
+            input,
+            transcriptSeed: qroChallenge.transcriptSeed(label: "fold")
         )
     }
 
@@ -1669,6 +1711,18 @@ public final class SuperNeoProver: @unchecked Sendable {
             auxiliaryPiRLCBranches: Array(piRLCBranches.dropFirst())
         )
         return FoldProverOutput(proof: proof, outputClaims: canonicalOutputClaimsWithWitness)
+    }
+
+    @_spi(Benchmarking) public func foldWithOutput(
+        _ input: SuperNeoFoldInput,
+        qroChallenge: SuperNeoQROChallenge,
+        preparedContext: SuperNeoPreparedFoldContext
+    ) throws -> FoldProverOutput {
+        try foldWithOutput(
+            input,
+            transcriptSeed: qroChallenge.transcriptSeed(label: "fold"),
+            preparedContext: preparedContext
+        )
     }
 
     private func validatePreparedFoldContext(
@@ -2022,6 +2076,7 @@ public final class SuperNeoProver: @unchecked Sendable {
             compiledShape: compiledShape,
             metalWorkspace: try makeMetalWorkspace(compiledShape: compiledShape),
             parameters: parameters,
+            decompositionProfile: decompositionProfile,
             executionPolicy: executionPolicy
         )
     }
@@ -2039,6 +2094,7 @@ public final class SuperNeoProver: @unchecked Sendable {
             compiledShape: compiledShape,
             metalWorkspace: metalWorkspace,
             parameters: parameters,
+            decompositionProfile: decompositionProfile,
             executionPolicy: executionPolicy
         )
     }
@@ -2184,6 +2240,20 @@ public final class SuperNeoVerifier: @unchecked Sendable {
     }
 
     public func verifyFold(
+        input: SuperNeoFoldInput,
+        proof: FoldProof,
+        outputClaims: [CCSEvaluationClaim],
+        qroChallenge: SuperNeoQROChallenge
+    ) -> VerificationResult {
+        verifyFold(
+            input: input,
+            proof: proof,
+            outputClaims: outputClaims,
+            transcriptSeed: qroChallenge.transcriptSeed(label: "fold")
+        )
+    }
+
+    public func verifyFold(
         publicInput: SuperNeoPublicFoldInput,
         proof: FoldProof,
         outputClaims: [CCSEvaluationClaim],
@@ -2223,8 +2293,34 @@ public final class SuperNeoVerifier: @unchecked Sendable {
         }
     }
 
+    public func verifyFold(
+        publicInput: SuperNeoPublicFoldInput,
+        proof: FoldProof,
+        outputClaims: [CCSEvaluationClaim],
+        qroChallenge: SuperNeoQROChallenge
+    ) -> VerificationResult {
+        verifyFold(
+            publicInput: publicInput,
+            proof: proof,
+            outputClaims: outputClaims,
+            transcriptSeed: qroChallenge.transcriptSeed(label: "fold")
+        )
+    }
+
     public func reduceFold(input: SuperNeoFoldInput, proof: FoldProof, transcriptSeed: [UInt8] = []) -> FoldReductionResult {
         reduceFold(publicInput: SuperNeoPublicFoldInput(input), proof: proof, transcriptSeed: transcriptSeed)
+    }
+
+    public func reduceFold(
+        input: SuperNeoFoldInput,
+        proof: FoldProof,
+        qroChallenge: SuperNeoQROChallenge
+    ) -> FoldReductionResult {
+        reduceFold(
+            input: input,
+            proof: proof,
+            transcriptSeed: qroChallenge.transcriptSeed(label: "fold")
+        )
     }
 
     public func reduceFold(
@@ -2235,6 +2331,18 @@ public final class SuperNeoVerifier: @unchecked Sendable {
         SuperNeoBenchmarkSignpost.measure("reduceFold") {
             reduceFoldBody(publicInput: publicInput, proof: proof, transcriptSeed: transcriptSeed)
         }
+    }
+
+    public func reduceFold(
+        publicInput: SuperNeoPublicFoldInput,
+        proof: FoldProof,
+        qroChallenge: SuperNeoQROChallenge
+    ) -> FoldReductionResult {
+        reduceFold(
+            publicInput: publicInput,
+            proof: proof,
+            transcriptSeed: qroChallenge.transcriptSeed(label: "fold")
+        )
     }
 
     private func reduceFoldBody(
@@ -2594,6 +2702,20 @@ public final class SuperNeoVerifier: @unchecked Sendable {
     }
 
     public func reduceFoldEnvelope(
+        input: SuperNeoFoldInput,
+        proofBytes: [UInt8],
+        context expectedContext: ProofEnvelopeContext,
+        qroChallenge: SuperNeoQROChallenge
+    ) -> FoldReductionResult {
+        reduceFoldEnvelope(
+            publicInput: SuperNeoPublicFoldInput(input),
+            proofBytes: proofBytes,
+            context: expectedContext,
+            qroChallenge: qroChallenge
+        )
+    }
+
+    public func reduceFoldEnvelope(
         publicInput: SuperNeoPublicFoldInput,
         proofBytes: [UInt8],
         context expectedContext: ProofEnvelopeContext
@@ -2636,6 +2758,56 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 publicInput: publicInput,
                 proof: envelope.proof,
                 transcriptSeed: envelope.header.transcriptBindingBytes
+            )
+        } catch {
+            return .invalid("\(error)")
+        }
+    }
+
+    public func reduceFoldEnvelope(
+        publicInput: SuperNeoPublicFoldInput,
+        proofBytes: [UInt8],
+        context expectedContext: ProofEnvelopeContext,
+        qroChallenge: SuperNeoQROChallenge
+    ) -> FoldReductionResult {
+        do {
+            let envelope = try FoldProofEnvelope(bytes: proofBytes, parameters: parameters)
+            guard envelope.header.profileID == expectedContext.profileID else {
+                return .invalid("profile mismatch")
+            }
+            guard envelope.header.kind == expectedContext.kind else {
+                return .invalid("proof kind mismatch")
+            }
+            guard envelope.header.shapeDigest == expectedContext.shapeDigest else {
+                return .invalid("shape digest mismatch")
+            }
+            guard envelope.header.statementDigest == expectedContext.statementDigest else {
+                return .invalid("statement digest mismatch")
+            }
+            guard envelope.header.verifierKeyDigest == expectedContext.verifierKeyDigest else {
+                return .invalid("verifier key digest mismatch")
+            }
+            guard expectedContext.verifierKeyDigest == key.verifierKeyDigest else {
+                return .invalid("input verifier key digest mismatch")
+            }
+            guard envelope.header.transcriptDomain == expectedContext.transcriptDomain else {
+                return .invalid("transcript domain mismatch")
+            }
+            guard publicInput.shape.shapeDigest == expectedContext.shapeDigest else {
+                return .invalid("input shape digest mismatch")
+            }
+            let statement = CCSStatement(
+                shapeDigest: publicInput.shape.shapeDigest,
+                ccsInstances: publicInput.instances,
+                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+            )
+            guard statement.statementDigest == expectedContext.statementDigest else {
+                return .invalid("input statement digest mismatch")
+            }
+            return reduceFold(
+                publicInput: publicInput,
+                proof: envelope.proof,
+                qroChallenge: qroChallenge
             )
         } catch {
             return .invalid("\(error)")
@@ -3039,6 +3211,7 @@ private enum SuperNeoProtocolOracle {
         compiledShape: CompiledCCSShape,
         metalWorkspace: SuperNeoMetalWorkspace?,
         parameters: SuperNeoParameters,
+        decompositionProfile: SuperNeoDecompositionProfile = .payPerBit,
         executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> (proof: DecompositionProof, claims: [CCSEvaluationClaim]) {
         guard let witness = claim.witness else {
@@ -3053,11 +3226,16 @@ private enum SuperNeoProtocolOracle {
         guard claim.evaluations.count == shape.numMatrices else {
             throw SuperNeoError.invalidParameter("decomposition folded evaluation arity mismatch")
         }
-        let limbs = try splitSignedBase(witness, base: parameters.normBound, count: parameters.decompositionLength)
+        let limbCount = try decompositionProfile.limbCount(
+            witness: witness,
+            publicInput: claim.publicInput,
+            parameters: parameters
+        )
+        let limbs = try splitSignedBase(witness, base: parameters.normBound, count: limbCount)
         let publicInputLimbs = try splitSignedBase(
             claim.publicInput,
             base: parameters.normBound,
-            count: parameters.decompositionLength
+            count: limbCount
         )
         let useParallelCPUOpenings = shouldParallelizeOpeningBatch(shape: shape, count: limbs.count)
         let packedLimbs = try orderedParallelMap(limbs, useParallel: useParallelCPUOpenings) {
@@ -3164,7 +3342,7 @@ private enum SuperNeoProtocolOracle {
             evaluations: [CyclotomicExt2Ring54]
         )
     ) throws -> Bool {
-        guard parts.count == parameters.decompositionLength else { return false }
+        guard isValidDecompositionLimbCount(parts.count, parameters: parameters) else { return false }
         guard folded.evaluations.count == shape.numMatrices else { return false }
         guard folded.point.count == (try log2Exact(shape.m)) else { return false }
         guard folded.publicInput.count == shape.nPublicField else { return false }
@@ -3620,8 +3798,14 @@ private func validateProofPublicData(
         }
     }
     for branch in proof.piRLCBranches {
-        guard branch.outputClaims.count == parameters.decompositionLength else {
-            throw SuperNeoError.invalidParameter("decomposition output count must equal \(parameters.decompositionLength)")
+        guard isValidDecompositionLimbCount(branch.outputClaims.count, parameters: parameters) else {
+            throw SuperNeoError.invalidParameter(
+                "decomposition output count must be in 1...\(parameters.decompositionLength)"
+            )
+        }
+        guard branch.decomposition.commitments.count == branch.outputClaims.count,
+              branch.decomposition.evaluations.count == branch.outputClaims.count else {
+            throw SuperNeoError.invalidParameter("decomposition proof count must match output claims")
         }
         guard branch.decomposition.commitments == branch.outputClaims.map(\.commitment) else {
             throw SuperNeoError.invalidParameter("decomposition commitments must match output claims")
@@ -5265,6 +5449,51 @@ private func makeSystemRandomSeed() throws -> [UInt8] {
         throw SuperNeoError.randomnessUnavailable("SecRandomCopyBytes failed with OSStatus \(status)")
     }
     return seed
+}
+
+private extension SuperNeoDecompositionProfile {
+    func limbCount(
+        witness: [GoldilocksField],
+        publicInput: [GoldilocksField],
+        parameters: SuperNeoParameters
+    ) throws -> Int {
+        switch self {
+        case .fixedMaximum:
+            return parameters.decompositionLength
+        case .payPerBit:
+            var count = 1
+            for value in witness {
+                count = max(count, try signedRadixDigitCount(value, base: parameters.normBound))
+            }
+            for value in publicInput {
+                count = max(count, try signedRadixDigitCount(value, base: parameters.normBound))
+            }
+            guard isValidDecompositionLimbCount(count, parameters: parameters) else {
+                throw SuperNeoError.invalidParameter(
+                    "pay-per-bit decomposition requires \(count) limbs, exceeding profile maximum \(parameters.decompositionLength)"
+                )
+            }
+            return count
+        }
+    }
+}
+
+private func isValidDecompositionLimbCount(_ count: Int, parameters: SuperNeoParameters) -> Bool {
+    count > 0 && count <= parameters.decompositionLength
+}
+
+private func signedRadixDigitCount(_ value: GoldilocksField, base: Int) throws -> Int {
+    guard base >= 2 else {
+        throw SuperNeoError.invalidParameter("decomposition base must be at least two")
+    }
+    var raw = signedMagnitude(value)
+    let radix = UInt64(base)
+    var count = 1
+    while raw >= radix {
+        raw /= radix
+        count += 1
+    }
+    return count
 }
 
 private func foldedNormBound(parameters: SuperNeoParameters) throws -> UInt64 {

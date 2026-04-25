@@ -25,7 +25,7 @@ Runs the release-readiness gate for SuperNeo NuMetal:
   - NumiSeal end-to-end theorem-scope validation
   - NumiSealZK mask-distribution and simulator-coupling evidence validation
   - product cryptographic security theorem dossier validation
-  - product Swift trace/extractor, extractor accounting, QROM transcript schedule, QROM transform preconditions, QROM interactive reduction, QROM Fiat-Shamir, CTCO instantiation, and total-loss budget validation
+  - product Swift trace/extractor, extractor accounting, QROM transcript schedule, QROM transform preconditions, QROM interactive reduction, QROM public-coin, CTCO instantiation, and total-loss budget validation
   - production NumiSeal CLI adversarial matrix
   - optional signed NumiSealZK side-channel certificate binding tests
   - release policy, schema compatibility, doc-link, and CI gate drift validation
@@ -108,7 +108,6 @@ ERROR
 cd "${ROOT_DIR}"
 
 SUPERNEO_CLI="${ROOT_DIR}/.build/release/superneo"
-NUMISEAL_VECTOR_CLI="${ROOT_DIR}/.build/release/superneo-numiseal-vectors"
 
 ONE_HOT_KEY_SEED="SuperNeoCLI.one-hot-vector.v1"
 ONE_HOT_SHAPE_DIGEST="84d903373ff54785a9b7d99bd048e1527deedd1173309c272992a8a87b61a765"
@@ -120,49 +119,16 @@ BINARY_ADD_SHAPE_DIGEST="8ff5c76dd2bad49eb2b4de4272f3c7ce3d27e28c21f3a5c4d39083a
 BINARY_ADD_STATEMENT_DIGEST="109b394b315f9b846e13ceb1f00ee0b374ff459334425a5b1063a8db554551a9"
 BINARY_ADD_VERIFIER_KEY_DIGEST="199bec9fea21d192f741e81896029d07743b9a8b793543751ea1605fe2a8e973"
 BINARY_ADD_PUBLIC_INPUTS="1,0,1,0,1,0,1,0,0,0"
-
-NUMISEAL_SINGLE_VECTOR="TestVectors/numiseal-terminal-single-aggregate-v1.json"
-{
-  IFS= read -r NUMISEAL_SINGLE_KEY_SEED
-  IFS= read -r NUMISEAL_SINGLE_SHAPE_DIGEST
-  IFS= read -r NUMISEAL_SINGLE_STATEMENT_DIGEST
-  IFS= read -r NUMISEAL_SINGLE_VERIFIER_KEY_DIGEST
-  IFS= read -r NUMISEAL_SINGLE_TRANSCRIPT_DOMAIN_DIGEST
-  IFS= read -r NUMISEAL_SINGLE_PUBLIC_STATEMENT_DIGEST
-  IFS= read -r NUMISEAL_SINGLE_OBLIGATION_ROOT
-  IFS= read -r NUMISEAL_SINGLE_LANE_SUMMARY_ROOT
-  IFS= read -r NUMISEAL_SINGLE_AGGREGATE_DIGESTS
-  IFS= read -r NUMISEAL_SINGLE_COMPONENT_DIGEST_ROOT
-  IFS= read -r NUMISEAL_SINGLE_PROOF_TRANSCRIPT_DIGEST
-  IFS= read -r NUMISEAL_ZERO_PUBLIC_INPUTS
-} < <(python3 - <<'PY'
-import json
-from pathlib import Path
-
-artifact = json.loads(Path("TestVectors/numiseal-terminal-single-aggregate-v1.json").read_text())
-print(artifact["keySeedUTF8"])
-print(artifact["shapeDigestHex"])
-print(artifact["statementDigestHex"])
-print(artifact["verifierKeyDigestHex"])
-print(artifact["transcriptDomainHex"])
-print(artifact["publicStatementDigestHex"])
-print(artifact["obligationRootHex"])
-print(artifact["laneSummaryRootHex"])
-print(",".join(artifact["aggregateDigestsHex"]))
-print(artifact["componentDigestRootHex"])
-print(artifact["proofTranscriptDigestHex"])
-print(",".join(str(value) for value in artifact["publicInputs"]))
-PY
-)
+NUMISEAL_QRO_SESSION_ID="production-gate-numiseal-product-v2"
+NUMISEAL_QRO_PUBLIC_COIN_HEX="000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+NUMISEAL_QRO_SWAPPED_PUBLIC_COIN_HEX="1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100"
 
 run_step swift build -c release
 run_step swift test --disable-swift-testing
 run_step swift test -c release --disable-swift-testing
 run_step Scripts/validate-artifact-schema.py
 run_step Scripts/test-artifact-schema-validation.py
-run_step Scripts/validate-numiseal-artifact-schema.py
 run_step Scripts/validate-numiseal-product-artifact-schema.py
-run_step Scripts/test-numiseal-artifact-schema-validation.py
 run_step Scripts/test-numiseal-product-artifact-schema-validation.py
 run_step Scripts/validate-numiseal-conformance-scope.py
 run_step Scripts/test-numiseal-conformance-scope-validation.py
@@ -194,8 +160,8 @@ run_step Scripts/validate-product-qrom-transform-preconditions.py
 run_step Scripts/test-product-qrom-transform-preconditions-validation.py
 run_step Scripts/validate-product-qrom-interactive-reduction.py
 run_step Scripts/test-product-qrom-interactive-reduction-validation.py
-run_step Scripts/validate-product-qrom-fiat-shamir-accounting.py
-run_step Scripts/test-product-qrom-fiat-shamir-accounting-validation.py
+run_step Scripts/validate-product-qrom-public-coin-accounting.py
+run_step Scripts/test-product-qrom-public-coin-accounting-validation.py
 run_step Scripts/validate-product-total-loss-budget.py
 run_step Scripts/test-product-total-loss-budget-validation.py
 run_step Scripts/validate-product-release-distribution-evidence.py
@@ -216,31 +182,6 @@ run_step Scripts/test-release-candidate-evidence-validation.py
 run_step Scripts/test-production-security-promotion-status.py
 run_step Scripts/test-benchmark-tooling-validation.py
 run_step swift Scripts/validate-test-vectors.swift
-run_step "${NUMISEAL_VECTOR_CLI}" validate
-run_step python3 Scripts/test-numiseal-vector-validation.py --cli "${NUMISEAL_VECTOR_CLI}"
-run_step python3 Scripts/test-numiseal-superneo-cli-validation.py --cli "${SUPERNEO_CLI}"
-run_step "${SUPERNEO_CLI}" inspect "${NUMISEAL_SINGLE_VECTOR}"
-run_step "${SUPERNEO_CLI}" verify "${NUMISEAL_SINGLE_VECTOR}"
-run_expect_failure "${SUPERNEO_CLI}" verify --require-terminal "${NUMISEAL_SINGLE_VECTOR}"
-run_step "${SUPERNEO_CLI}" verify \
-  --key-seed "${NUMISEAL_SINGLE_KEY_SEED}" \
-  --expected-verifier-key-digest "${NUMISEAL_SINGLE_VERIFIER_KEY_DIGEST}" \
-  --expected-shape-digest "${NUMISEAL_SINGLE_SHAPE_DIGEST}" \
-  --expected-statement-digest "${NUMISEAL_SINGLE_STATEMENT_DIGEST}" \
-  --expected-transcript-domain-digest "${NUMISEAL_SINGLE_TRANSCRIPT_DOMAIN_DIGEST}" \
-  --expected-public-statement-digest "${NUMISEAL_SINGLE_PUBLIC_STATEMENT_DIGEST}" \
-  --expected-obligation-root "${NUMISEAL_SINGLE_OBLIGATION_ROOT}" \
-  --expected-lane-summary-root "${NUMISEAL_SINGLE_LANE_SUMMARY_ROOT}" \
-  --expected-aggregate-digests "${NUMISEAL_SINGLE_AGGREGATE_DIGESTS}" \
-  --expected-component-digest-root "${NUMISEAL_SINGLE_COMPONENT_DIGEST_ROOT}" \
-  --expected-proof-transcript-digest "${NUMISEAL_SINGLE_PROOF_TRANSCRIPT_DIGEST}" \
-  --expected-public-inputs "${NUMISEAL_ZERO_PUBLIC_INPUTS}" \
-  "${NUMISEAL_SINGLE_VECTOR}"
-run_expect_failure "${SUPERNEO_CLI}" verify \
-  --expected-public-statement-digest "0000000000000000000000000000000000000000000000000000000000000000" \
-  "${NUMISEAL_SINGLE_VECTOR}"
-run_step "${SUPERNEO_CLI}" verify TestVectors/numiseal-terminal-two-aggregate-v1.json
-run_step "${SUPERNEO_CLI}" verify TestVectors/numiseal-terminal-two-lane-v1.json
 run_step Scripts/test-vector-manifest-validation.py
 
 lattice_path="$(make_temp_json)"
@@ -429,6 +370,8 @@ run_expect_failure "${SUPERNEO_CLI}" verify \
 
 run_step "${SUPERNEO_CLI}" prove \
   --seal numiseal \
+  --qro-session-id "${NUMISEAL_QRO_SESSION_ID}" \
+  --qro-public-coin-hex "${NUMISEAL_QRO_PUBLIC_COIN_HEX}" \
   --numiseal-zk-mode none \
   --numiseal-execution-policy zk-high-assurance-cpu \
   --bits 0,1 \
@@ -436,14 +379,35 @@ run_step "${SUPERNEO_CLI}" prove \
   --output "${numiseal_product_path}"
 run_step Scripts/validate-e2e-proof-metrics.py --generated-product-artifact "numiseal-product-smoke:${numiseal_product_path}"
 run_step "${SUPERNEO_CLI}" inspect "${numiseal_product_path}"
-run_step "${SUPERNEO_CLI}" verify "${numiseal_product_path}"
+run_step "${SUPERNEO_CLI}" verify \
+  --qro-session-id "${NUMISEAL_QRO_SESSION_ID}" \
+  --qro-public-coin-hex "${NUMISEAL_QRO_PUBLIC_COIN_HEX}" \
+  "${numiseal_product_path}"
 run_expect_failure "${SUPERNEO_CLI}" verify --require-terminal "${numiseal_product_path}"
 run_expect_failure "${SUPERNEO_CLI}" verify \
+  --qro-session-id "${NUMISEAL_QRO_SESSION_ID}" \
+  --qro-public-coin-hex "${NUMISEAL_QRO_PUBLIC_COIN_HEX}" \
   --expected-public-inputs 0 \
   "${numiseal_product_path}"
+run_expect_failure "${SUPERNEO_CLI}" verify \
+  --qro-session-id "${NUMISEAL_QRO_SESSION_ID}" \
+  --qro-public-coin-hex "${NUMISEAL_QRO_SWAPPED_PUBLIC_COIN_HEX}" \
+  "${numiseal_product_path}"
+run_expect_failure "${SUPERNEO_CLI}" prove \
+  --seal numiseal \
+  --decomposition-profile fixed-maximum \
+  --qro-session-id "${NUMISEAL_QRO_SESSION_ID}-fixed-profile-negative" \
+  --qro-public-coin-hex "${NUMISEAL_QRO_PUBLIC_COIN_HEX}" \
+  --numiseal-zk-mode none \
+  --numiseal-execution-policy zk-high-assurance-cpu \
+  --bits 0,1 \
+  --max-obligations-per-aggregate 32 \
+  --output "${tmp_dir}/numiseal-fixed-profile-negative.json"
 
 run_step "${SUPERNEO_CLI}" prove \
   --seal numiseal \
+  --qro-session-id "${NUMISEAL_QRO_SESSION_ID}-zk" \
+  --qro-public-coin-hex "${NUMISEAL_QRO_PUBLIC_COIN_HEX}" \
   --numiseal-zk-mode masked-digit-tensor-v1 \
   --numiseal-execution-policy zk-high-assurance-cpu \
   --bits 0,1 \
@@ -469,9 +433,14 @@ assert metadata["zkMaskedResidualStatementCount"] == "1"
 assert len(metadata["zkRandomnessSessionDigest"]) == 64
 assert len(metadata["zkLeakageDigest"]) == 64
 PY
-run_step "${SUPERNEO_CLI}" verify "${numiseal_zk_product_path}"
+run_step "${SUPERNEO_CLI}" verify \
+  --qro-session-id "${NUMISEAL_QRO_SESSION_ID}-zk" \
+  --qro-public-coin-hex "${NUMISEAL_QRO_PUBLIC_COIN_HEX}" \
+  "${numiseal_zk_product_path}"
 run_expect_failure "${SUPERNEO_CLI}" verify --require-terminal "${numiseal_zk_product_path}"
 run_expect_failure "${SUPERNEO_CLI}" verify \
+  --qro-session-id "${NUMISEAL_QRO_SESSION_ID}-zk" \
+  --qro-public-coin-hex "${NUMISEAL_QRO_PUBLIC_COIN_HEX}" \
   --expected-public-inputs 0 \
   "${numiseal_zk_product_path}"
 

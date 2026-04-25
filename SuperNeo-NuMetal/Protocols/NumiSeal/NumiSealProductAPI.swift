@@ -231,28 +231,34 @@ public struct NumiSealProductQROMEvidence: Equatable, Sendable {
     public let challengeOracleBits: Int
     public let bindingOracleBits: Int
     public let bindingTargetEventCount: Int
+    public let qroChallengeDigest: Digest384
     public let queryCapLog2: Int
     public let collisionBoundFormula: String
     public let evidenceDigest: Digest256
 
-    public static func ctco(traceEvidence: NumiSealProductTraceExtractorEvidence) -> Self {
+    public static func ctco(
+        traceEvidence: NumiSealProductTraceExtractorEvidence,
+        qroChallenge: SuperNeoQROChallenge
+    ) -> Self {
         let compilerFamily = "ctco"
         let challengeOracleBits = Digest256.byteCount * 8
         let bindingOracleBits = Digest384.byteCount * 8
-        let bindingTargetEventCount = 9
+        let bindingTargetEventCount = 10
         let queryCapLog2 = 64
         let collisionBoundFormula = "4 * bindingTargetEventCount * Q_H^2 / 2^bindingOracleBits"
         let evidenceDigest = ctcoDigest(
             contextBinder: traceEvidence.ctcoContextBinder,
             root: traceEvidence.ctcoRoot,
             challengeTapeSeed: traceEvidence.challengeTapeSeed,
-            traceEvidenceDigest: traceEvidence.evidenceDigest
+            traceEvidenceDigest: traceEvidence.evidenceDigest,
+            qroChallengeDigest: qroChallenge.challengeDigest
         )
         return Self(
             compilerFamily: compilerFamily,
             challengeOracleBits: challengeOracleBits,
             bindingOracleBits: bindingOracleBits,
             bindingTargetEventCount: bindingTargetEventCount,
+            qroChallengeDigest: qroChallenge.challengeDigest,
             queryCapLog2: queryCapLog2,
             collisionBoundFormula: collisionBoundFormula,
             evidenceDigest: evidenceDigest
@@ -263,20 +269,22 @@ public struct NumiSealProductQROMEvidence: Equatable, Sendable {
         contextBinder: Digest384,
         root: Digest384,
         challengeTapeSeed: Digest256,
-        traceEvidenceDigest: Digest256
+        traceEvidenceDigest: Digest256,
+        qroChallengeDigest: Digest384
     ) -> Digest256 {
         NumiSealEncoding.digest(
-            label: "numiseal.product.qrom.ctco.evidence.v1",
+            label: "numiseal.product.qrom.ctco.qro-evidence.v1",
             bytes: numiSealEncodeString("ctco")
                 + numiSealEncodeCount(Digest256.byteCount * 8)
                 + numiSealEncodeCount(Digest384.byteCount * 8)
-                + numiSealEncodeCount(9)
+                + numiSealEncodeCount(10)
                 + numiSealEncodeCount(64)
                 + numiSealEncodeString("4 * bindingTargetEventCount * Q_H^2 / 2^bindingOracleBits")
                 + contextBinder.superNeoBytes
                 + root.superNeoBytes
                 + challengeTapeSeed.superNeoBytes
                 + traceEvidenceDigest.superNeoBytes
+                + qroChallengeDigest.superNeoBytes
         )
     }
 }
@@ -397,6 +405,7 @@ public enum NumiSealProductConcreteExtractor {
         trustedContext: NumiSealProductTrustedContext,
         sourcePublicInput: SuperNeoPublicFoldInput,
         key: AjtaiCommitmentKey,
+        qroChallenge: SuperNeoQROChallenge,
         parameters: SuperNeoParameters = .goldilocks,
         metalContext: MetalExecutionContext? = nil,
         executionPolicy: SuperNeoExecutionPolicy = .highAssurance,
@@ -407,6 +416,7 @@ public enum NumiSealProductConcreteExtractor {
             artifact: artifact,
             sourcePublicInput: sourcePublicInput,
             key: key,
+            qroChallenge: qroChallenge,
             parameters: parameters,
             metalContext: metalContext,
             executionPolicy: executionPolicy,
@@ -495,7 +505,10 @@ public enum NumiSealProductConcreteExtractor {
             artifact: artifact,
             trustedContext: trustedContext
         )
-        let qromEvidence = NumiSealProductQROMEvidence.ctco(traceEvidence: traceEvidence)
+        let qromEvidence = NumiSealProductQROMEvidence.ctco(
+            traceEvidence: traceEvidence,
+            qroChallenge: qroChallenge
+        )
         return NumiSealProductConcreteExtraction(
             sourceFoldHeader: sourceHeader,
             productProofHeader: productHeader,
@@ -536,6 +549,7 @@ public struct NumiSealProductProvingOutput: Sendable {
     public let trustedContext: NumiSealProductTrustedContext
     public let sourcePublicInput: SuperNeoPublicFoldInput
     public let verifierKey: AjtaiCommitmentKey
+    public let qroChallenge: SuperNeoQROChallenge
     public let traceExtractorEvidence: NumiSealProductTraceExtractorEvidence
     public let qromEvidence: NumiSealProductQROMEvidence
 
@@ -550,13 +564,15 @@ public enum NumiSealProductAPI {
     public static func provePreparedR1CS(
         preparedR1CS: SuperNeoPreparedR1CS,
         trustedContext: NumiSealProductTrustedContext,
+        qroChallenge: SuperNeoQROChallenge,
         keySeedUTF8: String? = nil,
         executionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct,
         zkMode: String = NumiSealZK.maskedDigitTensorMode,
         aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
         parameters: SuperNeoParameters = .goldilocks,
         metalContext: MetalExecutionContext? = nil,
-        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil,
+        sourceDecompositionProfile: SuperNeoDecompositionProfile = .payPerBit
     ) throws -> NumiSealProductProvingOutput {
         let artifact = try NumiSealProductProver().prove(
             NumiSealProvingRequest(
@@ -564,6 +580,7 @@ public enum NumiSealProductAPI {
                 workload: trustedContext.workload,
                 bitCount: trustedContext.bitCount,
                 publicInputs: trustedContext.publicInputs,
+                qroChallenge: qroChallenge,
                 keySeedUTF8: keySeedUTF8,
                 workloadParameters: trustedContext.workloadParameters,
                 sourceApplicationPathUTF8: trustedContext.sourceApplicationPathUTF8,
@@ -573,7 +590,8 @@ public enum NumiSealProductAPI {
                 aggregationLimits: aggregationLimits,
                 parameters: parameters,
                 metalContext: metalContext,
-                recursiveCarryParent: recursiveCarryParent
+                recursiveCarryParent: recursiveCarryParent,
+                sourceDecompositionProfile: sourceDecompositionProfile
             )
         )
         let traceEvidence = try NumiSealProductTraceExtractorEvidence.make(
@@ -585,21 +603,24 @@ public enum NumiSealProductAPI {
             trustedContext: trustedContext,
             sourcePublicInput: preparedR1CS.publicFoldInput,
             verifierKey: preparedR1CS.key,
+            qroChallenge: qroChallenge,
             traceExtractorEvidence: traceEvidence,
-            qromEvidence: .ctco(traceEvidence: traceEvidence)
+            qromEvidence: .ctco(traceEvidence: traceEvidence, qroChallenge: qroChallenge)
         )
     }
 
     public static func proveOneHotVector(
         bits: [Bool],
         keySeedUTF8: String,
+        qroChallenge: SuperNeoQROChallenge,
         sourceApplicationPathUTF8: String = "unbound",
         executionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct,
         zkMode: String = NumiSealZK.maskedDigitTensorMode,
         aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
         parameters: SuperNeoParameters = .goldilocks,
         metalContext: MetalExecutionContext? = nil,
-        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil,
+        sourceDecompositionProfile: SuperNeoDecompositionProfile = .payPerBit
     ) throws -> NumiSealProductProvingOutput {
         let workload = try SuperNeoOneHotVectorWorkload(bitCount: bits.count)
         let superNeoPolicy = executionPolicy.resolvedSuperNeoPolicy(metalContext: metalContext)
@@ -619,13 +640,15 @@ public enum NumiSealProductAPI {
         return try provePreparedR1CS(
             preparedR1CS: prepared,
             trustedContext: context,
+            qroChallenge: qroChallenge,
             keySeedUTF8: keySeedUTF8,
             executionPolicy: executionPolicy,
             zkMode: zkMode,
             aggregationLimits: aggregationLimits,
             parameters: parameters,
             metalContext: metalContext,
-            recursiveCarryParent: recursiveCarryParent
+            recursiveCarryParent: recursiveCarryParent,
+            sourceDecompositionProfile: sourceDecompositionProfile
         )
     }
 
@@ -634,13 +657,15 @@ public enum NumiSealProductAPI {
         right: UInt64,
         operandBits: Int,
         keySeedUTF8: String,
+        qroChallenge: SuperNeoQROChallenge,
         sourceApplicationPathUTF8: String = "unbound",
         executionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct,
         zkMode: String = NumiSealZK.maskedDigitTensorMode,
         aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
         parameters: SuperNeoParameters = .goldilocks,
         metalContext: MetalExecutionContext? = nil,
-        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil,
+        sourceDecompositionProfile: SuperNeoDecompositionProfile = .payPerBit
     ) throws -> NumiSealProductProvingOutput {
         let workload = try SuperNeoBinaryAdditionWorkload(bitCount: operandBits)
         let sum = left.addingReportingOverflow(right)
@@ -669,13 +694,15 @@ public enum NumiSealProductAPI {
         return try provePreparedR1CS(
             preparedR1CS: prepared,
             trustedContext: context,
+            qroChallenge: qroChallenge,
             keySeedUTF8: keySeedUTF8,
             executionPolicy: executionPolicy,
             zkMode: zkMode,
             aggregationLimits: aggregationLimits,
             parameters: parameters,
             metalContext: metalContext,
-            recursiveCarryParent: recursiveCarryParent
+            recursiveCarryParent: recursiveCarryParent,
+            sourceDecompositionProfile: sourceDecompositionProfile
         )
     }
 }
@@ -685,12 +712,14 @@ public extension SuperNeoR1CSProgram {
         input: Input,
         keySeedUTF8: String,
         trustedContext: NumiSealProductTrustedContext,
+        qroChallenge: SuperNeoQROChallenge,
         executionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct,
         zkMode: String = NumiSealZK.maskedDigitTensorMode,
         aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
         parameters: SuperNeoParameters = .goldilocks,
         metalContext: MetalExecutionContext? = nil,
-        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil,
+        sourceDecompositionProfile: SuperNeoDecompositionProfile = .payPerBit
     ) throws -> NumiSealProductProvingOutput {
         let assignment = try assignment(for: input)
         let prepared = try builder.prepareForFolding(
@@ -703,13 +732,15 @@ public extension SuperNeoR1CSProgram {
         return try NumiSealProductAPI.provePreparedR1CS(
             preparedR1CS: prepared,
             trustedContext: trustedContext,
+            qroChallenge: qroChallenge,
             keySeedUTF8: keySeedUTF8,
             executionPolicy: executionPolicy,
             zkMode: zkMode,
             aggregationLimits: aggregationLimits,
             parameters: parameters,
             metalContext: metalContext,
-            recursiveCarryParent: recursiveCarryParent
+            recursiveCarryParent: recursiveCarryParent,
+            sourceDecompositionProfile: sourceDecompositionProfile
         )
     }
 }

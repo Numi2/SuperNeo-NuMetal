@@ -11,8 +11,8 @@ let package = Package(
         .library(name: "SuperNeo_NuMetal", targets: ["SuperNeo_NuMetal"]),
         .executable(name: "superneo", targets: ["SuperNeoCLI"]),
         .executable(name: "superneo-formal-vectors", targets: ["SuperNeoFormalVectors"]),
-        .executable(name: "superneo-numiseal-vectors", targets: ["SuperNeoNumiSealVectors"]),
-        .executable(name: "superneo-ct-observe", targets: ["SuperNeoConstantTimeObservation"])
+        .executable(name: "superneo-ct-observe", targets: ["SuperNeoConstantTimeObservation"]),
+        .executable(name: "superneo-payperbit-eval", targets: ["SuperNeoPayPerBitEvaluation"])
     ],
     dependencies: [],
     targets: [
@@ -50,17 +50,17 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "SuperNeoNumiSealVectors",
+            name: "SuperNeoConstantTimeObservation",
             dependencies: ["SuperNeo_NuMetal"],
-            path: "Tools/NumiSealVectorCLI",
+            path: "Tools/ConstantTimeObservationCLI",
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]
         ),
         .executableTarget(
-            name: "SuperNeoConstantTimeObservation",
+            name: "SuperNeoPayPerBitEvaluation",
             dependencies: ["SuperNeo_NuMetal"],
-            path: "Tools/ConstantTimeObservationCLI",
+            path: "Tools/PayPerBitEvaluationCLI",
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]

@@ -211,6 +211,7 @@ public struct NumiSealProvingRequest: Sendable {
     public let workload: String
     public let bitCount: Int
     public let publicInputs: [UInt64]
+    public let qroChallenge: SuperNeoQROChallenge
     public let keySeedUTF8: String?
     public let workloadParameters: [String: String]
     public let sourceApplicationPathUTF8: String?
@@ -221,12 +222,14 @@ public struct NumiSealProvingRequest: Sendable {
     public let parameters: SuperNeoParameters
     public let metalContext: MetalExecutionContext?
     public let recursiveCarryParent: NumiSealProductRecursiveCarryParent?
+    public let sourceDecompositionProfile: SuperNeoDecompositionProfile
 
     public init(
         preparedR1CS: SuperNeoPreparedR1CS,
         workload: String,
         bitCount: Int,
         publicInputs: [UInt64],
+        qroChallenge: SuperNeoQROChallenge,
         keySeedUTF8: String? = nil,
         workloadParameters: [String: String] = [:],
         sourceApplicationPathUTF8: String? = nil,
@@ -236,12 +239,14 @@ public struct NumiSealProvingRequest: Sendable {
         aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
         parameters: SuperNeoParameters = .goldilocks,
         metalContext: MetalExecutionContext? = nil,
-        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil,
+        sourceDecompositionProfile: SuperNeoDecompositionProfile = .payPerBit
     ) {
         self.preparedR1CS = preparedR1CS
         self.workload = workload
         self.bitCount = bitCount
         self.publicInputs = publicInputs
+        self.qroChallenge = qroChallenge
         self.keySeedUTF8 = keySeedUTF8
         self.workloadParameters = workloadParameters
         self.sourceApplicationPathUTF8 = sourceApplicationPathUTF8
@@ -252,6 +257,7 @@ public struct NumiSealProvingRequest: Sendable {
         self.parameters = parameters
         self.metalContext = metalContext
         self.recursiveCarryParent = recursiveCarryParent
+        self.sourceDecompositionProfile = sourceDecompositionProfile
     }
 }
 
@@ -278,6 +284,7 @@ public struct NumiSealProductArtifact: Codable, Equatable, Sendable {
         "sourceFoldEnvelopeBase64",
         "numiSealProofEnvelopeBase64",
         "sourceFoldEnvelopeDigestHex",
+        "sourceDecompositionProfile",
         "sourceFoldOutputClaimDigestsHex",
         "sourceFoldOutputClaimCount",
         "shapeDigestHex",
@@ -317,6 +324,7 @@ public struct NumiSealProductArtifact: Codable, Equatable, Sendable {
     public var sourceFoldEnvelopeBase64: String
     public var numiSealProofEnvelopeBase64: String
     public var sourceFoldEnvelopeDigestHex: String
+    public var sourceDecompositionProfile: String
     public var sourceFoldOutputClaimDigestsHex: [String]
     public var sourceFoldOutputClaimCount: Int
     public var shapeDigestHex: String
@@ -356,6 +364,7 @@ public struct NumiSealProductArtifact: Codable, Equatable, Sendable {
         sourceFoldEnvelopeBase64: String,
         numiSealProofEnvelopeBase64: String,
         sourceFoldEnvelopeDigestHex: String,
+        sourceDecompositionProfile: String,
         sourceFoldOutputClaimDigestsHex: [String],
         sourceFoldOutputClaimCount: Int,
         shapeDigestHex: String,
@@ -394,6 +403,7 @@ public struct NumiSealProductArtifact: Codable, Equatable, Sendable {
         self.sourceFoldEnvelopeBase64 = sourceFoldEnvelopeBase64
         self.numiSealProofEnvelopeBase64 = numiSealProofEnvelopeBase64
         self.sourceFoldEnvelopeDigestHex = sourceFoldEnvelopeDigestHex
+        self.sourceDecompositionProfile = sourceDecompositionProfile
         self.sourceFoldOutputClaimDigestsHex = sourceFoldOutputClaimDigestsHex
         self.sourceFoldOutputClaimCount = sourceFoldOutputClaimCount
         self.shapeDigestHex = shapeDigestHex
@@ -851,6 +861,21 @@ public final class NumiSealProductRecursiveCarryParent: @unchecked Sendable {
 public final class NumiSealProductProver: @unchecked Sendable {
     public init() {}
 
+    public static func zkSimulatorCouplingDigest(
+        baseProofEnvelopeDigest: Digest256,
+        zkProof: NumiSealZKProof
+    ) -> Digest256 {
+        NumiSealEncoding.digest(
+            label: "numiseal.zk.product.simulator-coupling.v1",
+            bytes: baseProofEnvelopeDigest.superNeoBytes
+                + zkProof.randomnessSessionDigest.superNeoBytes
+                + zkProof.leakageDigest.superNeoBytes
+                + numiSealEncodeCount(zkProof.maskedResidualStatements.count)
+                + zkProof.componentDigestRoot.superNeoBytes
+                + zkProof.transcriptDigest.superNeoBytes
+        )
+    }
+
     @inline(never)
     public func prove(_ request: NumiSealProvingRequest) throws -> NumiSealProductArtifact {
         let prepared = request.preparedR1CS
@@ -874,16 +899,24 @@ public final class NumiSealProductProver: @unchecked Sendable {
             statement: sourceStatement,
             verifierKeyDigest: prepared.key.verifierKeyDigest
         )
+        let sourceFoldQROChallenge = try request.qroChallenge.bindingTranscriptContext(
+            label: "numiseal-product-source-fold",
+            context: sourceContext.transcriptBindingBytes
+        )
+        let numiSealTranscriptDomain = try request.qroChallenge.transcriptDomainDigest(
+            label: "numiseal-product-terminal"
+        )
         let superNeoPolicy = request.executionPolicy.resolvedSuperNeoPolicy(metalContext: request.metalContext)
         let sourceProver = SuperNeoProver(
             parameters: parameters,
             key: prepared.key,
             context: request.metalContext,
-            executionPolicy: superNeoPolicy
+            executionPolicy: superNeoPolicy,
+            decompositionProfile: request.sourceDecompositionProfile
         )
         let sourceFold = try sourceProver.foldWithOutput(
             prepared.foldInput,
-            transcriptSeed: sourceContext.transcriptBindingBytes
+            qroChallenge: sourceFoldQROChallenge
         )
         try NumiSealProductTheoremLimits.validateSourceFoldOutputClaimCount(sourceFold.outputClaims.count)
         let sourceEnvelope = try FoldProofEnvelope(context: sourceContext, proof: sourceFold.proof)
@@ -911,6 +944,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
             statement: sourceStatement,
             verifierKeyDigest: prepared.key.verifierKeyDigest,
             profileID: parameters.profileID,
+            transcriptDomain: numiSealTranscriptDomain,
             acceptedLaneIDs: acceptedLaneIDs
         )
         let metalWorkspace = try Self.makeMetalWorkspace(
@@ -995,14 +1029,9 @@ public final class NumiSealProductProver: @unchecked Sendable {
                 provingWorkspace: provingWorkspace
             )
             let bytes = zkEnvelope.superNeoBytes
-            let zkSimulatorCouplingDigest = NumiSealEncoding.digest(
-                label: "numiseal.zk.product.simulator-coupling.v1",
-                bytes: Digest256.hash(numiSealEnvelope.superNeoBytes).superNeoBytes
-                    + zkEnvelope.proof.randomnessSessionDigest.superNeoBytes
-                    + zkEnvelope.proof.leakageDigest.superNeoBytes
-                    + numiSealEncodeCount(zkEnvelope.proof.maskedResidualStatements.count)
-                    + zkEnvelope.proof.componentDigestRoot.superNeoBytes
-                    + zkEnvelope.proof.transcriptDigest.superNeoBytes
+            let zkSimulatorCouplingDigest = Self.zkSimulatorCouplingDigest(
+                baseProofEnvelopeDigest: Digest256.hash(numiSealEnvelope.superNeoBytes),
+                zkProof: zkEnvelope.proof
             )
             numiSealProductProof = (
                 proofKind: NumiSealProductArtifact.zkProofKind,
@@ -1070,7 +1099,8 @@ public final class NumiSealProductProver: @unchecked Sendable {
             contextBinder: productProofHeader.ctcoContextBinder,
             root: ctcoCommitment.root,
             challengeTapeSeed: ctcoChallengeSeed,
-            traceEvidenceDigest: traceEvidenceDigest
+            traceEvidenceDigest: traceEvidenceDigest,
+            qroChallengeDigest: request.qroChallenge.challengeDigest
         )
         let concreteExtractorDigest = NumiSealProductConcreteExtraction.digest(
             sourceFoldHeader: sourceEnvelope.header,
@@ -1089,6 +1119,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
         )
         var policyMetadata = [
             "sourceFoldKind": "fold-reduction",
+            "sourceDecompositionProfile": request.sourceDecompositionProfile.canonicalName,
             "numiSealProofKind": numiSealProductProof.proofKind,
             "digitTensorDerivation": "aggregate-witness-digest-ternary-v1",
             "frontendObligationPath": "r1cs-prepared-to-source-fold-output-claims-v1",
@@ -1107,9 +1138,15 @@ public final class NumiSealProductProver: @unchecked Sendable {
             "proofEnvelopeCTCOChallengeTapeSeedHex": productProofEnvelopeCTCO.challengeTapeSeed.hexString,
             "qromChallengeOracleBits": "\(Digest256.byteCount * 8)",
             "qromBindingOracleBits": "\(Digest384.byteCount * 8)",
-            "qromBindingTargetEventCount": "9",
+            "qromBindingTargetEventCount": "10",
             "qromQueryCapLog2": "64",
             "qromEvidenceDigest": qromEvidenceDigest.hexString,
+            "qroChallengeDigest384Hex": request.qroChallenge.challengeDigest.hexString,
+            "qroChallengeDomainSeparator": request.qroChallenge.domainSeparator,
+            "qroChallengeSessionID": request.qroChallenge.sessionID,
+            "qroVerifierPublicCoinByteCount": "\(request.qroChallenge.verifierPublicCoin.count)",
+            "sourceFoldQROChallengeDigest384Hex": sourceFoldQROChallenge.challengeDigest.hexString,
+            "numiSealTranscriptDomainQRODigestHex": numiSealTranscriptDomain.hexString,
             "recursiveCarryMaximumSupportedDepth": "\(max(1, request.recursiveCarryParent?.nextRecursionLevel ?? 1))",
             "terminalCarryPolicy": productCarryMode,
             "metalWorkspaceFeatureDigest": metalWorkspace.map { workspace in
@@ -1143,6 +1180,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
             sourceFoldEnvelopeBase64: Data(sourceEnvelopeBytes).base64EncodedString(),
             numiSealProofEnvelopeBase64: Data(numiSealProductProof.envelopeBytes).base64EncodedString(),
             sourceFoldEnvelopeDigestHex: sourceEnvelopeDigest.hexString,
+            sourceDecompositionProfile: request.sourceDecompositionProfile.canonicalName,
             sourceFoldOutputClaimDigestsHex: outputClaimDigests.map(\.hexString),
             sourceFoldOutputClaimCount: outputClaimDigests.count,
             shapeDigestHex: sourceStatement.shapeDigest.hexString,
@@ -1163,7 +1201,7 @@ public final class NumiSealProductProver: @unchecked Sendable {
             proofEnvelopeDigestHex: numiSealProductProof.envelopeDigest.hexString,
             executionPolicyMetadata: policyMetadata
         )
-        try NumiSealProductVerifier.validateMetadata(artifact)
+        try NumiSealProductVerifier.validateMetadata(artifact, qroChallenge: request.qroChallenge)
         return artifact
     }
 
@@ -1382,6 +1420,15 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
     public init() {}
 
     private static let terminalCarryPolicyMetadataKey = "terminalCarryPolicy"
+    private static let zkMetadataKeys: Set<String> = [
+        "zkProofBodyVersion",
+        "zkMaskedResidualStatementVersion",
+        "zkRandomnessSessionDigest",
+        "zkLeakageDigest",
+        "zkMaskedResidualStatementCount",
+        "zkSimulatorCouplingSurface",
+        "zkSimulatorCouplingEvidenceDigest"
+    ]
 
     private static func acceptedCarryMode(for artifactCarryMode: String) throws -> NumiSealCarryMode {
         switch artifactCarryMode {
@@ -1418,13 +1465,14 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         artifact: NumiSealProductArtifact,
         sourcePublicInput: SuperNeoPublicFoldInput,
         key: AjtaiCommitmentKey,
+        qroChallenge: SuperNeoQROChallenge,
         parameters: SuperNeoParameters = .goldilocks,
         metalContext: MetalExecutionContext? = nil,
         executionPolicy: SuperNeoExecutionPolicy = .highAssurance,
         recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil,
         trustedContext: NumiSealProductTrustedContext? = nil
     ) throws -> NumiSealProductVerificationResult {
-        try Self.validateMetadata(artifact)
+        try Self.validateMetadata(artifact, qroChallenge: qroChallenge)
         if let trustedContext {
             try Self.requireTrustedContext(trustedContext, matches: artifact)
         }
@@ -1485,6 +1533,10 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             statement: sourceStatement,
             verifierKeyDigest: key.verifierKeyDigest
         )
+        let sourceFoldQROChallenge = try qroChallenge.bindingTranscriptContext(
+            label: "numiseal-product-source-fold",
+            context: sourceContext.transcriptBindingBytes
+        )
         let sourceVerifier = SuperNeoVerifier(
             parameters: parameters,
             key: key,
@@ -1494,7 +1546,8 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         let sourceResult = sourceVerifier.reduceFoldEnvelope(
             publicInput: sourcePublicInput,
             proofBytes: sourceBytes,
-            context: sourceContext
+            context: sourceContext,
+            qroChallenge: sourceFoldQROChallenge
         )
         guard sourceResult.isReductionAccepted else {
             throw SuperNeoError.verificationFailed(
@@ -1578,6 +1631,7 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             publicProof = envelope.proof
             componentDigestRoot = envelope.proof.componentDigestRoot
             proofTranscriptDigest = envelope.proof.transcriptDigest
+            try Self.validateNonZKMetadata(artifact.executionPolicyMetadata)
         case NumiSealZK.maskedDigitTensorMode:
             let zkResult = NumiSealZKVerifier(terminalVerifier: numiSealVerifier).verify(
                 proofBytes: numiSealBytes,
@@ -1598,6 +1652,11 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             publicProof = baseEnvelope.proof
             componentDigestRoot = zkEnvelope.proof.componentDigestRoot
             proofTranscriptDigest = zkEnvelope.proof.transcriptDigest
+            try Self.validateZKMetadata(
+                artifact.executionPolicyMetadata,
+                baseEnvelope: baseEnvelope,
+                zkProof: zkEnvelope.proof
+            )
         default:
             throw SuperNeoError.invalidEncoding("unsupported NumiSeal product ZK mode")
         }
@@ -1759,7 +1818,10 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         }
     }
 
-    public static func validateMetadata(_ artifact: NumiSealProductArtifact) throws {
+    public static func validateMetadata(
+        _ artifact: NumiSealProductArtifact,
+        qroChallenge: SuperNeoQROChallenge? = nil
+    ) throws {
         guard artifact.artifactVersion == NumiSealProductArtifact.artifactVersion else {
             throw SuperNeoError.invalidEncoding("unsupported NumiSeal product artifact version")
         }
@@ -1799,14 +1861,27 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         default:
             throw SuperNeoError.invalidEncoding("NumiSeal product proof kind, seal mode, and ZK mode are inconsistent")
         }
+        switch artifact.zkMode {
+        case NumiSealZK.nonZKMode:
+            try validateNonZKMetadata(artifact.executionPolicyMetadata)
+        case NumiSealZK.maskedDigitTensorMode:
+            for key in zkMetadataKeys {
+                _ = try requiredMetadata(artifact.executionPolicyMetadata, key)
+            }
+        default:
+            throw SuperNeoError.invalidEncoding("unsupported NumiSeal product ZK mode")
+        }
         guard artifact.sourceFoldOutputClaimCount == artifact.sourceFoldOutputClaimDigestsHex.count else {
             throw SuperNeoError.invalidEncoding("NumiSeal product source claim count mismatch")
+        }
+        guard SuperNeoDecompositionProfile(canonicalName: artifact.sourceDecompositionProfile) == .payPerBit else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product source decomposition profile mismatch")
         }
         guard artifact.maximumObligationsPerAggregate > 0 else {
             throw SuperNeoError.invalidEncoding("NumiSeal product aggregate limit must be positive")
         }
         try NumiSealProductTheoremLimits.validate(artifact: artifact)
-        try validateCTCOMetadata(artifact)
+        try validateCTCOMetadata(artifact, qroChallenge: qroChallenge)
         _ = try Digest256(hexDigest: artifact.shapeDigestHex, name: "NumiSeal shape digest")
         _ = try Digest256(hexDigest: artifact.sourceStatementDigestHex, name: "NumiSeal source statement digest")
         _ = try Digest256(hexDigest: artifact.statementDigestHex, name: "NumiSeal statement digest")
@@ -1827,14 +1902,50 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         }
     }
 
-    private static func validateCTCOMetadata(_ artifact: NumiSealProductArtifact) throws {
-        let expected = try ctcoEvidence(for: artifact)
+    private static func validateCTCOMetadata(
+        _ artifact: NumiSealProductArtifact,
+        qroChallenge: SuperNeoQROChallenge?
+    ) throws {
         let frontendContext = try productTrustedContext(from: artifact)
-        let sourceEnvelopeCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: artifact.sourceFoldEnvelopeBytes())
+        let sourceBytes = try artifact.sourceFoldEnvelopeBytes()
+        let sourceHeader = try ProofEnvelopeHeader.parsePrefix(from: sourceBytes)
+        let sourceEnvelopeCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: sourceBytes)
         let proofEnvelopeCTCO = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: artifact.proofEnvelopeBytes())
         let metadata = artifact.executionPolicyMetadata
+        let qroChallengeDigest = try Digest384(
+            hexDigest: requiredMetadata(metadata, "qroChallengeDigest384Hex"),
+            name: "NumiSeal product QRO challenge digest"
+        )
+        let expected = try ctcoEvidence(for: artifact, qroChallengeDigest: qroChallengeDigest)
+        if let qroChallenge {
+            guard qroChallengeDigest == qroChallenge.challengeDigest else {
+                throw SuperNeoError.invalidEncoding("NumiSeal product QRO challenge digest mismatch")
+            }
+            guard metadata["qroChallengeDomainSeparator"] == qroChallenge.domainSeparator,
+                  metadata["qroChallengeSessionID"] == qroChallenge.sessionID,
+                  metadata["qroVerifierPublicCoinByteCount"] == "\(qroChallenge.verifierPublicCoin.count)" else {
+                throw SuperNeoError.invalidEncoding("NumiSeal product QRO challenge metadata mismatch")
+            }
+            let expectedSourceFoldQROChallenge = try qroChallenge.bindingTranscriptContext(
+                label: "numiseal-product-source-fold",
+                context: sourceHeader.transcriptBindingBytes
+            )
+            guard metadata["sourceFoldQROChallengeDigest384Hex"] == expectedSourceFoldQROChallenge.challengeDigest.hexString else {
+                throw SuperNeoError.invalidEncoding("NumiSeal product source-fold QRO challenge digest mismatch")
+            }
+            let expectedTranscriptDomain = try qroChallenge.transcriptDomainDigest(
+                label: "numiseal-product-terminal"
+            )
+            guard metadata["numiSealTranscriptDomainQRODigestHex"] == expectedTranscriptDomain.hexString,
+                  artifact.transcriptDomainHex == expectedTranscriptDomain.hexString else {
+                throw SuperNeoError.invalidEncoding("NumiSeal product QRO transcript domain mismatch")
+            }
+        }
         guard metadata["frontendContextDigest"] == frontendContext.contextDigest.hexString else {
             throw SuperNeoError.invalidEncoding("NumiSeal product frontend context digest mismatch")
+        }
+        guard metadata["sourceDecompositionProfile"] == artifact.sourceDecompositionProfile else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product source decomposition profile metadata mismatch")
         }
         guard metadata["ctcoCompilerFamily"] == "ctco" else {
             throw SuperNeoError.invalidEncoding("NumiSeal product CTCO compiler metadata mismatch")
@@ -1890,7 +2001,7 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         }
         guard metadata["qromChallengeOracleBits"] == "\(Digest256.byteCount * 8)",
               metadata["qromBindingOracleBits"] == "\(Digest384.byteCount * 8)",
-              metadata["qromBindingTargetEventCount"] == "9",
+              metadata["qromBindingTargetEventCount"] == "10",
               metadata["qromQueryCapLog2"] == "64" else {
             throw SuperNeoError.invalidEncoding("NumiSeal product QROM width metadata mismatch")
         }
@@ -1912,7 +2023,8 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
     }
 
     private static func ctcoEvidence(
-        for artifact: NumiSealProductArtifact
+        for artifact: NumiSealProductArtifact,
+        qroChallengeDigest: Digest384
     ) throws -> (
         proofKind: ProofEnvelopeKind,
         contextBinder: Digest384,
@@ -1981,7 +2093,8 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
             contextBinder: proofHeader.ctcoContextBinder,
             root: commitment.root,
             challengeTapeSeed: challengeSeed,
-            traceEvidenceDigest: traceEvidenceDigest
+            traceEvidenceDigest: traceEvidenceDigest,
+            qroChallengeDigest: qroChallengeDigest
         )
         return (
             proofHeader.kind,
@@ -2028,6 +2141,34 @@ public final class NumiSealProductVerifier: @unchecked Sendable {
         return value
     }
 
+    private static func validateNonZKMetadata(_ metadata: [String: String]) throws {
+        guard !zkMetadataKeys.contains(where: { metadata[$0] != nil }) else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product non-ZK artifact carries ZK metadata")
+        }
+    }
+
+    private static func validateZKMetadata(
+        _ metadata: [String: String],
+        baseEnvelope: NumiSealProofEnvelope,
+        zkProof: NumiSealZKProof
+    ) throws {
+        guard metadata["zkProofBodyVersion"] == "\(zkProof.bodyVersion)",
+              metadata["zkMaskedResidualStatementVersion"] == "\(NumiSealZKMaskedResidualStatement.version)",
+              metadata["zkRandomnessSessionDigest"] == zkProof.randomnessSessionDigest.hexString,
+              metadata["zkLeakageDigest"] == zkProof.leakageDigest.hexString,
+              metadata["zkMaskedResidualStatementCount"] == "\(zkProof.maskedResidualStatements.count)",
+              metadata["zkSimulatorCouplingSurface"] == "terminal-base-proof-to-masked-residual-session-v1" else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product ZK metadata mismatch")
+        }
+        let expectedCouplingDigest = NumiSealProductProver.zkSimulatorCouplingDigest(
+            baseProofEnvelopeDigest: Digest256.hash(baseEnvelope.superNeoBytes),
+            zkProof: zkProof
+        )
+        guard metadata["zkSimulatorCouplingEvidenceDigest"] == expectedCouplingDigest.hexString else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product ZK simulator coupling metadata mismatch")
+        }
+    }
+
     private static func validateRecursiveCarryMetadata(_ metadata: [String: String]) throws {
         for key in NumiSealProductRecursiveCarryMetadata.keys {
             guard let value = metadata[key], !value.isEmpty else {
@@ -2066,6 +2207,7 @@ public extension SuperNeoR1CSProgram {
         workload: String,
         bitCount: Int,
         publicInputs: [UInt64],
+        qroChallenge: SuperNeoQROChallenge,
         keySeedUTF8: String? = nil,
         workloadParameters: [String: String] = [:],
         sourceApplicationPathUTF8: String? = nil,
@@ -2091,6 +2233,7 @@ public extension SuperNeoR1CSProgram {
                 workload: workload,
                 bitCount: bitCount,
                 publicInputs: publicInputs,
+                qroChallenge: qroChallenge,
                 keySeedUTF8: keySeedUTF8,
                 workloadParameters: workloadParameters,
                 sourceApplicationPathUTF8: sourceApplicationPathUTF8,

@@ -136,7 +136,7 @@
         "buffer element count",
         "variable count",
         "term count",
-        "Fiat-Shamir challenges and weights"
+        "transcript challenges and weights"
       ],
       "allowedPublicControlFlowRegex": [
         "if\\s*\\(id >= count\\) \\{ return; \\}"

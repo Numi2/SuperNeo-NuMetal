@@ -29,7 +29,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
 EXPECTED_MANIFESTS = {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
@@ -55,7 +55,8 @@ EXPECTED_SOURCE_SURFACES = {
     "numiSealProof": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift",
     "numiSealZKProof": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift",
     "numiSealTypes": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypes.swift",
-    "numiSealArtifactVerifier": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealArtifactVerifier.swift",
+    "numiSealProductProver": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
+    "numiSealProductVerifier": "SuperNeo-NuMetal/ProductIntegration/NumiSealProductVerifier.swift",
 }
 
 EXPECTED_PROOF_KINDS = [
@@ -130,7 +131,7 @@ def validate_related_manifests(evidence: dict[str, Any]) -> None:
     for manifest_key, nested_key in [
         ("productCryptoSecurityDossier", "productQROMCollisionMalleabilityEvidence"),
         ("selectedDepthLossAccounting", "productQROMCollisionMalleabilityEvidence"),
-        ("productQROMFiatShamirAccounting", "productQROMCollisionMalleabilityEvidence"),
+        ("productQROMPublicCoinAccounting", "productQROMCollisionMalleabilityEvidence"),
         ("productQROMTranscriptSchedule", "productQROMCollisionMalleabilityEvidence"),
         ("productQROMTransformPreconditions", "productQROMCollisionMalleabilityEvidence"),
         ("productQROMInteractiveReduction", "productQROMCollisionMalleabilityEvidence"),
@@ -259,12 +260,18 @@ def validate_closure_status(evidence: dict[str, Any]) -> None:
     for needle in ["Digest384", "hBind", "hBindBindingDigest", "hBindReplayBinder"]:
         require(needle in source, f"source H_bind projection missing {needle}")
     for key in [
-        "hashQROInstantiationProofProvided",
         "qromReductionLossWithinBudget",
         "totalLossBudgetIntegrated",
-        "productionQROMClaimAllowed",
+        "repositoryLocalIdealQROMClaimAllowed",
     ]:
         require_true(closure.get(key), f"closureStatus.{key}")
+    require_true(closure.get("idealSplitQROTheoremInstantiated"), "closureStatus.idealSplitQROTheoremInstantiated")
+    require_false(
+        closure.get("concreteSHAKE256QROInstantiationProofProvided"),
+        "closureStatus.concreteSHAKE256QROInstantiationProofProvided",
+    )
+    require_false(closure.get("hashQROInstantiationProofProvided"), "closureStatus.hashQROInstantiationProofProvided")
+    require_false(closure.get("productionQROMClaimAllowed"), "closureStatus.productionQROMClaimAllowed")
 
 
 def validate_evidence(path: Path) -> None:

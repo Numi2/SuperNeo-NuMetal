@@ -27,6 +27,29 @@ public struct Digest256: Equatable, Hashable, Sendable, SuperNeoByteEncodable {
     }
 
     public var superNeoBytes: [UInt8] { bytes }
+
+    public init(hexDigest raw: String, name: String = "digest") throws {
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard value.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil else {
+            throw SuperNeoError.invalidEncoding("\(name) must be a 64-character lowercase or uppercase hex digest")
+        }
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(Self.byteCount)
+        var index = value.startIndex
+        while index < value.endIndex {
+            let next = value.index(index, offsetBy: 2)
+            guard let byte = UInt8(value[index..<next], radix: 16) else {
+                throw SuperNeoError.invalidEncoding("\(name) must be a valid hex digest")
+            }
+            bytes.append(byte)
+            index = next
+        }
+        try self.init(bytes)
+    }
+
+    public var hexString: String {
+        bytes.map { String(format: "%02x", $0) }.joined()
+    }
 }
 
 public enum ProofEnvelopeKind: UInt8, Equatable, Sendable {
@@ -1014,13 +1037,13 @@ extension ByteReader {
             name: "decomposition commitment",
             elementByteWidth: parameters.kappa * CyclotomicRing54.degree * 8
         )
-        guard commitmentCount == parameters.decompositionLength else {
-            throw SuperNeoError.invalidEncoding("wrong decomposition commitment count")
+        guard commitmentCount > 0 else {
+            throw SuperNeoError.invalidEncoding("decomposition commitment count cannot be zero")
         }
         let commitments = try (0..<commitmentCount).map { _ in try readCommitment(parameters: parameters) }
         let evaluationRows = try readCount(maximum: parameters.decompositionLength, name: "decomposition evaluation", elementByteWidth: 8)
-        guard evaluationRows == parameters.decompositionLength else {
-            throw SuperNeoError.invalidEncoding("wrong decomposition evaluation row count")
+        guard evaluationRows == commitmentCount else {
+            throw SuperNeoError.invalidEncoding("decomposition evaluation row count must match commitment count")
         }
         let evaluations = try (0..<evaluationRows).map { _ -> [CyclotomicExt2Ring54] in
             let count = try readCount(
@@ -1131,8 +1154,12 @@ extension ByteReader {
             name: "output claim",
             elementByteWidth: parameters.kappa * CyclotomicRing54.degree * 8
         )
-        guard outputCount == parameters.decompositionLength else {
-            throw SuperNeoError.invalidEncoding("wrong output claim count")
+        guard outputCount > 0 else {
+            throw SuperNeoError.invalidEncoding("output claim count cannot be zero")
+        }
+        guard outputCount == decomposition.commitments.count,
+              outputCount == decomposition.evaluations.count else {
+            throw SuperNeoError.invalidEncoding("output claim count must match decomposition proof count")
         }
         let outputClaims = try (0..<outputCount).map { _ in try readEvaluationClaim(parameters: parameters) }
         guard decomposition.commitments == outputClaims.map(\.commitment) else {
@@ -1271,8 +1298,8 @@ extension ByteReader {
     fileprivate mutating func readTerminalFoldProof(parameters: SuperNeoParameters) throws -> TerminalFoldProof {
         let foldProof = try readFoldProof(parameters: parameters)
         let terminalStatement = try readTerminalCEStatement(parameters: parameters)
-        guard terminalStatement.openings.count == parameters.decompositionLength else {
-            throw SuperNeoError.invalidEncoding("terminal CE statement output count must match decomposition length")
+        guard terminalStatement.openings.count == foldProof.outputClaims.count else {
+            throw SuperNeoError.invalidEncoding("terminal CE statement output count must match fold proof output count")
         }
         guard terminalStatement.outputClaims == foldProof.outputClaims else {
             throw SuperNeoError.invalidEncoding("terminal CE statement must match fold proof output claims")

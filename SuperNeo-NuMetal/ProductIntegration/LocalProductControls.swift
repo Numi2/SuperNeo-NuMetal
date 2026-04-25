@@ -421,6 +421,334 @@ public struct SuperNeoVerifiedArtifactProvenanceManifest: Equatable, Sendable {
     }
 }
 
+public struct SuperNeoIssuedQROChallengePayload: Codable, Equatable, Sendable {
+    public let formatVersion: Int
+    public let issuer: String
+    public let contextID: String
+    public let qroSessionID: String
+    public let qroDomainSeparator: String
+    public let qroVerifierPublicCoinHex: String
+    public let frontendContextDigestHex: String
+    public let expectedVerifierKeyDigestHex: String
+    public let expectedShapeDigestHex: String
+    public let expectedStatementDigestHex: String
+    public let expectedTranscriptDomainDigestHex: String
+    public let expectedPublicInputs: [UInt64]?
+    public let qroChallengeDigest384Hex: String
+    public let singleUse: Bool
+    public let issuedAtUTC: String
+    public let validUntilUTC: String
+
+    public init(
+        formatVersion: Int = 1,
+        issuer: String,
+        contextID: String,
+        qroSessionID: String,
+        qroDomainSeparator: String = SuperNeoQROChallenge.defaultDomainSeparator,
+        qroVerifierPublicCoinHex: String,
+        frontendContextDigestHex: String,
+        expectedVerifierKeyDigestHex: String,
+        expectedShapeDigestHex: String,
+        expectedStatementDigestHex: String,
+        expectedTranscriptDomainDigestHex: String,
+        expectedPublicInputs: [UInt64]? = nil,
+        qroChallengeDigest384Hex: String,
+        singleUse: Bool = true,
+        issuedAtUTC: String,
+        validUntilUTC: String
+    ) {
+        self.formatVersion = formatVersion
+        self.issuer = issuer
+        self.contextID = contextID
+        self.qroSessionID = qroSessionID
+        self.qroDomainSeparator = qroDomainSeparator
+        self.qroVerifierPublicCoinHex = qroVerifierPublicCoinHex
+        self.frontendContextDigestHex = frontendContextDigestHex
+        self.expectedVerifierKeyDigestHex = expectedVerifierKeyDigestHex
+        self.expectedShapeDigestHex = expectedShapeDigestHex
+        self.expectedStatementDigestHex = expectedStatementDigestHex
+        self.expectedTranscriptDomainDigestHex = expectedTranscriptDomainDigestHex
+        self.expectedPublicInputs = expectedPublicInputs
+        self.qroChallengeDigest384Hex = qroChallengeDigest384Hex
+        self.singleUse = singleUse
+        self.issuedAtUTC = issuedAtUTC
+        self.validUntilUTC = validUntilUTC
+    }
+}
+
+public struct SuperNeoSignedQROChallengePack: Codable, Equatable, Sendable {
+    public let payload: SuperNeoIssuedQROChallengePayload
+    public let signature: SuperNeoProductSignature
+
+    public init(payload: SuperNeoIssuedQROChallengePayload, signature: SuperNeoProductSignature) {
+        self.payload = payload
+        self.signature = signature
+    }
+
+    public static func load(from url: URL) throws -> Self {
+        let data = try SuperNeoLocalFileSecurity.readSecureRegularFile(url, description: "QRO challenge pack")
+        try SuperNeoJSONDuplicateKeyValidator.validate(data: data, artifactName: "QRO challenge pack")
+        return try JSONDecoder().decode(Self.self, from: data)
+    }
+
+    public static func loadVerified(
+        from url: URL,
+        trustedIssuerKeyDigestsHex: Set<String>,
+        context: SuperNeoTrustedContextPayload,
+        frontendContextDigest: Digest256,
+        now: Date = Date()
+    ) throws -> SuperNeoVerifiedQROChallengePack {
+        try load(from: url).verified(
+            trustedIssuerKeyDigestsHex: trustedIssuerKeyDigestsHex,
+            context: context,
+            frontendContextDigest: frontendContextDigest,
+            now: now
+        )
+    }
+
+    public func verified(
+        trustedIssuerKeyDigestsHex: Set<String>,
+        expectedContext: SuperNeoIssuedQROChallengeExpectedContext,
+        now: Date = Date()
+    ) throws -> SuperNeoVerifiedQROChallengePack {
+        let payloadBytes = try SuperNeoCanonicalJSON.encode(payload)
+        let issuerKeyDigest = try SuperNeoProductSignatureVerifier.verify(
+            signature: signature,
+            payload: payloadBytes,
+            trustedKeyDigestsHex: trustedIssuerKeyDigestsHex,
+            description: "QRO challenge pack"
+        )
+        let qroChallenge = try payload.validateAndMakeChallenge(
+            expectedContext: expectedContext,
+            now: now
+        )
+        return SuperNeoVerifiedQROChallengePack(
+            payload: payload,
+            payloadDigest: Digest256.hash([UInt8](payloadBytes)),
+            issuerKeyDigest: issuerKeyDigest,
+            qroChallenge: qroChallenge
+        )
+    }
+
+    public func verified(
+        trustedIssuerKeyDigestsHex: Set<String>,
+        context: SuperNeoTrustedContextPayload,
+        frontendContextDigest: Digest256,
+        now: Date = Date()
+    ) throws -> SuperNeoVerifiedQROChallengePack {
+        try verified(
+            trustedIssuerKeyDigestsHex: trustedIssuerKeyDigestsHex,
+            expectedContext: context.issuedQROChallengeExpectedContext(
+                frontendContextDigest: frontendContextDigest
+            ),
+            now: now
+        )
+    }
+
+    public static func loadVerified(
+        from url: URL,
+        trustedIssuerKeyDigestsHex: Set<String>,
+        expectedContext: SuperNeoIssuedQROChallengeExpectedContext,
+        now: Date = Date()
+    ) throws -> SuperNeoVerifiedQROChallengePack {
+        try load(from: url).verified(
+            trustedIssuerKeyDigestsHex: trustedIssuerKeyDigestsHex,
+            expectedContext: expectedContext,
+            now: now
+        )
+    }
+}
+
+public extension SuperNeoTrustedContextPayload {
+    func issuedQROChallengeExpectedContext(
+        frontendContextDigest: Digest256
+    ) -> SuperNeoIssuedQROChallengeExpectedContext {
+        SuperNeoIssuedQROChallengeExpectedContext(
+            contextID: contextID,
+            validFromUTC: validFromUTC,
+            validUntilUTC: validUntilUTC,
+            frontendContextDigest: frontendContextDigest,
+            expectedVerifierKeyDigestHex: expectedVerifierKeyDigestHex,
+            expectedShapeDigestHex: expectedShapeDigestHex,
+            expectedStatementDigestHex: expectedStatementDigestHex,
+            expectedTranscriptDomainDigestHex: expectedTranscriptDomainDigestHex,
+            expectedPublicInputs: publicInputs
+        )
+    }
+}
+
+public extension SuperNeoIssuedQROChallengePayload {
+    func validateAndMakeChallenge(
+        context: SuperNeoTrustedContextPayload,
+        frontendContextDigest: Digest256,
+        now: Date = Date()
+    ) throws -> SuperNeoQROChallenge {
+        try validateAndMakeChallenge(
+            expectedContext: context.issuedQROChallengeExpectedContext(
+                frontendContextDigest: frontendContextDigest
+            ),
+            now: now
+        )
+    }
+
+    func validateAndMakeChallenge(
+        expectedContext: SuperNeoIssuedQROChallengeExpectedContext,
+        now: Date = Date()
+    ) throws -> SuperNeoQROChallenge {
+        guard formatVersion == 1 else {
+            throw SuperNeoProductIntegrationError.invalidRequest("unsupported QRO challenge pack version")
+        }
+        guard !issuer.isEmpty else {
+            throw SuperNeoProductIntegrationError.invalidRequest("QRO challenge issuer is required")
+        }
+        guard contextID == expectedContext.contextID else {
+            throw SuperNeoProductIntegrationError.unauthorized("QRO challenge context ID does not match trusted context")
+        }
+        guard !qroSessionID.isEmpty else {
+            throw SuperNeoProductIntegrationError.invalidRequest("QRO challenge session ID is required")
+        }
+        guard !qroDomainSeparator.isEmpty else {
+            throw SuperNeoProductIntegrationError.invalidRequest("QRO challenge domain separator is required")
+        }
+        let expectedFrontendContextDigest = try Digest256(
+            hexDigest: frontendContextDigestHex,
+            name: "QRO challenge frontend context digest"
+        )
+        guard expectedFrontendContextDigest == expectedContext.frontendContextDigest else {
+            throw SuperNeoProductIntegrationError.unauthorized(
+                "QRO challenge frontend context digest does not match artifact context"
+            )
+        }
+        guard expectedVerifierKeyDigestHex == expectedContext.expectedVerifierKeyDigestHex else {
+            throw SuperNeoProductIntegrationError.unauthorized("QRO challenge verifier key digest does not match trusted context")
+        }
+        guard expectedShapeDigestHex == expectedContext.expectedShapeDigestHex else {
+            throw SuperNeoProductIntegrationError.unauthorized("QRO challenge shape digest does not match trusted context")
+        }
+        guard expectedStatementDigestHex == expectedContext.expectedStatementDigestHex else {
+            throw SuperNeoProductIntegrationError.unauthorized("QRO challenge statement digest does not match trusted context")
+        }
+        guard expectedTranscriptDomainDigestHex == expectedContext.expectedTranscriptDomainDigestHex else {
+            throw SuperNeoProductIntegrationError.unauthorized(
+                "QRO challenge transcript domain digest does not match trusted context"
+            )
+        }
+        if let expectedPublicInputs = expectedContext.expectedPublicInputs {
+            guard self.expectedPublicInputs == expectedPublicInputs else {
+                throw SuperNeoProductIntegrationError.unauthorized(
+                    "QRO challenge public inputs do not match trusted context"
+                )
+            }
+        }
+        guard singleUse else {
+            throw SuperNeoProductIntegrationError.unauthorized("QRO challenge pack must be single-use")
+        }
+        let issuedAt = try SuperNeoProductTime.parseUTC(issuedAtUTC, name: "QRO challenge issuedAtUTC")
+        let validUntil = try SuperNeoProductTime.parseUTC(validUntilUTC, name: "QRO challenge validUntilUTC")
+        guard issuedAt < validUntil else {
+            throw SuperNeoProductIntegrationError.invalidRequest("QRO challenge validity window is invalid")
+        }
+        let contextValidFrom = try SuperNeoProductTime.parseUTC(
+            expectedContext.validFromUTC,
+            name: "context validFromUTC"
+        )
+        let contextValidUntil = try SuperNeoProductTime.parseUTC(
+            expectedContext.validUntilUTC,
+            name: "context validUntilUTC"
+        )
+        guard contextValidFrom <= issuedAt, validUntil <= contextValidUntil else {
+            throw SuperNeoProductIntegrationError.unauthorized(
+                "QRO challenge validity window must be inside trusted context validity"
+            )
+        }
+        guard issuedAt <= now else {
+            throw SuperNeoProductIntegrationError.unauthorized("QRO challenge is not valid yet")
+        }
+        guard now <= validUntil else {
+            throw SuperNeoProductIntegrationError.unauthorized("QRO challenge has expired")
+        }
+        let publicCoin = try superNeoProductParseHexBytes(
+            qroVerifierPublicCoinHex,
+            name: "QRO verifier public coin"
+        )
+        let qroChallenge = try SuperNeoQROChallenge(
+            domainSeparator: qroDomainSeparator,
+            sessionID: qroSessionID,
+            verifierPublicCoin: publicCoin,
+            transcriptContext: SuperNeoSplitQRO.framedBytes(
+                domain: "superneo/cli/numiseal-product/qro-context/v1",
+                frames: [expectedContext.frontendContextDigest.superNeoBytes]
+            )
+        )
+        let expectedChallengeDigest = try Digest384(
+            hexDigest: qroChallengeDigest384Hex,
+            name: "QRO challenge digest"
+        )
+        guard expectedChallengeDigest == qroChallenge.challengeDigest else {
+            throw SuperNeoProductIntegrationError.unauthorized("QRO challenge digest does not match signed payload")
+        }
+        let terminalTranscriptDomain = try qroChallenge.transcriptDomainDigest(label: "numiseal-product-terminal")
+        guard terminalTranscriptDomain.hexString == expectedTranscriptDomainDigestHex else {
+            throw SuperNeoProductIntegrationError.unauthorized(
+                "QRO challenge terminal transcript domain does not match signed payload"
+            )
+        }
+        return qroChallenge
+    }
+}
+public struct SuperNeoVerifiedQROChallengePack: Equatable, Sendable {
+    public let payload: SuperNeoIssuedQROChallengePayload
+    public let payloadDigest: Digest256
+    public let issuerKeyDigest: Digest256
+    public let qroChallenge: SuperNeoQROChallenge
+
+    public init(
+        payload: SuperNeoIssuedQROChallengePayload,
+        payloadDigest: Digest256,
+        issuerKeyDigest: Digest256,
+        qroChallenge: SuperNeoQROChallenge
+    ) {
+        self.payload = payload
+        self.payloadDigest = payloadDigest
+        self.issuerKeyDigest = issuerKeyDigest
+        self.qroChallenge = qroChallenge
+    }
+}
+
+public struct SuperNeoIssuedQROChallengeExpectedContext: Equatable, Sendable {
+    public let contextID: String
+    public let validFromUTC: String
+    public let validUntilUTC: String
+    public let frontendContextDigest: Digest256
+    public let expectedVerifierKeyDigestHex: String
+    public let expectedShapeDigestHex: String
+    public let expectedStatementDigestHex: String
+    public let expectedTranscriptDomainDigestHex: String
+    public let expectedPublicInputs: [UInt64]?
+
+    public init(
+        contextID: String,
+        validFromUTC: String,
+        validUntilUTC: String,
+        frontendContextDigest: Digest256,
+        expectedVerifierKeyDigestHex: String,
+        expectedShapeDigestHex: String,
+        expectedStatementDigestHex: String,
+        expectedTranscriptDomainDigestHex: String,
+        expectedPublicInputs: [UInt64]? = nil
+    ) {
+        self.contextID = contextID
+        self.validFromUTC = validFromUTC
+        self.validUntilUTC = validUntilUTC
+        self.frontendContextDigest = frontendContextDigest
+        self.expectedVerifierKeyDigestHex = expectedVerifierKeyDigestHex
+        self.expectedShapeDigestHex = expectedShapeDigestHex
+        self.expectedStatementDigestHex = expectedStatementDigestHex
+        self.expectedTranscriptDomainDigestHex = expectedTranscriptDomainDigestHex
+        self.expectedPublicInputs = expectedPublicInputs
+    }
+}
+
 public struct SuperNeoRevocationFeedPayload: Codable, Equatable, Sendable {
     public let formatVersion: Int
     public let feedID: String
@@ -586,12 +914,14 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
     public let callerID: String
     public let contextPackPath: String?
     public let artifactProvenancePath: String?
+    public let qroChallengePackPath: String?
     public let sideChannelCertificatePath: String?
     public let revocationFeedPath: String
     public let replayDatabasePath: String
     public let auditLogPath: String
     public let trustedContextIssuerKeyDigestsHex: [String]
     public let trustedProvenanceIssuerKeyDigestsHex: [String]
+    public let trustedQROChallengeIssuerKeyDigestsHex: [String]?
     public let trustedSideChannelIssuerKeyDigestsHex: [String]
     public let trustedRevocationIssuerKeyDigestsHex: [String]
     public let releaseBuildDigestHex: String
@@ -601,12 +931,14 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
         callerID: String,
         contextPackPath: String? = nil,
         artifactProvenancePath: String? = nil,
+        qroChallengePackPath: String? = nil,
         sideChannelCertificatePath: String? = nil,
         revocationFeedPath: String,
         replayDatabasePath: String,
         auditLogPath: String,
         trustedContextIssuerKeyDigestsHex: [String],
         trustedProvenanceIssuerKeyDigestsHex: [String],
+        trustedQROChallengeIssuerKeyDigestsHex: [String]? = nil,
         trustedSideChannelIssuerKeyDigestsHex: [String],
         trustedRevocationIssuerKeyDigestsHex: [String],
         releaseBuildDigestHex: String
@@ -615,12 +947,14 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
         self.callerID = callerID
         self.contextPackPath = contextPackPath
         self.artifactProvenancePath = artifactProvenancePath
+        self.qroChallengePackPath = qroChallengePackPath
         self.sideChannelCertificatePath = sideChannelCertificatePath
         self.revocationFeedPath = revocationFeedPath
         self.replayDatabasePath = replayDatabasePath
         self.auditLogPath = auditLogPath
         self.trustedContextIssuerKeyDigestsHex = trustedContextIssuerKeyDigestsHex
         self.trustedProvenanceIssuerKeyDigestsHex = trustedProvenanceIssuerKeyDigestsHex
+        self.trustedQROChallengeIssuerKeyDigestsHex = trustedQROChallengeIssuerKeyDigestsHex
         self.trustedSideChannelIssuerKeyDigestsHex = trustedSideChannelIssuerKeyDigestsHex
         self.trustedRevocationIssuerKeyDigestsHex = trustedRevocationIssuerKeyDigestsHex
         self.releaseBuildDigestHex = releaseBuildDigestHex
@@ -640,6 +974,16 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
 
     public func trustedProvenanceIssuerKeyDigestSet() throws -> Set<String> {
         try validateDigestList(trustedProvenanceIssuerKeyDigestsHex, name: "trusted provenance issuer key digest")
+    }
+
+    public func trustedQROChallengeIssuerKeyDigestSet() throws -> Set<String> {
+        if let trustedQROChallengeIssuerKeyDigestsHex {
+            return try validateDigestList(
+                trustedQROChallengeIssuerKeyDigestsHex,
+                name: "trusted QRO challenge issuer key digest"
+            )
+        }
+        return try trustedContextIssuerKeyDigestSet()
     }
 
     public func trustedSideChannelIssuerKeyDigestSet() throws -> Set<String> {
@@ -674,6 +1018,7 @@ public struct SuperNeoLocalOperatorProfile: Codable, Equatable, Sendable {
         }
         _ = try trustedContextIssuerKeyDigestSet()
         _ = try trustedProvenanceIssuerKeyDigestSet()
+        _ = try trustedQROChallengeIssuerKeyDigestSet()
         _ = try trustedSideChannelIssuerKeyDigestSet()
         _ = try trustedRevocationIssuerKeyDigestSet()
         _ = try releaseBuildDigest
@@ -829,10 +1174,19 @@ public final class SuperNeoSQLiteReplayLedger: SuperNeoReplayLedger {
               proof_envelope_digest TEXT NOT NULL,
               artifact_digest TEXT NOT NULL,
               provenance_digest TEXT NOT NULL,
+              issued_qro_challenge_digest TEXT NOT NULL,
               recursive_carry_replay_binding_digest TEXT NOT NULL,
               accepted_at_utc TEXT NOT NULL,
-              UNIQUE(expected_context_id, statement_digest, proof_envelope_digest, artifact_digest, provenance_digest, recursive_carry_replay_binding_digest)
+              UNIQUE(expected_context_id, statement_digest, proof_envelope_digest, artifact_digest, provenance_digest, issued_qro_challenge_digest, recursive_carry_replay_binding_digest)
             );
+            """
+        )
+        try execute(
+            on: handle,
+            sql: """
+            CREATE UNIQUE INDEX IF NOT EXISTS accepted_issued_qro_challenges
+            ON accepted_replays(issued_qro_challenge_digest)
+            WHERE issued_qro_challenge_digest <> 'none';
             """
         )
         try execute(
@@ -867,9 +1221,10 @@ public final class SuperNeoSQLiteReplayLedger: SuperNeoReplayLedger {
               proof_envelope_digest,
               artifact_digest,
               provenance_digest,
+              issued_qro_challenge_digest,
               recursive_carry_replay_binding_digest,
               accepted_at_utc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             var statement: OpaquePointer?
             try prepare(sql, statement: &statement)
@@ -880,8 +1235,9 @@ public final class SuperNeoSQLiteReplayLedger: SuperNeoReplayLedger {
             sqlite3_bind_text(statement, 4, identity.proofEnvelopeDigest.hexString, -1, sqliteTransient)
             sqlite3_bind_text(statement, 5, identity.artifactDigest.hexString, -1, sqliteTransient)
             sqlite3_bind_text(statement, 6, identity.provenanceDigest.hexString, -1, sqliteTransient)
-            sqlite3_bind_text(statement, 7, identity.recursiveCarryReplayBindingDigestColumn, -1, sqliteTransient)
-            sqlite3_bind_text(statement, 8, SuperNeoProductTime.nowUTCString(), -1, sqliteTransient)
+            sqlite3_bind_text(statement, 7, identity.issuedQROChallengeDigestColumn, -1, sqliteTransient)
+            sqlite3_bind_text(statement, 8, identity.recursiveCarryReplayBindingDigestColumn, -1, sqliteTransient)
+            sqlite3_bind_text(statement, 9, SuperNeoProductTime.nowUTCString(), -1, sqliteTransient)
             let step = sqlite3_step(statement)
             guard step == SQLITE_DONE else {
                 if step == SQLITE_CONSTRAINT {
@@ -966,12 +1322,30 @@ public final class SuperNeoSQLiteReplayLedger: SuperNeoReplayLedger {
             "proof_envelope_digest",
             "artifact_digest",
             "provenance_digest",
+            "issued_qro_challenge_digest",
             "recursive_carry_replay_binding_digest",
             "accepted_at_utc"
         ]
         guard requiredColumns.isSubset(of: columns) else {
             throw SuperNeoProductIntegrationError.invalidRequest(
-                "replay database schema is missing recursive carry replay columns; reinitialize product storage"
+                "replay database schema is missing issued-QRO or recursive-carry replay columns; reinitialize product storage"
+            )
+        }
+        var qroIndexStatement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'accepted_issued_qro_challenges'",
+            -1,
+            &qroIndexStatement,
+            nil
+        ) == SQLITE_OK else {
+            let detail = String(cString: sqlite3_errmsg(database))
+            throw SuperNeoProductIntegrationError.invalidRequest("could not inspect replay database indexes: \(detail)")
+        }
+        defer { sqlite3_finalize(qroIndexStatement) }
+        guard sqlite3_step(qroIndexStatement) == SQLITE_ROW else {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "replay database schema is missing issued-QRO challenge uniqueness index; reinitialize product storage"
             )
         }
         var indexStatement: OpaquePointer?
@@ -1008,6 +1382,8 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
     public let provenanceDigestHex: String?
     public let revocationFeedDigestHex: String?
     public let sideChannelCertificateDigestHex: String?
+    public let issuedQROChallengeDigestHex: String?
+    public let qroChallengeDigest384Hex: String?
     public let proofKind: String?
     public let carryMode: String?
     public let recursiveCarryReplayBindingDigestHex: String?
@@ -1034,6 +1410,8 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
         provenanceDigestHex: String? = nil,
         revocationFeedDigestHex: String? = nil,
         sideChannelCertificateDigestHex: String? = nil,
+        issuedQROChallengeDigestHex: String? = nil,
+        qroChallengeDigest384Hex: String? = nil,
         proofKind: String? = nil,
         carryMode: String? = nil,
         recursiveCarryReplayBindingDigestHex: String? = nil,
@@ -1059,6 +1437,8 @@ public struct SuperNeoAuditLogEvent: Codable, Equatable, Sendable {
         self.provenanceDigestHex = provenanceDigestHex
         self.revocationFeedDigestHex = revocationFeedDigestHex
         self.sideChannelCertificateDigestHex = sideChannelCertificateDigestHex
+        self.issuedQROChallengeDigestHex = issuedQROChallengeDigestHex
+        self.qroChallengeDigest384Hex = qroChallengeDigest384Hex
         self.proofKind = proofKind
         self.carryMode = carryMode
         self.recursiveCarryReplayBindingDigestHex = recursiveCarryReplayBindingDigestHex
@@ -1819,26 +2199,23 @@ public extension SuperNeoTrustedContextPayload {
         )
     }
 
-    func numiSealExpectedContext() throws -> NumiSealArtifactExpectedContext {
+    func requiredNumiSealPolicy() throws -> SuperNeoTrustedNumiSealContext {
         guard let numiSeal else {
             throw SuperNeoProductIntegrationError.missingExpectedContext("trusted context does not include NumiSeal policy")
         }
-        return NumiSealArtifactExpectedContext(
-            trustedKeySeedUTF8: expectedKeySeedUTF8,
-            verifierKeyDigest: try expectedVerifierKeyDigest,
-            shapeDigest: try expectedShapeDigest,
-            statementDigest: try expectedStatementDigest,
-            transcriptDomainDigest: try expectedTranscriptDomainDigest,
-            publicStatementDigest: try Digest256(hexDigest: numiSeal.publicStatementDigestHex, name: "public statement digest"),
-            obligationRoot: try Digest256(hexDigest: numiSeal.obligationRootHex, name: "obligation root"),
-            laneSummaryRoot: try Digest256(hexDigest: numiSeal.laneSummaryRootHex, name: "lane summary root"),
-            aggregateDigests: try numiSeal.aggregateDigestsHex.map {
-                try Digest256(hexDigest: $0, name: "aggregate digest")
-            },
-            componentDigestRoot: try Digest256(hexDigest: numiSeal.componentDigestRootHex, name: "component digest root"),
-            proofTranscriptDigest: try Digest256(hexDigest: numiSeal.proofTranscriptDigestHex, name: "proof transcript digest"),
-            publicInputs: publicInputs
-        )
+        return numiSeal
+    }
+
+    func validateNumiSealPolicy() throws {
+        let numiSeal = try requiredNumiSealPolicy()
+        _ = try Digest256(hexDigest: numiSeal.publicStatementDigestHex, name: "public statement digest")
+        _ = try Digest256(hexDigest: numiSeal.obligationRootHex, name: "obligation root")
+        _ = try Digest256(hexDigest: numiSeal.laneSummaryRootHex, name: "lane summary root")
+        _ = try numiSeal.aggregateDigestsHex.map {
+            try Digest256(hexDigest: $0, name: "aggregate digest")
+        }
+        _ = try Digest256(hexDigest: numiSeal.componentDigestRootHex, name: "component digest root")
+        _ = try Digest256(hexDigest: numiSeal.proofTranscriptDigestHex, name: "proof transcript digest")
     }
 
     func validate(now: Date, issuerKeyDigestHex: String) throws {
@@ -1877,9 +2254,9 @@ public extension SuperNeoTrustedContextPayload {
                     "trusted context accepting NumiSeal proofs must include NumiSeal public-root policy"
                 )
             }
-            _ = try numiSealExpectedContext()
+            try validateNumiSealPolicy()
         } else if numiSeal != nil {
-            _ = try numiSealExpectedContext()
+            try validateNumiSealPolicy()
         }
         if acceptedProofKinds.contains(.numiSealZK) {
             guard let numiSealZK else {
@@ -1949,6 +2326,10 @@ public extension SuperNeoProductProofIdentity {
         recursiveCarryReplayBindingDigest?.hexString ?? "none"
     }
 
+    var issuedQROChallengeDigestColumn: String {
+        issuedQROChallengeDigest?.hexString ?? "none"
+    }
+
     private var hBindReplayBindingFrames: [[UInt8]] {
         var frames: [[UInt8]] = [
             Array("superneo.product-proof-identity.v2".utf8),
@@ -1958,6 +2339,12 @@ public extension SuperNeoProductProofIdentity {
             artifactDigest.bytes,
             provenanceDigest.bytes
         ]
+        if let issuedQROChallengeDigest {
+            frames.append([1])
+            frames.append(issuedQROChallengeDigest.bytes)
+        } else {
+            frames.append([0])
+        }
         if let recursiveCarryReplayBindingDigest {
             frames.append([1])
             frames.append(recursiveCarryReplayBindingDigest.bytes)
@@ -2308,4 +2695,23 @@ private func appendLengthPrefixedString(_ value: String, to bytes: inout [UInt8]
         bytes.append(contentsOf: $0)
     }
     bytes.append(contentsOf: utf8)
+}
+
+private func superNeoProductParseHexBytes(_ raw: String, name: String) throws -> [UInt8] {
+    let hex = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    guard hex.count % 2 == 0, hex.range(of: "^[0-9a-f]+$", options: .regularExpression) != nil else {
+        throw SuperNeoProductIntegrationError.invalidRequest("\(name) must be even-length hex")
+    }
+    var bytes: [UInt8] = []
+    bytes.reserveCapacity(hex.count / 2)
+    var index = hex.startIndex
+    while index < hex.endIndex {
+        let next = hex.index(index, offsetBy: 2)
+        guard let byte = UInt8(hex[index..<next], radix: 16) else {
+            throw SuperNeoProductIntegrationError.invalidRequest("\(name) must be valid hex")
+        }
+        bytes.append(byte)
+        index = next
+    }
+    return bytes
 }

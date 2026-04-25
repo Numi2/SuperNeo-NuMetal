@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "accountingID": "superneo-product-qrom-fiat-shamir-accounting-v1",
+  "accountingID": "superneo-product-qrom-public-coin-accounting-v1",
   "claimStatus": "qrom-ctco-split-qro-contract-repository-local-production-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
@@ -18,8 +18,8 @@
   "formalSurface": {
     "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
     "declarations": [
-      "ProductFiatShamirLossAccounting",
-      "ProductFiatShamirLossAccountingAccepted",
+      "ProductPublicCoinLossAccounting",
+      "ProductPublicCoinLossAccountingAccepted",
       "ProductHashOracleInstantiation",
       "ProductHashOracleInstantiationAccepted",
       "ProductQROMCollisionBound",
@@ -74,9 +74,12 @@
     "sourceCTCOBinderHelpersAvailable": true,
     "sourceAcceptancePathsUseHBind": true,
     "hashQROInstantiationAssumptionPinned": true,
-    "hashQROInstantiationProofProvided": true
+    "idealSplitQROTheoremInstantiated": true,
+    "genericOfflineTransformAcceptedForProduction": false,
+    "concreteSHAKE256QROInstantiationProofProvided": false,
+    "hashQROInstantiationProofProvided": false
   },
-  "fiatShamirModel": {
+  "publicCoinQROModel": {
     "model": "ideal-split-qro",
     "transformFamily": "ctco",
     "fallbackTransformFamily": "merkle-straightline",
@@ -97,7 +100,8 @@
     "interactiveSecurityBoundsInstantiated": true,
     "legacyDFM20InterfaceDeprecated": true,
     "sourceImplementationComplete": true,
-    "productionQROMClaimAllowed": true
+    "repositoryLocalIdealQROMClaimAllowed": true,
+    "productionQROMClaimAllowed": false
   },
   "transcriptInterfaces": [
     {
@@ -192,11 +196,12 @@
     "sharedBadEventDeduplicationManifest": "TestVectors/product-shared-bad-event-dedup-v1.json",
     "allQROMLossTermsInstantiated": true,
     "qromLossWithinBudget": true,
-    "productionQROMClaimAllowed": true,
+    "repositoryLocalIdealQROMClaimAllowed": true,
+    "productionQROMClaimAllowed": false,
     "fixedKindAccountingRule": "H_bind binds the fixed expected proof kind and context; the selected-depth theorem dispatches to that fixed-kind ledger and does not flat-sum unrelated proof-kind finite terms."
   },
   "ledgerTermMapping": {
-    "fiatShamirQROMLoss": {
+    "publicCoinQROMLoss": {
       "ledgerSymbol": "epsilon_qrom",
       "sourceSymbols": [
         "epsilon_compiler_overhead",
@@ -220,16 +225,22 @@
     "decisiveLegacyFailure": "204! / 2^256 > 1",
     "legacyLossExpression": "max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)"
   },
-  "hardClaimBlockers": [],
+  "hardClaimBlockers": [
+    "concrete SHAKE256-to-split-QRO instantiation proof is not provided",
+    "generic offline transforms are not accepted for production; offline mode must stay in the DFMS/CTCO family and interactive verifier challenges remain the high-assurance route"
+  ],
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": true,
-    "productionPostQuantumClaimAllowed": true,
-    "productionQROMClaimAllowed": true,
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
+    "repositoryLocalIdealQROMClaimAllowed": true,
     "requiresCTCOProtocolImplementation": false,
     "requiresHBind384Implementation": false,
     "requiresInteractiveSecurityBounds": false,
     "requiresCompilerOverheadInstantiation": false,
     "requiresSharedBadEventDeduplication": false,
+    "requiresConcreteHashQROInstantiation": true,
+    "requiresInteractiveVerifierChallengeModeForHighestAssurance": true,
     "requiresSelectedDepthLedgerUpdate": false
   }
 }

@@ -10,7 +10,7 @@
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
     "proofEnvelopePolicy": "Docs/ProofEnvelope.md"
@@ -107,7 +107,7 @@
       "codeSurface": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductTheoremLimits.swift",
       "theoremID": "numiseal-product-qrom-selected-depth-1-v1",
       "maximumLaneCount": 1,
-      "maximumSourceFoldOutputClaimCount": 75,
+      "maximumSourceFoldOutputClaimCount": 14,
       "maximumObligationsPerAggregate": 75,
       "maximumAggregatesPerLane": 75,
       "maximumPublicInputCount": 1024,
@@ -184,7 +184,7 @@
         "qromAccountingRule": "charged outside epsilon_qrom"
       },
       "openInputs": [],
-      "productionQROMClaimAllowed": true,
+      "productionQROMClaimAllowed": false,
       "runtimeSelectedRepeatedTapeProfile": {
         "proofEnvelopeHeaderVersion": 5,
         "externalChallengeSeedBits": 256,
@@ -239,7 +239,7 @@
         "qromAccountingRule": "charged outside epsilon_qrom"
       },
       "openInputs": [],
-      "productionQROMClaimAllowed": true,
+      "productionQROMClaimAllowed": false,
       "sourceFoldRepeatedTapeProfile": "inherits selected-repeated-tape-v1 source fold profile with 2 PiCCS tapes and 3 PiRLC branches when the kind embeds a source fold obligation"
     },
     {
@@ -276,7 +276,7 @@
         "qromAccountingRule": "charged outside epsilon_qrom; decompression ambiguity is charged to canonical-decompression/H_bind bad events"
       },
       "openInputs": [],
-      "productionQROMClaimAllowed": true,
+      "productionQROMClaimAllowed": false,
       "sourceFoldRepeatedTapeProfile": "inherits selected-repeated-tape-v1 source fold profile with 2 PiCCS tapes and 3 PiRLC branches when the kind embeds a source fold obligation"
     },
     {
@@ -315,7 +315,7 @@
         "qromAccountingRule": "charged outside epsilon_qrom; replay/provenance delayed-message ambiguity is charged to binder-target events"
       },
       "openInputs": [],
-      "productionQROMClaimAllowed": true,
+      "productionQROMClaimAllowed": false,
       "sourceFoldRepeatedTapeProfile": "inherits selected-repeated-tape-v1 source fold profile with 2 PiCCS tapes and 3 PiRLC branches when the kind embeds a source fold obligation"
     },
     {
@@ -353,7 +353,7 @@
         "qromAccountingRule": "interactive soundness and proof-level simulator coupling are charged outside epsilon_qrom; epsilon_zk_sim is instantiated as zero in the simulator-coupling evidence"
       },
       "openInputs": [],
-      "productionQROMClaimAllowed": true,
+      "productionQROMClaimAllowed": false,
       "sourceFoldRepeatedTapeProfile": "inherits selected-repeated-tape-v1 source fold profile with 2 PiCCS tapes and 3 PiRLC branches when the kind embeds a source fold obligation"
     }
   ],
@@ -369,7 +369,7 @@
     "allAcceptedProofKindsCovered": true,
     "allInteractiveSecurityBoundsInstantiated": true,
     "numericTotalLossInstantiated": false,
-    "productionQROMClaimAllowed": true
+    "productionQROMClaimAllowed": false
   },
   "transcriptOracleEncodingProof": {
     "encoding": "append-only 64-bit little-endian length-delimited transcript frames",
@@ -401,7 +401,7 @@
       "H_bind binder-target failure",
       "canonical decompression failure"
     ],
-    "productionQROMClaimAllowed": true
+    "productionQROMClaimAllowed": false
   },
   "uniqueResponseData": {
     "status": "pinned-for-ctco-extraction",
@@ -429,7 +429,7 @@
         "responseUniqueness": "masked residual, mask tensor, randomness-session, and leakage openings are deterministic from Root_numiseal_zk_product and rho_numiseal_zk_product"
       }
     ],
-    "productionQROMClaimAllowed": true
+    "productionQROMClaimAllowed": false
   },
   "compilerOverheadInstantiation": {
     "status": "ideal-split-qro-ctco-overhead-instantiated",
@@ -437,7 +437,7 @@
     "exactExpression": "epsilon_compiler_overhead = 0",
     "modelScope": "ideal split-QRO with online extractability assumed by the CTCO theorem contract",
     "lossSeparation": "interactive extractor, proof-level ZK simulator, H_bind collision, replay, constant-time, and release losses are charged outside epsilon_compiler_overhead",
-    "productionQROMClaimAllowed": true
+    "productionQROMClaimAllowed": false
   },
   "qromQueryAndLossInstantiation": {
     "queryBoundQH": "2^64",
@@ -464,7 +464,7 @@
     "bindingDigestBits": 384,
     "merkleNodeDigestBits": 384,
     "ctcoSelectedDepthExpression": "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO model and is independent of legacy micro-round count",
-    "legacyDFM20SelectedDepthExpression": "epsilon_fs_transform(depth=1) <= max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
+    "legacyDFM20SelectedDepthExpression": "epsilon_public_coin_transform(depth=1) <= max_kind(((2*Q_H+n_kind+1)^(2*n_kind) / n_kind!) * epsilon_interactive_kind + n_kind! / 2^256 + epsilon_precondition_kind)",
     "legacyNumericBudgetFinding": {
       "status": "instantiated-outside-selected-budget",
       "selectedSecurityBudgetBits": 128,
@@ -477,7 +477,7 @@
     "allInteractiveSecurityBoundsInstantiated": true,
     "allNumericLossTermsInstantiated": true,
     "qromLossWithinBudget": true,
-    "productionQROMClaimAllowed": true,
+    "productionQROMClaimAllowed": false,
     "internalRepeatedTapeCounts": {
       "piccsTapeCount": 2,
       "pirlcBranchCount": 3,
@@ -486,7 +486,7 @@
     }
   },
   "ledgerIntegration": {
-    "qromAccountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "qromAccountingManifest": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "transformPreconditionManifest": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "transcriptScheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "totalLossBudgetManifest": "TestVectors/product-total-loss-budget-v1.json",
@@ -498,11 +498,13 @@
     "qromLossWithinBudget": true,
     "totalLossBudgetUpdated": true
   },
-  "hardClaimBlockers": [],
+  "hardClaimBlockers": [
+    "concrete SHAKE256-to-split-QRO instantiation proof is not provided"
+  ],
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": true,
-    "productionPostQuantumClaimAllowed": true,
-    "productionQROMClaimAllowed": true,
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
     "requiresCTCORootCommitments": false,
     "requiresHBind384SourceImplementation": false,
     "requiresInteractiveSecurityBounds": false,

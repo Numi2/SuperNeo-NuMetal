@@ -39,6 +39,17 @@ the status snapshot to the exact revocation state used for acceptance.
 The replay ledger records accepted proof identities under the H_bind-derived
 local replay digest. Recursive carry consumption also records the carry replay
 binding digest so duplicate carry consumption fails closed.
+NumiSealZK product-control acceptance also requires a signed issued-QRO
+challenge pack from `--qro-challenge-pack` or the operator profile's
+`qroChallengePackPath`. Raw QRO session/public-coin CLI fields are only a local
+non-product verification surface. Product controls bind the issued-QRO payload
+digest into the replay identity and enforce single-use issued public coins with
+the `accepted_issued_qro_challenges` SQLite uniqueness index.
+`product-issue-qro` can issue that signed pack for the planned workload before
+artifact generation. Proving can consume the same pack; that path requires
+either `--trusted-qro-issuer-key-digest` or `--operator-profile` so the pack
+signature is checked against an explicit local QRO issuer trust root before the
+proof is emitted.
 
 The audit log is append-only JSONL with a chained record digest. The status
 surface exports the current chain state, record count, `operationsStatus`,
@@ -52,13 +63,12 @@ revocation feed, replay database, and audit log are all internally consistent
 for the current operator profile. `attention-required` means the operator must
 repair or refresh local state before relying on product-mode acceptance.
 
-For trusted contexts that accept `numiseal-zk`, readiness requires a
-side-channel certificate only when the trusted context minimum is stricter than
-`correctness-only`. The `sideChannelCertificateStatus` field records whether
-certificate material is absent, optional, attached, missing-required, or below
-the configured minimum. Supplied certificates are checked by product
-verification for context, release, leakage, proof-policy, Metal workspace,
-benchmark-report, and evidence bindings.
+For trusted contexts that accept `numiseal-zk`, default `correctness-only`
+contexts do not require a side-channel certificate. The
+`sideChannelCertificateStatus` field records whether certificate material is
+absent, optional, attached, missing-required, or below the configured minimum.
+Supplied certificates are checked by product verification for context, release,
+leakage, proof-policy, Metal workspace, benchmark-report, and evidence bindings.
 
 This document closes the product operations readiness evidence artifact
 referenced by the total-loss budget. It does not instantiate the hosted replay

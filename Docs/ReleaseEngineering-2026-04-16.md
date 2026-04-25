@@ -1,276 +1,83 @@
-# Release Engineering Policy, 2026-04-16
+# Release Engineering, 2026-04-16
 
-This document defines the release discipline for the current repository scope.
-A passing release gate supports repository-local production-security promotion
-for the bounded theorem surface checked by the manifests. Hosted deployment,
-public distribution, notarization, app-store, and customer-facing release
-claims remain downstream release-operation decisions.
+This is the compact release policy. It separates ordinary research builds from
+repository-local production-security promotion.
 
 ## Release Classes
 
 ### Research or Integration Release
 
-A research or integration release may be tagged when all of the following are
-true:
-
-- `Scripts/production-gate.sh` passes locally without `--skip-formal`.
-- `.github/workflows/production-gate.yml` runs the full macOS production gate
-  without `--skip-formal` on `main` or manual dispatch.
-- The pull-request macOS smoke job, pull-request checked-vector validation job,
-  and Ubuntu formal-status workflow pass for their path-filtered scopes.
-- `Docs/ProductionReadinessAuditPacket-2026-04-16.md` is current.
-- `CHANGELOG.md` records user-facing changes and any residual deployment
-  operations boundaries.
-- `Docs/ReleaseCandidateRunbook-2026-04-16.md` has been followed.
-- `Docs/E2EProofMetrics-2026-04-16.md` reflects current checked proof-size
-  and product-smoke budgets.
-- `Docs/Benchmarking.md` and `TestVectors/benchmark-coverage-v1.json` reflect
-  current whole-stack benchmark row coverage.
-- `Docs/ConstantTimeEvidence-2026-04-16.md` reflects current source/formal
-  scope and Swift/LLVM/Metal lowering evidence semantics.
-- `Docs/ProductOperationsReadiness-2026-04-16.md` reflects current product
-  operations readiness status semantics and signed revocation feed semantics.
-- `Docs/CryptographicSecurityDossier-2026-04-16.md` reflects the current
-  bounded-depth product security theorem, Fiat-Shamir/QROM position, Module-SIS
-  parameter dossier, selected-depth loss accounting, product extractor loss
-  accounting, product QROM transcript schedule, product QROM sampler and
-  encoding evidence, product QROM collision/malleability structural evidence,
-  product QROM transform preconditions, product QROM interactive reduction,
-  product QROM Fiat-Shamir accounting, product total-loss budget, and
-  product release distribution evidence boundaries.
-- Any changed public proof envelope, artifact, or manifest schema is documented
-  in `Docs/SchemaCompatibility-2026-04-16.md`.
-- Release notes describe the repository-local bounded theorem surface and do
-  not claim hosted deployment review, public notarization, app-store
-  distribution, or hardware classes that were not checked.
+Allowed for development, benchmarks, and integration demos. It must not claim
+production post-quantum security, production QROM security, whole-stack
+constant-time behavior, or independent cryptographic and implementation review.
 
 ### Repository-Local Production-Security Promotion
 
-Repository-local production-security promotion is allowed when
-`Scripts/collect-production-security-promotion-status.py` reports no blockers
-and `Scripts/production-gate.sh` passes for the intended release lane.
+Repository-local production-security promotion requires the full production gate
+and checked evidence set. It is still not a public deployment approval.
 
-The release boundary is:
+Required command:
 
-- bounded selected-depth product security only,
-- checked local product operations, replay, provenance, and revocation-feed
-  semantics,
-- checked recursive typed carry, NumiSealZK default, QROM, total-loss,
-  side-channel, performance, and release-distribution evidence surfaces,
-- repository-local unsigned distribution unless downstream release operations
-  add external signing or notarization,
-- artifact digest provenance,
-- release evidence digest binding,
-- a clean production gate.
+```sh
+Scripts/production-gate.sh
+```
 
-External deployment releases may add:
+Run it without `--skip-formal`. The full production gate must pass before any
+repository-local promotion wording. Release records must include artifact digest provenance.
 
-- independent cryptographic and implementation review,
-- hosted authentication, authorization, tenant isolation, audit retention, and
-  revocation feed operations,
-- side-channel evidence for additional hardware/profile lanes,
-- pinned Sage-backed estimator refreshes when a release wants to restate the
-  independent estimator evidence, and
-- signing, notarization, public distribution, or app-store policy artifacts.
+## Required Evidence And Validators
 
-## Required Release Evidence
+- `Scripts/validate-numiseal-conformance-scope.py`
+- `Scripts/test-numiseal-conformance-scope-validation.py`
+- `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`
+- `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`
+- `TestVectors/product-crypto-security-dossier-v1.json`
+- `TestVectors/product-selected-depth-loss-accounting-v1.json`
+- `TestVectors/product-extractor-loss-accounting-v1.json`
+- `TestVectors/product-qrom-public-coin-accounting-v1.json`
+- `TestVectors/product-qrom-transcript-schedule-v1.json`
+- `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`
+- `TestVectors/product-qrom-collision-malleability-evidence-v1.json`
+- `TestVectors/product-qrom-transform-preconditions-v1.json`
+- `TestVectors/product-qrom-interactive-reduction-v1.json`
+- `TestVectors/product-total-loss-budget-v1.json`
+- `TestVectors/product-release-distribution-evidence-v1.json`
+- `Docs/CryptographicSecurityDossier-2026-04-16.md`
+- `Scripts/validate-constant-time-scope.py`
+- `Scripts/validate-constant-time-lowering-evidence.py`
+- `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
+- `Scripts/validate-e2e-proof-metrics.py`
+- `Scripts/validate-product-ops-surface.py`
+- `Scripts/generate-release-candidate-evidence.py`
 
-Each release candidate should record:
+## Required Digest Labels
 
-- commit hash,
-- dirty/clean source state,
-- exact `Scripts/production-gate.sh` output summary,
-- benchmark profile and hardware class if performance claims are included,
-- benchmark coverage manifest digest,
-- lattice-estimator artifact path and validation status if security-estimate
-  claims are included,
-- artifact schema versions and any compatibility changes,
-- proof envelope version,
-- known residual boundaries,
-- NumiSeal conformance-scope digest.
-- NumiSeal end-to-end theorem scope digest.
-- recursive folding knowledge soundness scope digest.
-- typed carry producer/consumer theorem scope digest.
-- NumiSealZK simulation/privacy leakage-model digest.
-- NumiSealZK mask-distribution evidence digest.
-- product cryptographic security dossier digest.
-- bounded-depth product security theorem status.
-- selected-depth loss accounting digest.
-- product extractor loss accounting digest.
-- product QROM transcript schedule digest.
-- product QROM sampler and encoding evidence digest.
-- product QROM collision/malleability structural evidence digest.
-- product QROM transform preconditions digest.
-- product QROM interactive reduction digest.
-- product QROM Fiat-Shamir accounting digest.
-- product total-loss budget digest.
-- product release distribution evidence digest.
-- constant-time source/formal scope digest.
-- constant-time lowering evidence digest.
-- constant-time release evidence digest.
-- constant-time compiler and hardware observation lane digests.
-- E2E proof metrics digest.
-- benchmark coverage manifest digest.
-- product operations readiness status version.
-- signed revocation feed policy.
+Product release evidence must record these labels:
 
-`Scripts/generate-release-candidate-evidence.py` generates this evidence in a
-machine-readable JSON packet, and `Scripts/validate-release-candidate-evidence.py`
-checks that the packet was produced from the full production gate and current
-public surface versions. `Scripts/validate-numiseal-conformance-scope.py`
-checks the NumiSeal product/carry/ZK scope manifest and the checked
-`TestVectors/numiseal-end-to-end-theorem-scope-v1.json` theorem-scope manifest
-that release evidence pins. That theorem scope includes recursive folding
-knowledge soundness, typed carry producer/consumer composition, and NumiSealZK
-simulation/privacy under the declared public-leakage model, and the release
-packet separately pins exact rejection-sampled field mask distribution evidence
-in `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`.
-`Scripts/test-numiseal-conformance-scope-validation.py` mutation-tests those
-promotion guards.
-`Scripts/validate-numiseal-zk-mask-distribution-evidence.py` checks the concrete
-NumiSealZK mask sampler arithmetic and promotion boundary.
-`Scripts/validate-numiseal-zk-simulator-coupling-evidence.py` checks the
-NumiSealZK proof-level simulator-coupling digest surface, declared leakage
-model, exact zero `epsilon_zk_sim` loss, product-sized benchmark row pins, and
-side-channel promotion boundary.
-`Scripts/validate-product-crypto-security-dossier.py` checks
-`TestVectors/product-crypto-security-dossier-v1.json`, including the
-bounded-depth product security theorem surface, ProductSecurityTheorem import,
-Fiat-Shamir/QROM target and enabled production claim, Module-SIS parameter
-tuple, conservative post-quantum boundary, proof-size/latency boundary, and
-implementation-hardening boundary.
-`Scripts/validate-product-selected-depth-loss-accounting.py` checks
-`TestVectors/product-selected-depth-loss-accounting-v1.json`, including the
-selected-depth loss expression, the recursive promotion expression, the ten
-component loss terms, proof-level `epsilon_zk_sim = 0`, and the checked closure
-requirements for extractor, QROM, transcript collision, product operations,
-repository-local release distribution, and CPU/Swift/LLVM/Metal constant-time
-evidence.
-`Scripts/validate-product-swift-trace-extractor-evidence.py` checks
-`TestVectors/product-swift-trace-extractor-evidence-v1.json`, including the
-Swift executable trace surface, source-fold output claim binding, CTCO trace
-block order, and fail-closed extractor promotion rule.
-`Scripts/validate-product-extractor-loss-accounting.py` checks
-`TestVectors/product-extractor-loss-accounting-v1.json`, including source-fold
-extractor, terminal-seal extractor, product-envelope composition extractor,
-future recursive carry extractor, and the fail-closed numeric loss budget.
-`Scripts/validate-product-qrom-fiat-shamir-accounting.py` checks
-`TestVectors/product-qrom-fiat-shamir-accounting-v1.json`, including
-proof-kind transcript interfaces, QROM loss symbols, challenge families,
-domain separation, the `epsilon_transcript_collision` to `epsilon_collision`
-ledger mapping, the instantiated conditional `Q_H = 2^64` cap, and the
-fail-closed quantum random-oracle loss budget.
-`Scripts/validate-product-qrom-transcript-schedule.py` checks
-`TestVectors/product-qrom-transcript-schedule-v1.json`, including the product
-QROM transcript schedule, proof-kind order, public challenge labels, symbolic
-`Q_H` query families, per-kind protocol challenge-derivation maxima, and the
-fail-closed QROM promotion rule.
-`Scripts/validate-product-qrom-sampler-encoding-evidence.py` checks
-`TestVectors/product-qrom-sampler-encoding-evidence-v1.json`, including
-product QROM sampler and encoding evidence, exact rejection-sampling arithmetic
-for Goldilocks, Ext2, Phi81, CE ternary, and NumiSealZK masked-residual
-challenges, well-formed structured transcript frame injectivity, and the
-fail-closed QROM promotion rule.
-`Scripts/validate-product-qrom-collision-malleability-evidence.py` checks
-`TestVectors/product-qrom-collision-malleability-evidence-v1.json`, including
-product QROM collision/malleability structural evidence, accepted proof-kind
-separation, proof-envelope transcript-binding injectivity, artifact/provenance
-digest binding, product replay identity binding, NumiSeal component-root
-binding, typed carry replay binding, and the fail-closed boundary for leaving
-the repository-local split-QRO model. Numeric 384-bit binding collision
-arithmetic, proof-kind malleability,
-and the CTCO source instantiation are checked by
-`Scripts/validate-product-qrom-ctco-instantiation.py`.
-`Scripts/validate-product-qrom-ctco-instantiation.py` checks
-`TestVectors/product-qrom-ctco-instantiation-v1.json`, including split-oracle
-CTCO source bindings, 256-bit challenge seeds, 384-bit H_bind roots, `Q_H =
-2^64`, `36 * 2^-256` binding arithmetic, proof-kind malleability `0`, and the
-fail-closed QROM promotion rule.
-`Scripts/validate-product-qrom-transform-preconditions.py` checks
-`TestVectors/product-qrom-transform-preconditions-v1.json`, including the
-product QROM transform preconditions, primary QROM Fiat-Shamir source basis,
-legacy measure-and-reprogram diagnostic profile, per-proof-kind theorem-family
-fit, CTCO/Merkle-straightline replacement target, and fail-closed production
-QROM promotion rule.
-`Scripts/validate-product-qrom-interactive-reduction.py` checks
-`TestVectors/product-qrom-interactive-reduction-v1.json`, including the
-product QROM interactive reduction ledger, public-coin protocol formulas,
-selected `Q_H = 2^64` policy, code-enforced NumiSeal challenge maxima, DFM20
-loss multiplier, selected-depth protocol challenge-derivation budget,
-legacy out-of-budget numeric finding, and fail-closed production QROM promotion
-rule. The DFM20 row is retained as a diagnostic and is not the active theorem
-target.
-`Scripts/validate-product-total-loss-budget.py` checks
-`TestVectors/product-total-loss-budget-v1.json`, including exact rational
-summation, the `2^-128` selected threshold, eleven component bounds, ten
-selected-depth required terms, shared-core bad-event deduplication, and the
-fail-closed total-loss budget validation.
-`Scripts/validate-product-release-distribution-evidence.py` checks
-`TestVectors/product-release-distribution-evidence-v1.json`, including product
-release distribution evidence for required artifact families, provenance
-fields, unsigned artifact status, artifact digest provenance, repository-local
-promotion flags, the `epsilon_release` loss symbol, and release-evidence packet
-binding.
-`Scripts/validate-constant-time-scope.py` checks the constant-time
-source/formal scope manifest and the formal declarations recorded in
-`Docs/ConstantTimeEvidence-2026-04-16.md`.
-`Scripts/validate-constant-time-lowering-evidence.py` checks the
-Swift/LLVM/Metal lowering proof contract, runtime/hardware TCB obligations, and
-promotion rule recorded in `TestVectors/constant-time-lowering-evidence-v1.json`;
-it also verifies the pinned local Swift SIL/LLVM/assembly artifacts, Metal
-AIR/metallib artifacts, runtime allocation review, CPU/GPU observation corpora,
-and compiler/hardware observation lane reports under
-`Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`. Regenerate those
-artifacts with `Scripts/generate-constant-time-release-evidence.py` before a
-release candidate when the scoped source or toolchain changes.
-`Scripts/validate-e2e-proof-metrics.py` checks deterministic checked-vector
-proof sizes and generated NumiSeal product smoke budgets recorded in
-`Docs/E2EProofMetrics-2026-04-16.md`.
-`Scripts/validate-benchmark-coverage.py` checks
-`TestVectors/benchmark-coverage-v1.json`, including source registration,
-report-renderer coverage, baseline-comparator coverage, production-gate wiring,
-and repository-local performance coverage.
-`Scripts/test-benchmark-coverage-validation.py` mutation-tests those row
-coverage guards.
-`Scripts/validate-product-ops-surface.py` checks product operations readiness
-status, signed revocation feed wiring, CLI JSON mode, audit export binding, and
-production-gate wiring recorded in
-`Docs/ProductOperationsReadiness-2026-04-16.md`.
+- product operations readiness
+- NumiSeal end-to-end theorem scope digest
+- recursive folding knowledge soundness
+- typed carry producer/consumer
+- NumiSealZK simulation/privacy
+- exact rejection-sampled field mask distribution
+- product cryptographic security dossier digest
+- bounded-depth product security theorem
+- product extractor loss accounting
+- product QROM public-coin accounting
+- product QROM transcript schedule
+- product QROM sampler and encoding evidence
+- product QROM collision/malleability structural evidence
+- product QROM transform preconditions
+- product QROM interactive reduction
+- product total-loss budget
+- product release distribution evidence
+- signed revocation feed
+- E2E proof metrics digest
+- constant-time release evidence digest
 
-## Signing And Provenance
+## References
 
-Release artifacts may be signed by downstream distributors, but repository-local
-production promotion does not require external signing, notarization, public
-distribution, or publication protection. `TestVectors/product-release-distribution-evidence-v1.json`
-is the repository-local release contract: it requires artifact digest provenance,
-release evidence digest binding, and the full production gate result.
-
-Required provenance fields:
-
-- repository URL,
-- commit hash,
-- build host class,
-- Swift toolchain version,
-- Lean toolchain version,
-- production-gate result,
-- artifact hash,
-- provenance format version,
-- release evidence digest,
-- product cryptographic security dossier digest,
-- selected-depth loss accounting digest,
-- product total-loss budget digest,
-- constant-time release evidence digest,
-- benchmark coverage digest.
-
-## Publication Protection
-
-Publication and promotion controls should require:
-
-- the macOS full production gate job,
-- the Ubuntu Lean formal cross-check job,
-- code review for changes under `SuperNeo-NuMetal/`, `SuperNeoCLI/`,
-  `Tools/`, `Scripts/`, `Formal/`, `.github/workflows/`, and `TestVectors/`.
-
-Benchmarks and full Sage-backed estimator runs may remain opt-in because they
-depend on hardware and external tooling, but performance or security-estimate
-release claims must point to pinned artifacts generated by those lanes.
+- `Docs/ProductionReadinessAuditPacket-2026-04-16.md`
+- `Docs/ReleaseCandidateRunbook-2026-04-16.md`
+- `Docs/SchemaCompatibility-2026-04-16.md`
+- `Docs/Benchmarking.md`

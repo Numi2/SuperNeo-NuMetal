@@ -35,7 +35,7 @@ EXPECTED_MANIFESTS = {
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
     "productQROMCollisionMalleabilityEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productTotalLossBudget": "TestVectors/product-total-loss-budget-v1.json",
     "numiSealZKSimulatorCouplingEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -43,7 +43,7 @@ EXPECTED_MANIFESTS = {
 }
 
 EXPECTED_FORMAL_DECLARATIONS = {
-    "ProductFiatShamirTransformPreconditions",
+    "ProductPublicCoinTransformPreconditions",
     "ProductQROMTransformFamily",
     "ProductCompilerFamily",
     "ProductChallengeTapeCommitOpenCompiler",
@@ -170,7 +170,7 @@ def validate_related_manifests(preconditions: dict[str, Any]) -> None:
         require_relative_path(relative, f"relatedManifests.{key}")
 
     for manifest_key, nested_key in [
-        ("productQROMFiatShamirAccounting", "productQROMTransformPreconditions"),
+        ("productQROMPublicCoinAccounting", "productQROMTransformPreconditions"),
         ("productQROMTranscriptSchedule", "productQROMTransformPreconditions"),
         ("productCryptoSecurityDossier", "productQROMTransformPreconditions"),
         ("selectedDepthLossAccounting", "productQROMTransformPreconditions"),
@@ -289,7 +289,7 @@ def validate_proof_kind_fit(preconditions: dict[str, Any]) -> None:
         require(row.get("queryBoundLog2") == 64, f"{expected_kind}.queryBoundLog2 mismatch")
         require_true(row.get("interactiveSecurityBoundInstantiated"), f"{expected_kind}.interactiveSecurityBoundInstantiated")
         require_true(row.get("transformPreconditionsSatisfied"), f"{expected_kind}.transformPreconditionsSatisfied")
-        require_true(row.get("productionQROMClaimAllowed"), f"{expected_kind}.productionQROMClaimAllowed")
+        require_false(row.get("productionQROMClaimAllowed"), f"{expected_kind}.productionQROMClaimAllowed")
     require(seen == [(kind, envelope) for kind, envelope, _ in EXPECTED_PROOF_KINDS], "proofKindFit order mismatch")
 
 
@@ -320,8 +320,8 @@ def validate_loss_interface(preconditions: dict[str, Any]) -> None:
 def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
     blockers = preconditions.get("hardClaimBlockers")
     require(isinstance(blockers, list), "hardClaimBlockers must be a list")
-    require(blockers == [], "hardClaimBlockers must be empty after repository-local QROM promotion")
     blocker_text = " ".join(str(blocker) for blocker in blockers).lower()
+    require("shake256-to-split-qro" in blocker_text, "hardClaimBlockers must keep concrete SHAKE256 promotion open")
     require("zero-knowledge" not in blocker_text, "zero-knowledge simulator composition must not remain a transform blocker")
     require("special-soundness" not in blocker_text, "interactive special-soundness must not remain a transform blocker")
     promotion = require_dict(preconditions.get("promotionRule"), "promotionRule")
@@ -330,7 +330,7 @@ def validate_promotion_and_blockers(preconditions: dict[str, Any]) -> None:
         "productionPostQuantumClaimAllowed",
         "productionQROMClaimAllowed",
     ]:
-        require_true(promotion.get(key), f"promotionRule.{key}")
+        require_false(promotion.get(key), f"promotionRule.{key}")
     for key in [
         "requiresInteractiveProtocolImplementation",
         "requiresUnderlyingInteractiveSecurity",

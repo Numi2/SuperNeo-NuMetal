@@ -4,9 +4,6 @@
   "surfaces": [
     {
       "conformanceVectors": [
-        "TestVectors/numiseal-terminal-single-aggregate-v1.json",
-        "TestVectors/numiseal-terminal-two-aggregate-v1.json",
-        "TestVectors/numiseal-terminal-two-lane-v1.json",
         "TestVectors/numiseal-product-recursive-carry-context-v1.json"
       ],
       "formalScope": [
@@ -22,19 +19,18 @@
       "implementationPaths": [
         "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
         "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypedCarry.swift",
-        "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealArtifactVerifier.swift",
-        "SuperNeo-NuMetal/ProductIntegration/NumiSealProductVerifier.swift"
+        "SuperNeo-NuMetal/ProductIntegration/NumiSealProductVerifier.swift",
+        "SuperNeo-NuMetal/Transcript/SumCheckTranscript.swift"
       ],
       "openFormalWork": [
         "generate recursive carry extractor evidence for promoted recursive transcript schedules beyond selected depth 1"
       ],
       "testNames": [
+        "testQROChallengeBoundFoldRejectsSwappedVerifierChallenge",
         "testNumiSealProductProverEmitsVerifiableV2Artifact",
         "testNumiSealProductVerifierBindsCarryModeToTerminalPolicy",
         "testNumiSealProductRecursiveCarryContextBindsParentArtifactAndSession",
-        "testNumiSealProductRecursiveCarryParentProducesAndVerifiesTypedRequiredChild",
-        "testNumiSealProductVerifierAcceptsThroughIntegrationHooks",
-        "testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification"
+        "testNumiSealProductRecursiveCarryParentProducesAndVerifiesTypedRequiredChild"
       ]
     },
     {

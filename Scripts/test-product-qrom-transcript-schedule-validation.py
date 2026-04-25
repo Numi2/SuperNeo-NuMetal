@@ -55,7 +55,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         missing_qrom = copy.deepcopy(schedule)
-        missing_qrom["relatedManifests"].pop("productQROMFiatShamirAccounting")
+        missing_qrom["relatedManifests"].pop("productQROMPublicCoinAccounting")
         path = tmp / "missing-qrom.json"
         write_json(path, missing_qrom)
         run_fail(str(VALIDATE), str(path))
@@ -117,12 +117,10 @@ def main() -> None:
         write_json(path, missing_query_symbol)
         run_fail(str(VALIDATE), str(path))
 
-        reopened_blocker = copy.deepcopy(schedule)
-        reopened_blocker["hardClaimBlockers"].append(
-            "concrete SHAKE256-to-split-QRO promotion remains outside the ideal transcript-schedule theorem model"
-        )
-        path = tmp / "reopened-blocker.json"
-        write_json(path, reopened_blocker)
+        missing_blocker = copy.deepcopy(schedule)
+        missing_blocker["hardClaimBlockers"] = ["generic offline production wording remains rejected"]
+        path = tmp / "missing-blocker.json"
+        write_json(path, missing_blocker)
         run_fail(str(VALIDATE), str(path))
 
         outsourced_review = copy.deepcopy(schedule)
@@ -132,7 +130,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         premature_promotion = copy.deepcopy(schedule)
-        premature_promotion["promotionRule"]["productionQROMClaimAllowed"] = False
+        premature_promotion["promotionRule"]["productionQROMClaimAllowed"] = True
         path = tmp / "premature-promotion.json"
         write_json(path, premature_promotion)
         run_fail(str(VALIDATE), str(path))

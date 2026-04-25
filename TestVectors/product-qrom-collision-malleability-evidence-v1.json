@@ -5,7 +5,7 @@
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
@@ -41,7 +41,8 @@
     "numiSealProof": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProof.swift",
     "numiSealZKProof": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealZKProof.swift",
     "numiSealTypes": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealTypes.swift",
-    "numiSealArtifactVerifier": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealArtifactVerifier.swift"
+    "numiSealProductProver": "SuperNeo-NuMetal/Protocols/NumiSeal/NumiSealProductProver.swift",
+    "numiSealProductVerifier": "SuperNeo-NuMetal/ProductIntegration/NumiSealProductVerifier.swift"
   },
   "acceptedProofKinds": [
     {
@@ -163,13 +164,16 @@
     "digestCollisionBoundInstantiated": true,
     "proofKindMalleabilityBoundInstantiated": true,
     "hashQROInstantiationAssumptionPinned": true,
-    "hashQROInstantiationProofProvided": true,
+    "idealSplitQROTheoremInstantiated": true,
+    "concreteSHAKE256QROInstantiationProofProvided": false,
+    "hashQROInstantiationProofProvided": false,
     "qromReductionLossWithinBudget": true,
     "totalLossBudgetIntegrated": true,
     "sourceSHAKE256PrimitiveAvailable": true,
     "sourceDigest384TypeAvailable": true,
     "sourceCTCOBinderHelpersAvailable": true,
     "sourceHBindImplementationComplete": true,
-    "productionQROMClaimAllowed": true
+    "repositoryLocalIdealQROMClaimAllowed": true,
+    "productionQROMClaimAllowed": false
   }
 }

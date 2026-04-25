@@ -191,19 +191,19 @@ def main() -> None:
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         wrong_qrom_accounting = copy.deepcopy(evidence)
-        wrong_qrom_accounting["publicSurfaces"]["productQROMFiatShamirAccountingVersion"] = 2
+        wrong_qrom_accounting["publicSurfaces"]["productQROMPublicCoinAccountingVersion"] = 2
         path = tmp / "wrong-qrom-accounting.json"
         write_json(path, wrong_qrom_accounting)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         vague_qrom_accounting = copy.deepcopy(evidence)
-        vague_qrom_accounting["publicSurfaces"]["productQROMFiatShamirAccountingClaimStatus"] = "production-qrom-proof"
+        vague_qrom_accounting["publicSurfaces"]["productQROMPublicCoinAccountingClaimStatus"] = "production-qrom-proof"
         path = tmp / "vague-qrom-accounting.json"
         write_json(path, vague_qrom_accounting)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))
 
         missing_qrom_interface = copy.deepcopy(evidence)
-        missing_qrom_interface["publicSurfaces"]["productQROMFiatShamirTranscriptInterfaceCount"] = 4
+        missing_qrom_interface["publicSurfaces"]["productQROMPublicCoinTranscriptInterfaceCount"] = 4
         path = tmp / "missing-qrom-interface.json"
         write_json(path, missing_qrom_interface)
         run_fail(str(VALIDATE), "--allow-dirty", str(path))

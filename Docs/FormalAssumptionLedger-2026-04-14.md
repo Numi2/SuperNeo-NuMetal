@@ -61,9 +61,8 @@ conditional path depends only on mechanized closed groups.
   constructs the theorem-facing PiCCS bad-challenge set; the older certificate
   wrapper is no longer the endpoint for constructed bad sets.
   `goldilocks-ext2-wire-model` tracks the extension-field wire operations and
-  inverse-data correctness. The legacy `piccs-finite-bad-challenge-soundness`
-  certificate wrapper remains compatibility-only; theorem-facing PiCCS
-  accounting is the constructed bad-challenge set above.
+  inverse-data correctness. The theorem-facing PiCCS accounting is the
+  constructed bad-challenge set above.
 - Swift wire support now includes `swift-ext2-caller-byte-surfaces`, a closed
   grammar layer for counted Ext2 vectors, counted Ext2 ring vectors,
   sum-check Ext2 proof fragments, and CCS/CE point-evaluation caller bytes.

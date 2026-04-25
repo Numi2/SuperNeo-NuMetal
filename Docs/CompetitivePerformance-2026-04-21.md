@@ -34,13 +34,13 @@ this document exists for external comparison claims.
 ```sh
 /usr/bin/time -l .build/release/superneo prove \
   --seal numiseal \
-  --numiseal-zk-mode none \
+  --numiseal-zk-mode masked-digit-tensor-v1 \
   --numiseal-execution-policy zk-high-assurance-cpu \
   --bits 0,1 \
   --max-obligations-per-aggregate 32 \
-  --output /tmp/numiseal-terminal.json
+  --output /tmp/numiseal-zk-terminal.json
 
-/usr/bin/time -l .build/release/superneo verify /tmp/numiseal-terminal.json
+/usr/bin/time -l .build/release/superneo verify /tmp/numiseal-zk-terminal.json
 
 /usr/bin/time -l .build/release/superneo prove \
   --seal numiseal \

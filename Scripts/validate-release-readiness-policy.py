@@ -74,10 +74,6 @@ def validate_workflow() -> None:
         'run: swift Scripts/validate-test-vectors.swift "${PWD}"' in workflow,
         "PR checked vector job must validate checked proof vectors",
     )
-    require(
-        'run: swift run superneo-numiseal-vectors validate "${PWD}"' in workflow,
-        "PR checked vector job must validate checked NumiSeal vectors",
-    )
     require("name: Full production gate" in workflow, "macOS CI job is not named as the full production gate")
     require(
         "if: ${{ github.event_name != 'pull_request' }}" in workflow,
@@ -133,7 +129,7 @@ def validate_docs() -> None:
             "TestVectors/product-crypto-security-dossier-v1.json",
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "TestVectors/product-extractor-loss-accounting-v1.json",
-            "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+            "TestVectors/product-qrom-public-coin-accounting-v1.json",
             "TestVectors/product-qrom-transcript-schedule-v1.json",
             "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
@@ -155,14 +151,16 @@ def validate_docs() -> None:
             "Scripts/validate-constant-time-lowering-evidence.py",
             "Scripts/test-constant-time-lowering-evidence-validation.py",
             "Scripts/generate-constant-time-release-evidence.py",
+            "Scripts/validate-numiseal-product-artifact-schema.py",
+            "Scripts/test-numiseal-product-artifact-schema-validation.py",
             "Scripts/validate-product-crypto-security-dossier.py",
             "Scripts/test-product-crypto-security-dossier-validation.py",
             "Scripts/validate-product-selected-depth-loss-accounting.py",
             "Scripts/test-product-selected-depth-loss-accounting-validation.py",
             "Scripts/validate-product-extractor-loss-accounting.py",
             "Scripts/test-product-extractor-loss-accounting-validation.py",
-            "Scripts/validate-product-qrom-fiat-shamir-accounting.py",
-            "Scripts/test-product-qrom-fiat-shamir-accounting-validation.py",
+            "Scripts/validate-product-qrom-public-coin-accounting.py",
+            "Scripts/test-product-qrom-public-coin-accounting-validation.py",
             "Scripts/validate-product-qrom-transcript-schedule.py",
             "Scripts/test-product-qrom-transcript-schedule-validation.py",
             "Scripts/validate-product-qrom-sampler-encoding-evidence.py",
@@ -194,7 +192,7 @@ def validate_docs() -> None:
             "bounded-depth product security theorem",
             "selected-depth loss accounting",
             "extractor loss-accounting validation",
-            "QROM Fiat-Shamir accounting validation",
+            "QROM public-coin accounting validation",
             "QROM transcript schedule validation",
             "QROM sampler/encoding evidence validation",
             "QROM collision/malleability structural evidence validation",
@@ -203,7 +201,7 @@ def validate_docs() -> None:
             "total-loss budget validation",
             "release distribution evidence validation",
             "ProductSecurityTheorem",
-            "Fiat-Shamir/QROM",
+            "QRO/QROM",
             "Module-SIS",
             "signed revocation feed",
         ],
@@ -226,7 +224,7 @@ def validate_docs() -> None:
             "TestVectors/product-crypto-security-dossier-v1.json",
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "TestVectors/product-extractor-loss-accounting-v1.json",
-            "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+            "TestVectors/product-qrom-public-coin-accounting-v1.json",
             "TestVectors/product-qrom-transcript-schedule-v1.json",
             "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
@@ -249,7 +247,7 @@ def validate_docs() -> None:
             "product cryptographic security dossier digest",
             "bounded-depth product security theorem",
             "product extractor loss accounting",
-            "product QROM Fiat-Shamir accounting",
+            "product QROM public-coin accounting",
             "product QROM transcript schedule",
             "product QROM sampler and encoding evidence",
             "product QROM collision/malleability structural evidence",
@@ -269,7 +267,7 @@ def validate_docs() -> None:
             "`artifactVersion = 1`",
             "`manifestVersion = 1`",
             "`ProofEnvelopeHeader.version = 5`",
-            "`numiseal-test-vector-artifact-v1.json`",
+            "`numiseal-product-artifact-v2.schema.json`",
             "`test-vector-artifact-v1.json`",
             "TestVectors/numiseal-conformance-scope-v1.json",
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -277,7 +275,7 @@ def validate_docs() -> None:
             "TestVectors/product-crypto-security-dossier-v1.json",
             "TestVectors/product-selected-depth-loss-accounting-v1.json",
             "TestVectors/product-extractor-loss-accounting-v1.json",
-            "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+            "TestVectors/product-qrom-public-coin-accounting-v1.json",
             "TestVectors/product-qrom-transcript-schedule-v1.json",
             "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
             "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
@@ -291,7 +289,7 @@ def validate_docs() -> None:
             "TestVectors/e2e-proof-metrics-v1.json",
             "TestVectors/benchmark-coverage-v1.json",
             "Product extractor loss accounting manifest",
-            "Product QROM Fiat-Shamir accounting manifest",
+            "Product QROM public-coin accounting manifest",
             "Product QROM transcript schedule manifest",
             "Product QROM sampler/encoding evidence manifest",
             "Product QROM collision/malleability evidence manifest",
@@ -316,7 +314,7 @@ def validate_docs() -> None:
             "product cryptographic security dossier version and digest",
             "selected-depth loss-accounting version and digest",
             "product extractor loss-accounting version and digest",
-            "product QROM Fiat-Shamir accounting version and digest",
+            "product QROM public-coin accounting version and digest",
             "product QROM transcript schedule version and digest",
             "product QROM sampler/encoding evidence version and digest",
             "product QROM collision/malleability evidence version and digest",
@@ -349,7 +347,7 @@ def validate_docs() -> None:
             "bounded-depth product security theorem",
             "selected-depth loss accounting",
             "extractor loss accounting",
-            "QROM Fiat-Shamir accounting",
+            "QROM public-coin accounting",
             "QROM transcript schedule",
             "QROM sampler/encoding evidence",
             "QROM collision/malleability evidence",
@@ -380,11 +378,21 @@ def require_manifest_version(relative_path: str) -> None:
     require(manifest.get("manifestVersion") == 1, f"{relative_path} manifestVersion must be 1")
 
 
+def require_numiseal_product_schema_version(relative_path: str) -> None:
+    schema = read_json(relative_path)
+    require(isinstance(schema, dict), f"{relative_path} root must be a JSON object")
+    require(schema.get("additionalProperties") is False, f"{relative_path} must reject additional properties")
+    properties = schema.get("properties")
+    require(isinstance(properties, dict), f"{relative_path} must contain object properties")
+    artifact_version = properties.get("artifactVersion")
+    require(isinstance(artifact_version, dict), f"{relative_path} must constrain artifactVersion")
+    require(artifact_version.get("const") == 2, f"{relative_path} artifactVersion const must be 2")
+
+
 def validate_schema_versions() -> None:
     require_schema_version("TestVectors/artifact.schema.json", "/test-vector-artifact-v1.json")
-    require_schema_version("TestVectors/numiseal-artifact.schema.json", "/numiseal-test-vector-artifact-v1.json")
+    require_numiseal_product_schema_version("TestVectors/numiseal-product-artifact-v2.schema.json")
     require_manifest_version("TestVectors/manifest.json")
-    require_manifest_version("TestVectors/numiseal-manifest.json")
     conformance_scope = read_json("TestVectors/numiseal-conformance-scope-v1.json")
     require(isinstance(conformance_scope, dict), "NumiSeal conformance scope root must be an object")
     require(conformance_scope.get("schemaVersion") == 1, "NumiSeal conformance scope schemaVersion must be 1")
@@ -494,8 +502,8 @@ def validate_schema_versions() -> None:
         "product crypto security dossier must link extractor accounting",
     )
     require(
-        dossier_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
-        "product crypto security dossier must link QROM Fiat-Shamir accounting",
+        dossier_related.get("productQROMPublicCoinAccounting") == "TestVectors/product-qrom-public-coin-accounting-v1.json",
+        "product crypto security dossier must link QROM public-coin accounting",
     )
     require(
         dossier_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
@@ -548,8 +556,8 @@ def validate_schema_versions() -> None:
         lattice_dossier.get("productionPostQuantumClaimAllowed") is False,
         "product crypto security dossier must keep production PQ claims disabled until production gates close",
     )
-    qrom_position = product_dossier.get("fiatShamirQROMPosition")
-    require(isinstance(qrom_position, dict), "product crypto security dossier fiatShamirQROMPosition must be an object")
+    qrom_position = product_dossier.get("publicCoinQROMPosition")
+    require(isinstance(qrom_position, dict), "product crypto security dossier publicCoinQROMPosition must be an object")
     require(
         qrom_position.get("model") == "ideal-split-qro",
         "product crypto security dossier must state the ideal split-QRO target",
@@ -621,8 +629,8 @@ def validate_schema_versions() -> None:
         "selected-depth loss-accounting must link extractor accounting",
     )
     require(
-        selected_related.get("productQROMFiatShamirAccounting") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
-        "selected-depth loss-accounting must link QROM Fiat-Shamir accounting",
+        selected_related.get("productQROMPublicCoinAccounting") == "TestVectors/product-qrom-public-coin-accounting-v1.json",
+        "selected-depth loss-accounting must link QROM public-coin accounting",
     )
     require(
         selected_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
@@ -673,92 +681,96 @@ def validate_schema_versions() -> None:
         extractor_rule.get("productionExtractorClaimAllowed") is True,
         "extractor loss-accounting must allow the selected-depth extractor claim",
     )
-    qrom_accounting = read_json("TestVectors/product-qrom-fiat-shamir-accounting-v1.json")
-    require(isinstance(qrom_accounting, dict), "QROM Fiat-Shamir accounting root must be an object")
-    require(qrom_accounting.get("schemaVersion") == 1, "QROM Fiat-Shamir accounting schemaVersion must be 1")
+    qrom_accounting = read_json("TestVectors/product-qrom-public-coin-accounting-v1.json")
+    require(isinstance(qrom_accounting, dict), "QROM public-coin accounting root must be an object")
+    require(qrom_accounting.get("schemaVersion") == 1, "QROM public-coin accounting schemaVersion must be 1")
     require(
         qrom_accounting.get("claimStatus") == "qrom-ctco-split-qro-contract-repository-local-production-claim",
-        "QROM Fiat-Shamir accounting claimStatus must stay precise",
+        "QROM public-coin accounting claimStatus must stay precise",
     )
     qrom_rule = qrom_accounting.get("lossRule")
-    require(isinstance(qrom_rule, dict), "QROM Fiat-Shamir accounting lossRule must be an object")
+    require(isinstance(qrom_rule, dict), "QROM public-coin accounting lossRule must be an object")
     require(
-        qrom_rule.get("productionQROMClaimAllowed") is True,
-        "QROM Fiat-Shamir accounting must allow repository-local QROM claims",
+        qrom_rule.get("repositoryLocalIdealQROMClaimAllowed") is True,
+        "QROM public-coin accounting must allow repository-local ideal split-QRO claims",
+    )
+    require(
+        qrom_rule.get("productionQROMClaimAllowed") is False,
+        "QROM public-coin accounting must keep concrete production QROM claims disabled",
     )
     require(
         qrom_rule.get("allQROMLossTermsInstantiated") is True,
-        "QROM Fiat-Shamir accounting must instantiate the ideal split-QRO loss terms",
+        "QROM public-coin accounting must instantiate the ideal split-QRO loss terms",
     )
     require(
         qrom_rule.get("qromLossWithinBudget") is True,
-        "QROM Fiat-Shamir accounting must keep the ideal split-QRO loss within budget",
+        "QROM public-coin accounting must keep the ideal split-QRO loss within budget",
     )
     qrom_mapping = qrom_accounting.get("ledgerTermMapping")
-    require(isinstance(qrom_mapping, dict), "QROM Fiat-Shamir accounting ledgerTermMapping must be an object")
-    qrom_loss = qrom_mapping.get("fiatShamirQROMLoss")
+    require(isinstance(qrom_mapping, dict), "QROM public-coin accounting ledgerTermMapping must be an object")
+    qrom_loss = qrom_mapping.get("publicCoinQROMLoss")
     collision_loss = qrom_mapping.get("transcriptCollisionLoss")
-    require(isinstance(qrom_loss, dict), "QROM fiatShamirQROMLoss mapping must be an object")
+    require(isinstance(qrom_loss, dict), "QROM publicCoinQROMLoss mapping must be an object")
     require(isinstance(collision_loss, dict), "QROM transcriptCollisionLoss mapping must be an object")
     require(
         qrom_loss.get("sourceSymbols") == ["epsilon_compiler_overhead", "epsilon_hash_model_gap"],
-        "QROM Fiat-Shamir accounting must map epsilon_qrom to compiler overhead and hash-model gap",
+        "QROM public-coin accounting must map epsilon_qrom to compiler overhead and hash-model gap",
     )
     require(
         collision_loss.get("sourceSymbols") == ["epsilon_bind"],
-        "QROM Fiat-Shamir accounting must map epsilon_bind to epsilon_collision",
+        "QROM public-coin accounting must map epsilon_bind to epsilon_collision",
     )
     qrom_related = qrom_accounting.get("relatedManifests")
-    require(isinstance(qrom_related, dict), "QROM Fiat-Shamir accounting relatedManifests must be an object")
+    require(isinstance(qrom_related, dict), "QROM public-coin accounting relatedManifests must be an object")
     require(
         qrom_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
-        "QROM Fiat-Shamir accounting must link QROM transcript schedule",
+        "QROM public-coin accounting must link QROM transcript schedule",
     )
     require(
         qrom_related.get("productQROMSamplerEncodingEvidence") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
-        "QROM Fiat-Shamir accounting must link QROM sampler/encoding evidence",
+        "QROM public-coin accounting must link QROM sampler/encoding evidence",
     )
     require(
         qrom_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-        "QROM Fiat-Shamir accounting must link QROM collision/malleability evidence",
+        "QROM public-coin accounting must link QROM collision/malleability evidence",
     )
     require(
         qrom_related.get("productQROMTransformPreconditions") == "TestVectors/product-qrom-transform-preconditions-v1.json",
-        "QROM Fiat-Shamir accounting must link QROM transform preconditions",
+        "QROM public-coin accounting must link QROM transform preconditions",
     )
     require(
         qrom_related.get("productQROMInteractiveReduction") == "TestVectors/product-qrom-interactive-reduction-v1.json",
-        "QROM Fiat-Shamir accounting must link QROM interactive reduction",
+        "QROM public-coin accounting must link QROM interactive reduction",
     )
-    qrom_model = qrom_accounting.get("fiatShamirModel")
-    require(isinstance(qrom_model, dict), "QROM Fiat-Shamir accounting fiatShamirModel must be an object")
+    qrom_model = qrom_accounting.get("publicCoinQROModel")
+    require(isinstance(qrom_model, dict), "QROM public-coin accounting publicCoinQROModel must be an object")
     require(
         qrom_model.get("interactiveProtocolSpecified") is True,
-        "QROM Fiat-Shamir accounting must record pinned interactive protocol schedules",
+        "QROM public-coin accounting must record pinned interactive protocol schedules",
     )
     require(
         qrom_model.get("quantumOracleQueryBoundAccounted") is True,
-        "QROM Fiat-Shamir accounting must account the instantiated conditional Q_H bound",
+        "QROM public-coin accounting must account the instantiated conditional Q_H bound",
     )
     require(
         qrom_model.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
-        "QROM Fiat-Shamir accounting must link transform preconditions in the model",
+        "QROM public-coin accounting must link transform preconditions in the model",
     )
     require(
         qrom_model.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
-        "QROM Fiat-Shamir accounting must link interactive reduction in the model",
+        "QROM public-coin accounting must link interactive reduction in the model",
     )
     require(
         qrom_model.get("samplerEncodingEvidenceManifest") == "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
-        "QROM Fiat-Shamir accounting must link sampler/encoding evidence in the model",
+        "QROM public-coin accounting must link sampler/encoding evidence in the model",
     )
     require(
         qrom_model.get("collisionMalleabilityEvidenceManifest") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
-        "QROM Fiat-Shamir accounting must link collision/malleability evidence in the model",
+        "QROM public-coin accounting must link collision/malleability evidence in the model",
     )
     require(
         qrom_model.get("structuralTranscriptCollisionMalleabilityExcluded") is True,
-        "QROM Fiat-Shamir accounting must record structural collision/malleability closure",
+        "QROM public-coin accounting must record structural collision/malleability closure",
     )
     qrom_schedule = read_json("TestVectors/product-qrom-transcript-schedule-v1.json")
     require(isinstance(qrom_schedule, dict), "QROM transcript schedule root must be an object")
@@ -849,8 +861,12 @@ def validate_schema_versions() -> None:
         "QROM sampler/encoding evidence must record structural collision/malleability closure",
     )
     require(
-        sampler_integration.get("productionQROMClaimAllowed") is True,
-        "QROM sampler/encoding evidence must allow repository-local production QROM claims",
+        sampler_integration.get("repositoryLocalIdealQROMClaimAllowed") is True,
+        "QROM sampler/encoding evidence must allow repository-local ideal split-QRO claims",
+    )
+    require(
+        sampler_integration.get("productionQROMClaimAllowed") is False,
+        "QROM sampler/encoding evidence must keep concrete production QROM claims disabled",
     )
     qrom_collision = read_json("TestVectors/product-qrom-collision-malleability-evidence-v1.json")
     require(isinstance(qrom_collision, dict), "QROM collision/malleability evidence root must be an object")
@@ -874,8 +890,12 @@ def validate_schema_versions() -> None:
         "QROM collision/malleability evidence must pin the proof-kind malleability bound",
     )
     require(
-        collision_closure.get("productionQROMClaimAllowed") is True,
-        "QROM collision/malleability evidence must allow repository-local production QROM claims",
+        collision_closure.get("repositoryLocalIdealQROMClaimAllowed") is True,
+        "QROM collision/malleability evidence must allow repository-local ideal split-QRO claims",
+    )
+    require(
+        collision_closure.get("productionQROMClaimAllowed") is False,
+        "QROM collision/malleability evidence must keep concrete production QROM claims disabled",
     )
     qrom_preconditions = read_json("TestVectors/product-qrom-transform-preconditions-v1.json")
     require(isinstance(qrom_preconditions, dict), "QROM transform preconditions root must be an object")
@@ -892,8 +912,8 @@ def validate_schema_versions() -> None:
     precondition_promotion = qrom_preconditions.get("promotionRule")
     require(isinstance(precondition_promotion, dict), "QROM transform preconditions promotionRule must be an object")
     require(
-        precondition_promotion.get("productionQROMClaimAllowed") is True,
-        "QROM transform preconditions must allow repository-local QROM claims",
+        precondition_promotion.get("productionQROMClaimAllowed") is False,
+        "QROM transform preconditions must keep concrete production QROM claims disabled",
     )
     require(
         precondition_promotion.get("requiresChallengeUniformity") is False,
@@ -934,12 +954,12 @@ def validate_schema_versions() -> None:
         "QROM transform preconditions must consume H_bind source implementation evidence",
     )
     require(
-        precondition_promotion.get("productionProductSecurityClaimAllowed") is True,
-        "QROM transform preconditions must allow repository-local product-security claims",
+        precondition_promotion.get("productionProductSecurityClaimAllowed") is False,
+        "QROM transform preconditions must keep concrete production product-security claims disabled",
     )
     require(
-        precondition_promotion.get("productionPostQuantumClaimAllowed") is True,
-        "QROM transform preconditions must allow repository-local post-quantum claims",
+        precondition_promotion.get("productionPostQuantumClaimAllowed") is False,
+        "QROM transform preconditions must keep concrete production post-quantum claims disabled",
     )
     transform_profile = qrom_preconditions.get("selectedTransformProfile")
     require(isinstance(transform_profile, dict), "QROM transform preconditions selectedTransformProfile must be an object")
@@ -1004,8 +1024,8 @@ def validate_schema_versions() -> None:
         "productionQROMClaimAllowed",
     ]:
         require(
-            reduction_promotion.get(key) is True,
-            f"QROM interactive reduction must allow repository-local {key}",
+            reduction_promotion.get(key) is False,
+            f"QROM interactive reduction must keep concrete {key} disabled",
         )
     require(
         reduction_promotion.get("requiresCTCORootCommitments") is False,
@@ -1315,12 +1335,12 @@ def validate_production_gate_wiring() -> None:
         "production gate must run extractor loss-accounting regression tests",
     )
     require(
-        "run_step Scripts/validate-product-qrom-fiat-shamir-accounting.py" in gate,
-        "production gate must run validate-product-qrom-fiat-shamir-accounting.py",
+        "run_step Scripts/validate-product-qrom-public-coin-accounting.py" in gate,
+        "production gate must run validate-product-qrom-public-coin-accounting.py",
     )
     require(
-        "run_step Scripts/test-product-qrom-fiat-shamir-accounting-validation.py" in gate,
-        "production gate must run QROM Fiat-Shamir accounting regression tests",
+        "run_step Scripts/test-product-qrom-public-coin-accounting-validation.py" in gate,
+        "production gate must run QROM public-coin accounting regression tests",
     )
     require(
         "run_step Scripts/validate-product-qrom-transcript-schedule.py" in gate,

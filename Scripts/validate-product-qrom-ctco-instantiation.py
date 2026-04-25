@@ -104,7 +104,7 @@ def validate(path: Path) -> None:
         "Digest384",
         "challengeTapeSeed",
         "expansionDigest",
-        "numiseal.product.qrom.ctco.evidence.v1",
+        "numiseal.product.qrom.ctco.qro-evidence.v1",
     ]:
         require(needle in source, f"source missing {needle}")
 
@@ -124,7 +124,18 @@ def validate(path: Path) -> None:
         require(test_name in test_source, f"covered test not found: {test_name}")
 
     promotion = require_dict(manifest.get("promotionRule"), "promotionRule")
-    require(promotion.get("productionQROMClaimAllowed") is True, "productionQROMClaimAllowed must be true")
+    require(
+        promotion.get("repositoryLocalIdealQROMClaimAllowed") is True,
+        "repositoryLocalIdealQROMClaimAllowed must be true",
+    )
+    require(
+        promotion.get("productionQROMClaimAllowed") is False,
+        "productionQROMClaimAllowed must stay false until concrete hash instantiation closes",
+    )
+    require(
+        promotion.get("requiresConcreteHashQROInstantiation") is True,
+        "requiresConcreteHashQROInstantiation must be true",
+    )
     require(promotion.get("selectedTotalLossClaimAllowed") is True, "selectedTotalLossClaimAllowed must be true")
     boundaries = " ".join(require_string_list(promotion.get("remainingBoundaries"), "remainingBoundaries")).lower()
     for needle in ["epsilon_compiler_overhead is instantiated as 0", "delayed-message", "unique-response"]:

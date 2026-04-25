@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate product QROM Fiat-Shamir transcript schedule evidence."""
+"""Validate product QROM public-coin transcript schedule evidence."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ EXPECTED_MANIFESTS = {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
     "productQROMSamplerEncodingEvidence": "TestVectors/product-qrom-sampler-encoding-evidence-v1.json",
@@ -42,8 +42,8 @@ EXPECTED_MANIFESTS = {
 }
 
 EXPECTED_FORMAL_DECLARATIONS = {
-    "ProductFiatShamirTranscriptSchedule",
-    "ProductFiatShamirTranscriptScheduleAccepted",
+    "ProductPublicCoinTranscriptSchedule",
+    "ProductPublicCoinTranscriptScheduleAccepted",
     "productSecurityTheorem_requires_qrom_transcript_schedule",
 }
 
@@ -161,8 +161,8 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
     for key, relative in EXPECTED_MANIFESTS.items():
         require_relative_path(relative, f"relatedManifests.{key}")
 
-    qrom = read_json(ROOT / EXPECTED_MANIFESTS["productQROMFiatShamirAccounting"])
-    qrom_related = require_dict(qrom.get("relatedManifests"), "productQROMFiatShamirAccounting.relatedManifests")
+    qrom = read_json(ROOT / EXPECTED_MANIFESTS["productQROMPublicCoinAccounting"])
+    qrom_related = require_dict(qrom.get("relatedManifests"), "productQROMPublicCoinAccounting.relatedManifests")
     require(
         qrom_related.get("productQROMTranscriptSchedule") == "TestVectors/product-qrom-transcript-schedule-v1.json",
         "QROM accounting must link the transcript schedule",
@@ -183,18 +183,18 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
         qrom_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
         "QROM accounting must link collision/malleability evidence",
     )
-    qrom_model = require_dict(qrom.get("fiatShamirModel"), "productQROMFiatShamirAccounting.fiatShamirModel")
+    qrom_model = require_dict(qrom.get("publicCoinQROModel"), "productQROMPublicCoinAccounting.publicCoinQROModel")
     require(
         qrom_model.get("transcriptScheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json",
-        "QROM accounting Fiat-Shamir model must point at the transcript schedule",
+        "QROM accounting public-coin model must point at the transcript schedule",
     )
     require(
         qrom_model.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
-        "QROM accounting Fiat-Shamir model must point at transform preconditions",
+        "QROM accounting public-coin model must point at transform preconditions",
     )
     require(
         qrom_model.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
-        "QROM accounting Fiat-Shamir model must point at interactive reduction",
+        "QROM accounting public-coin model must point at interactive reduction",
     )
 
     dossier = read_json(ROOT / EXPECTED_MANIFESTS["productCryptoSecurityDossier"])
@@ -219,18 +219,18 @@ def validate_related_manifests(schedule: dict[str, Any]) -> None:
         dossier_related.get("productQROMCollisionMalleabilityEvidence") == "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
         "product crypto security dossier must link collision/malleability evidence",
     )
-    qrom_position = require_dict(dossier.get("fiatShamirQROMPosition"), "productCryptoSecurityDossier.fiatShamirQROMPosition")
+    qrom_position = require_dict(dossier.get("publicCoinQROMPosition"), "productCryptoSecurityDossier.publicCoinQROMPosition")
     require(
         qrom_position.get("transcriptScheduleManifest") == "TestVectors/product-qrom-transcript-schedule-v1.json",
-        "dossier Fiat-Shamir/QROM position must point at the transcript schedule",
+        "dossier QRO/QROM position must point at the transcript schedule",
     )
     require(
         qrom_position.get("transformPreconditionManifest") == "TestVectors/product-qrom-transform-preconditions-v1.json",
-        "dossier Fiat-Shamir/QROM position must point at transform preconditions",
+        "dossier QRO/QROM position must point at transform preconditions",
     )
     require(
         qrom_position.get("interactiveReductionManifest") == "TestVectors/product-qrom-interactive-reduction-v1.json",
-        "dossier Fiat-Shamir/QROM position must point at interactive reduction",
+        "dossier QRO/QROM position must point at interactive reduction",
     )
 
     ledger = read_json(ROOT / EXPECTED_MANIFESTS["selectedDepthLossAccounting"])
@@ -359,11 +359,10 @@ def validate_oracle_model(schedule: dict[str, Any]) -> None:
     require_true(model.get("quantumOracleQueryBoundInstantiated"), "oracleModel.quantumOracleQueryBoundInstantiated")
     require_true(model.get("structuralCollisionMalleabilityEvidencePinned"), "oracleModel.structuralCollisionMalleabilityEvidencePinned")
     require_true(model.get("transformPreconditionsSatisfied"), "oracleModel.transformPreconditionsSatisfied")
-    for key in [
-        "hashInstantiationProofProvided",
-        "productionQROMClaimAllowed",
-    ]:
-        require_true(model.get(key), f"oracleModel.{key}")
+    require_true(model.get("idealSplitQROTheoremInstantiated"), "oracleModel.idealSplitQROTheoremInstantiated")
+    require_false(model.get("hashInstantiationProofProvided"), "oracleModel.hashInstantiationProofProvided")
+    require_true(model.get("repositoryLocalIdealQROMClaimAllowed"), "oracleModel.repositoryLocalIdealQROMClaimAllowed")
+    require_false(model.get("productionQROMClaimAllowed"), "oracleModel.productionQROMClaimAllowed")
 
 
 def validate_transcript_state(schedule: dict[str, Any]) -> None:
@@ -394,7 +393,7 @@ def validate_schedule_entries(schedule: dict[str, Any]) -> None:
     require(isinstance(entries, list), "scheduleEntries must be a list")
     require(len(entries) == len(EXPECTED_PROOF_KINDS), "scheduleEntries length mismatch")
 
-    qrom = read_json(ROOT / EXPECTED_MANIFESTS["productQROMFiatShamirAccounting"])
+    qrom = read_json(ROOT / EXPECTED_MANIFESTS["productQROMPublicCoinAccounting"])
     interfaces = qrom.get("transcriptInterfaces")
     require(isinstance(interfaces, list), "QROM accounting transcriptInterfaces must be a list")
     interface_pairs = [
@@ -468,7 +467,7 @@ def validate_schedule_entries(schedule: dict[str, Any]) -> None:
 def validate_ledger_binding(schedule: dict[str, Any]) -> None:
     binding = require_dict(schedule.get("ledgerBinding"), "ledgerBinding")
     require(
-        binding.get("qromAccountingManifest") == "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+        binding.get("qromAccountingManifest") == "TestVectors/product-qrom-public-coin-accounting-v1.json",
         "ledgerBinding.qromAccountingManifest mismatch",
     )
     require(
@@ -504,14 +503,16 @@ def validate_ledger_binding(schedule: dict[str, Any]) -> None:
 def validate_promotion_and_blockers(schedule: dict[str, Any]) -> None:
     blockers = schedule.get("hardClaimBlockers")
     require(isinstance(blockers, list), "hardClaimBlockers must be a list")
-    require(blockers == [], "hardClaimBlockers must be empty after repository-local source-level promotion")
+    blocker_text = " ".join(str(blocker) for blocker in blockers).lower()
+    require("shake256-to-split-qro" in blocker_text, "hardClaimBlockers must keep concrete SHAKE256 promotion open")
     promotion = require_dict(schedule.get("promotionRule"), "promotionRule")
+    require_true(promotion.get("repositoryLocalIdealQROMClaimAllowed"), "promotionRule.repositoryLocalIdealQROMClaimAllowed")
     for key in [
         "productionProductSecurityClaimAllowed",
         "productionPostQuantumClaimAllowed",
         "productionQROMClaimAllowed",
     ]:
-        require_true(promotion.get(key), f"promotionRule.{key}")
+        require_false(promotion.get(key), f"promotionRule.{key}")
     require(promotion.get("requiresInteractiveProtocol") is False, "promotionRule.requiresInteractiveProtocol must be false after interactive reduction manifest closure")
     require(promotion.get("requiresTransformPreconditions") is False, "promotionRule.requiresTransformPreconditions must be false after transform precondition closure")
     for key in [
@@ -520,6 +521,7 @@ def validate_promotion_and_blockers(schedule: dict[str, Any]) -> None:
     ]:
         require(promotion.get(key) is False, f"promotionRule.{key} must be false after QROM loss wiring closure")
     require(promotion.get("requiresQuantumOracleQueryBound") is False, "promotionRule.requiresQuantumOracleQueryBound must be false after Q_H bound instantiation")
+    require_true(promotion.get("requiresConcreteHashQROInstantiation"), "promotionRule.requiresConcreteHashQROInstantiation")
     require(
         promotion.get("requiresStructuralCollisionMalleabilityEvidence") is False,
         "promotionRule.requiresStructuralCollisionMalleabilityEvidence must be false after structural evidence closure",

@@ -29,6 +29,17 @@ class SuperNeoTestCase: XCTestCase {
         }
         return device
     }
+
+    func makeQROChallenge(_ label: String) throws -> SuperNeoQROChallenge {
+        try SuperNeoQROChallenge(
+            sessionID: "test/\(label)",
+            verifierPublicCoin: Digest256.hash("qro-public-coin/\(label)").superNeoBytes,
+            transcriptContext: SuperNeoSplitQRO.framedBytes(
+                domain: "superneo/tests/qro-context/v1",
+                frames: [Array(label.utf8)]
+            )
+        )
+    }
 }
 
 final class AlgebraCoreTests: SuperNeoTestCase {
@@ -1461,6 +1472,63 @@ final class ProtocolSmokeTests: SuperNeoTestCase {
         )
     }
 
+    func testQROChallengeBoundFoldRejectsSwappedVerifierChallenge() throws {
+        let fixture = try makeFoldFixture()
+        let transcriptContext = SuperNeoPublicFoldInput(fixture.input).shape.shapeDigest.superNeoBytes
+        let challenge = try SuperNeoQROChallenge(
+            sessionID: "qro-session-fold-positive",
+            verifierPublicCoin: Array(repeating: UInt8(0xA5), count: 32),
+            transcriptContext: transcriptContext
+        )
+        let swappedChallenge = try SuperNeoQROChallenge(
+            sessionID: "qro-session-fold-positive",
+            verifierPublicCoin: Array(repeating: UInt8(0x5A), count: 32),
+            transcriptContext: transcriptContext
+        )
+
+        XCTAssertThrowsError(
+            try SuperNeoQROChallenge(
+                sessionID: "qro-session-too-short",
+                verifierPublicCoin: [0x01],
+                transcriptContext: transcriptContext
+            )
+        )
+        XCTAssertNotEqual(challenge.challengeDigest, swappedChallenge.challengeDigest)
+        XCTAssertNotEqual(
+            challenge.transcriptSeed(label: "fold"),
+            swappedChallenge.transcriptSeed(label: "fold")
+        )
+
+        let fold = try SuperNeoProver(key: fixture.key).foldWithOutput(
+            fixture.input,
+            qroChallenge: challenge
+        )
+        let verifier = SuperNeoVerifier(key: fixture.key)
+
+        let acceptedReduction = verifier.reduceFold(
+            input: fixture.input,
+            proof: fold.proof,
+            qroChallenge: challenge
+        )
+        let swappedReduction = verifier.reduceFold(
+            input: fixture.input,
+            proof: fold.proof,
+            qroChallenge: swappedChallenge
+        )
+
+        XCTAssertTrue(acceptedReduction.isReductionAccepted, acceptedReduction.reason ?? "")
+        XCTAssertEqual(
+            verifier.verifyFold(
+                input: fixture.input,
+                proof: fold.proof,
+                outputClaims: fold.outputClaims,
+                qroChallenge: challenge
+            ),
+            .valid
+        )
+        XCTAssertFalse(swappedReduction.isReductionAccepted)
+    }
+
     func testPreparedFoldContextMatchesStandardFoldAndRejectsWrongKey() throws {
         let fixture = try makeFoldFixture()
         let prover = SuperNeoProver(key: fixture.key)
@@ -1553,7 +1621,7 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
         let terminalWitnesses = try fold.outputClaims.map { claim in
             try XCTUnwrap(CEOpeningWitness(claim: claim))
         }
-        XCTAssertEqual(terminalStatement.openings.count, fixture.key.parameters.decompositionLength)
+        XCTAssertTrue((1...fixture.key.parameters.decompositionLength).contains(terminalStatement.openings.count))
         XCTAssertTrue(terminalStatement.openings.allSatisfy { $0.claim.witness == nil })
         XCTAssertTrue(try CEOpeningRelation.verifyTerminalLocalBatch(
             statement: terminalStatement,
@@ -1562,18 +1630,33 @@ final class CEOpeningProtocolTests: SuperNeoTestCase {
             key: fixture.key
         ))
 
-        let shortTerminalStatement = try TerminalCEStatement(
-            profileID: fixture.key.parameters.profileID,
-            shape: fixture.input.shape,
-            key: fixture.key,
-            claims: Array(fold.outputClaims.dropLast())
-        )
-        XCTAssertFalse(try CEOpeningRelation.verifyTerminalLocalBatch(
-            statement: shortTerminalStatement,
-            witnesses: Array(terminalWitnesses.dropLast()),
-            shape: fixture.input.shape,
-            key: fixture.key
-        ))
+        if terminalStatement.openings.count > 1 {
+            let shortTerminalStatement = try TerminalCEStatement(
+                profileID: fixture.key.parameters.profileID,
+                shape: fixture.input.shape,
+                key: fixture.key,
+                claims: Array(fold.outputClaims.dropLast())
+            )
+            XCTAssertTrue(try CEOpeningRelation.verifyTerminalLocalBatch(
+                statement: shortTerminalStatement,
+                witnesses: Array(terminalWitnesses.dropLast()),
+                shape: fixture.input.shape,
+                key: fixture.key
+            ))
+            XCTAssertFalse(try CEOpeningRelation.verifyTerminalLocalBatch(
+                statement: shortTerminalStatement,
+                witnesses: terminalWitnesses,
+                shape: fixture.input.shape,
+                key: fixture.key
+            ))
+        } else {
+            XCTAssertFalse(try CEOpeningRelation.verifyTerminalLocalBatch(
+                statement: terminalStatement,
+                witnesses: [],
+                shape: fixture.input.shape,
+                key: fixture.key
+            ))
+        }
 
         XCTAssertThrowsSuperNeoError(
             try TerminalCEStatement(
@@ -2209,7 +2292,11 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             proof: missingOutput,
             transcriptSeed: fixture.seed
         )
-        XCTAssertInvalid(missingResult, reason: "invalidParameter(\"decomposition output count must equal 14\")")
+        if proof.outputClaims.count > 1 {
+            XCTAssertInvalid(missingResult, reason: "invalidParameter(\"decomposition proof count must match output claims\")")
+        } else {
+            XCTAssertInvalid(missingResult, reason: "invalidParameter(\"decomposition output count must be in 1...14\")")
+        }
     }
 
     func testProofEnvelopeRoundTripsThroughVerifierTranscript() throws {
@@ -3247,7 +3334,8 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             ccsInstances: publicInput.instances
         )
         let laneID = try laneID ?? NumiSealLaneID("main")
-        let obligations = fold.outputClaims.prefix(claimCount).enumerated().map { index, claim in
+        let claims = try numiSealAggregationClaims(from: fold.outputClaims, count: claimCount)
+        let obligations = claims.enumerated().map { index, claim in
             NumiSealObligation(
                 laneID: laneID,
                 profileID: fixture.key.parameters.profileID,
@@ -3269,6 +3357,31 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         return (canonicalization, policy, obligations)
     }
 
+    private func numiSealAggregationClaims(
+        from outputClaims: [CCSEvaluationClaim],
+        count: Int,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> [CCSEvaluationClaim] {
+        guard count >= 0 else {
+            XCTFail("NumiSeal aggregation claim count cannot be negative", file: file, line: line)
+            return []
+        }
+        guard count > 0 else {
+            return []
+        }
+        _ = try XCTUnwrap(
+            outputClaims.first,
+            "fold fixture must produce at least one adaptive decomposition claim",
+            file: file,
+            line: line
+        )
+        // Aggregation tests exercise distinct public obligations. Under pay-per-bit a
+        // small fixture can legitimately emit one source claim, so sourceFoldDigest
+        // supplies the required per-obligation identity without changing the witness.
+        return (0..<count).map { index in outputClaims[index % outputClaims.count] }
+    }
+
     func testNumiSealCanonicalizationIsDeterministicAcrossInputOrder() throws {
         let fixture = try makeFoldFixture()
         let fold = try fixture.backend.makeProver(key: fixture.key).foldWithOutput(
@@ -3281,7 +3394,8 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             ccsInstances: publicInput.instances
         )
         let laneID = try NumiSealLaneID("main")
-        let obligations = fold.outputClaims.prefix(2).enumerated().map { index, claim in
+        let claims = try numiSealAggregationClaims(from: fold.outputClaims, count: 2)
+        let obligations = claims.enumerated().map { index, claim in
             NumiSealObligation(
                 laneID: laneID,
                 profileID: fixture.key.parameters.profileID,
@@ -4805,7 +4919,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             ccsInstances: publicInput.instances
         )
         let laneID = try NumiSealLaneID("terminal-api-multi-aggregate")
-        let claims = Array(fold.outputClaims.prefix(2))
+        let claims = try numiSealAggregationClaims(from: fold.outputClaims, count: 2)
         XCTAssertEqual(claims.count, 2)
 
         let obligations = claims.enumerated().map { index, claim in
@@ -4931,7 +5045,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
         let laneA = try NumiSealLaneID("terminal-api-lane-a")
         let laneB = try NumiSealLaneID("terminal-api-lane-b")
-        let claims = Array(fold.outputClaims.prefix(3))
+        let claims = try numiSealAggregationClaims(from: fold.outputClaims, count: 3)
         XCTAssertEqual(claims.count, 3)
 
         let laneIDs = [laneA, laneA, laneB]
@@ -5197,7 +5311,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             ccsInstances: publicInput.instances
         )
         let laneID = try NumiSealLaneID("oracle")
-        let claims = Array(fold.outputClaims.prefix(2))
+        let claims = try numiSealAggregationClaims(from: fold.outputClaims, count: 2)
         let obligations = claims.enumerated().map { index, claim in
             NumiSealObligation(
                 laneID: laneID,
@@ -6085,329 +6199,6 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertFalse(NumiSealZKMaskSampler.accepts(candidate: UInt64.max))
     }
 
-    func testNumiSealArtifactVerifierValidatesCheckedVectorWithStrictPins() throws {
-        let artifact = try loadNumiSealArtifact(named: "numiseal-terminal-single-aggregate-v1.json")
-        let expectedContext = try strictExpectedContext(for: artifact)
-
-        let report = try NumiSealArtifactVerifier.verify(
-            artifact: artifact,
-            expectedContext: expectedContext,
-            executionPolicy: .highAssurance
-        )
-
-        XCTAssertTrue(report.verificationResult.isValid, report.verificationResult.reason ?? "")
-        XCTAssertEqual(report.verificationResult.envelope, report.envelope)
-        XCTAssertEqual(report.material.obligations.count, artifact.laneIDsUTF8.count)
-        XCTAssertEqual(report.material.plan.aggregateDigests.map(\.hexStringForTest), artifact.aggregateDigestsHex)
-        XCTAssertEqual(report.envelope.proof.publicStatement.digest.hexStringForTest, artifact.publicStatementDigestHex)
-        XCTAssertEqual(report.envelope.proof.componentDigestRoot.hexStringForTest, artifact.componentDigestRootHex)
-        XCTAssertEqual(report.envelope.proof.transcriptDigest.hexStringForTest, artifact.proofTranscriptDigestHex)
-    }
-
-    func testNumiSealArtifactVerifierRejectsExpectedContextTrustPinMismatches() throws {
-        let artifact = try loadNumiSealArtifact(named: "numiseal-terminal-single-aggregate-v1.json")
-        let material = try NumiSealArtifactVerifier.makeVerificationMaterial(
-            from: artifact,
-            keySeed: artifact.keySeedUTF8,
-            executionPolicy: .highAssurance
-        )
-        try NumiSealArtifactVerifier.validateMaterial(material, against: artifact)
-
-        let wrongDigest = Digest256.hash("numiseal-artifact-verifier-wrong-digest")
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.validateExpectedContext(
-                artifact: artifact,
-                material: material,
-                expectedContext: NumiSealArtifactExpectedContext(shapeDigest: wrongDigest)
-            ),
-            containing: "expected shape digest"
-        )
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.validateExpectedContext(
-                artifact: artifact,
-                material: material,
-                expectedContext: NumiSealArtifactExpectedContext(statementDigest: wrongDigest)
-            ),
-            containing: "expected statement digest"
-        )
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.validateExpectedContext(
-                artifact: artifact,
-                material: material,
-                expectedContext: NumiSealArtifactExpectedContext(verifierKeyDigest: wrongDigest)
-            ),
-            containing: "expected verifier key digest"
-        )
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.validateExpectedContext(
-                artifact: artifact,
-                material: material,
-                expectedContext: NumiSealArtifactExpectedContext(transcriptDomainDigest: wrongDigest)
-            ),
-            containing: "expected transcript domain"
-        )
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.validateExpectedContext(
-                artifact: artifact,
-                material: material,
-                expectedContext: NumiSealArtifactExpectedContext(publicStatementDigest: wrongDigest)
-            ),
-            containing: "expected public statement digest"
-        )
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.validateExpectedContext(
-                artifact: artifact,
-                material: material,
-                expectedContext: NumiSealArtifactExpectedContext(obligationRoot: wrongDigest)
-            ),
-            containing: "expected obligation root"
-        )
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.validateExpectedContext(
-                artifact: artifact,
-                material: material,
-                expectedContext: NumiSealArtifactExpectedContext(laneSummaryRoot: wrongDigest)
-            ),
-            containing: "expected lane summary root"
-        )
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.validateExpectedContext(
-                artifact: artifact,
-                material: material,
-                expectedContext: NumiSealArtifactExpectedContext(aggregateDigests: [wrongDigest])
-            ),
-            containing: "expected aggregate digests"
-        )
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.validateExpectedContext(
-                artifact: artifact,
-                material: material,
-                expectedContext: NumiSealArtifactExpectedContext(componentDigestRoot: wrongDigest)
-            ),
-            containing: "expected component digest root"
-        )
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.validateExpectedContext(
-                artifact: artifact,
-                material: material,
-                expectedContext: NumiSealArtifactExpectedContext(proofTranscriptDigest: wrongDigest)
-            ),
-            containing: "expected proof transcript digest"
-        )
-
-        var wrongPublicInputs = artifact.publicInputs
-        wrongPublicInputs[0] ^= 1
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.verify(
-                artifact: artifact,
-                expectedContext: NumiSealArtifactExpectedContext(
-                    trustedKeySeedUTF8: artifact.keySeedUTF8,
-                    publicInputs: wrongPublicInputs
-                ),
-                executionPolicy: .highAssurance
-            ),
-            containing: "expected public inputs"
-        )
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.verify(
-                artifact: artifact,
-                expectedContext: NumiSealArtifactExpectedContext(trustedKeySeedUTF8: "wrong-numiseal-key-seed"),
-                executionPolicy: .highAssurance
-            ),
-            containing: "regenerated key"
-        )
-    }
-
-    func testNumiSealArtifactVerifierRejectsSelfDescribedContextWithoutKeyTrustPin() throws {
-        let artifact = try loadNumiSealArtifact(named: "numiseal-terminal-single-aggregate-v1.json")
-
-        XCTAssertThrowsNumiSealArtifactError(
-            try NumiSealArtifactVerifier.verify(
-                artifact: artifact,
-                expectedContext: NumiSealArtifactExpectedContext(publicInputs: artifact.publicInputs),
-                executionPolicy: .highAssurance
-            ),
-            containing: "trusted key seed or verifier key digest"
-        )
-    }
-
-    func testNumiSealProductVerifierAcceptsThroughIntegrationHooks() throws {
-        let data = try loadNumiSealArtifactData(named: "numiseal-terminal-single-aggregate-v1.json")
-        let artifact = try JSONDecoder().decode(NumiSealArtifact.self, from: data)
-        let expectedContext = try strictExpectedContext(for: artifact)
-        let store = ProductExpectedContextStore(expectedContext: expectedContext)
-        let authorizer = ProductAuthorizer()
-        let provenanceVerifier = ProductProvenanceVerifier()
-        let replayLedger = ProductReplayLedger()
-        let auditSink = ProductAuditSink()
-        let verifier = SuperNeoNumiSealProductVerifier(
-            expectedContextStore: store,
-            authorizer: authorizer,
-            provenanceVerifier: provenanceVerifier,
-            replayLedger: replayLedger,
-            auditSink: auditSink
-        )
-
-        let request = SuperNeoNumiSealProductVerificationRequest(
-            callerID: "tenant-a",
-            expectedContextID: "ctx-numiseal-single",
-            artifact: artifact,
-            artifactBytes: [UInt8](data),
-            maximumArtifactByteCount: data.count
-        )
-        let report = try verifier.verify(request)
-
-        XCTAssertTrue(report.innerReport.verificationResult.isValid)
-        XCTAssertTrue(try replayLedger.hasAccepted(report.identity))
-        XCTAssertEqual(auditSink.events.count, 1)
-        XCTAssertEqual(auditSink.events.last?.decision, .accepted)
-        XCTAssertEqual(auditSink.events.last?.artifactDigest, Digest256.hash([UInt8](data)))
-        XCTAssertEqual(auditSink.events.last?.provenanceDigest, provenanceVerifier.provenanceDigest)
-    }
-
-    func testNumiSealProductVerifierRejectsArtifactObjectThatDoesNotMatchBytes() throws {
-        let data = try loadNumiSealArtifactData(named: "numiseal-terminal-single-aggregate-v1.json")
-        let artifact = try JSONDecoder().decode(NumiSealArtifact.self, from: data)
-        let mismatchedArtifact = NumiSealArtifact(
-            artifactVersion: artifact.artifactVersion,
-            workload: "\(artifact.workload)-mismatch",
-            profile: artifact.profile,
-            proofKind: artifact.proofKind,
-            residualMode: artifact.residualMode,
-            keySeedUTF8: artifact.keySeedUTF8,
-            keyColumnCount: artifact.keyColumnCount,
-            foldTranscriptSeedUTF8: artifact.foldTranscriptSeedUTF8,
-            laneIDsUTF8: artifact.laneIDsUTF8,
-            sourceFoldDigestSeedsUTF8: artifact.sourceFoldDigestSeedsUTF8,
-            ceRandomSeedsUTF8: artifact.ceRandomSeedsUTF8,
-            maximumObligationsPerAggregate: artifact.maximumObligationsPerAggregate,
-            maximumLaneCount: artifact.maximumLaneCount,
-            maximumAggregatesPerLane: artifact.maximumAggregatesPerLane,
-            publicInputCount: artifact.publicInputCount,
-            privateWitnessCount: artifact.privateWitnessCount,
-            publicInputs: artifact.publicInputs,
-            shapeDigestHex: artifact.shapeDigestHex,
-            statementDigestHex: artifact.statementDigestHex,
-            verifierKeyDigestHex: artifact.verifierKeyDigestHex,
-            transcriptDomainHex: artifact.transcriptDomainHex,
-            publicStatementDigestHex: artifact.publicStatementDigestHex,
-            obligationRootHex: artifact.obligationRootHex,
-            laneSummaryRootHex: artifact.laneSummaryRootHex,
-            aggregateDigestsHex: artifact.aggregateDigestsHex,
-            componentDigestRootHex: artifact.componentDigestRootHex,
-            proofTranscriptDigestHex: artifact.proofTranscriptDigestHex,
-            proofEnvelopeBase64: artifact.proofEnvelopeBase64
-        )
-        let auditSink = ProductAuditSink()
-        let verifier = SuperNeoNumiSealProductVerifier(
-            expectedContextStore: ProductExpectedContextStore(expectedContext: try strictExpectedContext(for: artifact)),
-            authorizer: ProductAuthorizer(),
-            provenanceVerifier: ProductProvenanceVerifier(),
-            replayLedger: ProductReplayLedger(),
-            auditSink: auditSink
-        )
-
-        XCTAssertThrowsProductIntegrationError(
-            try verifier.verify(
-                SuperNeoNumiSealProductVerificationRequest(
-                    callerID: "tenant-a",
-                    expectedContextID: "ctx-numiseal-single",
-                    artifact: mismatchedArtifact,
-                    artifactBytes: [UInt8](data)
-                )
-            ),
-            containing: "artifact bytes do not match request artifact"
-        )
-        XCTAssertEqual(auditSink.events.last?.decision, .rejected)
-        XCTAssertNil(auditSink.events.last?.proofEnvelopeDigest)
-        XCTAssertNil(auditSink.events.last?.provenanceDigest)
-    }
-
-    func testNumiSealProductVerifierFailsClosedOnAuthorizationRejection() throws {
-        let data = try loadNumiSealArtifactData(named: "numiseal-terminal-single-aggregate-v1.json")
-        let artifact = try JSONDecoder().decode(NumiSealArtifact.self, from: data)
-        let auditSink = ProductAuditSink()
-        let verifier = SuperNeoNumiSealProductVerifier(
-            expectedContextStore: ProductExpectedContextStore(expectedContext: try strictExpectedContext(for: artifact)),
-            authorizer: ProductAuthorizer(error: .unauthorized("caller is not authorized for expected context")),
-            provenanceVerifier: ProductProvenanceVerifier(),
-            replayLedger: ProductReplayLedger(),
-            auditSink: auditSink
-        )
-
-        XCTAssertThrowsProductIntegrationError(
-            try verifier.verify(
-                SuperNeoNumiSealProductVerificationRequest(
-                    callerID: "tenant-a",
-                    expectedContextID: "ctx-numiseal-single",
-                    artifact: artifact,
-                    artifactBytes: [UInt8](data)
-                )
-            ),
-            containing: "not authorized"
-        )
-        XCTAssertEqual(auditSink.events.count, 1)
-        XCTAssertEqual(auditSink.events.last?.decision, .rejected)
-        XCTAssertNil(auditSink.events.last?.provenanceDigest)
-    }
-
-    func testNumiSealProductVerifierRejectsAcceptedReplayBeforeAlgebraicVerification() throws {
-        let data = try loadNumiSealArtifactData(named: "numiseal-terminal-single-aggregate-v1.json")
-        let artifact = try JSONDecoder().decode(NumiSealArtifact.self, from: data)
-        let expectedContext = try strictExpectedContext(for: artifact)
-        let replayLedger = ProductReplayLedger()
-        let auditSink = ProductAuditSink()
-        let verifier = SuperNeoNumiSealProductVerifier(
-            expectedContextStore: ProductExpectedContextStore(expectedContext: expectedContext),
-            authorizer: ProductAuthorizer(),
-            provenanceVerifier: ProductProvenanceVerifier(),
-            replayLedger: replayLedger,
-            auditSink: auditSink
-        )
-        let request = SuperNeoNumiSealProductVerificationRequest(
-            callerID: "tenant-a",
-            expectedContextID: "ctx-numiseal-single",
-            artifact: artifact,
-            artifactBytes: [UInt8](data)
-        )
-
-        _ = try verifier.verify(request)
-        XCTAssertThrowsProductIntegrationError(
-            try verifier.verify(request),
-            containing: "already been accepted"
-        )
-        XCTAssertEqual(auditSink.events.map(\.decision), [.accepted, .rejected])
-        XCTAssertEqual(replayLedger.recordedCount, 1)
-    }
-
-    func testNumiSealProductVerifierFailsClosedOnProductByteLimit() throws {
-        let data = try loadNumiSealArtifactData(named: "numiseal-terminal-single-aggregate-v1.json")
-        let artifact = try JSONDecoder().decode(NumiSealArtifact.self, from: data)
-        let auditSink = ProductAuditSink()
-        let verifier = SuperNeoNumiSealProductVerifier(
-            expectedContextStore: ProductExpectedContextStore(expectedContext: try strictExpectedContext(for: artifact)),
-            authorizer: ProductAuthorizer(),
-            provenanceVerifier: ProductProvenanceVerifier(),
-            replayLedger: ProductReplayLedger(),
-            auditSink: auditSink
-        )
-
-        XCTAssertThrowsProductIntegrationError(
-            try verifier.verify(
-                SuperNeoNumiSealProductVerificationRequest(
-                    callerID: "tenant-a",
-                    expectedContextID: "ctx-numiseal-single",
-                    artifact: artifact,
-                    artifactBytes: [UInt8](data),
-                    maximumArtifactByteCount: data.count - 1
-                )
-            ),
-            containing: "exceeds product maximum"
-        )
-        XCTAssertEqual(auditSink.events.last?.decision, .rejected)
-        XCTAssertNil(auditSink.events.last?.proofEnvelopeDigest)
-    }
-
     func testLocalProductControlsVerifySignedContextProvenanceReplayAndAudit() throws {
         let directory = try temporaryDirectory()
         let signingKey = Curve25519.Signing.PrivateKey()
@@ -6906,12 +6697,14 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             bits: [false, true],
             keySeed: Array("numiseal-zk-side-channel-key".utf8)
         )
+        let qroChallenge = try makeQROChallenge("numiseal-zk-side-channel")
         let artifact = try NumiSealProductProver().prove(
             NumiSealProvingRequest(
                 preparedR1CS: prepared,
                 workload: "one-hot-vector-v1",
                 bitCount: 2,
                 publicInputs: [1],
+                qroChallenge: qroChallenge,
                 keySeedUTF8: "numiseal-zk-side-channel-key",
                 workloadParameters: ["selectedCount": "1"],
                 laneID: try NumiSealLaneID("product"),
@@ -7230,58 +7023,6 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertEqual(tamperedStatus.reason, "audit log record digest mismatch")
     }
 
-    private func loadNumiSealArtifact(named name: String) throws -> NumiSealArtifact {
-        try JSONDecoder().decode(NumiSealArtifact.self, from: loadNumiSealArtifactData(named: name))
-    }
-
-    private func loadNumiSealArtifactData(named name: String) throws -> Data {
-        let testFile = URL(fileURLWithPath: #filePath)
-        let repositoryRoot = testFile
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let url = repositoryRoot
-            .appendingPathComponent("TestVectors")
-            .appendingPathComponent(name)
-        return try Data(contentsOf: url)
-    }
-
-    private func strictExpectedContext(for artifact: NumiSealArtifact) throws -> NumiSealArtifactExpectedContext {
-        NumiSealArtifactExpectedContext(
-            trustedKeySeedUTF8: artifact.keySeedUTF8,
-            verifierKeyDigest: try Digest256(hexDigest: artifact.verifierKeyDigestHex),
-            shapeDigest: try Digest256(hexDigest: artifact.shapeDigestHex),
-            statementDigest: try Digest256(hexDigest: artifact.statementDigestHex),
-            transcriptDomainDigest: try Digest256(hexDigest: artifact.transcriptDomainHex),
-            publicStatementDigest: try Digest256(hexDigest: artifact.publicStatementDigestHex),
-            obligationRoot: try Digest256(hexDigest: artifact.obligationRootHex),
-            laneSummaryRoot: try Digest256(hexDigest: artifact.laneSummaryRootHex),
-            aggregateDigests: try artifact.aggregateDigestsHex.map { try Digest256(hexDigest: $0) },
-            componentDigestRoot: try Digest256(hexDigest: artifact.componentDigestRootHex),
-            proofTranscriptDigest: try Digest256(hexDigest: artifact.proofTranscriptDigestHex),
-            publicInputs: artifact.publicInputs
-        )
-    }
-
-    private func XCTAssertThrowsNumiSealArtifactError<T>(
-        _ expression: @autoclosure () throws -> T,
-        containing expectedMessage: String,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) {
-        XCTAssertThrowsError(try expression(), file: file, line: line) { error in
-            guard let artifactError = error as? NumiSealArtifactVerificationError else {
-                XCTFail("expected NumiSealArtifactVerificationError, got \(error)", file: file, line: line)
-                return
-            }
-            XCTAssertTrue(
-                artifactError.description.contains(expectedMessage),
-                "expected \(artifactError.description) to contain \(expectedMessage)",
-                file: file,
-                line: line
-            )
-        }
-    }
-
     private func XCTAssertThrowsProductIntegrationError<T>(
         _ expression: @autoclosure () throws -> T,
         containing expectedMessage: String,
@@ -7330,85 +7071,13 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
     }
 }
 
-private final class ProductExpectedContextStore: SuperNeoNumiSealExpectedContextStore {
-    let expectedContext: NumiSealArtifactExpectedContext?
-
-    init(expectedContext: NumiSealArtifactExpectedContext?) {
-        self.expectedContext = expectedContext
-    }
-
-    func expectedContext(
-        for request: SuperNeoNumiSealProductVerificationRequest
-    ) throws -> NumiSealArtifactExpectedContext {
-        guard let expectedContext else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "expected context not found: \(request.expectedContextID)"
-            )
-        }
-        return expectedContext
-    }
-}
-
-private final class ProductAuthorizer: SuperNeoProductAuthorizer {
-    let error: SuperNeoProductIntegrationError?
-
-    init(error: SuperNeoProductIntegrationError? = nil) {
-        self.error = error
-    }
-
-    func authorize(_ request: SuperNeoNumiSealProductVerificationRequest) throws {
-        if let error {
-            throw error
-        }
-    }
-}
-
-private final class ProductProvenanceVerifier: SuperNeoArtifactProvenanceVerifier {
-    let provenanceDigest = Digest256.hash("trusted-numiseal-artifact-provenance")
-    let error: SuperNeoProductIntegrationError?
-
-    init(error: SuperNeoProductIntegrationError? = nil) {
-        self.error = error
-    }
-
-    func verifyProvenance(
-        for request: SuperNeoNumiSealProductVerificationRequest,
-        artifactDigest: Digest256
-    ) throws -> Digest256 {
-        if let error {
-            throw error
-        }
-        return provenanceDigest
-    }
-}
-
-private final class ProductReplayLedger: SuperNeoReplayLedger {
-    private var accepted: Set<SuperNeoProductProofIdentity> = []
-
-    var recordedCount: Int { accepted.count }
-
-    func hasAccepted(_ identity: SuperNeoProductProofIdentity) throws -> Bool {
-        accepted.contains(identity)
-    }
-
-    func recordAccepted(_ identity: SuperNeoProductProofIdentity) throws {
-        accepted.insert(identity)
-    }
-}
-
-private final class ProductAuditSink: SuperNeoVerificationAuditSink {
-    private(set) var events: [SuperNeoProductVerificationAuditEvent] = []
-
-    func record(_ event: SuperNeoProductVerificationAuditEvent) {
-        events.append(event)
-    }
-}
-
 final class UsabilitySurfaceTests: SuperNeoTestCase {
     func testPublicNumiSealProductAPIGeneratesOneHotArtifactWithTraceAndQROMEvidence() throws {
+        let qroChallenge = try makeQROChallenge("numiseal-product-public-api-one-hot")
         let output = try NumiSealProductAPI.proveOneHotVector(
             bits: [false, true],
             keySeedUTF8: "numiseal-product-public-api-key",
+            qroChallenge: qroChallenge,
             sourceApplicationPathUTF8: "app://public-api/one-hot",
             executionPolicy: .zkHighAssuranceCPU,
             aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
@@ -7452,6 +7121,15 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             artifact.executionPolicyMetadata["qromEvidenceDigest"],
             output.qromEvidence.evidenceDigest.hexString
         )
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["qroChallengeDigest384Hex"],
+            qroChallenge.challengeDigest.hexString
+        )
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["qromBindingTargetEventCount"],
+            "10"
+        )
+        XCTAssertEqual(output.qromEvidence.qroChallengeDigest, qroChallenge.challengeDigest)
         XCTAssertEqual(output.qromEvidence.challengeOracleBits, 256)
         XCTAssertEqual(output.qromEvidence.bindingOracleBits, 384)
 
@@ -7459,6 +7137,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             artifact: artifact,
             sourcePublicInput: output.sourcePublicInput,
             key: output.verifierKey,
+            qroChallenge: qroChallenge,
             executionPolicy: .highAssurance
         )
         XCTAssertTrue(verified.sourceFoldResult.isReductionAccepted, verified.sourceFoldResult.reason ?? "")
@@ -7466,9 +7145,11 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
     }
 
     func testNumiSealProductConcreteExtractorReplaysAcceptedProductBindings() throws {
+        let qroChallenge = try makeQROChallenge("numiseal-product-concrete-extractor")
         let output = try NumiSealProductAPI.proveOneHotVector(
             bits: [false, true],
             keySeedUTF8: "numiseal-product-concrete-extractor-key",
+            qroChallenge: qroChallenge,
             sourceApplicationPathUTF8: "app://public-api/extractor",
             executionPolicy: .zkHighAssuranceCPU,
             aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
@@ -7479,6 +7160,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             trustedContext: output.trustedContext,
             sourcePublicInput: output.sourcePublicInput,
             key: output.verifierKey,
+            qroChallenge: qroChallenge,
             executionPolicy: .highAssurance
         )
 
@@ -7519,6 +7201,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 trustedContext: wrongContext,
                 sourcePublicInput: output.sourcePublicInput,
                 key: output.verifierKey,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidParameter("NumiSeal product extractor trusted context mismatch")
@@ -7526,11 +7209,13 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
     }
 
     func testPublicNumiSealProductAPIGeneratesBinaryAdditionArtifact() throws {
+        let qroChallenge = try makeQROChallenge("numiseal-product-public-api-binary")
         let output = try NumiSealProductAPI.proveBinaryAddition(
             left: 1,
             right: 2,
             operandBits: 2,
             keySeedUTF8: "numiseal-product-public-binary-api-key",
+            qroChallenge: qroChallenge,
             executionPolicy: .zkHighAssuranceCPU,
             aggregationLimits: try NumiSealAggregationLimits(maximumObligationsPerAggregate: 32)
         )
@@ -7548,6 +7233,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             artifact: output.artifact,
             sourcePublicInput: output.sourcePublicInput,
             key: output.verifierKey,
+            qroChallenge: qroChallenge,
             executionPolicy: .highAssurance,
             trustedContext: output.trustedContext
         )
@@ -7561,6 +7247,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: tamperedPublicInputs,
                 sourcePublicInput: output.sourcePublicInput,
                 key: output.verifierKey,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidEncoding("NumiSeal product frontend context digest mismatch")
@@ -7578,6 +7265,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: output.artifact,
                 sourcePublicInput: output.sourcePublicInput,
                 key: output.verifierKey,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance,
                 trustedContext: wrongContext
             ),
@@ -7591,12 +7279,14 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             bits: [false, true],
             keySeed: Array("numiseal-product-key".utf8)
         )
+        let qroChallenge = try makeQROChallenge("numiseal-product-v2")
         let artifact = try NumiSealProductProver().prove(
             NumiSealProvingRequest(
                 preparedR1CS: prepared,
                 workload: "one-hot-vector-v1",
                 bitCount: 2,
                 publicInputs: [1],
+                qroChallenge: qroChallenge,
                 keySeedUTF8: "numiseal-product-key",
                 workloadParameters: ["selectedCount": "1"],
                 laneID: try NumiSealLaneID("product"),
@@ -7610,11 +7300,23 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(artifact.sealMode, NumiSealZK.sealMode)
         XCTAssertEqual(artifact.carryMode, "none")
         XCTAssertEqual(artifact.zkMode, NumiSealZK.maskedDigitTensorMode)
-        XCTAssertEqual(artifact.sourceFoldOutputClaimCount, 14)
+        XCTAssertEqual(artifact.sourceDecompositionProfile, "pay-per-bit-v1")
+        XCTAssertEqual(artifact.executionPolicyMetadata["sourceDecompositionProfile"], "pay-per-bit-v1")
+        XCTAssertGreaterThan(artifact.sourceFoldOutputClaimCount, 0)
+        XCTAssertLessThanOrEqual(
+            artifact.sourceFoldOutputClaimCount,
+            NumiSealProductTheoremLimits.maximumSourceFoldOutputClaimCount
+        )
         XCTAssertEqual(artifact.aggregateDigestsHex.count, 1)
         XCTAssertEqual(artifact.executionPolicyMetadata["terminalCarryPolicy"], "none")
         XCTAssertEqual(artifact.executionPolicyMetadata["ctcoCompilerFamily"], "ctco")
         XCTAssertEqual(artifact.executionPolicyMetadata["qromBindingOracleBits"], "384")
+        XCTAssertEqual(artifact.executionPolicyMetadata["qromBindingTargetEventCount"], "10")
+        XCTAssertEqual(artifact.executionPolicyMetadata["qroChallengeDigest384Hex"], qroChallenge.challengeDigest.hexString)
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["numiSealTranscriptDomainQRODigestHex"],
+            try qroChallenge.transcriptDomainDigest(label: "numiseal-product-terminal").hexString
+        )
         XCTAssertNotNil(artifact.executionPolicyMetadata["sourceFoldCTCORoot384Hex"])
         XCTAssertNotNil(artifact.executionPolicyMetadata["sourceFoldCTCOChallengeTapeSeedHex"])
         XCTAssertNotNil(artifact.executionPolicyMetadata["proofEnvelopeCTCORoot384Hex"])
@@ -7638,10 +7340,62 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             artifact: artifact,
             sourcePublicInput: prepared.publicFoldInput,
             key: prepared.key,
+            qroChallenge: qroChallenge,
             executionPolicy: .highAssurance
         )
         XCTAssertTrue(result.sourceFoldResult.isReductionAccepted, result.sourceFoldResult.reason ?? "")
         XCTAssertTrue(result.numiSealResult.isValid, result.numiSealResult.reason ?? "")
+
+        var tamperedDecompositionProfile = artifact
+        tamperedDecompositionProfile.executionPolicyMetadata["sourceDecompositionProfile"] = "legacy-fixed"
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tamperedDecompositionProfile,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                qroChallenge: qroChallenge,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product source decomposition profile metadata mismatch")
+        )
+
+        var tamperedTopLevelDecompositionProfile = artifact
+        tamperedTopLevelDecompositionProfile.sourceDecompositionProfile = "fixed-maximum-v1"
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tamperedTopLevelDecompositionProfile,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                qroChallenge: qroChallenge,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product source decomposition profile mismatch")
+        )
+
+        var wrongZKLeakageMetadata = artifact
+        wrongZKLeakageMetadata.executionPolicyMetadata["zkLeakageDigest"] = Digest256.hash("wrong-zk-leakage").hexString
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: wrongZKLeakageMetadata,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                qroChallenge: qroChallenge,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product ZK metadata mismatch")
+        )
+
+        let swappedQROChallenge = try makeQROChallenge("numiseal-product-v2-swapped")
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: artifact,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                qroChallenge: swappedQROChallenge,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product QRO challenge digest mismatch")
+        )
 
         var tampered = artifact
         tampered.sourceFoldEnvelopeDigestHex = String(repeating: "0", count: 64)
@@ -7650,6 +7404,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: tampered,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidEncoding("NumiSeal product CTCO root mismatch")
@@ -7662,6 +7417,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: tamperedRoot,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidEncoding("NumiSeal product CTCO root mismatch")
@@ -7674,6 +7430,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: tamperedSourceRoot,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidEncoding("NumiSeal product source-fold CTCO root mismatch")
@@ -7686,6 +7443,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             bits: [false, true],
             keySeed: Array("numiseal-product-theorem-limits-key".utf8)
         )
+        let qroChallenge = try makeQROChallenge("numiseal-product-theorem-limits")
 
         XCTAssertThrowsSuperNeoError(
             try NumiSealProductProver().prove(
@@ -7694,6 +7452,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                     workload: "one-hot-vector-v1",
                     bitCount: 2,
                     publicInputs: [1],
+                    qroChallenge: qroChallenge,
                     keySeedUTF8: "numiseal-product-theorem-limits-key",
                     workloadParameters: ["selectedCount": "1"],
                     laneID: try NumiSealLaneID("product"),
@@ -7713,6 +7472,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 workload: "one-hot-vector-v1",
                 bitCount: 2,
                 publicInputs: [1],
+                qroChallenge: qroChallenge,
                 keySeedUTF8: "numiseal-product-theorem-limits-key",
                 workloadParameters: ["selectedCount": "1"],
                 laneID: try NumiSealLaneID("product"),
@@ -7728,6 +7488,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: tooManyLanes,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidEncoding("NumiSeal product lane count exceeds theorem maximum")
@@ -7740,6 +7501,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: tooManyAggregates,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidEncoding("NumiSeal product aggregate count exceeds theorem maximum")
@@ -7756,6 +7518,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: tooManyClaims,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidEncoding("NumiSeal product source claim count exceeds theorem maximum")
@@ -7768,12 +7531,14 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             bits: [false, true],
             keySeed: Array("numiseal-product-carry-policy-key".utf8)
         )
+        let qroChallenge = try makeQROChallenge("numiseal-product-carry-policy")
         let artifact = try NumiSealProductProver().prove(
             NumiSealProvingRequest(
                 preparedR1CS: prepared,
                 workload: "one-hot-vector-v1",
                 bitCount: 2,
                 publicInputs: [1],
+                qroChallenge: qroChallenge,
                 keySeedUTF8: "numiseal-product-carry-policy-key",
                 workloadParameters: ["selectedCount": "1"],
                 laneID: try NumiSealLaneID("product"),
@@ -7790,6 +7555,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: mismatchedMetadata,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidEncoding("NumiSeal product terminal carry policy metadata mismatch")
@@ -7802,6 +7568,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             artifact: typedOptional,
             sourcePublicInput: prepared.publicFoldInput,
             key: prepared.key,
+            qroChallenge: qroChallenge,
             executionPolicy: .highAssurance
         )
         XCTAssertTrue(optionalResult.numiSealResult.isValid, optionalResult.numiSealResult.reason ?? "")
@@ -7814,6 +7581,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: typedRequired,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidEncoding("NumiSeal recursive carry metadata is incomplete")
@@ -7826,12 +7594,14 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             bits: [false, true],
             keySeed: Array("numiseal-product-recursive-carry-key".utf8)
         )
+        let qroChallenge = try makeQROChallenge("numiseal-product-recursive-carry-context")
         let artifact = try NumiSealProductProver().prove(
             NumiSealProvingRequest(
                 preparedR1CS: prepared,
                 workload: "one-hot-vector-v1",
                 bitCount: 2,
                 publicInputs: [1],
+                qroChallenge: qroChallenge,
                 keySeedUTF8: "numiseal-product-recursive-carry-key",
                 workloadParameters: ["selectedCount": "1"],
                 laneID: try NumiSealLaneID("product"),
@@ -7843,6 +7613,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             artifact: artifact,
             sourcePublicInput: prepared.publicFoldInput,
             key: prepared.key,
+            qroChallenge: qroChallenge,
             executionPolicy: .highAssurance
         )
         let parentEnvelope = try XCTUnwrap(result.numiSealResult.envelope)
@@ -7959,12 +7730,14 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
     @inline(never)
     private func verifyNumiSealProductRecursiveCarryFixture(
         artifact: NumiSealProductArtifact,
-        prepared: SuperNeoPreparedR1CS
+        prepared: SuperNeoPreparedR1CS,
+        qroChallenge: SuperNeoQROChallenge
     ) throws -> NumiSealProductVerificationResult {
         try NumiSealProductVerifier().verify(
             artifact: artifact,
             sourcePublicInput: prepared.publicFoldInput,
             key: prepared.key,
+            qroChallenge: qroChallenge,
             executionPolicy: .highAssurance
         )
     }
@@ -7988,12 +7761,14 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
     private func verifyNumiSealRecursiveCarryChildFixture(
         artifact: NumiSealProductArtifact,
         prepared: SuperNeoPreparedR1CS,
+        qroChallenge: SuperNeoQROChallenge,
         recursiveCarryParent: NumiSealProductRecursiveCarryParent
     ) throws -> NumiSealProductVerificationResult {
         try NumiSealProductVerifier().verify(
             artifact: artifact,
             sourcePublicInput: prepared.publicFoldInput,
             key: prepared.key,
+            qroChallenge: qroChallenge,
             executionPolicy: .highAssurance,
             recursiveCarryParent: recursiveCarryParent
         )
@@ -8027,11 +7802,18 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             XCTFail("NumiSeal recursive carry aggregation limit fixture failed")
             return
         }
+        guard let parentQROChallenge = try? makeQROChallenge("numiseal-product-recursive-parent"),
+              let childQROChallenge = try? makeQROChallenge("numiseal-product-recursive-child"),
+              let grandchildQROChallenge = try? makeQROChallenge("numiseal-product-recursive-grandchild") else {
+            XCTFail("NumiSeal recursive carry QRO challenge fixture failed")
+            return
+        }
         let parentRequest = NumiSealProvingRequest(
             preparedR1CS: parentPrepared,
             workload: "one-hot-vector-v1",
             bitCount: 2,
             publicInputs: [1],
+            qroChallenge: parentQROChallenge,
             keySeedUTF8: "numiseal-product-recursive-parent-key",
             workloadParameters: ["selectedCount": "1"],
             laneID: laneID,
@@ -8049,7 +7831,8 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertNoThrow(
             parentResult = try verifyNumiSealProductRecursiveCarryFixture(
                 artifact: parentArtifact,
-                prepared: parentPrepared
+                prepared: parentPrepared,
+                qroChallenge: parentQROChallenge
             )
         )
         guard let parentResult else {
@@ -8072,6 +7855,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             workload: "one-hot-vector-v1",
             bitCount: 2,
             publicInputs: [1],
+            qroChallenge: childQROChallenge,
             keySeedUTF8: "numiseal-product-recursive-parent-key",
             workloadParameters: ["selectedCount": "1"],
             laneID: laneID,
@@ -8104,6 +7888,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         guard let childResult = try? verifyNumiSealRecursiveCarryChildFixture(
             artifact: childArtifact,
             prepared: childPrepared,
+            qroChallenge: childQROChallenge,
             recursiveCarryParent: recursiveParent
         ) else {
             XCTFail("NumiSeal recursive carry typed-required child verification failed")
@@ -8131,6 +7916,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             workload: "one-hot-vector-v1",
             bitCount: 2,
             publicInputs: [1],
+            qroChallenge: grandchildQROChallenge,
             keySeedUTF8: "numiseal-product-recursive-parent-key",
             workloadParameters: ["selectedCount": "1"],
             laneID: laneID,
@@ -8144,6 +7930,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         guard let grandchildResult = try? verifyNumiSealRecursiveCarryChildFixture(
             artifact: grandchildArtifact,
             prepared: childPrepared,
+            qroChallenge: grandchildQROChallenge,
             recursiveCarryParent: grandchildParent
         ) else {
             XCTFail("NumiSeal recursive carry depth-3 child verification failed")
@@ -8165,6 +7952,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: childArtifact,
                 sourcePublicInput: childPrepared.publicFoldInput,
                 key: childPrepared.key,
+                qroChallenge: childQROChallenge,
                 executionPolicy: .highAssurance
             ),
             .verificationFailed("NumiSeal typed-required product carry requires recursive carry parent context")
@@ -8187,6 +7975,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: childArtifact,
                 sourcePublicInput: childPrepared.publicFoldInput,
                 key: childPrepared.key,
+                qroChallenge: childQROChallenge,
                 executionPolicy: .highAssurance,
                 recursiveCarryParent: swappedParent
             ),
@@ -8200,6 +7989,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: tampered,
                 sourcePublicInput: childPrepared.publicFoldInput,
                 key: childPrepared.key,
+                qroChallenge: childQROChallenge,
                 executionPolicy: .highAssurance,
                 recursiveCarryParent: recursiveParent
             ),
@@ -8244,12 +8034,14 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             bits: [false, true],
             keySeed: Array("numiseal-product-zk-key".utf8)
         )
+        let qroChallenge = try makeQROChallenge("numiseal-product-zk-v2")
         let artifact = try NumiSealProductProver().prove(
             NumiSealProvingRequest(
                 preparedR1CS: prepared,
                 workload: "one-hot-vector-v1",
                 bitCount: 2,
                 publicInputs: [1],
+                qroChallenge: qroChallenge,
                 keySeedUTF8: "numiseal-product-zk-key",
                 workloadParameters: ["selectedCount": "1"],
                 laneID: try NumiSealLaneID("product"),
@@ -8264,7 +8056,13 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(artifact.sealMode, NumiSealZK.sealMode)
         XCTAssertEqual(artifact.carryMode, "none")
         XCTAssertEqual(artifact.zkMode, NumiSealZK.maskedDigitTensorMode)
-        XCTAssertEqual(artifact.sourceFoldOutputClaimCount, 14)
+        XCTAssertEqual(artifact.sourceDecompositionProfile, "pay-per-bit-v1")
+        XCTAssertEqual(artifact.executionPolicyMetadata["sourceDecompositionProfile"], "pay-per-bit-v1")
+        XCTAssertGreaterThan(artifact.sourceFoldOutputClaimCount, 0)
+        XCTAssertLessThanOrEqual(
+            artifact.sourceFoldOutputClaimCount,
+            NumiSealProductTheoremLimits.maximumSourceFoldOutputClaimCount
+        )
         XCTAssertEqual(artifact.aggregateDigestsHex.count, 1)
         XCTAssertEqual(artifact.executionPolicyMetadata["numiSealProofKind"], NumiSealProductArtifact.zkProofKind)
         XCTAssertEqual(artifact.executionPolicyMetadata["terminalCarryPolicy"], "none")
@@ -8301,10 +8099,24 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             artifact: artifact,
             sourcePublicInput: prepared.publicFoldInput,
             key: prepared.key,
+            qroChallenge: qroChallenge,
             executionPolicy: .highAssurance
         )
         XCTAssertTrue(result.sourceFoldResult.isReductionAccepted, result.sourceFoldResult.reason ?? "")
         XCTAssertTrue(result.numiSealResult.isValid, result.numiSealResult.reason ?? "")
+
+        var tamperedZKMetadata = artifact
+        tamperedZKMetadata.executionPolicyMetadata["zkLeakageDigest"] = Digest256.hash("wrong-zk-leakage").hexString
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductVerifier().verify(
+                artifact: tamperedZKMetadata,
+                sourcePublicInput: prepared.publicFoldInput,
+                key: prepared.key,
+                qroChallenge: qroChallenge,
+                executionPolicy: .highAssurance
+            ),
+            .invalidEncoding("NumiSeal product ZK metadata mismatch")
+        )
 
         var tampered = artifact
         tampered.zkMode = NumiSealZK.nonZKMode
@@ -8313,6 +8125,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 artifact: tampered,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: qroChallenge,
                 executionPolicy: .highAssurance
             ),
             .invalidEncoding("NumiSeal product proof kind, seal mode, and ZK mode are inconsistent")
@@ -8435,7 +8248,11 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
 
         XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
         XCTAssertTrue(reduction.requiresTerminalRelationCheck)
-        XCTAssertEqual(reduction.outputClaims.count, prepared.key.parameters.decompositionLength)
+        XCTAssertTrue(
+            (1...prepared.key.parameters.decompositionLength).contains(reduction.outputClaims.count),
+            "adaptive decomposition output count must stay within the parameter maximum"
+        )
+        XCTAssertLessThan(reduction.outputClaims.count, prepared.key.parameters.decompositionLength)
     }
 
     func testOneHotR1CSBuilderRejectsNonOneHotWitness() throws {
@@ -8554,7 +8371,11 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
 
         XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
         XCTAssertTrue(reduction.requiresTerminalRelationCheck)
-        XCTAssertEqual(reduction.outputClaims.count, prepared.key.parameters.decompositionLength)
+        XCTAssertTrue(
+            (1...prepared.key.parameters.decompositionLength).contains(reduction.outputClaims.count),
+            "adaptive decomposition output count must stay within the parameter maximum"
+        )
+        XCTAssertLessThan(reduction.outputClaims.count, prepared.key.parameters.decompositionLength)
     }
 
     func testGoldenOneHotFoldVectorVerifies() throws {
@@ -9907,7 +9728,10 @@ extension SuperNeoTestCase {
         witnessOutputClaims: [CCSEvaluationClaim],
         parameters: SuperNeoParameters
     ) throws {
-        XCTAssertEqual(proofOutputClaims.count, parameters.decompositionLength)
+        XCTAssertTrue(
+            (1...parameters.decompositionLength).contains(proofOutputClaims.count),
+            "PiDEC output count must be adaptive but bounded by the parameter maximum"
+        )
         XCTAssertEqual(proofOutputClaims.count, witnessOutputClaims.count)
         for (proofClaim, witnessClaim) in zip(proofOutputClaims, witnessOutputClaims) {
             XCTAssertClaimsSharePublicData(proofClaim, witnessClaim)

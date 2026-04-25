@@ -6,7 +6,7 @@
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
     "productExtractorLossAccounting": "TestVectors/product-extractor-loss-accounting-v1.json",
-    "productQROMFiatShamirAccounting": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+    "productQROMPublicCoinAccounting": "TestVectors/product-qrom-public-coin-accounting-v1.json",
     "productQROMTranscriptSchedule": "TestVectors/product-qrom-transcript-schedule-v1.json",
     "productQROMTransformPreconditions": "TestVectors/product-qrom-transform-preconditions-v1.json",
     "productQROMInteractiveReduction": "TestVectors/product-qrom-interactive-reduction-v1.json",
@@ -53,6 +53,20 @@
     "zeroMultiplicityTermsExcludedFromSelectedSum": true,
     "doubleCountingPolicy": "epsilon_core_shared is a tagged union of shared Module-SIS and shared commitment failures; epsilon_collision is mapped from epsilon_bind and is not included inside epsilon_qrom or epsilon_core_shared"
   },
+  "sourceDecompositionProfile": {
+    "selectedProfile": "pay-per-bit-v1",
+    "fixedMaximumProfileRejectedForProduct": true,
+    "maximumSourceFoldOutputClaimCount": 14,
+    "exactCountBoundSource": "NumiSealProductArtifact.sourceFoldOutputClaimCount",
+    "adaptiveOutputClaimCountAccounting": "source CE obligations are adaptive, not fixed 14: sourceFoldOutputClaimCount must equal sourceFoldOutputClaimDigestsHex.count and must lie in 1...SuperNeoParameters.goldilocks.decompositionLength; recomposition is still required for every emitted claim.",
+    "artifactBinding": [
+      "top-level sourceDecompositionProfile",
+      "executionPolicyMetadata.sourceDecompositionProfile",
+      "sourceFoldOutputClaimCount",
+      "sourceFoldOutputClaimDigestsHex"
+    ],
+    "recompositionInvariant": "SuperNeoVerifier.reduceFoldEnvelope checks PiDEC recomposition of commitments, public inputs, and evaluations for every emitted pay-per-bit limb before NumiSeal obligations are constructed."
+  },
   "componentBounds": [
     {
       "id": "shared-cryptographic-core",
@@ -74,7 +88,7 @@
       "lossInstantiated": true,
       "boundLog2": 188,
       "exactUpperBound": "115792089129476408824356888060926850351691544018699576221145172681277952793681/47890485607457536452598582598378457031198335082954752000076293945305394572642812588447565271161654454346034981426782906055450439453125",
-      "requiredEvidence": "TestVectors/product-finite-protocol-loss-obstruction-v1.json pins the one-shot 5^54 < 2^128 obstruction, the generic CRT-component one-tape bound 1/5^27, and instantiates the fixed-kind CTCO repeated-tape source-fold route: two PiCCS tapes with 16/q^4, three generic CRT PiRLC branches with 1/5^81, and exact epsilon_fold <= 16/q^4 + 1/5^81 < 2^-128."
+      "requiredEvidence": "TestVectors/product-finite-protocol-loss-obstruction-v1.json pins the one-shot 5^54 < 2^128 obstruction, the generic CRT-component one-tape bound 1/5^27, and instantiates the fixed-kind CTCO repeated-tape source-fold route: two PiCCS tapes with 16/q^4, three generic CRT PiRLC branches with 1/5^81, and exact epsilon_fold <= 16/q^4 + 1/5^81 < 2^-128. The selected product source profile is pay-per-bit-v1: source CE obligations use an adaptive output-claim count, sourceFoldOutputClaimCount must match sourceFoldOutputClaimDigestsHex, and verifier recomposition remains mandatory for every emitted limb rather than assuming fixed 14 obligations."
     },
     {
       "id": "terminal-numiseal-seal",
@@ -110,9 +124,9 @@
       "requiredEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json instantiates epsilon_zk_sim = 0 for proof-level simulator coupling under the declared leakage model, exact field-mask rejection sampling, fresh randomness-session binding, mask-reuse rejection, and side channels charged separately to epsilon_ct"
     },
     {
-      "id": "fiat-shamir-qrom",
+      "id": "public-coin-qrom",
       "ledgerSymbol": "epsilon_qrom",
-      "sourceManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+      "sourceManifest": "TestVectors/product-qrom-public-coin-accounting-v1.json",
       "currentMultiplicityAtSelectedDepth": 1,
       "requiredForSelectedDepth": true,
       "lossInstantiated": true,
@@ -134,7 +148,7 @@
     {
       "id": "transcript-collision-domain-separation",
       "ledgerSymbol": "epsilon_collision",
-      "sourceManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
+      "sourceManifest": "TestVectors/product-qrom-public-coin-accounting-v1.json",
       "currentMultiplicityAtSelectedDepth": 1,
       "requiredForSelectedDepth": true,
       "lossInstantiated": true,
@@ -162,7 +176,7 @@
       "lossInstantiated": false,
       "boundLog2": null,
       "exactUpperBound": null,
-      "requiredEvidence": "non-probabilistic deployment boundary recorded outside the repository-local selected-depth loss budget"
+      "requiredEvidence": "non-probabilistic deployment boundary recorded outside the repository-local selected-depth loss budget; signed issued-QRO packs and local SQLite single-use issued public-coin replay enforcement are implemented repository-local controls"
     },
     {
       "id": "release-distribution",
