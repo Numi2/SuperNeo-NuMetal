@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "ledgerID": "superneo-product-selected-depth-loss-accounting-v1",
-  "claimStatus": "selected-depth-loss-contract-repository-local-production-claim",
+  "claimStatus": "selected-depth-loss-contract-repository-local-selected-depth-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "numiSealEndToEndTheoremScope": "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -65,7 +65,8 @@
     "selectedRecursiveCarryHops": 0,
     "currentProductDefaultMaximumDepth": 1,
     "polyDepthClaimAllowed": true,
-    "productionSelectedDepthClaimAllowed": true
+    "repositoryLocalSelectedDepthClaimAllowed": true,
+    "productionSelectedDepthClaimAllowed": false
   },
   "lossNotation": {
     "securityParameter": "lambda",
@@ -91,7 +92,7 @@
       "accountingRule": "one global tagged-union core term for shared Module-SIS/no-short-kernel and commitment-opening failures across source fold, terminal seal, and extractor paths",
       "requiredEvidence": "TestVectors/product-shared-bad-event-dedup-v1.json plus conservative 2^-129 shared core bound from the pinned Module-SIS lane",
       "accountingManifest": "TestVectors/product-shared-bad-event-dedup-v1.json",
-      "productionClaimAllowed": true
+      "productionClaimAllowed": false
     },
     {
       "id": "source-fold-knowledge",
@@ -101,7 +102,7 @@
       "accountingRule": "one residual source fold relation loss per accepted product layer after shared core bad-event tags are charged through epsilon_core_shared; selected fixed-kind CTCO repeated-tape accounting uses two PiCCS tapes and three generic CRT PiRLC branches",
       "requiredEvidence": "TestVectors/product-finite-protocol-loss-obstruction-v1.json records the one-shot finite-protocol blockers, then instantiates epsilon_fold for the fixed-kind CTCO repeated-tape route: two PiCCS tapes, three generic CRT PiRLC branches, and exact bound 16/q^4 + 1/5^81 < 2^-128. PiRLC/PiCCS shared core failures remain excluded through TestVectors/product-shared-bad-event-dedup-v1.json.",
       "accountingManifest": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
-      "productionClaimAllowed": true
+      "productionClaimAllowed": false
     },
     {
       "id": "terminal-numiseal-seal",
@@ -111,7 +112,7 @@
       "accountingRule": "one residual terminal seal relation loss per accepted NumiSeal terminal proof envelope after shared core bad-event tags are charged through epsilon_core_shared; terminal CE contributes (2/3)^226 at 226 rounds",
       "requiredEvidence": "TestVectors/product-finite-protocol-loss-obstruction-v1.json records that terminal CE is pinned at 226 repeated challenge rounds, instantiates epsilon_terminal_ce <= (2/3)^226 < 2^-128, and relies on fixed-kind CTCO repeated-tape source-fold wiring for embedded PiRLC/PiCCS obligations.",
       "accountingManifest": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
-      "productionClaimAllowed": true
+      "productionClaimAllowed": false
     },
     {
       "id": "typed-recursive-carry",
@@ -120,7 +121,7 @@
       "lossSymbol": "epsilon_carry",
       "accountingRule": "zero recursive carry hops at selected depth 1; recursive child promotion requires one typed carry producer/consumer loss per hop",
       "requiredEvidence": "selected-depth typed-required carry vector, hosted replay semantics, and parent-child-to-chain induction",
-      "productionClaimAllowed": true
+      "productionClaimAllowed": false
     },
     {
       "id": "zk-simulator-composition",
@@ -129,7 +130,7 @@
       "lossSymbol": "epsilon_zk_sim",
       "accountingRule": "epsilon_zk_sim = 0 per accepted masked residual product proof under exact field-mask sampling, fresh randomness-session binding, mask-reuse rejection, and declared leakage; side channels remain charged to epsilon_ct",
       "requiredEvidence": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json plus TestVectors/numiseal-zk-mask-distribution-evidence-v1.json instantiate proof-level simulator coupling for the declared leakage model",
-      "productionClaimAllowed": true
+      "productionClaimAllowed": false
     },
     {
       "id": "fiat-shamir-qrom",
@@ -139,7 +140,7 @@
       "accountingRule": "one CTCO split-QRO transform overhead per accepted product transcript; interactive soundness is charged outside epsilon_qrom and binding failures are exported to epsilon_collision",
       "requiredEvidence": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json, TestVectors/product-qrom-transcript-schedule-v1.json, TestVectors/product-qrom-transform-preconditions-v1.json, TestVectors/product-qrom-interactive-reduction-v1.json, TestVectors/product-qrom-sampler-encoding-evidence-v1.json, and TestVectors/product-qrom-collision-malleability-evidence-v1.json plus implemented 384-bit H_bind acceptance binders, implemented CTCO move-1 root coverage for all accepted proof-kind trace bodies, pinned delayed-message/unique-response data, per-kind interactive security bounds exported outside epsilon_qrom through ProductPerKindInteractiveSecurityEvidence, epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO model, and exact finite-probability wiring into TestVectors/product-total-loss-budget-v1.json",
       "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
-      "productionClaimAllowed": true
+      "productionClaimAllowed": false
     },
     {
       "id": "extractor-instantiation",
@@ -149,7 +150,7 @@
       "accountingRule": "epsilon_extract(depth=1) = 0 for deterministic post-acceptance replay of accepted source fold, terminal seal, product envelope, trusted context, trace evidence, and QROM evidence; cryptographic CTCO extraction remains charged in per-kind theorem assumptions",
       "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus NumiSealProductConcreteExtractor.extract and swiftConcreteExtractorEvidenceDigest metadata instantiate selected-depth epsilon_extract = 0; recursive carry extraction remains a depth-promotion obligation because selectedRecursiveCarryHops = 0",
       "accountingManifest": "TestVectors/product-extractor-loss-accounting-v1.json",
-      "productionClaimAllowed": true
+      "productionClaimAllowed": false
     },
     {
       "id": "transcript-collision-domain-separation",
@@ -159,7 +160,7 @@
       "accountingRule": "one global 384-bit H_bind target-failure term is mapped from the QROM accounting manifest into the selected-depth total budget; proof-kind malleability is zero outside this binding-target ledger",
       "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json plus TestVectors/product-qrom-fiat-shamir-accounting-v1.json ledgerTermMapping and TestVectors/product-qrom-transcript-schedule-v1.json labels; structural binding is pinned, source H_bind acceptance binding is implemented, and the H_bind target bound is 36 * 2^-256",
       "accountingManifest": "TestVectors/product-qrom-fiat-shamir-accounting-v1.json",
-      "productionClaimAllowed": true
+      "productionClaimAllowed": false
     },
     {
       "id": "product-ops-replay",
@@ -168,7 +169,7 @@
       "lossSymbol": "epsilon_replay",
       "accountingRule": "deployment operations replay is not part of the repository-local selected-depth cryptographic loss budget",
       "requiredEvidence": "local product controls and audit export are tested; hosted deployment controls are external runbook guidance",
-      "productionClaimAllowed": true
+      "productionClaimAllowed": false
     },
     {
       "id": "constant-time-side-channel",
@@ -186,7 +187,7 @@
       "lossSymbol": "epsilon_release",
       "accountingRule": "release distribution is tracked by release evidence, not as a required selected-depth probability term",
       "requiredEvidence": "TestVectors/product-release-distribution-evidence-v1.json repository-local release evidence",
-      "productionClaimAllowed": true
+      "productionClaimAllowed": false
     }
   ],
   "totalLossRule": {
@@ -198,13 +199,15 @@
   },
   "hardClaimBlockers": [],
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": true,
-    "productionPostQuantumClaimAllowed": true,
-    "productionQROMClaimAllowed": true,
-    "productionZKPrivacyClaimAllowed": true,
-    "productionRecursiveCarryClaimAllowed": true,
+    "repositoryLocalProductTheoremClaimAllowed": true,
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
+    "productionZKPrivacyClaimAllowed": false,
+    "productionRecursiveCarryClaimAllowed": false,
     "productionConstantTimeClaimAllowed": false,
-    "productionReleaseDistributionClaimAllowed": true,
+    "productionReleaseDistributionClaimAllowed": false,
+    "requiresAllProductionGatesSatisfied": true,
     "requiresAllComponentLossesInstantiated": true,
     "requiresTotalLossWithinBudget": true
   }

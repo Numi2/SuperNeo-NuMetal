@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "budgetID": "superneo-product-total-loss-budget-v1",
-  "claimStatus": "total-loss-budget-contract-repository-local-production-claim",
+  "claimStatus": "total-loss-budget-contract-repository-local-selected-depth-claim",
   "relatedManifests": {
     "productCryptoSecurityDossier": "TestVectors/product-crypto-security-dossier-v1.json",
     "selectedDepthLossAccounting": "TestVectors/product-selected-depth-loss-accounting-v1.json",
@@ -41,7 +41,8 @@
     "selectedMaximumDepth": 1,
     "acceptedProductLayers": 1,
     "selectedRecursiveCarryHops": 0,
-    "productionBudgetPromotionAllowed": true
+    "repositoryLocalBudgetClaimAllowed": true,
+    "productionBudgetPromotionAllowed": false
   },
   "budgetModel": {
     "lossBoundFormat": "negative-log2-upper-bound-bits",
@@ -183,7 +184,8 @@
     "exactSelectedDepthLossUpperBound": "1524817325552571955113405954366591001320576061428196206500415823921474266153995130059487906546373417689880984888043496571148166815403488144131742298699032142411663275450355351739381207662530046071525219605185648606367417825540477933895568043356446980129567094378122437384095472341/935991071719907656231174971634127030812185940547016584296494971417027948496807144817356399419284219200241624485881079596444615615866880749936442975187946737011612872207536558002714890044884378641395515403848760693058509286515688454750208000000000000000000000000000000000000000000000000000000000000000000000000000000000",
     "selectedDepthLossWithinBudget": true,
     "allRequiredTermsInstantiated": true,
-    "productionTotalLossClaimAllowed": true
+    "repositoryLocalSelectedDepthLossClaimAllowed": true,
+    "productionTotalLossClaimAllowed": false
   },
   "exactFiniteProbabilityWiring": {
     "selectedDepth": 1,
@@ -195,20 +197,61 @@
     "hbindCollisionExpressionExact": "epsilon_bind = 36 * 2^-256 = 9/2^254",
     "sharedCoreExpressionExact": "epsilon_core_shared = 2^-129 = 1/2^129 and is charged once as a tagged union",
     "selectedDepthBudgetComparisonUsesExactRationals": true,
-    "productionTotalLossClaimAllowed": true,
+    "repositoryLocalSelectedDepthLossClaimAllowed": true,
+    "productionTotalLossClaimAllowed": false,
     "nonDyadicFiniteProtocolRationalsPinned": true,
     "sourceFoldRepeatedTapeExpressionExact": "epsilon_fold <= 16/q^4 + 1/5^81",
     "terminalCE226ExpressionExact": "epsilon_terminal_ce <= (2/3)^226",
     "extractorExpressionExact": "epsilon_extract(depth=1) = 0"
   },
+  "productionGates": [
+    {
+      "id": "product-ops-replay",
+      "componentID": "product-ops-replay",
+      "satisfied": false,
+      "requiredForRepositoryLocalUse": false,
+      "requiredForRepositoryLocalSelectedDepthClaim": false,
+      "requiredForProductionSecurityClaim": true,
+      "gateReason": "hosted operations replay, revocation freshness, and deployment replay policy are outside the repository-local finite-protocol loss sum"
+    },
+    {
+      "id": "constant-time-side-channel",
+      "componentID": "constant-time-side-channel",
+      "satisfied": false,
+      "requiredForRepositoryLocalUse": false,
+      "requiredForRepositoryLocalSelectedDepthClaim": false,
+      "requiredForProductionSecurityClaim": true,
+      "gateReason": "whole-stack side-channel and constant-time certification remain outside the repository-local finite-protocol loss sum"
+    },
+    {
+      "id": "release-distribution",
+      "componentID": "release-distribution",
+      "satisfied": false,
+      "requiredForRepositoryLocalUse": false,
+      "requiredForRepositoryLocalSelectedDepthClaim": false,
+      "requiredForProductionSecurityClaim": true,
+      "gateReason": "release-distribution provenance and deployment packaging evidence are outside the repository-local finite-protocol loss sum"
+    },
+    {
+      "id": "promoted-depth-recursive-carry",
+      "componentID": "typed-recursive-carry",
+      "satisfied": false,
+      "requiredForRepositoryLocalUse": false,
+      "requiredForRepositoryLocalSelectedDepthClaim": false,
+      "requiredForProductionSecurityClaim": true,
+      "gateReason": "recursive carry extraction is outside the repository-local finite-protocol loss sum for the selected depth-1 zero-hop claim, but it is required before promoted-depth production claims"
+    }
+  ],
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": true,
-    "productionPostQuantumClaimAllowed": true,
-    "productionQROMClaimAllowed": true,
-    "productionZKPrivacyClaimAllowed": true,
+    "repositoryLocalProductTheoremClaimAllowed": true,
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
+    "productionZKPrivacyClaimAllowed": false,
     "productionConstantTimeClaimAllowed": false,
     "requiresAllRequiredTermsInstantiated": true,
     "requiresSelectedDepthLossWithinBudget": true,
+    "requiresAllProductionGatesSatisfied": true,
     "requiresSelectedDepthLedgerUpdate": false
   }
 }

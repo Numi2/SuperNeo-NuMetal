@@ -541,8 +541,12 @@ def validate_schema_versions() -> None:
     require(isinstance(lattice_dossier, dict), "product crypto security dossier latticeAssumptionDossier must be an object")
     require(lattice_dossier.get("qDecimal") == "18446744069414584321", "product lattice q must stay pinned")
     require(
-        lattice_dossier.get("productionPostQuantumClaimAllowed") is True,
-        "product crypto security dossier must allow repository-local production PQ claims",
+        lattice_dossier.get("assumptionScopedPostQuantumClaimAllowed") is True,
+        "product crypto security dossier must allow assumption-scoped PQ claims",
+    )
+    require(
+        lattice_dossier.get("productionPostQuantumClaimAllowed") is False,
+        "product crypto security dossier must keep production PQ claims disabled until production gates close",
     )
     qrom_position = product_dossier.get("fiatShamirQROMPosition")
     require(isinstance(qrom_position, dict), "product crypto security dossier fiatShamirQROMPosition must be an object")
@@ -575,20 +579,28 @@ def validate_schema_versions() -> None:
         "product crypto security dossier must record structural collision/malleability closure",
     )
     require(
-        qrom_position.get("productionQROMClaimAllowed") is True,
-        "product crypto security dossier must allow repository-local production QROM claims",
+        qrom_position.get("repositoryLocalQROMAccountingClaimAllowed") is True,
+        "product crypto security dossier must allow repository-local QROM accounting claims",
+    )
+    require(
+        qrom_position.get("productionQROMClaimAllowed") is False,
+        "product crypto security dossier must keep production QROM claims disabled until production gates close",
     )
     dossier_promotion = product_dossier.get("promotionRule")
     require(isinstance(dossier_promotion, dict), "product crypto security dossier promotionRule must be an object")
     require(
-        dossier_promotion.get("productionProductSecurityClaimAllowed") is True,
-        "product crypto security dossier must allow repository-local production product-security claims",
+        dossier_promotion.get("repositoryLocalProductTheoremClaimAllowed") is True,
+        "product crypto security dossier must allow repository-local product theorem claims",
+    )
+    require(
+        dossier_promotion.get("productionProductSecurityClaimAllowed") is False,
+        "product crypto security dossier must keep production product-security claims disabled until production gates close",
     )
     selected_depth_loss = read_json("TestVectors/product-selected-depth-loss-accounting-v1.json")
     require(isinstance(selected_depth_loss, dict), "selected-depth loss-accounting root must be an object")
     require(selected_depth_loss.get("schemaVersion") == 1, "selected-depth loss-accounting schemaVersion must be 1")
     require(
-        selected_depth_loss.get("claimStatus") == "selected-depth-loss-contract-repository-local-production-claim",
+        selected_depth_loss.get("claimStatus") == "selected-depth-loss-contract-repository-local-selected-depth-claim",
         "selected-depth loss-accounting claimStatus must stay precise",
     )
     selected_depth = selected_depth_loss.get("selectedDepth")
@@ -1021,14 +1033,18 @@ def validate_schema_versions() -> None:
     require(isinstance(total_budget, dict), "total-loss budget root must be an object")
     require(total_budget.get("schemaVersion") == 1, "total-loss budget schemaVersion must be 1")
     require(
-        total_budget.get("claimStatus") == "total-loss-budget-contract-repository-local-production-claim",
+        total_budget.get("claimStatus") == "total-loss-budget-contract-repository-local-selected-depth-claim",
         "total-loss budget claimStatus must stay precise",
     )
     computed_budget = total_budget.get("computedBudget")
     require(isinstance(computed_budget, dict), "total-loss budget computedBudget must be an object")
     require(
-        computed_budget.get("productionTotalLossClaimAllowed") is True,
-        "total-loss budget must allow repository-local product-security loss claims",
+        computed_budget.get("repositoryLocalSelectedDepthLossClaimAllowed") is True,
+        "total-loss budget must allow repository-local selected-depth loss claims",
+    )
+    require(
+        computed_budget.get("productionTotalLossClaimAllowed") is False,
+        "total-loss budget must keep production total-loss claims disabled until production gates close",
     )
     require(
         computed_budget.get("selectedDepthLossWithinBudget") is True,

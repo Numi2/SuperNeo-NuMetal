@@ -37,7 +37,7 @@ def main() -> None:
         tmp = Path(tmpdir)
 
         wrong_claim = copy.deepcopy(budget)
-        wrong_claim["claimStatus"] = "production-total-loss-budget"
+        wrong_claim["claimStatus"] = "total-loss-budget-contract-repository-local-production-claim"
         path = tmp / "wrong-claim.json"
         write_json(path, wrong_claim)
         run_fail(str(VALIDATE), str(path))
@@ -170,9 +170,21 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         stale_promotion = copy.deepcopy(budget)
-        stale_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = False
+        stale_promotion["promotionRule"]["repositoryLocalProductTheoremClaimAllowed"] = False
         path = tmp / "stale-promotion.json"
         write_json(path, stale_promotion)
+        run_fail(str(VALIDATE), str(path))
+
+        premature_production_promotion = copy.deepcopy(budget)
+        premature_production_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = True
+        path = tmp / "premature-production-promotion.json"
+        write_json(path, premature_production_promotion)
+        run_fail(str(VALIDATE), str(path))
+
+        gated_repository_use = copy.deepcopy(budget)
+        gated_repository_use["productionGates"][0]["requiredForRepositoryLocalUse"] = True
+        path = tmp / "gated-repository-use.json"
+        write_json(path, gated_repository_use)
         run_fail(str(VALIDATE), str(path))
 
         outsourced_review = copy.deepcopy(budget)

@@ -199,7 +199,8 @@
         "ropBits": 122.4
       }
     ],
-    "productionPostQuantumClaimAllowed": true,
+    "assumptionScopedPostQuantumClaimAllowed": true,
+    "productionPostQuantumClaimAllowed": false,
     "postQuantumBoundary": "The pinned default estimator lane records 129.1 rop bits, but conservative quantum and enumeration sensitivity rows fall below a broad 128-bit post-quantum claim. Product releases must keep the claim assumption-scoped until parameter selection and reduction losses are updated."
   },
   "normGrowthAndFailureBudget": {
@@ -277,7 +278,8 @@
         "epsilon_bind"
       ]
     },
-    "productionQROMClaimAllowed": true,
+    "repositoryLocalQROMAccountingClaimAllowed": true,
+    "productionQROMClaimAllowed": false,
     "remainingObligations": [
       "keep concrete SHAKE256-to-split-QRO promotion outside the ideal theorem until a concrete-hash argument is recorded",
       "keep selected-depth epsilon_replay, epsilon_ct, epsilon_release, and numeric total-loss terms outside the QROM theorem until their evidence closes"
@@ -285,18 +287,19 @@
   },
   "totalLossBudget": {
     "budgetManifest": "TestVectors/product-total-loss-budget-v1.json",
-    "claimStatus": "total-loss-budget-contract-repository-local-production-claim",
+    "claimStatus": "total-loss-budget-contract-repository-local-selected-depth-claim",
     "selectedSecurityBudgetBits": 128,
     "maximumAllowedTotalLoss": "2^-128",
     "exactArithmetic": "sum exact rational upper-bound terms; dyadic terms use exact numerator / 2^k and zero terms are represented as 0",
     "allRequiredTermsInstantiated": true,
     "selectedDepthLossWithinBudget": true,
-    "productionTotalLossClaimAllowed": true,
+    "repositoryLocalSelectedDepthLossClaimAllowed": true,
+    "productionTotalLossClaimAllowed": false,
     "remainingObligations": [
       "keep epsilon_core_shared charged once through the shared bad-event dedup manifest",
       "keep epsilon_collision mapped from epsilon_bind rather than double-counted inside epsilon_qrom",
-      "keep the exact selected-depth rational sum at most 2^-128 for repository-local production promotion",
-      "update release evidence with the computed budget result"
+      "keep the exact selected-depth rational sum at most 2^-128 for repository-local selected-depth theorem use",
+      "keep hosted replay, side-channel, release-distribution, and promoted-depth recursive-carry gates closed over production-security wording"
     ]
   },
   "zkPrivacyProofStatus": {
@@ -313,7 +316,8 @@
     "artifactMetadataSizeErrorCarryLeakage": "proof-byte leakage is included in the declared leakage model; hardware, timing, allocator, GPU, hosted retry, and failure-path leakage remain outside proof bytes and are charged separately to epsilon_ct",
     "repeatedProductProofComposition": "proof-level composition is instantiated with fresh randomness-session binding and mask-reuse rejection; hosted replay and revocation freshness remain product-ops obligations",
     "epsilonZKSimExactUpperBound": "0",
-    "productionZKPrivacyClaimAllowed": true
+    "repositoryLocalZKPrivacyClaimAllowed": true,
+    "productionZKPrivacyClaimAllowed": false
   },
   "carryRecursionClosure": {
     "producerPath": "implemented and theorem-surfaced for typed carry statements",
@@ -328,7 +332,8 @@
     "malformedCarryNegativeVectors": "covered by typed-carry conformance, product carry-policy binding tests, product recursive carry context tests, typed-required child product tests, and CLI/product validation tests",
     "swapResistance": "carry digest binds producer envelope, transcript, residual opening, final point, context, lane, and parent acceptance evidence",
     "productDefaultCarryMode": "none for base artifacts; typed-required for recursive child artifacts with verified parent context",
-    "productionRecursiveCarryClaimAllowed": true
+    "repositoryLocalRecursiveCarryClaimAllowed": true,
+    "productionRecursiveCarryClaimAllowed": false
   },
   "proofSizeLatencyComparison": {
     "localProofSizeEvidence": "TestVectors/e2e-proof-metrics-v1.json",
@@ -373,14 +378,16 @@
     "constantTimePromotionBlocker": "full side-channel certification requires hardware observation coverage before claiming whole-stack constant-time behavior; scoped compiler/lowering review is pinned in compiler-lowering-audit-v1"
   },
   "promotionRule": {
-    "productionProductSecurityClaimAllowed": true,
-    "productionPostQuantumClaimAllowed": true,
-    "productionQROMClaimAllowed": true,
-    "productionZKPrivacyClaimAllowed": true,
-    "productionRecursiveCarryClaimAllowed": true,
+    "repositoryLocalProductTheoremClaimAllowed": true,
+    "productionProductSecurityClaimAllowed": false,
+    "productionPostQuantumClaimAllowed": false,
+    "productionQROMClaimAllowed": false,
+    "productionZKPrivacyClaimAllowed": false,
+    "productionRecursiveCarryClaimAllowed": false,
     "productionPerformanceClaimAllowed": true,
     "productionConstantTimeClaimAllowed": false,
-    "productionReleaseDistributionClaimAllowed": true,
+    "productionReleaseDistributionClaimAllowed": false,
+    "requiresAllProductionGatesSatisfied": true,
     "requiresAllRemainingObligationsClosed": false
   }
 }

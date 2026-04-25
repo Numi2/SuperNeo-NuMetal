@@ -98,7 +98,7 @@ EXPECTED_COMPONENT_IDS = [
 
 EXPECTED_BLOCKERS: list[str] = []
 
-EXPECTED_PROMOTION_TRUE_FLAGS = [
+EXPECTED_PROMOTION_FALSE_FLAGS = [
     "productionProductSecurityClaimAllowed",
     "productionPostQuantumClaimAllowed",
     "productionQROMClaimAllowed",
@@ -319,7 +319,14 @@ def validate_selected_depth(ledger: dict[str, Any]) -> None:
     require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
     require(depth.get("currentProductDefaultMaximumDepth") == 1, "selectedDepth.currentProductDefaultMaximumDepth must be 1")
     require(depth.get("polyDepthClaimAllowed") is True, "selectedDepth.polyDepthClaimAllowed must be true")
-    require(depth.get("productionSelectedDepthClaimAllowed") is True, "selectedDepth.productionSelectedDepthClaimAllowed must be true")
+    require(
+        depth.get("repositoryLocalSelectedDepthClaimAllowed") is True,
+        "selectedDepth.repositoryLocalSelectedDepthClaimAllowed must be true",
+    )
+    require(
+        depth.get("productionSelectedDepthClaimAllowed") is False,
+        "selectedDepth.productionSelectedDepthClaimAllowed must stay false until production gates close",
+    )
 
 
 def validate_loss_notation(ledger: dict[str, Any]) -> None:
@@ -506,17 +513,25 @@ def validate_promotion_and_blockers(ledger: dict[str, Any]) -> None:
     require(isinstance(blockers, list), "hardClaimBlockers must be a list")
     for index, blocker in enumerate(blockers):
         require_string(blocker, f"hardClaimBlockers[{index}]")
-    require(blockers == [], "hardClaimBlockers must be empty after repository-local source-level promotion")
+    require(blockers == [], "hardClaimBlockers must be empty for repository-local selected-depth theorem use")
     promotion = require_dict(ledger.get("promotionRule"), "promotionRule")
-    for key in EXPECTED_PROMOTION_TRUE_FLAGS:
-        require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(
+        promotion.get("repositoryLocalProductTheoremClaimAllowed") is True,
+        "promotionRule.repositoryLocalProductTheoremClaimAllowed must be true",
+    )
+    for key in EXPECTED_PROMOTION_FALSE_FLAGS:
+        require(promotion.get(key) is False, f"promotionRule.{key} must stay false until production gates close")
     require(
         promotion.get("productionConstantTimeClaimAllowed") is False,
         "promotionRule.productionConstantTimeClaimAllowed must remain false until side-channel certification closes",
     )
     require(
-        promotion.get("productionRecursiveCarryClaimAllowed") is True,
-        "promotionRule.productionRecursiveCarryClaimAllowed must be true",
+        promotion.get("productionRecursiveCarryClaimAllowed") is False,
+        "promotionRule.productionRecursiveCarryClaimAllowed must stay false until production gates close",
+    )
+    require(
+        promotion.get("requiresAllProductionGatesSatisfied") is True,
+        "promotionRule.requiresAllProductionGatesSatisfied must be true",
     )
     require(promotion.get("requiresAllComponentLossesInstantiated") is True, "promotionRule.requiresAllComponentLossesInstantiated must be true")
     require(promotion.get("requiresTotalLossWithinBudget") is True, "promotionRule.requiresTotalLossWithinBudget must be true")
@@ -554,8 +569,8 @@ def validate_ledger(path: Path) -> None:
     require(ledger.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(ledger.get("ledgerID") == "superneo-product-selected-depth-loss-accounting-v1", "ledgerID mismatch")
     require(
-        ledger.get("claimStatus") == "selected-depth-loss-contract-repository-local-production-claim",
-        "claimStatus must record repository-local production",
+        ledger.get("claimStatus") == "selected-depth-loss-contract-repository-local-selected-depth-claim",
+        "claimStatus must record the repository-local selected-depth claim boundary",
     )
     validate_related_manifests(ledger)
     validate_formal_surface(ledger)

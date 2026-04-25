@@ -28,6 +28,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
     "componentBounds",
     "computedBudget",
     "exactFiniteProbabilityWiring",
+    "productionGates",
     "promotionRule",
 }
 
@@ -88,12 +89,26 @@ EXPECTED_REQUIRED_IDS = [
     "transcript-collision-domain-separation",
 ]
 
-EXPECTED_TRUE_PROMOTION_FLAGS = [
+EXPECTED_FALSE_PRODUCTION_PROMOTION_FLAGS = [
     "productionProductSecurityClaimAllowed",
     "productionPostQuantumClaimAllowed",
     "productionQROMClaimAllowed",
     "productionZKPrivacyClaimAllowed",
 ]
+
+EXPECTED_PRODUCTION_GATE_IDS = [
+    "product-ops-replay",
+    "constant-time-side-channel",
+    "release-distribution",
+    "promoted-depth-recursive-carry",
+]
+
+EXPECTED_PRODUCTION_GATE_COMPONENTS = {
+    "product-ops-replay": "product-ops-replay",
+    "constant-time-side-channel": "constant-time-side-channel",
+    "release-distribution": "release-distribution",
+    "promoted-depth-recursive-carry": "typed-recursive-carry",
+}
 
 
 def fail(message: str) -> None:
@@ -395,7 +410,11 @@ def validate_selected_depth(budget: dict[str, Any]) -> None:
     require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
     require(depth.get("acceptedProductLayers") == 1, "selectedDepth.acceptedProductLayers must be 1")
     require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
-    require(depth.get("productionBudgetPromotionAllowed") is True, "selectedDepth.productionBudgetPromotionAllowed must be true")
+    require(depth.get("repositoryLocalBudgetClaimAllowed") is True, "selectedDepth.repositoryLocalBudgetClaimAllowed must be true")
+    require(
+        depth.get("productionBudgetPromotionAllowed") is False,
+        "selectedDepth.productionBudgetPromotionAllowed must stay false until production gates close",
+    )
 
 
 def validate_budget_model(budget: dict[str, Any]) -> int:
@@ -602,7 +621,14 @@ def validate_computed_budget(
     )
     require(computed.get("allRequiredTermsInstantiated") is all_required, "computedBudget.allRequiredTermsInstantiated mismatch")
     require(computed.get("selectedDepthLossWithinBudget") is within_budget, "computedBudget.selectedDepthLossWithinBudget mismatch")
-    require(computed.get("productionTotalLossClaimAllowed") is True, "computedBudget.productionTotalLossClaimAllowed must be true")
+    require(
+        computed.get("repositoryLocalSelectedDepthLossClaimAllowed") is (all_required and within_budget),
+        "computedBudget.repositoryLocalSelectedDepthLossClaimAllowed mismatch",
+    )
+    require(
+        computed.get("productionTotalLossClaimAllowed") is False,
+        "computedBudget.productionTotalLossClaimAllowed must stay false until production gates close",
+    )
 
 
 def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiated_total: Fraction) -> None:
@@ -646,13 +672,65 @@ def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiate
         wiring.get("sharedCoreExpressionExact") == "epsilon_core_shared = 2^-129 = 1/2^129 and is charged once as a tagged union",
         "exactFiniteProbabilityWiring.sharedCoreExpressionExact mismatch",
     )
-    require(wiring.get("productionTotalLossClaimAllowed") is True, "exactFiniteProbabilityWiring.productionTotalLossClaimAllowed must be true")
+    require(
+        wiring.get("repositoryLocalSelectedDepthLossClaimAllowed") is True,
+        "exactFiniteProbabilityWiring.repositoryLocalSelectedDepthLossClaimAllowed must be true",
+    )
+    require(
+        wiring.get("productionTotalLossClaimAllowed") is False,
+        "exactFiniteProbabilityWiring.productionTotalLossClaimAllowed must stay false until production gates close",
+    )
 
 
-def validate_promotion_rule(budget: dict[str, Any]) -> None:
+def validate_production_gates(budget: dict[str, Any]) -> bool:
+    gates = budget.get("productionGates")
+    require(isinstance(gates, list), "productionGates must be a list")
+    require(len(gates) == len(EXPECTED_PRODUCTION_GATE_IDS), "productionGates length mismatch")
+    seen_ids: list[str] = []
+    all_satisfied = True
+    for index, item in enumerate(gates):
+        gate = require_dict(item, f"productionGates[{index}]")
+        gate_id = require_string(gate.get("id"), f"productionGates[{index}].id")
+        seen_ids.append(gate_id)
+        require(
+            gate.get("componentID") == EXPECTED_PRODUCTION_GATE_COMPONENTS.get(gate_id),
+            f"{gate_id}.componentID mismatch",
+        )
+        satisfied = gate.get("satisfied")
+        require(isinstance(satisfied, bool), f"{gate_id}.satisfied must be boolean")
+        all_satisfied = all_satisfied and satisfied
+        require(
+            gate.get("requiredForRepositoryLocalUse") is False,
+            f"{gate_id}.requiredForRepositoryLocalUse must be false",
+        )
+        require(
+            gate.get("requiredForRepositoryLocalSelectedDepthClaim") is False,
+            f"{gate_id}.requiredForRepositoryLocalSelectedDepthClaim must be false",
+        )
+        require(
+            gate.get("requiredForProductionSecurityClaim") is True,
+            f"{gate_id}.requiredForProductionSecurityClaim must be true",
+        )
+        reason = require_string(gate.get("gateReason"), f"{gate_id}.gateReason").lower()
+        require(
+            "repository-local" in reason and "finite-protocol loss sum" in reason,
+            f"{gate_id}.gateReason must keep production gates outside the repository-local finite-protocol claim",
+        )
+    require(seen_ids == EXPECTED_PRODUCTION_GATE_IDS, "productionGates must stay in the pinned order")
+    return all_satisfied
+
+
+def validate_promotion_rule(budget: dict[str, Any], production_gates_satisfied: bool) -> None:
     promotion = require_dict(budget.get("promotionRule"), "promotionRule")
-    for key in EXPECTED_TRUE_PROMOTION_FLAGS:
-        require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(
+        promotion.get("repositoryLocalProductTheoremClaimAllowed") is True,
+        "promotionRule.repositoryLocalProductTheoremClaimAllowed must be true",
+    )
+    for key in EXPECTED_FALSE_PRODUCTION_PROMOTION_FLAGS:
+        require(
+            promotion.get(key) is production_gates_satisfied,
+            f"promotionRule.{key} must reflect production gate satisfaction",
+        )
     require(
         promotion.get("productionConstantTimeClaimAllowed") is False,
         "promotionRule.productionConstantTimeClaimAllowed must remain false until side-channel certification closes",
@@ -662,6 +740,10 @@ def validate_promotion_rule(budget: dict[str, Any]) -> None:
         "requiresSelectedDepthLossWithinBudget",
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(
+        promotion.get("requiresAllProductionGatesSatisfied") is True,
+        "promotionRule.requiresAllProductionGatesSatisfied must be true",
+    )
     require(promotion.get("requiresSelectedDepthLedgerUpdate") is False, "promotionRule.requiresSelectedDepthLedgerUpdate must be false")
 
 
@@ -701,8 +783,8 @@ def validate_budget(path: Path) -> None:
     require(budget.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(budget.get("budgetID") == "superneo-product-total-loss-budget-v1", "budgetID mismatch")
     require(
-        budget.get("claimStatus") == "total-loss-budget-contract-repository-local-production-claim",
-        "claimStatus must record repository-local production",
+        budget.get("claimStatus") == "total-loss-budget-contract-repository-local-selected-depth-claim",
+        "claimStatus must record the repository-local selected-depth claim boundary",
     )
     validate_related_manifests(budget)
     validate_formal_surface(budget)
@@ -719,7 +801,8 @@ def validate_budget(path: Path) -> None:
         instantiated_total,
     )
     validate_exact_finite_probability_wiring(budget, instantiated_total)
-    validate_promotion_rule(budget)
+    production_gates_satisfied = validate_production_gates(budget)
+    validate_promotion_rule(budget, production_gates_satisfied)
     validate_docs_and_gate()
 
 

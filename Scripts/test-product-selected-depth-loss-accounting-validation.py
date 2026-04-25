@@ -171,13 +171,19 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         stale_promotion = copy.deepcopy(ledger)
-        stale_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = False
+        stale_promotion["promotionRule"]["repositoryLocalProductTheoremClaimAllowed"] = False
         path = tmp / "stale-promotion.json"
         write_json(path, stale_promotion)
         run_fail(str(VALIDATE), str(path))
 
+        premature_production_promotion = copy.deepcopy(ledger)
+        premature_production_promotion["promotionRule"]["productionProductSecurityClaimAllowed"] = True
+        path = tmp / "premature-production-promotion.json"
+        write_json(path, premature_production_promotion)
+        run_fail(str(VALIDATE), str(path))
+
         stale_recursive_promotion = copy.deepcopy(ledger)
-        stale_recursive_promotion["promotionRule"]["productionRecursiveCarryClaimAllowed"] = False
+        stale_recursive_promotion["promotionRule"]["productionRecursiveCarryClaimAllowed"] = True
         path = tmp / "stale-recursive-promotion.json"
         write_json(path, stale_recursive_promotion)
         run_fail(str(VALIDATE), str(path))

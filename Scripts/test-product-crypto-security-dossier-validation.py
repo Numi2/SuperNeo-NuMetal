@@ -75,15 +75,27 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         stale_pq = copy.deepcopy(dossier)
-        stale_pq["latticeAssumptionDossier"]["productionPostQuantumClaimAllowed"] = False
+        stale_pq["latticeAssumptionDossier"]["assumptionScopedPostQuantumClaimAllowed"] = False
         path = tmp / "stale-pq.json"
         write_json(path, stale_pq)
         run_fail(str(VALIDATE), str(path))
 
+        premature_pq = copy.deepcopy(dossier)
+        premature_pq["latticeAssumptionDossier"]["productionPostQuantumClaimAllowed"] = True
+        path = tmp / "premature-pq.json"
+        write_json(path, premature_pq)
+        run_fail(str(VALIDATE), str(path))
+
         stale_qrom = copy.deepcopy(dossier)
-        stale_qrom["fiatShamirQROMPosition"]["productionQROMClaimAllowed"] = False
+        stale_qrom["fiatShamirQROMPosition"]["repositoryLocalQROMAccountingClaimAllowed"] = False
         path = tmp / "stale-qrom.json"
         write_json(path, stale_qrom)
+        run_fail(str(VALIDATE), str(path))
+
+        premature_qrom = copy.deepcopy(dossier)
+        premature_qrom["fiatShamirQROMPosition"]["productionQROMClaimAllowed"] = True
+        path = tmp / "premature-qrom.json"
+        write_json(path, premature_qrom)
         run_fail(str(VALIDATE), str(path))
 
         missing_coverage = copy.deepcopy(dossier)
@@ -201,9 +213,15 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         stale_carry_closure = copy.deepcopy(dossier)
-        stale_carry_closure["carryRecursionClosure"]["productionRecursiveCarryClaimAllowed"] = False
+        stale_carry_closure["carryRecursionClosure"]["repositoryLocalRecursiveCarryClaimAllowed"] = False
         path = tmp / "stale-carry-closure.json"
         write_json(path, stale_carry_closure)
+        run_fail(str(VALIDATE), str(path))
+
+        premature_carry_closure = copy.deepcopy(dossier)
+        premature_carry_closure["carryRecursionClosure"]["productionRecursiveCarryClaimAllowed"] = True
+        path = tmp / "premature-carry-closure.json"
+        write_json(path, premature_carry_closure)
         run_fail(str(VALIDATE), str(path))
 
         outsourced_review = copy.deepcopy(dossier)
@@ -213,9 +231,15 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         stale_all_clear = copy.deepcopy(dossier)
-        stale_all_clear["promotionRule"]["productionProductSecurityClaimAllowed"] = False
+        stale_all_clear["promotionRule"]["repositoryLocalProductTheoremClaimAllowed"] = False
         path = tmp / "stale-all-clear.json"
         write_json(path, stale_all_clear)
+        run_fail(str(VALIDATE), str(path))
+
+        premature_production_all_clear = copy.deepcopy(dossier)
+        premature_production_all_clear["promotionRule"]["productionProductSecurityClaimAllowed"] = True
+        path = tmp / "premature-production-all-clear.json"
+        write_json(path, premature_production_all_clear)
         run_fail(str(VALIDATE), str(path))
 
         stale_performance = copy.deepcopy(dossier)
@@ -225,7 +249,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         stale_recursive_promotion = copy.deepcopy(dossier)
-        stale_recursive_promotion["promotionRule"]["productionRecursiveCarryClaimAllowed"] = False
+        stale_recursive_promotion["promotionRule"]["productionRecursiveCarryClaimAllowed"] = True
         path = tmp / "stale-recursive-promotion.json"
         write_json(path, stale_recursive_promotion)
         run_fail(str(VALIDATE), str(path))

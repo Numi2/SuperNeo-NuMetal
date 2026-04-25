@@ -318,7 +318,7 @@ def validate_depth(dossier: dict[str, Any]) -> None:
     loss_ledger = read_json(ROOT / str(EXPECTED_MANIFESTS["selectedDepthLossAccounting"]))
     require(loss_ledger.get("schemaVersion") == 1, "selected-depth loss ledger schemaVersion must be 1")
     require(
-        loss_ledger.get("claimStatus") == "selected-depth-loss-contract-repository-local-production-claim",
+        loss_ledger.get("claimStatus") == "selected-depth-loss-contract-repository-local-selected-depth-claim",
         "selected-depth loss ledger claimStatus must stay precise",
     )
     selected_depth = require_dict(loss_ledger.get("selectedDepth"), "selectedDepthLossAccounting.selectedDepth")
@@ -371,7 +371,14 @@ def validate_lattice(dossier: dict[str, Any]) -> None:
         require(lattice.get(key) == expected, f"latticeAssumptionDossier.{key} mismatch")
     require(lattice.get("normRoots") == [-1, 0, 1], "norm roots must stay pinned")
     require(lattice.get("challengeCoefficients") == [-2, -1, 0, 1, 2], "challenge coefficients must stay pinned")
-    require(lattice.get("productionPostQuantumClaimAllowed") is True, "latticeAssumptionDossier.productionPostQuantumClaimAllowed must be true")
+    require(
+        lattice.get("assumptionScopedPostQuantumClaimAllowed") is True,
+        "latticeAssumptionDossier.assumptionScopedPostQuantumClaimAllowed must be true",
+    )
+    require(
+        lattice.get("productionPostQuantumClaimAllowed") is False,
+        "latticeAssumptionDossier.productionPostQuantumClaimAllowed must stay false until production gates close",
+    )
     require("128-bit post-quantum claim" in require_string(lattice.get("postQuantumBoundary"), "postQuantumBoundary"), "postQuantumBoundary must state the PQ boundary")
 
     estimator = read_json(ROOT / str(EXPECTED_MANIFESTS["latticeEstimator"]))
@@ -519,7 +526,14 @@ def validate_fiat_shamir(dossier: dict[str, Any]) -> None:
     require(qrom.get("queryBoundLog2") == 64, "fiatShamirQROMPosition.queryBoundLog2 must be 64")
     require(qrom.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "fiatShamirQROMPosition.selectedDepthProtocolChallengeDerivations mismatch")
     require_true(qrom.get("transformPreconditionsSatisfied"), "fiatShamirQROMPosition.transformPreconditionsSatisfied")
-    require(qrom.get("productionQROMClaimAllowed") is True, "fiatShamirQROMPosition.productionQROMClaimAllowed must be true")
+    require(
+        qrom.get("repositoryLocalQROMAccountingClaimAllowed") is True,
+        "fiatShamirQROMPosition.repositoryLocalQROMAccountingClaimAllowed must be true",
+    )
+    require(
+        qrom.get("productionQROMClaimAllowed") is False,
+        "fiatShamirQROMPosition.productionQROMClaimAllowed must stay false until production gates close",
+    )
     require(qrom.get("sourceHBindImplementationComplete") is True, "fiatShamirQROMPosition.sourceHBindImplementationComplete")
     require(qrom.get("publicCoinChallengeScheduleSpecified") is True, "public coin challenge schedule must be recorded")
     require(qrom.get("transcriptDomainSeparatorsBound") is True, "transcript domain separator binding must be recorded")
@@ -721,7 +735,7 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
     )
     require_relative_path("TestVectors/product-total-loss-budget-v1.json", "totalLossBudget.budgetManifest")
     require(
-        total.get("claimStatus") == "total-loss-budget-contract-repository-local-production-claim",
+        total.get("claimStatus") == "total-loss-budget-contract-repository-local-selected-depth-claim",
         "totalLossBudget.claimStatus must stay precise",
     )
     require(total.get("selectedSecurityBudgetBits") == 128, "totalLossBudget.selectedSecurityBudgetBits must be 128")
@@ -733,17 +747,21 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
     for key in [
         "allRequiredTermsInstantiated",
         "selectedDepthLossWithinBudget",
-        "productionTotalLossClaimAllowed",
+        "repositoryLocalSelectedDepthLossClaimAllowed",
     ]:
         require(total.get(key) is True, f"totalLossBudget.{key} must be true")
+    require(
+        total.get("productionTotalLossClaimAllowed") is False,
+        "totalLossBudget.productionTotalLossClaimAllowed must stay false until production gates close",
+    )
     obligations = " ".join(require_string_list(total.get("remainingObligations"), "totalLossBudget.remainingObligations")).lower()
-    for needle in ["epsilon_collision", "2^-128", "release evidence"]:
+    for needle in ["epsilon_collision", "2^-128", "release-distribution"]:
         require(needle in obligations, f"total loss budget obligations must mention {needle}")
 
     manifest = read_json(ROOT / "TestVectors/product-total-loss-budget-v1.json")
     require(manifest.get("schemaVersion") == 1, "total loss budget schemaVersion must be 1")
     require(
-        manifest.get("claimStatus") == "total-loss-budget-contract-repository-local-production-claim",
+        manifest.get("claimStatus") == "total-loss-budget-contract-repository-local-selected-depth-claim",
         "total loss budget claimStatus must stay precise",
     )
     computed = require_dict(manifest.get("computedBudget"), "total loss budget computedBudget")
@@ -751,7 +769,14 @@ def validate_total_loss_budget(dossier: dict[str, Any]) -> None:
         computed.get("exactInstantiatedRequiredTermUpperBound") == format_fraction(selected_instantiated_partial_sum()),
         "total loss budget instantiated partial sum must include shared core, repeated finite-protocol terms, terminal CE, and H_bind collision terms",
     )
-    require(computed.get("productionTotalLossClaimAllowed") is True, "total loss budget productionTotalLossClaimAllowed must be true")
+    require(
+        computed.get("repositoryLocalSelectedDepthLossClaimAllowed") is True,
+        "total loss budget repositoryLocalSelectedDepthLossClaimAllowed must be true",
+    )
+    require(
+        computed.get("productionTotalLossClaimAllowed") is False,
+        "total loss budget productionTotalLossClaimAllowed must stay false until production gates close",
+    )
     require(computed.get("selectedDepthLossWithinBudget") is True, "total loss budget selectedDepthLossWithinBudget must be true")
 
 
@@ -766,7 +791,14 @@ def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
     require(zk.get("epsilonZKSimExactUpperBound") == "0", "epsilon_zk_sim exact upper bound must be zero")
     require("proof-level composition is instantiated" in require_string(zk.get("repeatedProductProofComposition"), "repeatedProductProofComposition"), "repeated proof composition must be instantiated at proof level")
     require("epsilon_ct" in json.dumps(zk, sort_keys=True), "ZK status must charge side channels outside epsilon_zk_sim")
-    require(zk.get("productionZKPrivacyClaimAllowed") is True, "zkPrivacyProofStatus.productionZKPrivacyClaimAllowed must be true")
+    require(
+        zk.get("repositoryLocalZKPrivacyClaimAllowed") is True,
+        "zkPrivacyProofStatus.repositoryLocalZKPrivacyClaimAllowed must be true",
+    )
+    require(
+        zk.get("productionZKPrivacyClaimAllowed") is False,
+        "zkPrivacyProofStatus.productionZKPrivacyClaimAllowed must stay false until production gates close",
+    )
 
     carry = require_dict(dossier.get("carryRecursionClosure"), "carryRecursionClosure")
     require("implemented" in require_string(carry.get("producerPath"), "producerPath"), "carry producer path must be recorded")
@@ -787,8 +819,12 @@ def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
     product_default = require_string(carry.get("productDefaultCarryMode"), "productDefaultCarryMode").lower()
     require("base" in product_default and "typed-required" in product_default, "product default carry mode must describe base and recursive child behavior")
     require(
-        carry.get("productionRecursiveCarryClaimAllowed") is True,
-        "carryRecursionClosure.productionRecursiveCarryClaimAllowed must be true",
+        carry.get("repositoryLocalRecursiveCarryClaimAllowed") is True,
+        "carryRecursionClosure.repositoryLocalRecursiveCarryClaimAllowed must be true",
+    )
+    require(
+        carry.get("productionRecursiveCarryClaimAllowed") is False,
+        "carryRecursionClosure.productionRecursiveCarryClaimAllowed must stay false until production gates close",
     )
     vectors = set(require_string_list(carry.get("conformanceVectors"), "carryRecursionClosure.conformanceVectors"))
     require("TestVectors/numiseal-typed-carry-conformance-v1.json" in vectors, "typed carry conformance vector must be pinned")
@@ -858,20 +894,28 @@ def validate_performance_and_hardening(dossier: dict[str, Any]) -> None:
 
 def validate_promotion(dossier: dict[str, Any]) -> None:
     promotion = require_dict(dossier.get("promotionRule"), "promotionRule")
+    require(
+        promotion.get("repositoryLocalProductTheoremClaimAllowed") is True,
+        "promotionRule.repositoryLocalProductTheoremClaimAllowed must be true",
+    )
     for key in [
         "productionProductSecurityClaimAllowed",
         "productionPostQuantumClaimAllowed",
         "productionQROMClaimAllowed",
         "productionZKPrivacyClaimAllowed",
         "productionReleaseDistributionClaimAllowed",
+        "productionRecursiveCarryClaimAllowed",
     ]:
-        require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+        require(promotion.get(key) is False, f"promotionRule.{key} must stay false until production gates close")
     require(
         promotion.get("productionConstantTimeClaimAllowed") is False,
         "promotionRule.productionConstantTimeClaimAllowed must remain false until side-channel certification closes",
     )
-    require(promotion.get("productionRecursiveCarryClaimAllowed") is True, "promotionRule.productionRecursiveCarryClaimAllowed must be true")
     require(promotion.get("productionPerformanceClaimAllowed") is True, "promotionRule.productionPerformanceClaimAllowed must be true")
+    require(
+        promotion.get("requiresAllProductionGatesSatisfied") is True,
+        "promotionRule.requiresAllProductionGatesSatisfied must be true",
+    )
     require(promotion.get("requiresAllRemainingObligationsClosed") is False, "promotion rule must not require impossible remaining obligations")
 
 
@@ -880,14 +924,15 @@ def validate_docs_and_gate() -> None:
     require(doc_path.exists(), "cryptographic security dossier doc must exist")
     doc = doc_path.read_text(encoding="utf-8")
     for needle in [
-        "bounded-depth product security theorem",
+        "bounded-depth product theorem surface",
+        "claims remain disabled",
         "ProductSecurityTheorem",
         "TestVectors/product-crypto-security-dossier-v1.json",
         "TestVectors/product-qrom-collision-malleability-evidence-v1.json",
         "Fiat-Shamir/QROM",
         "Module-SIS",
         "NumiSealZK masked residual relation",
-        "Constant-time evidence is pinned as non-certifying release evidence",
+        "production gates do not block repository-local",
     ]:
         require(needle in doc, f"cryptographic security dossier doc missing {needle}")
 

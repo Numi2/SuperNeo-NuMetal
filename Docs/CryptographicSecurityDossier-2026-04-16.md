@@ -31,12 +31,13 @@ Machine-readable scope:
 - `Scripts/validate-product-total-loss-budget.py`
 - `Scripts/validate-product-release-distribution-evidence.py`
 
-The current status is a repository-local production bounded-depth product security theorem
-surface with local typed parent-child carry evidence. Production claims are enabled
-for the checked bounded-depth profile, recursive carry handoff, QROM accounting,
-ZK default behavior, release distribution evidence, and local proof-size/performance
-budgets. Constant-time evidence is pinned as non-certifying release evidence and
-does not enable a whole-stack constant-time production claim.
+The current status is a repository-local bounded-depth product theorem surface
+with local typed parent-child carry evidence. The selected finite-protocol loss
+budget is instantiated for the checked depth-1 profile, but production-security
+claims remain disabled until hosted operations replay, side-channel,
+release-distribution, and promoted-depth recursive-carry evidence are
+instantiated and accepted. These production gates do not block repository-local
+development, testing, or selected-depth theorem use.
 
 ## Theorem Scope
 
@@ -97,41 +98,42 @@ The ledger pins these loss terms:
 - constant-time side-channel leakage loss, and
 - repository-local release distribution evidence.
 
-For the current selected depth, the ledger records:
+For the current repository-local selected-depth theorem claim, the finite loss
+ledger records:
 
 ```text
 epsilon_total(depth=1) =
-  epsilon_fold
+  epsilon_core_shared
+  + epsilon_fold
   + epsilon_terminal
   + epsilon_zk_sim
   + epsilon_qrom
   + epsilon_extract
   + epsilon_collision
-  + epsilon_replay
-  + epsilon_ct
-  + epsilon_release
 ```
 
-For future recursive promotion, the ledger records the additional carry-hop
-term:
+For future recursive promotion, the finite selected-depth expression records
+the additional carry-hop term:
 
 ```text
 epsilon_total(depth=d) =
-  d * (epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract)
+  epsilon_core_shared
+  + d * (epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract)
   + max(d - 1, 0) * epsilon_carry
   + epsilon_collision
-  + epsilon_replay
-  + epsilon_ct
-  + epsilon_release
 ```
 
-The ledger deliberately keeps `selectedDepthLossClaimAllowed = false` until
-all component losses are instantiated and the total loss is inside the selected
-budget. `ProductSecurityTheorem` now exposes
+Hosted operations replay, side-channel, release-distribution, and promoted-depth
+recursive-carry evidence are production-security gates outside the
+repository-local selected-depth finite loss sum. The ledger allows the selected
+finite theorem claim only when its required finite terms are instantiated and
+inside budget, while production-security claim flags remain false until those
+gates close. `ProductSecurityTheorem` now exposes
 `ProductSelectedDepthLossLedger`,
 `ProductSelectedDepthLossLedgerAccepted`, and
 `productSecurityTheorem_requires_selected_depth_loss_accounting` so the formal
-surface cannot skip extractor, QROM, and total-loss gates.
+surface cannot skip extractor, QROM, selected finite loss, and production-gate
+accounting.
 
 The finite-model protocol certificates are now separated from selected numeric
 loss instantiation. `TestVectors/product-finite-protocol-loss-obstruction-v1.json`
@@ -401,29 +403,34 @@ exact rational upper-bound terms, with dyadic terms as numerator / 2^k
 ```
 
 For this contract, the selected threshold is `2^-128`. The current manifest
-records eleven component bounds, ten of which are required at selected depth 1.
-The typed recursive carry term has zero selected-depth multiplicity and remains
-closed only for the current base depth, not for recursive depth promotion. The
-shared cryptographic core is charged once as `epsilon_core_shared = 1/2^129`;
-source-fold, terminal, and extractor rows are residual terms after that shared
-charge rather than a flat duplicate sum of the same core event.
+records eleven component bounds, seven of which are required for the
+repository-local selected depth-1 theorem claim. The typed recursive carry,
+hosted operations replay, side-channel, and release-distribution rows have zero
+selected-depth multiplicity and are kept outside the selected finite-protocol
+sum. They are production-security gates, not blockers for repository-local use.
+The shared cryptographic core is charged once as
+`epsilon_core_shared = 1/2^129`; source-fold, terminal, and extractor rows are
+residual terms after that shared charge rather than a flat duplicate sum of the
+same core event.
 
 The current manifest intentionally records:
 
-- `requiredTermCount = 10`,
+- `requiredTermCount = 7`,
 - `instantiatedRequiredTermCount = 7`,
 - `exactInstantiatedRequiredTermUpperBound` is the exact rational sum of the
   shared core term, repeated-tape source-fold term, terminal CE 226 term,
   zero-valued QROM compiler-overhead, zero-valued ZK simulator term,
   zero-valued extractor term, and H_bind collision term,
-- `exactSelectedDepthLossUpperBound = null`,
-- `selectedDepthLossWithinBudget = false`, and
+- `exactSelectedDepthLossUpperBound` is that same exact rational sum,
+- `selectedDepthLossWithinBudget = true`,
+- `repositoryLocalSelectedDepthLossClaimAllowed = true`, and
 - `productionTotalLossClaimAllowed = false`.
 
-This does not prove product security. It prevents a future product-security
-claim from bypassing operations, constant-time, and release-distribution loss
-terms or from double-counting
-`epsilon_core_shared` or `epsilon_collision` inside another ledger term.
+This proves only the repository-local selected-depth finite loss claim. It
+prevents a future production-security claim from bypassing operations,
+constant-time, release-distribution, or promoted-depth recursive-carry gates, or
+from double-counting `epsilon_core_shared` or `epsilon_collision` inside another
+ledger term.
 
 ## Release Distribution Evidence
 
