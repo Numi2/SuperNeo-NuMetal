@@ -23,6 +23,7 @@ REQUIRED_TRACE_BLOCKS = [
     "aggregate-digests",
     "component-root",
     "proof-transcript",
+    "recursive-carry-chain-root",
 ]
 
 

@@ -30,7 +30,8 @@
       "lane-summary-root",
       "aggregate-digests",
       "component-root",
-      "proof-transcript"
+      "proof-transcript",
+      "recursive-carry-chain-root"
     ]
   },
   "extractorBinding": {
@@ -43,6 +44,7 @@
     "aggregateDigestSetBound": true,
     "componentDigestRootBound": true,
     "proofTranscriptDigestBound": true,
+    "recursiveCarryChainRootBoundWhenTypedCarryRequired": true,
     "ctcoContextBinder384Bound": true,
     "challengeTapeSeedBound": true,
     "concreteExtractorSurface": "NumiSealProductConcreteExtractor.extract",

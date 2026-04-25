@@ -82,6 +82,7 @@ public struct NumiSealProductTraceExtractorEvidence: Equatable, Sendable {
     public let aggregateDigests: [Digest256]
     public let componentDigestRoot: Digest256
     public let proofTranscriptDigest: Digest256
+    public let recursiveCarryChainRoot: Digest256?
     public let ctcoContextBinder: Digest384
     public let ctcoRoot: Digest384
     public let challengeTapeSeed: Digest256
@@ -127,6 +128,7 @@ public struct NumiSealProductTraceExtractorEvidence: Equatable, Sendable {
             hexDigest: artifact.proofTranscriptDigestHex,
             name: "NumiSeal trace proof transcript digest"
         )
+        let recursiveCarryChainRoot = try recursiveCarryChainRootForTrace(artifact)
         let frontendContextDigest = trustedContext.contextDigest
         let traceBlocks = Self.ctcoTraceBlocks(
             frontendContextDigest: frontendContextDigest,
@@ -138,7 +140,8 @@ public struct NumiSealProductTraceExtractorEvidence: Equatable, Sendable {
             laneSummaryRoot: laneSummaryRoot,
             aggregateDigests: aggregateDigests,
             componentDigestRoot: componentDigestRoot,
-            proofTranscriptDigest: proofTranscriptDigest
+            proofTranscriptDigest: proofTranscriptDigest,
+            recursiveCarryChainRoot: recursiveCarryChainRoot
         )
         let ctco = CTCOMoveOneCommitment(
             proofKind: proofHeader.kind,
@@ -168,11 +171,22 @@ public struct NumiSealProductTraceExtractorEvidence: Equatable, Sendable {
             aggregateDigests: aggregateDigests,
             componentDigestRoot: componentDigestRoot,
             proofTranscriptDigest: proofTranscriptDigest,
+            recursiveCarryChainRoot: recursiveCarryChainRoot,
             ctcoContextBinder: proofHeader.ctcoContextBinder,
             ctcoRoot: ctco.root,
             challengeTapeSeed: challengeTapeSeed,
             evidenceDigest: evidenceDigest
         )
+    }
+
+    static func recursiveCarryChainRootForTrace(_ artifact: NumiSealProductArtifact) throws -> Digest256? {
+        guard artifact.carryMode == "typed-required" else {
+            return nil
+        }
+        guard let raw = artifact.executionPolicyMetadata[NumiSealProductRecursiveCarryMetadata.chainRoot] else {
+            throw SuperNeoError.invalidEncoding("NumiSeal recursive carry metadata is incomplete")
+        }
+        return try Digest256(hexDigest: raw, name: "NumiSeal trace recursive carry chain root")
     }
 
     static func ctcoTraceBlocks(
@@ -185,7 +199,8 @@ public struct NumiSealProductTraceExtractorEvidence: Equatable, Sendable {
         laneSummaryRoot: Digest256,
         aggregateDigests: [Digest256],
         componentDigestRoot: Digest256,
-        proofTranscriptDigest: Digest256
+        proofTranscriptDigest: Digest256,
+        recursiveCarryChainRoot: Digest256?
     ) -> [CTCOTraceBlock] {
         [
             CTCOTraceBlock(label: "frontend-context", bytes: frontendContextDigest.superNeoBytes),
@@ -204,7 +219,11 @@ public struct NumiSealProductTraceExtractorEvidence: Equatable, Sendable {
                 bytes: numiSealEncodeCount(aggregateDigests.count) + aggregateDigests.flatMap(\.superNeoBytes)
             ),
             CTCOTraceBlock(label: "component-root", bytes: componentDigestRoot.superNeoBytes),
-            CTCOTraceBlock(label: "proof-transcript", bytes: proofTranscriptDigest.superNeoBytes)
+            CTCOTraceBlock(label: "proof-transcript", bytes: proofTranscriptDigest.superNeoBytes),
+            CTCOTraceBlock(
+                label: "recursive-carry-chain-root",
+                bytes: recursiveCarryChainRoot.map { [1] + $0.superNeoBytes } ?? [0]
+            )
         ]
     }
 
@@ -227,6 +246,8 @@ public struct NumiSealProductTraceExtractorEvidence: Equatable, Sendable {
 }
 
 public struct NumiSealProductQROMEvidence: Equatable, Sendable {
+    public static let ctcoBindingTargetEventCount = 11
+
     public let compilerFamily: String
     public let challengeOracleBits: Int
     public let bindingOracleBits: Int
@@ -243,7 +264,7 @@ public struct NumiSealProductQROMEvidence: Equatable, Sendable {
         let compilerFamily = "ctco"
         let challengeOracleBits = Digest256.byteCount * 8
         let bindingOracleBits = Digest384.byteCount * 8
-        let bindingTargetEventCount = 10
+        let bindingTargetEventCount = Self.ctcoBindingTargetEventCount
         let queryCapLog2 = 64
         let collisionBoundFormula = "4 * bindingTargetEventCount * Q_H^2 / 2^bindingOracleBits"
         let evidenceDigest = ctcoDigest(
@@ -277,7 +298,7 @@ public struct NumiSealProductQROMEvidence: Equatable, Sendable {
             bytes: numiSealEncodeString("ctco")
                 + numiSealEncodeCount(Digest256.byteCount * 8)
                 + numiSealEncodeCount(Digest384.byteCount * 8)
-                + numiSealEncodeCount(10)
+                + numiSealEncodeCount(Self.ctcoBindingTargetEventCount)
                 + numiSealEncodeCount(64)
                 + numiSealEncodeString("4 * bindingTargetEventCount * Q_H^2 / 2^bindingOracleBits")
                 + contextBinder.superNeoBytes

@@ -6,6 +6,7 @@ current source-of-truth files.
 ## Active Architecture
 
 - Product architecture: `Docs/QROProductArchitecture-2026-04-25.md`
+- Paper development notes: `Docs/SuperNeoPaperDevelopmentNotes-2026-04-25.md`
 - CLI surface: `Docs/CLI.md`
 - Product integration: `Docs/ProductIntegrationLayer-2026-04-16.md`
 - Product operations: `Docs/ProductOperationsReadiness-2026-04-16.md`

@@ -7127,7 +7127,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         )
         XCTAssertEqual(
             artifact.executionPolicyMetadata["qromBindingTargetEventCount"],
-            "10"
+            "\(NumiSealProductQROMEvidence.ctcoBindingTargetEventCount)"
         )
         XCTAssertEqual(output.qromEvidence.qroChallengeDigest, qroChallenge.challengeDigest)
         XCTAssertEqual(output.qromEvidence.challengeOracleBits, 256)
@@ -7311,7 +7311,10 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(artifact.executionPolicyMetadata["terminalCarryPolicy"], "none")
         XCTAssertEqual(artifact.executionPolicyMetadata["ctcoCompilerFamily"], "ctco")
         XCTAssertEqual(artifact.executionPolicyMetadata["qromBindingOracleBits"], "384")
-        XCTAssertEqual(artifact.executionPolicyMetadata["qromBindingTargetEventCount"], "10")
+        XCTAssertEqual(
+            artifact.executionPolicyMetadata["qromBindingTargetEventCount"],
+            "\(NumiSealProductQROMEvidence.ctcoBindingTargetEventCount)"
+        )
         XCTAssertEqual(artifact.executionPolicyMetadata["qroChallengeDigest384Hex"], qroChallenge.challengeDigest.hexString)
         XCTAssertEqual(
             artifact.executionPolicyMetadata["numiSealTranscriptDomainQRODigestHex"],
@@ -7881,7 +7884,17 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         XCTAssertEqual(recursiveBinding?.parentProducerProofEnvelopeDigest, recursiveParent.parentProducerProofEnvelopeDigest)
         XCTAssertEqual(recursiveBinding?.consumerSessionDigest, recursiveParent.consumerSessionDigest)
         XCTAssertEqual(recursiveBinding?.nextRecursionLevel, 2)
+        XCTAssertEqual(recursiveBinding?.parentChainRoot, recursiveParent.parentCarryChainRoot)
+        XCTAssertNotEqual(recursiveBinding?.chainRoot, recursiveBinding?.parentChainRoot)
         XCTAssertEqual(childArtifact.executionPolicyMetadata["recursiveCarryMaximumSupportedDepth"], "2")
+        XCTAssertEqual(
+            childArtifact.executionPolicyMetadata["recursiveCarryParentChainRoot"],
+            recursiveParent.parentCarryChainRoot.hexString
+        )
+        XCTAssertEqual(
+            childArtifact.executionPolicyMetadata["recursiveCarryChainRoot"],
+            recursiveBinding?.chainRoot.hexString
+        )
         XCTAssertNotNil(recursiveBinding?.bindingDigest)
 
         #if DEBUG
@@ -7927,6 +7940,9 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         let grandchildArtifact = try! proveNumiSealProductRecursiveCarryFixture(request: grandchildRequest)
         XCTAssertEqual(grandchildArtifact.executionPolicyMetadata["recursiveCarryNextRecursionLevel"], "3")
         XCTAssertEqual(grandchildArtifact.executionPolicyMetadata["recursiveCarryMaximumSupportedDepth"], "3")
+        let grandchildBinding = try? grandchildArtifact.recursiveCarryReplayBinding()
+        XCTAssertEqual(grandchildBinding?.parentChainRoot, recursiveBinding?.chainRoot)
+        XCTAssertNotEqual(grandchildBinding?.chainRoot, recursiveBinding?.chainRoot)
         guard let grandchildResult = try? verifyNumiSealRecursiveCarryChildFixture(
             artifact: grandchildArtifact,
             prepared: childPrepared,
@@ -7994,6 +8010,24 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
                 recursiveCarryParent: recursiveParent
             ),
             .verificationFailed("NumiSeal recursive carry context root mismatch")
+        )
+
+        var tamperedChain = childArtifact
+        tamperedChain.executionPolicyMetadata["recursiveCarryChainRoot"] = String(repeating: "0", count: 64)
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductRecursiveCarryReplayBinding(metadata: tamperedChain.executionPolicyMetadata),
+            .invalidEncoding("NumiSeal recursive carry chain root mismatch")
+        )
+        XCTAssertThrowsSuperNeoError(
+            try verifier.verify(
+                artifact: tamperedChain,
+                sourcePublicInput: childPrepared.publicFoldInput,
+                key: childPrepared.key,
+                qroChallenge: childQROChallenge,
+                executionPolicy: .highAssurance,
+                recursiveCarryParent: recursiveParent
+            ),
+            .invalidEncoding("NumiSeal product CTCO root mismatch")
         )
         #else
         let childProof: NumiSealProof
