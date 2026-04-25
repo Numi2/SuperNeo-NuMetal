@@ -196,9 +196,17 @@ def validate_source_surfaces(evidence: dict[str, Any]) -> None:
         "public mutating func nextExt2()",
         "private mutating func nextUniformIndex(upperBound: Int)",
         "let limit = UInt64.max - (UInt64.max % bound)",
-        "absorbed.append(contentsOf: Self.frameLength(bytes.count))",
+        "Self.frameLength(bytes.count)",
     ]:
         require(needle in transcript_source, f"transcript source missing {needle}")
+    hash_oracle_source = (ROOT / "SuperNeo-NuMetal/SuperNeoHashOracles.swift").read_text(encoding="utf-8")
+    for needle in [
+        "public static func framedBytes(domain: String, frames: [[UInt8]])",
+        "appendFrame(Array(domain.utf8), to: &bytes)",
+        "public static func appendFrame(_ frame: [UInt8], to bytes: inout [UInt8])",
+        "bytes.append(contentsOf: encodeUInt64(UInt64(frame.count)))",
+    ]:
+        require(needle in hash_oracle_source, f"split-QRO framing source missing {needle}")
     terminal_source = source_by_key["terminalCE"]
     for needle in [
         "private func ceOpeningChallenge(transcript: inout SumCheckTranscript) -> Int",
