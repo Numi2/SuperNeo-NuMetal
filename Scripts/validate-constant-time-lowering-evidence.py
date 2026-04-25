@@ -24,6 +24,7 @@ REQUIRED_STATUS = {
     "tcb-assumption-recorded",
     "local-release-artifacts-pinned",
     "local-observation-corpus-pinned",
+    "scoped-compiler-lowering-review-complete",
 }
 REQUIRED_RELEASE_EVIDENCE_IDS = {
     "swift-optimized-sil",
@@ -32,8 +33,10 @@ REQUIRED_RELEASE_EVIDENCE_IDS = {
     "swift-compiler-artifact-report",
     "metal-air",
     "metal-metallib",
+    "metal-metallib-objdump",
     "metal-artifact-report",
     "runtime-allocation-review",
+    "compiler-lowering-audit",
     "cpu-observation-corpus",
     "gpu-observation-corpus",
     "compiler-observation-lanes",
@@ -52,9 +55,7 @@ REQUIRED_COMPILER_LANE_IDS = {
     "metal-air-numiseal-zk-kernels",
 }
 REQUIRED_COMPILER_LANE_STATUS = {
-    "source-runtime-review-pinned-lowering-artifacts-required",
-    "local-sil-llvm-assembly-pinned-review-required",
-    "local-air-and-metallib-pinned-disassembly-required",
+    "scoped-compiler-lowering-review-complete",
 }
 REQUIRED_HARDWARE_LANE_IDS = {
     "cpu-wall-clock-zk-high-assurance",
@@ -221,12 +222,18 @@ def validate_promotion_rule(manifest: dict[str, Any]) -> None:
     promotion = manifest.get("promotionRule")
     require(isinstance(promotion, dict), "promotionRule must be an object")
     require(
-        promotion.get("productionConstantTimeClaimAllowed") is True,
-        "productionConstantTimeClaimAllowed must be true for repository-local constant-time promotion",
+        promotion.get("productionConstantTimeClaimAllowed") is False,
+        "productionConstantTimeClaimAllowed must remain false until hardware coverage closes",
     )
-    require(promotion.get("releaseEvidenceOnly") is False, "releaseEvidenceOnly must be false for source-level repository-local promotion")
+    require(promotion.get("releaseEvidenceOnly") is True, "releaseEvidenceOnly must be true while evidence remains non-certifying")
     unblock = promotion.get("unblockRequires")
-    require(isinstance(unblock, list) and not unblock, "promotionRule.unblockRequires must be empty after repository-local CT promotion")
+    require(isinstance(unblock, list) and unblock, "promotionRule.unblockRequires must list remaining CT certification work")
+    unblock_text = " ".join(str(item).lower() for item in unblock)
+    require("hardware" in unblock_text, "promotionRule.unblockRequires must mention hardware coverage")
+    require(
+        promotion.get("compilerLoweringReviewComplete") is True,
+        "promotionRule.compilerLoweringReviewComplete must record the scoped compiler/lowering audit",
+    )
 
 
 def validate_observation_lane_contract(manifest: dict[str, Any]) -> None:
@@ -239,6 +246,10 @@ def validate_observation_lane_contract(manifest: dict[str, Any]) -> None:
     require(
         reports.get("hardware") == "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
         "observationLaneReports.hardware must point to the pinned hardware observation lane report",
+    )
+    require(
+        reports.get("compilerLoweringAudit") == "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-lowering-audit-v1.json",
+        "observationLaneReports.compilerLoweringAudit must point to the pinned compiler/lowering audit report",
     )
 
 
@@ -300,6 +311,19 @@ def validate_metal_artifact_report(entries: dict[str, dict[str, Any]], scope: di
     require_string_list(report.get("residualBoundaries"), "metal artifact residualBoundaries")
 
 
+def validate_metal_objdump_artifact(entries: dict[str, dict[str, Any]]) -> None:
+    objdump_path = require_relative_artifact_path(
+        entries["metal-metallib-objdump"].get("path"),
+        "metal-metallib-objdump.path",
+    )
+    text = objdump_path.read_text(encoding="utf-8", errors="ignore")
+    require("Disassembly of section MODULE_LIST" in text, "Metal objdump must include MODULE_LIST disassembly")
+    for kernel in sorted(REQUIRED_GPU_OPERATIONS | {"goldilocks_add_kernel", "goldilocks_sub_kernel", "goldilocks_mul_kernel"}):
+        require(f"define void @{kernel}" in text, f"Metal objdump missing scoped kernel: {kernel}")
+    require("select i1" in text, "Metal objdump must show select-based lowering")
+    require("air.thread_position_in_grid" in text, "Metal objdump must include public thread-position metadata")
+
+
 def validate_swift_compiler_artifact_report(entries: dict[str, dict[str, Any]], scope: dict[str, Any]) -> None:
     report_path = require_relative_artifact_path(
         entries["swift-compiler-artifact-report"].get("path"),
@@ -348,6 +372,113 @@ def validate_swift_compiler_artifact_report(entries: dict[str, dict[str, Any]], 
         require(marker in artifact_path.read_text(encoding="utf-8", errors="ignore"), f"{artifact_id} must contain {marker}")
     require_string_list(report.get("positiveFindings"), "Swift compiler artifact positiveFindings")
     require_string_list(report.get("residualBoundaries"), "Swift compiler artifact residualBoundaries")
+
+
+def validate_compiler_lowering_audit(entries: dict[str, dict[str, Any]], scope: dict[str, Any]) -> None:
+    audit_path = require_relative_artifact_path(
+        entries["compiler-lowering-audit"].get("path"),
+        "compiler-lowering-audit.path",
+    )
+    audit = read_json(audit_path)
+    require(audit.get("schemaVersion") == 1, "compiler lowering audit schemaVersion must be 1")
+    require(
+        audit.get("reportID") == "superneo-compiler-lowering-audit-v1",
+        "compiler lowering audit reportID mismatch",
+    )
+    require(
+        audit.get("claimStatus") == "scoped-compiler-lowering-review-complete",
+        "compiler lowering audit claimStatus must record completed scoped review",
+    )
+    require(audit.get("scopeManifest") == "TestVectors/constant-time-scope-v1.json", "compiler lowering audit scopeManifest mismatch")
+    artifact_refs = audit.get("reviewedArtifacts")
+    require(isinstance(artifact_refs, list) and artifact_refs, "compiler lowering audit reviewedArtifacts must be non-empty")
+    reviewed_artifacts: set[str] = set()
+    for row in artifact_refs:
+        require(isinstance(row, dict), "compiler lowering audit reviewed artifact must be an object")
+        artifact_id = require_string(row.get("id"), "compiler lowering audit reviewedArtifacts.id")
+        require(artifact_id in entries, f"compiler lowering audit names unknown artifact id: {artifact_id}")
+        artifact_path = require_relative_artifact_path(row.get("path"), f"{artifact_id}.path")
+        require(row.get("path") == entries[artifact_id].get("path"), f"{artifact_id}.path must match release manifest")
+        require(row.get("sha256Hex") == sha256_hex(artifact_path), f"{artifact_id}.sha256Hex is stale in compiler lowering audit")
+        require(row.get("byteCount") == artifact_path.stat().st_size, f"{artifact_id}.byteCount is stale in compiler lowering audit")
+        reviewed_artifacts.add(artifact_id)
+    require(
+        {
+            "swift-optimized-sil",
+            "swift-optimized-llvm-ir",
+            "swift-target-assembly",
+            "metal-air",
+            "metal-metallib",
+            "metal-metallib-objdump",
+            "runtime-allocation-review",
+        }.issubset(reviewed_artifacts),
+        "compiler lowering audit must review Swift, Metal, objdump, and runtime artifacts",
+    )
+
+    reviewed_regions = audit.get("reviewedRegions")
+    require(isinstance(reviewed_regions, list) and reviewed_regions, "compiler lowering audit reviewedRegions must be non-empty")
+    region_by_id: dict[str, dict[str, Any]] = {}
+    for row in reviewed_regions:
+        require(isinstance(row, dict), "compiler lowering audit reviewed region must be an object")
+        region_id = require_string(row.get("id"), "compiler lowering audit reviewedRegions.id")
+        require(region_id not in region_by_id, f"duplicate compiler lowering audit region: {region_id}")
+        require(row.get("forbiddenSourcePatternMatches") == [], f"{region_id} has source-scope forbidden pattern matches")
+        region_by_id[region_id] = row
+    expected_regions = {str(region["id"]) for region in scope.get("regions", []) if isinstance(region, dict)}
+    require(set(region_by_id) == expected_regions, "compiler lowering audit must cover every scoped source region")
+    for region in scope.get("regions", []):
+        if not isinstance(region, dict):
+            continue
+        region_id = str(region["id"])
+        expected_digest = hashlib.sha256(extract_scoped_region(region).encode("utf-8")).hexdigest()
+        require(region_by_id[region_id].get("regionSHA256Hex") == expected_digest, f"compiler lowering audit digest is stale for {region_id}")
+
+    swift_reviews = audit.get("swiftLoweringReviews")
+    require(isinstance(swift_reviews, list) and swift_reviews, "compiler lowering audit swiftLoweringReviews must be non-empty")
+    swift_ids = {require_string(row.get("id"), "swiftLoweringReviews.id") for row in swift_reviews if isinstance(row, dict)}
+    require(
+        {
+            "swift-goldilocks-add-specialized",
+            "swift-goldilocks-sub",
+            "swift-goldilocks-neg",
+            "swift-goldilocks-mul",
+            "swift-goldilocks-squared",
+            "swift-goldilocks-pow64",
+        }.issubset(swift_ids),
+        "compiler lowering audit must cover scoped Swift arithmetic lowering bodies",
+    )
+    for row in swift_reviews:
+        require(isinstance(row, dict), "swift lowering review must be an object")
+        require(row.get("llvmSwitchCount") == 0, f"{row.get('id')} must not contain LLVM switch lowering")
+        require(row.get("forbiddenRuntimeOrAllocationTokens") == [], f"{row.get('id')} contains forbidden runtime/allocation lowering")
+        if row.get("id") == "swift-goldilocks-pow64":
+            require(row.get("llvmConditionalBranchCount") == 1, "pow64 must have exactly one public LLVM loop branch")
+            require(row.get("assemblyConditionalBranchCount") == 1, "pow64 must have exactly one public assembly loop branch")
+        else:
+            require(row.get("llvmConditionalBranchCount") == 0, f"{row.get('id')} must have no LLVM conditional branch")
+            require(row.get("assemblyConditionalBranchCount") == 0, f"{row.get('id')} must have no assembly conditional branch")
+
+    metal_reviews = audit.get("metalAIRReviews")
+    require(isinstance(metal_reviews, list) and metal_reviews, "compiler lowering audit metalAIRReviews must be non-empty")
+    metal_ids = {require_string(row.get("id"), "metalAIRReviews.id") for row in metal_reviews if isinstance(row, dict)}
+    require(REQUIRED_GPU_OPERATIONS.issubset(metal_ids), "compiler lowering audit must cover every scoped NumiSeal Metal kernel")
+    require(
+        {"goldilocks_add_kernel", "goldilocks_sub_kernel", "goldilocks_mul_kernel"}.issubset(metal_ids),
+        "compiler lowering audit must cover scoped Goldilocks Metal kernels",
+    )
+    for row in metal_reviews:
+        require(isinstance(row, dict), "Metal AIR review must be an object")
+        require(row.get("llvmSwitchCount") == 0, f"{row.get('id')} must not contain switch lowering")
+
+    promotion = audit.get("promotionImpact")
+    require(isinstance(promotion, dict), "compiler lowering audit promotionImpact must be an object")
+    require(promotion.get("compilerLoweringReviewComplete") is True, "compiler lowering audit must mark compilerLoweringReviewComplete")
+    require(
+        promotion.get("productionConstantTimeClaimAllowed") is False,
+        "compiler lowering audit must not independently enable production constant-time claims",
+    )
+    residual = " ".join(require_string_list(audit.get("residualBoundaries"), "compiler lowering audit residualBoundaries")).lower()
+    require("hardware" in residual and "power" in residual and "scheduler" in residual, "compiler lowering audit must retain hardware residual boundaries")
 
 
 def validate_runtime_review(entries: dict[str, dict[str, Any]], scope: dict[str, Any]) -> None:
@@ -434,8 +565,8 @@ def validate_compiler_observation_lanes(entries: dict[str, dict[str, Any]], scop
         "compiler observation lanes reportID mismatch",
     )
     require(
-        report.get("claimStatus") == "compiler-observation-lanes-local-and-gap-recorded",
-        "compiler observation lanes claimStatus must stay precise",
+        report.get("claimStatus") == "compiler-lowering-review-complete-hardware-open",
+        "compiler observation lanes claimStatus must record scoped lowering review completion",
     )
     require(report.get("scopeManifest") == "TestVectors/constant-time-scope-v1.json", "compiler observation lanes scopeManifest mismatch")
     scoped = scope_region_ids(scope)
@@ -463,8 +594,12 @@ def validate_compiler_observation_lanes(entries: dict[str, dict[str, Any]], scop
     promotion = report.get("promotionImpact")
     require(isinstance(promotion, dict), "compiler observation lanes promotionImpact must be an object")
     require(
-        promotion.get("productionConstantTimeClaimAllowed") is True,
-        "compiler observation lanes must promote repository-local production constant-time claims",
+        promotion.get("productionConstantTimeClaimAllowed") is False,
+        "compiler observation lanes must remain non-certifying until hardware coverage closes",
+    )
+    require(
+        promotion.get("compilerLoweringReviewComplete") is True,
+        "compiler observation lanes must record completed compiler/lowering review",
     )
 
 
@@ -512,8 +647,8 @@ def validate_hardware_observation_lanes(entries: dict[str, dict[str, Any]]) -> N
     promotion = report.get("promotionImpact")
     require(isinstance(promotion, dict), "hardware observation lanes promotionImpact must be an object")
     require(
-        promotion.get("productionConstantTimeClaimAllowed") is True,
-        "hardware observation lanes must promote repository-local production constant-time claims",
+        promotion.get("productionConstantTimeClaimAllowed") is False,
+        "hardware observation lanes must remain non-certifying until hardware coverage closes",
     )
 
 
@@ -537,8 +672,8 @@ def validate_release_evidence(manifest: dict[str, Any], scope: dict[str, Any]) -
     promotion = release_manifest.get("promotionDecision")
     require(isinstance(promotion, dict), "release evidence promotionDecision must be an object")
     require(
-        promotion.get("productionConstantTimeClaimAllowed") is True,
-        "release evidence must promote repository-local production constant-time claims",
+        promotion.get("productionConstantTimeClaimAllowed") is False,
+        "release evidence must remain non-certifying until hardware coverage closes",
     )
 
     entries = release_entries(release_manifest)
@@ -550,9 +685,15 @@ def validate_release_evidence(manifest: dict[str, Any], scope: dict[str, Any]) -
         release_manifest.get("hardwareObservationLaneReport") == entries["hardware-observation-lanes"].get("path"),
         "release evidence hardwareObservationLaneReport must match the pinned hardware lane artifact",
     )
+    require(
+        release_manifest.get("compilerLoweringAuditReport") == entries["compiler-lowering-audit"].get("path"),
+        "release evidence compilerLoweringAuditReport must match the pinned compiler/lowering audit artifact",
+    )
     validate_swift_compiler_artifact_report(entries, scope)
     validate_metal_artifact_report(entries, scope)
+    validate_metal_objdump_artifact(entries)
     validate_runtime_review(entries, scope)
+    validate_compiler_lowering_audit(entries, scope)
 
     cpu = validate_observation_corpus(entries, "cpu-observation-corpus", "zk-high-assurance-cpu")
     for sample in cpu.get("samples", []):

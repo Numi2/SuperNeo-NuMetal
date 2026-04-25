@@ -159,8 +159,8 @@
     }
   ],
   "openBoundaries": [
-    "Swift Bool-to-mask lowering must be checked in emitted SIL/LLVM or replaced with a verified primitive.",
-    "LLVM and Apple clang lowering for selected Metal integer operations must be recorded for release toolchains.",
+    "Swift/LLVM Bool-to-mask lowering is checked in the pinned compiler-lowering audit for this release toolchain; future toolchain changes must regenerate and revalidate it.",
+    "Metal AIR/metallib lowering for selected integer operations is recorded by the pinned metallib objdump audit; future Metal toolchain changes must regenerate and revalidate it.",
     "Allocator, ARC, array copy-on-write, cache, power, and scheduler observations are not modeled by the source trace proof.",
     "Goldilocks inversion keeps an explicit zero rejection outside the fixed-exponentiation trace scope.",
     "Sparse and small-coefficient optimized kernels remain performance kernels, not secret-bearing constant-time kernels."

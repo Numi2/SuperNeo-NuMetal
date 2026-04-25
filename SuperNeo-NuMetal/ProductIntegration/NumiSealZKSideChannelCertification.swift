@@ -304,6 +304,11 @@ public extension NumiSealZKSideChannelCertificationPayload {
             validUntilUTC,
             name: "side-channel certificate validUntilUTC"
         )
+        guard issuedAt < validUntil else {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "NumiSealZK side-channel certificate validity window is invalid"
+            )
+        }
         guard issuedAt <= now else {
             throw SuperNeoProductIntegrationError.unauthorized(
                 "NumiSealZK side-channel certificate is not valid yet"
@@ -411,7 +416,14 @@ public extension SuperNeoTrustedNumiSealZKContext {
                 "NumiSealZK masked residual statement version is not accepted by trusted context"
             )
         }
-        guard let certificate else { return }
+        guard let certificate else {
+            guard minimumSideChannelCertificationLevel == .correctnessOnly else {
+                throw SuperNeoProductIntegrationError.missingExpectedContext(
+                    "NumiSealZK side-channel certificate is required by trusted context"
+                )
+            }
+            return
+        }
         try validateCertificate(
             certificate,
             artifact: artifact,
@@ -467,6 +479,11 @@ public extension SuperNeoTrustedNumiSealZKContext {
         guard certificate.payload.metalWorkspaceFeatureDigestHex == artifactMetalWorkspaceFeatureDigest else {
             throw SuperNeoProductIntegrationError.missingExpectedContext(
                 "NumiSealZK side-channel certificate Metal workspace digest mismatch"
+            )
+        }
+        guard certificate.payload.certifiedLevel >= minimumSideChannelCertificationLevel else {
+            throw SuperNeoProductIntegrationError.missingExpectedContext(
+                "NumiSealZK side-channel certificate level is below trusted context minimum"
             )
         }
     }

@@ -52,11 +52,13 @@ revocation feed, replay database, and audit log are all internally consistent
 for the current operator profile. `attention-required` means the operator must
 repair or refresh local state before relying on product-mode acceptance.
 
-For trusted contexts that accept `numiseal-zk`, readiness does not require a
-side-channel certificate. The `sideChannelCertificateStatus` field records
-whether optional release metadata is attached, and supplied certificates are
-checked by product verification for context, release, leakage, proof-policy,
-Metal workspace, benchmark-report, and evidence bindings.
+For trusted contexts that accept `numiseal-zk`, readiness requires a
+side-channel certificate only when the trusted context minimum is stricter than
+`correctness-only`. The `sideChannelCertificateStatus` field records whether
+certificate material is absent, optional, attached, missing-required, or below
+the configured minimum. Supplied certificates are checked by product
+verification for context, release, leakage, proof-policy, Metal workspace,
+benchmark-report, and evidence bindings.
 
 This document closes the product operations readiness evidence artifact
 referenced by the total-loss budget. It does not instantiate the hosted replay

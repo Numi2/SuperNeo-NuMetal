@@ -835,6 +835,7 @@ def validate_performance_and_hardening(dossier: dict[str, Any]) -> None:
         ("constantTimeScopeManifest", "TestVectors/constant-time-scope-v1.json"),
         ("loweringEvidenceManifest", "TestVectors/constant-time-lowering-evidence-v1.json"),
         ("releaseEvidenceManifest", "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json"),
+        ("compilerLoweringAudit", "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-lowering-audit-v1.json"),
     ]:
         require(hardening.get(key) == expected, f"implementationHardening.{key} mismatch")
         require_relative_path(expected, f"implementationHardening.{key}")
@@ -842,9 +843,16 @@ def validate_performance_and_hardening(dossier: dict[str, Any]) -> None:
         "secretDependentArtifactSizeErrorRetryBehaviorExcluded",
     ]:
         require_false(hardening.get(key), f"implementationHardening.{key}")
-    require(hardening.get("productionConstantTimeClaimAllowed") is True, "implementationHardening.productionConstantTimeClaimAllowed must be true")
+    require(
+        hardening.get("productionConstantTimeClaimAllowed") is False,
+        "implementationHardening.productionConstantTimeClaimAllowed must remain false until whole-stack side-channel certification closes",
+    )
+    blocker = require_string(hardening.get("constantTimePromotionBlocker"), "implementationHardening.constantTimePromotionBlocker")
+    blocker_lower = blocker.lower()
+    require("hardware" in blocker_lower and "observation" in blocker_lower, "constantTimePromotionBlocker must name remaining hardware observation coverage")
+    require("compiler-lowering-audit" in blocker_lower, "constantTimePromotionBlocker must reference the completed compiler/lowering audit")
     hardening_text = json.dumps(hardening, sort_keys=True).lower()
-    for needle in ["sil", "llvm", "assembly", "metal", "hardware-counter", "failure"]:
+    for needle in ["sil", "llvm", "assembly", "metal", "objdump", "hardware-counter", "failure"]:
         require(needle in hardening_text, f"implementation hardening must mention {needle}")
 
 
@@ -855,10 +863,13 @@ def validate_promotion(dossier: dict[str, Any]) -> None:
         "productionPostQuantumClaimAllowed",
         "productionQROMClaimAllowed",
         "productionZKPrivacyClaimAllowed",
-        "productionConstantTimeClaimAllowed",
         "productionReleaseDistributionClaimAllowed",
     ]:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(
+        promotion.get("productionConstantTimeClaimAllowed") is False,
+        "promotionRule.productionConstantTimeClaimAllowed must remain false until side-channel certification closes",
+    )
     require(promotion.get("productionRecursiveCarryClaimAllowed") is True, "promotionRule.productionRecursiveCarryClaimAllowed must be true")
     require(promotion.get("productionPerformanceClaimAllowed") is True, "promotionRule.productionPerformanceClaimAllowed must be true")
     require(promotion.get("requiresAllRemainingObligationsClosed") is False, "promotion rule must not require impossible remaining obligations")
@@ -876,7 +887,7 @@ def validate_docs_and_gate() -> None:
         "Fiat-Shamir/QROM",
         "Module-SIS",
         "NumiSealZK masked residual relation",
-        "production claims are enabled",
+        "Constant-time evidence is pinned as non-certifying release evidence",
     ]:
         require(needle in doc, f"cryptographic security dossier doc missing {needle}")
 

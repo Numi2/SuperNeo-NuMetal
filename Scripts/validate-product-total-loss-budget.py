@@ -93,7 +93,6 @@ EXPECTED_TRUE_PROMOTION_FLAGS = [
     "productionPostQuantumClaimAllowed",
     "productionQROMClaimAllowed",
     "productionZKPrivacyClaimAllowed",
-    "productionConstantTimeClaimAllowed",
 ]
 
 
@@ -654,6 +653,10 @@ def validate_promotion_rule(budget: dict[str, Any]) -> None:
     promotion = require_dict(budget.get("promotionRule"), "promotionRule")
     for key in EXPECTED_TRUE_PROMOTION_FLAGS:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(
+        promotion.get("productionConstantTimeClaimAllowed") is False,
+        "promotionRule.productionConstantTimeClaimAllowed must remain false until side-channel certification closes",
+    )
     for key in [
         "requiresAllRequiredTermsInstantiated",
         "requiresSelectedDepthLossWithinBudget",

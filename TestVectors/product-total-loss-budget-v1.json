@@ -150,7 +150,7 @@
       "lossInstantiated": false,
       "boundLog2": null,
       "exactUpperBound": null,
-      "requiredEvidence": "non-probabilistic deployment boundary recorded outside the repository-local selected-depth loss budget"
+      "requiredEvidence": "non-probabilistic deployment boundary recorded outside the repository-local selected-depth loss budget; scoped compiler-lowering audit is pinned in Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-lowering-audit-v1.json"
     },
     {
       "id": "constant-time-side-channel",
@@ -206,7 +206,7 @@
     "productionPostQuantumClaimAllowed": true,
     "productionQROMClaimAllowed": true,
     "productionZKPrivacyClaimAllowed": true,
-    "productionConstantTimeClaimAllowed": true,
+    "productionConstantTimeClaimAllowed": false,
     "requiresAllRequiredTermsInstantiated": true,
     "requiresSelectedDepthLossWithinBudget": true,
     "requiresSelectedDepthLedgerUpdate": false

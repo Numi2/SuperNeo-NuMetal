@@ -34,9 +34,9 @@ Machine-readable scope:
 The current status is a repository-local production bounded-depth product security theorem
 surface with local typed parent-child carry evidence. Production claims are enabled
 for the checked bounded-depth profile, recursive carry handoff, QROM accounting,
-ZK default behavior, constant-time evidence, release distribution evidence, and
-local proof-size/performance budgets; production claims are enabled for those
-repository-local surfaces.
+ZK default behavior, release distribution evidence, and local proof-size/performance
+budgets. Constant-time evidence is pinned as non-certifying release evidence and
+does not enable a whole-stack constant-time production claim.
 
 ## Theorem Scope
 
@@ -452,11 +452,12 @@ The proof-level privacy simulator is now recorded in
 field-mask sampling, fresh randomness-session binding, mask-reuse rejection,
 and the declared proof-byte leakage model, the simulator loss is
 `epsilon_zk_sim = 0`. Product proving now emits NumiSealZK by default. Signed
-side-channel certificates are optional release metadata and are checked only
-when attached. The remaining privacy production obligations are side-channel
-evidence plus hosted behavior evidence for artifact metadata, sizes, errors,
-retry behavior, allocator/GPU behavior, and carry-state exposure outside
-declared proof bytes.
+side-channel certificates are optional only when the trusted context minimum is
+`correctness-only`; stricter contexts must attach a certificate at or above the
+minimum. The remaining privacy production obligations are side-channel evidence
+plus hosted behavior evidence for artifact metadata, sizes, errors, retry
+behavior, allocator/GPU behavior, and carry-state exposure outside declared
+proof bytes.
 
 ## Carry And Recursion Closure
 
@@ -519,16 +520,14 @@ with recursive-SNARK/PCD applications: https://eprint.iacr.org/2024/257.
 
 The constant-time evidence track already pins source/formal scope,
 Swift/LLVM/Metal lowering evidence, local Swift SIL/LLVM/assembly artifacts,
-Metal AIR/metallib artifacts, runtime allocation review, and CPU/GPU
-observation corpora. The production constant-time claim is enabled for the
-repository-local evidence scope.
+Metal AIR/metallib artifacts, metallib objdump output, the scoped
+compiler/lowering audit, runtime allocation review, and CPU/GPU observation
+corpora. These are non-certifying evidence artifacts. Full side-channel
+certification still requires hardware observation coverage before claiming
+whole-stack constant-time behavior.
 
 Remaining hardening work:
 
-- Swift optimized SIL review,
-- LLVM IR review,
-- target assembly review,
-- Metal AIR/object/disassembly review per GPU family,
 - dudect-style CPU timing corpus,
 - hardware counters,
 - GPU timing/counter corpus,
@@ -546,8 +545,11 @@ The machine-readable dossier enables repository-local production claims for:
 - ZK privacy and default masked-residual behavior,
 - recursive carry,
 - local performance/proof-size budgets,
-- release distribution evidence, and
-- constant-time evidence.
+- release distribution evidence.
+
+The machine-readable dossier deliberately does not enable the production
+constant-time claim. Constant-time evidence is pinned as non-certifying release
+evidence until hardware observation coverage is complete.
 
 External signing, notarization, public distribution, and competitor-performance
 claims are not promotion gates for this repository-local status. When external

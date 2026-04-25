@@ -297,6 +297,25 @@ def generate_metal_artifacts(output_dir: Path, scope: dict[str, Any]) -> tuple[d
     ]
 
 
+def generate_metal_objdump_artifact(output_dir: Path) -> dict[str, Any]:
+    metal_dir = output_dir / "metal"
+    metallib_path = metal_dir / "SuperNeoKernels.metallib"
+    objdump_path = metal_dir / "SuperNeoKernels.metallib.objdump.txt"
+    completed = run([
+        "xcrun",
+        "metal-objdump",
+        "--metallib",
+        "--disassemble",
+        rel(metallib_path),
+    ])
+    objdump_path.write_text(completed.stdout, encoding="utf-8")
+    return artifact_entry(
+        "metal-metallib-objdump",
+        objdump_path,
+        "Metal metallib MODULE_LIST disassembly emitted by metal-objdump",
+    )
+
+
 def generate_runtime_review(output_dir: Path, scope: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     review_path = output_dir / "runtime" / "runtime-allocation-review-v1.json"
     reviewed_regions = []
@@ -339,7 +358,7 @@ def generate_runtime_review(output_dir: Path, scope: dict[str, Any]) -> tuple[di
         ],
         "residualBoundaries": [
             "This is a static source-scope review of allocation/COW tokens, not a Swift runtime proof.",
-            "Emitted SIL/LLVM/assembly review remains required before production constant-time promotion.",
+            "Emitted SIL/LLVM/assembly review is handled by the compiler-lowering audit; production promotion still depends on hardware observation coverage.",
         ],
     }
     if all_matches:
@@ -539,7 +558,7 @@ def generate_compiler_observation_lanes(output_dir: Path, scope: dict[str, Any])
     report = {
         "schemaVersion": 1,
         "reportID": "superneo-compiler-observation-lanes-v1",
-        "claimStatus": "compiler-observation-lanes-local-and-gap-recorded",
+        "claimStatus": "compiler-lowering-review-complete-hardware-open",
         "generatedAtUTC": utc_now(),
         "scopeManifest": rel(SCOPE_PATH),
         "lanes": [
@@ -553,20 +572,19 @@ def generate_compiler_observation_lanes(output_dir: Path, scope: dict[str, Any])
                     "swift-target-assembly",
                     "swift-compiler-artifact-report",
                     "runtime-allocation-review",
+                    "compiler-lowering-audit",
                 ],
-                "observationStatus": "local-sil-llvm-assembly-pinned-review-required",
+                "observationStatus": "scoped-compiler-lowering-review-complete",
                 "requiredBeforeProduction": [
-                    "scoped review of optimized SIL for marked Swift regions",
-                    "scoped review of optimized LLVM IR for marked Swift regions",
-                    "target assembly or object-code branch audit for marked Swift regions",
+                    "hardware observation lane closure before whole-stack constant-time promotion",
                 ],
                 "positiveFindings": [
                     "The release evidence pins the Swift source-scope allocation/COW review for the marked regions.",
                     "The release evidence pins optimized SIL, LLVM IR, and target assembly emitted from GoldilocksField.swift.",
+                    "The compiler-lowering audit pins scoped LLVM select and ARM64 csel findings for the marked Swift lowering bodies.",
                 ],
                 "residualBoundaries": [
-                    "Bool-to-mask and select lowering still require scoped review in the emitted artifacts.",
-                    "This lane records compiler artifacts, not a completed Swift compiler proof.",
+                    "This lane closes scoped compiler/lowering review only; it does not certify CPU hardware timing, cache, power, scheduler, or contention behavior.",
                 ],
             },
             {
@@ -578,20 +596,21 @@ def generate_compiler_observation_lanes(output_dir: Path, scope: dict[str, Any])
                 "observedArtifacts": [
                     "metal-air",
                     "metal-metallib",
+                    "metal-metallib-objdump",
                     "metal-artifact-report",
+                    "compiler-lowering-audit",
                 ],
-                "observationStatus": "local-air-and-metallib-pinned-disassembly-required",
+                "observationStatus": "scoped-compiler-lowering-review-complete",
                 "requiredBeforeProduction": [
-                    "target GPU-family disassembly or equivalent compiler report for integer select and compare lowering",
-                    "per-GPU-family compiler report confirming no secret-dependent thread divergence",
+                    "hardware observation lane closure before whole-stack constant-time promotion",
                 ],
                 "positiveFindings": [
                     "The release evidence pins the Metal AIR object, linked metallib, and generation report.",
                     "The Metal artifact report covers the Goldilocks helper source region.",
+                    "The compiler-lowering audit pins metallib objdump AIR for the scoped Goldilocks kernels and confirms select-based arithmetic lowering.",
                 ],
                 "residualBoundaries": [
-                    "AIR/metallib pinning is not target GPU-family disassembly.",
-                    "The lane remains non-certifying until emitted-code observations are recorded per accepted GPU family.",
+                    "This lane closes scoped Metal AIR/metallib review only; it does not certify GPU-family timing, counters, occupancy, scheduler, or power behavior.",
                 ],
             },
             {
@@ -603,26 +622,28 @@ def generate_compiler_observation_lanes(output_dir: Path, scope: dict[str, Any])
                 "observedArtifacts": [
                     "metal-air",
                     "metal-metallib",
+                    "metal-metallib-objdump",
                     "metal-artifact-report",
+                    "compiler-lowering-audit",
                 ],
-                "observationStatus": "local-air-and-metallib-pinned-disassembly-required",
+                "observationStatus": "scoped-compiler-lowering-review-complete",
                 "requiredBeforeProduction": [
-                    "target GPU-family disassembly or equivalent compiler report for public-bound loops and select lowering",
-                    "buffer-layout audit showing secret coefficients do not choose addresses",
+                    "hardware observation lane closure before whole-stack constant-time promotion",
                 ],
                 "positiveFindings": [
                     "The release evidence pins the Metal AIR object, linked metallib, and generation report.",
                     "The Metal artifact report covers the NumiSealZK secret-bearing source region.",
+                    "The compiler-lowering audit pins metallib objdump AIR for every scoped NumiSealZK kernel and records only public id/count or public loop-bound branch findings.",
                 ],
                 "residualBoundaries": [
-                    "AIR/metallib pinning is not target GPU-family disassembly.",
-                    "The lane remains non-certifying until emitted-code observations are recorded per accepted GPU family.",
+                    "This lane closes scoped Metal AIR/metallib review only; it does not certify GPU-family timing, counters, occupancy, scheduler, or power behavior.",
                 ],
             },
         ],
         "promotionImpact": {
-            "productionConstantTimeClaimAllowed": True,
-            "reason": "Repository-local compiler observation lanes and emitted artifacts are pinned for the accepted source-level constant-time promotion model.",
+            "compilerLoweringReviewComplete": True,
+            "productionConstantTimeClaimAllowed": False,
+            "reason": "Scoped compiler/lowering review is complete for pinned Swift/LLVM/ARM64 and Metal AIR/metallib artifacts; hardware observation coverage remains required before a whole-stack constant-time claim.",
         },
     }
     write_json(report_path, report)
@@ -630,6 +651,23 @@ def generate_compiler_observation_lanes(output_dir: Path, scope: dict[str, Any])
         "compiler-observation-lanes",
         report_path,
         "compiler observation lane report for Swift/LLVM/Metal constant-time evidence",
+    )
+
+
+def generate_compiler_lowering_audit(output_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    report_path = output_dir / "compiler" / "compiler-lowering-audit-v1.json"
+    run([
+        sys.executable,
+        "Scripts/audit-constant-time-compiler-lowering.py",
+        "--evidence-dir",
+        rel(output_dir),
+        "--output",
+        rel(report_path),
+    ])
+    return read_json(report_path), artifact_entry(
+        "compiler-lowering-audit",
+        report_path,
+        "scoped Swift/LLVM/ARM64 and Metal AIR/metallib compiler-lowering audit",
     )
 
 
@@ -709,8 +747,8 @@ def generate_hardware_observation_lanes(output_dir: Path) -> tuple[dict[str, Any
             },
         ],
         "promotionImpact": {
-            "productionConstantTimeClaimAllowed": True,
-            "reason": "Repository-local CPU/GPU observation lanes are pinned for the accepted source-level constant-time promotion model.",
+            "productionConstantTimeClaimAllowed": False,
+            "reason": "Local CPU/GPU smoke observations are pinned, but broader hardware-counter, GPU-family, power, contention, and scheduler coverage remains required before a whole-stack constant-time claim.",
         },
     }
     write_json(report_path, report)
@@ -729,6 +767,7 @@ def build_manifest(output_dir: Path, entries: list[dict[str, Any]]) -> dict[str,
         "generatedAtUTC": utc_now(),
         "scopeManifest": rel(SCOPE_PATH),
         "loweringEvidenceManifest": "TestVectors/constant-time-lowering-evidence-v1.json",
+        "compilerLoweringAuditReport": rel(output_dir / "compiler" / "compiler-lowering-audit-v1.json"),
         "compilerObservationLaneReport": rel(output_dir / "compiler" / "compiler-observation-lanes-v1.json"),
         "hardwareObservationLaneReport": rel(output_dir / "hardware" / "hardware-observation-lanes-v1.json"),
         "artifactEntries": entries,
@@ -738,8 +777,8 @@ def build_manifest(output_dir: Path, entries: list[dict[str, Any]]) -> dict[str,
             "machine": run_text(["machine"]),
         },
         "promotionDecision": {
-            "productionConstantTimeClaimAllowed": True,
-            "reason": "Local compiler artifacts and observation corpora are pinned for repository-local constant-time promotion.",
+            "productionConstantTimeClaimAllowed": False,
+            "reason": "Local compiler artifacts, compiler/lowering audit, and observation corpora are pinned as non-certifying evidence; hardware observation coverage remains required before whole-stack constant-time promotion.",
         },
     }
 
@@ -762,8 +801,11 @@ def main() -> None:
     entries.extend(swift_entries)
     _, metal_entries = generate_metal_artifacts(output_dir, scope)
     entries.extend(metal_entries)
+    entries.append(generate_metal_objdump_artifact(output_dir))
     _, runtime_entry = generate_runtime_review(output_dir, scope)
     entries.append(runtime_entry)
+    _, compiler_audit_entry = generate_compiler_lowering_audit(output_dir)
+    entries.append(compiler_audit_entry)
 
     ensure_release_tools(skip_build=args.skip_build)
     _, cpu_entry = generate_observation_corpus(

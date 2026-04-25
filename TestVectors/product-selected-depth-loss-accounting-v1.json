@@ -176,8 +176,8 @@
       "status": "repository-local-constant-time-evidence-pinned-not-selected-depth-loss",
       "lossSymbol": "epsilon_ct",
       "accountingRule": "side-channel hardening is tracked as implementation evidence, not as a required selected-depth probability term",
-      "requiredEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json plus TestVectors/constant-time-lowering-evidence-v1.json",
-      "productionClaimAllowed": true
+      "requiredEvidence": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json, Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-lowering-audit-v1.json, and TestVectors/constant-time-lowering-evidence-v1.json",
+      "productionClaimAllowed": false
     },
     {
       "id": "release-distribution",
@@ -203,7 +203,7 @@
     "productionQROMClaimAllowed": true,
     "productionZKPrivacyClaimAllowed": true,
     "productionRecursiveCarryClaimAllowed": true,
-    "productionConstantTimeClaimAllowed": true,
+    "productionConstantTimeClaimAllowed": false,
     "productionReleaseDistributionClaimAllowed": true,
     "requiresAllComponentLossesInstantiated": true,
     "requiresTotalLossWithinBudget": true

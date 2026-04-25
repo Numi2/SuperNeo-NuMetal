@@ -7,6 +7,7 @@
   "releaseEvidenceManifest": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
   "observationLaneReports": {
     "compiler": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
+    "compilerLoweringAudit": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-lowering-audit-v1.json",
     "hardware": "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json"
   },
   "formalModel": {
@@ -32,7 +33,8 @@
       "requiredArtifacts": [
         "optimized SIL or equivalent Swift frontend lowering for marked regions",
         "optimized LLVM IR for marked regions",
-        "target assembly or object-code branch audit for marked regions"
+        "target assembly or object-code branch audit for marked regions",
+        "compiler-lowering-audit-v1.json scoped review report"
       ],
       "forbiddenLoweringPatterns": [
         "secret-dependent conditional branch",
@@ -46,7 +48,7 @@
         "select helpers lower without secret-dependent branches",
         "fixed 64-round exponentiation loop count is public and invariant"
       ],
-      "status": "local-release-artifacts-pinned"
+      "status": "scoped-compiler-lowering-review-complete"
     },
     {
       "id": "metal-air-goldilocks-arithmetic",
@@ -56,7 +58,7 @@
       ],
       "requiredArtifacts": [
         "Metal AIR or equivalent compiler artifact for Goldilocks helper functions",
-        "target GPU family disassembly or compiler report for integer select and compare lowering",
+        "metallib objdump AIR disassembly or equivalent compiler report for integer select and compare lowering",
         "kernel launch shape showing public thread bounds"
       ],
       "forbiddenLoweringPatterns": [
@@ -70,7 +72,7 @@
         "Goldilocks reduction has no secret-dependent branch in emitted code",
         "only public thread-bound guards remain"
       ],
-      "status": "local-release-artifacts-pinned"
+      "status": "scoped-compiler-lowering-review-complete"
     },
     {
       "id": "metal-air-numiseal-zk-kernels",
@@ -80,7 +82,7 @@
       ],
       "requiredArtifacts": [
         "Metal AIR or equivalent compiler artifact for NumiSealZK secret-bearing kernels",
-        "target GPU family disassembly or compiler report for public-bound loop and select lowering",
+        "metallib objdump AIR disassembly or equivalent compiler report for public-bound loop and select lowering",
         "buffer-layout audit showing secret coefficients do not choose addresses"
       ],
       "forbiddenLoweringPatterns": [
@@ -94,7 +96,7 @@
         "dense fold and accumulation loop bounds are public",
         "equality-weight bit selection uses ct_select_ulong"
       ],
-      "status": "required-before-production-ct-claim"
+      "status": "scoped-compiler-lowering-review-complete"
     },
     {
       "id": "runtime-and-hardware-tcb",
@@ -122,13 +124,16 @@
         "all loop bounds in marked regions are public or fixed",
         "accepted observation model is explicit and reproducible"
       ],
-      "status": "local-observation-corpus-pinned"
+      "status": "required-before-production-ct-claim"
     }
   ],
   "promotionRule": {
-    "productionConstantTimeClaimAllowed": true,
-    "releaseEvidenceOnly": false,
-    "unblockRequires": [],
-    "repositoryLocalEvidenceModel": "source, compiler-artifact, and local observation evidence pinned by repository validators"
+    "compilerLoweringReviewComplete": true,
+    "productionConstantTimeClaimAllowed": false,
+    "releaseEvidenceOnly": true,
+    "unblockRequires": [
+      "hardware observation coverage for accepted CPU and GPU families, including CPU dudect-style or hardware-counter evidence, GPU timing/counter evidence, and an explicit power/contention/scheduler observation model"
+    ],
+    "repositoryLocalEvidenceModel": "source, compiler-artifact, scoped compiler/lowering audit, and local observation evidence pinned by repository validators; non-certifying until hardware observation coverage closes"
   }
 }

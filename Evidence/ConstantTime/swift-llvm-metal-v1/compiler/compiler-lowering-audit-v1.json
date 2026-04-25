@@ -1,0 +1,373 @@
+{
+  "claimStatus": "scoped-compiler-lowering-review-complete",
+  "generatedAtUTC": "2026-04-25T11:15:38Z",
+  "metalAIRReviews": [
+    {
+      "airFunctionSHA256Hex": "3fd26b64316678773e8bb3190e3bbf98a06c63080c4449f382433b2b61c066d9",
+      "id": "goldilocks_add_kernel",
+      "llvmConditionalBranchCount": 1,
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": "conditional branches are kernel id/count guards or public loop bounds from the scoped source contract",
+      "regions": [
+        "metal-goldilocks-common-arithmetic"
+      ],
+      "selectInstructionPresent": true
+    },
+    {
+      "airFunctionSHA256Hex": "a22e82f56c4574b83cc33d579f7d9047ed47533b6d0073dc9ccb61779fea605a",
+      "id": "goldilocks_sub_kernel",
+      "llvmConditionalBranchCount": 1,
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": "conditional branches are kernel id/count guards or public loop bounds from the scoped source contract",
+      "regions": [
+        "metal-goldilocks-common-arithmetic"
+      ],
+      "selectInstructionPresent": true
+    },
+    {
+      "airFunctionSHA256Hex": "157a315f7bb7bf01bf91df2dc559af8a29785377ec8207613e0a976f5ab947ff",
+      "id": "goldilocks_mul_kernel",
+      "llvmConditionalBranchCount": 1,
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": "conditional branches are kernel id/count guards or public loop bounds from the scoped source contract",
+      "regions": [
+        "metal-goldilocks-common-arithmetic"
+      ],
+      "selectInstructionPresent": true
+    },
+    {
+      "airFunctionSHA256Hex": "be2aec8621adc0895488fea001c637edcaffe6aad6d90e933d8fb00a1bb92361",
+      "id": "numiseal_apply_mask_kernel",
+      "llvmConditionalBranchCount": 1,
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": "conditional branches are kernel id/count guards or public loop bounds from the scoped source contract",
+      "regions": [
+        "metal-numiseal-zk-secret-bearing-kernels"
+      ],
+      "selectInstructionPresent": true
+    },
+    {
+      "airFunctionSHA256Hex": "2bd1932a7b85fc6c7bc33145fc1d7aa5224b740028335c3c5845c98358487d21",
+      "id": "numiseal_dense_fold_kernel",
+      "llvmConditionalBranchCount": 1,
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": "conditional branches are kernel id/count guards or public loop bounds from the scoped source contract",
+      "regions": [
+        "metal-numiseal-zk-secret-bearing-kernels"
+      ],
+      "selectInstructionPresent": true
+    },
+    {
+      "airFunctionSHA256Hex": "a6ca13aa3bab6ed3b6007ab122560d3fe8999d1ee3593baa005d415e206f1cff",
+      "id": "numiseal_eq_weight_kernel",
+      "llvmConditionalBranchCount": 3,
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": "conditional branches are kernel id/count guards or public loop bounds from the scoped source contract",
+      "regions": [
+        "metal-numiseal-zk-secret-bearing-kernels"
+      ],
+      "selectInstructionPresent": true
+    },
+    {
+      "airFunctionSHA256Hex": "fb4d0a739761c34e1c6df287155456efd8b367bc742b8cc6b23d8fa32574527c",
+      "id": "numiseal_sumcheck_accumulate_kernel",
+      "llvmConditionalBranchCount": 3,
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": "conditional branches are kernel id/count guards or public loop bounds from the scoped source contract",
+      "regions": [
+        "metal-numiseal-zk-secret-bearing-kernels"
+      ],
+      "selectInstructionPresent": true
+    },
+    {
+      "airFunctionSHA256Hex": "ad8ce55be91c2e1f8b9c2e32ab931b75c82a7648c27c4a60db3d1bd2424d4b20",
+      "id": "numiseal_mask_accumulate_kernel",
+      "llvmConditionalBranchCount": 1,
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": "conditional branches are kernel id/count guards or public loop bounds from the scoped source contract",
+      "regions": [
+        "metal-numiseal-zk-secret-bearing-kernels"
+      ],
+      "selectInstructionPresent": true
+    }
+  ],
+  "positiveFindings": [
+    "Scoped Swift arithmetic lowers through optimized LLVM IR selects and ARM64 csel for secret-derived choices.",
+    "The Swift pow path contains one reviewed public fixed 64-round loop branch and uses select/csel for exponent-bit selection.",
+    "Scoped Swift lowering bodies contain no local Swift runtime allocation, ARC, malloc, free, or copy-on-write calls.",
+    "Metal metallib objdump is pinned and shows AIR functions for every scoped Goldilocks and NumiSealZK kernel.",
+    "Metal secret-bearing kernels keep branch/control decisions to public id/count or public loop-bound checks recorded by the source scope."
+  ],
+  "promotionImpact": {
+    "compilerLoweringReviewComplete": true,
+    "productionConstantTimeClaimAllowed": false,
+    "reason": "Compiler/lowering review is pinned for the scoped artifacts; hardware observation coverage remains non-certifying and open."
+  },
+  "reportID": "superneo-compiler-lowering-audit-v1",
+  "residualBoundaries": [
+    "This audit covers repository-pinned Swift SIL, LLVM IR, ARM64 assembly, Metal AIR, metallib, and metallib objdump text.",
+    "It does not certify CPU cache, branch-predictor, power, scheduler, or contention behavior.",
+    "It does not certify GPU-family microarchitectural timing, counters, occupancy, or power behavior.",
+    "Production whole-stack constant-time claims still require the hardware observation lane to close."
+  ],
+  "reviewedArtifacts": [
+    {
+      "byteCount": 372407,
+      "id": "swift-optimized-sil",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.optimized.sil",
+      "sha256Hex": "a0688ed1536ac5ecfbe4f2c5bcf4902aebf2f4c04737da4faf661649bd29f1b1"
+    },
+    {
+      "byteCount": 159066,
+      "id": "swift-optimized-llvm-ir",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.optimized.ll",
+      "sha256Hex": "705e1c5db03753b9450ddd13fc3e64772343cff5ad6a40e7bd7b61036bdb191f"
+    },
+    {
+      "byteCount": 124209,
+      "id": "swift-target-assembly",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/GoldilocksField.arm64.s",
+      "sha256Hex": "71a16e5e66dd3177ccba618e5a73026f40ea9de55daf66118d180f45c57e221e"
+    },
+    {
+      "byteCount": 3450,
+      "id": "swift-compiler-artifact-report",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/swift/swift-compiler-artifacts-v1.json",
+      "sha256Hex": "468d3c35ac8c45bc9e8e3c634f8e2292585ff6400f46e51f2e8fdd27195722e3"
+    },
+    {
+      "byteCount": 1945,
+      "id": "runtime-allocation-review",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/runtime/runtime-allocation-review-v1.json",
+      "sha256Hex": "1b092163ed5fd1e9511d7bb3c00c45c9e558ea08d73c4bf257344f877d94103f"
+    },
+    {
+      "byteCount": 29248,
+      "id": "metal-air",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/SuperNeoKernels.air",
+      "sha256Hex": "4d3eb8cc44b79e9a3c6fbdd2826f8545fb278c4a98eddb4bdf39f430790a857e"
+    },
+    {
+      "byteCount": 125970,
+      "id": "metal-metallib",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/SuperNeoKernels.metallib",
+      "sha256Hex": "e5003d2c24a826cdb4b1ca9ef650df1b6afb01f88ef3e554d0924a09adc56a7a"
+    },
+    {
+      "byteCount": 286079,
+      "id": "metal-metallib-objdump",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/SuperNeoKernels.metallib.objdump.txt",
+      "sha256Hex": "0d2bbe41c9218952ed15e9a445578c0f3a90a7c8ccb99a1cdbba3d10aa9a5763"
+    },
+    {
+      "byteCount": 2846,
+      "id": "metal-artifact-report",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/metal-artifacts-v1.json",
+      "sha256Hex": "5a8bf706f7e85c612962190a1078a3cfbb25ac8c2bb1baf794b555800ccc0e4f"
+    }
+  ],
+  "reviewedRegions": [
+    {
+      "endLine": 80,
+      "forbiddenSourcePatternMatches": [],
+      "id": "swift-goldilocks-common-arithmetic",
+      "language": "swift",
+      "path": "SuperNeo-NuMetal/Fields/GoldilocksField.swift",
+      "regionSHA256Hex": "e8126960f8fb52b6ff252ca01710a1729d5b4ce4f04d1e07e926cb388792f111",
+      "requiredSnippetsPresent": [
+        "addingReportingOverflow",
+        "subtractingReportingOverflow",
+        "truthMask",
+        "subtractModulusIfNeeded"
+      ],
+      "startLine": 23
+    },
+    {
+      "endLine": 93,
+      "forbiddenSourcePatternMatches": [],
+      "id": "swift-goldilocks-fixed-exponentiation",
+      "language": "swift",
+      "path": "SuperNeo-NuMetal/Fields/GoldilocksField.swift",
+      "regionSHA256Hex": "89ac3d7bad75506d36e12c984e21a64445be34287c6706458e45f0800b6e9fd7",
+      "requiredSnippetsPresent": [
+        "UInt64.bitWidth",
+        "Self.select",
+        "result * base",
+        "base = base * base"
+      ],
+      "startLine": 82
+    },
+    {
+      "endLine": 79,
+      "forbiddenSourcePatternMatches": [],
+      "id": "metal-goldilocks-common-arithmetic",
+      "language": "metal",
+      "path": "SuperNeo-NuMetal/MetalBackend/SuperNeoKernels.metal",
+      "regionSHA256Hex": "f8387faa048bd3194cd3ee3dce4b2233583f1b392a0c1232d46e5e151f359aab",
+      "requiredSnippetsPresent": [
+        "ct_mask",
+        "ct_select_ulong",
+        "goldilocks_subtract_modulus_if_needed",
+        "goldilocks_reduce128"
+      ],
+      "startLine": 8
+    },
+    {
+      "endLine": 272,
+      "forbiddenSourcePatternMatches": [],
+      "id": "metal-numiseal-zk-secret-bearing-kernels",
+      "language": "metal",
+      "path": "SuperNeo-NuMetal/MetalBackend/SuperNeoKernels.metal",
+      "regionSHA256Hex": "67fac25da3992dc3809350494a164cbddaf01afbb76de67ae7701fa448369d06",
+      "requiredSnippetsPresent": [
+        "numiseal_apply_mask_kernel",
+        "numiseal_dense_fold_kernel",
+        "numiseal_eq_weight_kernel",
+        "numiseal_sumcheck_accumulate_kernel",
+        "numiseal_mask_accumulate_kernel",
+        "ct_select_ulong"
+      ],
+      "startLine": 189
+    }
+  ],
+  "schemaVersion": 1,
+  "scopeManifest": "TestVectors/constant-time-scope-v1.json",
+  "swiftLoweringReviews": [
+    {
+      "assemblyConditionalBranchCount": 0,
+      "assemblySHA256Hex": "f5f475d3d5917b52836fdfd2d0c4d7ab7ae49a6cea9586ee8b7f5c9e29fb8927",
+      "forbiddenRuntimeOrAllocationTokens": [],
+      "id": "swift-goldilocks-add-specialized",
+      "llvmConditionalBranchCount": 0,
+      "llvmSHA256Hex": "9d321be04e2082c287f2e4003f8f08aa08ebcb44302a9a6148b830e5d7c7e237",
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": null,
+      "regions": [
+        "swift-goldilocks-common-arithmetic"
+      ],
+      "requiredAssemblySubstringsPresent": [
+        "csel"
+      ],
+      "requiredLLVMSubstringsPresent": [
+        "select i1",
+        "@llvm.uadd.with.overflow.i64"
+      ],
+      "silSHA256Hex": "7197daed52acbda9b30dd4d1531920053aef86955013ebec9d2a65b52c1119b4",
+      "symbol": "$s19SuperNeo_NuMetal_CT15GoldilocksFieldV1poiyA2C_ACtFZTf4nnd_n"
+    },
+    {
+      "assemblyConditionalBranchCount": 0,
+      "assemblySHA256Hex": "f21d17186cca3f914e4e9959c9d68077fd2093cc5d63ee102f7bfd2255802c2e",
+      "forbiddenRuntimeOrAllocationTokens": [],
+      "id": "swift-goldilocks-sub",
+      "llvmConditionalBranchCount": 0,
+      "llvmSHA256Hex": "ef6d8fbd8b0c0f5448e99963f6ee72459c382abe13f14317c5fa9683bcb0b22f",
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": null,
+      "regions": [
+        "swift-goldilocks-common-arithmetic"
+      ],
+      "requiredAssemblySubstringsPresent": [
+        "csel"
+      ],
+      "requiredLLVMSubstringsPresent": [
+        "select i1"
+      ],
+      "silSHA256Hex": "71134413834fa946d0a634fab571c8a7c98a3250757af5f1eb03c8707d3216ae",
+      "symbol": "$s19SuperNeo_NuMetal_CT15GoldilocksFieldV1soiyA2C_ACtFZ"
+    },
+    {
+      "assemblyConditionalBranchCount": 0,
+      "assemblySHA256Hex": "fc36af9039c1148b0d68f58eca54c06052f537844238eae2a7da6213cf6dfc4a",
+      "forbiddenRuntimeOrAllocationTokens": [],
+      "id": "swift-goldilocks-neg",
+      "llvmConditionalBranchCount": 0,
+      "llvmSHA256Hex": "b2ad1bbebfb2de3f3bdbf727c0e4245cb3cb95c46fd42aa04d7df752453cafd5",
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": null,
+      "regions": [
+        "swift-goldilocks-common-arithmetic"
+      ],
+      "requiredAssemblySubstringsPresent": [
+        "csel"
+      ],
+      "requiredLLVMSubstringsPresent": [
+        "select i1"
+      ],
+      "silSHA256Hex": "fd796920f4dedfe455542d2cfd01faccda6f433d9404baf28f4ee7b4613f1753",
+      "symbol": "$s19SuperNeo_NuMetal_CT15GoldilocksFieldV1sopyA2CFZ"
+    },
+    {
+      "assemblyConditionalBranchCount": 0,
+      "assemblySHA256Hex": "4c8917af42ea81101191b2732fdd3433bfcdbb11758369dc6e12d63a871a4903",
+      "forbiddenRuntimeOrAllocationTokens": [],
+      "id": "swift-goldilocks-mul",
+      "llvmConditionalBranchCount": 0,
+      "llvmSHA256Hex": "cb3b2d4c30c36eb388eeec8e3276c447cb9b8c0aa41ed8c959001ec775955d13",
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": null,
+      "regions": [
+        "swift-goldilocks-common-arithmetic"
+      ],
+      "requiredAssemblySubstringsPresent": [
+        "mul",
+        "umulh",
+        "csel"
+      ],
+      "requiredLLVMSubstringsPresent": [
+        "mul nuw i128",
+        "select i1"
+      ],
+      "silSHA256Hex": "d5330296eb6b20c282de55572400af476d9fe84822e94fd64bb8d3e7551775e6",
+      "symbol": "$s19SuperNeo_NuMetal_CT15GoldilocksFieldV1moiyA2C_ACtFZ"
+    },
+    {
+      "assemblyConditionalBranchCount": 0,
+      "assemblySHA256Hex": "73f91fd3fe2d61153a6aad10f2f0742f8e84d6cb31cfb242b776267b296d5365",
+      "forbiddenRuntimeOrAllocationTokens": [],
+      "id": "swift-goldilocks-squared",
+      "llvmConditionalBranchCount": 0,
+      "llvmSHA256Hex": "9cf0da8c7b19e8c39d4a82a6635812a56c2c04732ed3f7efc358f5408be24b1e",
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": null,
+      "regions": [
+        "swift-goldilocks-common-arithmetic"
+      ],
+      "requiredAssemblySubstringsPresent": [
+        "mul",
+        "umulh",
+        "csel"
+      ],
+      "requiredLLVMSubstringsPresent": [
+        "mul nuw i128",
+        "select i1"
+      ],
+      "silSHA256Hex": "663f3854230399d9ef9e4c163eeb04915499ec90d0dcd38aa0dab2e95f178584",
+      "symbol": "$s19SuperNeo_NuMetal_CT15GoldilocksFieldV7squaredACyF"
+    },
+    {
+      "assemblyConditionalBranchCount": 1,
+      "assemblySHA256Hex": "5c1f22b93649690944660efe61309ca6658b920508d96a62cf35ea8670932f8c",
+      "forbiddenRuntimeOrAllocationTokens": [],
+      "id": "swift-goldilocks-pow64",
+      "llvmConditionalBranchCount": 1,
+      "llvmSHA256Hex": "5ebc64880665a0e02b67340ac54a3c08a5682ef45783cdc05e1bb9c9b6fbe0b0",
+      "llvmSwitchCount": 0,
+      "publicControlFlowFinding": "single public fixed 64-round loop exit",
+      "regions": [
+        "swift-goldilocks-fixed-exponentiation"
+      ],
+      "requiredAssemblySubstringsPresent": [
+        "csel",
+        "b.ne"
+      ],
+      "requiredLLVMSubstringsPresent": [
+        "select i1",
+        "icmp eq i64 %5, 64",
+        "br i1"
+      ],
+      "silSHA256Hex": "89a9825a23db9ec7a7bec506fa4a2fd400a85b7d454e378c3ccfc33373400da4",
+      "symbol": "$s19SuperNeo_NuMetal_CT15GoldilocksFieldV3powyACs6UInt64VF"
+    }
+  ]
+}

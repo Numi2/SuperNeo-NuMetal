@@ -1154,11 +1154,19 @@ def validate_schema_versions() -> None:
         observation_lane_reports.get("hardware") == "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
         "constant-time lowering evidence must link the hardware observation lane report",
     )
+    require(
+        observation_lane_reports.get("compilerLoweringAudit") == "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-lowering-audit-v1.json",
+        "constant-time lowering evidence must link the compiler/lowering audit report",
+    )
     promotion_rule = lowering_evidence.get("promotionRule")
     require(isinstance(promotion_rule, dict), "constant-time lowering evidence promotionRule must be an object")
     require(
-        promotion_rule.get("productionConstantTimeClaimAllowed") is True,
-        "constant-time lowering evidence must allow repository-local production CT claims",
+        promotion_rule.get("productionConstantTimeClaimAllowed") is False,
+        "constant-time lowering evidence must remain non-certifying until hardware coverage closes",
+    )
+    require(
+        promotion_rule.get("compilerLoweringReviewComplete") is True,
+        "constant-time lowering evidence must record completed compiler/lowering review",
     )
     release_evidence = read_json("Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json")
     require(isinstance(release_evidence, dict), "constant-time release evidence root must be an object")
@@ -1167,16 +1175,20 @@ def validate_schema_versions() -> None:
         release_evidence.get("claimStatus") == "local-release-evidence-pinned",
         "constant-time release evidence claimStatus must stay precise",
     )
+    require(
+        release_evidence.get("compilerLoweringAuditReport") == "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-lowering-audit-v1.json",
+        "constant-time release evidence must link the compiler/lowering audit report",
+    )
     release_promotion = release_evidence.get("promotionDecision")
     require(isinstance(release_promotion, dict), "constant-time release evidence promotionDecision must be an object")
     require(
-        release_promotion.get("productionConstantTimeClaimAllowed") is True,
-        "constant-time release evidence must allow repository-local production CT claims",
+        release_promotion.get("productionConstantTimeClaimAllowed") is False,
+        "constant-time release evidence must remain non-certifying until hardware coverage closes",
     )
     artifact_entries = release_evidence.get("artifactEntries")
     require(
-        isinstance(artifact_entries, list) and len(artifact_entries) == 12,
-        "constant-time release evidence must pin twelve artifacts",
+        isinstance(artifact_entries, list) and len(artifact_entries) == 14,
+        "constant-time release evidence must pin fourteen artifacts",
     )
     artifact_ids = {
         str(entry.get("id"))
@@ -1189,10 +1201,12 @@ def validate_schema_versions() -> None:
             "swift-optimized-llvm-ir",
             "swift-target-assembly",
             "swift-compiler-artifact-report",
+            "metal-metallib-objdump",
+            "compiler-lowering-audit",
             "compiler-observation-lanes",
             "hardware-observation-lanes",
         }.issubset(artifact_ids),
-        "constant-time release evidence must pin Swift compiler artifacts and compiler/hardware observation lane reports",
+        "constant-time release evidence must pin Swift compiler artifacts, Metal objdump, compiler audit, and compiler/hardware observation lane reports",
     )
     e2e_metrics = read_json("TestVectors/e2e-proof-metrics-v1.json")
     require(isinstance(e2e_metrics, dict), "E2E proof metrics root must be an object")

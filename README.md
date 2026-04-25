@@ -119,8 +119,8 @@ The remaining product/security evidence gaps are separate:
 - extend recursive carry from checked local chain replay into the selected
   hosted production-depth policy;
 - keep NumiSealZK on by default for product proving and product APIs; signed
-  side-channel certificates remain optional release metadata and are checked
-  only when supplied;
+  side-channel certificates are optional only for `correctness-only` trusted
+  contexts and are required when a stricter context minimum is configured;
 - close hosted product operations evidence for context, provenance, replay,
   authorization, audit retention, and signed distribution;
 - finish independent cryptographic, implementation, and side-channel review.

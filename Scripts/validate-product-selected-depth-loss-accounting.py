@@ -103,7 +103,6 @@ EXPECTED_PROMOTION_TRUE_FLAGS = [
     "productionPostQuantumClaimAllowed",
     "productionQROMClaimAllowed",
     "productionZKPrivacyClaimAllowed",
-    "productionConstantTimeClaimAllowed",
     "productionReleaseDistributionClaimAllowed",
 ]
 
@@ -361,6 +360,11 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
         require_string(component.get("accountingRule"), f"{component_id}.accountingRule")
         require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
         require(component.get("productionClaimAllowed") in {True, False}, f"{component_id}.productionClaimAllowed must be boolean")
+        if component_id == "constant-time-side-channel":
+            require(
+                component.get("productionClaimAllowed") is False,
+                "constant-time-side-channel.productionClaimAllowed must remain false until whole-stack side-channel certification closes",
+            )
         if component_id == "shared-cryptographic-core":
             require(
                 component.get("status") == "shared-core-bad-event-dedup-instantiated",
@@ -506,6 +510,10 @@ def validate_promotion_and_blockers(ledger: dict[str, Any]) -> None:
     promotion = require_dict(ledger.get("promotionRule"), "promotionRule")
     for key in EXPECTED_PROMOTION_TRUE_FLAGS:
         require(promotion.get(key) is True, f"promotionRule.{key} must be true")
+    require(
+        promotion.get("productionConstantTimeClaimAllowed") is False,
+        "promotionRule.productionConstantTimeClaimAllowed must remain false until side-channel certification closes",
+    )
     require(
         promotion.get("productionRecursiveCarryClaimAllowed") is True,
         "promotionRule.productionRecursiveCarryClaimAllowed must be true",

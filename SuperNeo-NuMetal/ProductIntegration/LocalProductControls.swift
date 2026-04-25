@@ -1384,7 +1384,25 @@ public struct SuperNeoProductOperationsStatus: Codable, Equatable, Sendable {
 
         let sideChannelCertificateStatus: String
         if payload.acceptedProofKinds.contains(.numiSealZK) {
-            if sideChannelCertificate == nil {
+            let minimumLevel = payload.numiSealZK?.minimumSideChannelCertificationLevel ?? .correctnessOnly
+            if let sideChannelCertificate {
+                if sideChannelCertificate.payload.certifiedLevel < minimumLevel {
+                    sideChannelCertificateStatus = "attached-below-minimum"
+                    appendCheck(
+                        "side-channel-certificate",
+                        .blocked,
+                        "signed side-channel certificate level \(sideChannelCertificate.payload.certifiedLevel.rawValue) is below trusted context minimum \(minimumLevel.rawValue)",
+                        remediation: "attach a signed side-channel certificate at or above the trusted context minimum"
+                    )
+                } else {
+                    sideChannelCertificateStatus = "attached"
+                    appendCheck(
+                        "side-channel-certificate",
+                        .ok,
+                        "signed side-channel certificate is attached at level \(sideChannelCertificate.payload.certifiedLevel.rawValue)"
+                    )
+                }
+            } else if minimumLevel == .correctnessOnly {
                 sideChannelCertificateStatus = "not-attached-optional"
                 appendCheck(
                     "side-channel-certificate",
@@ -1392,11 +1410,12 @@ public struct SuperNeoProductOperationsStatus: Codable, Equatable, Sendable {
                     "trusted context accepts numiseal-zk without requiring a side-channel certificate"
                 )
             } else {
-                sideChannelCertificateStatus = "attached"
+                sideChannelCertificateStatus = "missing-required"
                 appendCheck(
                     "side-channel-certificate",
-                    .ok,
-                    "signed side-channel certificate is attached"
+                    .blocked,
+                    "trusted context requires side-channel certificate level \(minimumLevel.rawValue)",
+                    remediation: "attach a signed side-channel certificate that binds the current release, artifact policy, and leakage digest"
                 )
             }
         } else if sideChannelCertificate == nil {

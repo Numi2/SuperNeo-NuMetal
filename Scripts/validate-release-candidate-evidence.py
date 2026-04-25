@@ -584,8 +584,30 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
         require_string(
             surfaces.get("constantTimeCompilerObservationLanesClaimStatus"),
             "constantTimeCompilerObservationLanesClaimStatus",
-        ) == "compiler-observation-lanes-local-and-gap-recorded",
+        ) == "compiler-lowering-review-complete-hardware-open",
         "constant-time compiler observation lanes claim status must stay precise",
+    )
+    require(
+        require_int(
+            surfaces.get("constantTimeCompilerLoweringAuditVersion"),
+            "constantTimeCompilerLoweringAuditVersion",
+        ) == 1,
+        "constant-time compiler lowering audit version must be 1",
+    )
+    require_string(
+        surfaces.get("constantTimeCompilerLoweringAuditDigestHex"),
+        "constantTimeCompilerLoweringAuditDigestHex",
+    )
+    require(
+        require_string(
+            surfaces.get("constantTimeCompilerLoweringAuditClaimStatus"),
+            "constantTimeCompilerLoweringAuditClaimStatus",
+        ) == "scoped-compiler-lowering-review-complete",
+        "constant-time compiler lowering audit claim status must stay precise",
+    )
+    require(
+        surfaces.get("constantTimeCompilerLoweringReviewComplete") is True,
+        "constant-time compiler lowering audit must be marked complete",
     )
     require(
         require_int(

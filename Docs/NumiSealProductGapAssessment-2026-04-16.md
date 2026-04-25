@@ -58,8 +58,9 @@ side-channel, operations, and audit evidence tracked outside the Lean theorem.
   selected-depth replay semantics and formal loss accounting.
 - [x] ZK product default: product proving and public product APIs now emit
   masked NumiSealZK artifacts by default. Signed side-channel certificates are
-  optional release metadata; when present, they are checked for artifact,
-  context, release, leakage, and proof-policy bindings.
+  optional only for `correctness-only` trusted contexts; stricter contexts must
+  attach certificate material checked for artifact, context, release, leakage,
+  and proof-policy bindings.
 - [ ] Product operations: hosted context storage, deployed key distribution,
   tenant authz, hosted audit retention, hosted revocation feed distribution, and
   signed releases.

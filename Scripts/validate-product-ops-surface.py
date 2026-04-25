@@ -57,6 +57,8 @@ def validate_library_surface() -> None:
             "contextExpiryWarningSeconds",
             "auditExportRecommendedRecordCount",
             "not-attached-optional",
+            "missing-required",
+            "attached-below-minimum",
             "attached",
         ],
     )
@@ -65,7 +67,8 @@ def validate_library_surface() -> None:
         [
             "minimumSideChannelCertificationLevel",
             "correctnessOnly",
-            "guard let certificate else { return }",
+            "certificate is required by trusted context",
+            "certificate level is below trusted context minimum",
         ],
     )
     require(

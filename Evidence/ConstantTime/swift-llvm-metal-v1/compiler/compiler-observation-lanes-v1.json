@@ -1,90 +1,92 @@
 {
-  "claimStatus": "compiler-observation-lanes-local-and-gap-recorded",
-  "generatedAtUTC": "2026-04-19T11:15:15Z",
+  "claimStatus": "compiler-lowering-review-complete-hardware-open",
+  "generatedAtUTC": "2026-04-25T11:15:38Z",
   "lanes": [
     {
       "id": "swift-llvm-goldilocks-arithmetic",
-      "observationStatus": "local-sil-llvm-assembly-pinned-review-required",
+      "observationStatus": "scoped-compiler-lowering-review-complete",
       "observedArtifacts": [
         "swift-optimized-sil",
         "swift-optimized-llvm-ir",
         "swift-target-assembly",
         "swift-compiler-artifact-report",
-        "runtime-allocation-review"
+        "runtime-allocation-review",
+        "compiler-lowering-audit"
       ],
       "positiveFindings": [
         "The release evidence pins the Swift source-scope allocation/COW review for the marked regions.",
-        "The release evidence pins optimized SIL, LLVM IR, and target assembly emitted from GoldilocksField.swift."
+        "The release evidence pins optimized SIL, LLVM IR, and target assembly emitted from GoldilocksField.swift.",
+        "The compiler-lowering audit pins scoped LLVM select and ARM64 csel findings for the marked Swift lowering bodies."
       ],
       "regions": [
         "swift-goldilocks-common-arithmetic",
         "swift-goldilocks-fixed-exponentiation"
       ],
       "requiredBeforeProduction": [
-        "scoped review of optimized SIL for marked Swift regions",
-        "scoped review of optimized LLVM IR for marked Swift regions",
-        "target assembly or object-code branch audit for marked Swift regions"
+        "hardware observation lane closure before whole-stack constant-time promotion"
       ],
       "residualBoundaries": [
-        "Bool-to-mask and select lowering still require scoped review in the emitted artifacts.",
-        "This lane records compiler artifacts, not a completed Swift compiler proof."
+        "This lane closes scoped compiler/lowering review only; it does not certify CPU hardware timing, cache, power, scheduler, or contention behavior."
       ],
       "surface": "Swift frontend through optimized SIL, LLVM IR, and target assembly for GoldilocksField arithmetic"
     },
     {
       "id": "metal-air-goldilocks-arithmetic",
-      "observationStatus": "local-air-and-metallib-pinned-disassembly-required",
+      "observationStatus": "scoped-compiler-lowering-review-complete",
       "observedArtifacts": [
         "metal-air",
         "metal-metallib",
-        "metal-artifact-report"
+        "metal-metallib-objdump",
+        "metal-artifact-report",
+        "compiler-lowering-audit"
       ],
       "positiveFindings": [
         "The release evidence pins the Metal AIR object, linked metallib, and generation report.",
-        "The Metal artifact report covers the Goldilocks helper source region."
+        "The Metal artifact report covers the Goldilocks helper source region.",
+        "The compiler-lowering audit pins metallib objdump AIR for the scoped Goldilocks kernels and confirms select-based arithmetic lowering."
       ],
       "regions": [
         "metal-goldilocks-common-arithmetic"
       ],
       "requiredBeforeProduction": [
-        "target GPU-family disassembly or equivalent compiler report for integer select and compare lowering",
-        "per-GPU-family compiler report confirming no secret-dependent thread divergence"
+        "hardware observation lane closure before whole-stack constant-time promotion"
       ],
       "residualBoundaries": [
-        "AIR/metallib pinning is not target GPU-family disassembly.",
-        "The lane remains non-certifying until emitted-code observations are recorded per accepted GPU family."
+        "This lane closes scoped Metal AIR/metallib review only; it does not certify GPU-family timing, counters, occupancy, scheduler, or power behavior."
       ],
       "surface": "Apple Metal frontend through AIR/metallib for Goldilocks helper arithmetic"
     },
     {
       "id": "metal-air-numiseal-zk-kernels",
-      "observationStatus": "local-air-and-metallib-pinned-disassembly-required",
+      "observationStatus": "scoped-compiler-lowering-review-complete",
       "observedArtifacts": [
         "metal-air",
         "metal-metallib",
-        "metal-artifact-report"
+        "metal-metallib-objdump",
+        "metal-artifact-report",
+        "compiler-lowering-audit"
       ],
       "positiveFindings": [
         "The release evidence pins the Metal AIR object, linked metallib, and generation report.",
-        "The Metal artifact report covers the NumiSealZK secret-bearing source region."
+        "The Metal artifact report covers the NumiSealZK secret-bearing source region.",
+        "The compiler-lowering audit pins metallib objdump AIR for every scoped NumiSealZK kernel and records only public id/count or public loop-bound branch findings."
       ],
       "regions": [
         "metal-numiseal-zk-secret-bearing-kernels"
       ],
       "requiredBeforeProduction": [
-        "target GPU-family disassembly or equivalent compiler report for public-bound loops and select lowering",
-        "buffer-layout audit showing secret coefficients do not choose addresses"
+        "hardware observation lane closure before whole-stack constant-time promotion"
       ],
       "residualBoundaries": [
-        "AIR/metallib pinning is not target GPU-family disassembly.",
-        "The lane remains non-certifying until emitted-code observations are recorded per accepted GPU family."
+        "This lane closes scoped Metal AIR/metallib review only; it does not certify GPU-family timing, counters, occupancy, scheduler, or power behavior."
       ],
       "surface": "Apple Metal frontend through AIR/metallib for NumiSealZK secret-bearing kernels"
     }
   ],
   "promotionImpact": {
-    "productionConstantTimeClaimAllowed": true,
-    "reason": "Repository-local compiler observation lanes and emitted artifacts are pinned for the accepted source-level constant-time promotion model."
+    "compilerLoweringReviewComplete": true,
+    "productionConstantTimeClaimAllowed": false,
+    "reason": "Scoped compiler/lowering review is complete for pinned Swift/LLVM/ARM64 and Metal AIR/metallib artifacts; hardware observation coverage remains required before a whole-stack constant-time claim."
   },
   "reportID": "superneo-compiler-observation-lanes-v1",
   "schemaVersion": 1,

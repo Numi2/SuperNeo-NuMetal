@@ -359,16 +359,18 @@
     "constantTimeScopeManifest": "TestVectors/constant-time-scope-v1.json",
     "loweringEvidenceManifest": "TestVectors/constant-time-lowering-evidence-v1.json",
     "releaseEvidenceManifest": "Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json",
-    "swiftOptimizedSILReview": "pinned artifact exists; scoped emitted-code review remains open",
-    "llvmIRReview": "pinned artifact exists; scoped emitted-code review remains open",
-    "targetAssemblyReview": "pinned artifact exists; scoped emitted-code review remains open",
-    "metalAIRObjectReview": "pinned artifacts exist; GPU-family disassembly and broader lanes remain open",
+    "compilerLoweringAudit": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-lowering-audit-v1.json",
+    "swiftOptimizedSILReview": "scoped compiler-lowering audit complete for pinned Swift SIL artifact",
+    "llvmIRReview": "scoped compiler-lowering audit complete for pinned LLVM IR artifact",
+    "targetAssemblyReview": "scoped compiler-lowering audit complete for pinned ARM64 assembly artifact",
+    "metalAIRObjectReview": "scoped compiler-lowering audit complete for pinned Metal AIR/metallib objdump artifacts; GPU-family hardware observation remains open",
     "dudectCPUCorpus": "local smoke corpus pinned; full hardware-counter corpus remains open",
     "gpuTimingCounterCorpus": "local smoke corpus pinned; full timing/counter corpus remains open",
     "allocatorARCCOWReview": "local allocation-review artifact pinned; full proof or exclusion remains open",
     "failurePathConstantBehavior": "not yet proved for every product error and retry path",
     "secretDependentArtifactSizeErrorRetryBehaviorExcluded": false,
-    "productionConstantTimeClaimAllowed": true
+    "productionConstantTimeClaimAllowed": false,
+    "constantTimePromotionBlocker": "full side-channel certification requires hardware observation coverage before claiming whole-stack constant-time behavior; scoped compiler/lowering review is pinned in compiler-lowering-audit-v1"
   },
   "promotionRule": {
     "productionProductSecurityClaimAllowed": true,
@@ -377,7 +379,7 @@
     "productionZKPrivacyClaimAllowed": true,
     "productionRecursiveCarryClaimAllowed": true,
     "productionPerformanceClaimAllowed": true,
-    "productionConstantTimeClaimAllowed": true,
+    "productionConstantTimeClaimAllowed": false,
     "productionReleaseDistributionClaimAllowed": true,
     "requiresAllRemainingObligationsClosed": false
   }

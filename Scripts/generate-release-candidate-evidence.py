@@ -90,8 +90,10 @@ def build_evidence(args: argparse.Namespace) -> dict:
     release_evidence = read_json(constant_time_release_evidence)
     observation_lane_reports = lowering_evidence.get("observationLaneReports", {})
     constant_time_compiler_observation_lanes = str(observation_lane_reports["compiler"])
+    constant_time_compiler_lowering_audit = str(observation_lane_reports["compilerLoweringAudit"])
     constant_time_hardware_observation_lanes = str(observation_lane_reports["hardware"])
     compiler_observation_lanes = read_json(constant_time_compiler_observation_lanes)
+    compiler_lowering_audit = read_json(constant_time_compiler_lowering_audit)
     hardware_observation_lanes = read_json(constant_time_hardware_observation_lanes)
     numiseal_mask_distribution_evidence = read_json("TestVectors/numiseal-zk-mask-distribution-evidence-v1.json")
     numiseal_zk_simulator_coupling_evidence = read_json(
@@ -407,6 +409,12 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "constantTimeCompilerObservationLanesVersion": int(compiler_observation_lanes["schemaVersion"]),
             "constantTimeCompilerObservationLanesDigestHex": sha256_hex(constant_time_compiler_observation_lanes),
             "constantTimeCompilerObservationLanesClaimStatus": str(compiler_observation_lanes["claimStatus"]),
+            "constantTimeCompilerLoweringAuditVersion": int(compiler_lowering_audit["schemaVersion"]),
+            "constantTimeCompilerLoweringAuditDigestHex": sha256_hex(constant_time_compiler_lowering_audit),
+            "constantTimeCompilerLoweringAuditClaimStatus": str(compiler_lowering_audit["claimStatus"]),
+            "constantTimeCompilerLoweringReviewComplete": bool(
+                compiler_lowering_audit["promotionImpact"]["compilerLoweringReviewComplete"]
+            ),
             "constantTimeHardwareObservationLanesVersion": int(hardware_observation_lanes["schemaVersion"]),
             "constantTimeHardwareObservationLanesDigestHex": sha256_hex(constant_time_hardware_observation_lanes),
             "constantTimeHardwareObservationLanesClaimStatus": str(hardware_observation_lanes["claimStatus"]),
@@ -465,6 +473,7 @@ def build_evidence(args: argparse.Namespace) -> dict:
             "constantTimeScope": "TestVectors/constant-time-scope-v1.json",
             "constantTimeLoweringEvidence": "TestVectors/constant-time-lowering-evidence-v1.json",
             "constantTimeReleaseEvidence": constant_time_release_evidence,
+            "constantTimeCompilerLoweringAudit": constant_time_compiler_lowering_audit,
             "e2eProofMetrics": "TestVectors/e2e-proof-metrics-v1.json",
             "e2eProofMetricsPolicy": "Docs/E2EProofMetrics-2026-04-16.md",
             "benchmarkCoverage": "TestVectors/benchmark-coverage-v1.json",

@@ -272,7 +272,7 @@ artifact separately.
 | Blocker | Disposition |
 | --- | --- |
 | Cryptographic and implementation review record | Still open; owned in-repo as release evidence. |
-| Side-channel review | Narrowed; high-assurance mode is meaningful, source/formal plus Swift/LLVM/Metal lowering proof contracts exist, local Metal/runtime/CPU/GPU release evidence is pinned, and broader compiler/hardware evidence remains required before production CT language. |
+| Side-channel review | Narrowed; high-assurance mode is meaningful, source/formal plus Swift/LLVM/Metal lowering proof contracts exist, scoped compiler/lowering audit evidence is pinned, local Metal/runtime/CPU/GPU release evidence is pinned, and broader hardware evidence remains required before production CT language. |
 | Product integration layer | Executable NumiSeal integration contract added; deployed storage/provenance/replay/access/logging implementations remain open. |
 | Formal blocker completion | Promoted to completed formal protocol theorem for the finite model; external deployment operations remain separate. |
 | Full Sage estimator | Closed for the pinned local lane; SageMath 10.8 ran and the generated artifact validated. |

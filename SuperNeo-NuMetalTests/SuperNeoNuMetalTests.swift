@@ -6721,6 +6721,83 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertTrue(status.checks.contains { check in
             check.id == "side-channel-certificate" && check.status == SuperNeoProductOperationsCheckStatus.ok
         })
+
+        let requiredZKPolicy = SuperNeoTrustedNumiSealZKContext(
+            acceptedMetalModes: ["cpu-reference"],
+            acceptedExecutionPolicies: [NumiSealProvingExecutionPolicy.zkHighAssuranceCPU.rawValue],
+            allowedLeakageDigestsHex: [Digest256.hash("numiseal-zk-ops-leakage").hexString],
+            minimumSideChannelCertificationLevel: .constantTraceReviewed
+        )
+        let requiredPayload = SuperNeoTrustedContextPayload(
+            contextID: "ctx-numiseal-zk-ops-required",
+            issuer: "SuperNeo Release",
+            validFromUTC: "2026-01-01T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z",
+            expectedVerifierKeyDigestHex: Digest256.hash("verifier").hexString,
+            expectedShapeDigestHex: Digest256.hash("shape").hexString,
+            expectedStatementDigestHex: Digest256.hash("statement").hexString,
+            expectedTranscriptDomainDigestHex: Digest256.hash("domain").hexString,
+            acceptedProofKinds: [.numiSealZK],
+            maximumArtifactByteCount: 1_000_000,
+            maximumProofEnvelopeByteCount: 1_000_000,
+            allowedWorkloads: ["one-hot-vector-v1"],
+            releaseBuildDigestHex: releaseBuildDigest.hexString,
+            numiSeal: SuperNeoTrustedNumiSealContext(
+                publicStatementDigestHex: Digest256.hash("public-statement").hexString,
+                obligationRootHex: Digest256.hash("obligation-root").hexString,
+                laneSummaryRootHex: Digest256.hash("lane-summary-root").hexString,
+                aggregateDigestsHex: [Digest256.hash("aggregate").hexString],
+                componentDigestRootHex: Digest256.hash("component-root").hexString,
+                proofTranscriptDigestHex: Digest256.hash("proof-transcript").hexString
+            ),
+            numiSealZK: requiredZKPolicy,
+            keyRotation: SuperNeoTrustedContextKeyRotation(
+                currentIssuerKeyDigestHex: issuerDigest.hexString,
+                nextIssuerKeyDigestHex: Digest256.hash("next-issuer").hexString
+            )
+        )
+        let requiredContext = SuperNeoVerifiedTrustedContextPack(
+            payload: requiredPayload,
+            payloadDigest: Digest256.hash([UInt8](try SuperNeoCanonicalJSON.encode(requiredPayload))),
+            issuerKeyDigest: issuerDigest
+        )
+        let requiredRevocationPayload = SuperNeoRevocationFeedPayload(
+            feedID: "ctx-numiseal-zk-ops-required-revocations",
+            issuer: "SuperNeo Release",
+            contextID: requiredPayload.contextID,
+            releaseBuildDigestHex: releaseBuildDigest.hexString,
+            sequence: 1,
+            issuedAtUTC: "2026-04-16T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z"
+        )
+        let requiredRevocationFeed = SuperNeoVerifiedRevocationFeed(
+            payload: requiredRevocationPayload,
+            feedDigest: Digest256.hash([UInt8](try SuperNeoCanonicalJSON.encode(requiredRevocationPayload))),
+            issuerKeyDigest: issuerDigest
+        )
+        let requiredStatus = try SuperNeoProductOperationsStatus.make(
+            profile: profile,
+            context: requiredContext,
+            revocationFeed: requiredRevocationFeed,
+            effectiveRevocation: requiredRevocationPayload.revocation,
+            sideChannelCertificate: nil,
+            acceptedReplayCount: 0,
+            auditStatus: SuperNeoAuditLogStatusSnapshot(
+                auditLogDigestHex: Digest256.hash("empty-audit").hexString,
+                chainStatus: SuperNeoAuditLogChainStatus(
+                    isValid: true,
+                    recordCount: 0,
+                    lastSequence: 0,
+                    lastRecordDigestHex: SuperNeoJSONLAuditLog.genesisDigestHex
+                )
+            ),
+            now: now
+        )
+        XCTAssertEqual(requiredStatus.readiness, SuperNeoProductOperationsReadiness.blocked)
+        XCTAssertEqual(requiredStatus.sideChannelCertificateStatus, "missing-required")
+        XCTAssertTrue(requiredStatus.checks.contains { check in
+            check.id == "side-channel-certificate" && check.status == SuperNeoProductOperationsCheckStatus.blocked
+        })
     }
 
     func testLocalProductReplayIdentityBindsRecursiveCarryReplayMetadata() throws {
@@ -7019,6 +7096,37 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             contextID: context.contextID,
             releaseBuildDigest: try context.releaseBuildDigest,
             certificate: lowLevelCertificate
+        )
+
+        let productionRequiredPolicy = SuperNeoTrustedNumiSealZKContext(
+            acceptedMetalModes: [artifact.metalMode],
+            acceptedExecutionPolicies: [artifact.executionPolicy],
+            allowedLeakageDigestsHex: [try artifact.requiredExecutionMetadata("zkLeakageDigest")],
+            minimumSideChannelCertificationLevel: .productionSideChannelCleared
+        )
+        XCTAssertThrowsProductIntegrationError(
+            try productionRequiredPolicy.validate(
+                artifact: artifact,
+                contextID: context.contextID,
+                releaseBuildDigest: try context.releaseBuildDigest,
+                certificate: nil
+            ),
+            containing: "certificate is required"
+        )
+        XCTAssertThrowsProductIntegrationError(
+            try productionRequiredPolicy.validate(
+                artifact: artifact,
+                contextID: context.contextID,
+                releaseBuildDigest: try context.releaseBuildDigest,
+                certificate: lowLevelCertificate
+            ),
+            containing: "certificate level is below"
+        )
+        try productionRequiredPolicy.validate(
+            artifact: artifact,
+            contextID: context.contextID,
+            releaseBuildDigest: try context.releaseBuildDigest,
+            certificate: verifiedCertificate
         )
     }
 

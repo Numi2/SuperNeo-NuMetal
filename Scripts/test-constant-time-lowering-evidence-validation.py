@@ -69,9 +69,21 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         premature_promotion = copy.deepcopy(manifest)
-        premature_promotion["promotionRule"]["productionConstantTimeClaimAllowed"] = False
+        premature_promotion["promotionRule"]["productionConstantTimeClaimAllowed"] = True
         path = tmp / "premature-promotion.json"
         write_json(path, premature_promotion)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_unblock_requirements = copy.deepcopy(manifest)
+        missing_unblock_requirements["promotionRule"]["unblockRequires"] = []
+        path = tmp / "missing-unblock-requirements.json"
+        write_json(path, missing_unblock_requirements)
+        run_fail(str(VALIDATE), str(path))
+
+        missing_compiler_audit_flag = copy.deepcopy(manifest)
+        missing_compiler_audit_flag["promotionRule"]["compilerLoweringReviewComplete"] = False
+        path = tmp / "missing-compiler-audit-flag.json"
+        write_json(path, missing_compiler_audit_flag)
         run_fail(str(VALIDATE), str(path))
 
         missing_release_evidence = copy.deepcopy(manifest)
@@ -109,10 +121,23 @@ def main() -> None:
         write_json(path, missing_compiler_lane_artifact)
         run_fail(str(VALIDATE), str(path))
 
-        outsourced_review = copy.deepcopy(manifest)
-        outsourced_review["promotionRule"]["unblockRequires"].append("External" + " audit required.")
-        path = tmp / "outsourced-review.json"
-        write_json(path, outsourced_review)
+        missing_compiler_audit_artifact = copy.deepcopy(manifest)
+        release_evidence = json.loads(RELEASE_EVIDENCE.read_text(encoding="utf-8"))
+        release_evidence["artifactEntries"] = [
+            entry for entry in release_evidence["artifactEntries"]
+            if entry.get("id") != "compiler-lowering-audit"
+        ]
+        release_path = tmp / "missing-compiler-audit-artifact.json"
+        write_json(release_path, release_evidence)
+        missing_compiler_audit_artifact["releaseEvidenceManifest"] = str(release_path)
+        path = tmp / "missing-compiler-audit.json"
+        write_json(path, missing_compiler_audit_artifact)
+        run_fail(str(VALIDATE), str(path))
+
+        claiming_beyond_evidence = copy.deepcopy(manifest)
+        claiming_beyond_evidence["promotionRule"]["releaseEvidenceOnly"] = False
+        path = tmp / "claiming-beyond-evidence.json"
+        write_json(path, claiming_beyond_evidence)
         run_fail(str(VALIDATE), str(path))
 
     print("constant-time lowering evidence validation regression tests passed")

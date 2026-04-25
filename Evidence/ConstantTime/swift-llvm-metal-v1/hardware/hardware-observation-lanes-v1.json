@@ -69,8 +69,8 @@
     }
   ],
   "promotionImpact": {
-    "productionConstantTimeClaimAllowed": true,
-    "reason": "Repository-local CPU/GPU observation lanes are pinned for the accepted source-level constant-time promotion model."
+    "productionConstantTimeClaimAllowed": false,
+    "reason": "Local CPU/GPU smoke observations are pinned, but broader hardware-counter, GPU-family, power, contention, and scheduler coverage remains required before a whole-stack constant-time claim."
   },
   "reportID": "superneo-hardware-observation-lanes-v1",
   "schemaVersion": 1,

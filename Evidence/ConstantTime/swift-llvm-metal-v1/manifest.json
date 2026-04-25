@@ -43,6 +43,13 @@
       "sha256Hex": "e5003d2c24a826cdb4b1ca9ef650df1b6afb01f88ef3e554d0924a09adc56a7a"
     },
     {
+      "byteCount": 286079,
+      "id": "metal-metallib-objdump",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/SuperNeoKernels.metallib.objdump.txt",
+      "role": "Metal metallib MODULE_LIST disassembly emitted by metal-objdump",
+      "sha256Hex": "0d2bbe41c9218952ed15e9a445578c0f3a90a7c8ccb99a1cdbba3d10aa9a5763"
+    },
+    {
       "byteCount": 2846,
       "id": "metal-artifact-report",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/metal/metal-artifacts-v1.json",
@@ -55,6 +62,13 @@
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/runtime/runtime-allocation-review-v1.json",
       "role": "Swift runtime allocation/COW static review",
       "sha256Hex": "1b092163ed5fd1e9511d7bb3c00c45c9e558ea08d73c4bf257344f877d94103f"
+    },
+    {
+      "byteCount": 15080,
+      "id": "compiler-lowering-audit",
+      "path": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-lowering-audit-v1.json",
+      "role": "scoped Swift/LLVM/ARM64 and Metal AIR/metallib compiler-lowering audit",
+      "sha256Hex": "570f966a3022b50fd437d56845e0d97c77cb61ee46039a6f1b0419dbc6804f70"
     },
     {
       "byteCount": 8636,
@@ -71,24 +85,25 @@
       "sha256Hex": "b07f262c5fb36199565bec4a4d2af885fe63a2f1ae3d78c938f0d8e7bd0d2a5e"
     },
     {
-      "byteCount": 4068,
+      "byteCount": 4323,
       "id": "compiler-observation-lanes",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
       "role": "compiler observation lane report for Swift/LLVM/Metal constant-time evidence",
-      "sha256Hex": "93993e439244162b57176cce57e3796ebd5ab0fb7e3f02b045bc31834165d8b3"
+      "sha256Hex": "4452f5ce74757f980e60a64fbe56f045d7d0d0b482b424dcd79cb0cc382273f8"
     },
     {
-      "byteCount": 3199,
+      "byteCount": 3273,
       "id": "hardware-observation-lanes",
       "path": "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
       "role": "hardware observation lane report for CPU/GPU constant-time evidence",
-      "sha256Hex": "9840df5631f1611df286554447bbc727360f88b72f9d3464cd0ec4899a5a798c"
+      "sha256Hex": "e104ed24b4a70a6779df22a58105cb626d3cee3c6bc23c9969d0f9b0f1276216"
     }
   ],
   "claimStatus": "local-release-evidence-pinned",
+  "compilerLoweringAuditReport": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-lowering-audit-v1.json",
   "compilerObservationLaneReport": "Evidence/ConstantTime/swift-llvm-metal-v1/compiler/compiler-observation-lanes-v1.json",
   "evidenceID": "superneo-swift-llvm-metal-release-evidence-v1",
-  "generatedAtUTC": "2026-04-19T11:15:15Z",
+  "generatedAtUTC": "2026-04-25T11:15:38Z",
   "hardware": {
     "machine": "arm64e",
     "swVers": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5\nBuildVersion:\t\t25F5042g",
@@ -97,8 +112,8 @@
   "hardwareObservationLaneReport": "Evidence/ConstantTime/swift-llvm-metal-v1/hardware/hardware-observation-lanes-v1.json",
   "loweringEvidenceManifest": "TestVectors/constant-time-lowering-evidence-v1.json",
   "promotionDecision": {
-    "productionConstantTimeClaimAllowed": true,
-    "reason": "Local compiler artifacts and observation corpora are pinned for repository-local constant-time promotion."
+    "productionConstantTimeClaimAllowed": false,
+    "reason": "Local compiler artifacts, compiler/lowering audit, and observation corpora are pinned as non-certifying evidence; hardware observation coverage remains required before whole-stack constant-time promotion."
   },
   "schemaVersion": 1,
   "scopeManifest": "TestVectors/constant-time-scope-v1.json"

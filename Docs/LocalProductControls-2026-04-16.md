@@ -13,10 +13,12 @@ CLI product-control commands discover the operator profile from
 `SUPERNEO_OPERATOR_PROFILE` or `.superneo/operator-profile.json` when
 `--operator-profile` is omitted.
 
-If the signed context accepts `numiseal-zk`, readiness does not require a
-side-channel certificate. Certificates are optional release metadata; when
-supplied, product verification checks their context, release, leakage, proof
-policy, Metal workspace, and evidence bindings.
+If the signed context accepts `numiseal-zk`, readiness requires a side-channel
+certificate only when the trusted context minimum is stricter than
+`correctness-only`. Certificates remain optional release metadata for
+`correctness-only` contexts; when supplied, product verification checks their
+context, release, leakage, proof policy, Metal workspace, and evidence
+bindings.
 
 ## Signed Revocation Feed
 
