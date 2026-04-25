@@ -229,10 +229,9 @@ revocation feed, audit-retention, and retry policy fields.
 
 Available NumiSeal execution policies are:
 
-- `default-product`: uses CPU-redundant Metal when a Metal context is available,
-  otherwise CPU reference. The CLI keeps this policy on CPU reference by
-  default; callers that want Metal coverage should request an explicit Metal
-  policy.
+- `default-product`: CPU reference/high-assurance mode. This remains CPU-only
+  even when a Metal context is available; callers that want Metal coverage must
+  request an explicit Metal policy.
 - `zk-redundant-metal`: requires Metal and cross-checks covered Metal outputs
   against CPU.
 - `zk-metal-accelerated`: requires Metal and treats it as the primary prover

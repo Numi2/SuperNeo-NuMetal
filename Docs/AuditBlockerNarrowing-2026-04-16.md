@@ -75,6 +75,11 @@ described as constant-work hardening rather than constant-time certification.
 
 Covered strengths:
 
+- `SuperNeoExecutionPolicy.default` and `SuperNeoExecutionPolicy()` now resolve
+  to `.highAssurance`, so callers must explicitly opt into optimized or
+  secret-bearing Metal policies.
+- NumiSeal `default-product` proving now resolves to CPU reference/high-assurance
+  mode even when a Metal context is available.
 - CLI proof generation and checked NumiSeal vector generation request
   `.highAssurance` for secret-bearing prover work.
 - `.highAssurance` disables secret-bearing Metal acceleration through
@@ -115,20 +120,21 @@ Residual side-channel assurance boundaries:
   contract. The local scoped allocation/COW source review is pinned; runtime and
   hardware counter evidence remains broader production-promotion work.
 - Optimized CPU paths intentionally use sparse skips and small-coefficient
-  specialization. They are valid for benchmarks and public verification, not
-  for co-resident side-channel adversaries observing secret witness work.
-- Metal remains a performance accelerator only. `.highAssurance` avoids
-  secret-bearing GPU proving work, but GPU timing, cache, driver, and power
-  side channels are not certified.
+  specialization. They remain explicit opt-ins for benchmarks and public
+  verification, not defaults for co-resident side-channel adversaries observing
+  secret witness work.
+- Metal remains a performance accelerator only. Default/high-assurance policy
+  avoids secret-bearing GPU proving work, but GPU timing, cache, driver, and
+  power side channels are not certified.
 - Local CPU/GPU observation corpora are now pinned, but no hardware counter
   study, power/contention study, broader Apple GPU-family corpus, or Swift
   emitted SIL/LLVM/assembly review artifact is present yet. The required
   artifact classes are machine-checked by the lowering evidence manifest.
 
 Conclusion: the side-channel blocker is narrowed to a precise scope. The
-implemented mode removes the most visible witness-dependent zero-skip and GPU
-prover hazards and narrows common field arithmetic, but production side-channel
-claims require inversion-entry treatment plus compiler and hardware review, or a
+default mode removes the most visible witness-dependent zero-skip and GPU prover
+hazards and narrows common field arithmetic, but production side-channel claims
+require inversion-entry treatment plus compiler and hardware review, or a
 narrower deployment threat model that excludes local observation.
 
 ## Product Integration Layer

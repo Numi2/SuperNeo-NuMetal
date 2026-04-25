@@ -15,7 +15,7 @@ public enum NumiSealProvingExecutionPolicy: String, Codable, Equatable, Sendable
         case .zkHighAssuranceCPU:
             return .highAssurance
         case .defaultProduct:
-            return metalContext == nil ? .highAssurance : .cpuRedundantMetal
+            return .highAssurance
         }
     }
 
@@ -28,7 +28,7 @@ public enum NumiSealProvingExecutionPolicy: String, Codable, Equatable, Sendable
         case .zkHighAssuranceCPU:
             return "cpu-reference"
         case .defaultProduct:
-            return metalContext == nil ? "cpu-reference" : "secret-bearing-metal-cpu-redundant"
+            return "cpu-reference"
         }
     }
 }
@@ -198,11 +198,11 @@ public final class NumiSealMetalProvingWorkspace: @unchecked Sendable {
     }
 
     private var usesCPUReferenceOnly: Bool {
-        provingPolicy == .zkHighAssuranceCPU
+        provingPolicy == .zkHighAssuranceCPU || provingPolicy == .defaultProduct
     }
 
     private var requiresCPUOracle: Bool {
-        provingPolicy == .zkRedundantMetal || provingPolicy == .defaultProduct
+        provingPolicy == .zkRedundantMetal
     }
 }
 

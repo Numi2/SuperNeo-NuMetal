@@ -66,6 +66,18 @@ def validate_workflow() -> None:
         "run: swift test --disable-swift-testing" in workflow,
         "PR smoke job must run the XCTest smoke suite",
     )
+    require(
+        "name: Checked vector validation" in workflow,
+        "production workflow must run checked vector validation on pull requests",
+    )
+    require(
+        'run: swift Scripts/validate-test-vectors.swift "${PWD}"' in workflow,
+        "PR checked vector job must validate checked proof vectors",
+    )
+    require(
+        'run: swift run superneo-numiseal-vectors validate "${PWD}"' in workflow,
+        "PR checked vector job must validate checked NumiSeal vectors",
+    )
     require("name: Full production gate" in workflow, "macOS CI job is not named as the full production gate")
     require(
         "if: ${{ github.event_name != 'pull_request' }}" in workflow,

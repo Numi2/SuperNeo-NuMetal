@@ -707,6 +707,7 @@ do {
                 && $0 != "product-release-distribution-evidence-v1.json"
                 && $0 != "e2e-proof-metrics-v1.json"
                 && $0 != "benchmark-coverage-v1.json"
+                && $0 != "competitive-performance-comparison-v1.json"
         }
     let unmanifestedFiles = Set(checkedVectorFiles).subtracting(manifestedFiles).sorted()
     try require(

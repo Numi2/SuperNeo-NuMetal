@@ -605,9 +605,10 @@ Do not treat the current CE opening masking as a blanket ZK layer.
 
 ### `.default`
 
-- Optimized CPU.
+- Alias of `.highAssurance` for secret-bearing product proving.
+- Constant-work CPU paths where already implemented.
 - Deterministic serialization.
-- Existing automatic Metal routing only where the policy permits it.
+- No automatic Metal routing for secret-bearing work.
 
 ### `.cpuRedundantMetal`
 

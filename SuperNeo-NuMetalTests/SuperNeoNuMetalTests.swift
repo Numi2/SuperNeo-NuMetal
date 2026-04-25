@@ -465,7 +465,7 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         XCTAssertEqual(try CEInstance(bytes: ceInstance.superNeoBytes), ceInstance)
     }
 
-    func testTier0DeterministicRNGAndTranscriptChallengeTapeReference() throws {
+    func testTier0DeterministicRNGAndTranscriptChallengesBindAbsorbedBytes() throws {
         let seed = Array("deterministic-rng-byte-stream".utf8)
         var rng = DeterministicRNG(seed: seed)
         var reference = ReferenceDeterministicRNG(seed: seed)
@@ -482,15 +482,22 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         let payload = Array("absorbed-payload".utf8)
         var transcript = SumCheckTranscript(domainSeparator: transcriptDomain, seed: transcriptSeed)
         transcript.absorb(payload)
+        var replay = SumCheckTranscript(domainSeparator: transcriptDomain, seed: transcriptSeed)
+        replay.absorb(payload)
+        var differentPayload = SumCheckTranscript(domainSeparator: transcriptDomain, seed: transcriptSeed)
+        differentPayload.absorb(Array("different-absorbed-payload".utf8))
 
-        var transcriptReference = SuperNeoChallengeTape(
-            seed: transcript.challengeTapeSeed,
-            proofKind: transcript.proofKind,
-            label: transcriptDomain
-        )
-        XCTAssertEqual(transcript.challengeField(), transcriptReference.nextField())
-        XCTAssertEqual(transcript.challengeExt2(), transcriptReference.nextExt2())
-        XCTAssertEqual(transcript.challengeRing(), transcriptReference.nextRing())
+        let field = transcript.challengeField()
+        XCTAssertEqual(field, replay.challengeField())
+        XCTAssertNotEqual(field, differentPayload.challengeField())
+
+        let ext2 = transcript.challengeExt2()
+        XCTAssertEqual(ext2, replay.challengeExt2())
+        XCTAssertNotEqual(ext2, differentPayload.challengeExt2())
+
+        let ring = transcript.challengeRing()
+        XCTAssertEqual(ring, replay.challengeRing())
+        XCTAssertNotEqual(ring, differentPayload.challengeRing())
     }
 
     func testTier0CyclotomicRingSeededLawsAndEmbedding() throws {
@@ -8363,6 +8370,18 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
 
     func testCPUBackendFactoriesExposeExecutionPolicy() throws {
         let key = try AjtaiCommitmentKey(columns: 1, seed: Array("cpu-backend-policy".utf8))
+        XCTAssertEqual(SuperNeoExecutionPolicy.default, .highAssurance)
+        XCTAssertEqual(SuperNeoExecutionPolicy(), .highAssurance)
+        XCTAssertTrue(SuperNeoExecutionPolicy.default.usesConstantWorkCPU)
+        XCTAssertTrue(SuperNeoExecutionPolicy.default.requiresMetalCPUCheck)
+        XCTAssertEqual(
+            SuperNeoCPUBackend().makeProver(key: key).executionPolicy,
+            .highAssurance
+        )
+        XCTAssertEqual(
+            SuperNeoCPUBackend().makeVerifier(key: key).executionPolicy,
+            .highAssurance
+        )
         XCTAssertEqual(
             SuperNeoCPUBackend().makeProver(key: key, executionPolicy: .highAssurance).executionPolicy,
             .highAssurance
@@ -8371,6 +8390,25 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             SuperNeoCPUBackend().makeVerifier(key: key, executionPolicy: .cpuRedundantMetal).executionPolicy,
             .cpuRedundantMetal
         )
+        XCTAssertEqual(
+            NumiSealProvingExecutionPolicy.defaultProduct.resolvedSuperNeoPolicy(metalContext: nil),
+            .highAssurance
+        )
+        XCTAssertEqual(
+            NumiSealProvingExecutionPolicy.defaultProduct.resolvedMetalMode(metalContext: nil),
+            "cpu-reference"
+        )
+        if let device = MTLCreateSystemDefaultDevice(),
+           let context = try? MetalExecutionContext(device: device) {
+            XCTAssertEqual(
+                NumiSealProvingExecutionPolicy.defaultProduct.resolvedSuperNeoPolicy(metalContext: context),
+                .highAssurance
+            )
+            XCTAssertEqual(
+                NumiSealProvingExecutionPolicy.defaultProduct.resolvedMetalMode(metalContext: context),
+                "cpu-reference"
+            )
+        }
     }
 
     func testBinaryAdditionR1CSBuilderPreparesVerifiableFoldEnvelope() throws {

@@ -181,10 +181,11 @@ comparison failure-mode controls.
 
 Current Metal scaling baseline:
 
-- Default protocol routing uses Metal automatically only for `m >= 1024`.
-  Smaller shapes stay on CPU unless callers opt into `.metalAccelerated` or
-  `.cpuRedundantMetal`. Forced Metal benchmark rows remain registered so small
-  kernels stay covered and regressions remain visible.
+- Default protocol routing is high-assurance CPU and does not use Metal for
+  secret-bearing prover work. Benchmark and kernel-development runs must opt
+  into `.metalAccelerated` or `.cpuRedundantMetal`; forced Metal benchmark rows
+  remain registered so small kernels stay covered and regressions remain
+  visible.
 - `SUPERNEO_METAL_EVAL_ROW_BLOCK_SIZE=128` is the default. It won end-to-end at `m1024` and tied the best full-fold result at `m4096`; `256` can win isolated transformed evaluation but did not improve the complete fold path.
 - The row-partial transformed-evaluation schedule is disabled by default. It is
   correctness-covered and available for tuning through

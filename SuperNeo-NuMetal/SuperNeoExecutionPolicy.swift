@@ -30,6 +30,9 @@ public enum SuperNeoMetalRoutingPolicy: Equatable, Sendable {
 }
 
 public struct SuperNeoExecutionPolicy: Equatable, Sendable {
+    /// Secure-by-default local policy. Secret-bearing prover work uses the
+    /// constant-work CPU path and does not route to Metal unless the caller
+    /// selects an explicit accelerated policy.
     public static let `default` = SuperNeoExecutionPolicy()
 
     /// Force Metal acceleration when a context is supplied. This is useful for
@@ -42,10 +45,7 @@ public struct SuperNeoExecutionPolicy: Equatable, Sendable {
 
     /// Conservative local policy for high-assurance runs: no secret-bearing GPU
     /// work, and any remaining Metal use must match the CPU oracle.
-    public static let highAssurance = SuperNeoExecutionPolicy(
-        secretArithmetic: .constantWorkCPU,
-        metalTrust: .cpuRedundant
-    )
+    public static let highAssurance = SuperNeoExecutionPolicy()
 
     /// Useful during Metal kernel development and fault-injection tests: keep
     /// acceleration enabled, but make CPU equality mandatory.
@@ -60,8 +60,8 @@ public struct SuperNeoExecutionPolicy: Equatable, Sendable {
     public let metalRouting: SuperNeoMetalRoutingPolicy
 
     public init(
-        secretArithmetic: SuperNeoSecretArithmeticPolicy = .optimized,
-        metalTrust: SuperNeoMetalTrustPolicy = .accelerationOnly,
+        secretArithmetic: SuperNeoSecretArithmeticPolicy = .constantWorkCPU,
+        metalTrust: SuperNeoMetalTrustPolicy = .cpuRedundant,
         metalRouting: SuperNeoMetalRoutingPolicy = .automatic
     ) {
         self.secretArithmetic = secretArithmetic

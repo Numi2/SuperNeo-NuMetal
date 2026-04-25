@@ -199,6 +199,7 @@ For a research/integration tag:
 Release publication controls should require:
 
 - `.github/workflows/production-gate.yml` macOS PR smoke,
+- `.github/workflows/production-gate.yml` macOS PR checked-vector validation,
 - `.github/workflows/formal-status.yml` Ubuntu Lean formal validation,
 - `.github/workflows/production-gate.yml` macOS full production gate before
   tagging or promoting a release,
