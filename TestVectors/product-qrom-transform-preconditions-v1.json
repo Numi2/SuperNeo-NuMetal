@@ -252,7 +252,7 @@
       "status": "binding-target-bound-instantiated-for-H_bind",
       "required": true,
       "satisfied": true,
-      "evidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json pins nine structural binding-target events and the 4 * 9 * Q_H^2 / 2^384 bound; source H_bind acceptance binding is implemented and tracked by the hbind-384-acceptance-bindings precondition",
+      "evidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json pins eleven structural binding-target events and the 4 * 11 * Q_H^2 / 2^384 bound; source H_bind acceptance binding is implemented and tracked by the hbind-384-acceptance-bindings precondition",
       "sourceBasis": [
         "DFMS22",
         "SpongeQRO"
@@ -362,7 +362,7 @@
     "qromLossSymbol": "epsilon_qrom",
     "compilerOverheadSymbol": "epsilon_compiler_overhead",
     "hashModelGapSymbol": "epsilon_hash_model_gap",
-    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_compiler_overhead + epsilon_hash_model_gap",
+    "selectedDepthExpression": "epsilon_qrom(depth=3) = 3 * (epsilon_compiler_overhead + epsilon_hash_model_gap)",
     "recursivePromotionExpression": "epsilon_qrom(depth=d) = d * (epsilon_compiler_overhead + epsilon_hash_model_gap)",
     "compilerOverheadExpression": "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO theorem model",
     "hashModelGapExpression": "epsilon_hash_model_gap = 0 in the ideal split-QRO model; concrete SHAKE256 promotion remains a separate hash-instantiation claim",

@@ -64,6 +64,9 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductSelectedDepthLossLedgerAccepted",
     "ProductFiniteProtocolNumericLossObstruction",
     "ProductFiniteProtocolNumericLossObstructionAccepted",
+    "ProductCarryChainRoot",
+    "ProductRecursiveCarryChainRootRecurrence",
+    "ProductRecursiveCarryChainRootRecurrenceAccepted",
     "ProductExtractorLossAccounting",
     "ProductExtractorLossAccountingAccepted",
     "ProductPublicCoinTranscriptSchedule",
@@ -113,6 +116,8 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "productSecurityTheorem_requires_bounded_depth",
     "productSecurityTheorem_requires_selected_depth_loss_accounting",
     "productSecurityTheorem_requires_finite_protocol_numeric_loss_instantiation",
+    "productRecursiveCarryChainRoot_recurrence_unfolds_depth_le_three",
+    "productRecursiveCarryChainRoot_verifier_extractor_path_depth_le_three",
     "productSecurityTheorem_requires_extractor_loss_accounting",
     "productSecurityTheorem_requires_qrom_transcript_schedule",
     "productSecurityTheorem_requires_qrom_transform_preconditions",
@@ -126,6 +131,7 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "productSecurityTheorem_requires_release_distribution_evidence",
     "productSecurityTheorem_requires_qrom_accounting",
     "productSecurityTheorem_requires_artifact_envelope_binding",
+    "productSecurityTheorem_requires_recursive_carry_chain_root_binding",
     "productSecurityTheorem_from_instantiated_qrom",
 }
 
@@ -248,10 +254,9 @@ def format_fraction(value: Fraction) -> str:
 def selected_instantiated_partial_sum() -> Fraction:
     return (
         Fraction(1, 1 << 129)
-        + Fraction(16, GOLDILOCKS_MODULUS**4)
-        + Fraction(1, 5**81)
-        + Fraction(2**226, 3**226)
-        + Fraction(9, 1 << 254)
+        + (3 * (Fraction(16, GOLDILOCKS_MODULUS**4) + Fraction(1, 5**81)))
+        + (3 * Fraction(2**226, 3**226))
+        + Fraction(11, 1 << 254)
     )
 
 
@@ -301,8 +306,10 @@ def validate_coverage(dossier: dict[str, Any]) -> None:
 def validate_depth(dossier: dict[str, Any]) -> None:
     depth = require_dict(dossier.get("supportedProductDepth"), "supportedProductDepth")
     require(depth.get("depthModel") == "bounded-depth", "product depth model must stay bounded-depth")
-    require(depth.get("currentProductDefaultMaximumDepth") == 1, "current product default maximum depth must be 1")
-    require(depth.get("theoremMaximumDepth") == 1, "theorem maximum depth must be 1 until losses are instantiated")
+    require(depth.get("currentProductDefaultMaximumDepth") == 3, "current product default maximum depth must be 3")
+    require(depth.get("theoremMaximumDepth") == 3, "theorem maximum depth must be 3")
+    require(depth.get("selectedRecursiveCarryHops") == 2, "selected recursive carry hops must be 2")
+    require(depth.get("loadedParentChainRequired") is True, "loaded parent chain must be required")
     require(depth.get("polyDepthTheoremClaimAllowed") is True, "supportedProductDepth.polyDepthTheoremClaimAllowed must be true")
     recursive_default = require_string(depth.get("recursiveCarryProductDefault"), "recursiveCarryProductDefault").lower()
     require(
@@ -447,13 +454,15 @@ def validate_extractor_loss_accounting(dossier: dict[str, Any]) -> None:
     )
     selected = require_string(extractor.get("selectedDepthExpression"), "extractorLossAccounting.selectedDepthExpression")
     recursive = require_string(extractor.get("recursivePromotionExpression"), "extractorLossAccounting.recursivePromotionExpression")
-    require("epsilon_extract(depth=1) = 0" in selected, "extractor selected-depth expression must be exact zero")
+    require("epsilon_extract(depth=3) = 0" in selected, "extractor selected-depth expression must be exact zero at depth 3")
     require("epsilon_extract_carry" in recursive and "max(d - 1, 0)" in recursive, "extractor recursive expression must include carry-hop loss")
     for key in [
         "sourceFoldExtractorSpecified",
         "terminalSealExtractorSpecified",
         "productEnvelopeExtractorSpecified",
         "recursiveCarryExtractorSpecified",
+        "recursiveCarryChainRootRecurrenceSpecified",
+        "verifierExtractorPathDepthThreeSpecified",
         "extractorLossWithinBudget",
         "productionExtractorClaimAllowed",
     ]:
@@ -519,12 +528,12 @@ def validate_public_coin_qrom(dossier: dict[str, Any]) -> None:
     )
     require(qrom.get("challengeOracleBits") == 256, "challengeOracleBits must stay 256")
     require(qrom.get("bindingOracleBits") == 384, "bindingOracleBits must stay 384")
-    require(qrom.get("bindingTargetEventCount") == 9, "bindingTargetEventCount must stay 9")
+    require(qrom.get("bindingTargetEventCount") == 11, "bindingTargetEventCount must stay 11")
     require(qrom.get("interactiveProtocolSpecified") is True, "publicCoinQROMPosition.interactiveProtocolSpecified must be true")
     require(qrom.get("quantumOracleQueryBoundAccounted") is True, "publicCoinQROMPosition.quantumOracleQueryBoundAccounted must be true after Q_H bound instantiation")
     require(qrom.get("queryBoundQH") == "2^64", "publicCoinQROMPosition.queryBoundQH must be 2^64")
     require(qrom.get("queryBoundLog2") == 64, "publicCoinQROMPosition.queryBoundLog2 must be 64")
-    require(qrom.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "publicCoinQROMPosition.selectedDepthProtocolChallengeDerivations mismatch")
+    require(qrom.get("selectedDepthProtocolChallengeDerivations") == 26_265_375, "publicCoinQROMPosition.selectedDepthProtocolChallengeDerivations mismatch")
     require_true(qrom.get("transformPreconditionsSatisfied"), "publicCoinQROMPosition.transformPreconditionsSatisfied")
     require(
         qrom.get("repositoryLocalQROMAccountingClaimAllowed") is True,
@@ -600,7 +609,7 @@ def validate_public_coin_qrom(dossier: dict[str, Any]) -> None:
     merkle = require_dict(hash_model.get("merkleOracle"), "QROM accounting merkleOracle")
     require(challenge.get("outputBits") == 256, "QROM accounting H_chal must be 256 bits")
     require(binding.get("outputBits") == 384, "QROM accounting H_bind must be 384 bits")
-    require(binding.get("bindingTargetEventCount") == 9, "QROM accounting binding target count must be 9")
+    require(binding.get("bindingTargetEventCount") == 11, "QROM accounting binding target count must be 11")
     require(merkle.get("outputBits") == 384, "QROM accounting H_mt must be 384 bits")
     require(hash_model.get("splitOraclesPinned") is True, "QROM accounting split oracles must be pinned")
     require(hash_model.get("theoremCriticalBindingsUseHBind") is True, "theorem-critical bindings must use H_bind")
@@ -652,7 +661,7 @@ def validate_public_coin_qrom(dossier: dict[str, Any]) -> None:
         "proof-kind malleability formula mismatch",
     )
     require(
-        loss_rule.get("bindingCollisionInstantiatedExpression") == "4 * 9 * 2^128 / 2^384 = 36 * 2^-256",
+        loss_rule.get("bindingCollisionInstantiatedExpression") == "4 * 11 * 2^128 / 2^384 = 44 * 2^-256",
         "QROM accounting binding collision expression mismatch",
     )
     manifest_mapping = require_dict(manifest.get("ledgerTermMapping"), "QROM accounting ledgerTermMapping")
@@ -706,7 +715,7 @@ def validate_public_coin_qrom(dossier: dict[str, Any]) -> None:
     require(reduction_loss.get("challengeSeedBits") == 256, "QROM interactive challengeSeedBits mismatch")
     require(reduction_loss.get("bindingDigestBits") == 384, "QROM interactive bindingDigestBits mismatch")
     legacy_budget = require_dict(reduction_loss.get("legacyScheduleDerivedQueryBudget"), "QROM interactive legacyScheduleDerivedQueryBudget")
-    require(legacy_budget.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "legacy schedule derivation count mismatch")
+    require(legacy_budget.get("selectedDepthProtocolChallengeDerivations") == 26_265_375, "legacy schedule derivation count mismatch")
     require(reduction_loss.get("allNumericLossTermsInstantiated") is True, "QROM interactive reduction allNumericLossTermsInstantiated must be true")
     require(reduction_loss.get("qromLossWithinBudget") is True, "QROM interactive reduction qromLossWithinBudget must be true")
     sampler = read_json(ROOT / "TestVectors/product-qrom-sampler-encoding-evidence-v1.json")
@@ -735,8 +744,8 @@ def validate_public_coin_qrom(dossier: dict[str, Any]) -> None:
     require(residual.get("proofKindMalleabilityFormula") == "0", "proof-kind malleability must be zero outside collision ledger")
     bound = require_dict(collision.get("bindingTargetBound"), "QROM collision/malleability bindingTargetBound")
     require(bound.get("bindingDigestBits") == 384, "collision binding digest bits mismatch")
-    require(bound.get("bindingTargetEventCount") == 9, "collision target event count mismatch")
-    require(bound.get("instantiatedExpression") == "4 * 9 * 2^128 / 2^384 = 36 * 2^-256", "collision instantiated expression mismatch")
+    require(bound.get("bindingTargetEventCount") == 11, "collision target event count mismatch")
+    require(bound.get("instantiatedExpression") == "4 * 11 * 2^128 / 2^384 = 44 * 2^-256", "collision instantiated expression mismatch")
     require(bound.get("withinSelectedCollisionBudget") is True, "collision bound must fit selected collision budget")
     closure = require_dict(collision.get("closureStatus"), "QROM collision/malleability closureStatus")
     require(
@@ -833,6 +842,22 @@ def validate_zk_and_carry(dossier: dict[str, Any]) -> None:
     carry = require_dict(dossier.get("carryRecursionClosure"), "carryRecursionClosure")
     require("implemented" in require_string(carry.get("producerPath"), "producerPath"), "carry producer path must be recorded")
     require("implemented" in require_string(carry.get("consumerPath"), "consumerPath"), "carry consumer path must be recorded")
+    recurrence = require_string(carry.get("chainRootRecurrence"), "chainRootRecurrence").lower()
+    for needle in [
+        "productrecursivecarrychainrootrecurrence",
+        "rootatdepth(1) = baseroot",
+        "1 <= d < 3",
+        "rootatdepth(3) = steproot(2, steproot(1, baseroot))",
+    ]:
+        require(needle in recurrence, f"carry chain-root recurrence must mention {needle}")
+    verifier_extractor = require_string(carry.get("verifierExtractorPath"), "verifierExtractorPath").lower()
+    for needle in [
+        "productrecursivecarrychainroot_verifier_extractor_path_depth_le_three",
+        "loads the parent chain",
+        "rejects metadata-only recursive roots",
+        "extractor consumes the verifier-computed productcarrychainroot",
+    ]:
+        require(needle in verifier_extractor, f"carry verifier/extractor path must mention {needle}")
     carry_binding_text = " ".join([
         require_string(carry.get("carryVectorCommitment"), "carryVectorCommitment"),
         require_string(carry.get("replaySemantics"), "replaySemantics"),

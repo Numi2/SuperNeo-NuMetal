@@ -7,6 +7,20 @@ struct BenchmarkResult: Decodable {
     let extra: String?
 }
 
+struct PayPerBitResult: Decodable {
+    let caseLabel: String
+    let fieldElementCount: Int
+    let ringColumnCount: Int
+    let paddingFieldSlotCount: Int
+    let signedBitWidthMaximum: Int
+    let currentFixedDecompositionSlotCount: Int
+    let payPerBitPaddedSlotCount: Int
+    let payPerBitActiveDigitSlotCount: Int
+    let fixedToPayPerBitPaddedSlotRatio: Double
+    let fixedToPayPerBitActiveDigitRatio: Double
+    let fixedToPayPerBitOpeningRatio: Double
+}
+
 struct PaperClaim: Encodable {
     let id: String
     let paperSource: String
@@ -71,11 +85,13 @@ let outputDirectory = URL(fileURLWithPath: arguments[0], isDirectory: true)
 let mode = arguments[1]
 let benchmarkProfile = mode == "plan" || mode == "snapshot" ? "quick" : mode
 let benchmarkDirectory = outputDirectory.appendingPathComponent("benchmark-results", isDirectory: true)
+let payPerBitDirectory = outputDirectory.appendingPathComponent("payperbit-profile", isDirectory: true)
 let latticeArtifactURL = outputDirectory
     .appendingPathComponent("lattice-estimator", isDirectory: true)
     .appendingPathComponent("superneo-goldilocks-phi81.json")
 let resultsURL = benchmarkDirectory.appendingPathComponent("results.json")
 let metadataURL = benchmarkDirectory.appendingPathComponent("metadata.json")
+let payPerBitResultsURL = payPerBitDirectory.appendingPathComponent("profile-evaluation.json")
 let reportURL = outputDirectory.appendingPathComponent("report.md")
 let claimMapURL = outputDirectory.appendingPathComponent("claim-map.json")
 let commandsURL = outputDirectory.appendingPathComponent("commands.sh")
@@ -116,18 +132,25 @@ let claims = [
         paperClaim: "The SuperNeo embedding is norm-preserving and commitment work is driven by active small witness coefficients rather than full-width field values in every slot.",
         repositoryEvidence: [
             "SuperNeoEmbedding.packPadded",
+            "SuperNeoPayPerBitProfileEvaluation",
             "AjtaiCommitter.workProfile",
+            "Tools/PayPerBitEvaluationCLI/main.swift",
             "kernel/ajtaiCommit/workProfile benchmark"
         ],
         commands: [
+            "swift run superneo-payperbit-eval --profile \(benchmarkProfile) --format markdown --output payperbit-profile/profile-evaluation.md",
+            "swift run superneo-payperbit-eval --profile \(benchmarkProfile) --format json --output payperbit-profile/profile-evaluation.json",
             "Scripts/run-benchmarks.sh \(benchmarkProfile)"
         ],
         benchmarkSelectors: [
+            "kernel/ajtaiCommit/payPerBitOptimized/cpu/",
             "kernel/ajtaiCommit/workProfile/",
             "kernel/ajtaiCommit/cpu/",
             "kernel/ajtaiCommit/metal/"
         ],
         generatedArtifacts: [
+            "payperbit-profile/profile-evaluation.md",
+            "payperbit-profile/profile-evaluation.json",
             "benchmark-results/results.json",
             "report.md"
         ]
@@ -297,6 +320,8 @@ swift run superneo inspect TestVectors/one-hot-vector-compressed-terminal-v1.jso
 swift run superneo inspect TestVectors/binary-addition-u8-fold-v1.json
 swift run superneo inspect TestVectors/binary-addition-u8-terminal-v1.json
 swift Scripts/validate-test-vectors.swift
+swift run superneo-payperbit-eval --profile \(benchmarkProfile) --format markdown --output payperbit-profile/profile-evaluation.md
+swift run superneo-payperbit-eval --profile \(benchmarkProfile) --format json --output payperbit-profile/profile-evaluation.json
 Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
 Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json
 Scripts/validate-formal-status.py
@@ -327,6 +352,17 @@ if mode != "plan", results.isEmpty {
 }
 
 let metadata = (try? String(contentsOf: metadataURL, encoding: .utf8)) ?? "{}"
+let payPerBitRows: [PayPerBitResult]
+if FileManager.default.fileExists(atPath: payPerBitResultsURL.path) {
+    do {
+        let data = try Data(contentsOf: payPerBitResultsURL)
+        payPerBitRows = try JSONDecoder().decode([PayPerBitResult].self, from: data)
+    } catch {
+        fail("failed to decode pay-per-bit results at \(payPerBitResultsURL.path): \(error)")
+    }
+} else {
+    payPerBitRows = []
+}
 let latticeArtifact = (try? Data(contentsOf: latticeArtifactURL))
     .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
 let wallClock = results
@@ -356,6 +392,7 @@ func conciseBenchmarkSummary() -> [String] {
         "stage/piRLC/",
         "stage/piDEC/",
         "kernel/ajtaiCommit/workProfile/",
+        "kernel/ajtaiCommit/payPerBitOptimized/cpu/",
         "kernel/combinedCommitEval/batchWorkspace/metal/"
     ]
     let rows = wallClock
@@ -368,6 +405,17 @@ func conciseBenchmarkSummary() -> [String] {
         "- `\(benchmark)`: \(formattedTime(result)) \(derivedRate(benchmark, result))"
             .trimmingCharacters(in: .whitespaces)
     }
+}
+
+func payPerBitSummary() -> [String] {
+    guard !payPerBitRows.isEmpty else {
+        return ["No pay-per-bit profile rows were present. Run `Scripts/reproduce-superneo-paper.sh quick` or use `snapshot` with existing `benchmark-results/payperbit-profile-evaluation.json`."]
+    }
+    return payPerBitRows
+        .sorted { $0.caseLabel < $1.caseLabel }
+        .map { row in
+            "- `\(row.caseLabel)`: nField `\(row.fieldElementCount)`, nRing `\(row.ringColumnCount)`, pad `\(row.paddingFieldSlotCount)`, max bits `\(row.signedBitWidthMaximum)`, padded ratio `\(String(format: "%.2fx", row.fixedToPayPerBitPaddedSlotRatio))`, active ratio `\(String(format: "%.2fx", row.fixedToPayPerBitActiveDigitRatio))`, opening ratio `\(String(format: "%.2fx", row.fixedToPayPerBitOpeningRatio))`"
+        }
 }
 
 func laneSummary(_ lane: Any?, fallback: String) -> String {
@@ -428,6 +476,7 @@ var report: [String] = [
     "- `commands.sh`: pinned command list.",
     "- `logs/`: command outputs captured by the harness when the selected mode runs commands.",
     "- `benchmark-results/`: copied benchmark JSON, metadata, and benchmark report when available.",
+    "- `payperbit-profile/`: generated or copied pay-per-bit profile evaluation output.",
     "- `test-vectors/`: copied public vectors used by the reproduction checks.",
     "- `lattice-estimator/`: derived Module-SIS estimator parameters and optional pinned Sage-backed estimator output for the implemented profile.",
     "",
@@ -466,6 +515,13 @@ report.append(contentsOf: [
     ""
 ])
 report.append(contentsOf: conciseBenchmarkSummary())
+
+report.append(contentsOf: [
+    "",
+    "## Pay-Per-Bit Profile Summary",
+    ""
+])
+report.append(contentsOf: payPerBitSummary())
 
 report.append(contentsOf: [
     "",

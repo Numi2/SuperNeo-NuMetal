@@ -1,5 +1,7 @@
 # Product Integration Layer, 2026-04-16
 
+Formal status: completed formal protocol theorem.
+
 This is the concise product-control integration note. The selected architecture
 is the QRO path in `Docs/QROProductArchitecture-2026-04-25.md`.
 

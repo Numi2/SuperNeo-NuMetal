@@ -1,8 +1,8 @@
 import Foundation
 
 public enum NumiSealProductTheoremLimits {
-    public static let theoremID = "numiseal-product-qrom-selected-depth-1-v1"
-    public static let selectedDepth = 1
+    public static let theoremID = "numiseal-product-qrom-selected-depth-3-v1"
+    public static let selectedDepth = 3
     public static let maximumLaneCount = 1
     public static let maximumSourceFoldOutputClaimCount =
         SuperNeoParameters.goldilocks.decompositionLength
@@ -44,6 +44,11 @@ public enum NumiSealProductTheoremLimits {
         }
         guard request.sourceDecompositionProfile == .payPerBit else {
             throw SuperNeoError.invalidParameter("NumiSeal product source decomposition profile must be pay-per-bit-v1")
+        }
+        if let recursiveCarryParent = request.recursiveCarryParent {
+            guard recursiveCarryParent.nextRecursionLevel <= selectedDepth else {
+                throw SuperNeoError.invalidParameter("NumiSeal product recursive depth exceeds selected theorem depth")
+            }
         }
     }
 
@@ -103,6 +108,12 @@ public enum NumiSealProductTheoremLimits {
         }
         guard artifact.aggregateDigestsHex.count <= maximumLaneCount * maximumAggregatesPerLane else {
             throw SuperNeoError.invalidEncoding("NumiSeal product aggregate digest count exceeds theorem maximum")
+        }
+        guard let rawDepth = artifact.executionPolicyMetadata["recursiveCarryMaximumSupportedDepth"],
+              let depth = Int(rawDepth),
+              depth > 0,
+              depth <= selectedDepth else {
+            throw SuperNeoError.invalidEncoding("NumiSeal product recursive depth exceeds selected theorem depth")
         }
     }
 }

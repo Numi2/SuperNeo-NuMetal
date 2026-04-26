@@ -469,3 +469,264 @@ public struct SuperNeoBinaryAdditionWorkload: Sendable {
         }
     }
 }
+
+public struct SuperNeoLamportSignatureInstance: Equatable, Sendable {
+    public let messageBits: [Bool]
+    public let publicKeyZero: [GoldilocksField]
+    public let publicKeyOne: [GoldilocksField]
+    public let signature: [GoldilocksField]
+
+    public init(
+        messageBits: [Bool],
+        publicKeyZero: [GoldilocksField],
+        publicKeyOne: [GoldilocksField],
+        signature: [GoldilocksField]
+    ) throws {
+        let bitCount = messageBits.count
+        guard bitCount > 0 else {
+            throw SuperNeoError.invalidParameter("Lamport signature instance requires at least one message bit")
+        }
+        guard publicKeyZero.count == bitCount,
+              publicKeyOne.count == bitCount,
+              signature.count == bitCount else {
+            throw SuperNeoError.invalidParameter("Lamport signature instance width mismatch")
+        }
+        for index in 0..<bitCount {
+            let expected = messageBits[index] ? publicKeyOne[index] : publicKeyZero[index]
+            guard SuperNeoLamportFieldHash.digest(signature[index]) == expected else {
+                throw SuperNeoError.invalidParameter("Lamport signature reveal does not hash to selected public-key slot")
+            }
+        }
+        self.messageBits = messageBits
+        self.publicKeyZero = publicKeyZero
+        self.publicKeyOne = publicKeyOne
+        self.signature = signature
+    }
+
+    public var publicKeyDigest: Digest256 {
+        Digest256.hash(
+            Array("SuperNeo-NuMetal.lamport.public-key.v1".utf8)
+                + numiSealEncodeCount(messageBits.count)
+                + publicKeyZero.flatMap(\.superNeoBytes)
+                + publicKeyOne.flatMap(\.superNeoBytes)
+        )
+    }
+
+    public var signatureDigest: Digest256 {
+        Digest256.hash(
+            Array("SuperNeo-NuMetal.lamport.signature.v1".utf8)
+                + numiSealEncodeCount(messageBits.count)
+                + messageBits.map { $0 ? UInt8(1) : UInt8(0) }
+                + signature.flatMap(\.superNeoBytes)
+        )
+    }
+
+    public var instanceDigest: Digest256 {
+        Digest256.hash(
+            Array("SuperNeo-NuMetal.lamport.instance.v1".utf8)
+                + publicKeyDigest.superNeoBytes
+                + signatureDigest.superNeoBytes
+        )
+    }
+}
+
+public enum SuperNeoLamportFieldHash {
+    public static let roundCount = 32
+
+    public static func digest(_ preimage: GoldilocksField) -> GoldilocksField {
+        var state = preimage
+        for round in 0..<roundCount {
+            let t = state + roundConstant(round, phase: 0)
+            let cube = t * t * t
+            state = cube + roundConstant(round, phase: 1)
+        }
+        return state
+    }
+
+    static func witnessTrace(_ preimage: GoldilocksField) -> [GoldilocksField] {
+        var state = preimage
+        var trace: [GoldilocksField] = []
+        trace.reserveCapacity(roundCount * 2)
+        for round in 0..<roundCount {
+            let t = state + roundConstant(round, phase: 0)
+            let square = t * t
+            let cube = square * t
+            trace.append(square)
+            trace.append(cube)
+            state = cube + roundConstant(round, phase: 1)
+        }
+        return trace
+    }
+
+    static func roundConstant(_ round: Int, phase: Int) -> GoldilocksField {
+        let digest = Digest256.hash("SuperNeo-NuMetal.lamport.field-hash.v1/\(round)/\(phase)")
+        var value = UInt64(0)
+        for (offset, byte) in digest.bytes.prefix(8).enumerated() {
+            value |= UInt64(byte) << UInt64(offset * 8)
+        }
+        return GoldilocksField(value)
+    }
+}
+
+public struct SuperNeoLamportSignatureAggregationWorkload: Sendable {
+    public let signatureCount: Int
+    public let bitCount: Int
+    public let builder: SuperNeoR1CSBuilder
+    public let messageBitVariables: [[SuperNeoR1CSVariable]]
+    public let publicKeyZeroVariables: [[SuperNeoR1CSVariable]]
+    public let publicKeyOneVariables: [[SuperNeoR1CSVariable]]
+    public let signatureVariables: [[SuperNeoR1CSVariable]]
+
+    public init(signatureCount: Int, bitCount: Int) throws {
+        guard signatureCount > 0 else {
+            throw SuperNeoError.invalidParameter("Lamport aggregation requires at least one signature")
+        }
+        guard bitCount > 0 else {
+            throw SuperNeoError.invalidParameter("Lamport aggregation requires at least one message bit")
+        }
+        guard signatureCount <= 1024, bitCount <= 256 else {
+            throw SuperNeoError.invalidParameter("Lamport aggregation workload is too large")
+        }
+
+        var builder = SuperNeoR1CSBuilder()
+        var messageBits: [[SuperNeoR1CSVariable]] = []
+        var publicKeyZero: [[SuperNeoR1CSVariable]] = []
+        var publicKeyOne: [[SuperNeoR1CSVariable]] = []
+        var signatures: [[SuperNeoR1CSVariable]] = []
+        messageBits.reserveCapacity(signatureCount)
+        publicKeyZero.reserveCapacity(signatureCount)
+        publicKeyOne.reserveCapacity(signatureCount)
+        signatures.reserveCapacity(signatureCount)
+
+        let one = SuperNeoR1CSLinearCombination.constant(.one, one: builder.one)
+        for _ in 0..<signatureCount {
+            let messageRow = (0..<bitCount).map { _ in builder.addPublicInput() }
+            let zeroRow = (0..<bitCount).map { _ in builder.addPublicInput() }
+            let oneRow = (0..<bitCount).map { _ in builder.addPublicInput() }
+            var signatureRow: [SuperNeoR1CSVariable] = []
+            signatureRow.reserveCapacity(bitCount)
+            for bitIndex in 0..<bitCount {
+                let messageBit = messageRow[bitIndex]
+                let zeroSlot = zeroRow[bitIndex]
+                let oneSlot = oneRow[bitIndex]
+                let reveal = builder.addPrivateWitness()
+                signatureRow.append(reveal)
+                let revealDigest = Self.constrainLamportFieldHash(
+                    preimage: reveal,
+                    builder: &builder
+                )
+                builder.enforceBoolean(messageBit)
+                builder.enforce(
+                    .variable(messageBit),
+                    times: .variable(oneSlot).subtracting(.variable(zeroSlot)),
+                    equals: revealDigest.subtracting(.variable(zeroSlot))
+                )
+                builder.enforce(
+                    .variable(reveal),
+                    times: one,
+                    equals: .variable(reveal)
+                )
+            }
+            messageBits.append(messageRow)
+            publicKeyZero.append(zeroRow)
+            publicKeyOne.append(oneRow)
+            signatures.append(signatureRow)
+        }
+
+        self.signatureCount = signatureCount
+        self.bitCount = bitCount
+        self.builder = builder
+        self.messageBitVariables = messageBits
+        self.publicKeyZeroVariables = publicKeyZero
+        self.publicKeyOneVariables = publicKeyOne
+        self.signatureVariables = signatures
+    }
+
+    public func publicInput(instances: [SuperNeoLamportSignatureInstance]) throws -> [GoldilocksField] {
+        try validate(instances: instances)
+        var values: [GoldilocksField] = [.one]
+        values.reserveCapacity(1 + signatureCount * bitCount * 3)
+        for instance in instances {
+            values.append(contentsOf: instance.messageBits.map { $0 ? .one : .zero })
+            values.append(contentsOf: instance.publicKeyZero)
+            values.append(contentsOf: instance.publicKeyOne)
+        }
+        return values
+    }
+
+    public func privateWitness(instances: [SuperNeoLamportSignatureInstance]) throws -> [GoldilocksField] {
+        try validate(instances: instances)
+        var values: [GoldilocksField] = []
+        values.reserveCapacity(
+            signatureCount * bitCount * (1 + SuperNeoLamportFieldHash.roundCount * 2)
+        )
+        for instance in instances {
+            for reveal in instance.signature {
+                values.append(reveal)
+                values.append(contentsOf: SuperNeoLamportFieldHash.witnessTrace(reveal))
+            }
+        }
+        return values
+    }
+
+    public func prepareForFolding(
+        instances: [SuperNeoLamportSignatureInstance],
+        keySeed: [UInt8],
+        parameters: SuperNeoParameters = .goldilocks,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) throws -> SuperNeoPreparedR1CS {
+        try builder.prepareForFolding(
+            publicInput: publicInput(instances: instances),
+            privateWitness: privateWitness(instances: instances),
+            keySeed: keySeed,
+            parameters: parameters,
+            executionPolicy: executionPolicy
+        )
+    }
+
+    public func aggregationDigest(instances: [SuperNeoLamportSignatureInstance]) throws -> Digest256 {
+        try validate(instances: instances)
+        return Digest256.hash(
+            Array("SuperNeo-NuMetal.lamport.signature-aggregation.v1".utf8)
+                + numiSealEncodeCount(signatureCount)
+                + numiSealEncodeCount(bitCount)
+                + instances.flatMap { $0.instanceDigest.superNeoBytes }
+        )
+    }
+
+    private func validate(instances: [SuperNeoLamportSignatureInstance]) throws {
+        guard instances.count == signatureCount else {
+            throw SuperNeoError.invalidParameter("Lamport aggregation signature count mismatch")
+        }
+        for instance in instances where instance.messageBits.count != bitCount {
+            throw SuperNeoError.invalidParameter("Lamport aggregation bit count mismatch")
+        }
+    }
+
+    private static func constrainLamportFieldHash(
+        preimage: SuperNeoR1CSVariable,
+        builder: inout SuperNeoR1CSBuilder
+    ) -> SuperNeoR1CSLinearCombination {
+        var state = SuperNeoR1CSLinearCombination.variable(preimage)
+        for round in 0..<SuperNeoLamportFieldHash.roundCount {
+            let shifted = state.adding(
+                .constant(
+                    SuperNeoLamportFieldHash.roundConstant(round, phase: 0),
+                    one: builder.one
+                )
+            )
+            let square = builder.addPrivateWitness()
+            builder.enforce(shifted, times: shifted, equals: .variable(square))
+            let cube = builder.addPrivateWitness()
+            builder.enforce(.variable(square), times: shifted, equals: .variable(cube))
+            state = SuperNeoR1CSLinearCombination.variable(cube)
+                .adding(
+                    .constant(
+                        SuperNeoLamportFieldHash.roundConstant(round, phase: 1),
+                        one: builder.one
+                    )
+                )
+        }
+        return state
+    }
+}

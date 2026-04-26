@@ -100,7 +100,7 @@ def main() -> None:
     expect_failure(
         "wrong target count",
         wrong_target_count,
-        "bindingTargetEventCount must be 9",
+        "bindingTargetEventCount must be 11",
     )
     expect_failure(
         "malleability inside qrom",

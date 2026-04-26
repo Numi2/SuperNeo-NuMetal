@@ -375,7 +375,7 @@ def validate_encoding_delayed_unique_and_loss(reduction: dict[str, Any]) -> None
     require(loss.get("queryBoundLog2") == 64, "queryBoundLog2 mismatch")
     require_true(loss.get("queryBoundInstantiated"), "queryBoundInstantiated")
     legacy_budget = require_dict(loss.get("legacyScheduleDerivedQueryBudget"), "legacyScheduleDerivedQueryBudget")
-    require(legacy_budget.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "legacy selected challenge derivations mismatch")
+    require(legacy_budget.get("selectedDepthProtocolChallengeDerivations") == 26_265_375, "legacy selected challenge derivations mismatch")
     ctco_counts = require_dict(loss.get("ctcoChallengeCountByKind"), "ctcoChallengeCountByKind")
     for proof_kind, _, _ in EXPECTED_PROOF_KINDS:
         require(ctco_counts.get(proof_kind) == 1, f"{proof_kind}.ctco count must be 1")

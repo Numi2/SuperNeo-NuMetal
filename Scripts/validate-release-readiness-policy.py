@@ -540,7 +540,7 @@ def validate_schema_versions() -> None:
     dossier_depth = product_dossier.get("supportedProductDepth")
     require(isinstance(dossier_depth, dict), "product crypto security dossier supportedProductDepth must be an object")
     require(dossier_depth.get("depthModel") == "bounded-depth", "product security theorem must stay bounded-depth")
-    require(dossier_depth.get("theoremMaximumDepth") == 1, "product security theorem maximum depth must remain 1")
+    require(dossier_depth.get("theoremMaximumDepth") == 3, "product security theorem maximum depth must remain 3")
     require(
         dossier_depth.get("polyDepthTheoremClaimAllowed") is True,
         "product security theorem must allow repository-local poly-depth promotion",
@@ -613,7 +613,7 @@ def validate_schema_versions() -> None:
     )
     selected_depth = selected_depth_loss.get("selectedDepth")
     require(isinstance(selected_depth, dict), "selected-depth loss-accounting selectedDepth must be an object")
-    require(selected_depth.get("selectedMaximumDepth") == 1, "selected-depth loss-accounting maximum depth must remain 1")
+    require(selected_depth.get("selectedMaximumDepth") == 3, "selected-depth loss-accounting maximum depth must remain 3")
     total_loss = selected_depth_loss.get("totalLossRule")
     require(isinstance(total_loss, dict), "selected-depth loss-accounting totalLossRule must be an object")
     require(
@@ -810,7 +810,7 @@ def validate_schema_versions() -> None:
     require(isinstance(ledger_binding, dict), "QROM transcript schedule ledgerBinding must be an object")
     require(
         ledger_binding.get("selectedQHLog2") == 64
-        and ledger_binding.get("selectedDepthProtocolChallengeDerivations") == 8_755_125,
+        and ledger_binding.get("selectedDepthProtocolChallengeDerivations") == 26_265_375,
         "QROM transcript schedule must pin Q_H=2^64 and the selected-depth challenge derivation budget",
     )
     schedule_related = qrom_schedule.get("relatedManifests")
@@ -989,7 +989,7 @@ def validate_schema_versions() -> None:
     require(
         legacy_budget.get("numiseal-terminal") == 4_376_925
         and legacy_budget.get("numiseal-zk-product") == 4_377_150
-        and legacy_budget.get("selectedDepthProtocolChallengeDerivations") == 8_755_125,
+        and legacy_budget.get("selectedDepthProtocolChallengeDerivations") == 26_265_375,
         "QROM interactive reduction must instantiate NumiSeal numeric challenge bounds",
     )
     require(

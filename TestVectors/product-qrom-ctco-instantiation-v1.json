@@ -41,9 +41,9 @@
     "queryBoundQH": "2^64",
     "queryBoundLog2": 64,
     "bindingDigestBits": 384,
-    "bindingTargetEventCount": 9,
+    "bindingTargetEventCount": 11,
     "bindingCollisionFormula": "4 * bindingTargetEventCount * Q_H^2 / 2^bindingDigestBits",
-    "bindingCollisionInstantiatedExpression": "4 * 9 * 2^128 / 2^384 = 36 * 2^-256",
+    "bindingCollisionInstantiatedExpression": "4 * 11 * 2^128 / 2^384 = 44 * 2^-256",
     "bindingCollisionBoundLog2Floor": 250,
     "proofKindMalleabilityFormula": "0",
     "proofKindMalleabilityChargedToCollisionLedger": true

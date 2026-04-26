@@ -69,10 +69,11 @@ TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUTPUT_DIR="${OUTPUT_DIR_ARG:-${ROOT_DIR}/paper-reproduction/${TIMESTAMP}-${MODE}}"
 LOG_DIR="${OUTPUT_DIR}/logs"
 BENCHMARK_OUT="${OUTPUT_DIR}/benchmark-results"
+PAYPERBIT_OUT="${OUTPUT_DIR}/payperbit-profile"
 VECTOR_OUT="${OUTPUT_DIR}/test-vectors"
 LATTICE_OUT="${OUTPUT_DIR}/lattice-estimator"
 
-mkdir -p "${LOG_DIR}" "${BENCHMARK_OUT}" "${VECTOR_OUT}" "${LATTICE_OUT}"
+mkdir -p "${LOG_DIR}" "${BENCHMARK_OUT}" "${PAYPERBIT_OUT}" "${VECTOR_OUT}" "${LATTICE_OUT}"
 
 run_and_log() {
   local name="$1"
@@ -125,6 +126,15 @@ copy_benchmark_results() {
   fi
 }
 
+copy_payperbit_results() {
+  if [[ -f "${ROOT_DIR}/benchmark-results/payperbit-profile-evaluation.md" ]]; then
+    cp "${ROOT_DIR}/benchmark-results/payperbit-profile-evaluation.md" "${PAYPERBIT_OUT}/profile-evaluation.md"
+  fi
+  if [[ -f "${ROOT_DIR}/benchmark-results/payperbit-profile-evaluation.json" ]]; then
+    cp "${ROOT_DIR}/benchmark-results/payperbit-profile-evaluation.json" "${PAYPERBIT_OUT}/profile-evaluation.json"
+  fi
+}
+
 capture_environment
 copy_vectors
 if [[ "${WITH_FULL_ESTIMATOR}" -eq 1 ]]; then
@@ -160,6 +170,7 @@ case "${MODE}" in
     ;;
   snapshot)
     copy_benchmark_results
+    copy_payperbit_results
     ;;
   quick|scaling|full)
     run_and_log parameter-profile swift test --disable-swift-testing --filter ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile
@@ -177,6 +188,8 @@ case "${MODE}" in
     run_and_log protocol Scripts/test-slice.sh protocol
     run_and_log metal Scripts/test-slice.sh metal
     run_and_log benchmark Scripts/run-benchmarks.sh "${MODE}"
+    run_and_log payperbit-profile-markdown swift run superneo-payperbit-eval --profile "${MODE}" --format markdown --output "${PAYPERBIT_OUT}/profile-evaluation.md"
+    run_and_log payperbit-profile-json swift run superneo-payperbit-eval --profile "${MODE}" --format json --output "${PAYPERBIT_OUT}/profile-evaluation.json"
     copy_benchmark_results
     ;;
 esac

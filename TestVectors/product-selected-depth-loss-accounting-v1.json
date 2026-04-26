@@ -29,6 +29,9 @@
     "declarations": [
       "ProductSelectedDepthLossLedger",
       "ProductSelectedDepthLossLedgerAccepted",
+      "ProductCarryChainRoot",
+      "ProductRecursiveCarryChainRootRecurrence",
+      "ProductRecursiveCarryChainRootRecurrenceAccepted",
       "ProductExtractorLossAccounting",
       "ProductExtractorLossAccountingAccepted",
       "ProductPublicCoinTranscriptSchedule",
@@ -47,6 +50,8 @@
       "ProductTotalLossBudgetAccepted",
       "ProductExactFiniteProbabilityWiring",
       "ProductExactFiniteProbabilityWiringAccepted",
+      "productRecursiveCarryChainRoot_recurrence_unfolds_depth_le_three",
+      "productRecursiveCarryChainRoot_verifier_extractor_path_depth_le_three",
       "productSecurityTheorem_requires_selected_depth_loss_accounting",
       "productSecurityTheorem_requires_extractor_loss_accounting",
       "productSecurityTheorem_requires_qrom_transcript_schedule",
@@ -61,9 +66,11 @@
   },
   "selectedDepth": {
     "depthModel": "bounded-depth",
-    "selectedMaximumDepth": 1,
-    "selectedRecursiveCarryHops": 0,
-    "currentProductDefaultMaximumDepth": 1,
+    "selectedMaximumDepth": 3,
+    "selectedRecursiveCarryHops": 2,
+    "currentProductDefaultMaximumDepth": 3,
+    "loadedParentChainRequired": true,
+    "recursiveChainRootSource": "NumiSealProductVerificationResult.productCarryChainRoot",
     "polyDepthClaimAllowed": true,
     "repositoryLocalSelectedDepthClaimAllowed": true,
     "productionSelectedDepthClaimAllowed": false
@@ -117,10 +124,10 @@
     {
       "id": "typed-recursive-carry",
       "appliesPerAcceptedLayer": true,
-      "status": "parent-child-context-evidence-pinned-depth-promotion-open",
+      "status": "loaded-parent-chain-root-recomputed-selected-depth-3-instantiated",
       "lossSymbol": "epsilon_carry",
-      "accountingRule": "zero recursive carry hops at selected depth 1; recursive child promotion requires one typed carry producer/consumer loss per hop",
-      "requiredEvidence": "selected-depth typed-required carry vector, hosted replay semantics, and parent-child-to-chain induction",
+      "accountingRule": "two recursive carry hops at selected depth 3; epsilon_carry = 0 because each hop is a deterministic verifier recomputation over the loaded accepted parent chain root, parent/product/prover/public-statement digests, context root, replay root, and typed carry statements already checked inside the terminal relation",
+      "requiredEvidence": "NumiSealProductVerificationResult.productCarryChainRoot, NumiSealProductRecursiveCarryParent verified-parent construction, recursive-carry-chain-root CTCO trace block, typed-required child and grandchild verifier tests, and direct rejection of metadata-only recursive parents",
       "productionClaimAllowed": false
     },
     {
@@ -147,8 +154,8 @@
       "appliesPerAcceptedLayer": true,
       "status": "selected-depth-concrete-extractor-zero-loss-instantiated",
       "lossSymbol": "epsilon_extract",
-      "accountingRule": "epsilon_extract(depth=1) = 0 for deterministic post-acceptance replay of accepted source fold, terminal seal, product envelope, trusted context, trace evidence, and QROM evidence; cryptographic CTCO extraction remains charged in per-kind theorem assumptions",
-      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus NumiSealProductConcreteExtractor.extract and swiftConcreteExtractorEvidenceDigest metadata instantiate selected-depth epsilon_extract = 0; recursive carry extraction remains a depth-promotion obligation because selectedRecursiveCarryHops = 0",
+      "accountingRule": "epsilon_extract(depth=3) = 0 for deterministic post-acceptance replay of accepted source fold, terminal seal, product envelope, trusted context, trace evidence, QROM evidence, and loaded recursive carry chain roots; cryptographic CTCO extraction remains charged in per-kind theorem assumptions",
+      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus NumiSealProductConcreteExtractor.extract, swiftConcreteExtractorEvidenceDigest metadata, and verified recursive carry chain-root replay instantiate selected-depth epsilon_extract = 0 through depth 3",
       "accountingManifest": "TestVectors/product-extractor-loss-accounting-v1.json",
       "productionClaimAllowed": false
     },
@@ -158,7 +165,7 @@
       "status": "hbind-collision-bound-instantiated-source-hbind-open",
       "lossSymbol": "epsilon_collision",
       "accountingRule": "one global 384-bit H_bind target-failure term is mapped from the QROM accounting manifest into the selected-depth total budget; proof-kind malleability is zero outside this binding-target ledger",
-      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json plus TestVectors/product-qrom-public-coin-accounting-v1.json ledgerTermMapping and TestVectors/product-qrom-transcript-schedule-v1.json labels; structural binding is pinned, source H_bind acceptance binding is implemented, and the H_bind target bound is 36 * 2^-256",
+      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json plus TestVectors/product-qrom-public-coin-accounting-v1.json ledgerTermMapping and TestVectors/product-qrom-transcript-schedule-v1.json labels; structural binding is pinned, source H_bind acceptance binding is implemented, and the H_bind target bound is 44 * 2^-256 for 11 CTCO binding targets",
       "accountingManifest": "TestVectors/product-qrom-public-coin-accounting-v1.json",
       "productionClaimAllowed": false
     },
@@ -191,7 +198,7 @@
     }
   ],
   "totalLossRule": {
-    "selectedDepthExpression": "epsilon_total(depth=1) = epsilon_core_shared + epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract + epsilon_collision",
+    "selectedDepthExpression": "epsilon_total(depth=3) = epsilon_core_shared + 3 * (epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract) + 2 * epsilon_carry + epsilon_collision",
     "recursivePromotionExpression": "epsilon_total(depth=d) = epsilon_core_shared + d * (epsilon_fold + epsilon_terminal + epsilon_zk_sim + epsilon_qrom + epsilon_extract) + max(d - 1, 0) * epsilon_carry + epsilon_collision",
     "allComponentLossesInstantiated": true,
     "totalLossWithinBudget": true,

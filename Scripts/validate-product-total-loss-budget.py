@@ -84,6 +84,7 @@ EXPECTED_REQUIRED_IDS = [
     "shared-cryptographic-core",
     "source-fold-knowledge",
     "terminal-numiseal-seal",
+    "typed-recursive-carry",
     "zk-simulator-composition",
     "public-coin-qrom",
     "extractor-instantiation",
@@ -408,9 +409,9 @@ def validate_formal_surface(budget: dict[str, Any]) -> None:
 def validate_selected_depth(budget: dict[str, Any]) -> None:
     depth = require_dict(budget.get("selectedDepth"), "selectedDepth")
     require(depth.get("depthModel") == "bounded-depth", "selectedDepth.depthModel must be bounded-depth")
-    require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
-    require(depth.get("acceptedProductLayers") == 1, "selectedDepth.acceptedProductLayers must be 1")
-    require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
+    require(depth.get("selectedMaximumDepth") == 3, "selectedDepth.selectedMaximumDepth must be 3")
+    require(depth.get("acceptedProductLayers") == 3, "selectedDepth.acceptedProductLayers must be 3")
+    require(depth.get("selectedRecursiveCarryHops") == 2, "selectedDepth.selectedRecursiveCarryHops must be 2")
     require(depth.get("repositoryLocalBudgetClaimAllowed") is True, "selectedDepth.repositoryLocalBudgetClaimAllowed must be true")
     require(
         depth.get("productionBudgetPromotionAllowed") is False,
@@ -619,11 +620,23 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                 "product-extractor-loss-accounting-v1.json",
                 "NumiSealProductConcreteExtractor.extract",
                 "swiftConcreteExtractorEvidenceDigest",
-                "epsilon_extract(depth=1) = 0",
+                "epsilon_extract(depth=3) = 0",
             ]:
                 require(needle in evidence, f"extractor-instantiation requiredEvidence must mention {needle}")
             if instantiated:
                 require(exact_bound == 0, "extractor-instantiation exactUpperBound must be exactly 0")
+        if component_id == "typed-recursive-carry":
+            evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
+            for needle in [
+                "selected depth 3",
+                "two recursive carry hops",
+                "NumiSealProductVerificationResult.productCarryChainRoot",
+                "loaded accepted parent",
+                "recursive-carry-chain-root CTCO trace block",
+            ]:
+                require(needle in evidence, f"typed-recursive-carry requiredEvidence must mention {needle}")
+            if instantiated:
+                require(exact_bound == 0, "typed-recursive-carry exactUpperBound must be exactly 0")
         if component_id == "transcript-collision-domain-separation":
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
@@ -631,13 +644,13 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                 "transcript-collision-domain-separation requiredEvidence must link collision/malleability evidence",
             )
             require(
-                "epsilon_bind = 36 * 2^-256 = 9/2^254" in evidence,
+                "epsilon_bind = 44 * 2^-256 = 11/2^254" in evidence,
                 "transcript-collision-domain-separation requiredEvidence must pin exact epsilon_bind bound",
             )
             if instantiated:
                 require(
-                    exact_bound == Fraction(9, 1 << 254),
-                    "transcript-collision-domain-separation exactUpperBound must be 9/2^254",
+                    exact_bound == Fraction(11, 1 << 254),
+                    "transcript-collision-domain-separation exactUpperBound must be 11/2^254",
                 )
         if component_id in {"product-ops-replay", "constant-time-side-channel", "release-distribution"}:
             require(required is False, f"{component_id} must not be a selected-depth required loss term")
@@ -701,7 +714,7 @@ def validate_computed_budget(
 
 def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiated_total: Fraction) -> None:
     wiring = require_dict(budget.get("exactFiniteProbabilityWiring"), "exactFiniteProbabilityWiring")
-    require(wiring.get("selectedDepth") == 1, "exactFiniteProbabilityWiring.selectedDepth must be 1")
+    require(wiring.get("selectedDepth") == 3, "exactFiniteProbabilityWiring.selectedDepth must be 3")
     for key in [
         "dyadicRationalArithmeticPinned",
         "nonDyadicFiniteProtocolRationalsPinned",
@@ -713,16 +726,16 @@ def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiate
         require(wiring.get(key) is True, f"exactFiniteProbabilityWiring.{key} must be true")
     require(wiring.get("missingRequiredTermsKeepTotalUninstantiated") is False, "missingRequiredTermsKeepTotalUninstantiated must be false")
     require(
-        wiring.get("hbindCollisionExpressionExact") == "epsilon_bind = 36 * 2^-256 = 9/2^254",
+        wiring.get("hbindCollisionExpressionExact") == "epsilon_bind = 44 * 2^-256 = 11/2^254",
         "exactFiniteProbabilityWiring.hbindCollisionExpressionExact mismatch",
     )
     require(
         instantiated_total
         == Fraction(1, 1 << 129)
-        + source_fold_repeated_tape_bound()
-        + terminal_ce_226_bound()
-        + Fraction(9, 1 << 254),
-        "exactFiniteProbabilityWiring instantiated partial sum must include shared core, repeated finite-protocol, terminal CE, and H_bind collision terms",
+        + (3 * source_fold_repeated_tape_bound())
+        + (3 * terminal_ce_226_bound())
+        + Fraction(11, 1 << 254),
+        "exactFiniteProbabilityWiring instantiated partial sum must include shared core, depth-3 repeated finite-protocol, depth-3 terminal CE, and H_bind collision terms",
     )
     require(
         wiring.get("sourceFoldRepeatedTapeExpressionExact") == "epsilon_fold <= 16/q^4 + 1/5^81",
@@ -733,7 +746,7 @@ def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiate
         "exactFiniteProbabilityWiring.terminalCE226ExpressionExact mismatch",
     )
     require(
-        wiring.get("extractorExpressionExact") == "epsilon_extract(depth=1) = 0",
+        wiring.get("extractorExpressionExact") == "epsilon_extract(depth=3) = 0",
         "exactFiniteProbabilityWiring.extractorExpressionExact mismatch",
     )
     require(

@@ -69,12 +69,12 @@ public struct GoldilocksField: Equatable, Hashable, Sendable {
         return (candidate & mask) | (value & ~mask)
     }
 
-    private static func select(_ falseValue: Self, _ trueValue: Self, when condition: Bool) -> Self {
+    static func constantTimeSelect(_ falseValue: Self, _ trueValue: Self, when condition: Bool) -> Self {
         let mask = truthMask(condition)
         return Self(uncheckedRawValue: (trueValue.rawValue & mask) | (falseValue.rawValue & ~mask))
     }
 
-    private static func truthMask(_ condition: Bool) -> UInt64 {
+    static func truthMask(_ condition: Bool) -> UInt64 {
         0 &- UInt64(condition ? 1 : 0)
     }
     // constant-time-source-scope: swift-goldilocks-common-arithmetic end
@@ -85,7 +85,7 @@ public struct GoldilocksField: Equatable, Hashable, Sendable {
         var result = Self.one
         for bit in 0..<UInt64.bitWidth {
             let product = result * base
-            result = Self.select(result, product, when: ((exponent >> UInt64(bit)) & 1) == 1)
+            result = Self.constantTimeSelect(result, product, when: ((exponent >> UInt64(bit)) & 1) == 1)
             base = base * base
         }
         return result

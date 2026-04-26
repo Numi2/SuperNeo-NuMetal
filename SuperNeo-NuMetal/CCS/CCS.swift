@@ -1162,17 +1162,25 @@ public struct CCSStatement: Equatable, Sendable, SuperNeoByteEncodable {
     public let shapeDigest: Digest256
     public let ccsInstances: [CCSInstance]
     public let priorCEInstances: [CEInstance]
+    public let recursiveRelationDigest: Digest256?
     public let statementDigest: Digest256
 
-    public init(shapeDigest: Digest256, ccsInstances: [CCSInstance], priorCEInstances: [CEInstance] = []) {
+    public init(
+        shapeDigest: Digest256,
+        ccsInstances: [CCSInstance],
+        priorCEInstances: [CEInstance] = [],
+        recursiveRelationDigest: Digest256? = nil
+    ) {
         self.shapeDigest = shapeDigest
         self.ccsInstances = ccsInstances
         self.priorCEInstances = priorCEInstances
+        self.recursiveRelationDigest = recursiveRelationDigest
         self.statementDigest = Digest256.hash(
             Self.bodyBytes(
                 shapeDigest: shapeDigest,
                 ccsInstances: ccsInstances,
-                priorCEInstances: priorCEInstances
+                priorCEInstances: priorCEInstances,
+                recursiveRelationDigest: recursiveRelationDigest
             )
         )
     }
@@ -1182,20 +1190,23 @@ public struct CCSStatement: Equatable, Sendable, SuperNeoByteEncodable {
             + Self.bodyBytes(
                 shapeDigest: shapeDigest,
                 ccsInstances: ccsInstances,
-                priorCEInstances: priorCEInstances
+                priorCEInstances: priorCEInstances,
+                recursiveRelationDigest: recursiveRelationDigest
             )
     }
 
     private static func bodyBytes(
         shapeDigest: Digest256,
         ccsInstances: [CCSInstance],
-        priorCEInstances: [CEInstance]
+        priorCEInstances: [CEInstance],
+        recursiveRelationDigest: Digest256?
     ) -> [UInt8] {
         shapeDigest.superNeoBytes
             + ccsEncodeCount(ccsInstances.count)
             + ccsInstances.flatMap(\.superNeoBytes)
             + ccsEncodeCount(priorCEInstances.count)
             + priorCEInstances.flatMap(\.superNeoBytes)
+            + (recursiveRelationDigest.map { [UInt8(1)] + $0.superNeoBytes } ?? [])
     }
 }
 

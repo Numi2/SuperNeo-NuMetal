@@ -228,9 +228,9 @@ def validate_binding_bound(evidence: dict[str, Any]) -> None:
     require(bound.get("queryBoundQH") == "2^64", "queryBoundQH mismatch")
     require(bound.get("queryBoundLog2") == 64, "queryBoundLog2 mismatch")
     require(bound.get("bindingDigestBits") == 384, "bindingDigestBits must be 384")
-    require(bound.get("bindingTargetEventCount") == 9, "bindingTargetEventCount must be 9")
+    require(bound.get("bindingTargetEventCount") == 11, "bindingTargetEventCount must be 11")
     require(bound.get("formula") == "4 * bindingTargetEventCount * Q_H^2 / 2^bindingDigestBits", "formula mismatch")
-    require("36 * 2^-256" in require_string(bound.get("instantiatedExpression"), "instantiatedExpression"), "instantiated bound mismatch")
+    require("44 * 2^-256" in require_string(bound.get("instantiatedExpression"), "instantiatedExpression"), "instantiated bound mismatch")
     require_true(bound.get("withinSelectedCollisionBudget"), "withinSelectedCollisionBudget")
 
 

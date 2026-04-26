@@ -40,9 +40,9 @@
   },
   "selectedDepth": {
     "depthModel": "bounded-depth",
-    "selectedMaximumDepth": 1,
-    "acceptedProductLayers": 1,
-    "selectedRecursiveCarryHops": 0,
+    "selectedMaximumDepth": 3,
+    "acceptedProductLayers": 3,
+    "selectedRecursiveCarryHops": 2,
     "qromPromotionAllowed": true
   },
   "hashModel": {
@@ -58,7 +58,7 @@
       "name": "H_bind",
       "outputBits": 384,
       "domain": "superneo/numiseal/bind/v2",
-      "bindingTargetEventCount": 9
+      "bindingTargetEventCount": 11
     },
     "merkleOracle": {
       "name": "H_mt",
@@ -167,14 +167,14 @@
     }
   ],
   "lossRule": {
-    "selectedDepthExpression": "epsilon_qrom(depth=1) = epsilon_compiler_overhead + epsilon_hash_model_gap",
+    "selectedDepthExpression": "epsilon_qrom(depth=3) = 3 * (epsilon_compiler_overhead + epsilon_hash_model_gap)",
     "recursivePromotionExpression": "epsilon_qrom(depth=d) = d * (epsilon_compiler_overhead + epsilon_hash_model_gap)",
-    "cryptographicSelectedDepthExpression": "epsilon_total_crypt(depth=1) = epsilon_core_shared + epsilon_zk_sim + epsilon_extract + epsilon_qrom + epsilon_collision",
-    "repoWideSelectedDepthExpression": "epsilon_total(depth=1) = epsilon_total_crypt(depth=1) + epsilon_replay + epsilon_ct + epsilon_release",
+    "cryptographicSelectedDepthExpression": "epsilon_total_crypt(depth=3) = epsilon_core_shared + 3 * (epsilon_zk_sim + epsilon_extract + epsilon_qrom) + 2 * epsilon_carry + epsilon_collision",
+    "repoWideSelectedDepthExpression": "epsilon_total(depth=3) = epsilon_total_crypt(depth=3) + epsilon_replay + epsilon_ct + epsilon_release",
     "quantumOracleQuerySymbol": "Q_H",
     "queryBoundQH": "2^64",
     "queryBoundLog2": 64,
-    "selectedDepthProtocolChallengeDerivations": 8755125,
+    "selectedDepthProtocolChallengeDerivations": 26265375,
     "ctcoChallengeCountByKind": {
       "fold": 1,
       "terminal": 1,
@@ -186,8 +186,8 @@
     "hashModelGapSymbol": "epsilon_hash_model_gap",
     "proofKindMalleabilityFormula": "0; charged inside epsilon_collision through binding-target events",
     "bindingCollisionFormula": "4 * bindingTargetEventCount * Q_H^2 / 2^bindingOracle.outputBits",
-    "bindingCollisionInstantiatedExpression": "4 * 9 * 2^128 / 2^384 = 36 * 2^-256",
-    "bindingCollisionBoundLog2": 250.83007499855768,
+    "bindingCollisionInstantiatedExpression": "4 * 11 * 2^128 / 2^384 = 44 * 2^-256",
+    "bindingCollisionBoundLog2": 250.5405683813627,
     "compilerOverheadInstantiatedExpression": "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO theorem model",
     "hashModelGapInstantiatedExpression": "epsilon_hash_model_gap = 0 in the ideal split-QRO model; concrete SHAKE256 promotion remains a separate hash-instantiation claim",
     "interactiveLossChargedOutsideQROM": true,
@@ -207,14 +207,14 @@
         "epsilon_compiler_overhead",
         "epsilon_hash_model_gap"
       ],
-      "selectedDepthContribution": "epsilon_qrom(depth=1) = epsilon_compiler_overhead + epsilon_hash_model_gap = 0 in the ideal split-QRO model"
+      "selectedDepthContribution": "epsilon_qrom(depth=3) = 3 * (epsilon_compiler_overhead + epsilon_hash_model_gap) = 0 in the ideal split-QRO model"
     },
     "transcriptCollisionLoss": {
       "ledgerSymbol": "epsilon_collision",
       "sourceSymbols": [
         "epsilon_bind"
       ],
-      "selectedDepthContribution": "epsilon_collision = epsilon_bind = 36 * 2^-256 under H_bind outputBits = 384 and bindingTargetEventCount = 9"
+      "selectedDepthContribution": "epsilon_collision = epsilon_bind = 44 * 2^-256 under H_bind outputBits = 384 and bindingTargetEventCount = 11"
     }
   },
   "legacyDFM20Status": {

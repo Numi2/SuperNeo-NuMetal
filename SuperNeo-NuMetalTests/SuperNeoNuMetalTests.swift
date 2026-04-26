@@ -1529,6 +1529,73 @@ final class ProtocolSmokeTests: SuperNeoTestCase {
         XCTAssertFalse(swappedReduction.isReductionAccepted)
     }
 
+    func testVerifierPublicCoinFoldBindsPublicStatementAndCoins() throws {
+        let fixture = try makeFoldFixture()
+        let coins = try SuperNeoVerifierPublicCoin(
+            sessionID: "public-coin-fold-positive",
+            verifierPublicCoin: Array(repeating: UInt8(0xC3), count: 32),
+            input: fixture.input
+        )
+        let swappedCoins = try SuperNeoVerifierPublicCoin(
+            sessionID: "public-coin-fold-positive",
+            verifierPublicCoin: Array(repeating: UInt8(0x3C), count: 32),
+            input: fixture.input
+        )
+        let prover = SuperNeoProver(key: fixture.key)
+        let verifier = SuperNeoVerifier(key: fixture.key)
+
+        XCTAssertTrue(coins.matches(fixture.input))
+        XCTAssertNotEqual(coins.coinDigest, swappedCoins.coinDigest)
+        XCTAssertNotEqual(coins.transcriptSeed(label: "fold"), swappedCoins.transcriptSeed(label: "fold"))
+
+        let fold = try prover.foldWithOutput(fixture.input, verifierCoins: coins)
+        let acceptedReduction = verifier.reduceFold(input: fixture.input, proof: fold.proof, verifierCoins: coins)
+        XCTAssertTrue(acceptedReduction.isReductionAccepted, acceptedReduction.reason ?? "")
+        XCTAssertEqual(
+            verifier.verifyFold(
+                input: fixture.input,
+                proof: fold.proof,
+                outputClaims: fold.outputClaims,
+                verifierCoins: coins
+            ),
+            .valid
+        )
+
+        let swappedReduction = verifier.reduceFold(input: fixture.input, proof: fold.proof, verifierCoins: swappedCoins)
+        let swappedReport = verifier.reductionBoundaryReport(input: fixture.input, proof: fold.proof, verifierCoins: swappedCoins)
+        XCTAssertFalse(swappedReduction.isReductionAccepted)
+        XCTAssertFalse(swappedReport.isAccepted)
+        XCTAssertNotNil(swappedReport.firstRejectedCheck)
+
+        var mutatedInstances = fixture.input.instances
+        mutatedInstances[0] = CCSInstance(
+            commitment: AjtaiCommitment(Array(repeating: CyclotomicRing54.one, count: fixture.key.parameters.kappa)),
+            publicInput: fixture.input.instances[0].publicInput
+        )
+        let mutatedInput = SuperNeoFoldInput(
+            shape: fixture.input.shape,
+            instances: mutatedInstances,
+            witnesses: fixture.input.witnesses,
+            priorClaims: fixture.input.priorClaims,
+            recursiveRelationDigest: fixture.input.recursiveRelationDigest
+        )
+        XCTAssertFalse(coins.matches(mutatedInput))
+        XCTAssertThrowsSuperNeoError(
+            try prover.foldWithOutput(mutatedInput, verifierCoins: coins),
+            .invalidParameter("verifier public coin transcript context does not match fold input")
+        )
+        let replayedAgainstMutatedInput = verifier.reduceFold(
+            input: mutatedInput,
+            proof: fold.proof,
+            verifierCoins: coins
+        )
+        XCTAssertFalse(replayedAgainstMutatedInput.isReductionAccepted)
+        XCTAssertEqual(
+            replayedAgainstMutatedInput.reason,
+            "verifier public coin transcript context does not match fold input"
+        )
+    }
+
     func testPreparedFoldContextMatchesStandardFoldAndRejectsWrongKey() throws {
         let fixture = try makeFoldFixture()
         let prover = SuperNeoProver(key: fixture.key)
@@ -2091,6 +2158,18 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         )
         XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
         XCTAssertTrue(reduction.requiresTerminalRelationCheck)
+        let boundaryReport = try XCTUnwrap(reduction.boundaryReport)
+        XCTAssertTrue(boundaryReport.isAccepted, boundaryReport.firstFailureReason ?? "")
+        XCTAssertEqual(boundaryReport.piCCSChecks.count, FoldProof.selectedPiCCSTapeCount)
+        XCTAssertEqual(boundaryReport.piRLCChecks.count, FoldProof.selectedPiRLCBranchCount)
+        XCTAssertEqual(boundaryReport.piDECChecks.count, FoldProof.selectedPiRLCBranchCount)
+        XCTAssertEqual(boundaryReport.piCCSChecks[0].strength, .strong)
+        XCTAssertEqual(boundaryReport.piRLCChecks[0].strength, .weak)
+        XCTAssertEqual(boundaryReport.piDECChecks[0].strength, .reductionOfKnowledge)
+        XCTAssertEqual(
+            boundaryReport.piCCSChecks[0].inputCommitmentProjectionDigest,
+            boundaryReport.piCCSChecks[0].outputCommitmentProjectionDigest
+        )
         XCTAssertEqual(publicInput.instances.count, 2)
         XCTAssertEqual(publicInput.priorClaims.count, 2)
         XCTAssertEqual(fold.proof.piCCSClaims.count, 4)
@@ -2242,6 +2321,9 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         let result = SuperNeoVerifier(key: fixture.key).reduceFold(input: fixture.input, proof: tampered, transcriptSeed: fixture.seed)
 
         XCTAssertInvalid(result)
+        let rejected = try XCTUnwrap(result.boundaryReport?.firstRejectedCheck)
+        XCTAssertEqual(rejected.component, .piCCS)
+        XCTAssertEqual(rejected.strength, .strong)
     }
 
     func testVerifierRejectsTamperedPiCCSEvaluation() throws {
@@ -2284,7 +2366,10 @@ final class ProtocolE2ETests: SuperNeoTestCase {
             transcriptSeed: fixture.seed
         )
 
-        XCTAssertInvalid(result, reason: "repeated PiRLC branch 0 verification failed")
+        XCTAssertInvalid(result, reason: "repeated PiDEC branch 0 verification failed")
+        let rejected = try XCTUnwrap(result.boundaryReport?.firstRejectedCheck)
+        XCTAssertEqual(rejected.component, .piDEC)
+        XCTAssertEqual(rejected.strength, .reductionOfKnowledge)
 
         let missingOutput = replacing(proof, outputClaims: Array(proof.outputClaims.dropLast()))
         let missingResult = SuperNeoVerifier(key: fixture.key).reduceFold(
@@ -2297,6 +2382,54 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         } else {
             XCTAssertInvalid(missingResult, reason: "invalidParameter(\"decomposition output count must be in 1...14\")")
         }
+    }
+
+    func testVerifierRejectsNonCanonicalPiDECPublicInputSplit() throws {
+        let fixture = try makePaperAuditFixture()
+        let proof = try SuperNeoProver(
+            key: fixture.key,
+            decompositionProfile: .fixedMaximum
+        ).fold(fixture.input, transcriptSeed: fixture.seed)
+        guard proof.outputClaims.count >= 2 else {
+            throw XCTSkip("fixture used a one-limb decomposition")
+        }
+
+        let base = fixture.key.parameters.normBound
+        let baseField = GoldilocksField(UInt64(base))
+        var outputClaims = proof.outputClaims
+        var firstPublicInput = outputClaims[0].publicInput
+        var secondPublicInput = outputClaims[1].publicInput
+        var adjusted = false
+        for index in firstPublicInput.indices where firstPublicInput[index] != .zero {
+            let first = firstPublicInput[index]
+            let firstIsPositive = first.rawValue <= GoldilocksField.modulus / 2
+            let candidateFirst = firstIsPositive ? first - baseField : first + baseField
+            let candidateSecond = firstIsPositive ? secondPublicInput[index] + .one : secondPublicInput[index] - .one
+            guard signedMagnitudeForTest(candidateFirst) < UInt64(base),
+                  signedMagnitudeForTest(candidateSecond) < UInt64(base) else {
+                continue
+            }
+            firstPublicInput[index] = candidateFirst
+            secondPublicInput[index] = candidateSecond
+            adjusted = true
+            break
+        }
+        guard adjusted else {
+            throw XCTSkip("fixture did not expose a non-canonical low-norm public split")
+        }
+
+        outputClaims[0] = replacing(outputClaims[0], publicInput: firstPublicInput)
+        outputClaims[1] = replacing(outputClaims[1], publicInput: secondPublicInput)
+        let result = SuperNeoVerifier(key: fixture.key).reduceFold(
+            input: fixture.input,
+            proof: replacing(proof, outputClaims: outputClaims),
+            transcriptSeed: fixture.seed
+        )
+
+        XCTAssertInvalid(result, reason: "repeated PiDEC branch 0 verification failed")
+        let rejected = try XCTUnwrap(result.boundaryReport?.firstRejectedCheck)
+        XCTAssertEqual(rejected.component, .piDEC)
+        XCTAssertTrue(rejected.reason?.contains("public-input split") == true)
     }
 
     func testProofEnvelopeRoundTripsThroughVerifierTranscript() throws {
@@ -3123,6 +3256,9 @@ final class ProtocolE2ETests: SuperNeoTestCase {
         XCTAssertFalse(result.isReductionAccepted)
         XCTAssertFalse(result.requiresTerminalRelationCheck)
         XCTAssertEqual(result.reason, "repeated PiRLC branch 0 verification failed")
+        let rejected = try XCTUnwrap(result.boundaryReport?.firstRejectedCheck)
+        XCTAssertEqual(rejected.component, .piRLC)
+        XCTAssertEqual(rejected.strength, .weak)
     }
 
     func testVerifierRejectsRepeatedPiCCSTapeMismatch() throws {
@@ -7853,6 +7989,8 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         guard let recursiveParent else {
             return
         }
+        XCTAssertEqual(parentResult.productCarryChainRoot, recursiveParent.parentCarryChainRoot)
+        XCTAssertNil(parentResult.recursiveCarryChainRoot)
         let childRequest = NumiSealProvingRequest(
             preparedR1CS: childPrepared,
             workload: "one-hot-vector-v1",
@@ -7908,6 +8046,8 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             return
         }
         XCTAssertTrue(childResult.numiSealResult.isValid, childResult.numiSealResult.reason ?? "")
+        XCTAssertEqual(childResult.productCarryChainRoot, recursiveBinding?.chainRoot)
+        XCTAssertEqual(childResult.recursiveCarryChainRoot, recursiveBinding?.chainRoot)
         guard let childEnvelope = childResult.numiSealResult.envelope,
               let childLaneProof = childEnvelope.proof.laneProofs.first,
               let typedCarry = childLaneProof.optionalCarryClaim?.typedStatement else {
@@ -7943,6 +8083,15 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
         let grandchildBinding = try? grandchildArtifact.recursiveCarryReplayBinding()
         XCTAssertEqual(grandchildBinding?.parentChainRoot, recursiveBinding?.chainRoot)
         XCTAssertNotEqual(grandchildBinding?.chainRoot, recursiveBinding?.chainRoot)
+        XCTAssertThrowsSuperNeoError(
+            try NumiSealProductRecursiveCarryParent(
+                acceptedArtifact: childArtifact,
+                acceptedProducerEnvelope: NumiSealProductRecursiveCarryParent.acceptedProducerEnvelope(from: childArtifact),
+                consumerSessionDigest: Digest256.hash("numiseal-product-recursive-grandchild-session"),
+                nextRecursionLevel: 3
+            ),
+            .invalidParameter("NumiSeal recursive carry parent chain root requires verified parent chain")
+        )
         guard let grandchildResult = try? verifyNumiSealRecursiveCarryChildFixture(
             artifact: grandchildArtifact,
             prepared: childPrepared,
@@ -7953,6 +8102,8 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
             return
         }
         XCTAssertTrue(grandchildResult.numiSealResult.isValid, grandchildResult.numiSealResult.reason ?? "")
+        XCTAssertEqual(grandchildResult.productCarryChainRoot, grandchildBinding?.chainRoot)
+        XCTAssertEqual(grandchildResult.recursiveCarryChainRoot, grandchildBinding?.chainRoot)
         guard let grandchildEnvelope = grandchildResult.numiSealResult.envelope,
               let grandchildLaneProof = grandchildEnvelope.proof.laneProofs.first,
               let grandchildCarry = grandchildLaneProof.optionalCarryClaim?.typedStatement else {
@@ -8282,11 +8433,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
 
         XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
         XCTAssertTrue(reduction.requiresTerminalRelationCheck)
-        XCTAssertTrue(
-            (1...prepared.key.parameters.decompositionLength).contains(reduction.outputClaims.count),
-            "adaptive decomposition output count must stay within the parameter maximum"
-        )
-        XCTAssertLessThan(reduction.outputClaims.count, prepared.key.parameters.decompositionLength)
+        XCTAssertEqual(reduction.outputClaims.count, prepared.key.parameters.decompositionLength)
     }
 
     func testOneHotR1CSBuilderRejectsNonOneHotWitness() throws {
@@ -8405,11 +8552,7 @@ final class UsabilitySurfaceTests: SuperNeoTestCase {
 
         XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
         XCTAssertTrue(reduction.requiresTerminalRelationCheck)
-        XCTAssertTrue(
-            (1...prepared.key.parameters.decompositionLength).contains(reduction.outputClaims.count),
-            "adaptive decomposition output count must stay within the parameter maximum"
-        )
-        XCTAssertLessThan(reduction.outputClaims.count, prepared.key.parameters.decompositionLength)
+        XCTAssertEqual(reduction.outputClaims.count, prepared.key.parameters.decompositionLength)
     }
 
     func testGoldenOneHotFoldVectorVerifies() throws {
@@ -8799,6 +8942,13 @@ final class MetalDifferentialTests: SuperNeoTestCase {
             fixture.input,
             transcriptSeed: fixture.seed
         )
+        let optimizedCPUReference = try SuperNeoProver(
+            key: fixture.key,
+            executionPolicy: .metalAccelerated
+        ).foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
         let prover = SuperNeoProver(key: fixture.key, context: context)
         let preparedContext = try prover.prepareFoldContext(for: fixture.input)
         let forcedMetalProver = SuperNeoProver(
@@ -8827,7 +8977,7 @@ final class MetalDifferentialTests: SuperNeoTestCase {
         XCTAssertNil(preparedContext.metalWorkspace)
         XCTAssertNotNil(forcedMetalPreparedContext.metalWorkspace)
         XCTAssertEqual(prepared, cpuReference)
-        XCTAssertEqual(forcedMetalPrepared, cpuReference)
+        XCTAssertEqual(forcedMetalPrepared, optimizedCPUReference)
         XCTAssertNil(highAssurancePreparedContext.metalWorkspace)
     }
 
@@ -9864,26 +10014,25 @@ extension SuperNeoTestCase {
         }
 
         var priorEvalPart = GoldilocksExt2.zero
-        if let priorPoint = input.priorClaims.first?.point {
+        for priorIndex in 0..<priorCount {
+            let priorPoint = input.priorClaims[priorIndex].point
             let eq = try MultilinearEvaluation.eq(point, priorPoint)
             var inner = GoldilocksExt2.zero
-            for priorIndex in 0..<priorCount {
-                let claim = proofClaims[freshCount + priorIndex]
-                for matrixIndex in 0..<input.shape.numMatrices {
-                    for coefficientIndex in 0..<CyclotomicRing54.degree {
-                        let exponent = paperPriorExponent(
-                            priorIndex: priorIndex,
-                            matrixIndex: matrixIndex,
-                            coefficientIndex: coefficientIndex,
-                            priorCount: priorCount,
-                            matrixCount: input.shape.numMatrices
-                        )
-                        inner = inner
-                            + powExt2ForTest(gamma, exponent) * claim.evaluations[matrixIndex].coefficients[coefficientIndex]
-                    }
+            let claim = proofClaims[freshCount + priorIndex]
+            for matrixIndex in 0..<input.shape.numMatrices {
+                for coefficientIndex in 0..<CyclotomicRing54.degree {
+                    let exponent = paperPriorExponent(
+                        priorIndex: priorIndex,
+                        matrixIndex: matrixIndex,
+                        coefficientIndex: coefficientIndex,
+                        priorCount: priorCount,
+                        matrixCount: input.shape.numMatrices
+                    )
+                    inner = inner
+                        + powExt2ForTest(gamma, exponent) * claim.evaluations[matrixIndex].coefficients[coefficientIndex]
                 }
             }
-            priorEvalPart = eq * inner
+            priorEvalPart = priorEvalPart + eq * inner
         }
 
         return try MultilinearEvaluation.eq(point, alpha)

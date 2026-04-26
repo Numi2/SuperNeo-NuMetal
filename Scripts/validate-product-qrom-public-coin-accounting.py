@@ -154,9 +154,9 @@ def validate_formal_surface(accounting: dict[str, Any]) -> None:
 def validate_selected_depth(accounting: dict[str, Any]) -> None:
     depth = require_dict(accounting.get("selectedDepth"), "selectedDepth")
     require(depth.get("depthModel") == "bounded-depth", "selectedDepth.depthModel must be bounded-depth")
-    require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
-    require(depth.get("acceptedProductLayers") == 1, "selectedDepth.acceptedProductLayers must be 1")
-    require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
+    require(depth.get("selectedMaximumDepth") == 3, "selectedDepth.selectedMaximumDepth must be 3")
+    require(depth.get("acceptedProductLayers") == 3, "selectedDepth.acceptedProductLayers must be 3")
+    require(depth.get("selectedRecursiveCarryHops") == 2, "selectedDepth.selectedRecursiveCarryHops must be 2")
     require_true(depth.get("qromPromotionAllowed"), "selectedDepth.qromPromotionAllowed")
 
 
@@ -169,7 +169,7 @@ def validate_hash_model(accounting: dict[str, Any]) -> None:
     merkle = require_dict(model.get("merkleOracle"), "hashModel.merkleOracle")
     require(challenge.get("outputBits") == 256, "H_chal outputBits must be 256")
     require(binding.get("outputBits") == 384, "H_bind outputBits must be 384")
-    require(binding.get("bindingTargetEventCount") == 9, "binding target event count must be 9")
+    require(binding.get("bindingTargetEventCount") == 11, "binding target event count must be 11")
     require(merkle.get("outputBits") == 384, "H_mt outputBits must be 384")
     for key in [
         "splitOraclesPinned",
@@ -270,7 +270,7 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
         require(forbidden not in selected, f"selectedDepthExpression must not contain legacy DFM20 token {forbidden}")
     require(rule.get("queryBoundQH") == "2^64", "queryBoundQH must be 2^64")
     require(rule.get("queryBoundLog2") == 64, "queryBoundLog2 must be 64")
-    require(rule.get("selectedDepthProtocolChallengeDerivations") == 8_755_125, "legacy implementation metric mismatch")
+    require(rule.get("selectedDepthProtocolChallengeDerivations") == 26_265_375, "selected-depth implementation metric mismatch")
     challenge_counts = require_dict(rule.get("ctcoChallengeCountByKind"), "lossRule.ctcoChallengeCountByKind")
     require(set(challenge_counts) == {kind for kind, _ in EXPECTED_PROOF_KINDS}, "ctco challenge count keys mismatch")
     for proof_kind, count in challenge_counts.items():
@@ -279,7 +279,7 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     fixed_kind = require_string(rule.get("fixedKindAccountingRule"), "lossRule.fixedKindAccountingRule")
     require("H_bind" in fixed_kind and "fixed expected proof kind" in fixed_kind and "does not flat-sum unrelated proof-kind finite terms" in fixed_kind, "lossRule.fixedKindAccountingRule mismatch")
     require(rule.get("bindingCollisionFormula") == "4 * bindingTargetEventCount * Q_H^2 / 2^bindingOracle.outputBits", "binding collision formula mismatch")
-    require("36 * 2^-256" in require_string(rule.get("bindingCollisionInstantiatedExpression"), "bindingCollisionInstantiatedExpression"), "binding collision instantiation mismatch")
+    require("44 * 2^-256" in require_string(rule.get("bindingCollisionInstantiatedExpression"), "bindingCollisionInstantiatedExpression"), "binding collision instantiation mismatch")
     require(
         rule.get("compilerOverheadInstantiatedExpression") == "epsilon_compiler_overhead = 0 in the ideal split-QRO CTCO theorem model",
         "compiler overhead instantiation mismatch",
@@ -306,7 +306,7 @@ def validate_ledger_term_mapping(accounting: dict[str, Any]) -> None:
     collision = require_dict(mapping.get("transcriptCollisionLoss"), "ledgerTermMapping.transcriptCollisionLoss")
     require(collision.get("ledgerSymbol") == "epsilon_collision", "collision ledger symbol mismatch")
     require(require_string_list(collision.get("sourceSymbols"), "transcriptCollisionLoss.sourceSymbols") == ["epsilon_bind"], "epsilon_collision must map from epsilon_bind")
-    require("36 * 2^-256" in require_string(collision.get("selectedDepthContribution"), "collision.selectedDepthContribution"), "collision contribution must pin 384-bit bound")
+    require("44 * 2^-256" in require_string(collision.get("selectedDepthContribution"), "collision.selectedDepthContribution"), "collision contribution must pin 384-bit bound")
 
 
 def validate_legacy_status(accounting: dict[str, Any]) -> None:

@@ -49,6 +49,7 @@ structure ProductSystemBindings where
   terminalRelationBound : Prop
   zkMaskedResidualRelationBound : Prop
   typedRecursiveCarryRelationBound : Prop
+  recursiveCarryChainRootRecurrenceBound : Prop
   transcriptDomainsBound : Prop
   artifactMetadataBound : Prop
   proofEnvelopeHeadersBound : Prop
@@ -59,6 +60,7 @@ def ProductSystemBindingsAccepted (bindings : ProductSystemBindings) : Prop :=
     ∧ bindings.terminalRelationBound
     ∧ bindings.zkMaskedResidualRelationBound
     ∧ bindings.typedRecursiveCarryRelationBound
+    ∧ bindings.recursiveCarryChainRootRecurrenceBound
     ∧ bindings.transcriptDomainsBound
     ∧ bindings.artifactMetadataBound
     ∧ bindings.proofEnvelopeHeadersBound
@@ -90,6 +92,7 @@ def ProductBoundedDepthLossAccepted
 structure ProductSelectedDepthLossLedger where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
+  selectedRecursiveCarryHops : Nat
   sourceFoldLossInstantiated : Prop
   terminalSealLossInstantiated : Prop
   recursiveCarryLossInstantiated : Prop
@@ -97,13 +100,17 @@ structure ProductSelectedDepthLossLedger where
   publicCoinQROMLossInstantiated : Prop
   extractorLossInstantiated : Prop
   productOperationsReplayLossInstantiated : Prop
+  loadedParentChainRequired : Prop
+  recursiveCarryChainRootRecurrenceBound : Prop
   constantTimeSideChannelEvidenceClosed : Prop
   releaseSigningEvidenceClosed : Prop
   totalLossWithinBudget : Prop
 
 def ProductSelectedDepthLossLedgerAccepted
     (ledger : ProductSelectedDepthLossLedger) : Prop :=
-  (0 < ledger.selectedDepth)
+  ledger.selectedDepth = 3
+    ∧ ledger.selectedRecursiveCarryHops = 2
+    ∧ (0 < ledger.selectedDepth)
     ∧ ledger.sourceFoldLossInstantiated
     ∧ ledger.terminalSealLossInstantiated
     ∧ ledger.recursiveCarryLossInstantiated
@@ -111,6 +118,8 @@ def ProductSelectedDepthLossLedgerAccepted
     ∧ ledger.publicCoinQROMLossInstantiated
     ∧ ledger.extractorLossInstantiated
     ∧ ledger.productOperationsReplayLossInstantiated
+    ∧ ledger.loadedParentChainRequired
+    ∧ ledger.recursiveCarryChainRootRecurrenceBound
     ∧ ledger.constantTimeSideChannelEvidenceClosed
     ∧ ledger.releaseSigningEvidenceClosed
     ∧ ledger.totalLossWithinBudget
@@ -134,7 +143,7 @@ structure ProductFiniteProtocolNumericLossObstruction where
 
 def ProductFiniteProtocolNumericLossObstructionAccepted
     (obstruction : ProductFiniteProtocolNumericLossObstruction) : Prop :=
-  obstruction.selectedDepth = 1
+  obstruction.selectedDepth = 3
     ∧ obstruction.selectedSecurityBudgetBits = 128
     ∧ obstruction.pirlcCRTCertificateBoundExceedsSelectedBudget
     ∧ obstruction.pirlcFullRingUnitPivotBoundStillExceedsSelectedBudget
@@ -176,7 +185,7 @@ structure ProductFixedKindCTCORepeatedTapePlan where
 
 def ProductFixedKindCTCORepeatedTapePlanAccepted
     (plan : ProductFixedKindCTCORepeatedTapePlan) : Prop :=
-  plan.selectedDepth = 1
+  plan.selectedDepth = 3
     ∧ plan.expectedKindBoundByHBind
     ∧ plan.fixedContextChargesOnlyExpectedKindFiniteTerms
     ∧ plan.dispatcherCorollaryRangesOverAcceptedKinds
@@ -200,11 +209,58 @@ structure ProductDepthOneDispatcherCorollary where
 
 def ProductDepthOneDispatcherCorollaryAccepted
     (corollary : ProductDepthOneDispatcherCorollary) : Prop :=
-  corollary.selectedDepth = 1
+  corollary.selectedDepth = 3
     ∧ corollary.acceptedProofKindsAreExactlyPublicFive
     ∧ corollary.proofKindBinderSelectsFixedExpectedKindContext
     ∧ (∀ kind, corollary.everyAcceptedKindHasFixedKindPlan kind)
     ∧ corollary.dispatcherChargesOnlySelectedKindPerRun
+
+structure ProductCarryChainRoot where
+  marker : Nat
+  deriving DecidableEq, Repr
+
+structure ProductRecursiveCarryChainRootRecurrence where
+  selectedDepth : Nat
+  selectedRecursiveCarryHops : Nat
+  baseRoot : ProductCarryChainRoot
+  rootAtDepth : Nat → ProductCarryChainRoot
+  stepRoot : Nat → ProductCarryChainRoot → ProductCarryChainRoot
+  baseRootComputedFromActualLoadedBaseArtifact :
+    rootAtDepth 1 = baseRoot
+  stepRootComputedFromLoadedParentChainRoot :
+    ∀ depth, 1 ≤ depth → depth < selectedDepth →
+      rootAtDepth (depth + 1) = stepRoot depth (rootAtDepth depth)
+  verifierLoadsParentChainBeforeAcceptingRecursiveArtifact : Prop
+  verifierRejectsClaimedMetadataOnlyRecursiveRoot : Prop
+  stepBindsParentArtifactDigest : Prop
+  stepBindsParentSourceFoldEnvelopeDigest : Prop
+  stepBindsParentProductProofEnvelopeDigest : Prop
+  stepBindsAcceptedProducerEnvelopeDigest : Prop
+  stepBindsParentPublicStatementDigest : Prop
+  stepBindsConsumerSessionDigest : Prop
+  stepBindsRecomputedContextRoot : Prop
+  stepBindsRecomputedReplayRoot : Prop
+  stepBindsTypedCarryStatements : Prop
+  extractorUsesVerifierComputedChainRoot : Prop
+  ctcoTraceBindsRecursiveChainRoot : Prop
+
+def ProductRecursiveCarryChainRootRecurrenceAccepted
+    (recurrence : ProductRecursiveCarryChainRootRecurrence) : Prop :=
+  recurrence.selectedDepth = 3
+    ∧ recurrence.selectedRecursiveCarryHops = 2
+    ∧ recurrence.verifierLoadsParentChainBeforeAcceptingRecursiveArtifact
+    ∧ recurrence.verifierRejectsClaimedMetadataOnlyRecursiveRoot
+    ∧ recurrence.stepBindsParentArtifactDigest
+    ∧ recurrence.stepBindsParentSourceFoldEnvelopeDigest
+    ∧ recurrence.stepBindsParentProductProofEnvelopeDigest
+    ∧ recurrence.stepBindsAcceptedProducerEnvelopeDigest
+    ∧ recurrence.stepBindsParentPublicStatementDigest
+    ∧ recurrence.stepBindsConsumerSessionDigest
+    ∧ recurrence.stepBindsRecomputedContextRoot
+    ∧ recurrence.stepBindsRecomputedReplayRoot
+    ∧ recurrence.stepBindsTypedCarryStatements
+    ∧ recurrence.extractorUsesVerifierComputedChainRoot
+    ∧ recurrence.ctcoTraceBindsRecursiveChainRoot
 
 structure ProductExtractorLossAccounting where
   selectedDepth : Nat
@@ -214,18 +270,23 @@ structure ProductExtractorLossAccounting where
   terminalSealExtractorSpecified : Prop
   productEnvelopeExtractorSpecified : Prop
   recursiveCarryExtractorSpecified : Prop
+  recursiveCarryChainRootRecurrence :
+    ProductRecursiveCarryChainRootRecurrence
   rewindScheduleBoundToTranscript : Prop
   extractorFailureLossAccounted : Prop
   extractorLossWithinBudget : Prop
 
 def ProductExtractorLossAccountingAccepted
     (accounting : ProductExtractorLossAccounting) : Prop :=
-  (0 < accounting.selectedDepth)
+  accounting.selectedDepth = 3
+    ∧ (0 < accounting.selectedDepth)
     ∧ accounting.acceptedLayerBounded
     ∧ accounting.sourceFoldExtractorSpecified
     ∧ accounting.terminalSealExtractorSpecified
     ∧ accounting.productEnvelopeExtractorSpecified
     ∧ accounting.recursiveCarryExtractorSpecified
+    ∧ ProductRecursiveCarryChainRootRecurrenceAccepted
+      accounting.recursiveCarryChainRootRecurrence
     ∧ accounting.rewindScheduleBoundToTranscript
     ∧ accounting.extractorFailureLossAccounted
     ∧ accounting.extractorLossWithinBudget
@@ -249,7 +310,7 @@ def ProductHashOracleInstantiationAccepted
     (hashes : ProductHashOracleInstantiation) : Prop :=
   hashes.challengeOracleBits = 256
     ∧ hashes.bindingOracleBits = 384
-    ∧ hashes.bindingTargetEventCount = 9
+    ∧ hashes.bindingTargetEventCount = 11
     ∧ hashes.splitOraclesPinned
     ∧ hashes.theoremCriticalBindingsUseHBind
     ∧ hashes.framedEncodingInjective
@@ -274,7 +335,8 @@ structure ProductInteractiveProtocolDefinitions where
 
 def ProductInteractiveProtocolDefinitionsAccepted
     (protocols : ProductInteractiveProtocolDefinitions) : Prop :=
-  (0 < protocols.selectedDepth)
+  protocols.selectedDepth = 3
+    ∧ (0 < protocols.selectedDepth)
     ∧ protocols.acceptedProofKindsPinned
     ∧ protocols.allKindsThreeMovePublicCoin
     ∧ protocols.oneChallengeSeedPerKind
@@ -393,7 +455,7 @@ def ProductQROMCollisionBoundAccepted
     (bound : ProductQROMCollisionBound) : Prop :=
   bound.queryBoundQHLog2 = 64
     ∧ bound.bindingDigestBits = 384
-    ∧ bound.bindingTargetEventCount = 9
+    ∧ bound.bindingTargetEventCount = 11
     ∧ bound.collisionFormulaPinned
     ∧ bound.collisionBoundInstantiated
     ∧ bound.collisionBoundWithinBudget
@@ -508,6 +570,7 @@ def ProductQROMCompilerOverheadBoundAccepted
     (bound : ProductQROMCompilerOverheadBound) : Prop :=
   (bound.selectedFamily = ProductQROMTransformFamily.ctco
       ∨ bound.selectedFamily = ProductQROMTransformFamily.merkleStraightline)
+    ∧ bound.selectedDepth = 3
     ∧ 0 < bound.selectedDepth
     ∧ bound.idealSplitQROModelPinned
     ∧ bound.onlineExtractabilityAssumptionPinned
@@ -554,7 +617,8 @@ structure ProductExactFiniteProbabilityWiring where
 
 def ProductExactFiniteProbabilityWiringAccepted
     (wiring : ProductExactFiniteProbabilityWiring) : Prop :=
-  0 < wiring.selectedDepth
+  wiring.selectedDepth = 3
+    ∧ 0 < wiring.selectedDepth
     ∧ wiring.dyadicRationalArithmeticPinned
     ∧ wiring.nonDyadicFiniteProtocolRationalsPinned
     ∧ wiring.zeroLossTermsRepresentedExactly
@@ -611,7 +675,8 @@ structure ProductPublicCoinTranscriptSchedule where
 
 def ProductPublicCoinTranscriptScheduleAccepted
     (schedule : ProductPublicCoinTranscriptSchedule) : Prop :=
-  (0 < schedule.selectedDepth)
+  schedule.selectedDepth = 3
+    ∧ (0 < schedule.selectedDepth)
     ∧ schedule.acceptedProofKindsPinned
     ∧ schedule.interactiveRoundSchedulePinned
     ∧ schedule.publicCoinChallengeLabelsPinned
@@ -639,7 +704,8 @@ structure ProductPublicCoinTransformPreconditions where
 
 def ProductPublicCoinTransformPreconditionsAccepted
     (preconditions : ProductPublicCoinTransformPreconditions) : Prop :=
-  (0 < preconditions.selectedDepth)
+  preconditions.selectedDepth = 3
+    ∧ (0 < preconditions.selectedDepth)
     ∧ preconditions.theoremFamilyPinned
     ∧ preconditions.publicCoinInteractiveProtocolSpecified
     ∧ preconditions.constantRoundOddMessageScheduleSpecified
@@ -669,7 +735,8 @@ structure ProductQROMInteractiveReduction where
 
 def ProductQROMInteractiveReductionAccepted
     (reduction : ProductQROMInteractiveReduction) : Prop :=
-  (0 < reduction.selectedDepth)
+  reduction.selectedDepth = 3
+    ∧ (0 < reduction.selectedDepth)
     ∧ reduction.acceptedProofKindOrderPinned
     ∧ reduction.protocolMessageAlgorithmsPinned
     ∧ reduction.exactMoveCountsPinned
@@ -697,7 +764,8 @@ structure ProductPublicCoinLossAccounting where
 
 def ProductPublicCoinLossAccountingAccepted
     (accounting : ProductPublicCoinLossAccounting) : Prop :=
-  (0 < accounting.selectedDepth)
+  accounting.selectedDepth = 3
+    ∧ (0 < accounting.selectedDepth)
     ∧ accounting.interactiveProtocolSpecified
     ∧ accounting.publicCoinChallengeScheduleSpecified
     ∧ accounting.qromTransformPreconditionsSatisfied
@@ -720,7 +788,8 @@ structure ProductTotalLossBudget where
 
 def ProductTotalLossBudgetAccepted
     (budget : ProductTotalLossBudget) : Prop :=
-  (0 < budget.selectedDepth)
+  budget.selectedDepth = 3
+    ∧ (0 < budget.selectedDepth)
     ∧ budget.exactArithmeticPinned
     ∧ budget.qromLedgerTermMappingPinned
     ∧ budget.extractorLedgerTermMappingPinned
@@ -917,12 +986,18 @@ theorem productSecurityTheorem_requires_bounded_depth
 theorem productSecurityTheorem_requires_selected_depth_loss_accounting
     {ledger : ProductSelectedDepthLossLedger}
     (hLedger : ProductSelectedDepthLossLedgerAccepted ledger) :
-    ledger.extractorLossInstantiated
+    ledger.selectedDepth = 3
+      ∧ ledger.selectedRecursiveCarryHops = 2
+      ∧ ledger.loadedParentChainRequired
+      ∧ ledger.recursiveCarryChainRootRecurrenceBound
+      ∧ ledger.extractorLossInstantiated
       ∧ ledger.publicCoinQROMLossInstantiated
       ∧ ledger.zkSimulatorLossInstantiated
       ∧ ledger.totalLossWithinBudget := by
   rcases hLedger with
-    ⟨_,
+    ⟨hDepth,
+      hHops,
+      _,
       _,
       _,
       _,
@@ -930,10 +1005,20 @@ theorem productSecurityTheorem_requires_selected_depth_loss_accounting
       hQROM,
       hExtractor,
       _,
+      hLoadedParent,
+      hRecurrence,
       _,
       _,
       hTotal⟩
-  exact ⟨hExtractor, hQROM, hZKSimulator, hTotal⟩
+  exact
+    ⟨hDepth,
+      hHops,
+      hLoadedParent,
+      hRecurrence,
+      hExtractor,
+      hQROM,
+      hZKSimulator,
+      hTotal⟩
 
 theorem productSecurityTheorem_requires_finite_protocol_numeric_loss_instantiation
     {obstruction : ProductFiniteProtocolNumericLossObstruction}
@@ -1004,19 +1089,85 @@ theorem productSecurityTheorem_requires_extractor_loss_accounting
     accounting.sourceFoldExtractorSpecified
       ∧ accounting.terminalSealExtractorSpecified
       ∧ accounting.productEnvelopeExtractorSpecified
+      ∧ accounting.recursiveCarryExtractorSpecified
+      ∧ ProductRecursiveCarryChainRootRecurrenceAccepted
+        accounting.recursiveCarryChainRootRecurrence
       ∧ accounting.extractorFailureLossAccounted
       ∧ accounting.extractorLossWithinBudget := by
   rcases hAccounting with
     ⟨_,
       _,
+      _,
       hSourceFold,
       hTerminalSeal,
       hProductEnvelope,
-      _,
+      hRecursiveCarry,
+      hRecurrence,
       _,
       hExtractorLoss,
       hBudget⟩
-  exact ⟨hSourceFold, hTerminalSeal, hProductEnvelope, hExtractorLoss, hBudget⟩
+  exact
+    ⟨hSourceFold,
+      hTerminalSeal,
+      hProductEnvelope,
+      hRecursiveCarry,
+      hRecurrence,
+      hExtractorLoss,
+      hBudget⟩
+
+theorem productRecursiveCarryChainRoot_recurrence_unfolds_depth_le_three
+    {recurrence : ProductRecursiveCarryChainRootRecurrence}
+    (hRecurrence :
+      ProductRecursiveCarryChainRootRecurrenceAccepted recurrence) :
+    recurrence.rootAtDepth 1 = recurrence.baseRoot
+      ∧ recurrence.rootAtDepth 2 = recurrence.stepRoot 1 recurrence.baseRoot
+      ∧ recurrence.rootAtDepth 3 =
+        recurrence.stepRoot 2 (recurrence.stepRoot 1 recurrence.baseRoot) := by
+  rcases hRecurrence with
+    ⟨hDepth, _, _, _, _, _, _, _, _, _, _, _, _, _, _⟩
+  have h12 :
+      recurrence.rootAtDepth 2 =
+        recurrence.stepRoot 1 recurrence.baseRoot := by
+    have hStep :=
+      recurrence.stepRootComputedFromLoadedParentChainRoot 1
+        (by decide)
+        (by rw [hDepth]; decide)
+    rw [recurrence.baseRootComputedFromActualLoadedBaseArtifact] at hStep
+    exact hStep
+  have h23 :
+      recurrence.rootAtDepth 3 =
+        recurrence.stepRoot 2 (recurrence.stepRoot 1 recurrence.baseRoot) := by
+    have hStep :=
+      recurrence.stepRootComputedFromLoadedParentChainRoot 2
+        (by decide)
+        (by rw [hDepth]; decide)
+    rw [h12] at hStep
+    exact hStep
+  exact
+    ⟨recurrence.baseRootComputedFromActualLoadedBaseArtifact,
+      h12,
+      h23⟩
+
+theorem productRecursiveCarryChainRoot_verifier_extractor_path_depth_le_three
+    {recurrence : ProductRecursiveCarryChainRootRecurrence}
+    (hRecurrence :
+      ProductRecursiveCarryChainRootRecurrenceAccepted recurrence) :
+    recurrence.selectedDepth = 3
+      ∧ recurrence.selectedRecursiveCarryHops = 2
+      ∧ recurrence.verifierLoadsParentChainBeforeAcceptingRecursiveArtifact
+      ∧ recurrence.verifierRejectsClaimedMetadataOnlyRecursiveRoot
+      ∧ recurrence.stepBindsParentArtifactDigest
+      ∧ recurrence.stepBindsParentSourceFoldEnvelopeDigest
+      ∧ recurrence.stepBindsParentProductProofEnvelopeDigest
+      ∧ recurrence.stepBindsAcceptedProducerEnvelopeDigest
+      ∧ recurrence.stepBindsParentPublicStatementDigest
+      ∧ recurrence.stepBindsConsumerSessionDigest
+      ∧ recurrence.stepBindsRecomputedContextRoot
+      ∧ recurrence.stepBindsRecomputedReplayRoot
+      ∧ recurrence.stepBindsTypedCarryStatements
+      ∧ recurrence.extractorUsesVerifierComputedChainRoot
+      ∧ recurrence.ctcoTraceBindsRecursiveChainRoot := by
+  exact hRecurrence
 
 theorem ProductQROMTightTransform
     {evidence : ProductInstantiatedQROMEvidence}
@@ -1105,9 +1256,9 @@ theorem productSecurityTheorem_from_instantiated_qrom
   rcases hInteractive with
     ⟨_, hSharedTags, _, _, _, _, _, _⟩
   rcases hCompilerOverhead with
-    ⟨_, _, _, _, _, hCompilerOverheadZero, _, _⟩
+    ⟨_, _, _, _, _, _, hCompilerOverheadZero, _, _⟩
   rcases hWiring with
-    ⟨_, _, _, _, hPartialSum, _, _, _, _, _, _⟩
+    ⟨_, _, _, _, _, hPartialSum, _, _, _, _, _, _⟩
   rcases hLoss with
     ⟨_,
       _,
@@ -1133,6 +1284,7 @@ theorem productSecurityTheorem_requires_qrom_loss_accounting
       ∧ accounting.qromLossWithinBudget := by
   rcases hAccounting with
     ⟨_,
+      _,
       hInteractive,
       hChallengeSchedule,
       hPreconditions,
@@ -1161,6 +1313,7 @@ theorem productSecurityTheorem_requires_qrom_collision_malleability_exclusion
       _,
       _,
       _,
+      _,
       hTranscriptDomain,
       hProofKind,
       hCollision,
@@ -1171,7 +1324,7 @@ theorem productSecurityTheorem_requires_theorem_critical_hbind
     {hashes : ProductHashOracleInstantiation}
     (hHashes : ProductHashOracleInstantiationAccepted hashes) :
     hashes.bindingOracleBits = 384
-      ∧ hashes.bindingTargetEventCount = 9
+      ∧ hashes.bindingTargetEventCount = 11
       ∧ hashes.theoremCriticalBindingsUseHBind
       ∧ hashes.bindingDomainsSeparated
       ∧ hashes.bindingTargetEventCountPinned
@@ -1221,6 +1374,7 @@ theorem productSecurityTheorem_requires_qrom_transcript_schedule
       ∧ schedule.productionTranscriptScheduleClaimAllowed := by
   rcases hSchedule with
     ⟨_,
+      _,
       hProofKinds,
       _,
       hChallengeLabels,
@@ -1256,6 +1410,7 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
       ∧ preconditions.productionTransformClaimAllowed := by
   rcases hPreconditions with
     ⟨_,
+      _,
       hFamily,
       hInteractive,
       hRounds,
@@ -1295,6 +1450,7 @@ theorem productSecurityTheorem_requires_qrom_interactive_reduction
       ∧ reduction.productionQROMTheoremClaimAllowed := by
   rcases hReduction with
     ⟨_,
+      _,
       hOrder,
       hProtocols,
       hMoves,
@@ -1326,6 +1482,7 @@ theorem productSecurityTheorem_requires_qrom_compiler_overhead_bound
     (hBound : ProductQROMCompilerOverheadBoundAccepted bound) :
     (bound.selectedFamily = ProductQROMTransformFamily.ctco
         ∨ bound.selectedFamily = ProductQROMTransformFamily.merkleStraightline)
+      ∧ bound.selectedDepth = 3
       ∧ 0 < bound.selectedDepth
       ∧ bound.idealSplitQROModelPinned
       ∧ bound.onlineExtractabilityAssumptionPinned
@@ -1361,6 +1518,7 @@ theorem productSecurityTheorem_requires_total_loss_budget
       ∧ budget.productionTotalLossClaimAllowed := by
   rcases hBudget with
     ⟨_,
+      _,
       hArithmetic,
       hQROM,
       hExtractor,
@@ -1373,7 +1531,8 @@ theorem productSecurityTheorem_requires_total_loss_budget
 theorem productSecurityTheorem_requires_exact_finite_probability_wiring
     {wiring : ProductExactFiniteProbabilityWiring}
     (hWiring : ProductExactFiniteProbabilityWiringAccepted wiring) :
-    0 < wiring.selectedDepth
+    wiring.selectedDepth = 3
+      ∧ 0 < wiring.selectedDepth
       ∧ wiring.dyadicRationalArithmeticPinned
       ∧ wiring.nonDyadicFiniteProtocolRationalsPinned
       ∧ wiring.zeroLossTermsRepresentedExactly
@@ -1408,6 +1567,18 @@ theorem productSecurityTheorem_requires_artifact_envelope_binding
     {bindings : ProductSystemBindings}
     (hBindings : ProductSystemBindingsAccepted bindings) :
     bindings.artifactMetadataBound ∧ bindings.proofEnvelopeHeadersBound :=
-  ⟨hBindings.2.2.2.2.2.1, hBindings.2.2.2.2.2.2.1⟩
+  by
+    rcases hBindings with
+      ⟨_, _, _, _, _, _, hArtifactMetadata, hProofEnvelopeHeaders, _⟩
+    exact ⟨hArtifactMetadata, hProofEnvelopeHeaders⟩
+
+theorem productSecurityTheorem_requires_recursive_carry_chain_root_binding
+    {bindings : ProductSystemBindings}
+    (hBindings : ProductSystemBindingsAccepted bindings) :
+    bindings.typedRecursiveCarryRelationBound
+      ∧ bindings.recursiveCarryChainRootRecurrenceBound := by
+  rcases hBindings with
+    ⟨_, _, _, hTypedCarry, hChainRootRecurrence, _, _, _, _⟩
+  exact ⟨hTypedCarry, hChainRootRecurrence⟩
 
 end SuperNeoFormal

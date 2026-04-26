@@ -7,7 +7,7 @@ private enum VectorToolError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .usage:
-            "usage: superneo-formal-vectors ext2|ce"
+            "usage: superneo-formal-vectors ext2|ce|embedding"
         }
     }
 }
@@ -24,12 +24,95 @@ private func decimalByteList(_ bytes: [UInt8]) -> String {
     bytes.map(String.init).joined(separator: ",")
 }
 
+private func fieldElement(_ value: Int) -> GoldilocksField {
+    if value >= 0 {
+        return GoldilocksField(UInt64(value))
+    } else {
+        return -GoldilocksField(UInt64(-value))
+    }
+}
+
+private func fieldList(_ values: [GoldilocksField]) -> String {
+    values.map { String($0.rawValue) }.joined(separator: ",")
+}
+
+private func ringCoefficients(_ value: CyclotomicRing54) -> String {
+    fieldList(value.coefficients)
+}
+
 private func decodeStatus(_ bytes: [UInt8]) -> String {
     do {
         let decoded = try GoldilocksExt2(littleEndianBytes: bytes[...])
         return "some:\(decoded.c0.rawValue),\(decoded.c1.rawValue)"
     } catch {
         return "none"
+    }
+}
+
+private func emitEmbeddingVectors() throws {
+    let signedPattern = [0, 1, -1, 2, -2, 3, -3, 5, -5, 8, -8]
+    let fieldVector = (0..<60).map { index in
+        fieldElement(signedPattern[index % signedPattern.count])
+    }
+    let packed = try SuperNeoEmbedding.packPadded(fieldVector)
+    let unpacked = SuperNeoEmbedding.unpack(packed)
+    let exactBlock = Array(fieldVector.prefix(CyclotomicRing54.degree))
+
+    var rowCoefficients = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+    rowCoefficients[0] = fieldElement(3)
+    rowCoefficients[7] = fieldElement(-5)
+    rowCoefficients[17] = fieldElement(11)
+    rowCoefficients[53] = fieldElement(13)
+    let transformedRow = CyclotomicRing54(try CyclotomicRing54.innerProductTransform(rowCoefficients))
+    let ringProduct = transformedRow * CyclotomicRing54(exactBlock)
+    let expectedInnerProduct = zip(rowCoefficients, exactBlock).reduce(GoldilocksField.zero) { partial, pair in
+        partial + pair.0 * pair.1
+    }
+
+    let matrix = try SparseFieldMatrix(
+        rows: 2,
+        columns: fieldVector.count,
+        entries: [
+            SparseFieldMatrix.Entry(row: 0, column: 0, value: fieldElement(3)),
+            SparseFieldMatrix.Entry(row: 0, column: 7, value: fieldElement(-5)),
+            SparseFieldMatrix.Entry(row: 0, column: 17, value: fieldElement(11)),
+            SparseFieldMatrix.Entry(row: 0, column: 53, value: fieldElement(13)),
+            SparseFieldMatrix.Entry(row: 1, column: 1, value: fieldElement(19)),
+            SparseFieldMatrix.Entry(row: 1, column: 54, value: fieldElement(23)),
+            SparseFieldMatrix.Entry(row: 1, column: 59, value: fieldElement(-29)),
+        ]
+    )
+    let fieldProduct = try matrix.multiplied(by: fieldVector)
+    let transformedDenseConstants = try matrix
+        .transformedForSuperNeo()
+        .multiplied(by: packed)
+        .map(\.constantTerm)
+    let transformedSparseConstants = try matrix
+        .transformedSparseForSuperNeo()
+        .multiplied(by: packed)
+        .map(\.constantTerm)
+
+    let lines: [(String, String)] = [
+        ("embedding_input_length", String(fieldVector.count)),
+        ("embedding_padded_length", String(SuperNeoEmbedding.paddedLength(forFieldElementCount: fieldVector.count))),
+        ("embedding_packed_column_count", String(packed.count)),
+        ("embedding_input_raw_values", fieldList(fieldVector)),
+        ("embedding_first_column_coefficients", ringCoefficients(packed[0])),
+        ("embedding_second_column_coefficients", ringCoefficients(packed[1])),
+        ("embedding_unpacked_prefix", fieldList(Array(unpacked.prefix(fieldVector.count)))),
+        ("embedding_padding_suffix_zero", String(unpacked.dropFirst(fieldVector.count).allSatisfy { $0 == .zero })),
+        ("embedding_preserves_norm_exact_block", String(try SuperNeoEmbedding.preservesNorm(exactBlock))),
+        ("embedding_inner_product_row_coefficients", fieldList(rowCoefficients)),
+        ("embedding_inner_product_transform_coefficients", ringCoefficients(transformedRow)),
+        ("embedding_inner_product_constant_term", String(ringProduct.constantTerm.rawValue)),
+        ("embedding_inner_product_expected", String(expectedInnerProduct.rawValue)),
+        ("embedding_sparse_matrix_field_product", fieldList(fieldProduct)),
+        ("embedding_transformed_dense_constants", fieldList(transformedDenseConstants)),
+        ("embedding_transformed_sparse_constants", fieldList(transformedSparseConstants)),
+    ]
+
+    for (label, value) in lines {
+        print("\(label)=\(value)")
     }
 }
 
@@ -189,6 +272,8 @@ do {
         emitExt2Vectors()
     case ["ce"]:
         try emitCEVectors()
+    case ["embedding"]:
+        try emitEmbeddingVectors()
     default:
         throw VectorToolError.usage
     }

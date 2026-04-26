@@ -52,6 +52,9 @@ EXPECTED_MANIFESTS = {
 EXPECTED_FORMAL_DECLARATIONS = {
     "ProductSelectedDepthLossLedger",
     "ProductSelectedDepthLossLedgerAccepted",
+    "ProductCarryChainRoot",
+    "ProductRecursiveCarryChainRootRecurrence",
+    "ProductRecursiveCarryChainRootRecurrenceAccepted",
     "ProductExtractorLossAccounting",
     "ProductExtractorLossAccountingAccepted",
     "ProductPublicCoinTranscriptSchedule",
@@ -70,6 +73,8 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductTotalLossBudgetAccepted",
     "ProductExactFiniteProbabilityWiring",
     "ProductExactFiniteProbabilityWiringAccepted",
+    "productRecursiveCarryChainRoot_recurrence_unfolds_depth_le_three",
+    "productRecursiveCarryChainRoot_verifier_extractor_path_depth_le_three",
     "productSecurityTheorem_requires_selected_depth_loss_accounting",
     "productSecurityTheorem_requires_extractor_loss_accounting",
     "productSecurityTheorem_requires_qrom_transcript_schedule",
@@ -170,7 +175,7 @@ def validate_related_manifests(ledger: dict[str, Any]) -> None:
         "product crypto security dossier must link the selected-depth loss ledger",
     )
     depth = require_dict(dossier.get("supportedProductDepth"), "productCryptoSecurityDossier.supportedProductDepth")
-    require(depth.get("theoremMaximumDepth") == 1, "product crypto security dossier maximum theorem depth must stay 1")
+    require(depth.get("theoremMaximumDepth") == 3, "product crypto security dossier maximum theorem depth must be 3")
     require(
         dossier_related.get("productExtractorLossAccounting") == "TestVectors/product-extractor-loss-accounting-v1.json",
         "product crypto security dossier must link extractor loss accounting",
@@ -315,9 +320,14 @@ def validate_formal_surface(ledger: dict[str, Any]) -> None:
 def validate_selected_depth(ledger: dict[str, Any]) -> None:
     depth = require_dict(ledger.get("selectedDepth"), "selectedDepth")
     require(depth.get("depthModel") == "bounded-depth", "selectedDepth.depthModel must be bounded-depth")
-    require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
-    require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
-    require(depth.get("currentProductDefaultMaximumDepth") == 1, "selectedDepth.currentProductDefaultMaximumDepth must be 1")
+    require(depth.get("selectedMaximumDepth") == 3, "selectedDepth.selectedMaximumDepth must be 3")
+    require(depth.get("selectedRecursiveCarryHops") == 2, "selectedDepth.selectedRecursiveCarryHops must be 2")
+    require(depth.get("currentProductDefaultMaximumDepth") == 3, "selectedDepth.currentProductDefaultMaximumDepth must be 3")
+    require(depth.get("loadedParentChainRequired") is True, "selectedDepth.loadedParentChainRequired must be true")
+    require(
+        depth.get("recursiveChainRootSource") == "NumiSealProductVerificationResult.productCarryChainRoot",
+        "selectedDepth.recursiveChainRootSource mismatch",
+    )
     require(depth.get("polyDepthClaimAllowed") is True, "selectedDepth.polyDepthClaimAllowed must be true")
     require(
         depth.get("repositoryLocalSelectedDepthClaimAllowed") is True,
@@ -424,6 +434,21 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
             evidence = require_string(component.get("requiredEvidence"), "extractor-instantiation.requiredEvidence")
             for needle in ["NumiSealProductConcreteExtractor.extract", "swiftConcreteExtractorEvidenceDigest", "epsilon_extract = 0"]:
                 require(needle in evidence, f"extractor-instantiation requiredEvidence must mention {needle}")
+        if component_id == "typed-recursive-carry":
+            require(
+                component.get("status") == "loaded-parent-chain-root-recomputed-selected-depth-3-instantiated",
+                "typed-recursive-carry status must record loaded-parent chain-root recomputation",
+            )
+            rule = require_string(component.get("accountingRule"), "typed-recursive-carry.accountingRule")
+            evidence = require_string(component.get("requiredEvidence"), "typed-recursive-carry.requiredEvidence")
+            for needle in ["two recursive carry hops", "epsilon_carry = 0", "loaded accepted parent chain root", "typed carry statements"]:
+                require(needle in rule, f"typed-recursive-carry accountingRule must mention {needle}")
+            for needle in [
+                "NumiSealProductVerificationResult.productCarryChainRoot",
+                "recursive-carry-chain-root CTCO trace block",
+                "metadata-only recursive parents",
+            ]:
+                require(needle in evidence, f"typed-recursive-carry requiredEvidence must mention {needle}")
         if component_id == "public-coin-qrom":
             require(
                 component.get("accountingManifest") == "TestVectors/product-qrom-public-coin-accounting-v1.json",
@@ -472,7 +497,7 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                 "transcript-collision-domain-separation requiredEvidence must link collision/malleability evidence",
             )
             require(
-                "36 * 2^-256" in evidence and "source H_bind acceptance binding is implemented" in evidence,
+                "44 * 2^-256" in evidence and "11 CTCO binding targets" in evidence and "source H_bind acceptance binding is implemented" in evidence,
                 "transcript-collision-domain-separation requiredEvidence must pin H_bind bound and source implementation status",
             )
         if component_id == "release-distribution":
@@ -499,9 +524,11 @@ def validate_total_loss_rule(ledger: dict[str, Any]) -> None:
         "epsilon_zk_sim",
         "epsilon_qrom",
         "epsilon_extract",
+        "epsilon_carry",
         "epsilon_collision",
     ]:
         require(symbol in selected, f"selected-depth expression must include {symbol}")
+    require("depth=3" in selected and "3 *" in selected and "2 * epsilon_carry" in selected, "selected-depth expression must account depth 3 and two carry hops")
     require("epsilon_carry" in recursive and "max(d - 1, 0)" in recursive, "recursive promotion expression must include carry-hop accounting")
     require(total.get("allComponentLossesInstantiated") is True, "totalLossRule.allComponentLossesInstantiated must be true")
     require(total.get("totalLossWithinBudget") is True, "totalLossRule.totalLossWithinBudget must be true")

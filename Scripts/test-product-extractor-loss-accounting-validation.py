@@ -48,6 +48,18 @@ def main() -> None:
         write_json(path, premature_depth)
         run_fail(str(VALIDATE), str(path))
 
+        stale_recurrence = copy.deepcopy(accounting)
+        stale_recurrence["chainRootRecurrence"]["selectedDepth"] = 2
+        path = tmp / "stale-recurrence.json"
+        write_json(path, stale_recurrence)
+        run_fail(str(VALIDATE), str(path))
+
+        metadata_root = copy.deepcopy(accounting)
+        metadata_root["chainRootRecurrence"]["extractorProcedure"] = "accept claimed recursive root from artifact metadata"
+        path = tmp / "metadata-root.json"
+        write_json(path, metadata_root)
+        run_fail(str(VALIDATE), str(path))
+
         missing_extractor = copy.deepcopy(accounting)
         missing_extractor["extractorInterface"]["concreteExtractorImplemented"] = False
         path = tmp / "premature-extractor.json"
@@ -75,7 +87,7 @@ def main() -> None:
         run_fail(str(VALIDATE), str(path))
 
         reopened_blocker = copy.deepcopy(accounting)
-        reopened_blocker["hardClaimBlockers"].append("recursive carry extractor for promoted depth beyond selected depth 1")
+        reopened_blocker["hardClaimBlockers"].append("recursive carry extractor for promoted depth beyond selected depth 3")
         path = tmp / "reopened-blocker.json"
         write_json(path, reopened_blocker)
         run_fail(str(VALIDATE), str(path))

@@ -25,9 +25,9 @@
   },
   "selectedDepth": {
     "depthModel": "bounded-depth",
-    "selectedMaximumDepth": 1,
-    "acceptedProductLayers": 1,
-    "selectedRecursiveCarryHops": 0,
+    "selectedMaximumDepth": 3,
+    "acceptedProductLayers": 3,
+    "selectedRecursiveCarryHops": 2,
     "schedulePromotionAllowed": true
   },
   "oracleModel": {
@@ -230,8 +230,8 @@
     "qromLossSymbol": "epsilon_qrom",
     "transcriptCollisionLossSymbol": "epsilon_collision",
     "quantumOracleQuerySymbol": "Q_H",
-    "selectedDepthQueryExpression": "Q_H_adversary(depth=1) = 2^64 with schedule-derived challenge derivations Q_H_schedule = Q_H_fold + Q_H_terminal + Q_H_compressed_terminal + Q_H_numiseal_terminal + Q_H_numiseal_zk_product = 8755125",
-    "selectedDepthProtocolChallengeDerivations": 8755125,
+    "selectedDepthQueryExpression": "Q_H_adversary(depth=3) = 2^64 with schedule-derived challenge derivations Q_H_schedule = 3 * (Q_H_fold + Q_H_terminal + Q_H_compressed_terminal + Q_H_numiseal_terminal + Q_H_numiseal_zk_product) = 26265375",
+    "selectedDepthProtocolChallengeDerivations": 26265375,
     "selectedQHBound": "2^64",
     "selectedQHLog2": 64,
     "numericQueryBoundInstantiated": true,

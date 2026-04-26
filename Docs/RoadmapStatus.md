@@ -1,5 +1,7 @@
 # Roadmap Status
 
+Formal status: completed formal protocol theorem.
+
 This file replaces the old long roadmap narrative. Use it as a short pointer to
 current source-of-truth files.
 
@@ -7,6 +9,8 @@ current source-of-truth files.
 
 - Product architecture: `Docs/QROProductArchitecture-2026-04-25.md`
 - Paper development notes: `Docs/SuperNeoPaperDevelopmentNotes-2026-04-25.md`
+- Paper implementation tracks: `Docs/SuperNeoPaperImplementationTracks-2026-04-25.md`
+- Paper reproduction: `Docs/PaperReproduction.md`
 - CLI surface: `Docs/CLI.md`
 - Product integration: `Docs/ProductIntegrationLayer-2026-04-16.md`
 - Product operations: `Docs/ProductOperationsReadiness-2026-04-16.md`
@@ -27,6 +31,11 @@ current source-of-truth files.
 
 - Product/security dossier: `Docs/CryptographicSecurityDossier-2026-04-16.md`
 - Parameter dossier: `Docs/ParameterSecurityDossier-2026-04-16.md`
+- Paper parameters: `Docs/Parameters.md`
+- Lattice estimator reproduction: `Docs/LatticeEstimatorReproduction.md`
+- Threat model: `Docs/ThreatModel.md`
+- GPU determinism and Metal policy: `Docs/GPUDeterminism.md`
+- High-assurance hardening: `Docs/HighAssuranceHardening-2026-04-13.md`
 - Release gate: `Docs/ProductionReadinessAuditPacket-2026-04-16.md`
 - Release policy: `Docs/ReleaseEngineering-2026-04-16.md`
 - Schema ledger: `Docs/SchemaCompatibility-2026-04-16.md`

@@ -571,6 +571,7 @@ public struct NumiSealProductProvingOutput: Sendable {
     public let sourcePublicInput: SuperNeoPublicFoldInput
     public let verifierKey: AjtaiCommitmentKey
     public let qroChallenge: SuperNeoQROChallenge
+    public let payPerBitEvidence: SuperNeoPayPerBitWitnessEvidence
     public let traceExtractorEvidence: NumiSealProductTraceExtractorEvidence
     public let qromEvidence: NumiSealProductQROMEvidence
 
@@ -619,12 +620,24 @@ public enum NumiSealProductAPI {
             artifact: artifact,
             trustedContext: trustedContext
         )
+        let committedWitnesses = zip(preparedR1CS.foldInput.instances, preparedR1CS.foldInput.witnesses).map {
+            instance, witness in
+            witness.fullZ(for: instance)
+        }
+        let payPerBitEvidence = try SuperNeoPayPerBitWitnessEvidence(
+            key: preparedR1CS.key,
+            witnesses: committedWitnesses,
+            expectedCommitments: preparedR1CS.foldInput.instances.map(\.commitment),
+            parameters: parameters,
+            executionPolicy: executionPolicy.resolvedSuperNeoPolicy(metalContext: metalContext)
+        )
         return NumiSealProductProvingOutput(
             artifact: artifact,
             trustedContext: trustedContext,
             sourcePublicInput: preparedR1CS.publicFoldInput,
             verifierKey: preparedR1CS.key,
             qroChallenge: qroChallenge,
+            payPerBitEvidence: payPerBitEvidence,
             traceExtractorEvidence: traceEvidence,
             qromEvidence: .ctco(traceEvidence: traceEvidence, qroChallenge: qroChallenge)
         )
@@ -709,6 +722,62 @@ public enum NumiSealProductAPI {
             workloadParameters: [
                 "leftBitCount": "\(operandBits)",
                 "publicSum": "\(sum.partialValue)"
+            ],
+            sourceApplicationPathUTF8: sourceApplicationPathUTF8
+        )
+        return try provePreparedR1CS(
+            preparedR1CS: prepared,
+            trustedContext: context,
+            qroChallenge: qroChallenge,
+            keySeedUTF8: keySeedUTF8,
+            executionPolicy: executionPolicy,
+            zkMode: zkMode,
+            aggregationLimits: aggregationLimits,
+            parameters: parameters,
+            metalContext: metalContext,
+            recursiveCarryParent: recursiveCarryParent,
+            sourceDecompositionProfile: sourceDecompositionProfile
+        )
+    }
+
+    public static func proveLamportSignatureAggregation(
+        instances: [SuperNeoLamportSignatureInstance],
+        keySeedUTF8: String,
+        qroChallenge: SuperNeoQROChallenge,
+        sourceApplicationPathUTF8: String = "unbound",
+        executionPolicy: NumiSealProvingExecutionPolicy = .defaultProduct,
+        zkMode: String = NumiSealZK.maskedDigitTensorMode,
+        aggregationLimits: NumiSealAggregationLimits = .defaultLimits(),
+        parameters: SuperNeoParameters = .goldilocks,
+        metalContext: MetalExecutionContext? = nil,
+        recursiveCarryParent: NumiSealProductRecursiveCarryParent? = nil,
+        sourceDecompositionProfile: SuperNeoDecompositionProfile = .payPerBit
+    ) throws -> NumiSealProductProvingOutput {
+        guard let first = instances.first else {
+            throw SuperNeoError.invalidParameter("Lamport aggregation requires at least one signature")
+        }
+        let workload = try SuperNeoLamportSignatureAggregationWorkload(
+            signatureCount: instances.count,
+            bitCount: first.messageBits.count
+        )
+        let superNeoPolicy = executionPolicy.resolvedSuperNeoPolicy(metalContext: metalContext)
+        let prepared = try workload.prepareForFolding(
+            instances: instances,
+            keySeed: Array(keySeedUTF8.utf8),
+            parameters: parameters,
+            executionPolicy: superNeoPolicy
+        )
+        let publicInput = try workload.publicInput(instances: instances).map(\.rawValue)
+        let aggregationDigest = try workload.aggregationDigest(instances: instances)
+        let context = try NumiSealProductTrustedContext(
+            workload: "lamport-signature-aggregation-v1",
+            bitCount: first.messageBits.count,
+            publicInputs: publicInput,
+            workloadParameters: [
+                "signatureCount": "\(instances.count)",
+                "publicKeyModel": "lamport-field-hash-preimage-v1",
+                "lamportFieldHashRoundCount": "\(SuperNeoLamportFieldHash.roundCount)",
+                "signatureAggregationDigest": aggregationDigest.hexString
             ],
             sourceApplicationPathUTF8: sourceApplicationPathUTF8
         )

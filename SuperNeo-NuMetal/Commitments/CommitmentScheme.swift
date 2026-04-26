@@ -52,6 +52,8 @@ public protocol CommitmentScheme {
 }
 
 public enum AjtaiSuperNeoCommitment: CommitmentScheme {
+    public static let minimumModuleSISBindingSecurityBits = ModuleSISBindingSecurityProfile.defaultMinimumSecurityBits
+
     public typealias Parameters = SuperNeoParameters
     public typealias Shape = CCSShape
     public typealias ProverKey = AjtaiCommitmentKey
@@ -92,6 +94,9 @@ public enum AjtaiSuperNeoCommitment: CommitmentScheme {
         executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> AjtaiCommitment {
         try validateKey(proverKey, matches: shape, role: "prover")
+        guard message.count == shape.nField else {
+            throw SuperNeoError.invalidParameter("Ajtai prover opening length must match shape.nField")
+        }
         return try commit(
             proverKey: proverKey,
             message: message,
@@ -108,6 +113,7 @@ public enum AjtaiSuperNeoCommitment: CommitmentScheme {
         schedule: AjtaiMatvecSchedule = .default,
         executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> AjtaiCommitment {
+        try validateBindingOpening(message, key: proverKey)
         if executionPolicy.usesConstantWorkCPU {
             return try AjtaiCommitter.commitConstantWorkReference(key: proverKey, fieldWitness: message)
         }
@@ -149,6 +155,7 @@ public enum AjtaiSuperNeoCommitment: CommitmentScheme {
         executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> Bool {
         try validateKey(verifierKey, matches: shape, role: "verifier")
+        guard message.count == shape.nField else { return false }
         return try verifyOpening(
             verifierKey: verifierKey,
             message: message,
@@ -168,13 +175,21 @@ public enum AjtaiSuperNeoCommitment: CommitmentScheme {
         executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> Bool {
         guard commitment.elements.count == verifierKey.matrix.rows else { return false }
-        let expected = try self.commit(
-            proverKey: verifierKey,
-            message: message,
-            context: context,
-            schedule: schedule,
-            executionPolicy: executionPolicy
-        )
+        let expected: AjtaiCommitment
+        do {
+            expected = try self.commit(
+                proverKey: verifierKey,
+                message: message,
+                context: context,
+                schedule: schedule,
+                executionPolicy: executionPolicy
+            )
+        } catch let error as SuperNeoError {
+            if case .invalidParameter = error {
+                return false
+            }
+            throw error
+        }
         return expected == commitment
     }
 
@@ -194,6 +209,9 @@ public enum AjtaiSuperNeoCommitment: CommitmentScheme {
         executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> [AjtaiCommitment] {
         try validateKey(proverKey, matches: shape, role: "prover")
+        guard messages.allSatisfy({ $0.count == shape.nField }) else {
+            throw SuperNeoError.invalidParameter("Ajtai prover opening length must match shape.nField")
+        }
         return try batchCommit(
             proverKey: proverKey,
             messages: messages,
@@ -210,6 +228,9 @@ public enum AjtaiSuperNeoCommitment: CommitmentScheme {
         schedule: AjtaiMatvecSchedule = .default,
         executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> [AjtaiCommitment] {
+        for message in messages {
+            try validateBindingOpening(message, key: proverKey)
+        }
         if executionPolicy.usesConstantWorkCPU {
             return try messages.map {
                 try AjtaiCommitter.commitConstantWorkReference(key: proverKey, fieldWitness: $0)
@@ -258,12 +279,24 @@ public enum AjtaiSuperNeoCommitment: CommitmentScheme {
         guard params == .goldilocks else {
             throw SuperNeoError.invalidParameter("unsupported Ajtai commitment parameter profile")
         }
+        _ = try ModuleSISBindingSecurityProfile(
+            parameters: params,
+            matrixColumns: shape.nRing,
+            minimumSecurityBits: minimumModuleSISBindingSecurityBits
+        )
         guard shape.ajtai == .goldilocks else {
             throw SuperNeoError.invalidParameter("CCS shape Ajtai descriptor must match Goldilocks profile")
         }
         guard shape.cyclotomic == .cyclotomicPhi81 else {
             throw SuperNeoError.invalidParameter("CCS shape cyclotomic descriptor must match Phi_81 with degree 54")
         }
+    }
+
+    private static func validateBindingOpening(_ message: [GoldilocksField], key: AjtaiCommitmentKey) throws {
+        let profile = try key.moduleSISBindingSecurityProfile(
+            minimumSecurityBits: minimumModuleSISBindingSecurityBits
+        )
+        try profile.validateLowNormFieldOpening(message)
     }
 
     private static func systemRandomKeySeed(shape: CCSShape, params: SuperNeoParameters) throws -> [UInt8] {

@@ -1,11 +1,171 @@
 import Foundation
 
+public struct ModuleSISBindingSecurityProfile: Equatable, Sendable, SuperNeoByteEncodable {
+    public static let defaultMinimumSecurityBits = 128
+
+    public let profileID: UInt16
+    public let ringDegree: Int
+    public let moduleRank: Int
+    public let matrixColumns: Int
+    public let modulusBitWidth: Int
+    public let normBound: Int
+    public let decompositionLength: Int
+    public let challengeExpansionFactor: Int
+    public let claimedSecurityBits: Int
+    public let decomposedOpeningMagnitudeBound: UInt64
+    public let relaxedBindingInfinityNormBound: UInt64
+
+    public init(
+        parameters: SuperNeoParameters = .goldilocks,
+        matrixColumns: Int,
+        relaxedBindingMultiplier: Int = 4,
+        minimumSecurityBits: Int = Self.defaultMinimumSecurityBits
+    ) throws {
+        guard matrixColumns > 0 else {
+            throw SuperNeoError.invalidParameter("Module-SIS binding profile requires at least one matrix column")
+        }
+        guard parameters.ringDegree == CyclotomicRing54.degree else {
+            throw SuperNeoError.invalidParameter("Module-SIS ring degree must match the compiled cyclotomic ring")
+        }
+        guard parameters.kappa > 0 else {
+            throw SuperNeoError.invalidParameter("Module-SIS module rank must be positive")
+        }
+        guard parameters.normBound >= 2 else {
+            throw SuperNeoError.invalidParameter("Module-SIS norm bound must be at least two")
+        }
+        guard parameters.decompositionLength > 0 else {
+            throw SuperNeoError.invalidParameter("Module-SIS decomposition length must be positive")
+        }
+        guard parameters.challengeExpansionFactor > 0 else {
+            throw SuperNeoError.invalidParameter("Module-SIS challenge expansion factor must be positive")
+        }
+        guard relaxedBindingMultiplier > 0 else {
+            throw SuperNeoError.invalidParameter("Module-SIS relaxed binding multiplier must be positive")
+        }
+        let expectedRoots = try Self.expectedNormRoots(for: parameters.normBound)
+        guard parameters.normRoots == expectedRoots else {
+            throw SuperNeoError.invalidParameter("Module-SIS norm roots do not match the Ajtai low-norm bound")
+        }
+        guard parameters.claimedSecurityBits >= minimumSecurityBits else {
+            throw SuperNeoError.invalidParameter("Module-SIS claimed security below required minimum")
+        }
+
+        let decomposedBound = try Self.checkedPower(
+            base: UInt64(parameters.normBound),
+            exponent: parameters.decompositionLength,
+            label: "Module-SIS decomposition magnitude bound"
+        )
+        let relaxedBound = try Self.checkedProduct(
+            [
+                UInt64(relaxedBindingMultiplier),
+                UInt64(parameters.challengeExpansionFactor),
+                decomposedBound
+            ],
+            label: "Module-SIS relaxed binding infinity-norm bound"
+        )
+
+        self.profileID = parameters.profileID
+        self.ringDegree = parameters.ringDegree
+        self.moduleRank = parameters.kappa
+        self.matrixColumns = matrixColumns
+        self.modulusBitWidth = UInt64.bitWidth - GoldilocksField.modulus.leadingZeroBitCount
+        self.normBound = parameters.normBound
+        self.decompositionLength = parameters.decompositionLength
+        self.challengeExpansionFactor = parameters.challengeExpansionFactor
+        self.claimedSecurityBits = parameters.claimedSecurityBits
+        self.decomposedOpeningMagnitudeBound = decomposedBound
+        self.relaxedBindingInfinityNormBound = relaxedBound
+    }
+
+    public var superNeoBytes: [UInt8] {
+        ajtaiDigestEncodeUInt16(profileID)
+            + ajtaiDigestEncodeUInt64(UInt64(ringDegree))
+            + ajtaiDigestEncodeUInt64(UInt64(moduleRank))
+            + ajtaiDigestEncodeUInt64(UInt64(matrixColumns))
+            + ajtaiDigestEncodeUInt64(UInt64(modulusBitWidth))
+            + ajtaiDigestEncodeUInt64(UInt64(normBound))
+            + ajtaiDigestEncodeUInt64(UInt64(decompositionLength))
+            + ajtaiDigestEncodeUInt64(UInt64(challengeExpansionFactor))
+            + ajtaiDigestEncodeUInt64(UInt64(claimedSecurityBits))
+            + ajtaiDigestEncodeUInt64(decomposedOpeningMagnitudeBound)
+            + ajtaiDigestEncodeUInt64(relaxedBindingInfinityNormBound)
+    }
+
+    public var profileDigest: Digest256 {
+        Digest256.hash(
+            Array("SuperNeo-NuMetal.module-sis-binding-profile.v1".utf8)
+                + superNeoBytes
+        )
+    }
+
+    public func containsLowNormCoefficient(_ value: GoldilocksField) -> Bool {
+        moduleSISSignedMagnitude(value) < UInt64(normBound)
+    }
+
+    public func containsLowNormFieldOpening(_ opening: [GoldilocksField]) -> Bool {
+        opening.allSatisfy(containsLowNormCoefficient)
+    }
+
+    public func validateLowNormFieldOpening(_ opening: [GoldilocksField]) throws {
+        guard containsLowNormFieldOpening(opening) else {
+            throw SuperNeoError.invalidParameter("Ajtai opening coefficient exceeds Module-SIS low-norm bound")
+        }
+    }
+
+    public func containsDecomposableCoefficient(_ value: GoldilocksField) -> Bool {
+        moduleSISSignedMagnitude(value) < decomposedOpeningMagnitudeBound
+    }
+
+    public func validateDecomposableFieldOpening(_ opening: [GoldilocksField]) throws {
+        guard opening.allSatisfy(containsDecomposableCoefficient) else {
+            throw SuperNeoError.invalidParameter("Ajtai opening coefficient exceeds decomposition magnitude bound")
+        }
+    }
+
+    public func isValidDecompositionLimbCount(_ count: Int) -> Bool {
+        count > 0 && count <= decompositionLength
+    }
+
+    private static func expectedNormRoots(for normBound: Int) throws -> [GoldilocksField] {
+        guard normBound >= 2 else {
+            throw SuperNeoError.invalidParameter("Module-SIS norm bound must be at least two")
+        }
+        let radius = normBound - 1
+        return (-radius...radius).map(moduleSISCenteredFieldElement)
+    }
+
+    private static func checkedPower(base: UInt64, exponent: Int, label: String) throws -> UInt64 {
+        var result: UInt64 = 1
+        for _ in 0..<exponent {
+            let product = result.multipliedReportingOverflow(by: base)
+            guard !product.overflow else {
+                throw SuperNeoError.invalidParameter("\(label) overflows UInt64")
+            }
+            result = product.partialValue
+        }
+        return result
+    }
+
+    private static func checkedProduct(_ values: [UInt64], label: String) throws -> UInt64 {
+        var result: UInt64 = 1
+        for value in values {
+            let product = result.multipliedReportingOverflow(by: value)
+            guard !product.overflow else {
+                throw SuperNeoError.invalidParameter("\(label) overflows UInt64")
+            }
+            result = product.partialValue
+        }
+        return result
+    }
+}
+
 public struct AjtaiCommitmentKey: Equatable, Sendable {
     public let parameters: SuperNeoParameters
     public let matrix: RingMatrix
 
     public init(parameters: SuperNeoParameters = .goldilocks, columns: Int, seed: [UInt8]) throws {
         guard columns > 0 else { throw SuperNeoError.invalidParameter("Ajtai key requires at least one column") }
+        _ = try ModuleSISBindingSecurityProfile(parameters: parameters, matrixColumns: columns)
         let elementCount = try checkedAjtaiKeyElementCount(parameters: parameters, columns: columns)
         var rng = DeterministicRNG(seed: seed)
         var elements: [CyclotomicRing54] = []
@@ -25,8 +185,23 @@ public struct AjtaiCommitmentKey: Equatable, Sendable {
         guard matrix.columns > 0 else {
             throw SuperNeoError.invalidParameter("Ajtai matrix requires at least one column")
         }
+        _ = try ModuleSISBindingSecurityProfile(parameters: parameters, matrixColumns: matrix.columns)
         self.parameters = parameters
         self.matrix = matrix
+    }
+
+    public func moduleSISBindingSecurityProfile(
+        minimumSecurityBits: Int = ModuleSISBindingSecurityProfile.defaultMinimumSecurityBits
+    ) throws -> ModuleSISBindingSecurityProfile {
+        try ModuleSISBindingSecurityProfile(
+            parameters: parameters,
+            matrixColumns: matrix.columns,
+            minimumSecurityBits: minimumSecurityBits
+        )
+    }
+
+    public func validateLowNormOpening(_ opening: [GoldilocksField]) throws {
+        try moduleSISBindingSecurityProfile().validateLowNormFieldOpening(opening)
     }
 
     public var verifierKeyDigest: Digest256 {
@@ -49,6 +224,16 @@ private func checkedAjtaiKeyElementCount(parameters: SuperNeoParameters, columns
         throw SuperNeoError.invalidParameter("Ajtai key dimensions overflow")
     }
     return product.partialValue
+}
+
+private func moduleSISCenteredFieldElement(_ value: Int) -> GoldilocksField {
+    value >= 0 ? GoldilocksField(UInt64(value)) : -GoldilocksField(UInt64(-value))
+}
+
+private func moduleSISSignedMagnitude(_ value: GoldilocksField) -> UInt64 {
+    value.rawValue <= GoldilocksField.modulus / 2
+        ? value.rawValue
+        : GoldilocksField.modulus - value.rawValue
 }
 
 private func ajtaiDigestEncodeUInt16(_ value: UInt16) -> [UInt8] {

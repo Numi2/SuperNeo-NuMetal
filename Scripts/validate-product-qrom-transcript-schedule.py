@@ -327,9 +327,9 @@ def validate_formal_surface(schedule: dict[str, Any]) -> None:
 def validate_selected_depth(schedule: dict[str, Any]) -> None:
     depth = require_dict(schedule.get("selectedDepth"), "selectedDepth")
     require(depth.get("depthModel") == "bounded-depth", "selectedDepth.depthModel must be bounded-depth")
-    require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
-    require(depth.get("acceptedProductLayers") == 1, "selectedDepth.acceptedProductLayers must be 1")
-    require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
+    require(depth.get("selectedMaximumDepth") == 3, "selectedDepth.selectedMaximumDepth must be 3")
+    require(depth.get("acceptedProductLayers") == 3, "selectedDepth.acceptedProductLayers must be 3")
+    require(depth.get("selectedRecursiveCarryHops") == 2, "selectedDepth.selectedRecursiveCarryHops must be 2")
     require_true(depth.get("schedulePromotionAllowed"), "selectedDepth.schedulePromotionAllowed")
 
 
@@ -493,7 +493,7 @@ def validate_ledger_binding(schedule: dict[str, Any]) -> None:
         "Q_H_numiseal_zk_product",
     ]:
         require(symbol in expression, f"selectedDepthQueryExpression must include {symbol}")
-    require(binding.get("selectedDepthProtocolChallengeDerivations") == sum(EXPECTED_CHALLENGE_DERIVATIONS.values()), "ledgerBinding.selectedDepthProtocolChallengeDerivations mismatch")
+    require(binding.get("selectedDepthProtocolChallengeDerivations") == 3 * sum(EXPECTED_CHALLENGE_DERIVATIONS.values()), "ledgerBinding.selectedDepthProtocolChallengeDerivations mismatch")
     require(binding.get("selectedQHBound") == "2^64", "ledgerBinding.selectedQHBound must be 2^64")
     require(binding.get("selectedQHLog2") == 64, "ledgerBinding.selectedQHLog2 must be 64")
     require_true(binding.get("numericQueryBoundInstantiated"), "ledgerBinding.numericQueryBoundInstantiated")

@@ -260,7 +260,7 @@ def validate_selected_budget(manifest: dict[str, Any]) -> None:
     budget = require_dict(manifest.get("selectedBudget"), "selectedBudget")
     require(budget.get("maximumAllowedTotalLoss") == "2^-128", "selected budget threshold mismatch")
     require(budget.get("sharedCoreAlreadyCharged") == "1/2^129", "shared core exact bound mismatch")
-    require(budget.get("hbindCollisionAlreadyCharged") == "9/2^254", "H_bind collision exact bound mismatch")
+    require(budget.get("hbindCollisionAlreadyCharged") == "11/2^254", "H_bind collision exact bound mismatch")
     q = GOLDILOCKS_MODULUS
     source_fold = Fraction(16, q**4) + Fraction(1, 5 ** (CRT_FIBER_DEGREE * PIRLC_REPEATED_BRANCH_COUNT))
     terminal_ce = Fraction(2**TERMINAL_CE_ROUNDS, 3**TERMINAL_CE_ROUNDS)

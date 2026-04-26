@@ -258,7 +258,8 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
             statement: CCSStatement(
                 shapeDigest: publicInput.shape.shapeDigest,
                 ccsInstances: publicInput.instances,
-                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) },
+                recursiveRelationDigest: publicInput.recursiveRelationDigest
             ),
             verifierKeyDigest: verifierKeyDigest,
             profileID: profileID,

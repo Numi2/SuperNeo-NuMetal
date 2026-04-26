@@ -450,7 +450,7 @@
       "compressed-terminal": 423,
       "numiseal-terminal": 4376925,
       "numiseal-zk-product": 4377150,
-      "selectedDepthProtocolChallengeDerivations": 8755125,
+      "selectedDepthProtocolChallengeDerivations": 26265375,
       "scheduleManifest": "TestVectors/product-qrom-transcript-schedule-v1.json"
     },
     "ctcoChallengeCountByKind": {

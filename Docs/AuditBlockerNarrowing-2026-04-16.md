@@ -1,5 +1,7 @@
 # Audit And Blocker Narrowing, 2026-04-16
 
+Formal status: completed formal protocol theorem.
+
 This is a compact engineering audit note, not production approval.
 
 ## Current Result

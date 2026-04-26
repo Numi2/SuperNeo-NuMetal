@@ -149,10 +149,10 @@
     "queryBoundQH": "2^64",
     "queryBoundLog2": 64,
     "bindingDigestBits": 384,
-    "bindingTargetEventCount": 9,
+    "bindingTargetEventCount": 11,
     "formula": "4 * bindingTargetEventCount * Q_H^2 / 2^bindingDigestBits",
-    "instantiatedExpression": "4 * 9 * 2^128 / 2^384 = 36 * 2^-256",
-    "boundLog2": 250.83007499855768,
+    "instantiatedExpression": "4 * 11 * 2^128 / 2^384 = 44 * 2^-256",
+    "boundLog2": 250.5405683813627,
     "withinSelectedCollisionBudget": true
   },
   "closureStatus": {

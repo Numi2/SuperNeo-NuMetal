@@ -205,6 +205,203 @@ public struct FoldProverOutput: Equatable, Sendable {
     }
 }
 
+public enum SuperNeoReductionBoundaryComponent: String, Equatable, Sendable {
+    case piCCS = "PiCCS"
+    case piRLC = "PiRLC"
+    case piDEC = "PiDEC"
+}
+
+public enum SuperNeoReductionBoundaryStrength: String, Equatable, Sendable {
+    case strong = "strong"
+    case weak = "weak"
+    case reductionOfKnowledge = "reduction-of-knowledge"
+}
+
+public struct SuperNeoReductionBoundaryCheck: Equatable, Sendable {
+    public let component: SuperNeoReductionBoundaryComponent
+    public let strength: SuperNeoReductionBoundaryStrength
+    public let index: Int
+    public let inputClaimCount: Int
+    public let outputClaimCount: Int
+    public let inputCommitmentProjectionDigest: Digest256
+    public let outputCommitmentProjectionDigest: Digest256
+    public let isAccepted: Bool
+    public let reason: String?
+
+    public init(
+        component: SuperNeoReductionBoundaryComponent,
+        strength: SuperNeoReductionBoundaryStrength,
+        index: Int,
+        inputClaimCount: Int,
+        outputClaimCount: Int,
+        inputCommitmentProjectionDigest: Digest256,
+        outputCommitmentProjectionDigest: Digest256,
+        isAccepted: Bool,
+        reason: String? = nil
+    ) {
+        self.component = component
+        self.strength = strength
+        self.index = index
+        self.inputClaimCount = inputClaimCount
+        self.outputClaimCount = outputClaimCount
+        self.inputCommitmentProjectionDigest = inputCommitmentProjectionDigest
+        self.outputCommitmentProjectionDigest = outputCommitmentProjectionDigest
+        self.isAccepted = isAccepted
+        self.reason = reason
+    }
+}
+
+public struct SuperNeoFoldReductionBoundaryReport: Equatable, Sendable {
+    public let preconditionFailureReason: String?
+    public let piCCSChecks: [SuperNeoReductionBoundaryCheck]
+    public let piRLCChecks: [SuperNeoReductionBoundaryCheck]
+    public let piDECChecks: [SuperNeoReductionBoundaryCheck]
+
+    public init(
+        preconditionFailureReason: String? = nil,
+        piCCSChecks: [SuperNeoReductionBoundaryCheck],
+        piRLCChecks: [SuperNeoReductionBoundaryCheck],
+        piDECChecks: [SuperNeoReductionBoundaryCheck]
+    ) {
+        self.preconditionFailureReason = preconditionFailureReason
+        self.piCCSChecks = piCCSChecks
+        self.piRLCChecks = piRLCChecks
+        self.piDECChecks = piDECChecks
+    }
+
+    public var allChecks: [SuperNeoReductionBoundaryCheck] {
+        var ordered = piCCSChecks
+        ordered.reserveCapacity(piCCSChecks.count + piRLCChecks.count + piDECChecks.count)
+        let branchCount = max(piRLCChecks.count, piDECChecks.count)
+        for index in 0..<branchCount {
+            if index < piRLCChecks.count {
+                ordered.append(piRLCChecks[index])
+            }
+            if index < piDECChecks.count {
+                ordered.append(piDECChecks[index])
+            }
+        }
+        return ordered
+    }
+
+    public var firstRejectedCheck: SuperNeoReductionBoundaryCheck? {
+        allChecks.first { !$0.isAccepted }
+    }
+
+    public var firstFailureReason: String? {
+        preconditionFailureReason ?? firstRejectedCheck?.reason
+    }
+
+    public var isAccepted: Bool {
+        preconditionFailureReason == nil && firstRejectedCheck == nil
+    }
+}
+
+public struct SuperNeoVerifierPublicCoin: Equatable, Sendable, SuperNeoByteEncodable {
+    public static let domain = Digest256.hash("SuperNeo-NuMetal.verifier-public-coin.v1")
+
+    public let sessionID: String
+    public let verifierPublicCoin: [UInt8]
+    public let transcriptContextDigest: Digest256
+    public let coinDigest: Digest256
+
+    public init(
+        sessionID: String,
+        verifierPublicCoin: [UInt8],
+        transcriptContext: [UInt8]
+    ) throws {
+        guard !sessionID.isEmpty else {
+            throw SuperNeoError.invalidParameter("verifier public coin session ID must be nonempty")
+        }
+        guard verifierPublicCoin.count >= 32 else {
+            throw SuperNeoError.invalidParameter("verifier public coin must contain at least 256 bits")
+        }
+        self.sessionID = sessionID
+        self.verifierPublicCoin = verifierPublicCoin
+        self.transcriptContextDigest = Digest256.hash(transcriptContext)
+        self.coinDigest = Digest256.hash(
+            Self.domain.superNeoBytes
+                + transcriptEncodeCount(sessionID.utf8.count)
+                + Array(sessionID.utf8)
+                + transcriptEncodeCount(verifierPublicCoin.count)
+                + verifierPublicCoin
+                + Digest256.hash(transcriptContext).superNeoBytes
+        )
+    }
+
+    public init(
+        sessionID: String,
+        verifierPublicCoin: [UInt8],
+        input: SuperNeoFoldInput
+    ) throws {
+        try self.init(
+            sessionID: sessionID,
+            verifierPublicCoin: verifierPublicCoin,
+            input: SuperNeoPublicFoldInput(input)
+        )
+    }
+
+    public init(
+        sessionID: String,
+        verifierPublicCoin: [UInt8],
+        input: SuperNeoPublicFoldInput
+    ) throws {
+        try self.init(
+            sessionID: sessionID,
+            verifierPublicCoin: verifierPublicCoin,
+            transcriptContext: Self.transcriptContext(for: input)
+        )
+    }
+
+    public static func transcriptContext(for input: SuperNeoPublicFoldInput) -> [UInt8] {
+        let recursiveRelationFrame = input.recursiveRelationDigest
+            .map { Array("recursive-relation".utf8) + $0.superNeoBytes } ?? []
+        return input.shape.shapeDigest.superNeoBytes
+            + transcriptEncodeCount(input.instances.count)
+            + input.instances.flatMap(\.superNeoBytes)
+            + transcriptEncodeCount(input.priorClaims.count)
+            + input.priorClaims.flatMap(\.superNeoBytes)
+            + recursiveRelationFrame
+    }
+
+    public func matches(_ input: SuperNeoFoldInput) -> Bool {
+        matches(SuperNeoPublicFoldInput(input))
+    }
+
+    public func matches(_ input: SuperNeoPublicFoldInput) -> Bool {
+        transcriptContextDigest == Digest256.hash(Self.transcriptContext(for: input))
+    }
+
+    public func requireMatches(_ input: SuperNeoFoldInput) throws {
+        try requireMatches(SuperNeoPublicFoldInput(input))
+    }
+
+    public func requireMatches(_ input: SuperNeoPublicFoldInput) throws {
+        guard matches(input) else {
+            throw SuperNeoError.invalidParameter("verifier public coin transcript context does not match fold input")
+        }
+    }
+
+    public var superNeoBytes: [UInt8] {
+        Self.domain.superNeoBytes
+            + transcriptEncodeCount(sessionID.utf8.count)
+            + Array(sessionID.utf8)
+            + transcriptEncodeCount(verifierPublicCoin.count)
+            + verifierPublicCoin
+            + transcriptContextDigest.superNeoBytes
+            + coinDigest.superNeoBytes
+    }
+
+    public func transcriptSeed(label: String) -> [UInt8] {
+        Digest256.hash(
+            Array("SuperNeo-NuMetal.verifier-public-coin.transcript-seed.v1".utf8)
+                + superNeoBytes
+                + transcriptEncodeCount(label.utf8.count)
+                + Array(label.utf8)
+        ).bytes
+    }
+}
+
 @_spi(Benchmarking) public struct SuperNeoPreparedFoldContext: Sendable {
     public let profileID: UInt16
     public let shapeDigest: Digest256
@@ -291,6 +488,7 @@ public struct FoldReductionResult: Equatable, Sendable {
     public let isReductionAccepted: Bool
     public let reason: String?
     public let outputClaims: [CCSEvaluationClaim]
+    public let boundaryReport: SuperNeoFoldReductionBoundaryReport?
     /// Successful reductions always require a terminal CE relation check before
     /// an application can accept the original statement.
     public let requiresTerminalRelationCheck: Bool
@@ -300,20 +498,28 @@ public struct FoldReductionResult: Equatable, Sendable {
         isReductionAccepted && !requiresTerminalRelationCheck
     }
 
-    public static func reduced(outputClaims: [CCSEvaluationClaim]) -> FoldReductionResult {
+    public static func reduced(
+        outputClaims: [CCSEvaluationClaim],
+        boundaryReport: SuperNeoFoldReductionBoundaryReport? = nil
+    ) -> FoldReductionResult {
         FoldReductionResult(
             isReductionAccepted: true,
             reason: nil,
             outputClaims: outputClaims.map(\.publicDataOnly),
+            boundaryReport: boundaryReport,
             requiresTerminalRelationCheck: true
         )
     }
 
-    public static func invalid(_ reason: String) -> FoldReductionResult {
+    public static func invalid(
+        _ reason: String,
+        boundaryReport: SuperNeoFoldReductionBoundaryReport? = nil
+    ) -> FoldReductionResult {
         FoldReductionResult(
             isReductionAccepted: false,
             reason: reason,
             outputClaims: [],
+            boundaryReport: boundaryReport,
             requiresTerminalRelationCheck: false
         )
     }
@@ -860,23 +1066,27 @@ public struct SuperNeoPublicFoldInput: Sendable {
     public let structure: CCSStructure
     public let instances: [CCSInstance]
     public let priorClaims: [CCSEvaluationClaim]
+    public let recursiveRelationDigest: Digest256?
 
     public init(
         shape: CCSShape,
         instances: [CCSInstance],
-        priorClaims: [CCSEvaluationClaim] = []
+        priorClaims: [CCSEvaluationClaim] = [],
+        recursiveRelationDigest: Digest256? = nil
     ) {
         self.shape = shape
         self.structure = shape.structure
         self.instances = instances
         self.priorClaims = priorClaims.map(\.publicDataOnly)
+        self.recursiveRelationDigest = recursiveRelationDigest
     }
 
     public init(_ input: SuperNeoFoldInput) {
         self.init(
             shape: input.shape,
             instances: input.instances,
-            priorClaims: input.priorClaims
+            priorClaims: input.priorClaims,
+            recursiveRelationDigest: input.recursiveRelationDigest
         )
     }
 }
@@ -887,25 +1097,29 @@ public struct SuperNeoFoldInput: Sendable {
     public let instances: [CCSInstance]
     public let witnesses: [CCSWitness]
     public let priorClaims: [CCSEvaluationClaim]
+    public let recursiveRelationDigest: Digest256?
 
     public init(
         shape: CCSShape,
         instances: [CCSInstance],
         witnesses: [CCSWitness],
-        priorClaims: [CCSEvaluationClaim] = []
+        priorClaims: [CCSEvaluationClaim] = [],
+        recursiveRelationDigest: Digest256? = nil
     ) {
         self.shape = shape
         self.structure = shape.structure
         self.instances = instances
         self.witnesses = witnesses
         self.priorClaims = priorClaims
+        self.recursiveRelationDigest = recursiveRelationDigest
     }
 
     public init(
         structure: CCSStructure,
         instances: [CCSInstance],
         witnesses: [CCSWitness],
-        priorClaims: [CCSEvaluationClaim] = []
+        priorClaims: [CCSEvaluationClaim] = [],
+        recursiveRelationDigest: Digest256? = nil
     ) throws {
         guard let relationPolynomial = structure.relationPolynomial else {
             throw SuperNeoError.invalidParameter("fold input requires a serializable CCS relation polynomial")
@@ -926,6 +1140,7 @@ public struct SuperNeoFoldInput: Sendable {
         self.instances = instances
         self.witnesses = witnesses
         self.priorClaims = priorClaims
+        self.recursiveRelationDigest = recursiveRelationDigest
     }
 }
 
@@ -943,7 +1158,7 @@ public struct CCSQOracle: SumcheckOracle {
     private let freshRelationMatrixRows: [[[GoldilocksField]]]
     private let allWitnessRows: [[GoldilocksField]]
     private let priorTransformedRows: [[[CyclotomicRing54]]]
-    private let priorEvalPoint: [GoldilocksExt2]?
+    private let priorEvalPoints: [[GoldilocksExt2]]
     private let normEvaluator: NormEvaluationPlan
     private let gammaPowers: [GoldilocksExt2]
     private let samplePoints: [GoldilocksExt2]
@@ -994,13 +1209,6 @@ public struct CCSQOracle: SumcheckOracle {
             }
             return witness
         }
-        if let firstPriorPoint = priorClaims.first?.point {
-            for claim in priorClaims {
-                guard claim.point == firstPriorPoint else {
-                    throw SuperNeoError.invalidParameter("Q oracle prior CE claims must use the same evaluation point")
-                }
-            }
-        }
         let maxDegreePerRound = try piCCSMaxDegreePerRound(shape: shape, parameters: parameters)
         let relationSourceEvaluator = try RelationSourceEvaluationPlan(
             polynomial: shape.relationPolynomial,
@@ -1049,7 +1257,7 @@ public struct CCSQOracle: SumcheckOracle {
         self.freshRelationMatrixRows = freshRelationMatrixRows
         self.allWitnessRows = allWitnessRows
         self.priorTransformedRows = priorTransformedRows
-        self.priorEvalPoint = priorClaims.first?.point
+        self.priorEvalPoints = priorClaims.map(\.point)
         self.normEvaluator = NormEvaluationPlan(roots: parameters.normRoots)
         self.gammaPowers = try makeGammaPowers(gamma, through: maxQExponent)
         let samplePoints = (0...maxDegreePerRound).map { GoldilocksExt2(GoldilocksField(UInt64($0))) }
@@ -1108,18 +1316,15 @@ public struct CCSQOracle: SumcheckOracle {
             target: alpha,
             fixedCount: fixedPrefix.count
         )
-        let priorSuffixEq: [GoldilocksExt2]?
-        if let priorEvalPoint {
-            priorSuffixEq = try suffixEqWeights(
+        let priorSuffixEqs = try priorEvalPoints.map { priorEvalPoint in
+            try suffixEqWeights(
                 fixedEq: try fixedPrefixEq(fixedPrefix, target: priorEvalPoint),
                 target: priorEvalPoint,
                 fixedCount: fixedPrefix.count
             )
-        } else {
-            priorSuffixEq = nil
         }
-        let priorSuffixCount = priorSuffixEq?.count ?? suffixCount
-        guard alphaSuffixEq.count == suffixCount, priorSuffixCount == suffixCount else {
+        guard alphaSuffixEq.count == suffixCount,
+              priorSuffixEqs.allSatisfy({ $0.count == suffixCount }) else {
             throw SuperNeoError.invalidParameter("sum-check suffix equality table length mismatch")
         }
         var total = GoldilocksExt2.zero
@@ -1130,7 +1335,7 @@ public struct CCSQOracle: SumcheckOracle {
                 prefixWidth: prefixWidth,
                 prefixWeights: prefixWeights,
                 alphaEq: alphaSuffixEq[suffixBits],
-                priorEq: priorSuffixEq?[suffixBits]
+                priorEqs: priorSuffixEqs.map { $0[suffixBits] }
             ))
         }
         return total
@@ -1142,11 +1347,11 @@ public struct CCSQOracle: SumcheckOracle {
         prefixWidth: Int,
         prefixWeights: [GoldilocksExt2],
         alphaEq: GoldilocksExt2,
-        priorEq: GoldilocksExt2?
+        priorEqs: [GoldilocksExt2]
     ) throws -> GoldilocksExt2 {
         let f = try evaluateF(suffixBits: suffixBits, fixedCount: fixedCount, prefixWidth: prefixWidth, prefixWeights: prefixWeights)
         let norm = evaluateNorm(suffixBits: suffixBits, fixedCount: fixedCount, prefixWidth: prefixWidth, prefixWeights: prefixWeights)
-        let eval = try evaluatePriorClaims(priorEq: priorEq, suffixBits: suffixBits, fixedCount: fixedCount, prefixWidth: prefixWidth, prefixWeights: prefixWeights)
+        let eval = try evaluatePriorClaims(priorEqs: priorEqs, suffixBits: suffixBits, fixedCount: fixedCount, prefixWidth: prefixWidth, prefixWeights: prefixWeights)
         return alphaEq * (f + power(freshCount) * norm)
             + power((2 * freshCount) + priorCount) * eval
     }
@@ -1200,16 +1405,19 @@ public struct CCSQOracle: SumcheckOracle {
     }
 
     private func evaluatePriorClaims(
-        priorEq: GoldilocksExt2?,
+        priorEqs: [GoldilocksExt2],
         suffixBits: Int,
         fixedCount: Int,
         prefixWidth: Int,
         prefixWeights: [GoldilocksExt2]
     ) throws -> GoldilocksExt2 {
-        guard let priorEq else { return .zero }
+        guard priorEqs.count == priorCount else {
+            throw SuperNeoError.invalidParameter("prior equality challenge count mismatch")
+        }
         var total = GoldilocksExt2.zero
         var coefficientEvaluations = Array(repeating: GoldilocksExt2.zero, count: CyclotomicRing54.degree)
         for priorIndex in 0..<priorCount {
+            var priorTotal = GoldilocksExt2.zero
             for matrixIndex in 0..<shape.numMatrices {
                 weightedRingCoefficientEvaluations(
                     rows: priorTransformedRows[priorIndex][matrixIndex],
@@ -1221,11 +1429,12 @@ public struct CCSQOracle: SumcheckOracle {
                 )
                 for coeffIndex in 0..<CyclotomicRing54.degree {
                     let exponent = priorExponent(priorIndex: priorIndex, matrixIndex: matrixIndex, coefficientIndex: coeffIndex)
-                    total = total + power(exponent) * coefficientEvaluations[coeffIndex]
+                    priorTotal = priorTotal + power(exponent) * coefficientEvaluations[coeffIndex]
                 }
             }
+            total = total + priorEqs[priorIndex] * priorTotal
         }
-        return priorEq * total
+        return total
     }
 
     private func fixedPrefixEq(
@@ -1323,7 +1532,7 @@ private struct PublicQVerifierState {
     private let shape: CCSShape
     private let freshCount: Int
     private let priorCount: Int
-    private let priorEvalPoint: [GoldilocksExt2]?
+    private let priorEvalPoints: [[GoldilocksExt2]]
     private let relationEvaluator: RelationEvaluationPlan
     private let normEvaluator: NormEvaluationPlan
     private let gammaPowers: [GoldilocksExt2]
@@ -1344,11 +1553,12 @@ private struct PublicQVerifierState {
         guard parameters.normBound >= 2 else {
             throw SuperNeoError.invalidParameter("norm bound must be at least two")
         }
-        if let firstPriorPoint = priorClaims.first?.point {
-            for claim in priorClaims {
-                guard claim.point == firstPriorPoint else {
-                    throw SuperNeoError.invalidParameter("prior CE claims must use the same evaluation point")
-                }
+        for claim in priorClaims {
+            guard claim.point.count == numVars else {
+                throw SuperNeoError.invalidParameter("prior CE claim evaluation point length mismatch")
+            }
+            guard claim.evaluations.count == shape.numMatrices else {
+                throw SuperNeoError.invalidParameter("prior CE claim evaluation arity mismatch")
             }
         }
 
@@ -1359,7 +1569,7 @@ private struct PublicQVerifierState {
         self.shape = shape
         self.freshCount = freshCount
         self.priorCount = priorCount
-        self.priorEvalPoint = priorClaims.first?.point
+        self.priorEvalPoints = priorClaims.map(\.point)
         self.relationEvaluator = try RelationEvaluationPlan(
             polynomial: shape.relationPolynomial,
             variableCount: shape.numMatrices
@@ -1379,6 +1589,9 @@ private struct PublicQVerifierState {
         var total = GoldilocksExt2.zero
         for priorIndex in priorClaims.indices {
             let claim = priorClaims[priorIndex]
+            guard claim.point == priorEvalPoints[priorIndex] else {
+                throw SuperNeoError.invalidParameter("prior CE claim point changed after public Q challenge derivation")
+            }
             guard claim.evaluations.count == shape.numMatrices else {
                 throw SuperNeoError.invalidParameter("prior CE claim evaluation arity mismatch")
             }
@@ -1452,6 +1665,9 @@ private struct PublicQVerifierState {
         }
         for priorIndex in 0..<priorCount {
             let proofIndex = freshCount + priorIndex
+            guard priorClaims[priorIndex].point == priorEvalPoints[priorIndex] else {
+                throw SuperNeoError.invalidParameter("prior CE claim point changed after public Q challenge derivation")
+            }
             guard proofClaims[proofIndex].commitment == priorClaims[priorIndex].commitment,
                   proofClaims[proofIndex].publicInput == priorClaims[priorIndex].publicInput else {
                 throw SuperNeoError.invalidParameter("prior PiCCS final claim does not match prior CE claim at index \(priorIndex)")
@@ -1489,11 +1705,12 @@ private struct PublicQVerifierState {
         proofClaims: [CCSEvaluationClaim],
         point: [GoldilocksExt2]
     ) throws -> GoldilocksExt2 {
-        guard let priorEvalPoint else { return .zero }
-        let eq = try MultilinearEvaluation.eq(point, priorEvalPoint)
+        guard !priorEvalPoints.isEmpty else { return .zero }
         var total = GoldilocksExt2.zero
         for priorIndex in 0..<priorCount {
+            let eq = try MultilinearEvaluation.eq(point, priorEvalPoints[priorIndex])
             let claim = proofClaims[freshCount + priorIndex]
+            var priorTotal = GoldilocksExt2.zero
             for matrixIndex in 0..<shape.numMatrices {
                 for coeffIndex in 0..<CyclotomicRing54.degree {
                     let exponent = priorExponent(
@@ -1501,11 +1718,12 @@ private struct PublicQVerifierState {
                         matrixIndex: matrixIndex,
                         coefficientIndex: coeffIndex
                     )
-                    total = total + power(exponent) * claim.evaluations[matrixIndex].coefficients[coeffIndex]
+                    priorTotal = priorTotal + power(exponent) * claim.evaluations[matrixIndex].coefficients[coeffIndex]
                 }
             }
+            total = total + eq * priorTotal
         }
-        return eq * total
+        return total
     }
 
     private func priorExponent(priorIndex: Int, matrixIndex: Int, coefficientIndex: Int) -> Int {
@@ -1544,6 +1762,10 @@ public final class SuperNeoProver: @unchecked Sendable {
 
     public func fold(_ input: SuperNeoFoldInput, qroChallenge: SuperNeoQROChallenge) throws -> FoldProof {
         try foldWithOutput(input, qroChallenge: qroChallenge).proof
+    }
+
+    public func fold(_ input: SuperNeoFoldInput, verifierCoins: SuperNeoVerifierPublicCoin) throws -> FoldProof {
+        try foldWithOutput(input, verifierCoins: verifierCoins).proof
     }
 
     @_spi(Benchmarking) public func prepareFoldContext(
@@ -1622,6 +1844,17 @@ public final class SuperNeoProver: @unchecked Sendable {
         try foldWithOutput(
             input,
             transcriptSeed: qroChallenge.transcriptSeed(label: "fold")
+        )
+    }
+
+    public func foldWithOutput(
+        _ input: SuperNeoFoldInput,
+        verifierCoins: SuperNeoVerifierPublicCoin
+    ) throws -> FoldProverOutput {
+        try verifierCoins.requireMatches(input)
+        return try foldWithOutput(
+            input,
+            transcriptSeed: verifierCoins.transcriptSeed(label: "fold")
         )
     }
 
@@ -2254,6 +2487,20 @@ public final class SuperNeoVerifier: @unchecked Sendable {
     }
 
     public func verifyFold(
+        input: SuperNeoFoldInput,
+        proof: FoldProof,
+        outputClaims: [CCSEvaluationClaim],
+        verifierCoins: SuperNeoVerifierPublicCoin
+    ) -> VerificationResult {
+        verifyFold(
+            publicInput: SuperNeoPublicFoldInput(input),
+            proof: proof,
+            outputClaims: outputClaims,
+            verifierCoins: verifierCoins
+        )
+    }
+
+    public func verifyFold(
         publicInput: SuperNeoPublicFoldInput,
         proof: FoldProof,
         outputClaims: [CCSEvaluationClaim],
@@ -2307,8 +2554,163 @@ public final class SuperNeoVerifier: @unchecked Sendable {
         )
     }
 
+    public func verifyFold(
+        publicInput: SuperNeoPublicFoldInput,
+        proof: FoldProof,
+        outputClaims: [CCSEvaluationClaim],
+        verifierCoins: SuperNeoVerifierPublicCoin
+    ) -> VerificationResult {
+        guard verifierCoins.matches(publicInput) else {
+            return .invalid("verifier public coin transcript context does not match fold input")
+        }
+        return verifyFold(
+            publicInput: publicInput,
+            proof: proof,
+            outputClaims: outputClaims,
+            transcriptSeed: verifierCoins.transcriptSeed(label: "fold")
+        )
+    }
+
     public func reduceFold(input: SuperNeoFoldInput, proof: FoldProof, transcriptSeed: [UInt8] = []) -> FoldReductionResult {
         reduceFold(publicInput: SuperNeoPublicFoldInput(input), proof: proof, transcriptSeed: transcriptSeed)
+    }
+
+    public func reduceFold(
+        input: SuperNeoFoldInput,
+        proof: FoldProof,
+        verifierCoins: SuperNeoVerifierPublicCoin
+    ) -> FoldReductionResult {
+        reduceFold(
+            publicInput: SuperNeoPublicFoldInput(input),
+            proof: proof,
+            verifierCoins: verifierCoins
+        )
+    }
+
+    public func reductionBoundaryReport(
+        input: SuperNeoFoldInput,
+        proof: FoldProof,
+        transcriptSeed: [UInt8] = []
+    ) -> SuperNeoFoldReductionBoundaryReport {
+        reductionBoundaryReport(
+            publicInput: SuperNeoPublicFoldInput(input),
+            proof: proof,
+            transcriptSeed: transcriptSeed
+        )
+    }
+
+    public func reductionBoundaryReport(
+        input: SuperNeoFoldInput,
+        proof: FoldProof,
+        verifierCoins: SuperNeoVerifierPublicCoin
+    ) -> SuperNeoFoldReductionBoundaryReport {
+        reductionBoundaryReport(
+            publicInput: SuperNeoPublicFoldInput(input),
+            proof: proof,
+            verifierCoins: verifierCoins
+        )
+    }
+
+    public func reductionBoundaryReport(
+        publicInput: SuperNeoPublicFoldInput,
+        proof: FoldProof,
+        verifierCoins: SuperNeoVerifierPublicCoin
+    ) -> SuperNeoFoldReductionBoundaryReport {
+        guard verifierCoins.matches(publicInput) else {
+            return SuperNeoFoldReductionBoundaryReport(
+                preconditionFailureReason: "verifier public coin transcript context does not match fold input",
+                piCCSChecks: [],
+                piRLCChecks: [],
+                piDECChecks: []
+            )
+        }
+        return reductionBoundaryReport(
+            publicInput: publicInput,
+            proof: proof,
+            transcriptSeed: verifierCoins.transcriptSeed(label: "fold")
+        )
+    }
+
+    public func reductionBoundaryReport(
+        publicInput: SuperNeoPublicFoldInput,
+        proof: FoldProof,
+        transcriptSeed: [UInt8] = []
+    ) -> SuperNeoFoldReductionBoundaryReport {
+        do {
+            guard key.parameters == parameters else {
+                return SuperNeoFoldReductionBoundaryReport(
+                    preconditionFailureReason: "verifier key parameters do not match verifier parameters",
+                    piCCSChecks: [],
+                    piRLCChecks: [],
+                    piDECChecks: []
+                )
+            }
+            try validateCommitmentKey(key, matches: publicInput.shape, role: "verifier")
+            try validatePublicFoldInput(publicInput, parameters: parameters)
+            try validateProofPublicData(publicInput: publicInput, proof: proof, parameters: parameters)
+
+            let piCCSTapes = proof.piCCSTapes
+            var piCCSChecks: [SuperNeoReductionBoundaryCheck] = []
+            piCCSChecks.reserveCapacity(piCCSTapes.count)
+            for (tapeIndex, tape) in piCCSTapes.enumerated() {
+                piCCSChecks.append(
+                    piCCSBoundaryCheck(
+                        tape,
+                        publicInput: publicInput,
+                        transcriptSeed: transcriptSeed,
+                        tapeIndex: tapeIndex,
+                        parameters: parameters
+                    )
+                )
+            }
+            guard piCCSChecks.allSatisfy(\.isAccepted) else {
+                return SuperNeoFoldReductionBoundaryReport(
+                    piCCSChecks: piCCSChecks,
+                    piRLCChecks: [],
+                    piDECChecks: []
+                )
+            }
+
+            let canonicalPiCCS = piCCSTapes[0]
+            var piRLCChecks: [SuperNeoReductionBoundaryCheck] = []
+            var piDECChecks: [SuperNeoReductionBoundaryCheck] = []
+            piRLCChecks.reserveCapacity(proof.piRLCBranches.count)
+            piDECChecks.reserveCapacity(proof.piRLCBranches.count)
+            for (branchIndex, branch) in proof.piRLCBranches.enumerated() {
+                piRLCChecks.append(
+                    piRLCBoundaryCheck(
+                        branch,
+                        canonicalPiCCS: canonicalPiCCS,
+                        publicInput: publicInput,
+                        transcriptSeed: transcriptSeed,
+                        branchIndex: branchIndex,
+                        parameters: parameters
+                    )
+                )
+                piDECChecks.append(
+                    piDECBoundaryCheck(
+                        branch,
+                        publicInput: publicInput,
+                        branchIndex: branchIndex,
+                        parameters: parameters,
+                        expectedOutputClaims: branchIndex == 0 ? proof.outputClaims : nil
+                    )
+                )
+            }
+
+            return SuperNeoFoldReductionBoundaryReport(
+                piCCSChecks: piCCSChecks,
+                piRLCChecks: piRLCChecks,
+                piDECChecks: piDECChecks
+            )
+        } catch {
+            return SuperNeoFoldReductionBoundaryReport(
+                preconditionFailureReason: "\(error)",
+                piCCSChecks: [],
+                piRLCChecks: [],
+                piDECChecks: []
+            )
+        }
     }
 
     public func reduceFold(
@@ -2320,6 +2722,30 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             input: input,
             proof: proof,
             transcriptSeed: qroChallenge.transcriptSeed(label: "fold")
+        )
+    }
+
+    public func reduceFold(
+        publicInput: SuperNeoPublicFoldInput,
+        proof: FoldProof,
+        verifierCoins: SuperNeoVerifierPublicCoin
+    ) -> FoldReductionResult {
+        guard verifierCoins.matches(publicInput) else {
+            let boundaryReport = SuperNeoFoldReductionBoundaryReport(
+                preconditionFailureReason: "verifier public coin transcript context does not match fold input",
+                piCCSChecks: [],
+                piRLCChecks: [],
+                piDECChecks: []
+            )
+            return .invalid(
+                "verifier public coin transcript context does not match fold input",
+                boundaryReport: boundaryReport
+            )
+        }
+        return reduceFold(
+            publicInput: publicInput,
+            proof: proof,
+            transcriptSeed: verifierCoins.transcriptSeed(label: "fold")
         )
     }
 
@@ -2350,43 +2776,18 @@ public final class SuperNeoVerifier: @unchecked Sendable {
         proof: FoldProof,
         transcriptSeed: [UInt8]
     ) -> FoldReductionResult {
-        do {
-            guard key.parameters == parameters else { return .invalid("verifier key parameters do not match verifier parameters") }
-            try validateCommitmentKey(key, matches: publicInput.shape, role: "verifier")
-            try validatePublicFoldInput(publicInput, parameters: parameters)
-            try validateProofPublicData(publicInput: publicInput, proof: proof, parameters: parameters)
-
-            let piCCSTapes = proof.piCCSTapes
-            for (tapeIndex, tape) in piCCSTapes.enumerated() {
-                guard try validatePiCCSTape(
-                    tape,
-                    publicInput: publicInput,
-                    transcriptSeed: transcriptSeed,
-                    tapeIndex: tapeIndex,
-                    parameters: parameters
-                ) else {
-                    return .invalid("repeated PiCCS tape \(tapeIndex) verification failed")
-                }
-            }
-
-            let canonicalPiCCS = piCCSTapes[0]
-            for (branchIndex, branch) in proof.piRLCBranches.enumerated() {
-                guard try validatePiRLCBranch(
-                    branch,
-                    canonicalPiCCS: canonicalPiCCS,
-                    publicInput: publicInput,
-                    transcriptSeed: transcriptSeed,
-                    branchIndex: branchIndex,
-                    parameters: parameters,
-                    expectedOutputClaims: branchIndex == 0 ? proof.outputClaims : nil
-                ) else {
-                    return .invalid("repeated PiRLC branch \(branchIndex) verification failed")
-                }
-            }
-            return .reduced(outputClaims: proof.outputClaims)
-        } catch {
-            return .invalid("\(error)")
+        let report = reductionBoundaryReport(
+            publicInput: publicInput,
+            proof: proof,
+            transcriptSeed: transcriptSeed
+        )
+        if let reason = report.preconditionFailureReason {
+            return .invalid(reason, boundaryReport: report)
         }
+        if let rejected = report.firstRejectedCheck {
+            return .invalid(reductionFailureReason(for: rejected), boundaryReport: report)
+        }
+        return .reduced(outputClaims: proof.outputClaims, boundaryReport: report)
     }
 
     @available(*, deprecated, message: "Use reduceFoldEnvelope(...) for fold reductions, or verifyFoldEnvelope(..., outputClaims:) for terminal local verification.")
@@ -2468,7 +2869,8 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             let statement = CCSStatement(
                 shapeDigest: publicInput.shape.shapeDigest,
                 ccsInstances: publicInput.instances,
-                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) },
+                recursiveRelationDigest: publicInput.recursiveRelationDigest
             )
             guard statement.statementDigest == expectedContext.statementDigest else {
                 return .invalid("input statement digest mismatch")
@@ -2530,7 +2932,8 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             let statement = CCSStatement(
                 shapeDigest: publicInput.shape.shapeDigest,
                 ccsInstances: publicInput.instances,
-                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) },
+                recursiveRelationDigest: publicInput.recursiveRelationDigest
             )
             guard statement.statementDigest == expectedContext.statementDigest else {
                 return .invalid("input statement digest mismatch")
@@ -2591,7 +2994,8 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             let statement = CCSStatement(
                 shapeDigest: publicInput.shape.shapeDigest,
                 ccsInstances: publicInput.instances,
-                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) },
+                recursiveRelationDigest: publicInput.recursiveRelationDigest
             )
             guard statement.statementDigest == expectedContext.statementDigest else {
                 return .invalid("input statement digest mismatch")
@@ -2749,7 +3153,8 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             let statement = CCSStatement(
                 shapeDigest: publicInput.shape.shapeDigest,
                 ccsInstances: publicInput.instances,
-                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) },
+                recursiveRelationDigest: publicInput.recursiveRelationDigest
             )
             guard statement.statementDigest == expectedContext.statementDigest else {
                 return .invalid("input statement digest mismatch")
@@ -2799,7 +3204,8 @@ public final class SuperNeoVerifier: @unchecked Sendable {
             let statement = CCSStatement(
                 shapeDigest: publicInput.shape.shapeDigest,
                 ccsInstances: publicInput.instances,
-                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) },
+                recursiveRelationDigest: publicInput.recursiveRelationDigest
             )
             guard statement.statementDigest == expectedContext.statementDigest else {
                 return .invalid("input statement digest mismatch")
@@ -3137,7 +3543,11 @@ private enum SuperNeoProtocolOracle {
         guard claim.point.count == numVars else { return false }
         guard claim.evaluations.count == shape.numMatrices else { return false }
         guard claim.commitment.elements.count == parameters.kappa else { return false }
-        guard witness.allSatisfy({ signedMagnitude($0) < UInt64(parameters.normBound) }) else {
+        let bindingProfile = try ModuleSISBindingSecurityProfile(
+            parameters: parameters,
+            matrixColumns: key.matrix.columns
+        )
+        guard bindingProfile.containsLowNormFieldOpening(witness) else {
             return false
         }
 
@@ -3226,24 +3636,62 @@ private enum SuperNeoProtocolOracle {
         guard claim.evaluations.count == shape.numMatrices else {
             throw SuperNeoError.invalidParameter("decomposition folded evaluation arity mismatch")
         }
+        let usesSecretConstantSchedule = executionPolicy.usesConstantWorkCPU
+        let usesSecretConstantSchedulePayPerBit =
+            decompositionProfile == .payPerBit && usesSecretConstantSchedule
         let limbCount = try decompositionProfile.limbCount(
             witness: witness,
             publicInput: claim.publicInput,
-            parameters: parameters
+            parameters: parameters,
+            usesSecretConstantSchedule: usesSecretConstantSchedulePayPerBit
         )
-        let limbs = try splitSignedBase(witness, base: parameters.normBound, count: limbCount)
-        let publicInputLimbs = try splitSignedBase(
-            claim.publicInput,
-            base: parameters.normBound,
-            count: limbCount
-        )
+        let limbs = try usesSecretConstantSchedule
+            ? SuperNeoPayPerBitConstantSchedule.splitSignedBase(
+                witness,
+                base: parameters.normBound,
+                count: limbCount
+            )
+            : splitSignedBase(witness, base: parameters.normBound, count: limbCount)
+        let publicInputLimbs = try usesSecretConstantSchedule
+            ? SuperNeoPayPerBitConstantSchedule.splitSignedBase(
+                claim.publicInput,
+                base: parameters.normBound,
+                count: limbCount
+            )
+            : splitSignedBase(
+                claim.publicInput,
+                base: parameters.normBound,
+                count: limbCount
+            )
         let useParallelCPUOpenings = shouldParallelizeOpeningBatch(shape: shape, count: limbs.count)
         let packedLimbs = try orderedParallelMap(limbs, useParallel: useParallelCPUOpenings) {
             try packedEvaluationWitness($0, shape: shape)
         }
         let limbCommitments: [AjtaiCommitment]
         let limbEvaluations: [[CyclotomicExt2Ring54]]
-        if let metalWorkspace, !executionPolicy.usesConstantWorkCPU {
+        if usesSecretConstantSchedulePayPerBit {
+            let openingArtifacts = try SuperNeoPayPerBitOpeningOracle.makeConstantScheduleOpeningArtifacts(
+                key: key,
+                transformedMatrices: compiledShape.transformedSparseMatrices,
+                packedLimbs: packedLimbs,
+                point: claim.point,
+                recordWorkProfiles: false
+            )
+            limbCommitments = openingArtifacts.commitments
+            limbEvaluations = openingArtifacts.evaluations
+        } else if decompositionProfile == .payPerBit,
+           parameters.normBound == 2,
+           !executionPolicy.usesConstantWorkCPU {
+            let openingArtifacts = try SuperNeoPayPerBitOpeningOracle.makeOpeningArtifacts(
+                key: key,
+                transformedMatrices: compiledShape.transformedSparseMatrices,
+                packedLimbs: packedLimbs,
+                point: claim.point,
+                recordWorkProfiles: false
+            )
+            limbCommitments = openingArtifacts.commitments
+            limbEvaluations = openingArtifacts.evaluations
+        } else if let metalWorkspace, !executionPolicy.usesConstantWorkCPU {
             let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
                 messages: packedLimbs,
                 point: claim.point
@@ -3351,6 +3799,11 @@ private enum SuperNeoProtocolOracle {
         var publicInput = Array(repeating: GoldilocksField.zero, count: folded.publicInput.count)
         var evaluations = Array(repeating: CyclotomicExt2Ring54.zero, count: folded.evaluations.count)
         let scalars = try decompositionScalars(base: parameters.normBound, count: parts.count)
+        let expectedPublicInputLimbs = try splitSignedBase(
+            folded.publicInput,
+            base: parameters.normBound,
+            count: parts.count
+        )
 
         var index = 0
         for part in parts {
@@ -3358,6 +3811,7 @@ private enum SuperNeoProtocolOracle {
             guard partPoint == folded.point else { return false }
             guard partEvaluations.count == folded.evaluations.count else { return false }
             guard partPublicInput.count == folded.publicInput.count else { return false }
+            guard partPublicInput == expectedPublicInputLimbs[index] else { return false }
             guard partCommitment.elements.count == folded.commitment.elements.count else { return false }
             guard partPublicInput.allSatisfy({ signedMagnitude($0) < UInt64(parameters.normBound) }) else { return false }
 
@@ -3647,7 +4101,8 @@ private func validateEnvelopeContext(
     let statement = CCSStatement(
         shapeDigest: publicInput.shape.shapeDigest,
         ccsInstances: publicInput.instances,
-        priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
+        priorCEInstances: publicInput.priorClaims.map { CEInstance($0) },
+        recursiveRelationDigest: publicInput.recursiveRelationDigest
     )
     guard context.statementDigest == statement.statementDigest else {
         throw SuperNeoError.invalidParameter("proof envelope context statement digest mismatch")
@@ -3674,6 +4129,10 @@ private func validateFoldInput(_ input: SuperNeoFoldInput, parameters: SuperNeoP
         priorCount: input.priorClaims.count,
         parameters: parameters
     )
+    let bindingProfile = try ModuleSISBindingSecurityProfile(
+        parameters: parameters,
+        matrixColumns: input.shape.nRing
+    )
     for matrix in input.shape.matrices {
         guard matrix.rowCount == rows, matrix.columnCount == input.shape.nField else {
             throw SuperNeoError.invalidParameter("all CCS matrices must have the same row count")
@@ -3685,6 +4144,9 @@ private func validateFoldInput(_ input: SuperNeoFoldInput, parameters: SuperNeoP
         }
         guard instance.publicInput.count + witness.values.count == input.shape.nField else {
             throw SuperNeoError.invalidParameter("full witness length must match shape.nField")
+        }
+        guard bindingProfile.containsLowNormFieldOpening(witness.fullZ(for: instance)) else {
+            throw SuperNeoError.invalidParameter("fold witness exceeds Module-SIS low-norm opening bound")
         }
     }
     for claim in input.priorClaims {
@@ -3704,6 +4166,9 @@ private func validateFoldInput(_ input: SuperNeoFoldInput, parameters: SuperNeoP
             guard claim.publicInput.count <= witness.count,
                   claim.publicInput.elementsEqual(witness.prefix(claim.publicInput.count)) else {
                 throw SuperNeoError.invalidParameter("prior CE public input must be a prefix of its witness")
+            }
+            guard bindingProfile.containsLowNormFieldOpening(witness) else {
+                throw SuperNeoError.invalidParameter("prior CE witness exceeds Module-SIS low-norm opening bound")
             }
         }
     }
@@ -3736,7 +4201,6 @@ private func validatePublicFoldInput(_ input: SuperNeoPublicFoldInput, parameter
             throw SuperNeoError.invalidParameter("public input length must match shape.nPublicField")
         }
     }
-    var priorEvalPoint: [GoldilocksExt2]?
     for claim in input.priorClaims {
         guard claim.commitment.elements.count == parameters.kappa else {
             throw SuperNeoError.invalidParameter("prior CE commitment has wrong length")
@@ -3746,13 +4210,6 @@ private func validatePublicFoldInput(_ input: SuperNeoPublicFoldInput, parameter
         }
         guard claim.point.count == (try log2Exact(rows)), claim.evaluations.count == input.shape.numMatrices else {
             throw SuperNeoError.invalidParameter("prior CE claim shape mismatch")
-        }
-        if let existing = priorEvalPoint {
-            guard claim.point == existing else {
-                throw SuperNeoError.invalidParameter("prior CE claims must use the same evaluation point")
-            }
-        } else {
-            priorEvalPoint = claim.point
         }
     }
 }
@@ -3893,76 +4350,251 @@ private func validatePiCCSTape(
     tapeIndex: Int,
     parameters: SuperNeoParameters
 ) throws -> Bool {
-    guard tape.finalClaims.count == publicInput.instances.count + publicInput.priorClaims.count else {
-        return false
+    piCCSBoundaryCheck(
+        tape,
+        publicInput: publicInput,
+        transcriptSeed: transcriptSeed,
+        tapeIndex: tapeIndex,
+        parameters: parameters
+    ).isAccepted
+}
+
+private func piCCSBoundaryCheck(
+    _ tape: PiCCSSection,
+    publicInput: SuperNeoPublicFoldInput,
+    transcriptSeed: [UInt8],
+    tapeIndex: Int,
+    parameters: SuperNeoParameters
+) -> SuperNeoReductionBoundaryCheck {
+    let inputCommitments = piCCSInputCommitmentProjection(publicInput)
+    let outputCommitments = tape.finalClaims.map(\.commitment)
+    func reject(_ reason: String) -> SuperNeoReductionBoundaryCheck {
+        makeBoundaryCheck(
+            component: .piCCS,
+            strength: .strong,
+            index: tapeIndex,
+            inputCommitments: inputCommitments,
+            outputCommitments: outputCommitments,
+            isAccepted: false,
+            reason: reason
+        )
     }
-    let label = FoldRepeatedTapeLabel.piCCS(tapeIndex)
-    var transcript = makeFoldTranscript(
-        input: publicInput,
-        transcriptSeed: repeatedTapeSeed(base: transcriptSeed, label: label),
-        tapeLabel: label
-    )
-    let qState = try makePublicQState(input: publicInput, transcript: &transcript, parameters: parameters)
-    let claimedSum = try qState.claimedSum(from: publicInput.priorClaims)
-    guard tape.sumCheck.claimedSum == claimedSum else {
-        return false
-    }
-    return try SumcheckVerifier.verify(
-        proof: tape.sumCheck,
-        transcript: &transcript,
-        expectedDegree: qState.maxDegreePerRound,
-        expectedRoundCount: qState.numVars
-    ) { point, value in
-        try qState.finalEvaluation(
-            instances: publicInput.instances,
-            priorClaims: publicInput.priorClaims,
-            proofClaims: tape.finalClaims,
-            point: point
-        ) == value
+
+    do {
+        guard tape.finalClaims.count == publicInput.instances.count + publicInput.priorClaims.count else {
+            return reject("PiCCS tape \(tapeIndex) strong boundary rejected: final claim count mismatch")
+        }
+        guard outputCommitments == inputCommitments else {
+            return reject("PiCCS tape \(tapeIndex) strong boundary rejected: output commitment projection does not match input commitments")
+        }
+        guard tape.finalClaims.map(\.publicInput) == piCCSInputPublicProjection(publicInput) else {
+            return reject("PiCCS tape \(tapeIndex) strong boundary rejected: output public-input projection does not match input public data")
+        }
+        guard tape.finalClaims.allSatisfy({ $0.point == tape.sumCheck.finalPoint }) else {
+            return reject("PiCCS tape \(tapeIndex) strong boundary rejected: final claims are not at the sum-check point")
+        }
+
+        let label = FoldRepeatedTapeLabel.piCCS(tapeIndex)
+        var transcript = makeFoldTranscript(
+            input: publicInput,
+            transcriptSeed: repeatedTapeSeed(base: transcriptSeed, label: label),
+            tapeLabel: label
+        )
+        let qState = try makePublicQState(input: publicInput, transcript: &transcript, parameters: parameters)
+        let claimedSum = try qState.claimedSum(from: publicInput.priorClaims)
+        guard tape.sumCheck.claimedSum == claimedSum else {
+            return reject("PiCCS tape \(tapeIndex) strong boundary rejected: claimed sum does not match public CCS/CE input")
+        }
+        let accepted = try SumcheckVerifier.verify(
+            proof: tape.sumCheck,
+            transcript: &transcript,
+            expectedDegree: qState.maxDegreePerRound,
+            expectedRoundCount: qState.numVars
+        ) { point, value in
+            try qState.finalEvaluation(
+                instances: publicInput.instances,
+                priorClaims: publicInput.priorClaims,
+                proofClaims: tape.finalClaims,
+                point: point
+            ) == value
+        }
+        guard accepted else {
+            return reject("PiCCS tape \(tapeIndex) strong boundary rejected: sum-check verifier rejected")
+        }
+        return makeBoundaryCheck(
+            component: .piCCS,
+            strength: .strong,
+            index: tapeIndex,
+            inputCommitments: inputCommitments,
+            outputCommitments: outputCommitments,
+            isAccepted: true
+        )
+    } catch {
+        return reject("PiCCS tape \(tapeIndex) strong boundary rejected: \(error)")
     }
 }
 
-private func validatePiRLCBranch(
+private func piRLCBoundaryCheck(
     _ branch: PiRLCBranch,
     canonicalPiCCS: PiCCSSection,
     publicInput: SuperNeoPublicFoldInput,
     transcriptSeed: [UInt8],
     branchIndex: Int,
+    parameters: SuperNeoParameters
+) -> SuperNeoReductionBoundaryCheck {
+    let canonicalClaims = canonicalPiCCS.finalClaims
+    let inputCommitments = canonicalClaims.map(\.commitment)
+    let outputCommitments = [branch.foldedClaim.commitment]
+    func reject(_ reason: String) -> SuperNeoReductionBoundaryCheck {
+        makeBoundaryCheck(
+            component: .piRLC,
+            strength: .weak,
+            index: branchIndex,
+            inputCommitments: inputCommitments,
+            outputCommitments: outputCommitments,
+            isAccepted: false,
+            reason: reason
+        )
+    }
+
+    do {
+        guard branch.challenges.count == canonicalClaims.count else {
+            return reject("PiRLC branch \(branchIndex) weak boundary rejected: challenge count mismatch")
+        }
+        guard canonicalClaims.allSatisfy({ $0.point == canonicalPiCCS.sumCheck.finalPoint }) else {
+            return reject("PiRLC branch \(branchIndex) weak boundary rejected: canonical CE claims are not at the PiCCS output point")
+        }
+        var transcript = makePiRLCBranchTranscript(
+            input: publicInput,
+            transcriptSeed: transcriptSeed,
+            canonicalPiCCS: canonicalPiCCS,
+            branchIndex: branchIndex
+        )
+        let expectedChallenges = canonicalClaims.map { _ in transcript.challengeRing(parameters: parameters) }
+        guard branch.challenges == expectedChallenges else {
+            return reject("PiRLC branch \(branchIndex) weak boundary rejected: sampled challenges do not match transcript")
+        }
+        let expectedRLC = try SuperNeoProtocolOracle.randomLinearCombination(
+            claims: canonicalClaims,
+            challenges: branch.challenges
+        )
+        guard branch.foldedClaim.hasSamePublicData(as: expectedRLC) else {
+            return reject("PiRLC branch \(branchIndex) weak boundary rejected: folded CE claim is not the sampled linear combination")
+        }
+        return makeBoundaryCheck(
+            component: .piRLC,
+            strength: .weak,
+            index: branchIndex,
+            inputCommitments: inputCommitments,
+            outputCommitments: outputCommitments,
+            isAccepted: true
+        )
+    } catch {
+        return reject("PiRLC branch \(branchIndex) weak boundary rejected: \(error)")
+    }
+}
+
+private func piDECBoundaryCheck(
+    _ branch: PiRLCBranch,
+    publicInput: SuperNeoPublicFoldInput,
+    branchIndex: Int,
     parameters: SuperNeoParameters,
     expectedOutputClaims: [CCSEvaluationClaim]? = nil
-) throws -> Bool {
-    let canonicalClaims = canonicalPiCCS.finalClaims
-    guard branch.challenges.count == canonicalClaims.count else {
-        return false
+) -> SuperNeoReductionBoundaryCheck {
+    let inputCommitments = [branch.foldedClaim.commitment]
+    let outputCommitments = branch.outputClaims.map(\.commitment)
+    func reject(_ reason: String) -> SuperNeoReductionBoundaryCheck {
+        makeBoundaryCheck(
+            component: .piDEC,
+            strength: .reductionOfKnowledge,
+            index: branchIndex,
+            inputCommitments: inputCommitments,
+            outputCommitments: outputCommitments,
+            isAccepted: false,
+            reason: reason
+        )
     }
-    var transcript = makePiRLCBranchTranscript(
-        input: publicInput,
-        transcriptSeed: transcriptSeed,
-        canonicalPiCCS: canonicalPiCCS,
-        branchIndex: branchIndex
-    )
-    let expectedChallenges = canonicalClaims.map { _ in transcript.challengeRing(parameters: parameters) }
-    guard branch.challenges == expectedChallenges else {
-        return false
-    }
-    let expectedRLC = try SuperNeoProtocolOracle.randomLinearCombination(
-        claims: canonicalClaims,
-        challenges: branch.challenges
-    )
-    guard branch.foldedClaim.hasSamePublicData(as: expectedRLC) else {
-        return false
-    }
-    if let expectedOutputClaims {
-        guard branch.outputClaims.hasSamePublicData(as: expectedOutputClaims) else {
-            return false
+
+    do {
+        if let expectedOutputClaims {
+            guard branch.outputClaims.hasSamePublicData(as: expectedOutputClaims) else {
+                return reject("PiDEC branch \(branchIndex) boundary rejected: canonical output claims do not match fold proof output")
+            }
         }
+        guard branch.decomposition.commitments == branch.outputClaims.map(\.commitment) else {
+            return reject("PiDEC branch \(branchIndex) boundary rejected: decomposition commitments do not match output claims")
+        }
+        guard branch.decomposition.evaluations == branch.outputClaims.map(\.evaluations) else {
+            return reject("PiDEC branch \(branchIndex) boundary rejected: decomposition evaluations do not match output claims")
+        }
+        guard try SuperNeoProtocolOracle.verifyDecomposition(
+            folded: branch.foldedClaim,
+            parts: branch.outputClaims,
+            shape: publicInput.shape,
+            parameters: parameters
+        ) else {
+            return reject("PiDEC branch \(branchIndex) boundary rejected: base-\(parameters.normBound) public-input split or commitment/evaluation recomposition failed")
+        }
+        return makeBoundaryCheck(
+            component: .piDEC,
+            strength: .reductionOfKnowledge,
+            index: branchIndex,
+            inputCommitments: inputCommitments,
+            outputCommitments: outputCommitments,
+            isAccepted: true
+        )
+    } catch {
+        return reject("PiDEC branch \(branchIndex) boundary rejected: \(error)")
     }
-    return try SuperNeoProtocolOracle.verifyDecomposition(
-        folded: expectedRLC,
-        parts: branch.outputClaims,
-        shape: publicInput.shape,
-        parameters: parameters
+}
+
+private func makeBoundaryCheck(
+    component: SuperNeoReductionBoundaryComponent,
+    strength: SuperNeoReductionBoundaryStrength,
+    index: Int,
+    inputCommitments: [AjtaiCommitment],
+    outputCommitments: [AjtaiCommitment],
+    isAccepted: Bool,
+    reason: String? = nil
+) -> SuperNeoReductionBoundaryCheck {
+    SuperNeoReductionBoundaryCheck(
+        component: component,
+        strength: strength,
+        index: index,
+        inputClaimCount: inputCommitments.count,
+        outputClaimCount: outputCommitments.count,
+        inputCommitmentProjectionDigest: commitmentProjectionDigest(inputCommitments),
+        outputCommitmentProjectionDigest: commitmentProjectionDigest(outputCommitments),
+        isAccepted: isAccepted,
+        reason: reason
     )
+}
+
+private func piCCSInputCommitmentProjection(_ input: SuperNeoPublicFoldInput) -> [AjtaiCommitment] {
+    input.instances.map(\.commitment) + input.priorClaims.map(\.commitment)
+}
+
+private func piCCSInputPublicProjection(_ input: SuperNeoPublicFoldInput) -> [[GoldilocksField]] {
+    input.instances.map(\.publicInput) + input.priorClaims.map(\.publicInput)
+}
+
+private func commitmentProjectionDigest(_ commitments: [AjtaiCommitment]) -> Digest256 {
+    Digest256.hash(
+        Array("SuperNeo-NuMetal.reduction-boundary.commitments.v1".utf8)
+            + transcriptEncodeCount(commitments.count)
+            + commitments.flatMap(\.superNeoBytes)
+    )
+}
+
+private func reductionFailureReason(for check: SuperNeoReductionBoundaryCheck) -> String {
+    switch check.component {
+    case .piCCS:
+        return "repeated PiCCS tape \(check.index) verification failed"
+    case .piRLC:
+        return "repeated PiRLC branch \(check.index) verification failed"
+    case .piDEC:
+        return "repeated PiDEC branch \(check.index) verification failed"
+    }
 }
 
 private func makePublicQState(
@@ -4002,6 +4634,8 @@ private func makeFoldTranscript(
 ) -> SumCheckTranscript {
     let labelBytes = tapeLabel.map { Array($0.utf8) } ?? []
     let labelFrame = tapeLabel == nil ? [] : transcriptEncodeCount(labelBytes.count) + labelBytes
+    let recursiveRelationFrame = input.recursiveRelationDigest
+        .map { Array("recursive-relation".utf8) + $0.superNeoBytes } ?? []
     let contextSeed = transcriptSeed
         + labelFrame
         + input.shape.shapeDigest.superNeoBytes
@@ -4009,6 +4643,7 @@ private func makeFoldTranscript(
         + input.instances.flatMap(\.superNeoBytes)
         + transcriptEncodeCount(input.priorClaims.count)
         + input.priorClaims.flatMap(\.superNeoBytes)
+        + recursiveRelationFrame
     let domainSeparator = tapeLabel.map { "SuperNeo-NuMetal.fold/\($0)" } ?? "SuperNeo-NuMetal.fold"
     var transcript = SumCheckTranscript(domainSeparator: domainSeparator, seed: contextSeed)
     if !labelBytes.isEmpty {
@@ -4019,6 +4654,10 @@ private func makeFoldTranscript(
     input.instances.forEach { transcript.absorb($0.superNeoBytes) }
     transcript.absorb(transcriptEncodeCount(input.priorClaims.count))
     input.priorClaims.forEach { transcript.absorb($0.superNeoBytes) }
+    if let recursiveRelationDigest = input.recursiveRelationDigest {
+        transcript.absorb(Array("recursive-relation".utf8))
+        transcript.absorb(recursiveRelationDigest.superNeoBytes)
+    }
     return transcript
 }
 
@@ -5455,12 +6094,16 @@ private extension SuperNeoDecompositionProfile {
     func limbCount(
         witness: [GoldilocksField],
         publicInput: [GoldilocksField],
-        parameters: SuperNeoParameters
+        parameters: SuperNeoParameters,
+        usesSecretConstantSchedule: Bool
     ) throws -> Int {
         switch self {
         case .fixedMaximum:
             return parameters.decompositionLength
         case .payPerBit:
+            if usesSecretConstantSchedule {
+                return parameters.decompositionLength
+            }
             var count = 1
             for value in witness {
                 count = max(count, try signedRadixDigitCount(value, base: parameters.normBound))

@@ -19,6 +19,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
     "relatedManifests",
     "formalSurface",
     "selectedDepth",
+    "chainRootRecurrence",
     "extractorInterface",
     "componentLosses",
     "lossRule",
@@ -34,8 +35,13 @@ EXPECTED_MANIFESTS = {
 }
 
 EXPECTED_FORMAL_DECLARATIONS = {
+    "ProductCarryChainRoot",
+    "ProductRecursiveCarryChainRootRecurrence",
+    "ProductRecursiveCarryChainRootRecurrenceAccepted",
     "ProductExtractorLossAccounting",
     "ProductExtractorLossAccountingAccepted",
+    "productRecursiveCarryChainRoot_recurrence_unfolds_depth_le_three",
+    "productRecursiveCarryChainRoot_verifier_extractor_path_depth_le_three",
     "productSecurityTheorem_requires_extractor_loss_accounting",
 }
 
@@ -47,7 +53,7 @@ EXPECTED_COMPONENT_IDS = [
 ]
 
 EXPECTED_BLOCKERS = [
-    "recursive carry extractor for promoted depth beyond selected depth 1",
+    "recursive carry extractor for promoted depth beyond selected depth 3",
 ]
 
 EXPECTED_CLAIM_STATUS = "selected-depth-concrete-extractor-loss-instantiated-repository-local-production-claim"
@@ -142,10 +148,66 @@ def validate_formal_surface(accounting: dict[str, Any]) -> None:
 def validate_selected_depth(accounting: dict[str, Any]) -> None:
     depth = require_dict(accounting.get("selectedDepth"), "selectedDepth")
     require(depth.get("depthModel") == "bounded-depth", "selectedDepth.depthModel must be bounded-depth")
-    require(depth.get("selectedMaximumDepth") == 1, "selectedDepth.selectedMaximumDepth must be 1")
-    require(depth.get("acceptedProductLayers") == 1, "selectedDepth.acceptedProductLayers must be 1")
-    require(depth.get("selectedRecursiveCarryHops") == 0, "selectedDepth.selectedRecursiveCarryHops must be 0")
+    require(depth.get("selectedMaximumDepth") == 3, "selectedDepth.selectedMaximumDepth must be 3")
+    require(depth.get("acceptedProductLayers") == 3, "selectedDepth.acceptedProductLayers must be 3")
+    require(depth.get("selectedRecursiveCarryHops") == 2, "selectedDepth.selectedRecursiveCarryHops must be 2")
+    require(depth.get("loadedParentChainRequired") is True, "selectedDepth.loadedParentChainRequired must be true")
     require(depth.get("extractorPromotionAllowed") is True, "selectedDepth.extractorPromotionAllowed must be true for selected-depth extractor promotion")
+
+
+def validate_chain_root_recurrence(accounting: dict[str, Any]) -> None:
+    recurrence = require_dict(accounting.get("chainRootRecurrence"), "chainRootRecurrence")
+    require(recurrence.get("selectedDepth") == 3, "chainRootRecurrence.selectedDepth must be 3")
+    require(recurrence.get("selectedRecursiveCarryHops") == 2, "chainRootRecurrence.selectedRecursiveCarryHops must be 2")
+    base = require_string(recurrence.get("baseCase"), "chainRootRecurrence.baseCase").lower()
+    step = require_string(recurrence.get("stepCase"), "chainRootRecurrence.stepCase").lower()
+    for needle in [
+        "rootatdepth(1) = baseroot",
+        "actual accepted base artifact",
+        "actual source fold envelope",
+        "actual numiseal proof envelope",
+        "actual public statement",
+    ]:
+        require(needle in base, f"chainRootRecurrence.baseCase must mention {needle}")
+    for needle in [
+        "1 <= d < 3",
+        "rootatdepth(d + 1) = steproot(d, rootatdepth(d)",
+        "parent artifact digest",
+        "parent source fold envelope digest",
+        "parent product proof envelope digest",
+        "accepted producer envelope digest",
+        "recomputed context root",
+        "recomputed replay root",
+        "typed carry statements",
+    ]:
+        require(needle in step, f"chainRootRecurrence.stepCase must mention {needle}")
+    unrolling = require_string_list(recurrence.get("depthThreeUnrolling"), "chainRootRecurrence.depthThreeUnrolling")
+    require(
+        unrolling == [
+            "rootAtDepth(1) = baseRoot",
+            "rootAtDepth(2) = stepRoot(1, baseRoot)",
+            "rootAtDepth(3) = stepRoot(2, stepRoot(1, baseRoot))",
+        ],
+        "chainRootRecurrence.depthThreeUnrolling mismatch",
+    )
+    verifier = require_string(recurrence.get("verifierProcedure"), "chainRootRecurrence.verifierProcedure").lower()
+    extractor = require_string(recurrence.get("extractorProcedure"), "chainRootRecurrence.extractorProcedure").lower()
+    for needle in ["verify", "loaded verified parent chain root", "actual loaded parent", "before accepting"]:
+        require(needle in verifier, f"chainRootRecurrence.verifierProcedure must mention {needle}")
+    for needle in ["productcarrychainroot", "does not accept", "artifact metadata"]:
+        require(needle in extractor, f"chainRootRecurrence.extractorProcedure must mention {needle}")
+    require(
+        recurrence.get("metadataOnlyRecursiveParentRejected") is True,
+        "chainRootRecurrence.metadataOnlyRecursiveParentRejected must be true",
+    )
+    require(
+        recurrence.get("ctcoTraceBlock") == "recursive-carry-chain-root",
+        "chainRootRecurrence.ctcoTraceBlock mismatch",
+    )
+    require(
+        recurrence.get("formalAcceptance") == "ProductRecursiveCarryChainRootRecurrenceAccepted",
+        "chainRootRecurrence.formalAcceptance mismatch",
+    )
 
 
 def validate_extractor_interface(accounting: dict[str, Any]) -> None:
@@ -172,7 +234,7 @@ def validate_extractor_interface(accounting: dict[str, Any]) -> None:
         "extractorInterface must pin swiftConcreteExtractorEvidenceDigest metadata",
     )
     require(
-        interface.get("selectedDepthLossBound") == "epsilon_extract(depth=1) = 0",
+        interface.get("selectedDepthLossBound") == "epsilon_extract(depth=3) = 0",
         "extractorInterface.selectedDepthLossBound mismatch",
     )
     require(interface.get("extractorSchedulePinned") is True, "extractorSchedulePinned must be true")
@@ -200,7 +262,10 @@ def validate_component_losses(accounting: dict[str, Any]) -> None:
         require(component.get("exactUpperBound") == "0", f"{component_id}.exactUpperBound must be 0")
         require("instantiated" in require_string(component.get("status"), f"{component_id}.status"), f"{component_id}.status must record instantiation")
         if component_id == "recursive-carry-extractor":
-            require(multiplicity == 0, "recursive-carry-extractor must have zero selected-depth multiplicity")
+            require(multiplicity == 2, "recursive-carry-extractor must have two selected-depth carry hops")
+            evidence = require_string(component.get("requiredEvidence"), "recursive-carry-extractor.requiredEvidence")
+            for needle in ["productCarryChainRoot", "metadata-only", "recursive-carry-chain-root"]:
+                require(needle in evidence, f"recursive-carry-extractor evidence must mention {needle}")
     require(seen_ids == EXPECTED_COMPONENT_IDS, "componentLosses must stay in the pinned extractor order")
 
 
@@ -208,7 +273,7 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     rule = require_dict(accounting.get("lossRule"), "lossRule")
     selected = require_string(rule.get("selectedDepthExpression"), "lossRule.selectedDepthExpression")
     recursive = require_string(rule.get("recursivePromotionExpression"), "lossRule.recursivePromotionExpression")
-    require("epsilon_extract(depth=1) = 0" in selected, "selected-depth extractor expression must be exact zero")
+    require("epsilon_extract(depth=3) = 0" in selected, "selected-depth extractor expression must be exact zero at depth 3")
     require("epsilon_extract_carry" in recursive and "max(d - 1, 0)" in recursive, "recursive extractor expression must include carry-hop loss")
     require(rule.get("allExtractorTermsInstantiated") is True, "lossRule.allExtractorTermsInstantiated must be true")
     require(rule.get("extractorLossWithinBudget") is True, "lossRule.extractorLossWithinBudget must be true")
@@ -297,6 +362,7 @@ def validate_accounting(path: Path) -> None:
     validate_related_manifests(accounting)
     validate_formal_surface(accounting)
     validate_selected_depth(accounting)
+    validate_chain_root_recurrence(accounting)
     validate_extractor_interface(accounting)
     validate_component_losses(accounting)
     validate_loss_rule(accounting)

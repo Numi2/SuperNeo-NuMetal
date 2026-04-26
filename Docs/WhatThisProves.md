@@ -1,5 +1,7 @@
 # What This Proves
 
+Formal status: completed formal protocol theorem.
+
 This is the compact proof-semantics page. Use it when explaining what verifier
 acceptance means.
 

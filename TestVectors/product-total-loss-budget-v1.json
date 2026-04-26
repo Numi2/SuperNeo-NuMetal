@@ -38,9 +38,9 @@
   },
   "selectedDepth": {
     "depthModel": "bounded-depth",
-    "selectedMaximumDepth": 1,
-    "acceptedProductLayers": 1,
-    "selectedRecursiveCarryHops": 0,
+    "selectedMaximumDepth": 3,
+    "acceptedProductLayers": 3,
+    "selectedRecursiveCarryHops": 2,
     "repositoryLocalBudgetClaimAllowed": true,
     "productionBudgetPromotionAllowed": false
   },
@@ -83,7 +83,7 @@
       "id": "source-fold-knowledge",
       "ledgerSymbol": "epsilon_fold",
       "sourceManifest": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
-      "currentMultiplicityAtSelectedDepth": 1,
+      "currentMultiplicityAtSelectedDepth": 3,
       "requiredForSelectedDepth": true,
       "lossInstantiated": true,
       "boundLog2": 188,
@@ -94,7 +94,7 @@
       "id": "terminal-numiseal-seal",
       "ledgerSymbol": "epsilon_terminal",
       "sourceManifest": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
-      "currentMultiplicityAtSelectedDepth": 1,
+      "currentMultiplicityAtSelectedDepth": 3,
       "requiredForSelectedDepth": true,
       "lossInstantiated": true,
       "boundLog2": 132,
@@ -105,18 +105,18 @@
       "id": "typed-recursive-carry",
       "ledgerSymbol": "epsilon_carry",
       "sourceManifest": "TestVectors/product-selected-depth-loss-accounting-v1.json",
-      "currentMultiplicityAtSelectedDepth": 0,
-      "requiredForSelectedDepth": false,
-      "lossInstantiated": false,
-      "boundLog2": null,
-      "exactUpperBound": null,
-      "requiredEvidence": "typed carry producer/consumer loss before recursive depth promotion"
+      "currentMultiplicityAtSelectedDepth": 2,
+      "requiredForSelectedDepth": true,
+      "lossInstantiated": true,
+      "boundLog2": 384,
+      "exactUpperBound": "0",
+      "requiredEvidence": "selected depth 3 has two recursive carry hops; each hop is a deterministic verifier recomputation over NumiSealProductVerificationResult.productCarryChainRoot, loaded accepted parent artifact/proof/public-statement digests, context root, replay root, typed carry statements, and the recursive-carry-chain-root CTCO trace block"
     },
     {
       "id": "zk-simulator-composition",
       "ledgerSymbol": "epsilon_zk_sim",
       "sourceManifest": "TestVectors/numiseal-zk-simulator-coupling-evidence-v1.json",
-      "currentMultiplicityAtSelectedDepth": 1,
+      "currentMultiplicityAtSelectedDepth": 3,
       "requiredForSelectedDepth": true,
       "lossInstantiated": true,
       "boundLog2": 384,
@@ -127,7 +127,7 @@
       "id": "public-coin-qrom",
       "ledgerSymbol": "epsilon_qrom",
       "sourceManifest": "TestVectors/product-qrom-public-coin-accounting-v1.json",
-      "currentMultiplicityAtSelectedDepth": 1,
+      "currentMultiplicityAtSelectedDepth": 3,
       "requiredForSelectedDepth": true,
       "lossInstantiated": true,
       "boundLog2": 384,
@@ -138,12 +138,12 @@
       "id": "extractor-instantiation",
       "ledgerSymbol": "epsilon_extract",
       "sourceManifest": "TestVectors/product-extractor-loss-accounting-v1.json",
-      "currentMultiplicityAtSelectedDepth": 1,
+      "currentMultiplicityAtSelectedDepth": 3,
       "requiredForSelectedDepth": true,
       "lossInstantiated": true,
       "boundLog2": 384,
       "exactUpperBound": "0",
-      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus NumiSealProductConcreteExtractor.extract and swiftConcreteExtractorEvidenceDigest metadata instantiate epsilon_extract(depth=1) = 0 by deterministic post-acceptance replay; CTCO knowledge extraction remains charged in per-kind theorem assumptions"
+      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus NumiSealProductConcreteExtractor.extract and swiftConcreteExtractorEvidenceDigest metadata instantiate epsilon_extract(depth=3) = 0 by deterministic post-acceptance replay through the loaded recursive carry chain; CTCO knowledge extraction remains charged in per-kind theorem assumptions"
     },
     {
       "id": "transcript-collision-domain-separation",
@@ -153,8 +153,8 @@
       "requiredForSelectedDepth": true,
       "lossInstantiated": true,
       "boundLog2": 250,
-      "exactUpperBound": "9/2^254",
-      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json structural binding plus 384-bit H_bind target bound epsilon_bind = 36 * 2^-256 = 9/2^254; proof-kind malleability is charged inside epsilon_collision"
+      "exactUpperBound": "11/2^254",
+      "requiredEvidence": "TestVectors/product-qrom-collision-malleability-evidence-v1.json structural binding plus 384-bit H_bind target bound epsilon_bind = 44 * 2^-256 = 11/2^254 for 11 CTCO binding targets; proof-kind malleability is charged inside epsilon_collision"
     },
     {
       "id": "product-ops-replay",
@@ -191,24 +191,24 @@
     }
   ],
   "computedBudget": {
-    "requiredTermCount": 7,
-    "instantiatedRequiredTermCount": 7,
+    "requiredTermCount": 8,
+    "instantiatedRequiredTermCount": 8,
     "missingRequiredTermIDs": [],
-    "exactInstantiatedRequiredTermUpperBound": "1524817325552571955113405954366591001320576061428196206500415823921474266153995130059487906546373417689880984888043496571148166815403488144131742298699032142411663275450355351739381207662530046071525219605185648606367417825540477933895568043356446980129567094378122437384095472341/935991071719907656231174971634127030812185940547016584296494971417027948496807144817356399419284219200241624485881079596444615615866880749936442975187946737011612872207536558002714890044884378641395515403848760693058509286515688454750208000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-    "exactSelectedDepthLossUpperBound": "1524817325552571955113405954366591001320576061428196206500415823921474266153995130059487906546373417689880984888043496571148166815403488144131742298699032142411663275450355351739381207662530046071525219605185648606367417825540477933895568043356446980129567094378122437384095472341/935991071719907656231174971634127030812185940547016584296494971417027948496807144817356399419284219200241624485881079596444615615866880749936442975187946737011612872207536558002714890044884378641395515403848760693058509286515688454750208000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "exactInstantiatedRequiredTermUpperBound": "607940477863530289890874044684295649455124431557466930679661424531505927647337651572656839328817634943559010330374656630331061679459962153348049219428638494647368930627504911080761565559605386220494672325132373247653071884154022962021128486578233479764185033969530213263001722341/311997023906635885410391657211375676937395313515672194765498323805675982832269048272452133139761406400080541495293693198814871871955626916645480991729315579003870957402512186000904963348294792880465171801282920231019503095505229484916736000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "exactSelectedDepthLossUpperBound": "607940477863530289890874044684295649455124431557466930679661424531505927647337651572656839328817634943559010330374656630331061679459962153348049219428638494647368930627504911080761565559605386220494672325132373247653071884154022962021128486578233479764185033969530213263001722341/311997023906635885410391657211375676937395313515672194765498323805675982832269048272452133139761406400080541495293693198814871871955626916645480991729315579003870957402512186000904963348294792880465171801282920231019503095505229484916736000000000000000000000000000000000000000000000000000000000000000000000000000000000",
     "selectedDepthLossWithinBudget": true,
     "allRequiredTermsInstantiated": true,
     "repositoryLocalSelectedDepthLossClaimAllowed": true,
     "productionTotalLossClaimAllowed": false
   },
   "exactFiniteProbabilityWiring": {
-    "selectedDepth": 1,
+    "selectedDepth": 3,
     "dyadicRationalArithmeticPinned": true,
     "zeroLossTermsRepresentedExactly": true,
     "instantiatedTermPartialSumComputed": true,
     "missingRequiredTermsKeepTotalUninstantiated": false,
     "qromTermSeparatedFromCollisionLedger": true,
-    "hbindCollisionExpressionExact": "epsilon_bind = 36 * 2^-256 = 9/2^254",
+    "hbindCollisionExpressionExact": "epsilon_bind = 44 * 2^-256 = 11/2^254",
     "sharedCoreExpressionExact": "epsilon_core_shared = 2^-129 = 1/2^129 and is charged once as a tagged union",
     "selectedDepthBudgetComparisonUsesExactRationals": true,
     "repositoryLocalSelectedDepthLossClaimAllowed": true,
@@ -216,7 +216,7 @@
     "nonDyadicFiniteProtocolRationalsPinned": true,
     "sourceFoldRepeatedTapeExpressionExact": "epsilon_fold <= 16/q^4 + 1/5^81",
     "terminalCE226ExpressionExact": "epsilon_terminal_ce <= (2/3)^226",
-    "extractorExpressionExact": "epsilon_extract(depth=1) = 0"
+    "extractorExpressionExact": "epsilon_extract(depth=3) = 0"
   },
   "productionGates": [
     {
@@ -253,7 +253,7 @@
       "requiredForRepositoryLocalUse": false,
       "requiredForRepositoryLocalSelectedDepthClaim": false,
       "requiredForProductionSecurityClaim": true,
-      "gateReason": "recursive carry extraction is outside the repository-local finite-protocol loss sum for the selected depth-1 zero-hop claim, but it is required before promoted-depth production claims"
+      "gateReason": "recursive carry chain-root verification is inside the repository-local finite-protocol loss sum through selected depth 3; production claims beyond selected depth 3 require a new selected-depth ledger"
     }
   ],
   "promotionRule": {

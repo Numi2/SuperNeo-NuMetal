@@ -47,3 +47,12 @@ binding. It is not a production cryptographic security claim by itself. QRO,
 QROM, and product-security claims remain governed by the product evidence
 manifests, `Docs/QROProductArchitecture-2026-04-25.md`, and the formal status
 manifest.
+
+## Experimental Compression
+
+`SuperNeoSNARKStyleCompressionProof` is an experimental recursive-verifier
+compression surface. It only accepts terminal proof sources after local
+verification and emits a smaller proof object binding the source proof digest,
+terminal context, compression-circuit digest, and recursive-verifier trace
+digest. This is a development hook for the paper's SNARK-compression path, not
+yet a production Spartan/FRI proof.

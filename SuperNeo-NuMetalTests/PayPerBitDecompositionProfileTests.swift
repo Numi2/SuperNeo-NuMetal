@@ -2,8 +2,8 @@ import XCTest
 @_spi(Benchmarking) @testable import SuperNeo_NuMetal
 
 final class PayPerBitDecompositionProfileTests: XCTestCase {
-    func testPayPerBitProfileProducesShorterVerifiedFoldOutputs() throws {
-        let fixture = try makeFixture(label: "shorter-fold")
+    func testDefaultPayPerBitProfileUsesConstantScheduleForPrivateFoldOutputs() throws {
+        let fixture = try makeFixture(label: "constant-fold")
         let fixed = try SuperNeoProver(
             key: fixture.key,
             decompositionProfile: .fixedMaximum
@@ -13,31 +13,31 @@ final class PayPerBitDecompositionProfileTests: XCTestCase {
         )
         let defaultProver = SuperNeoProver(key: fixture.key)
         XCTAssertEqual(defaultProver.decompositionProfile, .payPerBit)
-        let adaptive = try defaultProver.foldWithOutput(
+        XCTAssertTrue(defaultProver.executionPolicy.usesConstantWorkCPU)
+        let constantSchedule = try defaultProver.foldWithOutput(
             fixture.input,
             transcriptSeed: fixture.seed
         )
 
         XCTAssertEqual(fixed.outputClaims.count, fixture.parameters.decompositionLength)
-        XCTAssertGreaterThan(adaptive.outputClaims.count, 0)
-        XCTAssertLessThan(adaptive.outputClaims.count, fixture.parameters.decompositionLength)
-        XCTAssertEqual(adaptive.proof.outputClaims.count, adaptive.outputClaims.count)
-        XCTAssertEqual(adaptive.proof.decomposition.commitments.count, adaptive.outputClaims.count)
-        XCTAssertEqual(adaptive.proof.decomposition.evaluations.count, adaptive.outputClaims.count)
+        XCTAssertEqual(constantSchedule.outputClaims.count, fixture.parameters.decompositionLength)
+        XCTAssertEqual(constantSchedule.proof.outputClaims.count, constantSchedule.outputClaims.count)
+        XCTAssertEqual(constantSchedule.proof.decomposition.commitments.count, constantSchedule.outputClaims.count)
+        XCTAssertEqual(constantSchedule.proof.decomposition.evaluations.count, constantSchedule.outputClaims.count)
 
         let verifier = SuperNeoVerifier(key: fixture.key)
         let reduction = verifier.reduceFold(
             input: fixture.input,
-            proof: adaptive.proof,
+            proof: constantSchedule.proof,
             transcriptSeed: fixture.seed
         )
         XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "fold reduction rejected")
-        XCTAssertEqual(reduction.outputClaims.count, adaptive.outputClaims.count)
+        XCTAssertEqual(reduction.outputClaims.count, constantSchedule.outputClaims.count)
         XCTAssertEqual(
             verifier.verifyFold(
                 input: fixture.input,
-                proof: adaptive.proof,
-                outputClaims: adaptive.outputClaims,
+                proof: constantSchedule.proof,
+                outputClaims: constantSchedule.outputClaims,
                 transcriptSeed: fixture.seed
             ),
             .valid
@@ -46,7 +46,11 @@ final class PayPerBitDecompositionProfileTests: XCTestCase {
 
     func testPayPerBitProofEnvelopesRoundTripWithVariableOpeningCount() throws {
         let fixture = try makeFixture(label: "envelope")
-        let prover = SuperNeoProver(key: fixture.key, decompositionProfile: .payPerBit)
+        let prover = SuperNeoProver(
+            key: fixture.key,
+            executionPolicy: SuperNeoExecutionPolicy(secretArithmetic: .optimized),
+            decompositionProfile: .payPerBit
+        )
         let verifier = SuperNeoVerifier(key: fixture.key)
 
         let foldContext = ProofEnvelopeContext(
@@ -100,6 +104,38 @@ final class PayPerBitDecompositionProfileTests: XCTestCase {
         )
     }
 
+    func testOptimizedPayPerBitFoldUsesVerifiableVariableOpenings() throws {
+        let fixture = try makeFixture(label: "optimized-path")
+        let optimizedPolicy = SuperNeoExecutionPolicy(secretArithmetic: .optimized)
+        let prover = SuperNeoProver(
+            key: fixture.key,
+            executionPolicy: optimizedPolicy,
+            decompositionProfile: .payPerBit
+        )
+        let output = try prover.foldWithOutput(
+            fixture.input,
+            transcriptSeed: fixture.seed
+        )
+
+        XCTAssertLessThan(output.outputClaims.count, fixture.parameters.decompositionLength)
+        let verifier = SuperNeoVerifier(key: fixture.key)
+        let reduction = verifier.reduceFold(
+            input: fixture.input,
+            proof: output.proof,
+            transcriptSeed: fixture.seed
+        )
+        XCTAssertTrue(reduction.isReductionAccepted, reduction.reason ?? "")
+        XCTAssertEqual(
+            verifier.verifyFold(
+                input: fixture.input,
+                proof: output.proof,
+                outputClaims: output.outputClaims,
+                transcriptSeed: fixture.seed
+            ),
+            .valid
+        )
+    }
+
     func testPayPerBitVerifierRejectsMismatchedVariableOpeningCount() throws {
         let fixture = try makeFixture(label: "mismatched-count")
         let output = try SuperNeoProver(
@@ -136,6 +172,56 @@ final class PayPerBitDecompositionProfileTests: XCTestCase {
             reduction.reason,
             "invalidParameter(\"decomposition proof count must match output claims\")"
         )
+    }
+
+    func testPayPerBitRecompositionRejectsMalformedDecompositionPlan() throws {
+        let plan = try SuperNeoPayPerBitCommitter.decompositionPlan(
+            fieldVector: [.one, .zero, -GoldilocksField.one]
+        )
+        let extraLimbPlan = SuperNeoPayPerBitDecompositionPlan(
+            fieldElementCount: plan.fieldElementCount,
+            paddedFieldSlotCount: plan.paddedFieldSlotCount,
+            ringColumnCount: plan.ringColumnCount,
+            activeLimbCount: plan.activeLimbCount,
+            fixedLimbCount: plan.fixedLimbCount,
+            activeDigitSlotCount: plan.activeDigitSlotCount,
+            limbs: plan.limbs + [Array(repeating: .zero, count: plan.fieldElementCount)]
+        )
+
+        XCTAssertThrowsError(try SuperNeoPayPerBitCommitter.recomposeFieldVector(extraLimbPlan)) { error in
+            XCTAssertEqual(error as? SuperNeoError, .invalidParameter("pay-per-bit decomposition limb count mismatch"))
+        }
+
+        var malformedDigits = plan.limbs
+        malformedDigits[0][0] = GoldilocksField(2)
+        let malformedDigitPlan = SuperNeoPayPerBitDecompositionPlan(
+            fieldElementCount: plan.fieldElementCount,
+            paddedFieldSlotCount: plan.paddedFieldSlotCount,
+            ringColumnCount: plan.ringColumnCount,
+            activeLimbCount: plan.activeLimbCount,
+            fixedLimbCount: plan.fixedLimbCount,
+            activeDigitSlotCount: plan.activeDigitSlotCount,
+            limbs: malformedDigits
+        )
+
+        XCTAssertThrowsError(try SuperNeoPayPerBitCommitter.recomposeFieldVector(malformedDigitPlan)) { error in
+            XCTAssertEqual(
+                error as? SuperNeoError,
+                .invalidParameter("pay-per-bit decomposition digit outside signed binary domain")
+            )
+        }
+    }
+
+    func testPayPerBitRecompositionRejectsMismatchedCommitmentRows() throws {
+        let parameters = SuperNeoParameters.goldilocks
+        let first = AjtaiCommitment(Array(repeating: CyclotomicRing54.zero, count: parameters.kappa))
+        let second = AjtaiCommitment(Array(repeating: CyclotomicRing54.zero, count: parameters.kappa - 1))
+
+        XCTAssertThrowsError(
+            try SuperNeoPayPerBitCommitter.recomposeCommitment([first, second], parameters: parameters)
+        ) { error in
+            XCTAssertEqual(error as? SuperNeoError, .invalidParameter("pay-per-bit commitment row count mismatch"))
+        }
     }
 
     private struct Fixture {

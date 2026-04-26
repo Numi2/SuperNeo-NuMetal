@@ -809,6 +809,23 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
             fieldWitness: fieldVector
         )
     }
+    let referencePayPerBitCommitment = benchmarkSetupValue("failed to build pay-per-bit commitment for \(label)") {
+        try SuperNeoPayPerBitCommitter.commitReference(
+            key: fixture.key,
+            fieldVector: fieldVector,
+            parameters: fixture.parameters
+        )
+    }
+    let referencePayPerBitRecomposition = benchmarkSetupValue("failed to recompose pay-per-bit commitment for \(label)") {
+        try SuperNeoPayPerBitCommitter.recomposeCommitment(
+            referencePayPerBitCommitment.commitments,
+            parameters: fixture.parameters
+        )
+    }
+    requireBenchmarkSetupInvariant(
+        referencePayPerBitRecomposition == referenceCommitment,
+        "pay-per-bit commitment recomposition changed for \(label)"
+    )
     let referenceWorkProfile = benchmarkSetupValue("failed to build Ajtai work profile for \(label)") {
         try AjtaiCommitter.workProfile(key: fixture.key, message: ringVector)
     }
@@ -894,6 +911,28 @@ private func registerKernelBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
         )
         blackHole(workProfile.activeRotationTerms)
         blackHole(workProfile.smallCoefficientScalings)
+    }
+
+    Benchmark("kernel/ajtaiCommit/payPerBitOptimized/cpu/\(label)", configuration: defaultConfiguration) { _ in
+        let result = try SuperNeoPayPerBitCommitter.commitReference(
+            key: fixture.key,
+            fieldVector: fieldVector,
+            parameters: fixture.parameters
+        )
+        let recomposed = try SuperNeoPayPerBitCommitter.recomposeCommitment(
+            result.commitments,
+            parameters: fixture.parameters
+        )
+        try requireBenchmarkInvariant(
+            recomposed == referenceCommitment,
+            "pay-per-bit optimized commitment changed for \(label)"
+        )
+        try requireBenchmarkInvariant(
+            result.plan.activeLimbCount < fixture.parameters.decompositionLength,
+            "pay-per-bit optimized commitment did not skip fixed limbs for \(label)"
+        )
+        blackHole(result.totalActiveRotationTerms)
+        blackHole(result.plan.skippedFixedLimbCount)
     }
 
     Benchmark("kernel/ajtaiCommit/batch/cpu/\(label)", configuration: defaultConfiguration) { _ in
