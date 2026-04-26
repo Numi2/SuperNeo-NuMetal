@@ -52,6 +52,15 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             ),
             .valid
         )
+        XCTAssertEqual(
+            SuperNeoSpartanFRICompressor.verifyCompressionProof(
+                proof,
+                publicInput: publicInput,
+                verifierKeyDigest: fixture.key.verifierKeyDigest,
+                policy: policy
+            ),
+            .invalid("Spartan/FRI compression verification requires source proof bytes until the terminal verifier relation is fully arithmetized")
+        )
     }
 
     func testSpartanFRICompressionBindsRecursiveRelationDigest() throws {

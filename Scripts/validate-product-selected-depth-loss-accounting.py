@@ -53,6 +53,18 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductSelectedDepthLossLedger",
     "ProductSelectedDepthLossLedgerAccepted",
     "ProductCarryChainRoot",
+    "ProductSelectedDepthIndexing",
+    "ProductSelectedDepthIndexingAccepted",
+    "ProductCarryChainRootByteLayout",
+    "ProductCarryChainRootByteLayoutAccepted",
+    "ProductPCDParentTupleBinding",
+    "ProductPCDParentTupleBindingAccepted",
+    "OrderedPCDParentTupleRoot",
+    "OrderedPCDParentTupleRootAccepted",
+    "ProductAcceptedProofKindExtractor",
+    "ProductAcceptedProofKindExtractorAccepted",
+    "ProductPerKindExtractorTheorems",
+    "ProductPerKindExtractorTheoremsAccepted",
     "ProductRecursiveCarryChainRootRecurrence",
     "ProductRecursiveCarryChainRootRecurrenceAccepted",
     "ProductExtractorLossAccounting",
@@ -73,6 +85,12 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductTotalLossBudgetAccepted",
     "ProductExactFiniteProbabilityWiring",
     "ProductExactFiniteProbabilityWiringAccepted",
+    "productFoldExtractor_from_acceptedProof",
+    "productTerminalExtractor_from_acceptedProof",
+    "productCompressedTerminalExtractor_from_acceptedProof",
+    "productNumiSealTerminalExtractor_from_acceptedProof",
+    "productNumiSealZKProductExtractor_from_acceptedProof",
+    "productRecursiveCarryDepthLeThreeExtractor_from_acceptedProof",
     "productRecursiveCarryChainRoot_recurrence_unfolds_depth_le_three",
     "productRecursiveCarryChainRoot_verifier_extractor_path_depth_le_three",
     "productSecurityTheorem_requires_selected_depth_loss_accounting",
@@ -110,6 +128,14 @@ EXPECTED_PROMOTION_FALSE_FLAGS = [
     "productionZKPrivacyClaimAllowed",
     "productionReleaseDistributionClaimAllowed",
 ]
+
+EXPECTED_DEPTH_INDEXING = {
+    "baseAcceptedLayerDepth": 1,
+    "recursiveChildDepths": [2, 3],
+    "selectedMaximumDepth": 3,
+    "selectedRecursiveCarryHops": 2,
+    "depthZeroArtifactAccepted": False,
+}
 
 
 def fail(message: str) -> None:
@@ -322,6 +348,10 @@ def validate_selected_depth(ledger: dict[str, Any]) -> None:
     require(depth.get("depthModel") == "bounded-depth", "selectedDepth.depthModel must be bounded-depth")
     require(depth.get("selectedMaximumDepth") == 3, "selectedDepth.selectedMaximumDepth must be 3")
     require(depth.get("selectedRecursiveCarryHops") == 2, "selectedDepth.selectedRecursiveCarryHops must be 2")
+    require(
+        require_dict(depth.get("depthIndexing"), "selectedDepth.depthIndexing") == EXPECTED_DEPTH_INDEXING,
+        "selectedDepth.depthIndexing mismatch",
+    )
     require(depth.get("currentProductDefaultMaximumDepth") == 3, "selectedDepth.currentProductDefaultMaximumDepth must be 3")
     require(depth.get("loadedParentChainRequired") is True, "selectedDepth.loadedParentChainRequired must be true")
     require(
@@ -592,6 +622,7 @@ def validate_ledger(path: Path) -> None:
     ledger = read_json(path)
     text = json.dumps(ledger, sort_keys=True).lower()
     require("external" + " audit" not in text, "ledger must not encode outsourced review as a product gate")
+    require("per-kind theorem assumption" not in text, "ledger must not leave extractor claims as per-kind theorem assumptions")
     require(set(ledger) == EXPECTED_TOP_LEVEL_KEYS, "top-level ledger keys must match the v1 contract exactly")
     require(ledger.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(ledger.get("ledgerID") == "superneo-product-selected-depth-loss-accounting-v1", "ledgerID mismatch")

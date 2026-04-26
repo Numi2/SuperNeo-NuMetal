@@ -229,6 +229,18 @@ def validate_binding_bound(evidence: dict[str, Any]) -> None:
     require(bound.get("queryBoundLog2") == 64, "queryBoundLog2 mismatch")
     require(bound.get("bindingDigestBits") == 384, "bindingDigestBits must be 384")
     require(bound.get("bindingTargetEventCount") == 11, "bindingTargetEventCount must be 11")
+    require(
+        bound.get("targetSetSource") == "TestVectors/product-qrom-public-coin-accounting-v1.json#/collisionAccounting/targets",
+        "binding target set source mismatch",
+    )
+    public_coin = read_json(ROOT / "TestVectors/product-qrom-public-coin-accounting-v1.json")
+    collision = require_dict(public_coin.get("collisionAccounting"), "productQROMPublicCoinAccounting.collisionAccounting")
+    target_names = [
+        require_string(target.get("name"), f"productQROMPublicCoinAccounting.collisionAccounting.targets[{index}].name")
+        for index, target in enumerate(collision.get("targets", []))
+        if isinstance(target, dict)
+    ]
+    require(bound.get("targetNames") == target_names, "binding target names must match public-coin collision accounting")
     require(bound.get("formula") == "4 * bindingTargetEventCount * Q_H^2 / 2^bindingDigestBits", "formula mismatch")
     require("44 * 2^-256" in require_string(bound.get("instantiatedExpression"), "instantiatedExpression"), "instantiated bound mismatch")
     require_true(bound.get("withinSelectedCollisionBudget"), "withinSelectedCollisionBudget")

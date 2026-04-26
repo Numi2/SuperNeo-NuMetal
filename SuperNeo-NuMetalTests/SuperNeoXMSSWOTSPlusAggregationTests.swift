@@ -128,17 +128,20 @@ final class SuperNeoXMSSWOTSPlusAggregationTests: SuperNeoTestCase {
     func testSHA256WOTSPlusChainWorkloadUsesConcreteHashCircuit() throws {
         let parameters = try sha256CompactParameters()
         let messageDigits = [1, 1]
+        let publicSeed = UInt16(0x534e)
         let signatureElements = (0..<parameters.wotsLength).map { index in
             Digest256.hash(Array("sha256-wots-signature-\(index)".utf8))
         }
         let publicKey = try SuperNeoSHA256WOTSPlusReference.publicKey(
             parameters: parameters,
+            publicSeed: publicSeed,
             messageDigits: messageDigits,
             leafIndex: 1,
             signatureElements: signatureElements
         )
         let instance = try SuperNeoSHA256WOTSPlusChainInstance(
             parameters: parameters,
+            publicSeed: publicSeed,
             messageDigits: messageDigits,
             leafIndex: 1,
             signatureElements: signatureElements,
@@ -155,17 +158,72 @@ final class SuperNeoXMSSWOTSPlusAggregationTests: SuperNeoTestCase {
             XCTAssertEqual(call.outputDigest, Digest256.hash(call.message))
             XCTAssertTrue(try workload.validate(message: call.message, digest: call.outputDigest))
             XCTAssertEqual(Array(call.message.prefix(8)), Array("SNWOTS1\0".utf8))
+            XCTAssertEqual(call.publicSeed, publicSeed)
         }
+        let chainZeroMessage = try SuperNeoSHA256WOTSPlusReference.chainStepMessage(
+            inputDigest: signatureElements[0],
+            parameters: parameters,
+            publicSeed: publicSeed,
+            leafIndex: 1,
+            chainIndex: 0,
+            step: 0
+        )
+        let chainOneMessage = try SuperNeoSHA256WOTSPlusReference.chainStepMessage(
+            inputDigest: signatureElements[0],
+            parameters: parameters,
+            publicSeed: publicSeed,
+            leafIndex: 1,
+            chainIndex: 1,
+            step: 0
+        )
+        XCTAssertNotEqual(chainZeroMessage, chainOneMessage)
 
         var tamperedPublicKey = publicKey
         tamperedPublicKey[0] = Digest256.hash("sha256-wots-wrong-public-key")
         XCTAssertThrowsSuperNeoError(
             try SuperNeoSHA256WOTSPlusChainInstance(
                 parameters: parameters,
+                publicSeed: publicSeed,
                 messageDigits: messageDigits,
                 leafIndex: 1,
                 signatureElements: signatureElements,
                 publicKey: tamperedPublicKey
+            ),
+            .invalidParameter("SHA-256 WOTS+ chain signature does not reconstruct the supplied public key")
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoSHA256WOTSPlusChainInstance(
+                parameters: parameters,
+                publicSeed: publicSeed ^ 0x00ff,
+                messageDigits: messageDigits,
+                leafIndex: 1,
+                signatureElements: signatureElements,
+                publicKey: publicKey
+            ),
+            .invalidParameter("SHA-256 WOTS+ chain signature does not reconstruct the supplied public key")
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoSHA256WOTSPlusChainInstance(
+                parameters: parameters,
+                publicSeed: publicSeed,
+                messageDigits: [0, 0],
+                leafIndex: 1,
+                signatureElements: signatureElements,
+                publicKey: publicKey
+            ),
+            .invalidParameter("SHA-256 WOTS+ chain signature does not reconstruct the supplied public key")
+        )
+
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoSHA256WOTSPlusChainInstance(
+                parameters: parameters,
+                publicSeed: publicSeed,
+                messageDigits: messageDigits,
+                leafIndex: 2,
+                signatureElements: signatureElements,
+                publicKey: publicKey
             ),
             .invalidParameter("SHA-256 WOTS+ chain signature does not reconstruct the supplied public key")
         )

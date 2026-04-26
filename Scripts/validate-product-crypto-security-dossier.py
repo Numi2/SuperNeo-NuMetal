@@ -468,7 +468,7 @@ def validate_extractor_loss_accounting(dossier: dict[str, Any]) -> None:
     ]:
         require(extractor.get(key) is True, f"extractorLossAccounting.{key} must be true")
     obligations = " ".join(require_string_list(extractor.get("remainingObligations"), "extractorLossAccounting.remainingObligations")).lower()
-    for needle in ["recursive carry", "promoted-depth", "ctco online extraction"]:
+    for needle in ["recursive carry", "promoted-depth", "ctco trace-block", "productperkindextractortheorems"]:
         require(needle in obligations, f"extractor loss obligations must mention {needle}")
 
     manifest = read_json(ROOT / "TestVectors/product-extractor-loss-accounting-v1.json")

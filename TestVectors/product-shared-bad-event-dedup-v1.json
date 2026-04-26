@@ -66,7 +66,8 @@
     "sourceFoldResidualExcludesSharedCore": true,
     "terminalResidualExcludesSharedCore": true,
     "extractorResidualExcludesSharedCore": true,
-    "hbindCollisionRemainsEpsilonCollision": true
+    "hbindCollisionRemainsEpsilonCollision": true,
+    "hbindCollisionTargetSetSource": "TestVectors/product-qrom-public-coin-accounting-v1.json#/collisionAccounting/targets"
   },
   "promotionRule": {
     "productionProductSecurityClaimAllowed": false,

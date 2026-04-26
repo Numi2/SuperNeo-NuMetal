@@ -240,7 +240,7 @@
     "productionExtractorClaimAllowed": true,
     "remainingObligations": [
       "instantiate a new recursive carry selected-depth ledger before any promoted-depth production claim beyond selected depth 3",
-      "keep cryptographic CTCO online extraction charged through the per-kind theorem assumptions rather than as residual Swift replay loss"
+      "route CTCO trace-block extraction through ProductPerKindExtractorTheorems for each accepted proof kind rather than residual Swift replay loss"
     ],
     "concreteExtractorSurface": "NumiSealProductConcreteExtractor.extract",
     "selectedDepthExactUpperBound": "0"

@@ -224,6 +224,41 @@ final class PayPerBitDecompositionProfileTests: XCTestCase {
         }
     }
 
+    func testPrivateConstantScheduleMatchesSparsePublicCommitmentWithoutLeakingDigitCount() throws {
+        let parameters = SuperNeoParameters.goldilocks
+        let fieldVector = [GoldilocksField.zero, .one, -GoldilocksField.one, GoldilocksField(3)]
+        let paddedColumns = SuperNeoEmbedding.paddedLength(forFieldElementCount: fieldVector.count) / CyclotomicRing54.degree
+        let key = try AjtaiCommitmentKey(
+            parameters: parameters,
+            columns: paddedColumns,
+            seed: Array("pay-per-bit-private-schedule-key".utf8)
+        )
+
+        let sparsePublic = try SuperNeoPayPerBitCommitter.commitReference(
+            key: key,
+            fieldVector: fieldVector,
+            parameters: parameters
+        )
+        let constantSecret = try SuperNeoPayPerBitCommitter.commitConstantScheduleReference(
+            key: key,
+            fieldVector: fieldVector,
+            parameters: parameters
+        )
+        XCTAssertEqual(sparsePublic.plan.schedule, .sparsePublic)
+        XCTAssertEqual(constantSecret.plan.schedule, .constantSecret)
+        XCTAssertLessThan(sparsePublic.plan.activeLimbCount, parameters.decompositionLength)
+        XCTAssertEqual(constantSecret.plan.activeLimbCount, parameters.decompositionLength)
+        XCTAssertEqual(constantSecret.plan.activeDigitSlotCount, constantSecret.plan.fixedPaddedSlotCount)
+        XCTAssertEqual(
+            try SuperNeoPayPerBitCommitter.recomposeCommitment(sparsePublic.commitments, parameters: parameters),
+            try SuperNeoPayPerBitCommitter.recomposeCommitment(constantSecret.commitments, parameters: parameters)
+        )
+        XCTAssertEqual(
+            try SuperNeoPayPerBitCommitter.recomposeFieldVector(constantSecret.plan, parameters: parameters),
+            fieldVector
+        )
+    }
+
     private struct Fixture {
         let parameters: SuperNeoParameters
         let key: AjtaiCommitmentKey

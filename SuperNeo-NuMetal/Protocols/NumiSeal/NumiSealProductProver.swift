@@ -628,14 +628,13 @@ public struct NumiSealProductRecursiveCarryReplayBinding: Equatable, Hashable, S
         parentProducerProofEnvelopeDigest: Digest256,
         parentPublicStatementDigest: Digest256
     ) -> Digest256 {
-        NumiSealEncoding.digest(
-            label: "numiseal.product-carry.base-chain-root.v1",
-            bytes: parentArtifactDigest.superNeoBytes
-                + parentSourceFoldEnvelopeDigest.superNeoBytes
-                + parentProductProofEnvelopeDigest.superNeoBytes
-                + parentProducerProofEnvelopeDigest.superNeoBytes
-                + parentPublicStatementDigest.superNeoBytes
-        )
+        try! ProductCarryChainRootBase(
+            artifactDigest: parentArtifactDigest,
+            sourceFoldEnvelopeDigest: parentSourceFoldEnvelopeDigest,
+            productProofEnvelopeDigest: parentProductProofEnvelopeDigest,
+            producerEnvelopeDigest: parentProducerProofEnvelopeDigest,
+            publicStatementDigest: parentPublicStatementDigest
+        ).rootDigest
     }
 
     public static func chainRoot(
@@ -651,20 +650,19 @@ public struct NumiSealProductRecursiveCarryReplayBinding: Equatable, Hashable, S
         contextRoot: Digest256,
         replayRoot: Digest256
     ) -> Digest256 {
-        NumiSealEncoding.digest(
-            label: "numiseal.product-carry.chain-root.v1",
-            bytes: parentChainRoot.superNeoBytes
-                + parentArtifactDigest.superNeoBytes
-                + parentSourceFoldEnvelopeDigest.superNeoBytes
-                + parentProductProofEnvelopeDigest.superNeoBytes
-                + parentProducerProofEnvelopeDigest.superNeoBytes
-                + parentPublicStatementDigest.superNeoBytes
-                + consumerSessionDigest.superNeoBytes
-                + numiSealEncodeCount(nextRecursionLevel)
-                + numiSealEncodeCount(claimCount)
-                + contextRoot.superNeoBytes
-                + replayRoot.superNeoBytes
-        )
+        try! ProductCarryChainRootStep(
+            depthIndex: nextRecursionLevel,
+            parentChainRoot: parentChainRoot,
+            artifactDigest: parentArtifactDigest,
+            sourceFoldEnvelopeDigest: parentSourceFoldEnvelopeDigest,
+            productProofEnvelopeDigest: parentProductProofEnvelopeDigest,
+            producerEnvelopeDigest: parentProducerProofEnvelopeDigest,
+            publicStatementDigest: parentPublicStatementDigest,
+            consumerSessionDigest: consumerSessionDigest,
+            contextRoot: contextRoot,
+            replayRoot: replayRoot,
+            typedCarryStatementDigest: replayRoot
+        ).rootDigest
     }
 
     init(metadata: [String: String]) throws {

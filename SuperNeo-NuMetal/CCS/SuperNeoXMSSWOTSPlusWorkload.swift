@@ -518,6 +518,7 @@ public enum SuperNeoXMSSWOTSPlusReference {
 
 public struct SuperNeoSHA256WOTSPlusChainHashCall: Equatable, Sendable {
     public let parameters: SuperNeoXMSSWOTSPlusParameters
+    public let publicSeed: UInt16
     public let leafIndex: Int
     public let chainIndex: Int
     public let step: Int
@@ -529,6 +530,7 @@ public struct SuperNeoSHA256WOTSPlusChainHashCall: Equatable, Sendable {
         Digest256.hash(
             Array("SuperNeo-NuMetal.sha256-wots-plus.chain-call.v1".utf8)
                 + parameters.superNeoBytes
+                + xmssEncodeUInt16(Int(publicSeed))
                 + xmssEncodeCount(leafIndex)
                 + xmssEncodeCount(chainIndex)
                 + xmssEncodeCount(step)
@@ -542,6 +544,7 @@ public struct SuperNeoSHA256WOTSPlusChainHashCall: Equatable, Sendable {
 
 public struct SuperNeoSHA256WOTSPlusChainInstance: Equatable, Sendable {
     public let parameters: SuperNeoXMSSWOTSPlusParameters
+    public let publicSeed: UInt16
     public let messageDigits: [Int]
     public let leafIndex: Int
     public let signatureElements: [Digest256]
@@ -549,6 +552,7 @@ public struct SuperNeoSHA256WOTSPlusChainInstance: Equatable, Sendable {
 
     public init(
         parameters: SuperNeoXMSSWOTSPlusParameters,
+        publicSeed: UInt16 = 0,
         messageDigits: [Int],
         leafIndex: Int,
         signatureElements: [Digest256],
@@ -565,6 +569,7 @@ public struct SuperNeoSHA256WOTSPlusChainInstance: Equatable, Sendable {
         }
         let expectedPublicKey = try SuperNeoSHA256WOTSPlusReference.publicKey(
             parameters: parameters,
+            publicSeed: publicSeed,
             messageDigits: messageDigits,
             leafIndex: leafIndex,
             signatureElements: signatureElements
@@ -573,6 +578,7 @@ public struct SuperNeoSHA256WOTSPlusChainInstance: Equatable, Sendable {
             throw SuperNeoError.invalidParameter("SHA-256 WOTS+ chain signature does not reconstruct the supplied public key")
         }
         self.parameters = parameters
+        self.publicSeed = publicSeed
         self.messageDigits = messageDigits
         self.leafIndex = leafIndex
         self.signatureElements = signatureElements
@@ -583,6 +589,7 @@ public struct SuperNeoSHA256WOTSPlusChainInstance: Equatable, Sendable {
         Digest256.hash(
             Array("SuperNeo-NuMetal.sha256-wots-plus.chain-instance.v1".utf8)
                 + parameters.superNeoBytes
+                + xmssEncodeUInt16(Int(publicSeed))
                 + xmssEncodeCount(leafIndex)
                 + messageDigits.flatMap(xmssEncodeCount)
                 + signatureElements.flatMap(\.superNeoBytes)
@@ -592,7 +599,7 @@ public struct SuperNeoSHA256WOTSPlusChainInstance: Equatable, Sendable {
 }
 
 public enum SuperNeoSHA256WOTSPlusReference {
-    public static let chainMessageByteCount = 52
+    public static let chainMessageByteCount = 54
 
     public static func validateSHA256OneBlockParameters(_ parameters: SuperNeoXMSSWOTSPlusParameters) throws {
         guard parameters.hashMode == .sha256OneBlock else {
@@ -612,6 +619,7 @@ public enum SuperNeoSHA256WOTSPlusReference {
     public static func chainStepMessage(
         inputDigest: Digest256,
         parameters: SuperNeoXMSSWOTSPlusParameters,
+        publicSeed: UInt16 = 0,
         leafIndex: Int,
         chainIndex: Int,
         step: Int
@@ -630,6 +638,7 @@ public enum SuperNeoSHA256WOTSPlusReference {
             + xmssEncodeUInt16(parameters.baseW)
             + xmssEncodeUInt16(parameters.messageDigitCount)
             + xmssEncodeUInt16(parameters.treeHeight)
+            + xmssEncodeUInt16(Int(publicSeed))
             + xmssEncodeUInt16(leafIndex)
             + xmssEncodeUInt16(chainIndex)
             + xmssEncodeUInt16(step)
@@ -643,6 +652,7 @@ public enum SuperNeoSHA256WOTSPlusReference {
     public static func chainStep(
         inputDigest: Digest256,
         parameters: SuperNeoXMSSWOTSPlusParameters,
+        publicSeed: UInt16 = 0,
         leafIndex: Int,
         chainIndex: Int,
         step: Int
@@ -650,12 +660,14 @@ public enum SuperNeoSHA256WOTSPlusReference {
         let message = try chainStepMessage(
             inputDigest: inputDigest,
             parameters: parameters,
+            publicSeed: publicSeed,
             leafIndex: leafIndex,
             chainIndex: chainIndex,
             step: step
         )
         return SuperNeoSHA256WOTSPlusChainHashCall(
             parameters: parameters,
+            publicSeed: publicSeed,
             leafIndex: leafIndex,
             chainIndex: chainIndex,
             step: step,
@@ -667,6 +679,7 @@ public enum SuperNeoSHA256WOTSPlusReference {
 
     public static func publicKey(
         parameters: SuperNeoXMSSWOTSPlusParameters,
+        publicSeed: UInt16 = 0,
         messageDigits: [Int],
         leafIndex: Int,
         signatureElements: [Digest256]
@@ -683,6 +696,7 @@ public enum SuperNeoSHA256WOTSPlusReference {
                 let call = try chainStep(
                     inputDigest: state,
                     parameters: parameters,
+                    publicSeed: publicSeed,
                     leafIndex: leafIndex,
                     chainIndex: pair.offset,
                     step: step
@@ -704,6 +718,7 @@ public enum SuperNeoSHA256WOTSPlusReference {
                 let call = try chainStep(
                     inputDigest: state,
                     parameters: instance.parameters,
+                    publicSeed: instance.publicSeed,
                     leafIndex: instance.leafIndex,
                     chainIndex: chainIndex,
                     step: step

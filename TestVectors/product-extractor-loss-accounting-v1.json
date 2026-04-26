@@ -12,10 +12,28 @@
     "module": "Formal/SuperNeoFormal/ProductSecurityTheorem.lean",
     "declarations": [
       "ProductCarryChainRoot",
+      "ProductSelectedDepthIndexing",
+      "ProductSelectedDepthIndexingAccepted",
+      "ProductCarryChainRootByteLayout",
+      "ProductCarryChainRootByteLayoutAccepted",
+      "ProductPCDParentTupleBinding",
+      "ProductPCDParentTupleBindingAccepted",
+      "OrderedPCDParentTupleRoot",
+      "OrderedPCDParentTupleRootAccepted",
+      "ProductAcceptedProofKindExtractor",
+      "ProductAcceptedProofKindExtractorAccepted",
+      "ProductPerKindExtractorTheorems",
+      "ProductPerKindExtractorTheoremsAccepted",
       "ProductRecursiveCarryChainRootRecurrence",
       "ProductRecursiveCarryChainRootRecurrenceAccepted",
       "ProductExtractorLossAccounting",
       "ProductExtractorLossAccountingAccepted",
+      "productFoldExtractor_from_acceptedProof",
+      "productTerminalExtractor_from_acceptedProof",
+      "productCompressedTerminalExtractor_from_acceptedProof",
+      "productNumiSealTerminalExtractor_from_acceptedProof",
+      "productNumiSealZKProductExtractor_from_acceptedProof",
+      "productRecursiveCarryDepthLeThreeExtractor_from_acceptedProof",
       "productRecursiveCarryChainRoot_recurrence_unfolds_depth_le_three",
       "productRecursiveCarryChainRoot_verifier_extractor_path_depth_le_three",
       "productSecurityTheorem_requires_extractor_loss_accounting"
@@ -26,14 +44,66 @@
     "selectedMaximumDepth": 3,
     "acceptedProductLayers": 3,
     "selectedRecursiveCarryHops": 2,
+    "depthIndexing": {
+      "baseAcceptedLayerDepth": 1,
+      "recursiveChildDepths": [
+        2,
+        3
+      ],
+      "selectedMaximumDepth": 3,
+      "selectedRecursiveCarryHops": 2,
+      "depthZeroArtifactAccepted": false
+    },
     "loadedParentChainRequired": true,
     "extractorPromotionAllowed": true
   },
   "chainRootRecurrence": {
     "selectedDepth": 3,
     "selectedRecursiveCarryHops": 2,
+    "canonicalVector": "TestVectors/product-carry-chain-root-v1.json",
+    "byteExactLayouts": {
+      "baseDomainTag": "SUPERNEO/PRODUCT/CARRY_CHAIN/BASE/v1",
+      "stepDomainTag": "SUPERNEO/PRODUCT/CARRY_CHAIN/STEP/v1",
+      "version": 1,
+      "fieldOrder": [
+        "domainTag",
+        "version",
+        "profileID",
+        "selectedDepthPolicyDigest",
+        "depthIndex",
+        "parentChainRoot",
+        "artifactDigest",
+        "sourceFoldEnvelopeDigest",
+        "productProofEnvelopeDigest",
+        "producerEnvelopeDigest",
+        "publicStatementDigest",
+        "consumerSessionDigest",
+        "contextRoot",
+        "replayRoot",
+        "typedCarryStatementDigest",
+        "recursiveRelationDigest",
+        "orderedPCDParentTupleRoot"
+      ]
+    },
+    "orderedPCDParentTupleRoot": {
+      "domainTag": "SUPERNEO/PCD/PARENT_TUPLES/v1",
+      "tupleFields": [
+        "parentPosition",
+        "parentNodeIndex",
+        "parentDepth",
+        "parentStateDigest",
+        "parentAccumulatorDigest",
+        "parentPublicStatementDigest",
+        "parentOutputAccumulatorClaim",
+        "parentEvaluationPoint",
+        "parentClaimValue",
+        "parentRecursiveRelationDigest",
+        "parentCarryChainRoot"
+      ],
+      "consumedByFoldedRelation": true
+    },
     "baseCase": "rootAtDepth(1) = baseRoot(actual accepted base artifact digest, actual source fold envelope digest, actual NumiSeal proof envelope digest, accepted producer envelope digest, and actual public statement digest)",
-    "stepCase": "for depth 1 <= d < 3, rootAtDepth(d + 1) = stepRoot(d, rootAtDepth(d), parent artifact digest, parent source fold envelope digest, parent product proof envelope digest, accepted producer envelope digest, parent public statement digest, consumer session digest, recomputed context root, recomputed replay root, and typed carry statements)",
+    "stepCase": "for depth 1 <= d < 3, rootAtDepth(d + 1) = stepRoot(d, rootAtDepth(d), parent artifact digest, parent source fold envelope digest, parent product proof envelope digest, accepted producer envelope digest, parent public statement digest, consumer session digest, recomputed context root, recomputed replay root, typed carry statements, recursiveRelationDigest, and ordered PCD parent tuple root)",
     "depthThreeUnrolling": [
       "rootAtDepth(1) = baseRoot",
       "rootAtDepth(2) = stepRoot(1, baseRoot)",
@@ -47,10 +117,28 @@
   },
   "extractorInterface": {
     "target": "accepted product proof envelopes and their bound source fold, terminal seal, ZK residual, and recursive carry context material",
-    "rewindingModel": "deterministic post-acceptance verifier replay over bound CTCO proof envelopes; cryptographic CTCO online extraction remains a per-kind theorem assumption, not an additional Swift replay loss",
+    "rewindingModel": "deterministic post-acceptance verifier replay over bound CTCO proof envelopes; CTCO trace blocks are consumed by per-kind extractor theorems for every accepted proof kind and add no residual Swift replay loss",
     "extractorImplementationLanguage": "Swift",
     "concreteExtractorImplemented": true,
     "extractorSchedulePinned": true,
+    "perKindExtractorTheorems": {
+      "fold": "productFoldExtractor_from_acceptedProof",
+      "terminal": "productTerminalExtractor_from_acceptedProof",
+      "compressed-terminal": "productCompressedTerminalExtractor_from_acceptedProof",
+      "numiseal-terminal": "productNumiSealTerminalExtractor_from_acceptedProof",
+      "numiseal-zk-product": "productNumiSealZKProductExtractor_from_acceptedProof",
+      "recursive-carry-depth-le-three": "productRecursiveCarryDepthLeThreeExtractor_from_acceptedProof"
+    },
+    "perKindProofObligationFields": [
+      "acceptedInputObjectSpecified",
+      "verifierAcceptancePredicateSpecified",
+      "extractedObjectSpecified",
+      "failureEventsSpecified",
+      "ctcoTraceBlockDependencySpecified",
+      "extractorLossContributionSpecified",
+      "parentChainDependencySpecified",
+      "carryChainRootRelatesToExtractedState"
+    ],
     "acceptedInputBindings": [
       "proof envelope header bytes",
       "source fold envelope bytes",
@@ -68,7 +156,10 @@
       "source fold output claim digests",
       "trace extractor CTCO root and challenge seed",
       "QROM evidence digest",
-      "recursive carry context root when carry mode is typed-required"
+      "recursive carry context root when carry mode is typed-required",
+      "verifier-computed productCarryChainRoot",
+      "ordered PCD parent tuple root when present",
+      "recursiveRelationDigest when present"
     ],
     "concreteExtractorSurface": "NumiSealProductConcreteExtractor.extract",
     "concreteExtractorEvidenceDigestMetadataKey": "swiftConcreteExtractorEvidenceDigest",
@@ -81,7 +172,7 @@
       "appliesPerAcceptedLayer": true,
       "currentMultiplicityAtSelectedDepth": 3,
       "status": "deterministic-source-fold-replay-instantiated",
-      "accountingRule": "zero residual Swift extractor loss: accepted source fold verification replays the bound proof envelope and exports public output claims deterministically; CTCO knowledge extraction remains charged in the per-kind theorem assumptions",
+      "accountingRule": "zero residual Swift extractor loss: accepted source fold verification replays the bound proof envelope and exports public output claims deterministically through productFoldExtractor_from_acceptedProof",
       "requiredEvidence": "NumiSealProductConcreteExtractor replays source fold verification and recomputes source-fold-output-claim digests from proof-envelope bytes",
       "lossInstantiated": true,
       "exactUpperBound": "0"
@@ -121,7 +212,7 @@
     }
   ],
   "lossRule": {
-    "selectedDepthExpression": "epsilon_extract(depth=3) = 0 after deterministic accepted-product replay over source fold, terminal/ZK proof, product envelope, and loaded recursive carry chain roots; cryptographic CTCO extraction remains charged in per-kind theorem assumptions",
+    "selectedDepthExpression": "epsilon_extract(depth=3) = 0 after deterministic accepted-product replay over source fold, terminal/ZK proof, product envelope, loaded recursive carry chain roots, and per-kind CTCO extractor theorems for fold, terminal, compressed-terminal, numiseal-terminal, numiseal-zk-product, and recursive carry depth <= 3",
     "recursivePromotionExpression": "epsilon_extract(depth=d) = d * 0 for selected replay extraction plus max(d - 1, 0) * epsilon_extract_carry until promoted typed carry extraction is instantiated",
     "allExtractorTermsInstantiated": true,
     "extractorLossWithinBudget": true,

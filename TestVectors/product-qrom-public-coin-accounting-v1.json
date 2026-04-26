@@ -200,6 +200,62 @@
     "productionQROMClaimAllowed": false,
     "fixedKindAccountingRule": "H_bind binds the fixed expected proof kind and context; the selected-depth theorem dispatches to that fixed-kind ledger and does not flat-sum unrelated proof-kind finite terms."
   },
+  "collisionAccounting": {
+    "hashOutputBits": 256,
+    "bindingOracleOutputBits": 384,
+    "quantumQueryBoundLog2": 64,
+    "bindingTargets": 11,
+    "orderedCollisionPairs": 44,
+    "bound": "44 * 2^-256",
+    "reducedBound": "11 / 2^254",
+    "targets": [
+      {
+        "name": "fold-context-binding",
+        "domainTag": "ctx/fold/v2"
+      },
+      {
+        "name": "terminal-context-binding",
+        "domainTag": "ctx/terminal/v2"
+      },
+      {
+        "name": "compressed-terminal-context-binding",
+        "domainTag": "ctx/compressed-terminal/v2"
+      },
+      {
+        "name": "numiseal-terminal-context-binding",
+        "domainTag": "ctx/numiseal-terminal/v2"
+      },
+      {
+        "name": "numiseal-zk-product-context-binding",
+        "domainTag": "ctx/numiseal-zk-product/v2"
+      },
+      {
+        "name": "source-fold-envelope-binding",
+        "domainTag": "superneo/numiseal/ctco/source-fold-envelope/v2"
+      },
+      {
+        "name": "product-proof-envelope-binding",
+        "domainTag": "superneo/numiseal/ctco/product-proof-envelope/v2"
+      },
+      {
+        "name": "recursive-carry-replay-binding",
+        "domainTag": "superneo/numiseal/ctco/carry/replay-binding/v2"
+      },
+      {
+        "name": "typed-carry-statement-binding",
+        "domainTag": "superneo/numiseal/ctco/carry/typed-statement/v2"
+      },
+      {
+        "name": "component-root-binding",
+        "domainTag": "superneo/numiseal/ctco/component-root/v2"
+      },
+      {
+        "name": "qrom-evidence-binding",
+        "domainTag": "superneo/numiseal/ctco/qrom-evidence/v2"
+      }
+    ],
+    "pairDerivation": "orderedCollisionPairs = 4 * bindingTargets; with Q_H = 2^64 and H_bind = 384 bits, 4 * 11 * Q_H^2 / 2^384 = 44 * 2^-256 = 11 / 2^254"
+  },
   "ledgerTermMapping": {
     "publicCoinQROMLoss": {
       "ledgerSymbol": "epsilon_qrom",

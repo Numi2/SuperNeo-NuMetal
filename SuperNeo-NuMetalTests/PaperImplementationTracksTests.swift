@@ -89,6 +89,15 @@ final class PaperImplementationTracksTests: XCTestCase {
             ),
             .valid
         )
+        XCTAssertEqual(
+            SuperNeoSNARKStyleCompressor.verifyCompressionProof(
+                compressionProof,
+                publicInput: prepared.publicFoldInput,
+                verifierKeyDigest: prepared.key.verifierKeyDigest,
+                policy: policy
+            ),
+            .invalid("SNARK-style compression verification requires source proof bytes until the terminal verifier relation is fully arithmetized")
+        )
     }
 
     func testSNARKStyleCompressionAcceptsCompressedTerminalSource() throws {

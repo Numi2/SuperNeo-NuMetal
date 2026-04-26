@@ -487,4 +487,270 @@ final class SuperNeoIVCPCDCompilerTests: SuperNeoTestCase {
             .valid
         )
     }
+
+    func testPCDVerifierRejectsParentEvaluationPointSwapInsideTuple() throws {
+        let fixture = try makeFoldFixture()
+        let run = try makeDistinctPointPCDRun(fixture: fixture)
+        let join = run.nodes[2]
+        var priorCEs = join.step.statement.priorCEInstances
+        XCTAssertGreaterThanOrEqual(priorCEs.count, 2)
+        let original = priorCEs[0]
+        priorCEs[0] = CEInstance(
+            commitment: original.commitment,
+            publicInputEncoding: original.publicInputEncoding,
+            evalPoint: priorCEs[1].evalPoint,
+            matrixEvals: original.matrixEvals
+        )
+        let tamperedRun = pcdRun(
+            run,
+            replacingNodeAt: 2,
+            withStatement: CCSStatement(
+                shapeDigest: join.step.statement.shapeDigest,
+                ccsInstances: join.step.statement.ccsInstances,
+                priorCEInstances: priorCEs,
+                recursiveRelationDigest: join.step.statement.recursiveRelationDigest
+            )
+        )
+
+        XCTAssertNotEqual(
+            SuperNeoFoldingCompiler.verifyPCD(
+                tamperedRun,
+                shape: fixture.input.shape,
+                key: fixture.key,
+                maximumFanIn: 2
+            ),
+            .valid
+        )
+    }
+
+    func testPCDVerifierRejectsParentClaimValueSwapInsideTuple() throws {
+        let fixture = try makeFoldFixture()
+        let run = try makeDistinctPointPCDRun(fixture: fixture)
+        let join = run.nodes[2]
+        var priorCEs = join.step.statement.priorCEInstances
+        XCTAssertGreaterThanOrEqual(priorCEs.count, 1)
+        let original = priorCEs[0]
+        var mutatedEvals = original.matrixEvals
+        mutatedEvals[0] = mutatedEvals[0] + .one
+        priorCEs[0] = CEInstance(
+            commitment: original.commitment,
+            publicInputEncoding: original.publicInputEncoding,
+            evalPoint: original.evalPoint,
+            matrixEvals: mutatedEvals
+        )
+        let tamperedRun = pcdRun(
+            run,
+            replacingNodeAt: 2,
+            withStatement: CCSStatement(
+                shapeDigest: join.step.statement.shapeDigest,
+                ccsInstances: join.step.statement.ccsInstances,
+                priorCEInstances: priorCEs,
+                recursiveRelationDigest: join.step.statement.recursiveRelationDigest
+            )
+        )
+
+        XCTAssertNotEqual(
+            SuperNeoFoldingCompiler.verifyPCD(
+                tamperedRun,
+                shape: fixture.input.shape,
+                key: fixture.key,
+                maximumFanIn: 2
+            ),
+            .valid
+        )
+    }
+
+    func testPCDCompilerRejectsDuplicateParentReplay() throws {
+        let fixture = try makeFoldFixture()
+        let prover = SuperNeoProver(key: fixture.key)
+
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoFoldingCompiler.provePCD(
+                requests: [
+                    SuperNeoPCDNodeRequest(input: fixture.input, transcriptSeed: Array("pcd-dup-root".utf8)),
+                    SuperNeoPCDNodeRequest(
+                        input: fixture.input,
+                        parentNodeIndices: [0, 0],
+                        transcriptSeed: Array("pcd-dup-child".utf8)
+                    )
+                ],
+                prover: prover,
+                maximumFanIn: 2
+            ),
+            .invalidParameter("PCD parent indices must be unique")
+        )
+    }
+
+    func testPCDRelationDigestChangesWhenOneParentPointChanges() throws {
+        let fixture = try makeFoldFixture()
+        let run = try makeDistinctPointPCDRun(fixture: fixture)
+        let join = run.nodes[2]
+        let parentStates = [run.nodes[0].step.verifierState, run.nodes[1].step.verifierState]
+        let parentStatements = [run.nodes[0].step.statement, run.nodes[1].step.statement]
+        let childStatement = CCSStatement(
+            shapeDigest: join.step.statement.shapeDigest,
+            ccsInstances: join.step.statement.ccsInstances,
+            priorCEInstances: []
+        )
+        let originalInput = try SuperNeoRecursiveFoldRelationInput(
+            compilerKind: .pcd,
+            nodeIndex: join.nodeIndex,
+            depth: join.step.depth,
+            parentNodeIndices: join.step.parentNodeIndices,
+            parentStates: parentStates,
+            parentStatements: parentStatements,
+            childTransitionStatement: childStatement,
+            parentSetRoot: join.parentSetBinding?.parentSetRoot
+        )
+
+        var mutatedClaims = parentStates[0].accumulator.claims
+        let firstClaim = try XCTUnwrap(mutatedClaims.first)
+        var point = firstClaim.point
+        point[0] = point[0] + .one
+        mutatedClaims[0] = CCSEvaluationClaim(
+            commitment: firstClaim.commitment,
+            publicInput: firstClaim.publicInput,
+            point: point,
+            evaluations: firstClaim.evaluations
+        )
+        let mutatedAccumulator = SuperNeoAccumulator(
+            profileID: parentStates[0].profileID,
+            shapeDigest: parentStates[0].shapeDigest,
+            verifierKeyDigest: parentStates[0].verifierKeyDigest,
+            claims: mutatedClaims
+        )
+        let mutatedState = SuperNeoRecursiveVerifierState(
+            compilerKind: parentStates[0].compilerKind,
+            nodeIndex: parentStates[0].nodeIndex,
+            depth: parentStates[0].depth,
+            profileID: parentStates[0].profileID,
+            shapeDigest: parentStates[0].shapeDigest,
+            verifierKeyDigest: parentStates[0].verifierKeyDigest,
+            parentNodeIndices: parentStates[0].parentNodeIndices,
+            parentStateDigests: parentStates[0].parentStateDigests,
+            parentSetRoot: parentStates[0].parentSetRoot,
+            statementDigest: parentStates[0].statementDigest,
+            transcriptSeedDigest: parentStates[0].transcriptSeedDigest,
+            foldProofDigest: parentStates[0].foldProofDigest,
+            reductionBoundaryDigest: parentStates[0].reductionBoundaryDigest,
+            recursiveRelationDigest: parentStates[0].recursiveRelationDigest,
+            accumulator: mutatedAccumulator
+        )
+        let mutatedInput = try SuperNeoRecursiveFoldRelationInput(
+            compilerKind: .pcd,
+            nodeIndex: join.nodeIndex,
+            depth: join.step.depth,
+            parentNodeIndices: join.step.parentNodeIndices,
+            parentStates: [mutatedState, parentStates[1]],
+            parentStatements: parentStatements,
+            childTransitionStatement: childStatement,
+            parentSetRoot: join.parentSetBinding?.parentSetRoot
+        )
+
+        XCTAssertNotEqual(originalInput.parentTupleBindings[0].parentEvaluationPointRoot, mutatedInput.parentTupleBindings[0].parentEvaluationPointRoot)
+        XCTAssertNotEqual(originalInput.orderedParentTupleRoot, mutatedInput.orderedParentTupleRoot)
+        XCTAssertNotEqual(originalInput.relationInputDigest, mutatedInput.relationInputDigest)
+    }
+
+    func testVerifierPublicCoinRejectsPriorPointMutationAfterCoins() throws {
+        let fixture = try makeFoldFixture()
+        let run = try makeDistinctPointPCDRun(fixture: fixture)
+        let join = run.nodes[2]
+        let claims = (run.nodes[0].step.outputAccumulator.claims + run.nodes[1].step.outputAccumulator.claims)
+        let input = SuperNeoFoldInput(
+            shape: fixture.input.shape,
+            instances: fixture.input.instances,
+            witnesses: fixture.input.witnesses,
+            priorClaims: claims,
+            recursiveRelationDigest: join.step.statement.recursiveRelationDigest
+        )
+        let coins = try SuperNeoVerifierPublicCoin(
+            sessionID: "pcd-public-coin-boundary",
+            verifierPublicCoin: Array(repeating: 0x42, count: 32),
+            input: input,
+        )
+        var mutatedClaims = claims
+        var point = mutatedClaims[0].point
+        point[0] = point[0] + .one
+        mutatedClaims[0] = CCSEvaluationClaim(
+            commitment: mutatedClaims[0].commitment,
+            publicInput: mutatedClaims[0].publicInput,
+            point: point,
+            evaluations: mutatedClaims[0].evaluations
+        )
+        let mutatedInput = SuperNeoFoldInput(
+            shape: fixture.input.shape,
+            instances: fixture.input.instances,
+            witnesses: fixture.input.witnesses,
+            priorClaims: mutatedClaims,
+            recursiveRelationDigest: join.step.statement.recursiveRelationDigest
+        )
+
+        XCTAssertFalse(coins.matches(mutatedInput))
+        XCTAssertThrowsSuperNeoError(
+            try SuperNeoProver(key: fixture.key).foldWithOutput(mutatedInput, verifierCoins: coins),
+            .invalidParameter("verifier public coin transcript context does not match fold input")
+        )
+    }
+
+    private func makeDistinctPointPCDRun(
+        fixture: (
+            backend: SuperNeoCPUBackend,
+            key: AjtaiCommitmentKey,
+            input: SuperNeoFoldInput,
+            seed: [UInt8]
+        )
+    ) throws -> SuperNeoPCDRun {
+        let prover = SuperNeoProver(
+            key: fixture.key,
+            executionPolicy: SuperNeoExecutionPolicy(secretArithmetic: .optimized)
+        )
+        return try SuperNeoFoldingCompiler.provePCD(
+            requests: [
+                SuperNeoPCDNodeRequest(input: fixture.input, transcriptSeed: Array("pcd-tuple-root-0".utf8)),
+                SuperNeoPCDNodeRequest(input: fixture.input, transcriptSeed: Array("pcd-tuple-root-1".utf8)),
+                SuperNeoPCDNodeRequest(
+                    input: fixture.input,
+                    parentNodeIndices: [0, 1],
+                    transcriptSeed: Array("pcd-tuple-join".utf8)
+                )
+            ],
+            prover: prover,
+            maximumFanIn: 2
+        )
+    }
+
+    private func pcdRun(
+        _ run: SuperNeoPCDRun,
+        replacingNodeAt index: Int,
+        withStatement statement: CCSStatement
+    ) -> SuperNeoPCDRun {
+        let original = run.nodes[index]
+        let originalStep = original.step
+        let tamperedStep = SuperNeoRecursiveCompilerStep(
+            compilerKind: originalStep.compilerKind,
+            nodeIndex: originalStep.nodeIndex,
+            depth: originalStep.depth,
+            parentNodeIndices: originalStep.parentNodeIndices,
+            statement: statement,
+            transcriptSeed: originalStep.transcriptSeed,
+            proof: originalStep.proof,
+            outputAccumulator: originalStep.outputAccumulator,
+            reductionBoundaryReport: originalStep.reductionBoundaryReport,
+            foldRelation: originalStep.foldRelation,
+            verifierState: originalStep.verifierState
+        )
+        var nodes = run.nodes
+        nodes[index] = SuperNeoPCDNodeResult(
+            nodeIndex: original.nodeIndex,
+            parentSetBinding: original.parentSetBinding,
+            step: tamperedStep
+        )
+        return SuperNeoPCDRun(
+            initialState: run.initialState,
+            nodes: nodes,
+            terminalNodeIndices: run.terminalNodeIndices,
+            finalPCDRoot: run.finalPCDRoot
+        )
+    }
 }

@@ -213,6 +213,10 @@ def validate_residual_policy(manifest: dict[str, Any]) -> None:
         "hbindCollisionRemainsEpsilonCollision",
     ]:
         require(policy.get(key) is True, f"residualTermPolicy.{key} must be true")
+    require(
+        policy.get("hbindCollisionTargetSetSource") == "TestVectors/product-qrom-public-coin-accounting-v1.json#/collisionAccounting/targets",
+        "residualTermPolicy.hbindCollisionTargetSetSource mismatch",
+    )
 
 
 def validate_promotion_rule(manifest: dict[str, Any]) -> None:

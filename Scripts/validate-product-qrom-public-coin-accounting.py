@@ -23,6 +23,7 @@ EXPECTED_TOP_LEVEL_KEYS = {
     "publicCoinQROModel",
     "transcriptInterfaces",
     "lossRule",
+    "collisionAccounting",
     "ledgerTermMapping",
     "legacyDFM20Status",
     "hardClaimBlockers",
@@ -64,6 +65,20 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "productSecurityTheorem_requires_shared_bad_event_deduplication",
     "productSecurityTheorem_requires_qrom_loss_accounting",
 }
+
+EXPECTED_COLLISION_TARGETS = [
+    "fold-context-binding",
+    "terminal-context-binding",
+    "compressed-terminal-context-binding",
+    "numiseal-terminal-context-binding",
+    "numiseal-zk-product-context-binding",
+    "source-fold-envelope-binding",
+    "product-proof-envelope-binding",
+    "recursive-carry-replay-binding",
+    "typed-carry-statement-binding",
+    "component-root-binding",
+    "qrom-evidence-binding",
+]
 
 
 def fail(message: str) -> None:
@@ -298,6 +313,32 @@ def validate_loss_rule(accounting: dict[str, Any]) -> None:
     require_false(rule.get("productionQROMClaimAllowed"), "lossRule.productionQROMClaimAllowed")
 
 
+def validate_collision_accounting(accounting: dict[str, Any]) -> None:
+    collision = require_dict(accounting.get("collisionAccounting"), "collisionAccounting")
+    require(collision.get("hashOutputBits") == 256, "collisionAccounting.hashOutputBits must be the effective 256-bit exponent")
+    require(collision.get("bindingOracleOutputBits") == 384, "collisionAccounting.bindingOracleOutputBits must be 384")
+    require(collision.get("quantumQueryBoundLog2") == 64, "collisionAccounting.quantumQueryBoundLog2 must be 64")
+    targets = collision.get("targets")
+    require(isinstance(targets, list), "collisionAccounting.targets must be a list")
+    names: list[str] = []
+    domain_tags: list[str] = []
+    for index, item in enumerate(targets):
+        target = require_dict(item, f"collisionAccounting.targets[{index}]")
+        names.append(require_string(target.get("name"), f"collisionAccounting.targets[{index}].name"))
+        domain_tags.append(require_string(target.get("domainTag"), f"collisionAccounting.targets[{index}].domainTag"))
+    require(names == EXPECTED_COLLISION_TARGETS, "collisionAccounting.targets must stay in the pinned target order")
+    require(len(set(domain_tags)) == len(domain_tags), "collisionAccounting target domain tags must be unique")
+    target_count = len(targets)
+    require(collision.get("bindingTargets") == target_count, "collisionAccounting.bindingTargets must be derived from targets")
+    ordered_pairs = 4 * target_count
+    require(collision.get("orderedCollisionPairs") == ordered_pairs, "collisionAccounting.orderedCollisionPairs must equal 4 * targets")
+    require(collision.get("bound") == f"{ordered_pairs} * 2^-256", "collisionAccounting.bound mismatch")
+    require(collision.get("reducedBound") == "11 / 2^254", "collisionAccounting.reducedBound mismatch")
+    derivation = require_string(collision.get("pairDerivation"), "collisionAccounting.pairDerivation")
+    for needle in ["4 * bindingTargets", "Q_H = 2^64", "H_bind = 384", "44 * 2^-256", "11 / 2^254"]:
+        require(needle in derivation, f"collisionAccounting.pairDerivation must mention {needle}")
+
+
 def validate_ledger_term_mapping(accounting: dict[str, Any]) -> None:
     mapping = require_dict(accounting.get("ledgerTermMapping"), "ledgerTermMapping")
     qrom = require_dict(mapping.get("publicCoinQROMLoss"), "ledgerTermMapping.publicCoinQROMLoss")
@@ -369,6 +410,7 @@ def validate_accounting(path: Path) -> None:
     validate_public_coin_model(accounting)
     validate_transcript_interfaces(accounting)
     validate_loss_rule(accounting)
+    validate_collision_accounting(accounting)
     validate_ledger_term_mapping(accounting)
     validate_legacy_status(accounting)
     validate_promotion_and_blockers(accounting)

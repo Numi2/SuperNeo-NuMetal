@@ -143,7 +143,7 @@
       "lossInstantiated": true,
       "boundLog2": 384,
       "exactUpperBound": "0",
-      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus NumiSealProductConcreteExtractor.extract and swiftConcreteExtractorEvidenceDigest metadata instantiate epsilon_extract(depth=3) = 0 by deterministic post-acceptance replay through the loaded recursive carry chain; CTCO knowledge extraction remains charged in per-kind theorem assumptions"
+      "requiredEvidence": "TestVectors/product-extractor-loss-accounting-v1.json plus NumiSealProductConcreteExtractor.extract, swiftConcreteExtractorEvidenceDigest metadata, and ProductPerKindExtractorTheorems instantiate epsilon_extract(depth=3) = 0 by deterministic post-acceptance replay through the loaded recursive carry chain and per-kind CTCO extractor theorems"
     },
     {
       "id": "transcript-collision-domain-separation",

@@ -36,10 +36,28 @@ EXPECTED_MANIFESTS = {
 
 EXPECTED_FORMAL_DECLARATIONS = {
     "ProductCarryChainRoot",
+    "ProductSelectedDepthIndexing",
+    "ProductSelectedDepthIndexingAccepted",
+    "ProductCarryChainRootByteLayout",
+    "ProductCarryChainRootByteLayoutAccepted",
+    "ProductPCDParentTupleBinding",
+    "ProductPCDParentTupleBindingAccepted",
+    "OrderedPCDParentTupleRoot",
+    "OrderedPCDParentTupleRootAccepted",
+    "ProductAcceptedProofKindExtractor",
+    "ProductAcceptedProofKindExtractorAccepted",
+    "ProductPerKindExtractorTheorems",
+    "ProductPerKindExtractorTheoremsAccepted",
     "ProductRecursiveCarryChainRootRecurrence",
     "ProductRecursiveCarryChainRootRecurrenceAccepted",
     "ProductExtractorLossAccounting",
     "ProductExtractorLossAccountingAccepted",
+    "productFoldExtractor_from_acceptedProof",
+    "productTerminalExtractor_from_acceptedProof",
+    "productCompressedTerminalExtractor_from_acceptedProof",
+    "productNumiSealTerminalExtractor_from_acceptedProof",
+    "productNumiSealZKProductExtractor_from_acceptedProof",
+    "productRecursiveCarryDepthLeThreeExtractor_from_acceptedProof",
     "productRecursiveCarryChainRoot_recurrence_unfolds_depth_le_three",
     "productRecursiveCarryChainRoot_verifier_extractor_path_depth_le_three",
     "productSecurityTheorem_requires_extractor_loss_accounting",
@@ -57,6 +75,53 @@ EXPECTED_BLOCKERS = [
 ]
 
 EXPECTED_CLAIM_STATUS = "selected-depth-concrete-extractor-loss-instantiated-repository-local-production-claim"
+EXPECTED_DEPTH_INDEXING = {
+    "baseAcceptedLayerDepth": 1,
+    "recursiveChildDepths": [2, 3],
+    "selectedMaximumDepth": 3,
+    "selectedRecursiveCarryHops": 2,
+    "depthZeroArtifactAccepted": False,
+}
+EXPECTED_CARRY_ROOT_FIELD_ORDER = [
+    "domainTag",
+    "version",
+    "profileID",
+    "selectedDepthPolicyDigest",
+    "depthIndex",
+    "parentChainRoot",
+    "artifactDigest",
+    "sourceFoldEnvelopeDigest",
+    "productProofEnvelopeDigest",
+    "producerEnvelopeDigest",
+    "publicStatementDigest",
+    "consumerSessionDigest",
+    "contextRoot",
+    "replayRoot",
+    "typedCarryStatementDigest",
+    "recursiveRelationDigest",
+    "orderedPCDParentTupleRoot",
+]
+EXPECTED_PCD_PARENT_TUPLE_FIELDS = [
+    "parentPosition",
+    "parentNodeIndex",
+    "parentDepth",
+    "parentStateDigest",
+    "parentAccumulatorDigest",
+    "parentPublicStatementDigest",
+    "parentOutputAccumulatorClaim",
+    "parentEvaluationPoint",
+    "parentClaimValue",
+    "parentRecursiveRelationDigest",
+    "parentCarryChainRoot",
+]
+EXPECTED_EXTRACTOR_THEOREMS = {
+    "fold": "productFoldExtractor_from_acceptedProof",
+    "terminal": "productTerminalExtractor_from_acceptedProof",
+    "compressed-terminal": "productCompressedTerminalExtractor_from_acceptedProof",
+    "numiseal-terminal": "productNumiSealTerminalExtractor_from_acceptedProof",
+    "numiseal-zk-product": "productNumiSealZKProductExtractor_from_acceptedProof",
+    "recursive-carry-depth-le-three": "productRecursiveCarryDepthLeThreeExtractor_from_acceptedProof",
+}
 
 
 def fail(message: str) -> None:
@@ -153,12 +218,24 @@ def validate_selected_depth(accounting: dict[str, Any]) -> None:
     require(depth.get("selectedRecursiveCarryHops") == 2, "selectedDepth.selectedRecursiveCarryHops must be 2")
     require(depth.get("loadedParentChainRequired") is True, "selectedDepth.loadedParentChainRequired must be true")
     require(depth.get("extractorPromotionAllowed") is True, "selectedDepth.extractorPromotionAllowed must be true for selected-depth extractor promotion")
+    indexing = require_dict(depth.get("depthIndexing"), "selectedDepth.depthIndexing")
+    require(indexing == EXPECTED_DEPTH_INDEXING, "selectedDepth.depthIndexing mismatch")
 
 
 def validate_chain_root_recurrence(accounting: dict[str, Any]) -> None:
     recurrence = require_dict(accounting.get("chainRootRecurrence"), "chainRootRecurrence")
     require(recurrence.get("selectedDepth") == 3, "chainRootRecurrence.selectedDepth must be 3")
     require(recurrence.get("selectedRecursiveCarryHops") == 2, "chainRootRecurrence.selectedRecursiveCarryHops must be 2")
+    require_relative_path(recurrence.get("canonicalVector"), "chainRootRecurrence.canonicalVector")
+    byte_layout = require_dict(recurrence.get("byteExactLayouts"), "chainRootRecurrence.byteExactLayouts")
+    require(byte_layout.get("baseDomainTag") == "SUPERNEO/PRODUCT/CARRY_CHAIN/BASE/v1", "base carry root domain tag mismatch")
+    require(byte_layout.get("stepDomainTag") == "SUPERNEO/PRODUCT/CARRY_CHAIN/STEP/v1", "step carry root domain tag mismatch")
+    require(byte_layout.get("version") == 1, "carry root layout version must be 1")
+    require(byte_layout.get("fieldOrder") == EXPECTED_CARRY_ROOT_FIELD_ORDER, "carry root byte field order mismatch")
+    tuple_root = require_dict(recurrence.get("orderedPCDParentTupleRoot"), "chainRootRecurrence.orderedPCDParentTupleRoot")
+    require(tuple_root.get("domainTag") == "SUPERNEO/PCD/PARENT_TUPLES/v1", "PCD parent tuple root domain mismatch")
+    require(tuple_root.get("tupleFields") == EXPECTED_PCD_PARENT_TUPLE_FIELDS, "PCD parent tuple fields mismatch")
+    require(tuple_root.get("consumedByFoldedRelation") is True, "PCD parent tuple root must be consumed by folded relation")
     base = require_string(recurrence.get("baseCase"), "chainRootRecurrence.baseCase").lower()
     step = require_string(recurrence.get("stepCase"), "chainRootRecurrence.stepCase").lower()
     for needle in [
@@ -179,6 +256,8 @@ def validate_chain_root_recurrence(accounting: dict[str, Any]) -> None:
         "recomputed context root",
         "recomputed replay root",
         "typed carry statements",
+        "recursiverelationdigest",
+        "ordered pcd parent tuple root",
     ]:
         require(needle in step, f"chainRootRecurrence.stepCase must mention {needle}")
     unrolling = require_string_list(recurrence.get("depthThreeUnrolling"), "chainRootRecurrence.depthThreeUnrolling")
@@ -216,7 +295,8 @@ def validate_extractor_interface(accounting: dict[str, Any]) -> None:
     for needle in [
         "proof envelopes",
         "post-acceptance verifier replay",
-        "ctco online extraction",
+        "ctco trace blocks",
+        "per-kind extractor theorems",
         "swift",
         "proof envelope header bytes",
         "source fold envelope bytes",
@@ -238,6 +318,22 @@ def validate_extractor_interface(accounting: dict[str, Any]) -> None:
         "extractorInterface.selectedDepthLossBound mismatch",
     )
     require(interface.get("extractorSchedulePinned") is True, "extractorSchedulePinned must be true")
+    require(
+        require_dict(interface.get("perKindExtractorTheorems"), "extractorInterface.perKindExtractorTheorems") == EXPECTED_EXTRACTOR_THEOREMS,
+        "per-kind extractor theorem mapping mismatch",
+    )
+    obligations = set(require_string_list(interface.get("perKindProofObligationFields"), "extractorInterface.perKindProofObligationFields"))
+    for obligation in [
+        "acceptedInputObjectSpecified",
+        "verifierAcceptancePredicateSpecified",
+        "extractedObjectSpecified",
+        "failureEventsSpecified",
+        "ctcoTraceBlockDependencySpecified",
+        "extractorLossContributionSpecified",
+        "parentChainDependencySpecified",
+        "carryChainRootRelatesToExtractedState",
+    ]:
+        require(obligation in obligations, f"extractorInterface.perKindProofObligationFields missing {obligation}")
     bindings = require_string_list(interface.get("acceptedInputBindings"), "extractorInterface.acceptedInputBindings")
     require(len(bindings) >= 10, "extractorInterface must pin the accepted input binding set")
 
@@ -352,6 +448,7 @@ def validate_accounting(path: Path) -> None:
     accounting = read_json(path)
     text = json.dumps(accounting, sort_keys=True).lower()
     require("external" + " audit" not in text, "accounting must not encode outsourced review as a product gate")
+    require("per-kind theorem assumption" not in text, "accounting must not leave accepted proof kinds as unresolved theorem assumptions")
     require(set(accounting) == EXPECTED_TOP_LEVEL_KEYS, "top-level accounting keys must match the v1 contract exactly")
     require(accounting.get("schemaVersion") == 1, "schemaVersion must be 1")
     require(accounting.get("accountingID") == "superneo-product-extractor-loss-accounting-v1", "accountingID mismatch")

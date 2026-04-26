@@ -329,20 +329,174 @@ public struct SuperNeoPCDNodeRequest: Sendable {
     }
 }
 
+public struct SuperNeoPCDParentTupleBinding: Equatable, Sendable, SuperNeoByteEncodable {
+    public static let domain = Digest256.hash("SUPERNEO/PCD/PARENT_TUPLE/v1")
+    public static let claimRootDomain = Digest256.hash("SUPERNEO/PCD/PARENT_TUPLE/CLAIMS/v1")
+    public static let evaluationPointRootDomain = Digest256.hash("SUPERNEO/PCD/PARENT_TUPLE/EVALUATION_POINTS/v1")
+    public static let claimValueRootDomain = Digest256.hash("SUPERNEO/PCD/PARENT_TUPLE/CLAIM_VALUES/v1")
+    public static let noRecursiveRelationDigest = Digest256.hash("SUPERNEO/PCD/PARENT_TUPLE/NO_RECURSIVE_RELATION/v1")
+    public static let noCarryChainRoot = Digest256.hash("SUPERNEO/PCD/PARENT_TUPLE/NO_CARRY_CHAIN_ROOT/v1")
+
+    public let parentPosition: Int
+    public let parentNodeIndex: Int
+    public let parentDepth: Int
+    public let parentStateDigest: Digest256
+    public let parentAccumulatorDigest: Digest256
+    public let parentPublicStatementDigest: Digest256
+    public let parentOutputAccumulatorClaimRoot: Digest256
+    public let parentEvaluationPointRoot: Digest256
+    public let parentClaimValueRoot: Digest256
+    public let parentRecursiveRelationDigest: Digest256?
+    public let parentCarryChainRoot: Digest256?
+    public let tupleDigest: Digest256
+
+    public init(
+        parentPosition: Int,
+        parentNodeIndex: Int,
+        parentDepth: Int,
+        parentStateDigest: Digest256,
+        parentAccumulator: SuperNeoAccumulator,
+        parentPublicStatementDigest: Digest256,
+        parentRecursiveRelationDigest: Digest256?,
+        parentCarryChainRoot: Digest256? = nil
+    ) throws {
+        guard parentPosition >= 0 else {
+            throw SuperNeoError.invalidParameter("PCD parent tuple position must be non-negative")
+        }
+        guard parentNodeIndex >= 0 else {
+            throw SuperNeoError.invalidParameter("PCD parent tuple node index must be non-negative")
+        }
+        guard parentDepth > 0 else {
+            throw SuperNeoError.invalidParameter("PCD parent tuple depth must be positive")
+        }
+        let publicClaims = parentAccumulator.claims.map(superNeoPublicClaim)
+        let claimRoot = Self.claimRoot(claims: publicClaims)
+        let pointRoot = Self.evaluationPointRoot(claims: publicClaims)
+        let valueRoot = Self.claimValueRoot(claims: publicClaims)
+        self.parentPosition = parentPosition
+        self.parentNodeIndex = parentNodeIndex
+        self.parentDepth = parentDepth
+        self.parentStateDigest = parentStateDigest
+        self.parentAccumulatorDigest = parentAccumulator.accumulatorDigest
+        self.parentPublicStatementDigest = parentPublicStatementDigest
+        self.parentOutputAccumulatorClaimRoot = claimRoot
+        self.parentEvaluationPointRoot = pointRoot
+        self.parentClaimValueRoot = valueRoot
+        self.parentRecursiveRelationDigest = parentRecursiveRelationDigest
+        self.parentCarryChainRoot = parentCarryChainRoot
+        self.tupleDigest = Digest256.hash(
+            Self.domain.superNeoBytes
+                + Self.bodyBytes(
+                    parentPosition: parentPosition,
+                    parentNodeIndex: parentNodeIndex,
+                    parentDepth: parentDepth,
+                    parentStateDigest: parentStateDigest,
+                    parentAccumulatorDigest: parentAccumulator.accumulatorDigest,
+                    parentPublicStatementDigest: parentPublicStatementDigest,
+                    parentOutputAccumulatorClaimRoot: claimRoot,
+                    parentEvaluationPointRoot: pointRoot,
+                    parentClaimValueRoot: valueRoot,
+                    parentRecursiveRelationDigest: parentRecursiveRelationDigest,
+                    parentCarryChainRoot: parentCarryChainRoot
+                )
+        )
+    }
+
+    public var superNeoBytes: [UInt8] {
+        Self.domain.superNeoBytes
+            + Self.bodyBytes(
+                parentPosition: parentPosition,
+                parentNodeIndex: parentNodeIndex,
+                parentDepth: parentDepth,
+                parentStateDigest: parentStateDigest,
+                parentAccumulatorDigest: parentAccumulatorDigest,
+                parentPublicStatementDigest: parentPublicStatementDigest,
+                parentOutputAccumulatorClaimRoot: parentOutputAccumulatorClaimRoot,
+                parentEvaluationPointRoot: parentEvaluationPointRoot,
+                parentClaimValueRoot: parentClaimValueRoot,
+                parentRecursiveRelationDigest: parentRecursiveRelationDigest,
+                parentCarryChainRoot: parentCarryChainRoot
+            )
+            + tupleDigest.superNeoBytes
+    }
+
+    public static func claimRoot(claims: [CCSEvaluationClaim]) -> Digest256 {
+        Digest256.hash(
+            claimRootDomain.superNeoBytes
+                + superNeoCompilerEncodeCount(claims.count)
+                + claims.map(superNeoPublicClaim).flatMap(\.superNeoBytes)
+        )
+    }
+
+    public static func evaluationPointRoot(claims: [CCSEvaluationClaim]) -> Digest256 {
+        var bytes = evaluationPointRootDomain.superNeoBytes
+            + superNeoCompilerEncodeCount(claims.count)
+        for (index, claim) in claims.map(superNeoPublicClaim).enumerated() {
+            bytes += superNeoCompilerEncodeCount(index)
+            bytes += superNeoCompilerEncodeCount(claim.point.count)
+            bytes += claim.point.flatMap(\.superNeoBytes)
+        }
+        return Digest256.hash(bytes)
+    }
+
+    public static func claimValueRoot(claims: [CCSEvaluationClaim]) -> Digest256 {
+        var bytes = claimValueRootDomain.superNeoBytes
+            + superNeoCompilerEncodeCount(claims.count)
+        for (index, claim) in claims.map(superNeoPublicClaim).enumerated() {
+            bytes += superNeoCompilerEncodeCount(index)
+            bytes += superNeoCompilerEncodeCount(claim.evaluations.count)
+            bytes += claim.evaluations.flatMap(\.superNeoBytes)
+        }
+        return Digest256.hash(bytes)
+    }
+
+    private static func bodyBytes(
+        parentPosition: Int,
+        parentNodeIndex: Int,
+        parentDepth: Int,
+        parentStateDigest: Digest256,
+        parentAccumulatorDigest: Digest256,
+        parentPublicStatementDigest: Digest256,
+        parentOutputAccumulatorClaimRoot: Digest256,
+        parentEvaluationPointRoot: Digest256,
+        parentClaimValueRoot: Digest256,
+        parentRecursiveRelationDigest: Digest256?,
+        parentCarryChainRoot: Digest256?
+    ) -> [UInt8] {
+        superNeoCompilerEncodeCount(parentPosition)
+            + superNeoCompilerEncodeCount(parentNodeIndex)
+            + superNeoCompilerEncodeCount(parentDepth)
+            + parentStateDigest.superNeoBytes
+            + parentAccumulatorDigest.superNeoBytes
+            + parentPublicStatementDigest.superNeoBytes
+            + parentOutputAccumulatorClaimRoot.superNeoBytes
+            + parentEvaluationPointRoot.superNeoBytes
+            + parentClaimValueRoot.superNeoBytes
+            + [parentRecursiveRelationDigest == nil ? 0 : 1]
+            + (parentRecursiveRelationDigest ?? noRecursiveRelationDigest).superNeoBytes
+            + [parentCarryChainRoot == nil ? 0 : 1]
+            + (parentCarryChainRoot ?? noCarryChainRoot).superNeoBytes
+    }
+}
+
 public struct SuperNeoPCDParentSetBinding: Equatable, Sendable, SuperNeoByteEncodable {
     public static let domain = Digest256.hash("SuperNeo-NuMetal.superneo-pcd.parent-set.v1")
+    public static let orderedParentTupleRootDomain = Digest256.hash("SUPERNEO/PCD/PARENT_TUPLES/v1")
 
     public let nodeIndex: Int
     public let parentNodeIndices: [Int]
     public let parentStateDigests: [Digest256]
     public let parentAccumulatorDigests: [Digest256]
+    public let parentTupleBindings: [SuperNeoPCDParentTupleBinding]
+    public let orderedParentTupleRoot: Digest256
     public let parentSetRoot: Digest256
 
     public init(
         nodeIndex: Int,
         parentNodeIndices: [Int],
         parentStateDigests: [Digest256],
-        parentAccumulatorDigests: [Digest256]
+        parentAccumulatorDigests: [Digest256],
+        parentTupleBindings: [SuperNeoPCDParentTupleBinding]
     ) throws {
         guard nodeIndex >= 0 else {
             throw SuperNeoError.invalidParameter("PCD node index must be non-negative")
@@ -351,20 +505,35 @@ public struct SuperNeoPCDParentSetBinding: Equatable, Sendable, SuperNeoByteEnco
             throw SuperNeoError.invalidParameter("PCD parent indices must be unique")
         }
         guard parentStateDigests.count == parentNodeIndices.count,
-              parentAccumulatorDigests.count == parentNodeIndices.count else {
+              parentAccumulatorDigests.count == parentNodeIndices.count,
+              parentTupleBindings.count == parentNodeIndices.count else {
             throw SuperNeoError.invalidParameter("PCD parent binding digest count mismatch")
         }
+        guard parentTupleBindings.map(\.parentPosition) == Array(parentNodeIndices.indices),
+              parentTupleBindings.map(\.parentNodeIndex) == parentNodeIndices,
+              parentTupleBindings.map(\.parentStateDigest) == parentStateDigests,
+              parentTupleBindings.map(\.parentAccumulatorDigest) == parentAccumulatorDigests else {
+            throw SuperNeoError.invalidParameter("PCD parent tuple binding mismatch")
+        }
+        let orderedParentTupleRoot = Self.orderedParentTupleRoot(
+            fanIn: parentNodeIndices.count,
+            tupleBindings: parentTupleBindings
+        )
         self.nodeIndex = nodeIndex
         self.parentNodeIndices = parentNodeIndices
         self.parentStateDigests = parentStateDigests
         self.parentAccumulatorDigests = parentAccumulatorDigests
+        self.parentTupleBindings = parentTupleBindings
+        self.orderedParentTupleRoot = orderedParentTupleRoot
         self.parentSetRoot = Digest256.hash(
             Self.domain.superNeoBytes
                 + Self.bodyBytes(
                     nodeIndex: nodeIndex,
                     parentNodeIndices: parentNodeIndices,
                     parentStateDigests: parentStateDigests,
-                    parentAccumulatorDigests: parentAccumulatorDigests
+                    parentAccumulatorDigests: parentAccumulatorDigests,
+                    parentTupleBindings: parentTupleBindings,
+                    orderedParentTupleRoot: orderedParentTupleRoot
                 )
         )
     }
@@ -375,16 +544,32 @@ public struct SuperNeoPCDParentSetBinding: Equatable, Sendable, SuperNeoByteEnco
                 nodeIndex: nodeIndex,
                 parentNodeIndices: parentNodeIndices,
                 parentStateDigests: parentStateDigests,
-                parentAccumulatorDigests: parentAccumulatorDigests
+                parentAccumulatorDigests: parentAccumulatorDigests,
+                parentTupleBindings: parentTupleBindings,
+                orderedParentTupleRoot: orderedParentTupleRoot
             )
             + parentSetRoot.superNeoBytes
+    }
+
+    public static func orderedParentTupleRoot(
+        fanIn: Int,
+        tupleBindings: [SuperNeoPCDParentTupleBinding]
+    ) -> Digest256 {
+        Digest256.hash(
+            orderedParentTupleRootDomain.superNeoBytes
+                + superNeoCompilerEncodeCount(fanIn)
+                + superNeoCompilerEncodeCount(tupleBindings.count)
+                + tupleBindings.flatMap(\.superNeoBytes)
+        )
     }
 
     private static func bodyBytes(
         nodeIndex: Int,
         parentNodeIndices: [Int],
         parentStateDigests: [Digest256],
-        parentAccumulatorDigests: [Digest256]
+        parentAccumulatorDigests: [Digest256],
+        parentTupleBindings: [SuperNeoPCDParentTupleBinding],
+        orderedParentTupleRoot: Digest256
     ) -> [UInt8] {
         superNeoCompilerEncodeCount(nodeIndex)
             + superNeoCompilerEncodeCount(parentNodeIndices.count)
@@ -393,11 +578,15 @@ public struct SuperNeoPCDParentSetBinding: Equatable, Sendable, SuperNeoByteEnco
             + parentStateDigests.flatMap(\.superNeoBytes)
             + superNeoCompilerEncodeCount(parentAccumulatorDigests.count)
             + parentAccumulatorDigests.flatMap(\.superNeoBytes)
+            + superNeoCompilerEncodeCount(parentTupleBindings.count)
+            + parentTupleBindings.flatMap(\.superNeoBytes)
+            + orderedParentTupleRoot.superNeoBytes
     }
 }
 
 public struct SuperNeoRecursiveFoldRelationInput: Equatable, Sendable, SuperNeoByteEncodable {
     public static let domain = Digest256.hash("SuperNeo-NuMetal.superneo-recursive-fold-relation.input.v1")
+    public static let noOrderedParentTupleRoot = Digest256.hash("SUPERNEO/PCD/PARENT_TUPLES/ABSENT/v1")
 
     public let compilerKind: SuperNeoRecursiveCompilerKind
     public let nodeIndex: Int
@@ -408,6 +597,8 @@ public struct SuperNeoRecursiveFoldRelationInput: Equatable, Sendable, SuperNeoB
     public let parentAccumulatorDigests: [Digest256]
     public let parentStatementDigests: [Digest256]
     public let parentOutputAccumulators: [SuperNeoAccumulator]
+    public let parentTupleBindings: [SuperNeoPCDParentTupleBinding]
+    public let orderedParentTupleRoot: Digest256?
     public let childTransitionStatement: CCSStatement
     public let parentSetRoot: Digest256?
     public let relationInputDigest: Digest256
@@ -420,7 +611,8 @@ public struct SuperNeoRecursiveFoldRelationInput: Equatable, Sendable, SuperNeoB
         parentStates: [SuperNeoRecursiveVerifierState],
         parentStatements: [CCSStatement],
         childTransitionStatement: CCSStatement,
-        parentSetRoot: Digest256?
+        parentSetRoot: Digest256?,
+        parentTupleBindings suppliedParentTupleBindings: [SuperNeoPCDParentTupleBinding]? = nil
     ) throws {
         guard parentStates.count == parentNodeIndices.count,
               parentStatements.count == parentNodeIndices.count else {
@@ -445,6 +637,27 @@ public struct SuperNeoRecursiveFoldRelationInput: Equatable, Sendable, SuperNeoB
                 throw SuperNeoError.invalidParameter("recursive fold relation parent statement mismatch")
             }
         }
+        let parentTupleBindings = try suppliedParentTupleBindings ?? Self.makeParentTupleBindings(
+            parentNodeIndices: parentNodeIndices,
+            parentStates: parentStates,
+            parentStatements: parentStatements
+        )
+        guard parentTupleBindings.count == parentNodeIndices.count else {
+            throw SuperNeoError.invalidParameter("recursive fold relation parent tuple count mismatch")
+        }
+        guard parentTupleBindings.map(\.parentPosition) == Array(parentNodeIndices.indices),
+              parentTupleBindings.map(\.parentNodeIndex) == parentNodeIndices,
+              parentTupleBindings.map(\.parentStateDigest) == parentStates.map(\.stateDigest),
+              parentTupleBindings.map(\.parentAccumulatorDigest) == parentStates.map(\.accumulator.accumulatorDigest),
+              parentTupleBindings.map(\.parentPublicStatementDigest) == parentStatements.map(\.statementDigest) else {
+            throw SuperNeoError.invalidParameter("recursive fold relation parent tuple mismatch")
+        }
+        let orderedParentTupleRoot = parentTupleBindings.isEmpty
+            ? nil
+            : SuperNeoPCDParentSetBinding.orderedParentTupleRoot(
+                fanIn: parentNodeIndices.count,
+                tupleBindings: parentTupleBindings
+            )
         self.compilerKind = compilerKind
         self.nodeIndex = nodeIndex
         self.depth = depth
@@ -454,6 +667,8 @@ public struct SuperNeoRecursiveFoldRelationInput: Equatable, Sendable, SuperNeoB
         self.parentAccumulatorDigests = parentStates.map(\.accumulator.accumulatorDigest)
         self.parentStatementDigests = parentStatements.map(\.statementDigest)
         self.parentOutputAccumulators = parentStates.map(\.accumulator)
+        self.parentTupleBindings = parentTupleBindings
+        self.orderedParentTupleRoot = orderedParentTupleRoot
         self.childTransitionStatement = childTransitionStatement
         self.parentSetRoot = parentSetRoot
         self.relationInputDigest = Digest256.hash(
@@ -468,6 +683,8 @@ public struct SuperNeoRecursiveFoldRelationInput: Equatable, Sendable, SuperNeoB
                     parentAccumulatorDigests: parentStates.map(\.accumulator.accumulatorDigest),
                     parentStatementDigests: parentStatements.map(\.statementDigest),
                     parentOutputAccumulators: parentStates.map(\.accumulator),
+                    parentTupleBindings: parentTupleBindings,
+                    orderedParentTupleRoot: orderedParentTupleRoot,
                     childTransitionStatement: childTransitionStatement,
                     parentSetRoot: parentSetRoot
                 )
@@ -486,6 +703,8 @@ public struct SuperNeoRecursiveFoldRelationInput: Equatable, Sendable, SuperNeoB
                 parentAccumulatorDigests: parentAccumulatorDigests,
                 parentStatementDigests: parentStatementDigests,
                 parentOutputAccumulators: parentOutputAccumulators,
+                parentTupleBindings: parentTupleBindings,
+                orderedParentTupleRoot: orderedParentTupleRoot,
                 childTransitionStatement: childTransitionStatement,
                 parentSetRoot: parentSetRoot
             )
@@ -502,6 +721,8 @@ public struct SuperNeoRecursiveFoldRelationInput: Equatable, Sendable, SuperNeoB
         parentAccumulatorDigests: [Digest256],
         parentStatementDigests: [Digest256],
         parentOutputAccumulators: [SuperNeoAccumulator],
+        parentTupleBindings: [SuperNeoPCDParentTupleBinding],
+        orderedParentTupleRoot: Digest256?,
         childTransitionStatement: CCSStatement,
         parentSetRoot: Digest256?
     ) -> [UInt8] {
@@ -519,9 +740,35 @@ public struct SuperNeoRecursiveFoldRelationInput: Equatable, Sendable, SuperNeoB
             + parentStatementDigests.flatMap(\.superNeoBytes)
             + superNeoCompilerEncodeCount(parentOutputAccumulators.count)
             + parentOutputAccumulators.flatMap(\.superNeoBytes)
+            + superNeoCompilerEncodeCount(parentTupleBindings.count)
+            + parentTupleBindings.flatMap(\.superNeoBytes)
+            + [orderedParentTupleRoot == nil ? 0 : 1]
+            + (orderedParentTupleRoot ?? noOrderedParentTupleRoot).superNeoBytes
             + childTransitionStatement.superNeoBytes
             + [parentSetRoot == nil ? 0 : 1]
             + (parentSetRoot ?? SuperNeoRecursiveVerifierState.noParentDigest).superNeoBytes
+    }
+
+    private static func makeParentTupleBindings(
+        parentNodeIndices: [Int],
+        parentStates: [SuperNeoRecursiveVerifierState],
+        parentStatements: [CCSStatement]
+    ) throws -> [SuperNeoPCDParentTupleBinding] {
+        try zip(parentNodeIndices.indices, zip(parentNodeIndices, zip(parentStates, parentStatements))).map { item in
+            let position = item.0
+            let parentNodeIndex = item.1.0
+            let parentState = item.1.1.0
+            let parentStatement = item.1.1.1
+            return try SuperNeoPCDParentTupleBinding(
+                parentPosition: position,
+                parentNodeIndex: parentNodeIndex,
+                parentDepth: parentState.depth,
+                parentStateDigest: parentState.stateDigest,
+                parentAccumulator: parentState.accumulator,
+                parentPublicStatementDigest: parentStatement.statementDigest,
+                parentRecursiveRelationDigest: parentState.recursiveRelationDigest
+            )
+        }
     }
 }
 
@@ -775,10 +1022,12 @@ public enum SuperNeoFoldingCompiler {
                 throw SuperNeoError.invalidParameter("PCD node exceeds maximum depth")
             }
             let parentStates = parents.map(\.step.verifierState)
+            let parentStatements = parents.map(\.step.statement)
             let parentBinding = try makePCDParentSetBinding(
                 nodeIndex: nodeIndex,
                 parentNodeIndices: request.parentNodeIndices,
-                parentStates: parentStates
+                parentStates: parentStates,
+                parentStatements: parentStatements
             )
             let parentClaims = request.parentNodeIndices.flatMap { privateAccumulatorClaimsByNode[$0] }
             let input = SuperNeoFoldInput(
@@ -793,7 +1042,7 @@ public enum SuperNeoFoldingCompiler {
                 depth: depth,
                 parentNodeIndices: request.parentNodeIndices,
                 parentStates: parentStates,
-                parentStatements: parents.map(\.step.statement),
+                parentStatements: parentStatements,
                 parentSetRoot: parentBinding?.parentSetRoot,
                 input: input,
                 transcriptSeed: request.transcriptSeed,
@@ -878,7 +1127,8 @@ public enum SuperNeoFoldingCompiler {
                 let expectedBinding = try makePCDParentSetBinding(
                     nodeIndex: nodeIndex,
                     parentNodeIndices: node.step.parentNodeIndices,
-                    parentStates: parentStates
+                    parentStates: parentStates,
+                    parentStatements: parentStatements
                 )
                 let parentClaims = parents.flatMap(\.step.outputAccumulator.claims)
                 _ = try verifyRecursiveStep(
@@ -1143,14 +1393,34 @@ public enum SuperNeoFoldingCompiler {
     private static func makePCDParentSetBinding(
         nodeIndex: Int,
         parentNodeIndices: [Int],
-        parentStates: [SuperNeoRecursiveVerifierState]
+        parentStates: [SuperNeoRecursiveVerifierState],
+        parentStatements: [CCSStatement]
     ) throws -> SuperNeoPCDParentSetBinding? {
         guard !parentNodeIndices.isEmpty else { return nil }
+        guard parentStatements.count == parentStates.count else {
+            throw SuperNeoError.invalidParameter("PCD parent binding statement count mismatch")
+        }
+        let tupleBindings = try zip(parentNodeIndices.indices, zip(parentNodeIndices, zip(parentStates, parentStatements))).map { item in
+            let position = item.0
+            let parentNodeIndex = item.1.0
+            let parentState = item.1.1.0
+            let parentStatement = item.1.1.1
+            return try SuperNeoPCDParentTupleBinding(
+                parentPosition: position,
+                parentNodeIndex: parentNodeIndex,
+                parentDepth: parentState.depth,
+                parentStateDigest: parentState.stateDigest,
+                parentAccumulator: parentState.accumulator,
+                parentPublicStatementDigest: parentStatement.statementDigest,
+                parentRecursiveRelationDigest: parentState.recursiveRelationDigest
+            )
+        }
         return try SuperNeoPCDParentSetBinding(
             nodeIndex: nodeIndex,
             parentNodeIndices: parentNodeIndices,
             parentStateDigests: parentStates.map(\.stateDigest),
-            parentAccumulatorDigests: parentStates.map(\.accumulator.accumulatorDigest)
+            parentAccumulatorDigests: parentStates.map(\.accumulator.accumulatorDigest),
+            parentTupleBindings: tupleBindings
         )
     }
 

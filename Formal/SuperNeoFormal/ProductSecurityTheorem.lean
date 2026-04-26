@@ -167,6 +167,80 @@ inductive ProductDepthOneExpectedProofKind where
   | numiSealZKProduct
   deriving DecidableEq, Repr
 
+structure ProductAcceptedProofKindExtractor where
+  acceptedInputObjectSpecified : Prop
+  verifierAcceptancePredicateSpecified : Prop
+  extractedObjectSpecified : Prop
+  failureEventsSpecified : Prop
+  ctcoTraceBlockDependencySpecified : Prop
+  extractorLossContributionSpecified : Prop
+  parentChainDependencySpecified : Prop
+  carryChainRootRelatesToExtractedState : Prop
+
+def ProductAcceptedProofKindExtractorAccepted
+    (extractor : ProductAcceptedProofKindExtractor) : Prop :=
+  extractor.acceptedInputObjectSpecified
+    ∧ extractor.verifierAcceptancePredicateSpecified
+    ∧ extractor.extractedObjectSpecified
+    ∧ extractor.failureEventsSpecified
+    ∧ extractor.ctcoTraceBlockDependencySpecified
+    ∧ extractor.extractorLossContributionSpecified
+    ∧ extractor.parentChainDependencySpecified
+    ∧ extractor.carryChainRootRelatesToExtractedState
+
+structure ProductPerKindExtractorTheorems where
+  fold : ProductAcceptedProofKindExtractor
+  terminal : ProductAcceptedProofKindExtractor
+  compressedTerminal : ProductAcceptedProofKindExtractor
+  numiSealTerminal : ProductAcceptedProofKindExtractor
+  numiSealZKProduct : ProductAcceptedProofKindExtractor
+  recursiveCarryDepthLeThree : ProductAcceptedProofKindExtractor
+
+def ProductPerKindExtractorTheoremsAccepted
+    (theorems : ProductPerKindExtractorTheorems) : Prop :=
+  ProductAcceptedProofKindExtractorAccepted theorems.fold
+    ∧ ProductAcceptedProofKindExtractorAccepted theorems.terminal
+    ∧ ProductAcceptedProofKindExtractorAccepted theorems.compressedTerminal
+    ∧ ProductAcceptedProofKindExtractorAccepted theorems.numiSealTerminal
+    ∧ ProductAcceptedProofKindExtractorAccepted theorems.numiSealZKProduct
+    ∧ ProductAcceptedProofKindExtractorAccepted theorems.recursiveCarryDepthLeThree
+
+theorem productFoldExtractor_from_acceptedProof
+    {theorems : ProductPerKindExtractorTheorems}
+    (hTheorems : ProductPerKindExtractorTheoremsAccepted theorems) :
+    ProductAcceptedProofKindExtractorAccepted theorems.fold := by
+  exact hTheorems.left
+
+theorem productTerminalExtractor_from_acceptedProof
+    {theorems : ProductPerKindExtractorTheorems}
+    (hTheorems : ProductPerKindExtractorTheoremsAccepted theorems) :
+    ProductAcceptedProofKindExtractorAccepted theorems.terminal := by
+  exact hTheorems.right.left
+
+theorem productCompressedTerminalExtractor_from_acceptedProof
+    {theorems : ProductPerKindExtractorTheorems}
+    (hTheorems : ProductPerKindExtractorTheoremsAccepted theorems) :
+    ProductAcceptedProofKindExtractorAccepted theorems.compressedTerminal := by
+  exact hTheorems.right.right.left
+
+theorem productNumiSealTerminalExtractor_from_acceptedProof
+    {theorems : ProductPerKindExtractorTheorems}
+    (hTheorems : ProductPerKindExtractorTheoremsAccepted theorems) :
+    ProductAcceptedProofKindExtractorAccepted theorems.numiSealTerminal := by
+  exact hTheorems.right.right.right.left
+
+theorem productNumiSealZKProductExtractor_from_acceptedProof
+    {theorems : ProductPerKindExtractorTheorems}
+    (hTheorems : ProductPerKindExtractorTheoremsAccepted theorems) :
+    ProductAcceptedProofKindExtractorAccepted theorems.numiSealZKProduct := by
+  exact hTheorems.right.right.right.right.left
+
+theorem productRecursiveCarryDepthLeThreeExtractor_from_acceptedProof
+    {theorems : ProductPerKindExtractorTheorems}
+    (hTheorems : ProductPerKindExtractorTheoremsAccepted theorems) :
+    ProductAcceptedProofKindExtractorAccepted theorems.recursiveCarryDepthLeThree := by
+  exact hTheorems.right.right.right.right.right
+
 structure ProductFixedKindCTCORepeatedTapePlan where
   selectedDepth : Nat
   expectedKind : ProductDepthOneExpectedProofKind
@@ -219,9 +293,120 @@ structure ProductCarryChainRoot where
   marker : Nat
   deriving DecidableEq, Repr
 
+structure ProductSelectedDepthIndexing where
+  baseAcceptedLayerDepth : Nat
+  recursiveChildDepths : List Nat
+  selectedMaximumDepth : Nat
+  selectedRecursiveCarryHops : Nat
+  depthZeroArtifactAccepted : Bool
+
+def ProductSelectedDepthIndexingAccepted
+    (indexing : ProductSelectedDepthIndexing) : Prop :=
+  indexing.baseAcceptedLayerDepth = 1
+    ∧ indexing.recursiveChildDepths = [2, 3]
+    ∧ indexing.selectedMaximumDepth = 3
+    ∧ indexing.selectedRecursiveCarryHops = 2
+    ∧ indexing.depthZeroArtifactAccepted = false
+
+structure ProductCarryChainRootByteLayout where
+  baseDomainTagPinned : Prop
+  stepDomainTagPinned : Prop
+  versionPinned : Prop
+  profileIDFieldPinned : Prop
+  selectedDepthPolicyDigestFieldPinned : Prop
+  depthIndexFieldPinned : Prop
+  parentChainRootFieldPinned : Prop
+  artifactDigestFieldPinned : Prop
+  sourceFoldEnvelopeDigestFieldPinned : Prop
+  productProofEnvelopeDigestFieldPinned : Prop
+  producerEnvelopeDigestFieldPinned : Prop
+  publicStatementDigestFieldPinned : Prop
+  consumerSessionDigestFieldPinned : Prop
+  contextRootFieldPinned : Prop
+  replayRootFieldPinned : Prop
+  typedCarryStatementDigestFieldPinned : Prop
+  recursiveRelationDigestFieldPinned : Prop
+  orderedPCDParentTupleRootFieldPinned : Prop
+  fieldOrderPinned : Prop
+
+def ProductCarryChainRootByteLayoutAccepted
+    (layout : ProductCarryChainRootByteLayout) : Prop :=
+  layout.baseDomainTagPinned
+    ∧ layout.stepDomainTagPinned
+    ∧ layout.versionPinned
+    ∧ layout.profileIDFieldPinned
+    ∧ layout.selectedDepthPolicyDigestFieldPinned
+    ∧ layout.depthIndexFieldPinned
+    ∧ layout.parentChainRootFieldPinned
+    ∧ layout.artifactDigestFieldPinned
+    ∧ layout.sourceFoldEnvelopeDigestFieldPinned
+    ∧ layout.productProofEnvelopeDigestFieldPinned
+    ∧ layout.producerEnvelopeDigestFieldPinned
+    ∧ layout.publicStatementDigestFieldPinned
+    ∧ layout.consumerSessionDigestFieldPinned
+    ∧ layout.contextRootFieldPinned
+    ∧ layout.replayRootFieldPinned
+    ∧ layout.typedCarryStatementDigestFieldPinned
+    ∧ layout.recursiveRelationDigestFieldPinned
+    ∧ layout.orderedPCDParentTupleRootFieldPinned
+    ∧ layout.fieldOrderPinned
+
+structure ProductPCDParentTupleBinding where
+  parentPositionBound : Prop
+  parentNodeIndexBound : Prop
+  parentDepthBound : Prop
+  parentStateDigestBound : Prop
+  parentAccumulatorDigestBound : Prop
+  parentPublicStatementDigestBound : Prop
+  parentOutputAccumulatorClaimBound : Prop
+  parentEvaluationPointBound : Prop
+  parentClaimValueBound : Prop
+  parentRecursiveRelationDigestBound : Prop
+  parentCarryChainRootBound : Prop
+
+def ProductPCDParentTupleBindingAccepted
+    (tuple : ProductPCDParentTupleBinding) : Prop :=
+  tuple.parentPositionBound
+    ∧ tuple.parentNodeIndexBound
+    ∧ tuple.parentDepthBound
+    ∧ tuple.parentStateDigestBound
+    ∧ tuple.parentAccumulatorDigestBound
+    ∧ tuple.parentPublicStatementDigestBound
+    ∧ tuple.parentOutputAccumulatorClaimBound
+    ∧ tuple.parentEvaluationPointBound
+    ∧ tuple.parentClaimValueBound
+    ∧ tuple.parentRecursiveRelationDigestBound
+    ∧ tuple.parentCarryChainRootBound
+
+structure OrderedPCDParentTupleRoot where
+  domainTagPinned : Prop
+  fanInBound : Prop
+  orderedTuplesBound : Prop
+  rootConsumedByFoldedRelation : Prop
+  parentRemovalRejected : Prop
+  parentReorderingRejected : Prop
+  evaluationPointSwapRejected : Prop
+  claimValueSwapRejected : Prop
+  duplicateParentReplayRejected : Prop
+
+def OrderedPCDParentTupleRootAccepted
+    (root : OrderedPCDParentTupleRoot) : Prop :=
+  root.domainTagPinned
+    ∧ root.fanInBound
+    ∧ root.orderedTuplesBound
+    ∧ root.rootConsumedByFoldedRelation
+    ∧ root.parentRemovalRejected
+    ∧ root.parentReorderingRejected
+    ∧ root.evaluationPointSwapRejected
+    ∧ root.claimValueSwapRejected
+    ∧ root.duplicateParentReplayRejected
+
 structure ProductRecursiveCarryChainRootRecurrence where
   selectedDepth : Nat
   selectedRecursiveCarryHops : Nat
+  depthIndexing : ProductSelectedDepthIndexing
+  byteLayout : ProductCarryChainRootByteLayout
+  orderedParentTupleRoot : OrderedPCDParentTupleRoot
   baseRoot : ProductCarryChainRoot
   rootAtDepth : Nat → ProductCarryChainRoot
   stepRoot : Nat → ProductCarryChainRoot → ProductCarryChainRoot
@@ -241,6 +426,8 @@ structure ProductRecursiveCarryChainRootRecurrence where
   stepBindsRecomputedContextRoot : Prop
   stepBindsRecomputedReplayRoot : Prop
   stepBindsTypedCarryStatements : Prop
+  stepBindsRecursiveRelationDigest : Prop
+  stepBindsOrderedPCDParentTupleRoot : Prop
   extractorUsesVerifierComputedChainRoot : Prop
   ctcoTraceBindsRecursiveChainRoot : Prop
 
@@ -248,6 +435,9 @@ def ProductRecursiveCarryChainRootRecurrenceAccepted
     (recurrence : ProductRecursiveCarryChainRootRecurrence) : Prop :=
   recurrence.selectedDepth = 3
     ∧ recurrence.selectedRecursiveCarryHops = 2
+    ∧ ProductSelectedDepthIndexingAccepted recurrence.depthIndexing
+    ∧ ProductCarryChainRootByteLayoutAccepted recurrence.byteLayout
+    ∧ OrderedPCDParentTupleRootAccepted recurrence.orderedParentTupleRoot
     ∧ recurrence.verifierLoadsParentChainBeforeAcceptingRecursiveArtifact
     ∧ recurrence.verifierRejectsClaimedMetadataOnlyRecursiveRoot
     ∧ recurrence.stepBindsParentArtifactDigest
@@ -259,6 +449,8 @@ def ProductRecursiveCarryChainRootRecurrenceAccepted
     ∧ recurrence.stepBindsRecomputedContextRoot
     ∧ recurrence.stepBindsRecomputedReplayRoot
     ∧ recurrence.stepBindsTypedCarryStatements
+    ∧ recurrence.stepBindsRecursiveRelationDigest
+    ∧ recurrence.stepBindsOrderedPCDParentTupleRoot
     ∧ recurrence.extractorUsesVerifierComputedChainRoot
     ∧ recurrence.ctcoTraceBindsRecursiveChainRoot
 
@@ -270,6 +462,7 @@ structure ProductExtractorLossAccounting where
   terminalSealExtractorSpecified : Prop
   productEnvelopeExtractorSpecified : Prop
   recursiveCarryExtractorSpecified : Prop
+  perKindExtractorTheorems : ProductPerKindExtractorTheorems
   recursiveCarryChainRootRecurrence :
     ProductRecursiveCarryChainRootRecurrence
   rewindScheduleBoundToTranscript : Prop
@@ -285,6 +478,7 @@ def ProductExtractorLossAccountingAccepted
     ∧ accounting.terminalSealExtractorSpecified
     ∧ accounting.productEnvelopeExtractorSpecified
     ∧ accounting.recursiveCarryExtractorSpecified
+    ∧ ProductPerKindExtractorTheoremsAccepted accounting.perKindExtractorTheorems
     ∧ ProductRecursiveCarryChainRootRecurrenceAccepted
       accounting.recursiveCarryChainRootRecurrence
     ∧ accounting.rewindScheduleBoundToTranscript
@@ -445,8 +639,12 @@ def ProductChallengeTapeExpansionAccepted
 
 structure ProductQROMCollisionBound where
   queryBoundQHLog2 : Nat
+  effectiveHashOutputBits : Nat
   bindingDigestBits : Nat
   bindingTargetEventCount : Nat
+  orderedCollisionPairCount : Nat
+  targetEnumerationPinned : Prop
+  orderedPairDerivationPinned : Prop
   collisionFormulaPinned : Prop
   collisionBoundInstantiated : Prop
   collisionBoundWithinBudget : Prop
@@ -454,8 +652,12 @@ structure ProductQROMCollisionBound where
 def ProductQROMCollisionBoundAccepted
     (bound : ProductQROMCollisionBound) : Prop :=
   bound.queryBoundQHLog2 = 64
+    ∧ bound.effectiveHashOutputBits = 256
     ∧ bound.bindingDigestBits = 384
     ∧ bound.bindingTargetEventCount = 11
+    ∧ bound.orderedCollisionPairCount = 44
+    ∧ bound.targetEnumerationPinned
+    ∧ bound.orderedPairDerivationPinned
     ∧ bound.collisionFormulaPinned
     ∧ bound.collisionBoundInstantiated
     ∧ bound.collisionBoundWithinBudget
@@ -1090,6 +1292,8 @@ theorem productSecurityTheorem_requires_extractor_loss_accounting
       ∧ accounting.terminalSealExtractorSpecified
       ∧ accounting.productEnvelopeExtractorSpecified
       ∧ accounting.recursiveCarryExtractorSpecified
+      ∧ ProductPerKindExtractorTheoremsAccepted
+        accounting.perKindExtractorTheorems
       ∧ ProductRecursiveCarryChainRootRecurrenceAccepted
         accounting.recursiveCarryChainRootRecurrence
       ∧ accounting.extractorFailureLossAccounted
@@ -1102,6 +1306,7 @@ theorem productSecurityTheorem_requires_extractor_loss_accounting
       hTerminalSeal,
       hProductEnvelope,
       hRecursiveCarry,
+      hPerKind,
       hRecurrence,
       _,
       hExtractorLoss,
@@ -1111,6 +1316,7 @@ theorem productSecurityTheorem_requires_extractor_loss_accounting
       hTerminalSeal,
       hProductEnvelope,
       hRecursiveCarry,
+      hPerKind,
       hRecurrence,
       hExtractorLoss,
       hBudget⟩
@@ -1124,7 +1330,7 @@ theorem productRecursiveCarryChainRoot_recurrence_unfolds_depth_le_three
       ∧ recurrence.rootAtDepth 3 =
         recurrence.stepRoot 2 (recurrence.stepRoot 1 recurrence.baseRoot) := by
   rcases hRecurrence with
-    ⟨hDepth, _, _, _, _, _, _, _, _, _, _, _, _, _, _⟩
+    ⟨hDepth, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _⟩
   have h12 :
       recurrence.rootAtDepth 2 =
         recurrence.stepRoot 1 recurrence.baseRoot := by
@@ -1154,6 +1360,9 @@ theorem productRecursiveCarryChainRoot_verifier_extractor_path_depth_le_three
       ProductRecursiveCarryChainRootRecurrenceAccepted recurrence) :
     recurrence.selectedDepth = 3
       ∧ recurrence.selectedRecursiveCarryHops = 2
+      ∧ ProductSelectedDepthIndexingAccepted recurrence.depthIndexing
+      ∧ ProductCarryChainRootByteLayoutAccepted recurrence.byteLayout
+      ∧ OrderedPCDParentTupleRootAccepted recurrence.orderedParentTupleRoot
       ∧ recurrence.verifierLoadsParentChainBeforeAcceptingRecursiveArtifact
       ∧ recurrence.verifierRejectsClaimedMetadataOnlyRecursiveRoot
       ∧ recurrence.stepBindsParentArtifactDigest
@@ -1165,6 +1374,8 @@ theorem productRecursiveCarryChainRoot_verifier_extractor_path_depth_le_three
       ∧ recurrence.stepBindsRecomputedContextRoot
       ∧ recurrence.stepBindsRecomputedReplayRoot
       ∧ recurrence.stepBindsTypedCarryStatements
+      ∧ recurrence.stepBindsRecursiveRelationDigest
+      ∧ recurrence.stepBindsOrderedPCDParentTupleRoot
       ∧ recurrence.extractorUsesVerifierComputedChainRoot
       ∧ recurrence.ctcoTraceBindsRecursiveChainRoot := by
   exact hRecurrence
@@ -1215,6 +1426,10 @@ theorem ProductQROMTightTransform
       _⟩
   rcases hCollision with
     ⟨_,
+      _,
+      _,
+      _,
+      _,
       _,
       _,
       _,
