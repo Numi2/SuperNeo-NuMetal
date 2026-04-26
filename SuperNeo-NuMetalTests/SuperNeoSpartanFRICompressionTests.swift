@@ -38,6 +38,7 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
 
         XCTAssertEqual(proof.statement.sourceProofKind, ProofEnvelopeKind.terminalLocal)
         XCTAssertTrue(proof.statement.hasValidDigest())
+        XCTAssertTrue(proof.terminalVerifierProof.hasValidDigest())
         XCTAssertTrue(proof.witnessPCS.hasValidDigest())
         XCTAssertTrue(proof.residualPCS.hasValidDigest())
         XCTAssertEqual(proof.witnessPCS.baseCommitment.domainSize, proof.paddedDomainSize)
@@ -56,10 +57,19 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             SuperNeoSpartanFRICompressor.verifyCompressionProof(
                 proof,
                 publicInput: publicInput,
+                verifierKey: fixture.key,
+                policy: policy
+            ),
+            .valid
+        )
+        XCTAssertEqual(
+            SuperNeoSpartanFRICompressor.verifyCompressionProof(
+                proof,
+                publicInput: publicInput,
                 verifierKeyDigest: fixture.key.verifierKeyDigest,
                 policy: policy
             ),
-            .invalid("Spartan/FRI compression verification requires source proof bytes until the terminal verifier relation is fully arithmetized")
+            .invalid("Spartan/FRI source-free compression verification requires the verifier key")
         )
     }
 
@@ -268,6 +278,7 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             arithmetizationDigest: proof.arithmetizationDigest,
             traceVectorLength: proof.traceVectorLength,
             paddedDomainSize: proof.paddedDomainSize,
+            terminalVerifierProof: proof.terminalVerifierProof,
             witnessPCS: proof.witnessPCS,
             residualPCS: tamperedResidualPCS
         )
@@ -351,6 +362,7 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             arithmetizationDigest: proof.arithmetizationDigest,
             traceVectorLength: proof.traceVectorLength,
             paddedDomainSize: proof.paddedDomainSize,
+            terminalVerifierProof: proof.terminalVerifierProof,
             witnessPCS: tamperedWitnessPCS,
             residualPCS: proof.residualPCS
         )
@@ -453,6 +465,7 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
                 arithmetizationDigest: proof.arithmetizationDigest,
                 traceVectorLength: proof.traceVectorLength,
                 paddedDomainSize: proof.paddedDomainSize,
+                terminalVerifierProof: proof.terminalVerifierProof,
                 witnessPCS: witnessPCS ?? proof.witnessPCS,
                 residualPCS: residualPCS ?? proof.residualPCS
             )

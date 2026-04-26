@@ -241,6 +241,71 @@ theorem productRecursiveCarryDepthLeThreeExtractor_from_acceptedProof
     ProductAcceptedProofKindExtractorAccepted theorems.recursiveCarryDepthLeThree := by
   exact hTheorems.right.right.right.right.right
 
+structure ProductTerminalVerifierArithmetization where
+  relationTagPinned : Prop
+  canonicalSourceEnvelopeDigestBound : Prop
+  publicStatementDigestBound : Prop
+  recursiveRelationDigestBound : Prop
+  verifierKeyDigestBound : Prop
+  terminalStatementDigestBound : Prop
+  foldProofDigestBound : Prop
+  ceOpeningProofDigestBound : Prop
+  verifierRelationRerunsFoldReduction : Prop
+  verifierRelationRerunsTerminalCEOpening : Prop
+  fakeSourceDigestRejected : Prop
+  sourceFreeSNARKStyleAcceptance : Prop
+  sourceFreeSpartanFRIAcceptance : Prop
+  spartanFRITraceBindsTerminalVerifierRelation : Prop
+  malformedFRITraceRejected : Prop
+  sourceFreeAcceptanceRequiresVerifierKey : Prop
+
+def ProductTerminalVerifierArithmetizationAccepted
+    (arith : ProductTerminalVerifierArithmetization) : Prop :=
+  arith.relationTagPinned
+    ∧ arith.canonicalSourceEnvelopeDigestBound
+    ∧ arith.publicStatementDigestBound
+    ∧ arith.recursiveRelationDigestBound
+    ∧ arith.verifierKeyDigestBound
+    ∧ arith.terminalStatementDigestBound
+    ∧ arith.foldProofDigestBound
+    ∧ arith.ceOpeningProofDigestBound
+    ∧ arith.verifierRelationRerunsFoldReduction
+    ∧ arith.verifierRelationRerunsTerminalCEOpening
+    ∧ arith.fakeSourceDigestRejected
+    ∧ arith.sourceFreeSNARKStyleAcceptance
+    ∧ arith.sourceFreeSpartanFRIAcceptance
+    ∧ arith.spartanFRITraceBindsTerminalVerifierRelation
+    ∧ arith.malformedFRITraceRejected
+    ∧ arith.sourceFreeAcceptanceRequiresVerifierKey
+
+theorem productCompressionSourceFree_from_terminalVerifierArithmetization
+    {arith : ProductTerminalVerifierArithmetization}
+    (hArith : ProductTerminalVerifierArithmetizationAccepted arith) :
+    arith.sourceFreeSNARKStyleAcceptance
+      ∧ arith.sourceFreeSpartanFRIAcceptance
+      ∧ arith.canonicalSourceEnvelopeDigestBound
+      ∧ arith.verifierRelationRerunsFoldReduction
+      ∧ arith.verifierRelationRerunsTerminalCEOpening
+      ∧ arith.spartanFRITraceBindsTerminalVerifierRelation := by
+  rcases hArith with
+    ⟨_,
+      hSourceDigest,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hFold,
+      hCE,
+      _,
+      hSNARK,
+      hSpartan,
+      hTrace,
+      _,
+      _⟩
+  exact ⟨hSNARK, hSpartan, hSourceDigest, hFold, hCE, hTrace⟩
+
 structure ProductFixedKindCTCORepeatedTapePlan where
   selectedDepth : Nat
   expectedKind : ProductDepthOneExpectedProofKind

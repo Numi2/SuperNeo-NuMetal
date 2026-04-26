@@ -17,6 +17,7 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
     public let transcriptDomain: Digest256
     public let compressionCircuitDigest: Digest256
     public let recursiveVerifierTraceDigest: Digest256
+    public let terminalVerifierProof: SuperNeoTerminalVerifierArithmetizationProof
     public let proofDigest: Digest384
 
     public init(
@@ -29,13 +30,24 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
         verifierKeyDigest: Digest256,
         transcriptDomain: Digest256,
         compressionCircuitDigest: Digest256,
-        recursiveVerifierTraceDigest: Digest256
+        recursiveVerifierTraceDigest: Digest256,
+        terminalVerifierProof: SuperNeoTerminalVerifierArithmetizationProof
     ) throws {
         guard sourceProofKind == .terminalLocal || sourceProofKind == .compressedPublic else {
             throw SuperNeoError.invalidParameter("SNARK-style compression only accepts terminal proof sources")
         }
         guard sourceProofByteCount > 0 else {
             throw SuperNeoError.invalidParameter("SNARK-style compression source byte count must be positive")
+        }
+        guard terminalVerifierProof.sourceProofKind == sourceProofKind,
+              terminalVerifierProof.sourceProofByteCount == sourceProofByteCount,
+              terminalVerifierProof.sourceProofDigest == sourceProofDigest,
+              terminalVerifierProof.profileID == profileID,
+              terminalVerifierProof.shapeDigest == shapeDigest,
+              terminalVerifierProof.statementDigest == statementDigest,
+              terminalVerifierProof.verifierKeyDigest == verifierKeyDigest,
+              terminalVerifierProof.transcriptDomain == transcriptDomain else {
+            throw SuperNeoError.invalidParameter("SNARK-style compression terminal verifier relation mismatch")
         }
         self.version = Self.version
         self.schemeID = Self.schemeID
@@ -49,6 +61,7 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
         self.transcriptDomain = transcriptDomain
         self.compressionCircuitDigest = compressionCircuitDigest
         self.recursiveVerifierTraceDigest = recursiveVerifierTraceDigest
+        self.terminalVerifierProof = terminalVerifierProof
         self.proofDigest = Self.computeProofDigest(
             version: Self.version,
             schemeID: Self.schemeID,
@@ -61,7 +74,8 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
             verifierKeyDigest: verifierKeyDigest,
             transcriptDomain: transcriptDomain,
             compressionCircuitDigest: compressionCircuitDigest,
-            recursiveVerifierTraceDigest: recursiveVerifierTraceDigest
+            recursiveVerifierTraceDigest: recursiveVerifierTraceDigest,
+            terminalVerifierProof: terminalVerifierProof
         )
     }
 
@@ -83,13 +97,15 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
                 verifierKeyDigest: verifierKeyDigest,
                 transcriptDomain: transcriptDomain,
                 compressionCircuitDigest: compressionCircuitDigest,
-                recursiveVerifierTraceDigest: recursiveVerifierTraceDigest
+                recursiveVerifierTraceDigest: recursiveVerifierTraceDigest,
+                terminalVerifierProof: terminalVerifierProof
             )
             + proofDigest.superNeoBytes
     }
 
     public func hasValidDigest() -> Bool {
-        proofDigest == Self.computeProofDigest(
+        terminalVerifierProof.hasValidDigest()
+        && proofDigest == Self.computeProofDigest(
             version: version,
             schemeID: schemeID,
             sourceProofKind: sourceProofKind,
@@ -101,7 +117,8 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
             verifierKeyDigest: verifierKeyDigest,
             transcriptDomain: transcriptDomain,
             compressionCircuitDigest: compressionCircuitDigest,
-            recursiveVerifierTraceDigest: recursiveVerifierTraceDigest
+            recursiveVerifierTraceDigest: recursiveVerifierTraceDigest,
+            terminalVerifierProof: terminalVerifierProof
         )
     }
 
@@ -109,7 +126,8 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
         profileID: UInt16,
         sourceProofKind: ProofEnvelopeKind,
         statementDigest: Digest256,
-        verifierKeyDigest: Digest256
+        verifierKeyDigest: Digest256,
+        terminalVerifierRelationDigest: Digest256
     ) -> Digest256 {
         Digest256.hash(
             Self.domain.superNeoBytes
@@ -118,6 +136,7 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
                 + [sourceProofKind.rawValue]
                 + statementDigest.superNeoBytes
                 + verifierKeyDigest.superNeoBytes
+                + terminalVerifierRelationDigest.superNeoBytes
         )
     }
 
@@ -149,7 +168,8 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
         verifierKeyDigest: Digest256,
         transcriptDomain: Digest256,
         compressionCircuitDigest: Digest256,
-        recursiveVerifierTraceDigest: Digest256
+        recursiveVerifierTraceDigest: Digest256,
+        terminalVerifierProof: SuperNeoTerminalVerifierArithmetizationProof
     ) -> Digest384 {
         Digest384.shake256(
             Self.domain.superNeoBytes
@@ -165,7 +185,8 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
                     verifierKeyDigest: verifierKeyDigest,
                     transcriptDomain: transcriptDomain,
                     compressionCircuitDigest: compressionCircuitDigest,
-                    recursiveVerifierTraceDigest: recursiveVerifierTraceDigest
+                    recursiveVerifierTraceDigest: recursiveVerifierTraceDigest,
+                    terminalVerifierProof: terminalVerifierProof
                 )
         )
     }
@@ -182,7 +203,8 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
         verifierKeyDigest: Digest256,
         transcriptDomain: Digest256,
         compressionCircuitDigest: Digest256,
-        recursiveVerifierTraceDigest: Digest256
+        recursiveVerifierTraceDigest: Digest256,
+        terminalVerifierProof: SuperNeoTerminalVerifierArithmetizationProof
     ) -> [UInt8] {
         encodeUInt16Local(version)
             + encodeString(schemeID)
@@ -196,6 +218,7 @@ public struct SuperNeoSNARKStyleCompressionProof: Equatable, Sendable, SuperNeoB
             + transcriptDomain.superNeoBytes
             + compressionCircuitDigest.superNeoBytes
             + recursiveVerifierTraceDigest.superNeoBytes
+            + terminalVerifierProof.superNeoBytes
     }
 }
 
@@ -257,12 +280,19 @@ public enum SuperNeoSNARKStyleCompressor {
                 "SNARK-style compression requires an accepted terminal proof: \(verification.reason ?? "unknown")"
             )
         }
+        let terminalVerifierProof = try SuperNeoTerminalVerifierArithmetizationProof.make(
+            publicInput: publicInput,
+            proofBytes: proofBytes,
+            policy: trustedPolicy,
+            parameters: parameters
+        )
         let sourceProofDigest = Digest256.hash(proofBytes)
         let circuitDigest = SuperNeoSNARKStyleCompressionProof.compressionCircuitDigest(
             profileID: header.profileID,
             sourceProofKind: header.kind,
             statementDigest: header.statementDigest,
-            verifierKeyDigest: header.verifierKeyDigest
+            verifierKeyDigest: header.verifierKeyDigest,
+            terminalVerifierRelationDigest: terminalVerifierProof.relationDigest
         )
         let traceDigest = SuperNeoSNARKStyleCompressionProof.recursiveVerifierTraceDigest(
             header: header,
@@ -280,7 +310,8 @@ public enum SuperNeoSNARKStyleCompressor {
             verifierKeyDigest: header.verifierKeyDigest,
             transcriptDomain: header.transcriptDomain,
             compressionCircuitDigest: circuitDigest,
-            recursiveVerifierTraceDigest: traceDigest
+            recursiveVerifierTraceDigest: traceDigest,
+            terminalVerifierProof: terminalVerifierProof
         )
     }
 
@@ -291,7 +322,35 @@ public enum SuperNeoSNARKStyleCompressor {
         policy: SuperNeoTerminalProofAcceptancePolicy
     ) -> VerificationResult {
         .invalid(
-            "SNARK-style compression verification requires source proof bytes until the terminal verifier relation is fully arithmetized"
+            "SNARK-style source-free compression verification requires the verifier key"
+        )
+    }
+
+    public static func verifyCompressionProof(
+        _ proof: SuperNeoSNARKStyleCompressionProof,
+        publicInput: SuperNeoPublicFoldInput,
+        verifierKey: AjtaiCommitmentKey,
+        policy: SuperNeoTerminalProofAcceptancePolicy,
+        parameters: SuperNeoParameters = .goldilocks,
+        metalContext: MetalExecutionContext? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) -> VerificationResult {
+        let relation = proof.terminalVerifierProof.verifySourceFree(
+            publicInput: publicInput,
+            verifierKey: verifierKey,
+            policy: policy,
+            parameters: parameters,
+            metalContext: metalContext,
+            executionPolicy: executionPolicy
+        )
+        guard relation.isValid else {
+            return .invalid("SNARK-style terminal verifier arithmetization rejected: \(relation.reason ?? "unknown")")
+        }
+        return verifyAcceptedCompressionProof(
+            proof,
+            publicInput: publicInput,
+            verifierKeyDigest: verifierKey.verifierKeyDigest,
+            policy: policy
         )
     }
 
@@ -337,7 +396,8 @@ public enum SuperNeoSNARKStyleCompressor {
             profileID: proof.profileID,
             sourceProofKind: proof.sourceProofKind,
             statementDigest: proof.statementDigest,
-            verifierKeyDigest: proof.verifierKeyDigest
+            verifierKeyDigest: proof.verifierKeyDigest,
+            terminalVerifierRelationDigest: proof.terminalVerifierProof.relationDigest
         )
         guard proof.compressionCircuitDigest == expectedCircuitDigest else {
             return .invalid("SNARK-style compression circuit digest mismatch")
@@ -367,8 +427,15 @@ public enum SuperNeoSNARKStyleCompressor {
         guard proof.recursiveVerifierTraceDigest == expectedTraceDigest else {
             return .invalid("SNARK-style compression recursive verifier trace digest mismatch")
         }
-        guard proof.sourceProofByteCount > proof.superNeoBytes.count else {
-            return .invalid("SNARK-style compression proof is not smaller than its source")
+        guard proof.terminalVerifierProof.sourceProofKind == proof.sourceProofKind,
+              proof.terminalVerifierProof.sourceProofByteCount == proof.sourceProofByteCount,
+              proof.terminalVerifierProof.sourceProofDigest == proof.sourceProofDigest,
+              proof.terminalVerifierProof.profileID == proof.profileID,
+              proof.terminalVerifierProof.shapeDigest == proof.shapeDigest,
+              proof.terminalVerifierProof.statementDigest == proof.statementDigest,
+              proof.terminalVerifierProof.verifierKeyDigest == proof.verifierKeyDigest,
+              proof.terminalVerifierProof.transcriptDomain == proof.transcriptDomain else {
+            return .invalid("SNARK-style terminal verifier relation mismatch")
         }
         return .valid
     }

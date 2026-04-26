@@ -451,6 +451,7 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
     public let arithmetizationDigest: Digest256
     public let traceVectorLength: Int
     public let paddedDomainSize: Int
+    public let terminalVerifierProof: SuperNeoTerminalVerifierArithmetizationProof
     public let witnessPCS: SuperNeoFRIProof
     public let residualPCS: SuperNeoFRIProof
     public let proofDigest: Digest384
@@ -460,6 +461,7 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
         arithmetizationDigest: Digest256,
         traceVectorLength: Int,
         paddedDomainSize: Int,
+        terminalVerifierProof: SuperNeoTerminalVerifierArithmetizationProof,
         witnessPCS: SuperNeoFRIProof,
         residualPCS: SuperNeoFRIProof
     ) throws {
@@ -474,6 +476,19 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
               witnessPCS.vectorLength == traceVectorLength,
               residualPCS.vectorLength == traceVectorLength else {
             throw SuperNeoError.invalidParameter("Spartan/FRI PCS dimensions do not match trace")
+        }
+        guard terminalVerifierProof.sourceProofKind == statement.sourceProofKind,
+              terminalVerifierProof.sourceProofByteCount == statement.sourceProofByteCount,
+              terminalVerifierProof.sourceProofDigest == statement.sourceProofDigest,
+              terminalVerifierProof.profileID == statement.profileID,
+              terminalVerifierProof.shapeDigest == statement.shapeDigest,
+              terminalVerifierProof.statementDigest == statement.statementDigest,
+              terminalVerifierProof.verifierKeyDigest == statement.verifierKeyDigest,
+              terminalVerifierProof.transcriptDomain == statement.transcriptDomain,
+              terminalVerifierProof.terminalStatementDigest == statement.terminalStatementDigest,
+              terminalVerifierProof.foldProofDigest == statement.foldProofDigest,
+              terminalVerifierProof.ceOpeningProofDigest == statement.ceOpeningProofDigest else {
+            throw SuperNeoError.invalidParameter("Spartan/FRI terminal verifier relation mismatch")
         }
         guard witnessPCS.claimedDegreeBound == traceVectorLength,
               residualPCS.claimedDegreeBound == traceVectorLength,
@@ -494,6 +509,7 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
         self.arithmetizationDigest = arithmetizationDigest
         self.traceVectorLength = traceVectorLength
         self.paddedDomainSize = paddedDomainSize
+        self.terminalVerifierProof = terminalVerifierProof
         self.witnessPCS = witnessPCS
         self.residualPCS = residualPCS
         self.proofDigest = Digest384.shake256(
@@ -505,6 +521,7 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
                     arithmetizationDigest: arithmetizationDigest,
                     traceVectorLength: traceVectorLength,
                     paddedDomainSize: paddedDomainSize,
+                    terminalVerifierProof: terminalVerifierProof,
                     witnessPCS: witnessPCS,
                     residualPCS: residualPCS
                 )
@@ -524,6 +541,7 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
                 arithmetizationDigest: arithmetizationDigest,
                 traceVectorLength: traceVectorLength,
                 paddedDomainSize: paddedDomainSize,
+                terminalVerifierProof: terminalVerifierProof,
                 witnessPCS: witnessPCS,
                 residualPCS: residualPCS
             )
@@ -531,7 +549,8 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
     }
 
     public func hasValidDigest() -> Bool {
-        proofDigest == Digest384.shake256(
+        terminalVerifierProof.hasValidDigest()
+        && proofDigest == Digest384.shake256(
             Self.domain.superNeoBytes
                 + Self.bodyBytes(
                     version: version,
@@ -540,6 +559,7 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
                     arithmetizationDigest: arithmetizationDigest,
                     traceVectorLength: traceVectorLength,
                     paddedDomainSize: paddedDomainSize,
+                    terminalVerifierProof: terminalVerifierProof,
                     witnessPCS: witnessPCS,
                     residualPCS: residualPCS
                 )
@@ -548,6 +568,7 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
 
     static func arithmetizationDigest(
         statement: SuperNeoSpartanFRICompressionStatement,
+        terminalVerifierProof: SuperNeoTerminalVerifierArithmetizationProof,
         traceLength: Int,
         paddedDomainSize: Int,
         blowupFactor: Int,
@@ -557,6 +578,10 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
             Self.domain.superNeoBytes
                 + spartanFRIEncodeString("spartan-residual-relation: witness(X)-public-trace(X)=residual(X)")
                 + statement.statementCompressionDigest.superNeoBytes
+                + terminalVerifierProof.relationDigest.superNeoBytes
+                + terminalVerifierProof.terminalVerifierTraceDigest.superNeoBytes
+                + terminalVerifierProof.residualDigest.superNeoBytes
+                + terminalVerifierProof.proofDigest.superNeoBytes
                 + spartanFRIEncodeCount(traceLength)
                 + spartanFRIEncodeCount(paddedDomainSize)
                 + spartanFRIEncodeCount(blowupFactor)
@@ -571,6 +596,7 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
         arithmetizationDigest: Digest256,
         traceVectorLength: Int,
         paddedDomainSize: Int,
+        terminalVerifierProof: SuperNeoTerminalVerifierArithmetizationProof,
         witnessPCS: SuperNeoFRIProof,
         residualPCS: SuperNeoFRIProof
     ) -> [UInt8] {
@@ -580,6 +606,7 @@ public struct SuperNeoSpartanFRICompressionProof: Equatable, Sendable, SuperNeoB
             + arithmetizationDigest.superNeoBytes
             + spartanFRIEncodeCount(traceVectorLength)
             + spartanFRIEncodeCount(paddedDomainSize)
+            + terminalVerifierProof.superNeoBytes
             + witnessPCS.superNeoBytes
             + residualPCS.superNeoBytes
     }
@@ -624,6 +651,12 @@ public enum SuperNeoSpartanFRICompressor {
                 "Spartan/FRI compression requires an accepted terminal proof: \(verification.reason ?? "unknown")"
             )
         }
+        let terminalVerifierProof = try SuperNeoTerminalVerifierArithmetizationProof.make(
+            publicInput: publicInput,
+            proofBytes: proofBytes,
+            policy: trustedPolicy,
+            parameters: parameters
+        )
         let sourceDigests = try sourceComponentDigests(proofBytes: proofBytes, header: header, parameters: parameters)
         let compressionStatement = try SuperNeoSpartanFRICompressionStatement(
             sourceProofKind: header.kind,
@@ -639,13 +672,18 @@ public enum SuperNeoSpartanFRICompressor {
             foldProofDigest: sourceDigests.foldProofDigest,
             ceOpeningProofDigest: sourceDigests.ceOpeningProofDigest
         )
-        let trace = spartanTraceVector(statement: compressionStatement, accepted: true)
+        let trace = spartanTraceVector(
+            statement: compressionStatement,
+            terminalVerifierProof: terminalVerifierProof,
+            accepted: true
+        )
         let residual = spartanResidualVector(witness: trace, publicTrace: trace)
         let claimedDegreeBound = trace.count
         let blowupFactor = SuperNeoSpartanFRICompressionProof.defaultBlowupFactor
         let paddedDomainSize = spartanFRINextPowerOfTwo(trace.count * blowupFactor)
         let arithmetizationDigest = SuperNeoSpartanFRICompressionProof.arithmetizationDigest(
             statement: compressionStatement,
+            terminalVerifierProof: terminalVerifierProof,
             traceLength: trace.count,
             paddedDomainSize: paddedDomainSize,
             blowupFactor: blowupFactor,
@@ -682,6 +720,7 @@ public enum SuperNeoSpartanFRICompressor {
             arithmetizationDigest: arithmetizationDigest,
             traceVectorLength: trace.count,
             paddedDomainSize: paddedDomainSize,
+            terminalVerifierProof: terminalVerifierProof,
             witnessPCS: witnessPCS,
             residualPCS: residualPCS
         )
@@ -694,7 +733,35 @@ public enum SuperNeoSpartanFRICompressor {
         policy: SuperNeoTerminalProofAcceptancePolicy
     ) -> VerificationResult {
         .invalid(
-            "Spartan/FRI compression verification requires source proof bytes until the terminal verifier relation is fully arithmetized"
+            "Spartan/FRI source-free compression verification requires the verifier key"
+        )
+    }
+
+    public static func verifyCompressionProof(
+        _ proof: SuperNeoSpartanFRICompressionProof,
+        publicInput: SuperNeoPublicFoldInput,
+        verifierKey: AjtaiCommitmentKey,
+        policy: SuperNeoTerminalProofAcceptancePolicy,
+        parameters: SuperNeoParameters = .goldilocks,
+        metalContext: MetalExecutionContext? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) -> VerificationResult {
+        let relation = proof.terminalVerifierProof.verifySourceFree(
+            publicInput: publicInput,
+            verifierKey: verifierKey,
+            policy: policy,
+            parameters: parameters,
+            metalContext: metalContext,
+            executionPolicy: executionPolicy
+        )
+        guard relation.isValid else {
+            return .invalid("Spartan/FRI terminal verifier arithmetization rejected: \(relation.reason ?? "unknown")")
+        }
+        return verifyAcceptedCompressionProof(
+            proof,
+            publicInput: publicInput,
+            verifierKeyDigest: verifierKey.verifierKeyDigest,
+            policy: policy
         )
     }
 
@@ -777,10 +844,31 @@ public enum SuperNeoSpartanFRICompressor {
         guard proof.statement.publicInputDigest == spartanFRIPublicInputDigest(publicInput) else {
             return .invalid("Spartan/FRI compression public input digest mismatch")
         }
-        let trace = spartanTraceVector(statement: proof.statement, accepted: true)
+        guard proof.terminalVerifierProof.hasValidDigest() else {
+            return .invalid("Spartan/FRI terminal verifier arithmetization digest mismatch")
+        }
+        guard proof.terminalVerifierProof.sourceProofKind == proof.statement.sourceProofKind,
+              proof.terminalVerifierProof.sourceProofByteCount == proof.statement.sourceProofByteCount,
+              proof.terminalVerifierProof.sourceProofDigest == proof.statement.sourceProofDigest,
+              proof.terminalVerifierProof.profileID == proof.statement.profileID,
+              proof.terminalVerifierProof.shapeDigest == proof.statement.shapeDigest,
+              proof.terminalVerifierProof.statementDigest == proof.statement.statementDigest,
+              proof.terminalVerifierProof.verifierKeyDigest == proof.statement.verifierKeyDigest,
+              proof.terminalVerifierProof.transcriptDomain == proof.statement.transcriptDomain,
+              proof.terminalVerifierProof.terminalStatementDigest == proof.statement.terminalStatementDigest,
+              proof.terminalVerifierProof.foldProofDigest == proof.statement.foldProofDigest,
+              proof.terminalVerifierProof.ceOpeningProofDigest == proof.statement.ceOpeningProofDigest else {
+            return .invalid("Spartan/FRI terminal verifier relation mismatch")
+        }
+        let trace = spartanTraceVector(
+            statement: proof.statement,
+            terminalVerifierProof: proof.terminalVerifierProof,
+            accepted: true
+        )
         let expectedPaddedDomainSize = spartanFRINextPowerOfTwo(trace.count * SuperNeoSpartanFRICompressionProof.defaultBlowupFactor)
         let expectedArithmetization = SuperNeoSpartanFRICompressionProof.arithmetizationDigest(
             statement: proof.statement,
+            terminalVerifierProof: proof.terminalVerifierProof,
             traceLength: trace.count,
             paddedDomainSize: expectedPaddedDomainSize,
             blowupFactor: SuperNeoSpartanFRICompressionProof.defaultBlowupFactor,
@@ -1265,6 +1353,7 @@ private func sourceComponentDigests(
 
 private func spartanTraceVector(
     statement: SuperNeoSpartanFRICompressionStatement,
+    terminalVerifierProof: SuperNeoTerminalVerifierArithmetizationProof,
     accepted: Bool
 ) -> [GoldilocksField] {
     var trace: [GoldilocksField] = [
@@ -1283,6 +1372,10 @@ private func spartanTraceVector(
     trace.append(contentsOf: spartanFRIDigestFields(statement.terminalStatementDigest))
     trace.append(contentsOf: spartanFRIDigestFields(statement.foldProofDigest))
     trace.append(contentsOf: spartanFRIDigestFields(statement.ceOpeningProofDigest))
+    trace.append(contentsOf: spartanFRIDigestFields(terminalVerifierProof.relationDigest))
+    trace.append(contentsOf: spartanFRIDigestFields(terminalVerifierProof.terminalVerifierTraceDigest))
+    trace.append(contentsOf: spartanFRIDigestFields(terminalVerifierProof.residualDigest))
+    trace.append(contentsOf: spartanFRIDigest384Fields(terminalVerifierProof.proofDigest))
     trace.append(accepted ? .one : .zero)
     return trace
 }
@@ -1311,6 +1404,16 @@ private func spartanFRIPublicInputDigest(_ input: SuperNeoPublicFoldInput) -> Di
 }
 
 private func spartanFRIDigestFields(_ digest: Digest256) -> [GoldilocksField] {
+    stride(from: 0, to: digest.superNeoBytes.count, by: 4).map { offset in
+        let chunk = digest.superNeoBytes[offset..<min(offset + 4, digest.superNeoBytes.count)]
+        let value = chunk.enumerated().reduce(UInt32(0)) { partial, pair in
+            partial | (UInt32(pair.element) << UInt32(pair.offset * 8))
+        }
+        return GoldilocksField(UInt64(value))
+    }
+}
+
+private func spartanFRIDigest384Fields(_ digest: Digest384) -> [GoldilocksField] {
     stride(from: 0, to: digest.superNeoBytes.count, by: 4).map { offset in
         let chunk = digest.superNeoBytes[offset..<min(offset + 4, digest.superNeoBytes.count)]
         let value = chunk.enumerated().reduce(UInt32(0)) { partial, pair in

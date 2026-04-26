@@ -78,7 +78,7 @@ final class PaperImplementationTracksTests: XCTestCase {
         )
 
         XCTAssertTrue(compressionProof.hasValidDigest())
-        XCTAssertGreaterThan(compressionProof.compressionRatioAgainstSource, 1)
+        XCTAssertTrue(compressionProof.terminalVerifierProof.hasValidDigest())
         XCTAssertEqual(
             SuperNeoSNARKStyleCompressor.verifyCompressionProof(
                 compressionProof,
@@ -93,10 +93,19 @@ final class PaperImplementationTracksTests: XCTestCase {
             SuperNeoSNARKStyleCompressor.verifyCompressionProof(
                 compressionProof,
                 publicInput: prepared.publicFoldInput,
+                verifierKey: prepared.key,
+                policy: policy
+            ),
+            .valid
+        )
+        XCTAssertEqual(
+            SuperNeoSNARKStyleCompressor.verifyCompressionProof(
+                compressionProof,
+                publicInput: prepared.publicFoldInput,
                 verifierKeyDigest: prepared.key.verifierKeyDigest,
                 policy: policy
             ),
-            .invalid("SNARK-style compression verification requires source proof bytes until the terminal verifier relation is fully arithmetized")
+            .invalid("SNARK-style source-free compression verification requires the verifier key")
         )
     }
 
@@ -145,6 +154,112 @@ final class PaperImplementationTracksTests: XCTestCase {
             ),
             .valid
         )
+        XCTAssertEqual(
+            SuperNeoSNARKStyleCompressor.verifyCompressionProof(
+                compressionProof,
+                publicInput: prepared.publicFoldInput,
+                verifierKey: prepared.key,
+                policy: policy
+            ),
+            .valid
+        )
+    }
+
+    func testSNARKStyleSourceFreeCompressionRejectsFakeSourceDigest() throws {
+        let workload = try SuperNeoOneHotVectorWorkload(bitCount: 2)
+        let prepared = try workload.prepareForFolding(
+            bits: [true, false],
+            keySeed: Array("snark-style-fake-source-digest-test".utf8)
+        )
+        let statement = CCSStatement(
+            shapeDigest: prepared.publicFoldInput.shape.shapeDigest,
+            ccsInstances: prepared.publicFoldInput.instances,
+            priorCEInstances: []
+        )
+        let context = ProofEnvelopeContext(
+            profileID: prepared.key.parameters.profileID,
+            kind: .terminalLocal,
+            statement: statement,
+            verifierKeyDigest: prepared.key.verifierKeyDigest
+        )
+        let envelope = try SuperNeoProver(key: prepared.key).terminalFoldEnvelopeDeterministic(
+            prepared.foldInput,
+            context: context,
+            ceRandomSeed: Array("snark-style-fake-source-digest-ce".utf8)
+        )
+        let policy = SuperNeoTerminalProofAcceptancePolicy(
+            publicInput: prepared.publicFoldInput,
+            verifierKeyDigest: prepared.key.verifierKeyDigest,
+            proofKindPolicy: .terminalOnly
+        )
+        let proof = try SuperNeoSNARKStyleCompressor.compressTerminalProof(
+            publicInput: prepared.publicFoldInput,
+            proofBytes: envelope.superNeoBytes,
+            verifierKey: prepared.key,
+            policy: policy
+        )
+        let fakeSourceDigest = Digest256.hash("fake-source-proof-digest")
+        let fakeRelation = try SuperNeoTerminalVerifierArithmetizationProof(
+            sourceProofKind: proof.terminalVerifierProof.sourceProofKind,
+            sourceProofByteCount: proof.terminalVerifierProof.sourceProofByteCount,
+            sourceProofDigest: fakeSourceDigest,
+            profileID: proof.terminalVerifierProof.profileID,
+            shapeDigest: proof.terminalVerifierProof.shapeDigest,
+            statementDigest: proof.terminalVerifierProof.statementDigest,
+            verifierKeyDigest: proof.terminalVerifierProof.verifierKeyDigest,
+            transcriptDomain: proof.terminalVerifierProof.transcriptDomain,
+            publicInputDigest: proof.terminalVerifierProof.publicInputDigest,
+            terminalStatementDigest: proof.terminalVerifierProof.terminalStatementDigest,
+            foldProofDigest: proof.terminalVerifierProof.foldProofDigest,
+            ceOpeningProofDigest: proof.terminalVerifierProof.ceOpeningProofDigest,
+            compressedStatement: nil,
+            terminalStatement: proof.terminalVerifierProof.terminalStatement,
+            foldProof: proof.terminalVerifierProof.foldProof,
+            ceOpeningProof: proof.terminalVerifierProof.ceOpeningProof
+        )
+        let fakeHeader = ProofEnvelopeHeader(
+            profileID: proof.profileID,
+            kind: proof.sourceProofKind,
+            shapeDigest: proof.shapeDigest,
+            statementDigest: proof.statementDigest,
+            verifierKeyDigest: proof.verifierKeyDigest,
+            transcriptDomain: proof.transcriptDomain,
+            bodyLength: UInt32(proof.sourceProofByteCount - ProofEnvelopeHeader.byteCount)
+        )
+        let fakeCompressionProof = try SuperNeoSNARKStyleCompressionProof(
+            sourceProofKind: proof.sourceProofKind,
+            sourceProofByteCount: proof.sourceProofByteCount,
+            sourceProofDigest: fakeSourceDigest,
+            profileID: proof.profileID,
+            shapeDigest: proof.shapeDigest,
+            statementDigest: proof.statementDigest,
+            verifierKeyDigest: proof.verifierKeyDigest,
+            transcriptDomain: proof.transcriptDomain,
+            compressionCircuitDigest: SuperNeoSNARKStyleCompressionProof.compressionCircuitDigest(
+                profileID: proof.profileID,
+                sourceProofKind: proof.sourceProofKind,
+                statementDigest: proof.statementDigest,
+                verifierKeyDigest: proof.verifierKeyDigest,
+                terminalVerifierRelationDigest: fakeRelation.relationDigest
+            ),
+            recursiveVerifierTraceDigest: SuperNeoSNARKStyleCompressionProof.recursiveVerifierTraceDigest(
+                header: fakeHeader,
+                sourceProofDigest: fakeSourceDigest,
+                publicStatement: statement,
+                accepted: true
+            ),
+            terminalVerifierProof: fakeRelation
+        )
+
+        XCTAssertEqual(
+            SuperNeoSNARKStyleCompressor.verifyCompressionProof(
+                fakeCompressionProof,
+                publicInput: prepared.publicFoldInput,
+                verifierKey: prepared.key,
+                policy: policy
+            ),
+            .invalid("SNARK-style terminal verifier arithmetization rejected: terminal verifier arithmetization source digest mismatch")
+        )
     }
 
     func testSNARKStyleCompressionRejectsTamperedRecursiveTraceDigest() throws {
@@ -190,7 +305,8 @@ final class PaperImplementationTracksTests: XCTestCase {
             verifierKeyDigest: compressionProof.verifierKeyDigest,
             transcriptDomain: compressionProof.transcriptDomain,
             compressionCircuitDigest: compressionProof.compressionCircuitDigest,
-            recursiveVerifierTraceDigest: Digest256.hash("tampered-recursive-verifier-trace")
+            recursiveVerifierTraceDigest: Digest256.hash("tampered-recursive-verifier-trace"),
+            terminalVerifierProof: compressionProof.terminalVerifierProof
         )
 
         XCTAssertEqual(
@@ -264,6 +380,15 @@ final class PaperImplementationTracksTests: XCTestCase {
                 policy: policy
             ),
             .invalid("SNARK-style compression source proof rejected: input statement digest mismatch")
+        )
+        XCTAssertEqual(
+            SuperNeoSNARKStyleCompressor.verifyCompressionProof(
+                compressionProof,
+                publicInput: wrongPublicInput,
+                verifierKey: prepared.key,
+                policy: policy
+            ),
+            .invalid("SNARK-style terminal verifier arithmetization rejected: terminal verifier arithmetization public statement mismatch")
         )
     }
 
