@@ -809,6 +809,193 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
         )
     }
 
+    func testSpartanFRICosetNTTMatchesHornerEvaluation() throws {
+        let root = try SuperNeoSpartanFRITestHooks.rootOfUnity(order: 8)
+        let cosets: [GoldilocksField] = [
+            .one,
+            GoldilocksField(3),
+            GoldilocksField(7)
+        ]
+        let polynomials: [[GoldilocksField]] = [
+            [.zero],
+            [GoldilocksField(5)],
+            [.zero, .one, GoldilocksField(2), .zero],
+            [GoldilocksField(9), .zero, .zero, GoldilocksField(4), GoldilocksField(11)],
+            (0..<8).map { GoldilocksField(UInt64($0 + 1)) }
+        ]
+        for coset in cosets {
+            for coefficients in polynomials {
+                let horner = try SuperNeoSpartanFRITestHooks.hornerEvaluateOnDomain(
+                    coefficients: coefficients,
+                    size: 8,
+                    root: root,
+                    coset: coset
+                )
+                let ntt = try SuperNeoSpartanFRITestHooks.nttEvaluateOnDomain(
+                    coefficients: coefficients,
+                    size: 8,
+                    root: root,
+                    coset: coset
+                )
+                XCTAssertEqual(ntt, horner, "NTT domain evaluation must match Horner evaluation")
+            }
+        }
+    }
+
+    func testSpartanFRIPlanReuseMatchesFreshProofAndBindsJointQueries() throws {
+        let vector = (0..<16).map { GoldilocksField(UInt64($0 * 3 + 1)) }
+        let binding = Digest256.hash("fri-plan-reuse-test")
+        let fresh = try SuperNeoSpartanFRITestHooks.freshFRIProof(
+            vector: vector,
+            paddedDomainSize: 32,
+            queryCount: 4,
+            blowupFactor: 2,
+            claimedDegreeBound: vector.count,
+            label: "plan-reuse",
+            bindingDigest: binding
+        )
+        let planned = try SuperNeoSpartanFRITestHooks.plannedFRIProof(
+            vector: vector,
+            paddedDomainSize: 32,
+            queryCount: 4,
+            blowupFactor: 2,
+            claimedDegreeBound: vector.count,
+            label: "plan-reuse",
+            bindingDigest: binding
+        )
+        XCTAssertEqual(planned.superNeoBytes, fresh.superNeoBytes)
+
+        let residualVector = vector.map { $0 + GoldilocksField(1) }
+        let residual = try SuperNeoSpartanFRITestHooks.plannedFRIProof(
+            vector: residualVector,
+            paddedDomainSize: 32,
+            queryCount: 4,
+            blowupFactor: 2,
+            claimedDegreeBound: residualVector.count,
+            label: "plan-reuse-residual",
+            bindingDigest: binding
+        )
+        let jointA = SuperNeoSpartanFRITestHooks.jointAIRQueryIndices(
+            traceCommitments: planned.commitments,
+            residualCommitments: residual.commitments,
+            relationDigest: binding,
+            queryCount: 4,
+            paddedDomainSize: 32
+        )
+        var mutatedResidualCommitments = residual.commitments
+        mutatedResidualCommitments[0] = SuperNeoFRICommitment(
+            domainSize: mutatedResidualCommitments[0].domainSize,
+            root: Digest384.shake256("mutated-residual-root")
+        )
+        let jointB = SuperNeoSpartanFRITestHooks.jointAIRQueryIndices(
+            traceCommitments: planned.commitments,
+            residualCommitments: mutatedResidualCommitments,
+            relationDigest: binding,
+            queryCount: 4,
+            paddedDomainSize: 32
+        )
+        XCTAssertNotEqual(jointA, jointB, "joint AIR query schedule must bind trace and residual commitments")
+    }
+
+    func testSourceFreePCSProductionSmokeIsPolicyBoundAndNotTinyPolicy() throws {
+        let fixture = try makeMinimalSourceFreePCSFixture()
+        let productionProof = try SuperNeoSpartanFRICompressor.makeSourceFreeCompressionProofForTesting(
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.productionPolicy
+        )
+
+        XCTAssertEqual(
+            SuperNeoSpartanFRICompressor.verifyCompressionProof(
+                proofBytes: productionProof.superNeoBytes,
+                publicInput: fixture.publicInput,
+                verifierKey: fixture.verifierKey,
+                policy: fixture.productionPolicy
+            ),
+            .valid
+        )
+
+        let mutatedResidualCommitment = try mutateFirstOccurrence(
+            proofBytes: productionProof.superNeoBytes,
+            target: productionProof.terminalVerifierPCSProof.residualPCS.baseCommitment.root.superNeoBytes,
+            label: "production terminal residual commitment"
+        )
+        XCTAssertFalse(SuperNeoSpartanFRICompressor.verifyCompressionProof(
+            proofBytes: mutatedResidualCommitment,
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.productionPolicy
+        ).isValid, "production residual commitment mutation")
+
+        let wrongRecursiveInput = SuperNeoPublicFoldInput(
+            shape: fixture.publicInput.shape,
+            instances: fixture.publicInput.instances,
+            priorClaims: fixture.publicInput.priorClaims,
+            recursiveRelationDigest: Digest256.hash("minimal-source-free-pcs-recursive-relation-mutated")
+        )
+        XCTAssertFalse(SuperNeoSpartanFRICompressor.verifyCompressionProof(
+            proofBytes: productionProof.superNeoBytes,
+            publicInput: wrongRecursiveInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.productionPolicy
+        ).isValid, "production recursiveRelationDigest mutation")
+
+        XCTAssertFalse(SuperNeoSpartanFRICompressor.verifyCompressionProof(
+            proofBytes: productionProof.superNeoBytes,
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.tinyPolicy
+        ).isValid, "production proof must reject under tiny PCS policy")
+
+        let tinyProof = try SuperNeoSpartanFRICompressor.makeSourceFreeCompressionProofForTesting(
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.tinyPolicy,
+            queryCount: 1
+        )
+        XCTAssertFalse(SuperNeoSpartanFRICompressor.verifyCompressionProof(
+            proofBytes: tinyProof.superNeoBytes,
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.productionPolicy
+        ).isValid, "tiny PCS proof must reject under production policy")
+    }
+
+    func testRealSourceTerminalEnvelopeFeedsSameTerminalAIRRelation() throws {
+        let fixture = try makeMinimalTerminalSourceEnvelopeFixture()
+        let material = try SuperNeoSpartanFRITestHooks.terminalAIRMaterialForSourceEnvelope(
+            proofBytes: fixture.sourceProofBytes,
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.policy
+        )
+        XCTAssertGreaterThan(material.rowCount, 0)
+        XCTAssertTrue(material.allResidualsZero)
+        XCTAssertEqual(material.aggregateResidual, .zero)
+
+        var mutatedSource = fixture.sourceProofBytes
+        mutatedSource[mutatedSource.count - 1] ^= 0x01
+        do {
+            let mutated = try SuperNeoSpartanFRITestHooks.terminalAIRMaterialForSourceEnvelope(
+                proofBytes: mutatedSource,
+                publicInput: fixture.publicInput,
+                verifierKey: fixture.verifierKey,
+                policy: fixture.policy
+            )
+            XCTAssertFalse(
+                mutated.allResidualsZero,
+                "mutating the source envelope must produce a nonzero terminal AIR residual"
+            )
+            XCTAssertNotEqual(
+                mutated.rowTranscriptDigest,
+                material.rowTranscriptDigest,
+                "source mutation must change the primitive-row transcript"
+            )
+        } catch {
+            XCTAssertTrue("\(error)".contains("verification") || "\(error)".contains("invalid"))
+        }
+    }
+
     func testSourceFreePCSValidThenMutatedBindingsReject() throws {
         let fixture = try makeFoldFixture()
         let basePublicInput = SuperNeoPublicFoldInput(fixture.input)
@@ -1071,6 +1258,121 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             policy: policy
         )
         return (publicInput, fixture.key, envelope.superNeoBytes, policy, proof)
+    }
+
+    private struct MinimalPCSFixture {
+        let publicInput: SuperNeoPublicFoldInput
+        let verifierKey: AjtaiCommitmentKey
+        let productionPolicy: SuperNeoTerminalProofAcceptancePolicy
+        let tinyPolicy: SuperNeoTerminalProofAcceptancePolicy
+    }
+
+    private func makeMinimalSourceFreePCSFixture() throws -> MinimalPCSFixture {
+        let publicInput: [GoldilocksField] = []
+        let privateWitness = [GoldilocksField.zero]
+        let message = publicInput + privateWitness
+        let matrix = try SparseFieldMatrix.identity(size: message.count)
+        let structure = CCSStructure.hadamardProduct(matrices: [matrix])
+        let backend = SuperNeoCPUBackend()
+        let key = try AjtaiCommitmentKey(
+            columns: SuperNeoEmbedding.paddedLength(forFieldElementCount: message.count) / CyclotomicRing54.degree,
+            seed: Array("minimal-source-free-pcs-fixture-key".utf8)
+        )
+        let commitment = try backend.commit(key: key, message: message)
+        let input = try SuperNeoFoldInput(
+            structure: structure,
+            instances: [CCSInstance(commitment: commitment, publicInput: publicInput)],
+            witnesses: [CCSWitness(privateWitness)]
+        )
+        let recursiveRelationDigest = Digest256.hash("minimal-source-free-pcs-recursive-relation")
+        let publicFoldInput = SuperNeoPublicFoldInput(
+            shape: input.shape,
+            instances: input.instances,
+            priorClaims: input.priorClaims,
+            recursiveRelationDigest: recursiveRelationDigest
+        )
+        let statement = CCSStatement(
+            shapeDigest: publicFoldInput.shape.shapeDigest,
+            ccsInstances: publicFoldInput.instances,
+            priorCEInstances: publicFoldInput.priorClaims.map(CEInstance.init),
+            recursiveRelationDigest: recursiveRelationDigest
+        )
+        let context = ProofEnvelopeContext(
+            profileID: SuperNeoParameters.goldilocks.profileID,
+            kind: .terminalLocal,
+            statement: statement,
+            verifierKeyDigest: key.verifierKeyDigest
+        )
+        let productionPolicy = SuperNeoTerminalProofAcceptancePolicy(
+            statement: statement,
+            verifierKeyDigest: key.verifierKeyDigest,
+            profileID: SuperNeoParameters.goldilocks.profileID,
+            transcriptDomain: context.transcriptDomain,
+            proofKindPolicy: .terminalOnly
+        )
+        let tinyPolicy = SuperNeoTerminalProofAcceptancePolicy(
+            statement: statement,
+            verifierKeyDigest: key.verifierKeyDigest,
+            profileID: SuperNeoParameters.goldilocks.profileID,
+            transcriptDomain: context.transcriptDomain,
+            proofKindPolicy: .terminalOnly,
+            sourceFreePCSPolicy: .sourceFreeTinyPCSFixtureOnly
+        )
+        return MinimalPCSFixture(
+            publicInput: publicFoldInput,
+            verifierKey: key,
+            productionPolicy: productionPolicy,
+            tinyPolicy: tinyPolicy
+        )
+    }
+
+    private struct MinimalTerminalSourceEnvelopeFixture {
+        let sourceProofBytes: [UInt8]
+        let publicInput: SuperNeoPublicFoldInput
+        let verifierKey: AjtaiCommitmentKey
+        let policy: SuperNeoTerminalProofAcceptancePolicy
+    }
+
+    private func makeMinimalTerminalSourceEnvelopeFixture() throws -> MinimalTerminalSourceEnvelopeFixture {
+        let fixture = try makeFoldFixture()
+        let publicInput = SuperNeoPublicFoldInput(fixture.input)
+        let statement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances,
+            priorCEInstances: publicInput.priorClaims.map(CEInstance.init)
+        )
+        let context = ProofEnvelopeContext(
+            profileID: SuperNeoParameters.goldilocks.profileID,
+            kind: .terminalLocal,
+            statement: statement,
+            verifierKeyDigest: fixture.key.verifierKeyDigest
+        )
+        let envelope = try SuperNeoProver(key: fixture.key).terminalFoldEnvelopeDeterministic(
+            fixture.input,
+            context: context,
+            ceRandomSeed: Array("minimal-real-source-terminal-air".utf8)
+        )
+        let policy = SuperNeoTerminalProofAcceptancePolicy(
+            statement: statement,
+            verifierKeyDigest: fixture.key.verifierKeyDigest,
+            profileID: SuperNeoParameters.goldilocks.profileID,
+            transcriptDomain: context.transcriptDomain,
+            proofKindPolicy: .terminalOnly
+        )
+        XCTAssertEqual(
+            SuperNeoVerifier(key: fixture.key).verifyTerminalFoldEnvelope(
+                publicInput: publicInput,
+                proofBytes: envelope.superNeoBytes,
+                context: context
+            ),
+            .valid
+        )
+        return MinimalTerminalSourceEnvelopeFixture(
+            sourceProofBytes: envelope.superNeoBytes,
+            publicInput: publicInput,
+            verifierKey: fixture.key,
+            policy: policy
+        )
     }
 
     private func rebuildFRIProof(

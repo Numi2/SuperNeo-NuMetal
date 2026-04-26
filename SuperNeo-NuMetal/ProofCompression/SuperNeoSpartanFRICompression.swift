@@ -1804,25 +1804,6 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
             header: header,
             parameters: verifier.parameters
         )
-        let verification: VerificationResult
-        switch header.kind {
-        case .terminalLocal:
-            verification = verifier.verifyTerminalFoldEnvelope(
-                publicInput: publicInput,
-                proofBytes: proofBytes,
-                context: expectedContext
-            )
-        case .compressedPublic:
-            verification = verifier.verifyCompressedTerminalFoldEnvelope(
-                publicInput: publicInput,
-                proofBytes: proofBytes,
-                context: expectedContext
-            )
-        case .foldReduction:
-            verification = .invalid("terminal proof required")
-        case .numiSealTerminal, .numiSealZK:
-            verification = .invalid("proof kind not accepted by policy")
-        }
         let policyDigest = terminalVerifierCompressionPolicyDigest(policy)
         let sourceDigest = Digest256.hash(proofBytes)
         let statement = try SuperNeoSpartanFRICompressionStatement(
@@ -1895,6 +1876,9 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
             terminalCEChecks: constraintMaterial.terminalCERows,
             innerCompressedChecks: constraintMaterial.innerCompressedRows
         )
+        let verification: VerificationResult = constraintRows.allSatisfy { $0.residual == .zero }
+            ? .valid
+            : .invalid("terminal verifier AIR primitive constraints rejected")
         let spec = SuperNeoTerminalVerifierAIRSpec(
             sourceProofKind: header.kind,
             sourceProofByteCount: proofBytes.count,
@@ -1974,6 +1958,16 @@ public struct SuperNeoTerminalVerifierAIRSpecEvaluation: Equatable, Sendable {
     public let spec: SuperNeoTerminalVerifierAIRSpec
     public let result: VerificationResult
 }
+
+#if DEBUG
+struct SuperNeoTerminalAIRTestMaterial: Equatable, Sendable {
+    let relationDigest: Digest256
+    let rowTranscriptDigest: Digest256
+    let aggregateResidual: GoldilocksField
+    let rowCount: Int
+    let allResidualsZero: Bool
+}
+#endif
 
 public enum SuperNeoSpartanFRICompressor {
     public static func compressAcceptedProof(
@@ -2165,6 +2159,82 @@ public enum SuperNeoSpartanFRICompressor {
         )
     }
 
+#if DEBUG
+    static func makeTerminalVerifierAIRMaterialForTesting(
+        proofBytes: [UInt8],
+        publicInput: SuperNeoPublicFoldInput,
+        verifierKey: AjtaiCommitmentKey,
+        policy: SuperNeoTerminalProofAcceptancePolicy,
+        parameters: SuperNeoParameters = .goldilocks,
+        metalContext: MetalExecutionContext? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) throws -> SuperNeoTerminalAIRTestMaterial {
+        let verifier = SuperNeoVerifier(
+            parameters: parameters,
+            key: verifierKey,
+            context: metalContext,
+            executionPolicy: executionPolicy
+        )
+        let evaluation = try SuperNeoTerminalVerifierAIRSpec.evaluateCanonicalSource(
+            publicInput: publicInput,
+            proofBytes: proofBytes,
+            verifier: verifier,
+            policy: policy
+        )
+        let spec = evaluation.spec
+        let pcsParameters = sourceFreePCSParameters(for: policy)
+        let provisionalAIR = terminalVerifierAIRInstance(
+            spec: spec,
+            publicInput: publicInput,
+            terminalVerifierRelationDigest: nil,
+            compactForTinyFixture: policy.sourceFreePCSPolicy == .sourceFreeTinyPCSFixtureOnly
+        )
+        let paddedDomainSize = spartanFRINextPowerOfTwo(
+            provisionalAIR.trace.count * pcsParameters.blowupFactor
+        )
+        let statement = try spec.compressionStatement
+        let relationDigest = SuperNeoTerminalVerifierPCSProof.computeRelationDigest(
+            sourceProofKind: statement.sourceProofKind,
+            sourceProofByteCount: statement.sourceProofByteCount,
+            sourceProofDigest: statement.sourceProofDigest,
+            profileID: statement.profileID,
+            shapeDigest: statement.shapeDigest,
+            statementDigest: statement.statementDigest,
+            verifierKeyDigest: statement.verifierKeyDigest,
+            transcriptDomain: statement.transcriptDomain,
+            publicInputDigest: statement.publicInputDigest,
+            recursiveRelationDigest: publicInput.recursiveRelationDigest,
+            compressionPolicyDigest: spec.compressionPolicyDigest,
+            terminalStatementDigest: statement.terminalStatementDigest,
+            foldProofDigest: statement.foldProofDigest,
+            ceOpeningProofDigest: statement.ceOpeningProofDigest,
+            traceVectorLength: provisionalAIR.trace.count,
+            paddedDomainSize: paddedDomainSize
+        )
+        let air = terminalVerifierAIRInstance(
+            spec: spec,
+            publicInput: publicInput,
+            terminalVerifierRelationDigest: relationDigest,
+            compactForTinyFixture: policy.sourceFreePCSPolicy == .sourceFreeTinyPCSFixtureOnly
+        )
+        try SuperNeoTerminalVerifierAIRPrimitiveBatch.validateRowsForBatching(spec.constraintRows)
+        let batch = SuperNeoTerminalVerifierAIRPrimitiveBatch.summarize(
+            spec.constraintRows,
+            label: "terminal-source-envelope-air-test"
+        )
+        let aggregateResidual = air.residual.reduce(GoldilocksField.zero) { partial, residual in
+            partial + residual * residual
+        }
+        return SuperNeoTerminalAIRTestMaterial(
+            relationDigest: relationDigest,
+            rowTranscriptDigest: batch.observedTranscriptDigest,
+            aggregateResidual: aggregateResidual,
+            rowCount: spec.constraintRows.count,
+            allResidualsZero: air.residual.allSatisfy { $0 == .zero }
+        )
+    }
+#endif
+
     public static func verifyCompressionProof(
         _ proof: SuperNeoSpartanFRICompressionProof,
         publicInput: SuperNeoPublicFoldInput,
@@ -2319,7 +2389,7 @@ public enum SuperNeoSpartanFRICompressor {
         guard queryCount >= minimumQueryCount else {
             throw SuperNeoError.invalidParameter("terminal verifier PCS query count below selected minimum")
         }
-        let tracePCS = try makeFRIProof(
+        let tracePlan = try makeFRIProverPlan(
             vector: trace,
             paddedDomainSize: paddedDomainSize,
             queryCount: queryCount,
@@ -2328,7 +2398,7 @@ public enum SuperNeoSpartanFRICompressor {
             label: "terminal-verifier-trace",
             bindingDigest: relationDigest
         )
-        let provisionalResidualPCS = try makeFRIProof(
+        let residualPlan = try makeFRIProverPlan(
             vector: residual,
             paddedDomainSize: paddedDomainSize,
             queryCount: queryCount,
@@ -2338,28 +2408,18 @@ public enum SuperNeoSpartanFRICompressor {
             bindingDigest: relationDigest
         )
         let jointQueryIndices = terminalVerifierAIRQueryIndices(
-            tracePCS: tracePCS,
-            residualPCS: provisionalResidualPCS,
-            relationDigest: relationDigest
+            traceCommitments: tracePlan.commitments,
+            residualCommitments: residualPlan.commitments,
+            relationDigest: relationDigest,
+            queryCount: queryCount,
+            paddedDomainSize: paddedDomainSize
         )
         let jointTracePCS = try makeFRIProof(
-            vector: trace,
-            paddedDomainSize: paddedDomainSize,
-            queryCount: queryCount,
-            blowupFactor: blowupFactor,
-            claimedDegreeBound: trace.count,
-            label: "terminal-verifier-trace",
-            bindingDigest: relationDigest,
+            plan: tracePlan,
             queryIndicesOverride: jointQueryIndices
         )
         let residualPCS = try makeFRIProof(
-            vector: residual,
-            paddedDomainSize: paddedDomainSize,
-            queryCount: queryCount,
-            blowupFactor: blowupFactor,
-            claimedDegreeBound: trace.count,
-            label: "terminal-verifier-residual",
-            bindingDigest: relationDigest,
+            plan: residualPlan,
             queryIndicesOverride: jointQueryIndices
         )
         return try SuperNeoTerminalVerifierPCSProof(
@@ -2703,6 +2763,22 @@ private struct SpartanFRIMerkleTree {
     }
 }
 
+private struct SpartanFRIProverPlan {
+    let vectorLength: Int
+    let paddedDomainSize: Int
+    let queryCount: Int
+    let blowupFactor: Int
+    let claimedDegreeBound: Int
+    let domainRoot: GoldilocksField
+    let cosetGenerator: GoldilocksField
+    let label: String
+    let bindingDigest: Digest256
+    let commitments: [SuperNeoFRICommitment]
+    let foldingChallenges: [GoldilocksField]
+    let finalPolynomial: [GoldilocksField]
+    let trees: [SpartanFRIMerkleTree]
+}
+
 func makeFRIProof(
     vector: [GoldilocksField],
     paddedDomainSize: Int,
@@ -2713,6 +2789,27 @@ func makeFRIProof(
     bindingDigest: Digest256,
     queryIndicesOverride: [Int]? = nil
 ) throws -> SuperNeoFRIProof {
+    let plan = try makeFRIProverPlan(
+        vector: vector,
+        paddedDomainSize: paddedDomainSize,
+        queryCount: queryCount,
+        blowupFactor: blowupFactor,
+        claimedDegreeBound: claimedDegreeBound,
+        label: label,
+        bindingDigest: bindingDigest
+    )
+    return try makeFRIProof(plan: plan, queryIndicesOverride: queryIndicesOverride)
+}
+
+private func makeFRIProverPlan(
+    vector: [GoldilocksField],
+    paddedDomainSize: Int,
+    queryCount: Int,
+    blowupFactor: Int = SuperNeoSpartanFRICompressionProof.defaultBlowupFactor,
+    claimedDegreeBound: Int? = nil,
+    label: String,
+    bindingDigest: Digest256
+) throws -> SpartanFRIProverPlan {
     guard !vector.isEmpty else {
         throw SuperNeoError.invalidParameter("FRI proof requires a nonempty vector")
     }
@@ -2743,19 +2840,26 @@ func makeFRIProof(
     var currentDomainSize = paddedDomainSize
     var currentRoot = domainRoot
     var currentCoset = cosetGenerator
-    var allLayerPoints: [[GoldilocksField]] = []
-    var allLayers: [[GoldilocksField]] = []
+    var trees: [SpartanFRIMerkleTree] = []
     var commitments: [SuperNeoFRICommitment] = []
     var challenges: [GoldilocksField] = []
+    let roundCount = spartanFRIFoldingRoundCount(forDegreeBound: degreeBound)
+    trees.reserveCapacity(roundCount + 1)
+    commitments.reserveCapacity(roundCount + 1)
+    challenges.reserveCapacity(roundCount)
     let baseDomain = "superneo/spartan-fri/\(label)"
     var round = 0
     while true {
         let points = spartanFRIDomainPoints(size: currentDomainSize, root: currentRoot, coset: currentCoset)
-        let layerValues = points.map { spartanFRIEvaluatePolynomial(coefficients, at: $0) }
+        let layerValues = try spartanFRIEvaluatePolynomialOnDomain(
+            coefficients,
+            size: currentDomainSize,
+            root: currentRoot,
+            coset: currentCoset
+        )
         let tree = try SpartanFRIMerkleTree(domain: "\(baseDomain)/layer-\(round)", leaves: layerValues, points: points)
         let commitment = SuperNeoFRICommitment(domainSize: currentDomainSize, root: tree.root)
-        allLayerPoints.append(points)
-        allLayers.append(layerValues)
+        trees.append(tree)
         commitments.append(commitment)
         guard currentDomainSize > 1, currentDegreeBound > 1 else { break }
         let alpha = spartanFRIChallenge(
@@ -2777,46 +2881,60 @@ func makeFRIProof(
         currentCoset = currentCoset.squared()
         round += 1
     }
-    let finalPolynomial = [coefficients.first ?? .zero]
-    let roots = commitments.map(\.root)
+    return SpartanFRIProverPlan(
+        vectorLength: vector.count,
+        paddedDomainSize: paddedDomainSize,
+        queryCount: queryCount,
+        blowupFactor: blowupFactor,
+        claimedDegreeBound: degreeBound,
+        domainRoot: domainRoot,
+        cosetGenerator: cosetGenerator,
+        label: label,
+        bindingDigest: bindingDigest,
+        commitments: commitments,
+        foldingChallenges: challenges,
+        finalPolynomial: [coefficients.first ?? .zero],
+        trees: trees
+    )
+}
+
+private func makeFRIProof(
+    plan: SpartanFRIProverPlan,
+    queryIndicesOverride: [Int]? = nil
+) throws -> SuperNeoFRIProof {
+    let queryDomainSize = max(1, plan.paddedDomainSize / 2)
+    let roots = plan.commitments.map(\.root)
     let indices: [Int]
     if let queryIndicesOverride {
         try spartanFRIValidateQueryIndices(
             queryIndicesOverride,
-            expectedCount: queryCount,
+            expectedCount: plan.queryCount,
             domainSize: queryDomainSize,
             name: "FRI query override"
         )
         indices = queryIndicesOverride
     } else {
         indices = spartanFRIQueryIndices(
-            bindingDigest: bindingDigest,
-            label: label,
+            bindingDigest: plan.bindingDigest,
+            label: plan.label,
             roots: roots,
-            queryCount: queryCount,
+            queryCount: plan.queryCount,
             domainSize: queryDomainSize
-        )
-    }
-    let trees = try allLayers.indices.map { layer in
-        try SpartanFRIMerkleTree(
-            domain: "\(baseDomain)/layer-\(layer)",
-            leaves: allLayers[layer],
-            points: allLayerPoints[layer]
         )
     }
     let queryProofs = try indices.map { initialIndex -> SuperNeoFRIQueryProof in
         var layerIndex = 0
         var index = initialIndex
         var layerOpenings: [[SuperNeoFRIMerkleOpening]] = []
-        while layerIndex < allLayers.count - 1 {
-            let halfDomain = allLayers[layerIndex].count / 2
+        while layerIndex < plan.trees.count - 1 {
+            let halfDomain = plan.trees[layerIndex].leaves.count / 2
             let positiveIndex = index % halfDomain
             let negativeIndex = positiveIndex + halfDomain
             let nextIndex = positiveIndex
             layerOpenings.append([
-                try trees[layerIndex].opening(at: positiveIndex),
-                try trees[layerIndex].opening(at: negativeIndex),
-                try trees[layerIndex + 1].opening(at: nextIndex)
+                try plan.trees[layerIndex].opening(at: positiveIndex),
+                try plan.trees[layerIndex].opening(at: negativeIndex),
+                try plan.trees[layerIndex + 1].opening(at: nextIndex)
             ])
             index = nextIndex
             layerIndex += 1
@@ -2824,18 +2942,18 @@ func makeFRIProof(
         return SuperNeoFRIQueryProof(initialIndex: initialIndex, layerOpenings: layerOpenings)
     }
     return try SuperNeoFRIProof(
-        vectorLength: vector.count,
-        paddedDomainSize: paddedDomainSize,
+        vectorLength: plan.vectorLength,
+        paddedDomainSize: plan.paddedDomainSize,
         queryCount: indices.count,
-        blowupFactor: blowupFactor,
-        claimedDegreeBound: degreeBound,
-        domainRoot: domainRoot,
-        cosetGenerator: cosetGenerator,
-        baseCommitment: commitments[0],
-        foldedCommitments: Array(commitments.dropFirst()),
-        foldingChallenges: challenges,
+        blowupFactor: plan.blowupFactor,
+        claimedDegreeBound: plan.claimedDegreeBound,
+        domainRoot: plan.domainRoot,
+        cosetGenerator: plan.cosetGenerator,
+        baseCommitment: plan.commitments[0],
+        foldedCommitments: Array(plan.commitments.dropFirst()),
+        foldingChallenges: plan.foldingChallenges,
         queryProofs: queryProofs,
-        finalPolynomial: finalPolynomial
+        finalPolynomial: plan.finalPolynomial
     )
 }
 
@@ -4303,12 +4421,28 @@ private func terminalVerifierAIRQueryIndices(
     residualPCS: SuperNeoFRIProof,
     relationDigest: Digest256
 ) -> [Int] {
+    terminalVerifierAIRQueryIndices(
+        traceCommitments: tracePCS.commitments,
+        residualCommitments: residualPCS.commitments,
+        relationDigest: relationDigest,
+        queryCount: tracePCS.queryCount,
+        paddedDomainSize: tracePCS.paddedDomainSize
+    )
+}
+
+private func terminalVerifierAIRQueryIndices(
+    traceCommitments: [SuperNeoFRICommitment],
+    residualCommitments: [SuperNeoFRICommitment],
+    relationDigest: Digest256,
+    queryCount: Int,
+    paddedDomainSize: Int
+) -> [Int] {
     spartanFRIQueryIndices(
         bindingDigest: relationDigest,
         label: "terminal-verifier-air-joint",
-        roots: tracePCS.commitments.map(\.root) + residualPCS.commitments.map(\.root),
-        queryCount: tracePCS.queryCount,
-        domainSize: max(1, tracePCS.paddedDomainSize / 2)
+        roots: traceCommitments.map(\.root) + residualCommitments.map(\.root),
+        queryCount: queryCount,
+        domainSize: max(1, paddedDomainSize / 2)
     )
 }
 
@@ -4385,6 +4519,164 @@ private func spartanFRIEvaluatePolynomial(_ coefficients: [GoldilocksField], at 
         partial * point + coefficient
     }
 }
+
+private func spartanFRIEvaluatePolynomialOnDomain(
+    _ coefficients: [GoldilocksField],
+    size: Int,
+    root: GoldilocksField,
+    coset: GoldilocksField
+) throws -> [GoldilocksField] {
+    guard size > 0, size.nonzeroBitCount == 1 else {
+        throw SuperNeoError.invalidParameter("FRI domain evaluation requires a power-of-two domain")
+    }
+    guard coefficients.count <= size else {
+        throw SuperNeoError.invalidParameter("FRI coefficient count exceeds evaluation domain")
+    }
+    var values = Array(repeating: GoldilocksField.zero, count: size)
+    var cosetPower = GoldilocksField.one
+    for index in coefficients.indices {
+        values[index] = coefficients[index] * cosetPower
+        cosetPower = cosetPower * coset
+    }
+    spartanFRIRadix2NTT(&values, root: root)
+    return values
+}
+
+private func spartanFRIRadix2NTT(_ values: inout [GoldilocksField], root: GoldilocksField) {
+    let count = values.count
+    guard count > 1 else { return }
+    var j = 0
+    for i in 1..<count {
+        var bit = count >> 1
+        while (j & bit) != 0 {
+            j ^= bit
+            bit >>= 1
+        }
+        j ^= bit
+        if i < j {
+            values.swapAt(i, j)
+        }
+    }
+    var length = 2
+    while length <= count {
+        let stepRoot = root.pow(UInt64(count / length))
+        for start in stride(from: 0, to: count, by: length) {
+            var power = GoldilocksField.one
+            let half = length / 2
+            for offset in 0..<half {
+                let even = values[start + offset]
+                let odd = values[start + offset + half] * power
+                values[start + offset] = even + odd
+                values[start + offset + half] = even - odd
+                power = power * stepRoot
+            }
+        }
+        length <<= 1
+    }
+}
+
+#if DEBUG
+enum SuperNeoSpartanFRITestHooks {
+    static func rootOfUnity(order: Int) throws -> GoldilocksField {
+        try spartanFRIRootOfUnity(order: order)
+    }
+
+    static func hornerEvaluateOnDomain(
+        coefficients: [GoldilocksField],
+        size: Int,
+        root: GoldilocksField,
+        coset: GoldilocksField
+    ) throws -> [GoldilocksField] {
+        let points = spartanFRIDomainPoints(size: size, root: root, coset: coset)
+        return points.map { spartanFRIEvaluatePolynomial(coefficients, at: $0) }
+    }
+
+    static func nttEvaluateOnDomain(
+        coefficients: [GoldilocksField],
+        size: Int,
+        root: GoldilocksField,
+        coset: GoldilocksField
+    ) throws -> [GoldilocksField] {
+        try spartanFRIEvaluatePolynomialOnDomain(
+            coefficients,
+            size: size,
+            root: root,
+            coset: coset
+        )
+    }
+
+    static func freshFRIProof(
+        vector: [GoldilocksField],
+        paddedDomainSize: Int,
+        queryCount: Int,
+        blowupFactor: Int,
+        claimedDegreeBound: Int,
+        label: String,
+        bindingDigest: Digest256
+    ) throws -> SuperNeoFRIProof {
+        try makeFRIProof(
+            vector: vector,
+            paddedDomainSize: paddedDomainSize,
+            queryCount: queryCount,
+            blowupFactor: blowupFactor,
+            claimedDegreeBound: claimedDegreeBound,
+            label: label,
+            bindingDigest: bindingDigest
+        )
+    }
+
+    static func plannedFRIProof(
+        vector: [GoldilocksField],
+        paddedDomainSize: Int,
+        queryCount: Int,
+        blowupFactor: Int,
+        claimedDegreeBound: Int,
+        label: String,
+        bindingDigest: Digest256
+    ) throws -> SuperNeoFRIProof {
+        let plan = try makeFRIProverPlan(
+            vector: vector,
+            paddedDomainSize: paddedDomainSize,
+            queryCount: queryCount,
+            blowupFactor: blowupFactor,
+            claimedDegreeBound: claimedDegreeBound,
+            label: label,
+            bindingDigest: bindingDigest
+        )
+        return try makeFRIProof(plan: plan)
+    }
+
+    static func jointAIRQueryIndices(
+        traceCommitments: [SuperNeoFRICommitment],
+        residualCommitments: [SuperNeoFRICommitment],
+        relationDigest: Digest256,
+        queryCount: Int,
+        paddedDomainSize: Int
+    ) -> [Int] {
+        terminalVerifierAIRQueryIndices(
+            traceCommitments: traceCommitments,
+            residualCommitments: residualCommitments,
+            relationDigest: relationDigest,
+            queryCount: queryCount,
+            paddedDomainSize: paddedDomainSize
+        )
+    }
+
+    static func terminalAIRMaterialForSourceEnvelope(
+        proofBytes: [UInt8],
+        publicInput: SuperNeoPublicFoldInput,
+        verifierKey: AjtaiCommitmentKey,
+        policy: SuperNeoTerminalProofAcceptancePolicy
+    ) throws -> SuperNeoTerminalAIRTestMaterial {
+        try SuperNeoSpartanFRICompressor.makeTerminalVerifierAIRMaterialForTesting(
+            proofBytes: proofBytes,
+            publicInput: publicInput,
+            verifierKey: verifierKey,
+            policy: policy
+        )
+    }
+}
+#endif
 
 private func spartanFRIFoldCoefficients(
     _ coefficients: [GoldilocksField],
