@@ -201,12 +201,18 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
         }
     }
 
+    public enum SourceFreePCSPolicy: UInt8, Equatable, Sendable {
+        case production = 0
+        case sourceFreeTinyPCSFixtureOnly = 1
+    }
+
     public let profileID: UInt16
     public let shapeDigest: Digest256
     public let statementDigest: Digest256
     public let verifierKeyDigest: Digest256
     public let transcriptDomain: Digest256
     public let proofKindPolicy: ProofKindPolicy
+    public let sourceFreePCSPolicy: SourceFreePCSPolicy
     public let maximumProofByteCount: Int?
 
     public init(
@@ -216,6 +222,7 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
         verifierKeyDigest: Digest256,
         transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1"),
         proofKindPolicy: ProofKindPolicy = .terminalOrCompressed,
+        sourceFreePCSPolicy: SourceFreePCSPolicy = .production,
         maximumProofByteCount: Int? = nil
     ) {
         self.profileID = profileID
@@ -224,6 +231,7 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
         self.verifierKeyDigest = verifierKeyDigest
         self.transcriptDomain = transcriptDomain
         self.proofKindPolicy = proofKindPolicy
+        self.sourceFreePCSPolicy = sourceFreePCSPolicy
         self.maximumProofByteCount = maximumProofByteCount
     }
 
@@ -233,6 +241,7 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
         profileID: UInt16 = SuperNeoParameterProfile.goldilocksPhi81.profileID,
         transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1"),
         proofKindPolicy: ProofKindPolicy = .terminalOrCompressed,
+        sourceFreePCSPolicy: SourceFreePCSPolicy = .production,
         maximumProofByteCount: Int? = nil
     ) {
         self.init(
@@ -242,6 +251,7 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
             verifierKeyDigest: verifierKeyDigest,
             transcriptDomain: transcriptDomain,
             proofKindPolicy: proofKindPolicy,
+            sourceFreePCSPolicy: sourceFreePCSPolicy,
             maximumProofByteCount: maximumProofByteCount
         )
     }
@@ -252,6 +262,7 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
         profileID: UInt16 = SuperNeoParameterProfile.goldilocksPhi81.profileID,
         transcriptDomain: Digest256 = .hash("SuperNeo-NuMetal.fold.v1"),
         proofKindPolicy: ProofKindPolicy = .terminalOrCompressed,
+        sourceFreePCSPolicy: SourceFreePCSPolicy = .production,
         maximumProofByteCount: Int? = nil
     ) {
         self.init(
@@ -265,6 +276,7 @@ public struct SuperNeoTerminalProofAcceptancePolicy: Equatable, Sendable {
             profileID: profileID,
             transcriptDomain: transcriptDomain,
             proofKindPolicy: proofKindPolicy,
+            sourceFreePCSPolicy: sourceFreePCSPolicy,
             maximumProofByteCount: maximumProofByteCount
         )
     }

@@ -717,6 +717,158 @@ public struct CEOpeningProof: Equatable, Sendable {
     }
 }
 
+private func terminalPrimitiveAIRFieldRow(
+    kind: SuperNeoTerminalVerifierAIRConstraintKind,
+    provenance: SuperNeoTerminalVerifierAIRRowProvenance,
+    label: String,
+    observed: GoldilocksField,
+    expected: GoldilocksField
+) -> SuperNeoTerminalVerifierAIRConstraintRow {
+    SuperNeoTerminalVerifierAIRConstraintRow(
+        kind: kind,
+        provenance: provenance,
+        label: label,
+        observed: observed,
+        expected: expected
+    )
+}
+
+private func terminalPrimitiveAIRRequired(
+    _ condition: Bool,
+    kind: SuperNeoTerminalVerifierAIRConstraintKind,
+    provenance: SuperNeoTerminalVerifierAIRRowProvenance,
+    label: String
+) -> SuperNeoTerminalVerifierAIRConstraintRow {
+    .required(condition, kind: kind, provenance: provenance, label: label)
+}
+
+private func terminalPrimitiveAIRDigestFields(_ digest: Digest256) -> [GoldilocksField] {
+    stride(from: 0, to: digest.superNeoBytes.count, by: 4).map { offset in
+        let chunk = digest.superNeoBytes[offset..<min(offset + 4, digest.superNeoBytes.count)]
+        let value = chunk.enumerated().reduce(UInt32(0)) { partial, pair in
+            partial | (UInt32(pair.element) << UInt32(pair.offset * 8))
+        }
+        return GoldilocksField(UInt64(value))
+    }
+}
+
+private func terminalPrimitiveAIRDigestRows(
+    kind: SuperNeoTerminalVerifierAIRConstraintKind,
+    provenance: SuperNeoTerminalVerifierAIRRowProvenance,
+    label: String,
+    observed: Digest256,
+    expected: Digest256
+) -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    zip(terminalPrimitiveAIRDigestFields(observed), terminalPrimitiveAIRDigestFields(expected)).enumerated().map { index, pair in
+        terminalPrimitiveAIRFieldRow(
+            kind: kind,
+            provenance: provenance,
+            label: "\(label)-limb-\(index)",
+            observed: pair.0,
+            expected: pair.1
+        )
+    }
+}
+
+private func terminalPrimitiveAIRObjectDigestRows(
+    kind: SuperNeoTerminalVerifierAIRConstraintKind,
+    provenance: SuperNeoTerminalVerifierAIRRowProvenance,
+    label: String,
+    observedBytes: [UInt8],
+    expectedBytes: [UInt8]
+) -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    terminalPrimitiveAIRDigestRows(
+        kind: kind,
+        provenance: provenance,
+        label: label,
+        observed: Digest256.hash(observedBytes),
+        expected: Digest256.hash(expectedBytes)
+    )
+}
+
+private func terminalPrimitiveAIRExt2Rows(
+    kind: SuperNeoTerminalVerifierAIRConstraintKind,
+    provenance: SuperNeoTerminalVerifierAIRRowProvenance,
+    label: String,
+    observed: GoldilocksExt2,
+    expected: GoldilocksExt2
+) -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    [
+        terminalPrimitiveAIRFieldRow(
+            kind: kind,
+            provenance: provenance,
+            label: "\(label)-c0",
+            observed: observed.c0,
+            expected: expected.c0
+        ),
+        terminalPrimitiveAIRFieldRow(
+            kind: kind,
+            provenance: provenance,
+            label: "\(label)-c1",
+            observed: observed.c1,
+            expected: expected.c1
+        )
+    ]
+}
+
+private func terminalPrimitiveAIRCompactRows(
+    _ primitiveRows: [SuperNeoTerminalVerifierAIRConstraintRow],
+    kind: SuperNeoTerminalVerifierAIRConstraintKind,
+    label: String,
+    sampleStride: Int = 32
+) -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    let summary = SuperNeoTerminalVerifierAIRPrimitiveBatch.summarize(
+        primitiveRows,
+        label: label
+    )
+
+    var compact: [SuperNeoTerminalVerifierAIRConstraintRow] = [
+        terminalPrimitiveAIRFieldRow(
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "\(label)-primitive-row-count",
+            observed: GoldilocksField(UInt64(summary.rowCount)),
+            expected: GoldilocksField(UInt64(summary.rowCount))
+        ),
+        terminalPrimitiveAIRFieldRow(
+            kind: kind,
+            provenance: .primitiveArithmetic,
+            label: "\(label)-batched-primitive-residual",
+            observed: summary.aggregateResidual,
+            expected: .zero
+        ),
+        terminalPrimitiveAIRFieldRow(
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "\(label)-primitive-row-index-chain",
+            observed: summary.indexAccumulator,
+            expected: summary.indexAccumulator
+        )
+    ]
+    compact.append(contentsOf: terminalPrimitiveAIRDigestRows(
+        kind: kind,
+        provenance: .hashSubrelation,
+        label: "\(label)-full-primitive-row-transcript",
+        observed: summary.observedTranscriptDigest,
+        expected: summary.expectedTranscriptDigest
+    ))
+    compact.append(contentsOf: terminalPrimitiveAIRDigestRows(
+        kind: kind,
+        provenance: .publicCoinBinding,
+        label: "\(label)-batch-challenge-after-row-transcript",
+        observed: summary.challengeDigest,
+        expected: summary.challengeDigest
+    ))
+
+    let stride = max(1, sampleStride)
+    for (index, row) in primitiveRows.enumerated()
+        where index < 16 || index == primitiveRows.count - 1 || index % stride == 0
+    {
+        compact.append(row)
+    }
+    return compact
+}
+
 public enum CEOpeningRelation {
     private static let proofRoundCount = CEOpeningProof.roundCount
     private static let proofRoundBatchSize = 32
@@ -1057,6 +1209,210 @@ public enum CEOpeningRelation {
             key: key,
             parameters: parameters,
             executionPolicy: executionPolicy
+        )
+    }
+
+    static func terminalVerifierAIRPrimitiveRows(
+        proof: CEOpeningProof,
+        statement: TerminalCEStatement,
+        shape: CCSShape,
+        key: AjtaiCommitmentKey,
+        parameters: SuperNeoParameters = .goldilocks,
+        metalWorkspace: SuperNeoMetalWorkspace? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
+    ) throws -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+        var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+        let kind = SuperNeoTerminalVerifierAIRConstraintKind.terminalCEOpening
+        rows.append(terminalPrimitiveAIRRequired(
+            statement.profileID == parameters.profileID,
+            kind: kind,
+            provenance: .publicInputBinding,
+            label: "ce-profile-bound"
+        ))
+        rows.append(terminalPrimitiveAIRRequired(
+            statement.shapeDigest == shape.shapeDigest,
+            kind: kind,
+            provenance: .publicInputBinding,
+            label: "ce-shape-bound"
+        ))
+        rows.append(terminalPrimitiveAIRRequired(
+            statement.verifierKeyDigest == key.verifierKeyDigest,
+            kind: kind,
+            provenance: .publicInputBinding,
+            label: "ce-verifier-key-bound"
+        ))
+        rows.append(terminalPrimitiveAIRRequired(
+            key.parameters == parameters && key.matrix.columns == shape.nRing,
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "ce-key-shape-dimensions"
+        ))
+        rows.append(terminalPrimitiveAIRFieldRow(
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "ce-opening-count",
+            observed: GoldilocksField(UInt64(statement.openings.count)),
+            expected: GoldilocksField(UInt64(max(1, statement.openings.count)))
+        ))
+        rows.append(terminalPrimitiveAIRFieldRow(
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "ce-round-count",
+            observed: GoldilocksField(UInt64(proof.rounds.count)),
+            expected: GoldilocksField(UInt64(CEOpeningProof.roundCount))
+        ))
+
+        let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
+        let verifierContext = try CEOpeningVerifierContext(
+            statement: statement,
+            shape: shape,
+            key: key,
+            transformedMatrices: transformedMatrices,
+            metalWorkspace: metalWorkspace,
+            parameters: parameters,
+            executionPolicy: executionPolicy
+        )
+        for openingIndex in statement.openings.indices {
+            let opening = statement.openings[openingIndex]
+            rows.append(terminalPrimitiveAIRRequired(
+                opening.instance.commitment.elements.count == key.parameters.kappa,
+                kind: kind,
+                provenance: .canonicalDecoding,
+                label: "ce-opening-\(openingIndex)-commitment-dimension"
+            ))
+            rows.append(terminalPrimitiveAIRRequired(
+                opening.instance.publicInput.count == shape.nPublicField,
+                kind: kind,
+                provenance: .canonicalDecoding,
+                label: "ce-opening-\(openingIndex)-public-input-dimension"
+            ))
+            rows.append(terminalPrimitiveAIRRequired(
+                opening.instance.matrixEvals.count == shape.numMatrices,
+                kind: kind,
+                provenance: .canonicalDecoding,
+                label: "ce-opening-\(openingIndex)-matrix-eval-dimension"
+            ))
+            rows.append(terminalPrimitiveAIRRequired(
+                opening.instance.publicInput.allSatisfy { signedMagnitude($0) < UInt64(parameters.normBound) },
+                kind: kind,
+                provenance: .primitiveArithmetic,
+                label: "ce-opening-\(openingIndex)-public-input-low-norm"
+            ))
+            let openingContext = verifierContext.opening(at: openingIndex)
+            let packedPublicWitness = try makeCEPublicPackedWitness(
+                openingContext: openingContext,
+                shape: shape
+            )
+            let publicCommitment = executionPolicy.usesConstantWorkCPU
+                ? try AjtaiCommitter.commitConstantWorkReference(key: key, message: packedPublicWitness)
+                : try AjtaiCommitter.commitReference(key: key, message: packedPublicWitness)
+            let target = verifierContext.target(at: openingIndex)
+            rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+                kind: kind,
+                provenance: .primitiveArithmetic,
+                label: "ce-opening-\(openingIndex)-ajtai-public-plus-private-target",
+                observedBytes: opening.instance.commitment.superNeoBytes,
+                expectedBytes: (publicCommitment + target.commitment).superNeoBytes
+            ))
+        }
+
+        var transcript = makeCEOpeningTranscript(statement: statement)
+        transcript.absorb(ceEncodeCount(proof.rounds.count))
+        var linearJobs: [CEOpeningVerifierLinearJob] = []
+        linearJobs.reserveCapacity(proof.rounds.count * max(1, statement.openings.count))
+
+        for (roundIndex, round) in proof.rounds.enumerated() {
+            rows.append(terminalPrimitiveAIRFieldRow(
+                kind: kind,
+                provenance: .canonicalDecoding,
+                label: "ce-round-\(roundIndex)-commitment-count",
+                observed: GoldilocksField(UInt64(round.commitments.count)),
+                expected: GoldilocksField(UInt64(statement.openings.count))
+            ))
+            transcript.absorb(round.commitments.flatMap(\.superNeoBytes))
+            let challenge = ceOpeningChallenge(transcript: &transcript)
+            rows.append(terminalPrimitiveAIRFieldRow(
+                kind: kind,
+                provenance: .publicCoinBinding,
+                label: "ce-round-\(roundIndex)-challenge",
+                observed: GoldilocksField(UInt64(challenge)),
+                expected: GoldilocksField(UInt64(challenge))
+            ))
+
+            switch (challenge, round.response) {
+            case (0, .mask(let openings)):
+                rows.append(contentsOf: terminalVerifierAIRMaskPrimitiveRows(
+                    openings: openings,
+                    roundIndex: roundIndex,
+                    commitments: round.commitments,
+                    statement: statement,
+                    verifierContext: verifierContext,
+                    jobs: &linearJobs
+                ))
+            case (1, .maskedWitness(let openings)):
+                rows.append(contentsOf: terminalVerifierAIRMaskedWitnessPrimitiveRows(
+                    openings: openings,
+                    roundIndex: roundIndex,
+                    commitments: round.commitments,
+                    statement: statement,
+                    verifierContext: verifierContext,
+                    jobs: &linearJobs
+                ))
+            case (2, .permutedWitness(let openings)):
+                rows.append(contentsOf: try terminalVerifierAIRPermutedWitnessPrimitiveRows(
+                    openings: openings,
+                    roundIndex: roundIndex,
+                    commitments: round.commitments,
+                    statement: statement,
+                    verifierContext: verifierContext
+                ))
+            default:
+                rows.append(terminalPrimitiveAIRRequired(
+                    false,
+                    kind: kind,
+                    provenance: .canonicalDecoding,
+                    label: "ce-round-\(roundIndex)-challenge-response-shape"
+                ))
+            }
+            transcript.absorb(round.response.superNeoBytes)
+        }
+
+        if !linearJobs.isEmpty {
+            let instances = try verifierContext.makePrivateLinearInstances(
+                vectors: linearJobs.map(\.vector),
+                openingIndices: linearJobs.map(\.openingIndex)
+            )
+            rows.append(terminalPrimitiveAIRFieldRow(
+                kind: kind,
+                provenance: .primitiveArithmetic,
+                label: "ce-private-linear-instance-count",
+                observed: GoldilocksField(UInt64(instances.count)),
+                expected: GoldilocksField(UInt64(linearJobs.count))
+            ))
+            for index in linearJobs.indices where index < instances.count {
+                let job = linearJobs[index]
+                let instance = job.challenge == 0
+                    ? instances[index]
+                    : try subtractTarget(instances[index], target: verifierContext.target(at: job.openingIndex))
+                rows.append(contentsOf: terminalPrimitiveAIRDigestRows(
+                    kind: kind,
+                    provenance: .hashSubrelation,
+                    label: "ce-round-\(job.roundIndex)-opening-\(job.openingIndex)-mask-linear-digest",
+                    observed: job.commitments.maskLinearDigest,
+                    expected: ceOpeningDigest(
+                        tag: 1,
+                        roundIndex: job.roundIndex,
+                        openingIndex: job.openingIndex,
+                        payload: job.permutationBytes + instance.superNeoBytes
+                    )
+                ))
+            }
+        }
+        return terminalPrimitiveAIRCompactRows(
+            rows,
+            kind: kind,
+            label: "terminal-ce-ajtai",
+            sampleStride: 29
         )
     }
 }
@@ -2713,6 +3069,61 @@ public final class SuperNeoVerifier: @unchecked Sendable {
         }
     }
 
+    public func terminalVerifierAIRPrimitiveRows(
+        publicInput: SuperNeoPublicFoldInput,
+        proof: FoldProof,
+        transcriptSeed: [UInt8] = []
+    ) throws -> (
+        piCCSRows: [SuperNeoTerminalVerifierAIRConstraintRow],
+        piRLCRows: [SuperNeoTerminalVerifierAIRConstraintRow],
+        piDECRows: [SuperNeoTerminalVerifierAIRConstraintRow]
+    ) {
+        guard key.parameters == parameters else {
+            throw SuperNeoError.invalidParameter("verifier key parameters do not match verifier parameters")
+        }
+        try validateCommitmentKey(key, matches: publicInput.shape, role: "verifier")
+        try validatePublicFoldInput(publicInput, parameters: parameters)
+        try validateProofPublicData(publicInput: publicInput, proof: proof, parameters: parameters)
+
+        var piCCSRows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+        piCCSRows.reserveCapacity(proof.piCCSTapes.count * 16)
+        for (tapeIndex, tape) in proof.piCCSTapes.enumerated() {
+            piCCSRows.append(contentsOf: try terminalVerifierAIRPiCCSPrimitiveRows(
+                tape,
+                publicInput: publicInput,
+                transcriptSeed: transcriptSeed,
+                tapeIndex: tapeIndex,
+                parameters: parameters
+            ))
+        }
+
+        guard let canonicalPiCCS = proof.piCCSTapes.first else {
+            throw SuperNeoError.invalidParameter("selected repeated-tape proof must contain a canonical PiCCS tape")
+        }
+        var piRLCRows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+        var piDECRows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+        piRLCRows.reserveCapacity(proof.piRLCBranches.count * 16)
+        piDECRows.reserveCapacity(proof.piRLCBranches.count * 16)
+        for (branchIndex, branch) in proof.piRLCBranches.enumerated() {
+            piRLCRows.append(contentsOf: try terminalVerifierAIRPiRLCPrimitiveRows(
+                branch,
+                canonicalPiCCS: canonicalPiCCS,
+                publicInput: publicInput,
+                transcriptSeed: transcriptSeed,
+                branchIndex: branchIndex,
+                parameters: parameters
+            ))
+            piDECRows.append(contentsOf: try terminalVerifierAIRPiDECPrimitiveRows(
+                branch,
+                publicInput: publicInput,
+                branchIndex: branchIndex,
+                parameters: parameters,
+                expectedOutputClaims: branchIndex == 0 ? proof.outputClaims : nil
+            ))
+        }
+        return (piCCSRows, piRLCRows, piDECRows)
+    }
+
     public func reduceFold(
         input: SuperNeoFoldInput,
         proof: FoldProof,
@@ -3066,28 +3477,12 @@ public final class SuperNeoVerifier: @unchecked Sendable {
         policy: SuperNeoTerminalProofAcceptancePolicy
     ) -> VerificationResult {
         do {
-            let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
-            let context = try policy.context(for: header, totalByteCount: proofBytes.count)
-            switch header.kind {
-            case .terminalLocal:
-                return verifyTerminalFoldEnvelope(
-                    publicInput: publicInput,
-                    proofBytes: proofBytes,
-                    context: context
-                )
-            case .compressedPublic:
-                return verifyCompressedTerminalFoldEnvelope(
-                    publicInput: publicInput,
-                    proofBytes: proofBytes,
-                    context: context
-                )
-            case .foldReduction:
-                return .invalid("terminal proof required")
-            case .numiSealTerminal:
-                return .invalid("proof kind not accepted by policy")
-            case .numiSealZK:
-                return .invalid("proof kind not accepted by policy")
-            }
+            return try SuperNeoTerminalVerifierAIRSpec.evaluateCanonicalSource(
+                publicInput: publicInput,
+                proofBytes: proofBytes,
+                verifier: self,
+                policy: policy
+            ).result
         } catch {
             return .invalid("\(error)")
         }
@@ -4544,8 +4939,396 @@ private func piDECBoundaryCheck(
             isAccepted: true
         )
     } catch {
-        return reject("PiDEC branch \(branchIndex) boundary rejected: \(error)")
+            return reject("PiDEC branch \(branchIndex) boundary rejected: \(error)")
     }
+}
+
+private func terminalVerifierAIRPiCCSPrimitiveRows(
+    _ tape: PiCCSSection,
+    publicInput: SuperNeoPublicFoldInput,
+    transcriptSeed: [UInt8],
+    tapeIndex: Int,
+    parameters: SuperNeoParameters
+) throws -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    let kind = SuperNeoTerminalVerifierAIRConstraintKind.piCCSVerifier
+    var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+    let inputCommitments = piCCSInputCommitmentProjection(publicInput)
+    let outputCommitments = tape.finalClaims.map(\.commitment)
+    rows.append(terminalPrimitiveAIRFieldRow(
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "piccs-\(tapeIndex)-final-claim-count",
+        observed: GoldilocksField(UInt64(tape.finalClaims.count)),
+        expected: GoldilocksField(UInt64(publicInput.instances.count + publicInput.priorClaims.count))
+    ))
+    rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+        kind: kind,
+        provenance: .primitiveArithmetic,
+        label: "piccs-\(tapeIndex)-commitment-projection",
+        observedBytes: outputCommitments.flatMap(\.superNeoBytes),
+        expectedBytes: inputCommitments.flatMap(\.superNeoBytes)
+    ))
+    rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+        kind: kind,
+        provenance: .primitiveArithmetic,
+        label: "piccs-\(tapeIndex)-public-input-projection",
+        observedBytes: tape.finalClaims.flatMap { $0.publicInput.flatMap(\.superNeoBytes) },
+        expectedBytes: piCCSInputPublicProjection(publicInput).flatMap { $0.flatMap(\.superNeoBytes) }
+    ))
+    for (claimIndex, claim) in tape.finalClaims.enumerated() {
+        rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+            kind: kind,
+            provenance: .primitiveArithmetic,
+            label: "piccs-\(tapeIndex)-claim-\(claimIndex)-sumcheck-point",
+            observedBytes: claim.point.flatMap(\.superNeoBytes),
+            expectedBytes: tape.sumCheck.finalPoint.flatMap(\.superNeoBytes)
+        ))
+    }
+
+    let label = FoldRepeatedTapeLabel.piCCS(tapeIndex)
+    var transcript = makeFoldTranscript(
+        input: publicInput,
+        transcriptSeed: repeatedTapeSeed(base: transcriptSeed, label: label),
+        tapeLabel: label
+    )
+    let qState = try makePublicQState(input: publicInput, transcript: &transcript, parameters: parameters)
+    let claimedSum = try qState.claimedSum(from: publicInput.priorClaims)
+    rows.append(contentsOf: terminalPrimitiveAIRExt2Rows(
+        kind: kind,
+        provenance: .primitiveArithmetic,
+        label: "piccs-\(tapeIndex)-claimed-sum",
+        observed: tape.sumCheck.claimedSum,
+        expected: claimedSum
+    ))
+    rows.append(contentsOf: try terminalVerifierAIRSumcheckPrimitiveRows(
+        proof: tape.sumCheck,
+        transcript: &transcript,
+        expectedDegree: qState.maxDegreePerRound,
+        expectedRoundCount: qState.numVars,
+        kind: kind,
+        label: "piccs-\(tapeIndex)-sumcheck",
+        finalValue: try qState.finalEvaluation(
+            instances: publicInput.instances,
+            priorClaims: publicInput.priorClaims,
+            proofClaims: tape.finalClaims,
+            point: tape.sumCheck.finalPoint
+        )
+    ))
+    return rows
+}
+
+private func terminalVerifierAIRSumcheckPrimitiveRows(
+    proof: SumcheckProof,
+    transcript: inout SumCheckTranscript,
+    expectedDegree: Int,
+    expectedRoundCount: Int,
+    kind: SuperNeoTerminalVerifierAIRConstraintKind,
+    label: String,
+    finalValue: GoldilocksExt2
+) throws -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+    rows.append(terminalPrimitiveAIRRequired(
+        expectedDegree >= 0,
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "\(label)-degree-nonnegative"
+    ))
+    rows.append(terminalPrimitiveAIRFieldRow(
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "\(label)-round-count",
+        observed: GoldilocksField(UInt64(proof.rounds.count)),
+        expected: GoldilocksField(UInt64(expectedRoundCount))
+    ))
+    rows.append(terminalPrimitiveAIRFieldRow(
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "\(label)-final-point-count",
+        observed: GoldilocksField(UInt64(proof.finalPoint.count)),
+        expected: GoldilocksField(UInt64(proof.rounds.count))
+    ))
+
+    transcript.absorb(proof.claimedSum.superNeoBytes)
+    var claim = proof.claimedSum
+    var prefix: [GoldilocksExt2] = []
+    prefix.reserveCapacity(proof.rounds.count)
+    for (roundIndex, round) in proof.rounds.enumerated() {
+        rows.append(terminalPrimitiveAIRRequired(
+            !round.coeffs.isEmpty && round.coeffs.count <= expectedDegree + 1,
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "\(label)-round-\(roundIndex)-degree-bound"
+        ))
+        let g0 = SumcheckVerifier.evaluatePolynomial(round.coeffs, at: .zero)
+        let g1 = SumcheckVerifier.evaluatePolynomial(round.coeffs, at: .one)
+        rows.append(contentsOf: terminalPrimitiveAIRExt2Rows(
+            kind: kind,
+            provenance: .primitiveArithmetic,
+            label: "\(label)-round-\(roundIndex)-boolean-sum",
+            observed: g0 + g1,
+            expected: claim
+        ))
+        transcript.absorb(round.superNeoBytes)
+        let challenge = transcript.challengeExt2()
+        prefix.append(challenge)
+        if roundIndex < proof.finalPoint.count {
+            rows.append(contentsOf: terminalPrimitiveAIRExt2Rows(
+                kind: kind,
+                provenance: .publicCoinBinding,
+                label: "\(label)-round-\(roundIndex)-challenge",
+                observed: proof.finalPoint[roundIndex],
+                expected: challenge
+            ))
+        } else {
+            rows.append(terminalPrimitiveAIRRequired(
+                false,
+                kind: kind,
+                provenance: .publicCoinBinding,
+                label: "\(label)-round-\(roundIndex)-challenge-missing"
+            ))
+        }
+        claim = SumcheckVerifier.evaluatePolynomial(round.coeffs, at: challenge)
+    }
+    rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+        kind: kind,
+        provenance: .publicCoinBinding,
+        label: "\(label)-final-point-transcript-prefix",
+        observedBytes: proof.finalPoint.flatMap(\.superNeoBytes),
+        expectedBytes: prefix.flatMap(\.superNeoBytes)
+    ))
+    rows.append(contentsOf: terminalPrimitiveAIRExt2Rows(
+        kind: kind,
+        provenance: .primitiveArithmetic,
+        label: "\(label)-final-claim",
+        observed: proof.finalValue,
+        expected: claim
+    ))
+    rows.append(contentsOf: terminalPrimitiveAIRExt2Rows(
+        kind: kind,
+        provenance: .primitiveArithmetic,
+        label: "\(label)-final-evaluation",
+        observed: proof.finalValue,
+        expected: finalValue
+    ))
+    return rows
+}
+
+private func terminalVerifierAIRPiRLCPrimitiveRows(
+    _ branch: PiRLCBranch,
+    canonicalPiCCS: PiCCSSection,
+    publicInput: SuperNeoPublicFoldInput,
+    transcriptSeed: [UInt8],
+    branchIndex: Int,
+    parameters: SuperNeoParameters
+) throws -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    let kind = SuperNeoTerminalVerifierAIRConstraintKind.piRLCVerifier
+    let canonicalClaims = canonicalPiCCS.finalClaims
+    var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+    rows.append(terminalPrimitiveAIRFieldRow(
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "pirlc-\(branchIndex)-challenge-count",
+        observed: GoldilocksField(UInt64(branch.challenges.count)),
+        expected: GoldilocksField(UInt64(canonicalClaims.count))
+    ))
+    for (claimIndex, claim) in canonicalClaims.enumerated() {
+        rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+            kind: kind,
+            provenance: .primitiveArithmetic,
+            label: "pirlc-\(branchIndex)-claim-\(claimIndex)-canonical-point",
+            observedBytes: claim.point.flatMap(\.superNeoBytes),
+            expectedBytes: canonicalPiCCS.sumCheck.finalPoint.flatMap(\.superNeoBytes)
+        ))
+    }
+
+    var transcript = makePiRLCBranchTranscript(
+        input: publicInput,
+        transcriptSeed: transcriptSeed,
+        canonicalPiCCS: canonicalPiCCS,
+        branchIndex: branchIndex
+    )
+    let expectedChallenges = canonicalClaims.map { _ in transcript.challengeRing(parameters: parameters) }
+    for challengeIndex in 0..<max(expectedChallenges.count, branch.challenges.count) {
+        let observed = challengeIndex < branch.challenges.count
+            ? branch.challenges[challengeIndex].superNeoBytes
+            : []
+        let expected = challengeIndex < expectedChallenges.count
+            ? expectedChallenges[challengeIndex].superNeoBytes
+            : []
+        rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+            kind: kind,
+            provenance: .publicCoinBinding,
+            label: "pirlc-\(branchIndex)-challenge-\(challengeIndex)",
+            observedBytes: observed,
+            expectedBytes: expected
+        ))
+    }
+    let expectedRLC = try SuperNeoProtocolOracle.randomLinearCombination(
+        claims: canonicalClaims,
+        challenges: branch.challenges
+    )
+    rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+        kind: kind,
+        provenance: .primitiveArithmetic,
+        label: "pirlc-\(branchIndex)-sampled-linear-combination",
+        observedBytes: branch.foldedClaim.superNeoBytes,
+        expectedBytes: expectedRLC.superNeoBytes
+    ))
+    return rows
+}
+
+private func terminalVerifierAIRPiDECPrimitiveRows(
+    _ branch: PiRLCBranch,
+    publicInput: SuperNeoPublicFoldInput,
+    branchIndex: Int,
+    parameters: SuperNeoParameters,
+    expectedOutputClaims: [CCSEvaluationClaim]? = nil
+) throws -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    let kind = SuperNeoTerminalVerifierAIRConstraintKind.piDECVerifier
+    var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+    if let expectedOutputClaims {
+        rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+            kind: kind,
+            provenance: .primitiveArithmetic,
+            label: "pidec-\(branchIndex)-canonical-output-claims",
+            observedBytes: branch.outputClaims.flatMap(\.superNeoBytes),
+            expectedBytes: expectedOutputClaims.flatMap(\.superNeoBytes)
+        ))
+    }
+    rows.append(terminalPrimitiveAIRRequired(
+        isValidDecompositionLimbCount(branch.outputClaims.count, parameters: parameters),
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "pidec-\(branchIndex)-limb-count"
+    ))
+    rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+        kind: kind,
+        provenance: .primitiveArithmetic,
+        label: "pidec-\(branchIndex)-decomposition-commitments",
+        observedBytes: branch.decomposition.commitments.flatMap(\.superNeoBytes),
+        expectedBytes: branch.outputClaims.map(\.commitment).flatMap(\.superNeoBytes)
+    ))
+    rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+        kind: kind,
+        provenance: .primitiveArithmetic,
+        label: "pidec-\(branchIndex)-decomposition-evaluations",
+        observedBytes: branch.decomposition.evaluations.flatMap { $0.flatMap(\.superNeoBytes) },
+        expectedBytes: branch.outputClaims.map(\.evaluations).flatMap { $0.flatMap(\.superNeoBytes) }
+    ))
+    rows.append(terminalPrimitiveAIRFieldRow(
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "pidec-\(branchIndex)-folded-evaluation-count",
+        observed: GoldilocksField(UInt64(branch.foldedClaim.evaluations.count)),
+        expected: GoldilocksField(UInt64(publicInput.shape.numMatrices))
+    ))
+    rows.append(terminalPrimitiveAIRFieldRow(
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "pidec-\(branchIndex)-folded-public-input-count",
+        observed: GoldilocksField(UInt64(branch.foldedClaim.publicInput.count)),
+        expected: GoldilocksField(UInt64(publicInput.shape.nPublicField))
+    ))
+    rows.append(terminalPrimitiveAIRFieldRow(
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "pidec-\(branchIndex)-folded-point-count",
+        observed: GoldilocksField(UInt64(branch.foldedClaim.point.count)),
+        expected: GoldilocksField(UInt64(try log2Exact(publicInput.shape.m)))
+    ))
+
+    let limbCount = branch.outputClaims.count
+    if limbCount > 0 {
+        let expectedPublicInputLimbs = try splitSignedBase(
+            branch.foldedClaim.publicInput,
+            base: parameters.normBound,
+            count: limbCount
+        )
+        let scalars = try decompositionScalars(base: parameters.normBound, count: limbCount)
+        var commitment = AjtaiCommitment(
+            Array(repeating: CyclotomicRing54.zero, count: branch.foldedClaim.commitment.elements.count)
+        )
+        var publicInput = Array(repeating: GoldilocksField.zero, count: branch.foldedClaim.publicInput.count)
+        var evaluations = Array(repeating: CyclotomicExt2Ring54.zero, count: branch.foldedClaim.evaluations.count)
+        for (limbIndex, part) in branch.outputClaims.enumerated() {
+            rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+                kind: kind,
+                provenance: .primitiveArithmetic,
+                label: "pidec-\(branchIndex)-limb-\(limbIndex)-point",
+                observedBytes: part.point.flatMap(\.superNeoBytes),
+                expectedBytes: branch.foldedClaim.point.flatMap(\.superNeoBytes)
+            ))
+            rows.append(terminalPrimitiveAIRFieldRow(
+                kind: kind,
+                provenance: .canonicalDecoding,
+                label: "pidec-\(branchIndex)-limb-\(limbIndex)-evaluation-count",
+                observed: GoldilocksField(UInt64(part.evaluations.count)),
+                expected: GoldilocksField(UInt64(branch.foldedClaim.evaluations.count))
+            ))
+            rows.append(terminalPrimitiveAIRFieldRow(
+                kind: kind,
+                provenance: .canonicalDecoding,
+                label: "pidec-\(branchIndex)-limb-\(limbIndex)-public-input-count",
+                observed: GoldilocksField(UInt64(part.publicInput.count)),
+                expected: GoldilocksField(UInt64(branch.foldedClaim.publicInput.count))
+            ))
+            if limbIndex < expectedPublicInputLimbs.count {
+                rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+                    kind: kind,
+                    provenance: .primitiveArithmetic,
+                    label: "pidec-\(branchIndex)-limb-\(limbIndex)-public-input-split",
+                    observedBytes: part.publicInput.flatMap(\.superNeoBytes),
+                    expectedBytes: expectedPublicInputLimbs[limbIndex].flatMap(\.superNeoBytes)
+                ))
+            }
+            rows.append(terminalPrimitiveAIRRequired(
+                part.publicInput.allSatisfy { signedMagnitude($0) < UInt64(parameters.normBound) },
+                kind: kind,
+                provenance: .primitiveArithmetic,
+                label: "pidec-\(branchIndex)-limb-\(limbIndex)-low-norm"
+            ))
+            guard limbIndex < scalars.count else { continue }
+            let scalar = scalars[limbIndex]
+            if part.commitment.elements.count == commitment.elements.count {
+                for commitmentIndex in commitment.elements.indices {
+                    commitment.elements[commitmentIndex] = commitment.elements[commitmentIndex]
+                        + part.commitment.elements[commitmentIndex].scaled(by: scalar)
+                }
+            }
+            if part.publicInput.count == publicInput.count {
+                for inputIndex in publicInput.indices {
+                    publicInput[inputIndex] = publicInput[inputIndex] + (part.publicInput[inputIndex] * scalar)
+                }
+            }
+            if part.evaluations.count == evaluations.count {
+                for evalIndex in evaluations.indices {
+                    evaluations[evalIndex] = evaluations[evalIndex] + part.evaluations[evalIndex].scaled(by: scalar)
+                }
+            }
+        }
+        rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+            kind: kind,
+            provenance: .primitiveArithmetic,
+            label: "pidec-\(branchIndex)-recomposed-commitment",
+            observedBytes: commitment.superNeoBytes,
+            expectedBytes: branch.foldedClaim.commitment.superNeoBytes
+        ))
+        rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+            kind: kind,
+            provenance: .primitiveArithmetic,
+            label: "pidec-\(branchIndex)-recomposed-public-input",
+            observedBytes: publicInput.flatMap(\.superNeoBytes),
+            expectedBytes: branch.foldedClaim.publicInput.flatMap(\.superNeoBytes)
+        ))
+        rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+            kind: kind,
+            provenance: .primitiveArithmetic,
+            label: "pidec-\(branchIndex)-recomposed-evaluations",
+            observedBytes: evaluations.flatMap(\.superNeoBytes),
+            expectedBytes: branch.foldedClaim.evaluations.flatMap(\.superNeoBytes)
+        ))
+    }
+    return rows
 }
 
 private func makeBoundaryCheck(
@@ -5969,6 +6752,203 @@ private func verifyPermutedWitnessRoundResponse(
         }
     }
     return true
+}
+
+private func terminalVerifierAIRMaskPrimitiveRows(
+    openings: [CEOpeningLinearResponse],
+    roundIndex: Int,
+    commitments: [CEOpeningProofCommitments],
+    statement: TerminalCEStatement,
+    verifierContext: CEOpeningVerifierContext,
+    jobs: inout [CEOpeningVerifierLinearJob]
+) -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+    let kind = SuperNeoTerminalVerifierAIRConstraintKind.terminalCEOpening
+    rows.append(terminalPrimitiveAIRFieldRow(
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "ce-round-\(roundIndex)-mask-opening-count",
+        observed: GoldilocksField(UInt64(openings.count)),
+        expected: GoldilocksField(UInt64(statement.openings.count))
+    ))
+    for index in openings.indices where index < commitments.count && index < statement.openings.count {
+        let opening = openings[index]
+        rows.append(terminalPrimitiveAIRRequired(
+            isValidPermutation(opening.permutation, count: opening.vector.count),
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "ce-round-\(roundIndex)-opening-\(index)-mask-permutation"
+        ))
+        let acceptsLength = (try? verifierContext.opening(at: index).acceptsPrivateVector(
+            count: opening.vector.count,
+            shape: verifierContext.shape
+        )) ?? false
+        rows.append(terminalPrimitiveAIRRequired(
+            acceptsLength,
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "ce-round-\(roundIndex)-opening-\(index)-mask-vector-shape"
+        ))
+        if isValidPermutation(opening.permutation, count: opening.vector.count) {
+            let permutedMask = applyPermutation(opening.vector, opening.permutation)
+            rows.append(contentsOf: terminalPrimitiveAIRDigestRows(
+                kind: kind,
+                provenance: .hashSubrelation,
+                label: "ce-round-\(roundIndex)-opening-\(index)-permuted-mask-digest",
+                observed: commitments[index].permutedMaskDigest,
+                expected: ceOpeningDigest(
+                    tag: 2,
+                    roundIndex: roundIndex,
+                    openingIndex: index,
+                    payload: ceEncodeVector(permutedMask)
+                )
+            ))
+            jobs.append(CEOpeningVerifierLinearJob(
+                challenge: 0,
+                roundIndex: roundIndex,
+                openingIndex: index,
+                permutationBytes: ceEncodePermutation(opening.permutation),
+                vector: opening.vector,
+                commitments: commitments[index]
+            ))
+        }
+    }
+    return rows
+}
+
+private func terminalVerifierAIRMaskedWitnessPrimitiveRows(
+    openings: [CEOpeningLinearResponse],
+    roundIndex: Int,
+    commitments: [CEOpeningProofCommitments],
+    statement: TerminalCEStatement,
+    verifierContext: CEOpeningVerifierContext,
+    jobs: inout [CEOpeningVerifierLinearJob]
+) -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+    let kind = SuperNeoTerminalVerifierAIRConstraintKind.terminalCEOpening
+    rows.append(terminalPrimitiveAIRFieldRow(
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "ce-round-\(roundIndex)-masked-opening-count",
+        observed: GoldilocksField(UInt64(openings.count)),
+        expected: GoldilocksField(UInt64(statement.openings.count))
+    ))
+    for index in openings.indices where index < commitments.count && index < statement.openings.count {
+        let opening = openings[index]
+        rows.append(terminalPrimitiveAIRRequired(
+            isValidPermutation(opening.permutation, count: opening.vector.count),
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "ce-round-\(roundIndex)-opening-\(index)-masked-permutation"
+        ))
+        let acceptsLength = (try? verifierContext.opening(at: index).acceptsPrivateVector(
+            count: opening.vector.count,
+            shape: verifierContext.shape
+        )) ?? false
+        rows.append(terminalPrimitiveAIRRequired(
+            acceptsLength,
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "ce-round-\(roundIndex)-opening-\(index)-masked-vector-shape"
+        ))
+        if isValidPermutation(opening.permutation, count: opening.vector.count) {
+            let permutedMasked = applyPermutation(opening.vector, opening.permutation)
+            rows.append(contentsOf: terminalPrimitiveAIRDigestRows(
+                kind: kind,
+                provenance: .hashSubrelation,
+                label: "ce-round-\(roundIndex)-opening-\(index)-permuted-masked-digest",
+                observed: commitments[index].permutedMaskedWitnessDigest,
+                expected: ceOpeningDigest(
+                    tag: 3,
+                    roundIndex: roundIndex,
+                    openingIndex: index,
+                    payload: ceEncodeVector(permutedMasked)
+                )
+            ))
+            jobs.append(CEOpeningVerifierLinearJob(
+                challenge: 1,
+                roundIndex: roundIndex,
+                openingIndex: index,
+                permutationBytes: ceEncodePermutation(opening.permutation),
+                vector: opening.vector,
+                commitments: commitments[index]
+            ))
+        }
+    }
+    return rows
+}
+
+private func terminalVerifierAIRPermutedWitnessPrimitiveRows(
+    openings: [CEOpeningNormResponse],
+    roundIndex: Int,
+    commitments: [CEOpeningProofCommitments],
+    statement: TerminalCEStatement,
+    verifierContext: CEOpeningVerifierContext
+) throws -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+    let kind = SuperNeoTerminalVerifierAIRConstraintKind.terminalCEOpening
+    rows.append(terminalPrimitiveAIRFieldRow(
+        kind: kind,
+        provenance: .canonicalDecoding,
+        label: "ce-round-\(roundIndex)-permuted-opening-count",
+        observed: GoldilocksField(UInt64(openings.count)),
+        expected: GoldilocksField(UInt64(statement.openings.count))
+    ))
+    for index in openings.indices where index < commitments.count && index < statement.openings.count {
+        let opening = openings[index]
+        let matchingLengths = opening.permutedMask.count == opening.permutedWitness.count
+        rows.append(terminalPrimitiveAIRRequired(
+            matchingLengths,
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "ce-round-\(roundIndex)-opening-\(index)-permuted-lengths"
+        ))
+        let acceptsLength = try verifierContext.opening(at: index).acceptsPrivateVector(
+            count: opening.permutedWitness.count,
+            shape: verifierContext.shape
+        )
+        rows.append(terminalPrimitiveAIRRequired(
+            acceptsLength,
+            kind: kind,
+            provenance: .canonicalDecoding,
+            label: "ce-round-\(roundIndex)-opening-\(index)-permuted-shape"
+        ))
+        rows.append(terminalPrimitiveAIRRequired(
+            opening.permutedWitness.allSatisfy {
+                signedMagnitude($0) < UInt64(verifierContext.parameters.normBound)
+            },
+            kind: kind,
+            provenance: .primitiveArithmetic,
+            label: "ce-round-\(roundIndex)-opening-\(index)-permuted-witness-low-norm"
+        ))
+        rows.append(contentsOf: terminalPrimitiveAIRDigestRows(
+            kind: kind,
+            provenance: .hashSubrelation,
+            label: "ce-round-\(roundIndex)-opening-\(index)-permuted-mask-digest",
+            observed: commitments[index].permutedMaskDigest,
+            expected: ceOpeningDigest(
+                tag: 2,
+                roundIndex: roundIndex,
+                openingIndex: index,
+                payload: ceEncodeVector(opening.permutedMask)
+            )
+        ))
+        if matchingLengths {
+            rows.append(contentsOf: terminalPrimitiveAIRDigestRows(
+                kind: kind,
+                provenance: .hashSubrelation,
+                label: "ce-round-\(roundIndex)-opening-\(index)-permuted-masked-witness-digest",
+                observed: commitments[index].permutedMaskedWitnessDigest,
+                expected: ceOpeningDigest(
+                    tag: 3,
+                    roundIndex: roundIndex,
+                    openingIndex: index,
+                    payload: ceEncodeVector(ceVectorAdd(opening.permutedMask, opening.permutedWitness))
+                )
+            ))
+        }
+    }
+    return rows
 }
 
 private func isValidPrivateVectorLength(_ privateCount: Int, publicInputCount: Int, shape: CCSShape) throws -> Bool {

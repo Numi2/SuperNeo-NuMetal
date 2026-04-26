@@ -274,6 +274,31 @@ structure ProductTerminalVerifierArithmetization where
   traceResidualPCSFRIQueriesVerified : Prop
   terminalVerifierExecutionIsProvedRelation : Prop
   terminalAcceptBitOneConstrained : Prop
+  canonicalDecodingConstrainedAtAIRLevel : Prop
+  hashDigestBindingsConstrainedAtAIRLevel : Prop
+  piCCSVerifierConstrainedAtAIRLevel : Prop
+  piRLCVerifierConstrainedAtAIRLevel : Prop
+  piDECVerifierConstrainedAtAIRLevel : Prop
+  terminalCEVerifierConstrainedAtAIRLevel : Prop
+  friPCSVerifierConstrainedAtAIRLevel : Prop
+  jointTraceResidualQueryScheduleBound : Prop
+  traceResidualOpeningsPairedByQueryPoint : Prop
+  residualEqualsAIRConstraintEvaluation : Prop
+  acceptBitDerivedFromAIRConstraints : Prop
+  terminalVerifierTypedAIRSubrelationsDeclared : Prop
+  canonicalSourceRepresentationSubrelationConstrained : Prop
+  publicBindingSubrelationConstrained : Prop
+  piCCSVerifierSubrelationConstrained : Prop
+  piRLCVerifierSubrelationConstrained : Prop
+  piDECVerifierSubrelationConstrained : Prop
+  terminalCEOpeningSubrelationConstrained : Prop
+  innerCompressedProofVerifierSubrelationGatedBySourceKind : Prop
+  outerFRIVerifierSeparatedFromTerminalAIR : Prop
+  residualAggregationUsesTypedSubrelations : Prop
+  residualPolynomialEncodesAggregateVerifierConstraints : Prop
+  sharedSpecEmitsExecutableConstraintRows : Prop
+  airResidualZeroIffSharedSpecAccepts : Prop
+  normalTerminalVerifierAcceptanceEquivalentToZeroResidual : Prop
 
 def ProductTerminalVerifierArithmetizationAccepted
     (arith : ProductTerminalVerifierArithmetization) : Prop :=
@@ -309,6 +334,31 @@ def ProductTerminalVerifierArithmetizationAccepted
     ∧ arith.traceResidualPCSFRIQueriesVerified
     ∧ arith.terminalVerifierExecutionIsProvedRelation
     ∧ arith.terminalAcceptBitOneConstrained
+    ∧ arith.canonicalDecodingConstrainedAtAIRLevel
+    ∧ arith.hashDigestBindingsConstrainedAtAIRLevel
+    ∧ arith.piCCSVerifierConstrainedAtAIRLevel
+    ∧ arith.piRLCVerifierConstrainedAtAIRLevel
+    ∧ arith.piDECVerifierConstrainedAtAIRLevel
+    ∧ arith.terminalCEVerifierConstrainedAtAIRLevel
+    ∧ arith.friPCSVerifierConstrainedAtAIRLevel
+    ∧ arith.jointTraceResidualQueryScheduleBound
+    ∧ arith.traceResidualOpeningsPairedByQueryPoint
+    ∧ arith.residualEqualsAIRConstraintEvaluation
+    ∧ arith.acceptBitDerivedFromAIRConstraints
+    ∧ arith.terminalVerifierTypedAIRSubrelationsDeclared
+    ∧ arith.canonicalSourceRepresentationSubrelationConstrained
+    ∧ arith.publicBindingSubrelationConstrained
+    ∧ arith.piCCSVerifierSubrelationConstrained
+    ∧ arith.piRLCVerifierSubrelationConstrained
+    ∧ arith.piDECVerifierSubrelationConstrained
+    ∧ arith.terminalCEOpeningSubrelationConstrained
+    ∧ arith.innerCompressedProofVerifierSubrelationGatedBySourceKind
+    ∧ arith.outerFRIVerifierSeparatedFromTerminalAIR
+    ∧ arith.residualAggregationUsesTypedSubrelations
+    ∧ arith.residualPolynomialEncodesAggregateVerifierConstraints
+    ∧ arith.sharedSpecEmitsExecutableConstraintRows
+    ∧ arith.airResidualZeroIffSharedSpecAccepts
+    ∧ arith.normalTerminalVerifierAcceptanceEquivalentToZeroResidual
 
 theorem productCompressionSourceFree_from_terminalVerifierArithmetization
     {arith : ProductTerminalVerifierArithmetization}
@@ -367,11 +417,345 @@ theorem productCompressionSourceFree_from_terminalVerifierArithmetization
       hResidual,
       hQueries,
       hExecution,
-      hAccept⟩
+      hAccept,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _⟩
   exact ⟨hSNARK, hSpartan, hBytes, hNoSourceBytes, hNoWitness, hNoTrace,
     hSourceDigest, hFold, hPiCCS, hPiRLC, hPiDEC, hAjtai, hModuleSIS, hCE,
     hTrace, hColumns, hBoundary, hTransition, hResidual, hQueries, hExecution,
     hAccept⟩
+
+structure ProductTerminalVerifierAIRSpec where
+  sharedByNormalTerminalVerifierAndAIR : Prop
+  canonicalSourceDecodingSpecified : Prop
+  sourceDigestComputedFromCanonicalPrivateEncoding : Prop
+  sourceByteCountBoundToCanonicalEncoding : Prop
+  verifierKeyBindingSpecified : Prop
+  publicStatementBindingSpecified : Prop
+  recursiveRelationDigestPublicInput : Prop
+  compressionPolicyBindingSpecified : Prop
+  publicCoinDerivationVerifierBound : Prop
+  piCCSVerifierEquationSpecified : Prop
+  piRLCVerifierEquationSpecified : Prop
+  piDECVerifierEquationSpecified : Prop
+  terminalCEOpeningArithmeticSpecified : Prop
+  ceAjtaiArithmeticConstrained : Prop
+  moduleSISNormAndShapeChecksSpecified : Prop
+  optionalInnerCompressedVerifierDomainSeparated : Prop
+  productionVerifierDoesNotAcceptExpandedWitness : Prop
+  acceptBitDerivedFromSpecPredicates : Prop
+  emitsNormalResultAndAIRConstraintRowsFromSameSteps : Prop
+  noAssertedStageAcceptanceFlags : Prop
+  digestAndCoinComputationsConstraintEmitted : Prop
+  ceAjtaiArithmeticConstraintEmitted : Prop
+  primitiveRowsHaveInspectableProvenance : Prop
+  ceAjtaiLoweredToPrimitiveRows : Prop
+  foldBoundariesLoweredToPrimitiveRows : Prop
+  noVerifierBooleanWrappingRows : Prop
+  noBoundaryReportAcceptanceRows : Prop
+  digestRowsHashOrPublicBound : Prop
+  compactBatchingCommitsFullPrimitiveRowSet : Prop
+  compactBatchingChallengesAfterRowTranscriptCommitment : Prop
+  compactBatchResidualAggregatesAllPrimitiveRows : Prop
+  compactBatchSamplesAreAuditOnly : Prop
+  compactBatchTranscriptBindsPublicContext : Prop
+  zeroResidualIffSpecAccepts : Prop
+
+def ProductTerminalVerifierAIRSpecAccepted
+    (spec : ProductTerminalVerifierAIRSpec) : Prop :=
+  spec.sharedByNormalTerminalVerifierAndAIR
+    ∧ spec.canonicalSourceDecodingSpecified
+    ∧ spec.sourceDigestComputedFromCanonicalPrivateEncoding
+    ∧ spec.sourceByteCountBoundToCanonicalEncoding
+    ∧ spec.verifierKeyBindingSpecified
+    ∧ spec.publicStatementBindingSpecified
+    ∧ spec.recursiveRelationDigestPublicInput
+    ∧ spec.compressionPolicyBindingSpecified
+    ∧ spec.publicCoinDerivationVerifierBound
+    ∧ spec.piCCSVerifierEquationSpecified
+    ∧ spec.piRLCVerifierEquationSpecified
+    ∧ spec.piDECVerifierEquationSpecified
+    ∧ spec.terminalCEOpeningArithmeticSpecified
+    ∧ spec.ceAjtaiArithmeticConstrained
+    ∧ spec.moduleSISNormAndShapeChecksSpecified
+    ∧ spec.optionalInnerCompressedVerifierDomainSeparated
+    ∧ spec.productionVerifierDoesNotAcceptExpandedWitness
+    ∧ spec.acceptBitDerivedFromSpecPredicates
+    ∧ spec.emitsNormalResultAndAIRConstraintRowsFromSameSteps
+    ∧ spec.noAssertedStageAcceptanceFlags
+    ∧ spec.digestAndCoinComputationsConstraintEmitted
+    ∧ spec.ceAjtaiArithmeticConstraintEmitted
+    ∧ spec.primitiveRowsHaveInspectableProvenance
+    ∧ spec.ceAjtaiLoweredToPrimitiveRows
+    ∧ spec.foldBoundariesLoweredToPrimitiveRows
+    ∧ spec.noVerifierBooleanWrappingRows
+    ∧ spec.noBoundaryReportAcceptanceRows
+    ∧ spec.digestRowsHashOrPublicBound
+    ∧ spec.compactBatchingCommitsFullPrimitiveRowSet
+    ∧ spec.compactBatchingChallengesAfterRowTranscriptCommitment
+    ∧ spec.compactBatchResidualAggregatesAllPrimitiveRows
+    ∧ spec.compactBatchSamplesAreAuditOnly
+    ∧ spec.compactBatchTranscriptBindsPublicContext
+    ∧ spec.zeroResidualIffSpecAccepts
+
+structure ProductTerminalVerifierAIRSoundness where
+  spec : ProductTerminalVerifierAIRSpec
+  arithmetization : ProductTerminalVerifierArithmetization
+  specAccepted : Prop
+  arithmetizationAccepted : Prop
+  zeroResidualImpliesSpecAcceptBit : Prop
+  airAcceptBitImpliesNormalTerminalAccept : Prop
+  sourceDigestComputationProvenInAIR : Prop
+  publicCoinDerivationConstrainedInAIR : Prop
+  ceAjtaiArithmeticNotDigestOnly : Prop
+  recursiveRelationDigestPublicBoundInAIR : Prop
+  witnessHeavySourceFreeVerifierPathAbsent : Prop
+  constraintExactness : Prop
+  compactPrimitiveBatchingSound : Prop
+  residualCompleteness : Prop
+  residualSoundness : Prop
+
+def ProductTerminalVerifierAIRSoundnessAccepted
+    (soundness : ProductTerminalVerifierAIRSoundness) : Prop :=
+  soundness.specAccepted
+    ∧ soundness.arithmetizationAccepted
+    ∧ soundness.zeroResidualImpliesSpecAcceptBit
+    ∧ soundness.airAcceptBitImpliesNormalTerminalAccept
+    ∧ soundness.sourceDigestComputationProvenInAIR
+    ∧ soundness.publicCoinDerivationConstrainedInAIR
+    ∧ soundness.ceAjtaiArithmeticNotDigestOnly
+    ∧ soundness.recursiveRelationDigestPublicBoundInAIR
+    ∧ soundness.witnessHeavySourceFreeVerifierPathAbsent
+    ∧ soundness.constraintExactness
+    ∧ soundness.compactPrimitiveBatchingSound
+    ∧ soundness.residualCompleteness
+    ∧ soundness.residualSoundness
+
+structure ProductTerminalVerifierAIRConstraintExactness where
+  spec : ProductTerminalVerifierAIRSpec
+  arithmetization : ProductTerminalVerifierArithmetization
+  specAccepted : Prop
+  arithmetizationAccepted : Prop
+  sharedVerifierStepsEmitNormalResultAndAIRRows : Prop
+  noAssertedStageShortcuts : Prop
+  digestAndPublicCoinExactness : Prop
+  ceAjtaiArithmeticExactness : Prop
+  primitiveConstraintLoweringExactness : Prop
+  noVerifierBooleanWrappingRows : Prop
+  rowProvenanceTypedAndInspectable : Prop
+  acceptBitDerivedFromResidualAggregate : Prop
+  productionVerifierNoWitnessEscapeHatch : Prop
+  compactBatchingEquivalentToFullPrimitiveRows : Prop
+  airResidualZeroIffSharedSpecAccepts : Prop
+
+def ProductTerminalVerifierAIRConstraintExactnessAccepted
+    (exactness : ProductTerminalVerifierAIRConstraintExactness) : Prop :=
+  exactness.specAccepted
+    ∧ exactness.arithmetizationAccepted
+    ∧ ProductTerminalVerifierAIRSpecAccepted exactness.spec
+    ∧ ProductTerminalVerifierArithmetizationAccepted exactness.arithmetization
+    ∧ exactness.sharedVerifierStepsEmitNormalResultAndAIRRows
+    ∧ exactness.noAssertedStageShortcuts
+    ∧ exactness.digestAndPublicCoinExactness
+    ∧ exactness.ceAjtaiArithmeticExactness
+    ∧ exactness.primitiveConstraintLoweringExactness
+    ∧ exactness.noVerifierBooleanWrappingRows
+    ∧ exactness.rowProvenanceTypedAndInspectable
+    ∧ exactness.acceptBitDerivedFromResidualAggregate
+    ∧ exactness.productionVerifierNoWitnessEscapeHatch
+    ∧ exactness.compactBatchingEquivalentToFullPrimitiveRows
+    ∧ exactness.airResidualZeroIffSharedSpecAccepts
+
+structure ProductTerminalVerifierAIRResidualCompleteness where
+  exactness : ProductTerminalVerifierAIRConstraintExactness
+  sharedSpecAcceptsBoundSource : Prop
+  airResidualZero : Prop
+  residualCompleteness :
+    sharedSpecAcceptsBoundSource → airResidualZero
+
+def ProductTerminalVerifierAIRResidualCompletenessAccepted
+    (completeness : ProductTerminalVerifierAIRResidualCompleteness) : Prop :=
+  ProductTerminalVerifierAIRConstraintExactnessAccepted completeness.exactness
+    ∧ (completeness.sharedSpecAcceptsBoundSource → completeness.airResidualZero)
+
+structure ProductTerminalVerifierAIRResidualSoundness where
+  exactness : ProductTerminalVerifierAIRConstraintExactness
+  airResidualZero : Prop
+  sharedSpecAcceptsBoundSource : Prop
+  normalTerminalVerifierAcceptsBoundSource : Prop
+  residualSoundness :
+    airResidualZero →
+      sharedSpecAcceptsBoundSource ∧ normalTerminalVerifierAcceptsBoundSource
+
+def ProductTerminalVerifierAIRResidualSoundnessAccepted
+    (soundness : ProductTerminalVerifierAIRResidualSoundness) : Prop :=
+  ProductTerminalVerifierAIRConstraintExactnessAccepted soundness.exactness
+    ∧ (soundness.airResidualZero →
+        soundness.sharedSpecAcceptsBoundSource ∧ soundness.normalTerminalVerifierAcceptsBoundSource)
+
+structure ProductTerminalVerifierAIRPrimitiveLowering where
+  exactness : ProductTerminalVerifierAIRConstraintExactness
+  ceAjtaiRowsEmitCanonicalCoefficientDecoding : Prop
+  ceAjtaiRowsEmitDimensionChecks : Prop
+  ceAjtaiRowsEmitMatrixVectorMultiplication : Prop
+  ceAjtaiRowsEmitCommitmentEquality : Prop
+  ceAjtaiRowsEmitNormAndShapeChecks : Prop
+  piCCSRowsEmitProjectionSumcheckAndFinalClaimConstraints : Prop
+  piRLCRowsEmitCoinLinearCombinationAndParentPointConstraints : Prop
+  piDECRowsEmitDigitBoundsRecompositionAndLowNormConstraints : Prop
+  digestRowsAreHashSubrelationsOrPublicBindings : Prop
+  noRowsSourcedFromVerifierBooleansOrBoundaryReportAcceptance : Prop
+  compactRowsEncodePrimitiveRowIndexResidualAndContext : Prop
+  fullRowTranscriptCommittedBeforeBatchChallenges : Prop
+  aggregateResidualCoversEveryCommittedPrimitiveRow : Prop
+  sampledPrimitiveRowsNotUsedAsSoundnessSubstitute : Prop
+
+def ProductTerminalVerifierAIRPrimitiveLoweringAccepted
+    (lowering : ProductTerminalVerifierAIRPrimitiveLowering) : Prop :=
+  ProductTerminalVerifierAIRConstraintExactnessAccepted lowering.exactness
+    ∧ lowering.ceAjtaiRowsEmitCanonicalCoefficientDecoding
+    ∧ lowering.ceAjtaiRowsEmitDimensionChecks
+    ∧ lowering.ceAjtaiRowsEmitMatrixVectorMultiplication
+    ∧ lowering.ceAjtaiRowsEmitCommitmentEquality
+    ∧ lowering.ceAjtaiRowsEmitNormAndShapeChecks
+    ∧ lowering.piCCSRowsEmitProjectionSumcheckAndFinalClaimConstraints
+    ∧ lowering.piRLCRowsEmitCoinLinearCombinationAndParentPointConstraints
+    ∧ lowering.piDECRowsEmitDigitBoundsRecompositionAndLowNormConstraints
+    ∧ lowering.digestRowsAreHashSubrelationsOrPublicBindings
+    ∧ lowering.noRowsSourcedFromVerifierBooleansOrBoundaryReportAcceptance
+    ∧ lowering.compactRowsEncodePrimitiveRowIndexResidualAndContext
+    ∧ lowering.fullRowTranscriptCommittedBeforeBatchChallenges
+    ∧ lowering.aggregateResidualCoversEveryCommittedPrimitiveRow
+    ∧ lowering.sampledPrimitiveRowsNotUsedAsSoundnessSubstitute
+
+structure ProductTerminalVerifierAIRPrimitiveBatching where
+  lowering : ProductTerminalVerifierAIRPrimitiveLowering
+  everyPrimitiveRowCanonicallyEncoded : Prop
+  fullPrimitiveRowTranscriptCommitted : Prop
+  noOmittedRowsOrDuplicateRowIndices : Prop
+  batchingChallengesDerivedAfterTranscriptCommitment : Prop
+  aggregateResidualCoversAllPrimitiveRows : Prop
+  sampledRowsAreAuditOnly : Prop
+  aggregateResidualBoundIntoPCSFRI : Prop
+  rowTranscriptBindsTerminalVerifierRelationDigest : Prop
+  rowTranscriptBindsRecursiveRelationDigest : Prop
+  rowTranscriptBindsSourceDigestAndByteCount : Prop
+
+def ProductTerminalVerifierAIRPrimitiveBatchingAccepted
+    (batching : ProductTerminalVerifierAIRPrimitiveBatching) : Prop :=
+  ProductTerminalVerifierAIRPrimitiveLoweringAccepted batching.lowering
+    ∧ batching.everyPrimitiveRowCanonicallyEncoded
+    ∧ batching.fullPrimitiveRowTranscriptCommitted
+    ∧ batching.noOmittedRowsOrDuplicateRowIndices
+    ∧ batching.batchingChallengesDerivedAfterTranscriptCommitment
+    ∧ batching.aggregateResidualCoversAllPrimitiveRows
+    ∧ batching.sampledRowsAreAuditOnly
+    ∧ batching.aggregateResidualBoundIntoPCSFRI
+    ∧ batching.rowTranscriptBindsTerminalVerifierRelationDigest
+    ∧ batching.rowTranscriptBindsRecursiveRelationDigest
+    ∧ batching.rowTranscriptBindsSourceDigestAndByteCount
+
+structure ProductAIRRowsNoVerifierBooleanWrapping where
+  lowering : ProductTerminalVerifierAIRPrimitiveLowering
+  verifierBooleanRowsRejectedByValidator : Prop
+  boundaryReportAcceptanceRowsRejectedByValidator : Prop
+  stageAcceptedFlagsRejectedByValidator : Prop
+  digestMatchBooleansRejectedWithoutHashOrPublicBinding : Prop
+
+def ProductAIRRowsNoVerifierBooleanWrappingAccepted
+    (rows : ProductAIRRowsNoVerifierBooleanWrapping) : Prop :=
+  ProductTerminalVerifierAIRPrimitiveLoweringAccepted rows.lowering
+    ∧ rows.verifierBooleanRowsRejectedByValidator
+    ∧ rows.boundaryReportAcceptanceRowsRejectedByValidator
+    ∧ rows.stageAcceptedFlagsRejectedByValidator
+    ∧ rows.digestMatchBooleansRejectedWithoutHashOrPublicBinding
+
+structure ProductCEAjtaiPrimitiveConstraintSoundness where
+  lowering : ProductTerminalVerifierAIRPrimitiveLowering
+  canonicalCoefficientDecodingSound : Prop
+  moduleRingDimensionChecksSound : Prop
+  ajtaiMatrixVectorMultiplicationSound : Prop
+  commitmentEqualitySound : Prop
+  normAndShapeChecksSound : Prop
+  malformedAlternativeOpeningsRejected : Prop
+
+def ProductCEAjtaiPrimitiveConstraintSoundnessAccepted
+    (soundness : ProductCEAjtaiPrimitiveConstraintSoundness) : Prop :=
+  ProductTerminalVerifierAIRPrimitiveLoweringAccepted soundness.lowering
+    ∧ soundness.canonicalCoefficientDecodingSound
+    ∧ soundness.moduleRingDimensionChecksSound
+    ∧ soundness.ajtaiMatrixVectorMultiplicationSound
+    ∧ soundness.commitmentEqualitySound
+    ∧ soundness.normAndShapeChecksSound
+    ∧ soundness.malformedAlternativeOpeningsRejected
+
+structure ProductPiCCSPiRLCPiDECPrimitiveConstraintSoundness where
+  lowering : ProductTerminalVerifierAIRPrimitiveLowering
+  piCCSProjectionAndSumcheckSound : Prop
+  piRLCPublicCoinAndLinearCombinationSound : Prop
+  piRLCPerParentEvaluationPointSound : Prop
+  piDECDecompositionAndRecompositionSound : Prop
+  piDECLowNormAndPublicInputSplitSound : Prop
+
+def ProductPiCCSPiRLCPiDECPrimitiveConstraintSoundnessAccepted
+    (soundness : ProductPiCCSPiRLCPiDECPrimitiveConstraintSoundness) : Prop :=
+  ProductTerminalVerifierAIRPrimitiveLoweringAccepted soundness.lowering
+    ∧ soundness.piCCSProjectionAndSumcheckSound
+    ∧ soundness.piRLCPublicCoinAndLinearCombinationSound
+    ∧ soundness.piRLCPerParentEvaluationPointSound
+    ∧ soundness.piDECDecompositionAndRecompositionSound
+    ∧ soundness.piDECLowNormAndPublicInputSplitSound
+
+structure ProductSourceFreeCompressionImpliesTerminalAcceptance where
+  soundness : ProductTerminalVerifierAIRSoundness
+  sourceFreeCompressedVerifyAccepts : Prop
+  normalTerminalVerifierAcceptsBoundSource : Prop
+  sameVerifierKey : Prop
+  samePublicStatement : Prop
+  sameRecursiveRelationDigest : Prop
+  samePolicy : Prop
+  sameSourceDigest : Prop
+  sameSourceByteCount : Prop
+
+def ProductSourceFreeCompressionImpliesTerminalAcceptanceAccepted
+    (impl : ProductSourceFreeCompressionImpliesTerminalAcceptance) : Prop :=
+  ProductTerminalVerifierAIRSoundnessAccepted impl.soundness
+    ∧ impl.sameVerifierKey
+    ∧ impl.samePublicStatement
+    ∧ impl.sameRecursiveRelationDigest
+    ∧ impl.samePolicy
+    ∧ impl.sameSourceDigest
+    ∧ impl.sameSourceByteCount
+    ∧ (impl.sourceFreeCompressedVerifyAccepts →
+        impl.normalTerminalVerifierAcceptsBoundSource)
+
+theorem productSourceFreeCompression_sound_for_bound_source
+    {impl : ProductSourceFreeCompressionImpliesTerminalAcceptance}
+    (hImpl : ProductSourceFreeCompressionImpliesTerminalAcceptanceAccepted impl)
+    (hAccept : impl.sourceFreeCompressedVerifyAccepts) :
+    impl.normalTerminalVerifierAcceptsBoundSource := by
+  rcases hImpl with ⟨_, _, _, _, _, _, _, hImp⟩
+  exact hImp hAccept
 
 structure ProductFixedKindCTCORepeatedTapePlan where
   selectedDepth : Nat
