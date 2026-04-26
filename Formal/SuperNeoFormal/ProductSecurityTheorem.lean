@@ -252,12 +252,28 @@ structure ProductTerminalVerifierArithmetization where
   ceOpeningProofDigestBound : Prop
   verifierRelationRerunsFoldReduction : Prop
   verifierRelationRerunsTerminalCEOpening : Prop
+  verifierRelationRerunsPiCCS : Prop
+  verifierRelationRerunsPiRLC : Prop
+  verifierRelationRerunsPiDEC : Prop
+  verifierRelationRerunsAjtaiOpening : Prop
+  verifierRelationChecksModuleSISNorms : Prop
   fakeSourceDigestRejected : Prop
   sourceFreeSNARKStyleAcceptance : Prop
   sourceFreeSpartanFRIAcceptance : Prop
   spartanFRITraceBindsTerminalVerifierRelation : Prop
   malformedFRITraceRejected : Prop
   sourceFreeAcceptanceRequiresVerifierKey : Prop
+  productionVerifierConsumesCompressedProofBytes : Prop
+  productionVerifierRejectsExpandedVerifierWitness : Prop
+  sourceProofBytesAbsentFromProductionVerifier : Prop
+  expandedVerifierTraceAbsentFromProductionVerifier : Prop
+  terminalVerifierTraceColumnsCommitted : Prop
+  terminalVerifierBoundaryConstraintsCommitted : Prop
+  terminalVerifierTransitionConstraintsCommitted : Prop
+  terminalVerifierResidualPolynomialCommitted : Prop
+  traceResidualPCSFRIQueriesVerified : Prop
+  terminalVerifierExecutionIsProvedRelation : Prop
+  terminalAcceptBitOneConstrained : Prop
 
 def ProductTerminalVerifierArithmetizationAccepted
     (arith : ProductTerminalVerifierArithmetization) : Prop :=
@@ -271,22 +287,54 @@ def ProductTerminalVerifierArithmetizationAccepted
     ∧ arith.ceOpeningProofDigestBound
     ∧ arith.verifierRelationRerunsFoldReduction
     ∧ arith.verifierRelationRerunsTerminalCEOpening
+    ∧ arith.verifierRelationRerunsPiCCS
+    ∧ arith.verifierRelationRerunsPiRLC
+    ∧ arith.verifierRelationRerunsPiDEC
+    ∧ arith.verifierRelationRerunsAjtaiOpening
+    ∧ arith.verifierRelationChecksModuleSISNorms
     ∧ arith.fakeSourceDigestRejected
     ∧ arith.sourceFreeSNARKStyleAcceptance
     ∧ arith.sourceFreeSpartanFRIAcceptance
     ∧ arith.spartanFRITraceBindsTerminalVerifierRelation
     ∧ arith.malformedFRITraceRejected
     ∧ arith.sourceFreeAcceptanceRequiresVerifierKey
+    ∧ arith.productionVerifierConsumesCompressedProofBytes
+    ∧ arith.productionVerifierRejectsExpandedVerifierWitness
+    ∧ arith.sourceProofBytesAbsentFromProductionVerifier
+    ∧ arith.expandedVerifierTraceAbsentFromProductionVerifier
+    ∧ arith.terminalVerifierTraceColumnsCommitted
+    ∧ arith.terminalVerifierBoundaryConstraintsCommitted
+    ∧ arith.terminalVerifierTransitionConstraintsCommitted
+    ∧ arith.terminalVerifierResidualPolynomialCommitted
+    ∧ arith.traceResidualPCSFRIQueriesVerified
+    ∧ arith.terminalVerifierExecutionIsProvedRelation
+    ∧ arith.terminalAcceptBitOneConstrained
 
 theorem productCompressionSourceFree_from_terminalVerifierArithmetization
     {arith : ProductTerminalVerifierArithmetization}
     (hArith : ProductTerminalVerifierArithmetizationAccepted arith) :
     arith.sourceFreeSNARKStyleAcceptance
       ∧ arith.sourceFreeSpartanFRIAcceptance
+      ∧ arith.productionVerifierConsumesCompressedProofBytes
+      ∧ arith.sourceProofBytesAbsentFromProductionVerifier
+      ∧ arith.productionVerifierRejectsExpandedVerifierWitness
+      ∧ arith.expandedVerifierTraceAbsentFromProductionVerifier
       ∧ arith.canonicalSourceEnvelopeDigestBound
       ∧ arith.verifierRelationRerunsFoldReduction
+      ∧ arith.verifierRelationRerunsPiCCS
+      ∧ arith.verifierRelationRerunsPiRLC
+      ∧ arith.verifierRelationRerunsPiDEC
+      ∧ arith.verifierRelationRerunsAjtaiOpening
+      ∧ arith.verifierRelationChecksModuleSISNorms
       ∧ arith.verifierRelationRerunsTerminalCEOpening
-      ∧ arith.spartanFRITraceBindsTerminalVerifierRelation := by
+      ∧ arith.spartanFRITraceBindsTerminalVerifierRelation
+      ∧ arith.terminalVerifierTraceColumnsCommitted
+      ∧ arith.terminalVerifierBoundaryConstraintsCommitted
+      ∧ arith.terminalVerifierTransitionConstraintsCommitted
+      ∧ arith.terminalVerifierResidualPolynomialCommitted
+      ∧ arith.traceResidualPCSFRIQueriesVerified
+      ∧ arith.terminalVerifierExecutionIsProvedRelation
+      ∧ arith.terminalAcceptBitOneConstrained := by
   rcases hArith with
     ⟨_,
       hSourceDigest,
@@ -298,13 +346,32 @@ theorem productCompressionSourceFree_from_terminalVerifierArithmetization
       _,
       hFold,
       hCE,
+      hPiCCS,
+      hPiRLC,
+      hPiDEC,
+      hAjtai,
+      hModuleSIS,
       _,
       hSNARK,
       hSpartan,
       hTrace,
       _,
-      _⟩
-  exact ⟨hSNARK, hSpartan, hSourceDigest, hFold, hCE, hTrace⟩
+      _,
+      hBytes,
+      hNoWitness,
+      hNoSourceBytes,
+      hNoTrace,
+      hColumns,
+      hBoundary,
+      hTransition,
+      hResidual,
+      hQueries,
+      hExecution,
+      hAccept⟩
+  exact ⟨hSNARK, hSpartan, hBytes, hNoSourceBytes, hNoWitness, hNoTrace,
+    hSourceDigest, hFold, hPiCCS, hPiRLC, hPiDEC, hAjtai, hModuleSIS, hCE,
+    hTrace, hColumns, hBoundary, hTransition, hResidual, hQueries, hExecution,
+    hAccept⟩
 
 structure ProductFixedKindCTCORepeatedTapePlan where
   selectedDepth : Nat

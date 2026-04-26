@@ -126,6 +126,25 @@ EXPECTED_EXTRACTOR_THEOREMS = {
     "recursive-carry-depth-le-three": "productRecursiveCarryDepthLeThreeExtractor_from_acceptedProof",
 }
 
+EXPECTED_TERMINAL_VERIFIER_ARITHMETIZATION_FIELDS = [
+    "productionVerifierConsumesCompressedProofBytes",
+    "productionVerifierRejectsExpandedVerifierWitness",
+    "sourceProofBytesAbsentFromProductionVerifier",
+    "expandedVerifierTraceAbsentFromProductionVerifier",
+    "verifierRelationRerunsPiCCS",
+    "verifierRelationRerunsPiRLC",
+    "verifierRelationRerunsPiDEC",
+    "verifierRelationRerunsAjtaiOpening",
+    "verifierRelationChecksModuleSISNorms",
+    "terminalVerifierTraceColumnsCommitted",
+    "terminalVerifierBoundaryConstraintsCommitted",
+    "terminalVerifierTransitionConstraintsCommitted",
+    "terminalVerifierResidualPolynomialCommitted",
+    "traceResidualPCSFRIQueriesVerified",
+    "terminalVerifierExecutionIsProvedRelation",
+    "terminalAcceptBitOneConstrained",
+]
+
 
 def fail(message: str) -> None:
     print(f"product extractor loss accounting validation failed: {message}", file=sys.stderr)
@@ -211,6 +230,11 @@ def validate_formal_surface(accounting: dict[str, Any]) -> None:
     source = module_path.read_text(encoding="utf-8")
     for declaration in EXPECTED_FORMAL_DECLARATIONS:
         require(declaration in source, f"formal theorem source missing {declaration}")
+    for field in EXPECTED_TERMINAL_VERIFIER_ARITHMETIZATION_FIELDS:
+        require(
+            field in source,
+            f"ProductTerminalVerifierArithmetization missing succinct PCS/FRI field {field}",
+        )
 
 
 def validate_selected_depth(accounting: dict[str, Any]) -> None:

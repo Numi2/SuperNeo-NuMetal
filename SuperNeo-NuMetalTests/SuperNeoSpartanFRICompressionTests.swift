@@ -38,7 +38,7 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
 
         XCTAssertEqual(proof.statement.sourceProofKind, ProofEnvelopeKind.terminalLocal)
         XCTAssertTrue(proof.statement.hasValidDigest())
-        XCTAssertTrue(proof.terminalVerifierProof.hasValidDigest())
+        XCTAssertTrue(proof.terminalVerifierPCSProof.hasValidDigest())
         XCTAssertTrue(proof.witnessPCS.hasValidDigest())
         XCTAssertTrue(proof.residualPCS.hasValidDigest())
         XCTAssertEqual(proof.witnessPCS.baseCommitment.domainSize, proof.paddedDomainSize)
@@ -62,6 +62,27 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             ),
             .valid
         )
+        let decodedProof = try SuperNeoSpartanFRICompressionProof(bytes: proof.superNeoBytes)
+        XCTAssertEqual(decodedProof.proofDigest, proof.proofDigest)
+        XCTAssertEqual(
+            SuperNeoSpartanFRICompressor.verifyCompressionProof(
+                proofBytes: proof.superNeoBytes,
+                publicInput: publicInput,
+                verifierKey: fixture.key,
+                policy: policy
+            ),
+            .valid
+        )
+        var mutatedProofBytes = proof.superNeoBytes
+        mutatedProofBytes[mutatedProofBytes.count - 1] ^= 0x01
+        let mutatedByteResult = SuperNeoSpartanFRICompressor.verifyCompressionProof(
+            proofBytes: mutatedProofBytes,
+            publicInput: publicInput,
+            verifierKey: fixture.key,
+            policy: policy
+        )
+        XCTAssertFalse(mutatedByteResult.isValid)
+        XCTAssertTrue(mutatedByteResult.reason?.contains("decoding failed") ?? false)
         XCTAssertEqual(
             SuperNeoSpartanFRICompressor.verifyCompressionProof(
                 proof,
@@ -278,7 +299,7 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             arithmetizationDigest: proof.arithmetizationDigest,
             traceVectorLength: proof.traceVectorLength,
             paddedDomainSize: proof.paddedDomainSize,
-            terminalVerifierProof: proof.terminalVerifierProof,
+            terminalVerifierPCSProof: proof.terminalVerifierPCSProof,
             witnessPCS: proof.witnessPCS,
             residualPCS: tamperedResidualPCS
         )
@@ -362,7 +383,7 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             arithmetizationDigest: proof.arithmetizationDigest,
             traceVectorLength: proof.traceVectorLength,
             paddedDomainSize: proof.paddedDomainSize,
-            terminalVerifierProof: proof.terminalVerifierProof,
+            terminalVerifierPCSProof: proof.terminalVerifierPCSProof,
             witnessPCS: tamperedWitnessPCS,
             residualPCS: proof.residualPCS
         )
@@ -465,7 +486,7 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
                 arithmetizationDigest: proof.arithmetizationDigest,
                 traceVectorLength: proof.traceVectorLength,
                 paddedDomainSize: proof.paddedDomainSize,
-                terminalVerifierProof: proof.terminalVerifierProof,
+                terminalVerifierPCSProof: proof.terminalVerifierPCSProof,
                 witnessPCS: witnessPCS ?? proof.witnessPCS,
                 residualPCS: residualPCS ?? proof.residualPCS
             )
