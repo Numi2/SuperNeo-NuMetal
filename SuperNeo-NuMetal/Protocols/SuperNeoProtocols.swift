@@ -1298,21 +1298,13 @@ public enum CEOpeningRelation {
                 provenance: .primitiveArithmetic,
                 label: "ce-opening-\(openingIndex)-public-input-low-norm"
             ))
-            let openingContext = verifierContext.opening(at: openingIndex)
-            let packedPublicWitness = try makeCEPublicPackedWitness(
-                openingContext: openingContext,
-                shape: shape
-            )
-            let publicCommitment = executionPolicy.usesConstantWorkCPU
-                ? try AjtaiCommitter.commitConstantWorkReference(key: key, message: packedPublicWitness)
-                : try AjtaiCommitter.commitReference(key: key, message: packedPublicWitness)
             let target = verifierContext.target(at: openingIndex)
             rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
                 kind: kind,
                 provenance: .primitiveArithmetic,
                 label: "ce-opening-\(openingIndex)-ajtai-public-plus-private-target",
                 observedBytes: opening.instance.commitment.superNeoBytes,
-                expectedBytes: (publicCommitment + target.commitment).superNeoBytes
+                expectedBytes: (target.publicCommitment + target.commitment).superNeoBytes
             ))
         }
 
@@ -5902,6 +5894,7 @@ private func validateStrongSamplingCapacity(
 }
 
 private struct CEPrivateTarget: Equatable {
+    let publicCommitment: AjtaiCommitment
     let commitment: AjtaiCommitment
     let matrixEvals: [CyclotomicExt2Ring54]
 }
@@ -6351,6 +6344,7 @@ private func makeCEPrivateTarget(
     }
 
     return CEPrivateTarget(
+        publicCommitment: publicCommitment,
         commitment: opening.instance.commitment - publicCommitment,
         matrixEvals: try ceVectorSubtract(opening.instance.matrixEvals, publicEvaluations)
     )
@@ -6408,6 +6402,7 @@ private func makeCEPrivateTargets(
                 throw SuperNeoError.invalidParameter("CE opening commitment has wrong length")
             }
             targets[openingIndex] = CEPrivateTarget(
+                publicCommitment: combined.commitments[offset],
                 commitment: opening.instance.commitment - combined.commitments[offset],
                 matrixEvals: try ceVectorSubtract(opening.instance.matrixEvals, combined.evaluations[offset])
             )

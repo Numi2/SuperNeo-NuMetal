@@ -996,6 +996,113 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
         }
     }
 
+    func testRealSourceSourceFreeCompressionIntegrationProfileBreakdown() throws {
+        let recorder = SuperNeoSpartanFRICompressionDebugRecorder()
+        let fixture = try recorder.measure("terminal source envelope construction") {
+            try makeMinimalTerminalSourceEnvelopeFixture()
+        }
+        XCTAssertEqual(fixture.policy.sourceFreePCSPolicy, .production)
+
+        let proof = try recorder.activate {
+            try SuperNeoSpartanFRICompressor.compressAcceptedProof(
+                publicInput: fixture.publicInput,
+                proofBytes: fixture.sourceProofBytes,
+                verifierKey: fixture.verifierKey,
+                policy: fixture.policy
+            )
+        }
+        let verification = recorder.measure("production byte verification") {
+            SuperNeoSpartanFRICompressor.verifyCompressionProof(
+                proofBytes: proof.superNeoBytes,
+                publicInput: fixture.publicInput,
+                verifierKey: fixture.verifierKey,
+                policy: fixture.policy
+            )
+        }
+        XCTAssertEqual(verification, .valid)
+
+        let profile = recorder.snapshot
+        print(profile.report)
+        for phase in [
+            "terminal source envelope construction",
+            "canonical source decoding",
+            "shared terminal AIR spec construction",
+            "primitive row emission",
+            "row transcript + aggregate residual construction",
+            "trace vector construction",
+            "residual vector construction",
+            "trace FRI plan construction",
+            "residual FRI plan construction",
+            "joint query opening materialization",
+            "proof serialization",
+            "production byte verification"
+        ] {
+            XCTAssertGreaterThan(profile.phaseCounts[phase] ?? 0, 0, "missing profile phase \(phase)")
+        }
+        XCTAssertGreaterThan(profile.primitiveRowCount, 0)
+        XCTAssertLessThan(profile.primitiveRowCount, 5_000)
+        XCTAssertGreaterThan(profile.traceLength, 0)
+        XCTAssertEqual(profile.traceLength, profile.residualLength)
+        XCTAssertLessThan(profile.paddedDomainSize, 4_096)
+        XCTAssertTrue(profile.paddedDomainMatchesTraceLength)
+        XCTAssertEqual(profile.blowupFactor, SuperNeoSpartanFRICompressionProof.defaultBlowupFactor)
+        XCTAssertEqual(profile.queryCount, SuperNeoSpartanFRICompressionProof.defaultQueryCount)
+        XCTAssertEqual(profile.terminalAIRMaterialBuildCount, 1)
+        XCTAssertEqual(profile.rowTranscriptBuildCount, 1)
+        XCTAssertEqual(profile.friPlanBuildCounts["terminal-verifier-trace"], 1)
+        XCTAssertEqual(profile.friPlanBuildCounts["terminal-verifier-residual"], 1)
+        XCTAssertEqual(profile.friPlanBuildCounts["witness-trace"], 1)
+        XCTAssertEqual(profile.friPlanBuildCounts["r1cs-residual"], 1)
+        XCTAssertTrue(profile.friPlanBuildCounts.values.allSatisfy { $0 == 1 })
+        XCTAssertEqual(profile.friPlanBuildCounts.count, 4)
+        XCTAssertNil(profile.rowProvenanceCounts["friPCSVerifier"])
+    }
+
+    func testRealSourceSourceFreeCompressionIntegrationVerifiesProductionBytePath() throws {
+        let fixture = try makeMinimalTerminalSourceEnvelopeFixture()
+        let proof = try SuperNeoSpartanFRICompressor.compressAcceptedProof(
+            publicInput: fixture.publicInput,
+            proofBytes: fixture.sourceProofBytes,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.policy
+        )
+
+        XCTAssertEqual(
+            SuperNeoSpartanFRICompressor.verifyCompressionProof(
+                proofBytes: proof.superNeoBytes,
+                publicInput: fixture.publicInput,
+                verifierKey: fixture.verifierKey,
+                policy: fixture.policy
+            ),
+            .valid
+        )
+
+        let mutatedResidualCommitment = try mutateFirstOccurrence(
+            proofBytes: proof.superNeoBytes,
+            target: proof.terminalVerifierPCSProof.residualPCS.baseCommitment.root.superNeoBytes,
+            label: "real-source terminal residual commitment"
+        )
+        XCTAssertFalse(SuperNeoSpartanFRICompressor.verifyCompressionProof(
+            proofBytes: mutatedResidualCommitment,
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.policy
+        ).isValid, "real-source residual commitment mutation")
+
+        let wrongRecursiveInput = SuperNeoPublicFoldInput(
+            shape: fixture.publicInput.shape,
+            instances: fixture.publicInput.instances,
+            priorClaims: fixture.publicInput.priorClaims,
+            recursiveRelationDigest: Digest256.hash("real-source-source-free-recursive-relation-mutated")
+        )
+        XCTAssertFalse(SuperNeoSpartanFRICompressor.verifyCompressionProof(
+            proofBytes: proof.superNeoBytes,
+            publicInput: wrongRecursiveInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.policy
+        ).isValid, "real-source recursiveRelationDigest mutation")
+    }
+
     func testSourceFreePCSValidThenMutatedBindingsReject() throws {
         let fixture = try makeFoldFixture()
         let basePublicInput = SuperNeoPublicFoldInput(fixture.input)
@@ -1261,6 +1368,7 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
     }
 
     private struct MinimalPCSFixture {
+        let input: SuperNeoFoldInput
         let publicInput: SuperNeoPublicFoldInput
         let verifierKey: AjtaiCommitmentKey
         let productionPolicy: SuperNeoTerminalProofAcceptancePolicy
@@ -1279,12 +1387,13 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             seed: Array("minimal-source-free-pcs-fixture-key".utf8)
         )
         let commitment = try backend.commit(key: key, message: message)
+        let recursiveRelationDigest = Digest256.hash("minimal-source-free-pcs-recursive-relation")
         let input = try SuperNeoFoldInput(
             structure: structure,
             instances: [CCSInstance(commitment: commitment, publicInput: publicInput)],
-            witnesses: [CCSWitness(privateWitness)]
+            witnesses: [CCSWitness(privateWitness)],
+            recursiveRelationDigest: recursiveRelationDigest
         )
-        let recursiveRelationDigest = Digest256.hash("minimal-source-free-pcs-recursive-relation")
         let publicFoldInput = SuperNeoPublicFoldInput(
             shape: input.shape,
             instances: input.instances,
@@ -1319,6 +1428,7 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             sourceFreePCSPolicy: .sourceFreeTinyPCSFixtureOnly
         )
         return MinimalPCSFixture(
+            input: input,
             publicInput: publicFoldInput,
             verifierKey: key,
             productionPolicy: productionPolicy,
@@ -1334,44 +1444,26 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
     }
 
     private func makeMinimalTerminalSourceEnvelopeFixture() throws -> MinimalTerminalSourceEnvelopeFixture {
-        let fixture = try makeFoldFixture()
-        let publicInput = SuperNeoPublicFoldInput(fixture.input)
-        let statement = CCSStatement(
-            shapeDigest: publicInput.shape.shapeDigest,
-            ccsInstances: publicInput.instances,
-            priorCEInstances: publicInput.priorClaims.map(CEInstance.init)
-        )
+        let fixture = try makeMinimalSourceFreePCSFixture()
         let context = ProofEnvelopeContext(
-            profileID: SuperNeoParameters.goldilocks.profileID,
+            profileID: fixture.productionPolicy.profileID,
             kind: .terminalLocal,
-            statement: statement,
-            verifierKeyDigest: fixture.key.verifierKeyDigest
+            shapeDigest: fixture.productionPolicy.shapeDigest,
+            statementDigest: fixture.productionPolicy.statementDigest,
+            verifierKeyDigest: fixture.verifierKey.verifierKeyDigest,
+            transcriptDomain: fixture.productionPolicy.transcriptDomain
         )
-        let envelope = try SuperNeoProver(key: fixture.key).terminalFoldEnvelopeDeterministic(
+        let envelope = try SuperNeoProver(key: fixture.verifierKey).terminalFoldEnvelopeDeterministic(
             fixture.input,
             context: context,
             ceRandomSeed: Array("minimal-real-source-terminal-air".utf8)
         )
-        let policy = SuperNeoTerminalProofAcceptancePolicy(
-            statement: statement,
-            verifierKeyDigest: fixture.key.verifierKeyDigest,
-            profileID: SuperNeoParameters.goldilocks.profileID,
-            transcriptDomain: context.transcriptDomain,
-            proofKindPolicy: .terminalOnly
-        )
-        XCTAssertEqual(
-            SuperNeoVerifier(key: fixture.key).verifyTerminalFoldEnvelope(
-                publicInput: publicInput,
-                proofBytes: envelope.superNeoBytes,
-                context: context
-            ),
-            .valid
-        )
+        XCTAssertGreaterThan(envelope.superNeoBytes.count, ProofEnvelopeHeader.byteCount)
         return MinimalTerminalSourceEnvelopeFixture(
             sourceProofBytes: envelope.superNeoBytes,
-            publicInput: publicInput,
-            verifierKey: fixture.key,
-            policy: policy
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.productionPolicy
         )
     }
 

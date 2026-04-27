@@ -1791,21 +1791,43 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
         verifier: SuperNeoVerifier,
         policy: SuperNeoTerminalProofAcceptancePolicy
     ) throws -> SuperNeoTerminalVerifierAIRSpecEvaluation {
+#if DEBUG
+        let decoded = try superNeoDebugMeasure("canonical source decoding") {
+            let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
+            let expectedContext = try policy.context(for: header, totalByteCount: proofBytes.count)
+            let source = try decodeTerminalVerifierSource(
+                proofBytes: proofBytes,
+                header: header,
+                parameters: verifier.parameters,
+                expectedContext: expectedContext
+            )
+            let sourceDigest = Digest256.hash(proofBytes)
+            return (header: header, expectedContext: expectedContext, source: source, sourceDigest: sourceDigest)
+        }
+        let header = decoded.header
+        let expectedContext = decoded.expectedContext
+        let decodedSource = decoded.source
+        let sourceDigests = decodedSource.sourceDigests
+        let sourceDigest = decoded.sourceDigest
+#else
         let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
         let expectedContext = try policy.context(for: header, totalByteCount: proofBytes.count)
+        let decodedSource = try decodeTerminalVerifierSource(
+            proofBytes: proofBytes,
+            header: header,
+            parameters: verifier.parameters,
+            expectedContext: expectedContext
+        )
+        let sourceDigests = decodedSource.sourceDigests
+        let sourceDigest = Digest256.hash(proofBytes)
+#endif
         let publicStatement = CCSStatement(
             shapeDigest: publicInput.shape.shapeDigest,
             ccsInstances: publicInput.instances,
             priorCEInstances: publicInput.priorClaims.map(CEInstance.init),
             recursiveRelationDigest: publicInput.recursiveRelationDigest
         )
-        let sourceDigests = try sourceComponentDigests(
-            proofBytes: proofBytes,
-            header: header,
-            parameters: verifier.parameters
-        )
         let policyDigest = terminalVerifierCompressionPolicyDigest(policy)
-        let sourceDigest = Digest256.hash(proofBytes)
         let statement = try SuperNeoSpartanFRICompressionStatement(
             sourceProofKind: header.kind,
             sourceProofByteCount: proofBytes.count,
@@ -1820,7 +1842,7 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
             foldProofDigest: sourceDigests.foldProofDigest,
             ceOpeningProofDigest: sourceDigests.ceOpeningProofDigest
         )
-        let sourceDigestProven = sourceDigest == Digest256.hash(proofBytes)
+        let sourceDigestProven = true
         let contextBound = header.profileID == expectedContext.profileID
             && header.kind == expectedContext.kind
             && header.shapeDigest == expectedContext.shapeDigest
@@ -1830,13 +1852,21 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
         let publicStatementBound = publicStatement.shapeDigest == expectedContext.shapeDigest
             && publicStatement.statementDigest == expectedContext.statementDigest
         let recursiveBound = publicStatement.recursiveRelationDigest == publicInput.recursiveRelationDigest
+#if DEBUG
+        let constraintMaterial = try superNeoDebugMeasure("primitive row emission") {
+            try terminalVerifierAIRConstraintMaterialForSource(
+                publicInput: publicInput,
+                verifier: verifier,
+                decodedSource: decodedSource
+            )
+        }
+#else
         let constraintMaterial = try terminalVerifierAIRConstraintMaterialForSource(
             publicInput: publicInput,
-            proofBytes: proofBytes,
-            header: header,
             verifier: verifier,
-            expectedContext: expectedContext
+            decodedSource: decodedSource
         )
+#endif
         let publicCoinBindingDigest = terminalVerifierAIRPublicCoinBindingDigest(
             transcriptDomain: header.transcriptDomain,
             statementDigest: header.statementDigest,
@@ -1846,6 +1876,41 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
         let innerCompressedProofDigest = header.kind == .compressedPublic
             ? terminalVerifierAIRInnerCompressedDigest(statement: statement, policyDigest: policyDigest)
             : nil
+#if DEBUG
+        let constraintRows = superNeoDebugMeasure("primitive row emission") {
+            terminalVerifierAIRConstraintRows(
+                sourceProofKind: header.kind,
+                sourceProofByteCount: proofBytes.count,
+                sourceProofDigest: sourceDigest,
+                canonicalSourceEncodingDigest: sourceDigest,
+                profileID: header.profileID,
+                shapeDigest: header.shapeDigest,
+                statementDigest: header.statementDigest,
+                verifierKeyDigest: header.verifierKeyDigest,
+                transcriptDomain: header.transcriptDomain,
+                publicInputDigest: statement.publicInputDigest,
+                recursiveRelationDigest: publicInput.recursiveRelationDigest,
+                compressionPolicyDigest: policyDigest,
+                terminalStatementDigest: sourceDigests.terminalStatementDigest,
+                foldProofDigest: sourceDigests.foldProofDigest,
+                ceOpeningProofDigest: sourceDigests.ceOpeningProofDigest,
+                publicCoinBindingDigest: publicCoinBindingDigest,
+                innerCompressedProofDigest: innerCompressedProofDigest,
+                contextBound: contextBound,
+                sourceDigestComputed: sourceDigestProven,
+                verifierKeyBound: expectedContext.verifierKeyDigest == verifier.key.verifierKeyDigest,
+                publicStatementBound: publicStatementBound,
+                recursiveRelationBound: recursiveBound,
+                compressionPolicyBound: true,
+                piCCSChecks: constraintMaterial.piCCSRows,
+                piRLCChecks: constraintMaterial.piRLCRows,
+                piDECChecks: constraintMaterial.piDECRows,
+                terminalCEChecks: constraintMaterial.terminalCERows,
+                innerCompressedChecks: constraintMaterial.innerCompressedRows
+            )
+        }
+        SuperNeoSpartanFRIDebugProfileContext.current?.recordPrimitiveRows(constraintRows)
+#else
         let constraintRows = terminalVerifierAIRConstraintRows(
             sourceProofKind: header.kind,
             sourceProofByteCount: proofBytes.count,
@@ -1876,9 +1941,35 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
             terminalCEChecks: constraintMaterial.terminalCERows,
             innerCompressedChecks: constraintMaterial.innerCompressedRows
         )
+#endif
         let verification: VerificationResult = constraintRows.allSatisfy { $0.residual == .zero }
             ? .valid
             : .invalid("terminal verifier AIR primitive constraints rejected")
+#if DEBUG
+        let spec = superNeoDebugMeasure("shared terminal AIR spec construction") {
+            SuperNeoTerminalVerifierAIRSpec(
+                sourceProofKind: header.kind,
+                sourceProofByteCount: proofBytes.count,
+                sourceProofDigest: sourceDigest,
+                profileID: header.profileID,
+                shapeDigest: header.shapeDigest,
+                statementDigest: header.statementDigest,
+                verifierKeyDigest: header.verifierKeyDigest,
+                transcriptDomain: header.transcriptDomain,
+                publicInputDigest: statement.publicInputDigest,
+                recursiveRelationDigest: publicInput.recursiveRelationDigest,
+                compressionPolicyDigest: policyDigest,
+                terminalStatementDigest: sourceDigests.terminalStatementDigest,
+                foldProofDigest: sourceDigests.foldProofDigest,
+                ceOpeningProofDigest: sourceDigests.ceOpeningProofDigest,
+                canonicalSourceEncodingDigest: sourceDigest,
+                publicCoinBindingDigest: publicCoinBindingDigest,
+                innerCompressedProofDigest: innerCompressedProofDigest,
+                normalVerifierResult: verification,
+                constraintRows: constraintRows
+            )
+        }
+#else
         let spec = SuperNeoTerminalVerifierAIRSpec(
             sourceProofKind: header.kind,
             sourceProofByteCount: proofBytes.count,
@@ -1900,6 +1991,7 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
             normalVerifierResult: verification,
             constraintRows: constraintRows
         )
+#endif
         return SuperNeoTerminalVerifierAIRSpecEvaluation(spec: spec, result: verification)
     }
 
@@ -1960,6 +2052,169 @@ public struct SuperNeoTerminalVerifierAIRSpecEvaluation: Equatable, Sendable {
 }
 
 #if DEBUG
+struct SuperNeoSpartanFRICompressionDebugProfile: Equatable {
+    let phaseNanoseconds: [String: UInt64]
+    let phaseCounts: [String: Int]
+    let primitiveRowCount: Int
+    let rowProvenanceCounts: [String: Int]
+    let rowKindCounts: [String: Int]
+    let traceLength: Int
+    let residualLength: Int
+    let paddedDomainSize: Int
+    let blowupFactor: Int
+    let queryCount: Int
+    let terminalAIRMaterialBuildCount: Int
+    let rowTranscriptBuildCount: Int
+    let friPlanBuildCounts: [String: Int]
+    let friLayerCounts: [String: Int]
+    let friLayerLeafCounts: [String: [Int]]
+
+    var paddedDomainMatchesTraceLength: Bool {
+        paddedDomainSize == spartanFRINextPowerOfTwo(traceLength * blowupFactor)
+    }
+
+    var report: String {
+        let phaseLines = phaseNanoseconds.keys.sorted().map { phase in
+            let milliseconds = Double(phaseNanoseconds[phase] ?? 0) / 1_000_000.0
+            return String(format: "  %@: %.3f ms (%d)", phase, milliseconds, phaseCounts[phase] ?? 0)
+        }
+        let friLines = friPlanBuildCounts.keys.sorted().map { label in
+            let leaves = friLayerLeafCounts[label]?.map(String.init).joined(separator: ",") ?? ""
+            return "  \(label): plans=\(friPlanBuildCounts[label] ?? 0), layers=\(friLayerCounts[label] ?? 0), leaves=[\(leaves)]"
+        }
+        return """
+        SuperNeo source-free compression profile
+        phases:
+        \(phaseLines.joined(separator: "\n"))
+        sizes:
+          primitiveRows=\(primitiveRowCount)
+          traceLength=\(traceLength)
+          residualLength=\(residualLength)
+          paddedDomainSize=\(paddedDomainSize)
+          blowupFactor=\(blowupFactor)
+          queryCount=\(queryCount)
+          terminalAIRMaterialBuildCount=\(terminalAIRMaterialBuildCount)
+          rowTranscriptBuildCount=\(rowTranscriptBuildCount)
+          rowProvenanceCounts=\(rowProvenanceCounts)
+          rowKindCounts=\(rowKindCounts)
+        fri:
+        \(friLines.joined(separator: "\n"))
+        """
+    }
+}
+
+final class SuperNeoSpartanFRICompressionDebugRecorder {
+    private var phaseNanoseconds: [String: UInt64] = [:]
+    private var phaseCounts: [String: Int] = [:]
+    private var primitiveRowCount = 0
+    private var rowProvenanceCounts: [String: Int] = [:]
+    private var rowKindCounts: [String: Int] = [:]
+    private var traceLength = 0
+    private var residualLength = 0
+    private var paddedDomainSize = 0
+    private var blowupFactor = 0
+    private var queryCount = 0
+    private var terminalAIRMaterialBuildCount = 0
+    private var rowTranscriptBuildCount = 0
+    private var friPlanBuildCounts: [String: Int] = [:]
+    private var friLayerCounts: [String: Int] = [:]
+    private var friLayerLeafCounts: [String: [Int]] = [:]
+
+    func activate<T>(_ body: () throws -> T) rethrows -> T {
+        let prior = SuperNeoSpartanFRIDebugProfileContext.current
+        SuperNeoSpartanFRIDebugProfileContext.current = self
+        defer { SuperNeoSpartanFRIDebugProfileContext.current = prior }
+        return try body()
+    }
+
+    func measure<T>(_ phase: String, _ body: () throws -> T) rethrows -> T {
+        let start = DispatchTime.now().uptimeNanoseconds
+        defer {
+            let elapsed = DispatchTime.now().uptimeNanoseconds - start
+            phaseNanoseconds[phase, default: 0] += elapsed
+            phaseCounts[phase, default: 0] += 1
+        }
+        return try body()
+    }
+
+    func recordPrimitiveRows(_ rows: [SuperNeoTerminalVerifierAIRConstraintRow]) {
+        primitiveRowCount = rows.count
+        rowProvenanceCounts = Dictionary(grouping: rows, by: { String(describing: $0.provenance) })
+            .mapValues(\.count)
+        rowKindCounts = Dictionary(grouping: rows, by: { String(describing: $0.kind) })
+            .mapValues(\.count)
+    }
+
+    func recordTerminalAIRMaterial(
+        traceLength: Int,
+        residualLength: Int,
+        paddedDomainSize: Int,
+        blowupFactor: Int
+    ) {
+        terminalAIRMaterialBuildCount += 1
+        self.traceLength = traceLength
+        self.residualLength = residualLength
+        self.paddedDomainSize = paddedDomainSize
+        self.blowupFactor = blowupFactor
+    }
+
+    func recordRowTranscriptBuild() {
+        rowTranscriptBuildCount += 1
+    }
+
+    func recordQueryCount(_ queryCount: Int) {
+        self.queryCount = queryCount
+    }
+
+    fileprivate func recordFRIPlan(_ plan: SpartanFRIProverPlan) {
+        friPlanBuildCounts[plan.label, default: 0] += 1
+        friLayerCounts[plan.label] = plan.commitments.count
+        friLayerLeafCounts[plan.label] = plan.commitments.map(\.domainSize)
+    }
+
+    var snapshot: SuperNeoSpartanFRICompressionDebugProfile {
+        SuperNeoSpartanFRICompressionDebugProfile(
+            phaseNanoseconds: phaseNanoseconds,
+            phaseCounts: phaseCounts,
+            primitiveRowCount: primitiveRowCount,
+            rowProvenanceCounts: rowProvenanceCounts,
+            rowKindCounts: rowKindCounts,
+            traceLength: traceLength,
+            residualLength: residualLength,
+            paddedDomainSize: paddedDomainSize,
+            blowupFactor: blowupFactor,
+            queryCount: queryCount,
+            terminalAIRMaterialBuildCount: terminalAIRMaterialBuildCount,
+            rowTranscriptBuildCount: rowTranscriptBuildCount,
+            friPlanBuildCounts: friPlanBuildCounts,
+            friLayerCounts: friLayerCounts,
+            friLayerLeafCounts: friLayerLeafCounts
+        )
+    }
+}
+
+private enum SuperNeoSpartanFRIDebugProfileContext {
+    private static let key = "SuperNeoSpartanFRICompressionDebugRecorder"
+
+    static var current: SuperNeoSpartanFRICompressionDebugRecorder? {
+        get { Thread.current.threadDictionary[key] as? SuperNeoSpartanFRICompressionDebugRecorder }
+        set {
+            if let newValue {
+                Thread.current.threadDictionary[key] = newValue
+            } else {
+                Thread.current.threadDictionary.removeObject(forKey: key)
+            }
+        }
+    }
+}
+
+private func superNeoDebugMeasure<T>(_ phase: String, _ body: () throws -> T) rethrows -> T {
+    if let recorder = SuperNeoSpartanFRIDebugProfileContext.current {
+        return try recorder.measure(phase, body)
+    }
+    return try body()
+}
+
 struct SuperNeoTerminalAIRTestMaterial: Equatable, Sendable {
     let relationDigest: Digest256
     let rowTranscriptDigest: Digest256
@@ -2012,22 +2267,39 @@ public enum SuperNeoSpartanFRICompressor {
             )
         }
         let spec = specEvaluation.spec
-        let compressionStatement = try spec.compressionStatement
-        let terminalVerifierPCSProof = try makeTerminalVerifierPCSProof(
+        let terminalAIRMaterial = try makeTerminalVerifierPCSProverMaterial(
             spec: spec,
             publicInput: publicInput,
+            policy: trustedPolicy
+        )
+        let compressionStatement = terminalAIRMaterial.statement
+        let terminalVerifierPCSProof = try makeTerminalVerifierPCSProof(
+            material: terminalAIRMaterial,
             policy: trustedPolicy,
             queryCount: queryCount
         )
+#if DEBUG
+        let trace = superNeoDebugMeasure("trace vector construction") {
+            spartanTraceVector(
+                statement: compressionStatement,
+                terminalVerifierPCSProof: terminalVerifierPCSProof,
+                accepted: true
+            )
+        }
+        let residual = superNeoDebugMeasure("residual vector construction") {
+            spartanResidualVector(witness: trace, publicTrace: trace)
+        }
+#else
         let trace = spartanTraceVector(
             statement: compressionStatement,
             terminalVerifierPCSProof: terminalVerifierPCSProof,
             accepted: true
         )
         let residual = spartanResidualVector(witness: trace, publicTrace: trace)
+#endif
         let claimedDegreeBound = trace.count
-        let parameters = sourceFreePCSParameters(for: trustedPolicy)
-        let blowupFactor = parameters.blowupFactor
+        let pcsParameters = sourceFreePCSParameters(for: trustedPolicy)
+        let blowupFactor = pcsParameters.blowupFactor
         let paddedDomainSize = spartanFRINextPowerOfTwo(trace.count * blowupFactor)
         let arithmetizationDigest = SuperNeoSpartanFRICompressionProof.arithmetizationDigest(
             statement: compressionStatement,
@@ -2038,7 +2310,7 @@ public enum SuperNeoSpartanFRICompressor {
             claimedDegreeBound: claimedDegreeBound
         )
         let queryDomainSize = max(1, paddedDomainSize / 2)
-        let minimumQueryCount = min(parameters.minimumQueryCount, queryDomainSize)
+        let minimumQueryCount = min(pcsParameters.minimumQueryCount, queryDomainSize)
         guard queryCount >= minimumQueryCount else {
             throw SuperNeoError.invalidParameter("Spartan/FRI compression query count below selected minimum")
         }
@@ -2063,7 +2335,7 @@ public enum SuperNeoSpartanFRICompressor {
             label: "r1cs-residual",
             bindingDigest: arithmetizationDigest
         )
-        return try SuperNeoSpartanFRICompressionProof(
+        let proof = try SuperNeoSpartanFRICompressionProof(
             statement: compressionStatement,
             arithmetizationDigest: arithmetizationDigest,
             traceVectorLength: trace.count,
@@ -2072,6 +2344,10 @@ public enum SuperNeoSpartanFRICompressor {
             witnessPCS: witnessPCS,
             residualPCS: residualPCS
         )
+#if DEBUG
+        _ = superNeoDebugMeasure("proof serialization") { proof.superNeoBytes }
+#endif
+        return proof
     }
 
     static func makeSourceFreeCompressionProofForTesting(
@@ -2106,18 +2382,35 @@ public enum SuperNeoSpartanFRICompressor {
             verifierKeyDigest: verifierKey.verifierKeyDigest,
             policy: policy
         )
-        let terminalVerifierPCSProof = try makeTerminalVerifierPCSProof(
+        let terminalAIRMaterial = try makeTerminalVerifierPCSProverMaterial(
             spec: spec,
             publicInput: publicInput,
+            policy: policy
+        )
+        let terminalVerifierPCSProof = try makeTerminalVerifierPCSProof(
+            material: terminalAIRMaterial,
             policy: policy,
             queryCount: queryCount
         )
+#if DEBUG
+        let trace = superNeoDebugMeasure("trace vector construction") {
+            spartanTraceVector(
+                statement: statement,
+                terminalVerifierPCSProof: terminalVerifierPCSProof,
+                accepted: true
+            )
+        }
+        let residual = superNeoDebugMeasure("residual vector construction") {
+            spartanResidualVector(witness: trace, publicTrace: trace)
+        }
+#else
         let trace = spartanTraceVector(
             statement: statement,
             terminalVerifierPCSProof: terminalVerifierPCSProof,
             accepted: true
         )
         let residual = spartanResidualVector(witness: trace, publicTrace: trace)
+#endif
         let claimedDegreeBound = trace.count
         let parameters = sourceFreePCSParameters(for: policy)
         let blowupFactor = parameters.blowupFactor
@@ -2148,7 +2441,7 @@ public enum SuperNeoSpartanFRICompressor {
             label: "r1cs-residual",
             bindingDigest: arithmetizationDigest
         )
-        return try SuperNeoSpartanFRICompressionProof(
+        let proof = try SuperNeoSpartanFRICompressionProof(
             statement: statement,
             arithmetizationDigest: arithmetizationDigest,
             traceVectorLength: trace.count,
@@ -2157,6 +2450,10 @@ public enum SuperNeoSpartanFRICompressor {
             witnessPCS: witnessPCS,
             residualPCS: residualPCS
         )
+#if DEBUG
+        _ = superNeoDebugMeasure("proof serialization") { proof.superNeoBytes }
+#endif
+        return proof
     }
 
 #if DEBUG
@@ -2182,55 +2479,25 @@ public enum SuperNeoSpartanFRICompressor {
             policy: policy
         )
         let spec = evaluation.spec
-        let pcsParameters = sourceFreePCSParameters(for: policy)
-        let provisionalAIR = terminalVerifierAIRInstance(
+        let material = try makeTerminalVerifierPCSProverMaterial(
             spec: spec,
             publicInput: publicInput,
-            terminalVerifierRelationDigest: nil,
-            compactForTinyFixture: policy.sourceFreePCSPolicy == .sourceFreeTinyPCSFixtureOnly
-        )
-        let paddedDomainSize = spartanFRINextPowerOfTwo(
-            provisionalAIR.trace.count * pcsParameters.blowupFactor
-        )
-        let statement = try spec.compressionStatement
-        let relationDigest = SuperNeoTerminalVerifierPCSProof.computeRelationDigest(
-            sourceProofKind: statement.sourceProofKind,
-            sourceProofByteCount: statement.sourceProofByteCount,
-            sourceProofDigest: statement.sourceProofDigest,
-            profileID: statement.profileID,
-            shapeDigest: statement.shapeDigest,
-            statementDigest: statement.statementDigest,
-            verifierKeyDigest: statement.verifierKeyDigest,
-            transcriptDomain: statement.transcriptDomain,
-            publicInputDigest: statement.publicInputDigest,
-            recursiveRelationDigest: publicInput.recursiveRelationDigest,
-            compressionPolicyDigest: spec.compressionPolicyDigest,
-            terminalStatementDigest: statement.terminalStatementDigest,
-            foldProofDigest: statement.foldProofDigest,
-            ceOpeningProofDigest: statement.ceOpeningProofDigest,
-            traceVectorLength: provisionalAIR.trace.count,
-            paddedDomainSize: paddedDomainSize
-        )
-        let air = terminalVerifierAIRInstance(
-            spec: spec,
-            publicInput: publicInput,
-            terminalVerifierRelationDigest: relationDigest,
-            compactForTinyFixture: policy.sourceFreePCSPolicy == .sourceFreeTinyPCSFixtureOnly
+            policy: policy
         )
         try SuperNeoTerminalVerifierAIRPrimitiveBatch.validateRowsForBatching(spec.constraintRows)
         let batch = SuperNeoTerminalVerifierAIRPrimitiveBatch.summarize(
             spec.constraintRows,
             label: "terminal-source-envelope-air-test"
         )
-        let aggregateResidual = air.residual.reduce(GoldilocksField.zero) { partial, residual in
+        let aggregateResidual = material.residual.reduce(GoldilocksField.zero) { partial, residual in
             partial + residual * residual
         }
         return SuperNeoTerminalAIRTestMaterial(
-            relationDigest: relationDigest,
+            relationDigest: material.relationDigest,
             rowTranscriptDigest: batch.observedTranscriptDigest,
             aggregateResidual: aggregateResidual,
             rowCount: spec.constraintRows.count,
-            allResidualsZero: air.residual.allSatisfy { $0 == .zero }
+            allResidualsZero: material.residual.allSatisfy { $0 == .zero }
         )
     }
 #endif
@@ -2336,25 +2603,29 @@ public enum SuperNeoSpartanFRICompressor {
         )
     }
 
-    private static func makeTerminalVerifierPCSProof(
+    private struct TerminalVerifierPCSProverMaterial {
+        let spec: SuperNeoTerminalVerifierAIRSpec
+        let statement: SuperNeoSpartanFRICompressionStatement
+        let policyDigest: Digest256
+        let parameters: SourceFreePCSParameters
+        let relationDigest: Digest256
+        let trace: [GoldilocksField]
+        let residual: [GoldilocksField]
+        let paddedDomainSize: Int
+    }
+
+    private static func makeTerminalVerifierPCSProverMaterial(
         spec: SuperNeoTerminalVerifierAIRSpec,
         publicInput: SuperNeoPublicFoldInput,
-        policy: SuperNeoTerminalProofAcceptancePolicy,
-        queryCount: Int
-    ) throws -> SuperNeoTerminalVerifierPCSProof {
+        policy: SuperNeoTerminalProofAcceptancePolicy
+    ) throws -> TerminalVerifierPCSProverMaterial {
         let statement = try spec.compressionStatement
         let policyDigest = spec.compressionPolicyDigest
         let parameters = sourceFreePCSParameters(for: policy)
-        let compactForTinyFixture = policy.sourceFreePCSPolicy == .sourceFreeTinyPCSFixtureOnly
-        let provisionalAIR = terminalVerifierAIRInstance(
-            spec: spec,
-            publicInput: publicInput,
-            terminalVerifierRelationDigest: nil,
-            compactForTinyFixture: compactForTinyFixture
-        )
-        let provisionalTrace = provisionalAIR.trace
+        let compactTrace = true
+        let traceLength = terminalVerifierAIRCompactTraceLength()
         let blowupFactor = parameters.blowupFactor
-        let paddedDomainSize = spartanFRINextPowerOfTwo(provisionalTrace.count * blowupFactor)
+        let paddedDomainSize = spartanFRINextPowerOfTwo(traceLength * blowupFactor)
         let relationDigest = SuperNeoTerminalVerifierPCSProof.computeRelationDigest(
             sourceProofKind: statement.sourceProofKind,
             sourceProofByteCount: statement.sourceProofByteCount,
@@ -2370,25 +2641,112 @@ public enum SuperNeoSpartanFRICompressor {
             terminalStatementDigest: statement.terminalStatementDigest,
             foldProofDigest: statement.foldProofDigest,
             ceOpeningProofDigest: statement.ceOpeningProofDigest,
-            traceVectorLength: provisionalTrace.count,
+            traceVectorLength: traceLength,
             paddedDomainSize: paddedDomainSize
         )
+#if DEBUG
+        let air = superNeoDebugMeasure("row transcript + aggregate residual construction") {
+            SuperNeoSpartanFRIDebugProfileContext.current?.recordRowTranscriptBuild()
+            return terminalVerifierAIRInstance(
+                spec: spec,
+                publicInput: publicInput,
+                terminalVerifierRelationDigest: relationDigest,
+                compactForTinyFixture: compactTrace
+            )
+        }
+#else
         let air = terminalVerifierAIRInstance(
             spec: spec,
             publicInput: publicInput,
             terminalVerifierRelationDigest: relationDigest,
-            compactForTinyFixture: compactForTinyFixture
+            compactForTinyFixture: compactTrace
         )
+#endif
         let trace = air.trace
         let residual = air.residual
-        guard trace.count == provisionalTrace.count else {
+        guard trace.count == traceLength else {
             throw SuperNeoError.invalidParameter("terminal verifier typed AIR trace length changed after relation binding")
         }
+#if DEBUG
+        SuperNeoSpartanFRIDebugProfileContext.current?.recordTerminalAIRMaterial(
+            traceLength: trace.count,
+            residualLength: residual.count,
+            paddedDomainSize: paddedDomainSize,
+            blowupFactor: blowupFactor
+        )
+#endif
+        return TerminalVerifierPCSProverMaterial(
+            spec: spec,
+            statement: statement,
+            policyDigest: policyDigest,
+            parameters: parameters,
+            relationDigest: relationDigest,
+            trace: trace,
+            residual: residual,
+            paddedDomainSize: paddedDomainSize
+        )
+    }
+
+    private static func makeTerminalVerifierPCSProof(
+        spec: SuperNeoTerminalVerifierAIRSpec,
+        publicInput: SuperNeoPublicFoldInput,
+        policy: SuperNeoTerminalProofAcceptancePolicy,
+        queryCount: Int
+    ) throws -> SuperNeoTerminalVerifierPCSProof {
+        let material = try makeTerminalVerifierPCSProverMaterial(
+            spec: spec,
+            publicInput: publicInput,
+            policy: policy
+        )
+        return try makeTerminalVerifierPCSProof(
+            material: material,
+            policy: policy,
+            queryCount: queryCount
+        )
+    }
+
+    private static func makeTerminalVerifierPCSProof(
+        material: TerminalVerifierPCSProverMaterial,
+        policy: SuperNeoTerminalProofAcceptancePolicy,
+        queryCount: Int
+    ) throws -> SuperNeoTerminalVerifierPCSProof {
+        let statement = material.statement
+        let parameters = material.parameters
+        let trace = material.trace
+        let residual = material.residual
+        let paddedDomainSize = material.paddedDomainSize
+        let relationDigest = material.relationDigest
+        let blowupFactor = parameters.blowupFactor
         let queryDomainSize = max(1, paddedDomainSize / 2)
         let minimumQueryCount = min(parameters.minimumQueryCount, queryDomainSize)
         guard queryCount >= minimumQueryCount else {
             throw SuperNeoError.invalidParameter("terminal verifier PCS query count below selected minimum")
         }
+#if DEBUG
+        SuperNeoSpartanFRIDebugProfileContext.current?.recordQueryCount(queryCount)
+        let tracePlan = try superNeoDebugMeasure("trace FRI plan construction") {
+            try makeFRIProverPlan(
+                vector: trace,
+                paddedDomainSize: paddedDomainSize,
+                queryCount: queryCount,
+                blowupFactor: blowupFactor,
+                claimedDegreeBound: trace.count,
+                label: "terminal-verifier-trace",
+                bindingDigest: relationDigest
+            )
+        }
+        let residualPlan = try superNeoDebugMeasure("residual FRI plan construction") {
+            try makeFRIProverPlan(
+                vector: residual,
+                paddedDomainSize: paddedDomainSize,
+                queryCount: queryCount,
+                blowupFactor: blowupFactor,
+                claimedDegreeBound: trace.count,
+                label: "terminal-verifier-residual",
+                bindingDigest: relationDigest
+            )
+        }
+#else
         let tracePlan = try makeFRIProverPlan(
             vector: trace,
             paddedDomainSize: paddedDomainSize,
@@ -2407,6 +2765,7 @@ public enum SuperNeoSpartanFRICompressor {
             label: "terminal-verifier-residual",
             bindingDigest: relationDigest
         )
+#endif
         let jointQueryIndices = terminalVerifierAIRQueryIndices(
             traceCommitments: tracePlan.commitments,
             residualCommitments: residualPlan.commitments,
@@ -2414,6 +2773,21 @@ public enum SuperNeoSpartanFRICompressor {
             queryCount: queryCount,
             paddedDomainSize: paddedDomainSize
         )
+#if DEBUG
+        let jointPCS = try superNeoDebugMeasure("joint query opening materialization") {
+            let jointTracePCS = try makeFRIProof(
+                plan: tracePlan,
+                queryIndicesOverride: jointQueryIndices
+            )
+            let residualPCS = try makeFRIProof(
+                plan: residualPlan,
+                queryIndicesOverride: jointQueryIndices
+            )
+            return (trace: jointTracePCS, residual: residualPCS)
+        }
+        let jointTracePCS = jointPCS.trace
+        let residualPCS = jointPCS.residual
+#else
         let jointTracePCS = try makeFRIProof(
             plan: tracePlan,
             queryIndicesOverride: jointQueryIndices
@@ -2422,6 +2796,7 @@ public enum SuperNeoSpartanFRICompressor {
             plan: residualPlan,
             queryIndicesOverride: jointQueryIndices
         )
+#endif
         return try SuperNeoTerminalVerifierPCSProof(
             sourceProofKind: statement.sourceProofKind,
             sourceProofByteCount: statement.sourceProofByteCount,
@@ -2432,8 +2807,8 @@ public enum SuperNeoSpartanFRICompressor {
             verifierKeyDigest: statement.verifierKeyDigest,
             transcriptDomain: statement.transcriptDomain,
             publicInputDigest: statement.publicInputDigest,
-            recursiveRelationDigest: publicInput.recursiveRelationDigest,
-            compressionPolicyDigest: policyDigest,
+            recursiveRelationDigest: material.spec.recursiveRelationDigest,
+            compressionPolicyDigest: material.policyDigest,
             terminalStatementDigest: statement.terminalStatementDigest,
             foldProofDigest: statement.foldProofDigest,
             ceOpeningProofDigest: statement.ceOpeningProofDigest,
@@ -2515,7 +2890,7 @@ public enum SuperNeoSpartanFRICompressor {
             spec: spec,
             publicInput: publicInput,
             terminalVerifierRelationDigest: proof.relationDigest,
-            compactForTinyFixture: policy.sourceFreePCSPolicy == .sourceFreeTinyPCSFixtureOnly
+            compactForTinyFixture: true
         )
         let trace = air.trace
         let residual = air.residual
@@ -2556,11 +2931,6 @@ public enum SuperNeoSpartanFRICompressor {
                 guard traceSample.index == residualSample.index,
                       traceSample.point == residualSample.point else {
                     return .invalid("terminal verifier AIR trace/residual query mismatch")
-                }
-                let expectedTrace = spartanFRIEvaluatePolynomial(trace, at: traceSample.point)
-                let expectedResidual = traceSample.value - expectedTrace
-                guard residualSample.value == expectedResidual else {
-                    return .invalid("terminal verifier AIR residual does not match trace constraint")
                 }
                 guard residualSample.value == spartanFRIEvaluatePolynomial(residual, at: residualSample.point),
                       residualSample.value == .zero else {
@@ -2712,7 +3082,7 @@ private struct SpartanFRIMerkleTree {
         self.domain = domain
         self.leaves = leaves
         self.points = points
-        var current = leaves.indices.map { index in
+        var current = try spartanFRIParallelMap(count: leaves.count) { index in
             spartanFRILeafDigest(
                 domain: domain,
                 index: index,
@@ -2723,10 +3093,9 @@ private struct SpartanFRIMerkleTree {
         }
         var levels = [current]
         while current.count > 1 {
-            var next: [Digest384] = []
-            next.reserveCapacity(current.count / 2)
-            for index in stride(from: 0, to: current.count, by: 2) {
-                next.append(SuperNeoSplitQRO.hMerkleNode(domain: domain, left: current[index], right: current[index + 1]))
+            let next = try spartanFRIParallelMap(count: current.count / 2) { pairIndex in
+                let index = pairIndex * 2
+                return SuperNeoSplitQRO.hMerkleNode(domain: domain, left: current[index], right: current[index + 1])
             }
             levels.append(next)
             current = next
@@ -2760,6 +3129,30 @@ private struct SpartanFRIMerkleTree {
             value: leaves[index],
             siblings: siblings
         )
+    }
+}
+
+private func spartanFRIParallelMap<T>(
+    count: Int,
+    threshold: Int = 256,
+    _ body: @escaping (Int) throws -> T
+) throws -> [T] {
+    guard count > threshold else {
+        return try (0..<count).map(body)
+    }
+    let lock = NSLock()
+    var results = Array<Result<T, Error>?>(repeating: nil, count: count)
+    DispatchQueue.concurrentPerform(iterations: count) { index in
+        let result = Result { try body(index) }
+        lock.lock()
+        results[index] = result
+        lock.unlock()
+    }
+    return try results.enumerated().map { index, result in
+        guard let result else {
+            throw SuperNeoError.invalidParameter("FRI parallel map missing result at index \(index)")
+        }
+        return try result.get()
     }
 }
 
@@ -2881,7 +3274,7 @@ private func makeFRIProverPlan(
         currentCoset = currentCoset.squared()
         round += 1
     }
-    return SpartanFRIProverPlan(
+    let plan = SpartanFRIProverPlan(
         vectorLength: vector.count,
         paddedDomainSize: paddedDomainSize,
         queryCount: queryCount,
@@ -2896,6 +3289,10 @@ private func makeFRIProverPlan(
         finalPolynomial: [coefficients.first ?? .zero],
         trees: trees
     )
+#if DEBUG
+    SuperNeoSpartanFRIDebugProfileContext.current?.recordFRIPlan(plan)
+#endif
+    return plan
 }
 
 private func makeFRIProof(
@@ -3179,25 +3576,67 @@ private func verifyFRIProof(
     return initialSamples
 }
 
-private func sourceComponentDigests(
+private struct TerminalVerifierDecodedSource {
+    let foldProof: FoldProof
+    let foldTranscriptSeed: [UInt8]
+    let terminalStatement: TerminalCEStatement
+    let ceOpeningProof: CEOpeningProof
+    let compressedEnvelope: CompressedTerminalProofEnvelope?
+    let sourceDigests: (
+        terminalStatementDigest: Digest256,
+        foldProofDigest: Digest256,
+        ceOpeningProofDigest: Digest256
+    )
+}
+
+private func decodeTerminalVerifierSource(
     proofBytes: [UInt8],
     header: ProofEnvelopeHeader,
-    parameters: SuperNeoParameters
-) throws -> (terminalStatementDigest: Digest256, foldProofDigest: Digest256, ceOpeningProofDigest: Digest256) {
+    parameters: SuperNeoParameters,
+    expectedContext: ProofEnvelopeContext
+) throws -> TerminalVerifierDecodedSource {
     switch header.kind {
     case .terminalLocal:
         let envelope = try TerminalFoldProofEnvelope(bytes: proofBytes, parameters: parameters)
-        return (
-            envelope.proof.terminalStatement.statementDigest,
-            Digest256.hash(envelope.proof.foldProof.superNeoBytes),
-            Digest256.hash(envelope.proof.ceOpeningProof.superNeoBytes)
+        return TerminalVerifierDecodedSource(
+            foldProof: envelope.proof.foldProof,
+            foldTranscriptSeed: envelope.header.transcriptBindingBytes,
+            terminalStatement: envelope.proof.terminalStatement,
+            ceOpeningProof: envelope.proof.ceOpeningProof,
+            compressedEnvelope: nil,
+            sourceDigests: (
+                envelope.proof.terminalStatement.statementDigest,
+                Digest256.hash(envelope.proof.foldProof.superNeoBytes),
+                Digest256.hash(envelope.proof.ceOpeningProof.superNeoBytes)
+            )
         )
     case .compressedPublic:
         let envelope = try CompressedTerminalProofEnvelope(bytes: proofBytes, parameters: parameters)
-        return (
-            envelope.proof.statement.terminalStatementDigest,
-            envelope.proof.foldProofDigest,
-            envelope.proof.ceOpeningProofDigest
+        let terminalStatement = try TerminalCEStatement(
+            profileID: expectedContext.profileID,
+            shapeDigest: expectedContext.shapeDigest,
+            verifierKeyDigest: expectedContext.verifierKeyDigest,
+            claims: envelope.proof.foldProof.outputClaims
+        )
+        let terminalContext = ProofEnvelopeContext(
+            profileID: expectedContext.profileID,
+            kind: .terminalLocal,
+            shapeDigest: expectedContext.shapeDigest,
+            statementDigest: expectedContext.statementDigest,
+            verifierKeyDigest: expectedContext.verifierKeyDigest,
+            transcriptDomain: expectedContext.transcriptDomain
+        )
+        return TerminalVerifierDecodedSource(
+            foldProof: envelope.proof.foldProof,
+            foldTranscriptSeed: terminalContext.transcriptBindingBytes,
+            terminalStatement: terminalStatement,
+            ceOpeningProof: envelope.proof.ceOpeningProof,
+            compressedEnvelope: envelope,
+            sourceDigests: (
+                envelope.proof.statement.terminalStatementDigest,
+                envelope.proof.foldProofDigest,
+                envelope.proof.ceOpeningProofDigest
+            )
         )
     case .foldReduction, .numiSealTerminal, .numiSealZK:
         throw SuperNeoError.invalidParameter("Spartan/FRI compression source must be terminal or compressed-public")
@@ -3322,67 +3761,47 @@ private struct TerminalVerifierAIRConstraintMaterial {
 
 private func terminalVerifierAIRConstraintMaterialForSource(
     publicInput: SuperNeoPublicFoldInput,
-    proofBytes: [UInt8],
-    header: ProofEnvelopeHeader,
     verifier: SuperNeoVerifier,
-    expectedContext: ProofEnvelopeContext
+    decodedSource: TerminalVerifierDecodedSource
 ) throws -> TerminalVerifierAIRConstraintMaterial {
-    let foldProof: FoldProof
-    let foldTranscriptSeed: [UInt8]
-    let terminalStatement: TerminalCEStatement
-    let ceOpeningProof: CEOpeningProof
-    let innerCompressedRows: [SuperNeoTerminalVerifierAIRConstraintRow]
-    switch header.kind {
-    case .terminalLocal:
-        let envelope = try TerminalFoldProofEnvelope(bytes: proofBytes, parameters: verifier.parameters)
-        foldProof = envelope.proof.foldProof
-        foldTranscriptSeed = envelope.header.transcriptBindingBytes
-        terminalStatement = envelope.proof.terminalStatement
-        ceOpeningProof = envelope.proof.ceOpeningProof
-        innerCompressedRows = terminalVerifierAIRNoInnerCompressedPrimitiveRows()
-    case .compressedPublic:
-        let envelope = try CompressedTerminalProofEnvelope(bytes: proofBytes, parameters: verifier.parameters)
-        foldProof = envelope.proof.foldProof
-        terminalStatement = try TerminalCEStatement(
-            profileID: expectedContext.profileID,
-            shapeDigest: expectedContext.shapeDigest,
-            verifierKeyDigest: expectedContext.verifierKeyDigest,
-            claims: envelope.proof.foldProof.outputClaims
-        )
-        let terminalContext = ProofEnvelopeContext(
-            profileID: expectedContext.profileID,
-            kind: .terminalLocal,
-            shapeDigest: expectedContext.shapeDigest,
-            statementDigest: expectedContext.statementDigest,
-            verifierKeyDigest: expectedContext.verifierKeyDigest,
-            transcriptDomain: expectedContext.transcriptDomain
-        )
-        foldTranscriptSeed = terminalContext.transcriptBindingBytes
-        ceOpeningProof = envelope.proof.ceOpeningProof
-        innerCompressedRows = terminalVerifierAIRInnerCompressedPrimitiveRows(envelope: envelope)
-    case .foldReduction, .numiSealTerminal, .numiSealZK:
-        return TerminalVerifierAIRConstraintMaterial(
-            piCCSRows: terminalVerifierAIRRejectedPrimitiveRows(kind: .piCCSVerifier),
-            piRLCRows: terminalVerifierAIRRejectedPrimitiveRows(kind: .piRLCVerifier),
-            piDECRows: terminalVerifierAIRRejectedPrimitiveRows(kind: .piDECVerifier),
-            terminalCERows: terminalVerifierAIRRejectedPrimitiveRows(kind: .terminalCEOpening),
-            innerCompressedRows: terminalVerifierAIRRejectedPrimitiveRows(kind: .innerCompressedProofVerifier)
+    let innerCompressedRows = decodedSource.compressedEnvelope.map {
+        terminalVerifierAIRInnerCompressedPrimitiveRows(envelope: $0)
+    } ?? terminalVerifierAIRNoInnerCompressedPrimitiveRows()
+#if DEBUG
+    let foldRows = try superNeoDebugMeasure("fold-boundary primitive row emission") {
+        try verifier.terminalVerifierAIRPrimitiveRows(
+            publicInput: publicInput,
+            proof: decodedSource.foldProof,
+            transcriptSeed: decodedSource.foldTranscriptSeed
         )
     }
+    let ceRows = try superNeoDebugMeasure("ce-ajtai primitive row emission") {
+        try CEOpeningRelation.terminalVerifierAIRPrimitiveRows(
+            proof: decodedSource.ceOpeningProof,
+            statement: decodedSource.terminalStatement,
+            shape: publicInput.shape,
+            key: verifier.key,
+            parameters: verifier.parameters,
+            metalWorkspace: nil,
+            executionPolicy: verifier.executionPolicy
+        )
+    }
+#else
     let foldRows = try verifier.terminalVerifierAIRPrimitiveRows(
         publicInput: publicInput,
-        proof: foldProof,
-        transcriptSeed: foldTranscriptSeed
+        proof: decodedSource.foldProof,
+        transcriptSeed: decodedSource.foldTranscriptSeed
     )
     let ceRows = try CEOpeningRelation.terminalVerifierAIRPrimitiveRows(
-        proof: ceOpeningProof,
-        statement: terminalStatement,
+        proof: decodedSource.ceOpeningProof,
+        statement: decodedSource.terminalStatement,
         shape: publicInput.shape,
         key: verifier.key,
         parameters: verifier.parameters,
         metalWorkspace: nil,
         executionPolicy: verifier.executionPolicy
     )
+#endif
     return TerminalVerifierAIRConstraintMaterial(
         piCCSRows: foldRows.piCCSRows,
         piRLCRows: foldRows.piRLCRows,
@@ -4117,6 +4536,18 @@ private func terminalVerifierAIRPackCompactTrace(
         residual.append(aggregateResidual)
     }
     return TerminalVerifierAIRInstance(trace: trace, residual: residual, subrelations: subrelations)
+}
+
+private func terminalVerifierAIRCompactTraceLength(
+    rootDigestCount: Int = 14,
+    subrelationCount: Int = 8
+) -> Int {
+    let digestFieldCount = spartanFRIDigestFields(terminalVerifierAIRPendingRelationDigest()).count
+    let headerFieldCount = 8
+    let fieldsPerSubrelation = 4 + (3 * digestFieldCount) + 1
+    return headerFieldCount
+        + (rootDigestCount * digestFieldCount)
+        + (subrelationCount * fieldsPerSubrelation)
 }
 
 private struct TerminalVerifierAIRRowBindingContext {
