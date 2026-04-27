@@ -439,6 +439,22 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             throw SuperNeoError.invalidParameter("CE challenge seed chain transcript batch count mismatch")
         }
         guard !commitmentOffsets.isEmpty else { return [] }
+#if DEBUG
+        try superNeoDebugMeasure("ce-response challenge seed validation") {
+            try validatePreframedHashFlatBatch(
+                bytes: commitmentBytes,
+                offsets: commitmentOffsets,
+                lengths: commitmentLengths,
+                role: "Metal CE challenge commitment transcript"
+            )
+            try validatePreframedHashFlatBatch(
+                bytes: responseBytes,
+                offsets: responseOffsets,
+                lengths: responseLengths,
+                role: "Metal CE challenge response transcript"
+            )
+        }
+#else
         try validatePreframedHashFlatBatch(
             bytes: commitmentBytes,
             offsets: commitmentOffsets,
@@ -451,6 +467,7 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             lengths: responseLengths,
             role: "Metal CE challenge response transcript"
         )
+#endif
         let absorbDomainBytes = SuperNeoSplitQRO.sumCheckTranscriptAbsorbStateDomainBytes
         let fieldChallengeDomainBytes = SuperNeoSplitQRO.sumCheckTranscriptChallengeFieldDomainBytes
         guard let roundCount = UInt32(exactly: commitmentOffsets.count),
@@ -463,8 +480,29 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             [commitmentOffsets.count, Digest256.byteCount],
             name: "Metal CE challenge seed output byte count"
         )
-        let outputBuffer = try context.makeEmptyBuffer(count: outputByteCount, as: UInt8.self)
-        let buffers = [
+        let outputBuffer: MTLBuffer
+        let buffers: [MTLBuffer]
+#if DEBUG
+        (outputBuffer, buffers) = try superNeoDebugMeasure("ce-response challenge seed buffer upload") {
+            let outputBuffer = try context.makeEmptyBuffer(count: outputByteCount, as: UInt8.self)
+            return (outputBuffer, [
+                try context.makeBuffer(commitmentBytes),
+                try context.makeBuffer(commitmentOffsets),
+                try context.makeBuffer(commitmentLengths),
+                try context.makeBuffer(responseBytes),
+                try context.makeBuffer(responseOffsets),
+                try context.makeBuffer(responseLengths),
+                try context.makeBuffer(challengeTapeSeed.bytes),
+                try context.makeBuffer(initialStateDigest.bytes),
+                try context.makeBuffer(roundCountPayload),
+                outputBuffer,
+                try context.makeBuffer(absorbDomainBytes),
+                try context.makeBuffer(fieldChallengeDomainBytes)
+            ])
+        }
+#else
+        outputBuffer = try context.makeEmptyBuffer(count: outputByteCount, as: UInt8.self)
+        buffers = [
             try context.makeBuffer(commitmentBytes),
             try context.makeBuffer(commitmentOffsets),
             try context.makeBuffer(commitmentLengths),
@@ -478,6 +516,7 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             try context.makeBuffer(absorbDomainBytes),
             try context.makeBuffer(fieldChallengeDomainBytes)
         ]
+#endif
         let inlineParams = [
             MetalInlineUInt32Buffer(index: 12, values: [
                 roundCount,
@@ -486,6 +525,20 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                 fieldChallengeDomainLength
             ])
         ]
+#if DEBUG
+        try superNeoDebugMeasure("ce-response challenge seed metal dispatch") {
+            try context.dispatch1DSequence([
+                MetalDispatchCommand(
+                    pipelineName: "ce_challenge_seed_chain_cooperative_kernel",
+                    buffers: buffers,
+                    inlineUInt32Buffers: inlineParams,
+                    elementCount: 32,
+                    threadsPerThreadgroup: 32,
+                    countBufferIndex: 13
+                )
+            ])
+        }
+#else
         try context.dispatch1DSequence([
             MetalDispatchCommand(
                 pipelineName: "ce_challenge_seed_chain_cooperative_kernel",
@@ -496,10 +549,181 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                 countBufferIndex: 13
             )
         ])
+#endif
+#if DEBUG
+        return try superNeoDebugMeasure("ce-response challenge seed decode") {
+            let bytes = outputBuffer.array(of: UInt8.self, count: outputByteCount)
+            return try stride(from: 0, to: bytes.count, by: Digest256.byteCount).map { start in
+                try Digest256(Array(bytes[start..<(start + Digest256.byteCount)]))
+            }
+        }
+#else
         let bytes = outputBuffer.array(of: UInt8.self, count: outputByteCount)
         return try stride(from: 0, to: bytes.count, by: Digest256.byteCount).map { start in
             try Digest256(Array(bytes[start..<(start + Digest256.byteCount)]))
         }
+#endif
+    }
+
+    func ceChallengeSeedChainFromStatement(
+        proofKind: ProofEnvelopeKind,
+        statementBytes: [UInt8],
+        domainSeparatorBytes: [UInt8],
+        roundCountPayload: [UInt8],
+        commitmentBytes: [UInt8],
+        commitmentOffsets: [UInt32],
+        commitmentLengths: [UInt32],
+        responseBytes: [UInt8],
+        responseOffsets: [UInt32],
+        responseLengths: [UInt32]
+    ) throws -> [Digest256] {
+        guard roundCountPayload.count == MemoryLayout<UInt64>.size else {
+            throw SuperNeoError.invalidParameter("CE challenge seed chain round-count payload must be 8 bytes")
+        }
+        guard commitmentOffsets.count == commitmentLengths.count,
+              responseOffsets.count == responseLengths.count,
+              commitmentOffsets.count == responseOffsets.count else {
+            throw SuperNeoError.invalidParameter("CE challenge seed chain transcript batch count mismatch")
+        }
+        guard !commitmentOffsets.isEmpty else { return [] }
+#if DEBUG
+        try superNeoDebugMeasure("ce-response challenge seed validation") {
+            try validatePreframedHashFlatBatch(
+                bytes: commitmentBytes,
+                offsets: commitmentOffsets,
+                lengths: commitmentLengths,
+                role: "Metal CE challenge commitment transcript"
+            )
+            try validatePreframedHashFlatBatch(
+                bytes: responseBytes,
+                offsets: responseOffsets,
+                lengths: responseLengths,
+                role: "Metal CE challenge response transcript"
+            )
+        }
+#else
+        try validatePreframedHashFlatBatch(
+            bytes: commitmentBytes,
+            offsets: commitmentOffsets,
+            lengths: commitmentLengths,
+            role: "Metal CE challenge commitment transcript"
+        )
+        try validatePreframedHashFlatBatch(
+            bytes: responseBytes,
+            offsets: responseOffsets,
+            lengths: responseLengths,
+            role: "Metal CE challenge response transcript"
+        )
+#endif
+        let absorbDomainBytes = SuperNeoSplitQRO.sumCheckTranscriptAbsorbStateDomainBytes
+        let fieldChallengeDomainBytes = SuperNeoSplitQRO.sumCheckTranscriptChallengeFieldDomainBytes
+        let seedDomainBytes = SuperNeoSplitQRO.sumCheckTranscriptSeedDomainBytes
+        let initialStateDomainBytes = SuperNeoSplitQRO.sumCheckTranscriptInitialStateDomainBytes
+        guard let roundCount = UInt32(exactly: commitmentOffsets.count),
+              let proofKindValue = UInt32(exactly: proofKind.rawValue),
+              let absorbDomainLength = UInt32(exactly: absorbDomainBytes.count),
+              let fieldChallengeDomainLength = UInt32(exactly: fieldChallengeDomainBytes.count),
+              let statementLength = UInt32(exactly: statementBytes.count),
+              let domainSeparatorLength = UInt32(exactly: domainSeparatorBytes.count),
+              let seedDomainLength = UInt32(exactly: seedDomainBytes.count),
+              let initialStateDomainLength = UInt32(exactly: initialStateDomainBytes.count) else {
+            throw SuperNeoError.invalidParameter("CE challenge seed chain parameter exceeds UInt32")
+        }
+        let outputByteCount = try checkedProduct(
+            [commitmentOffsets.count, Digest256.byteCount],
+            name: "Metal CE challenge seed output byte count"
+        )
+        let outputBuffer: MTLBuffer
+        let buffers: [MTLBuffer]
+#if DEBUG
+        (outputBuffer, buffers) = try superNeoDebugMeasure("ce-response challenge seed buffer upload") {
+            let outputBuffer = try context.makeEmptyBuffer(count: outputByteCount, as: UInt8.self)
+            return (outputBuffer, [
+                try context.makeBuffer(commitmentBytes),
+                try context.makeBuffer(commitmentOffsets),
+                try context.makeBuffer(commitmentLengths),
+                try context.makeBuffer(responseBytes),
+                try context.makeBuffer(responseOffsets),
+                try context.makeBuffer(responseLengths),
+                try context.makeBuffer(statementBytes),
+                try context.makeBuffer(domainSeparatorBytes),
+                try context.makeBuffer(roundCountPayload),
+                outputBuffer,
+                try context.makeBuffer(absorbDomainBytes),
+                try context.makeBuffer(fieldChallengeDomainBytes),
+                try context.makeBuffer(seedDomainBytes),
+                try context.makeBuffer(initialStateDomainBytes)
+            ])
+        }
+#else
+        outputBuffer = try context.makeEmptyBuffer(count: outputByteCount, as: UInt8.self)
+        buffers = [
+            try context.makeBuffer(commitmentBytes),
+            try context.makeBuffer(commitmentOffsets),
+            try context.makeBuffer(commitmentLengths),
+            try context.makeBuffer(responseBytes),
+            try context.makeBuffer(responseOffsets),
+            try context.makeBuffer(responseLengths),
+            try context.makeBuffer(statementBytes),
+            try context.makeBuffer(domainSeparatorBytes),
+            try context.makeBuffer(roundCountPayload),
+            outputBuffer,
+            try context.makeBuffer(absorbDomainBytes),
+            try context.makeBuffer(fieldChallengeDomainBytes),
+            try context.makeBuffer(seedDomainBytes),
+            try context.makeBuffer(initialStateDomainBytes)
+        ]
+#endif
+        let inlineParams = [
+            MetalInlineUInt32Buffer(index: 14, values: [
+                roundCount,
+                proofKindValue,
+                absorbDomainLength,
+                fieldChallengeDomainLength,
+                statementLength,
+                domainSeparatorLength,
+                seedDomainLength,
+                initialStateDomainLength
+            ])
+        ]
+#if DEBUG
+        try superNeoDebugMeasure("ce-response challenge seed metal dispatch") {
+            try context.dispatch1DSequence([
+                MetalDispatchCommand(
+                    pipelineName: "ce_challenge_seed_chain_from_statement_cooperative_kernel",
+                    buffers: buffers,
+                    inlineUInt32Buffers: inlineParams,
+                    elementCount: 32,
+                    threadsPerThreadgroup: 32,
+                    countBufferIndex: 15
+                )
+            ])
+        }
+#else
+        try context.dispatch1DSequence([
+            MetalDispatchCommand(
+                pipelineName: "ce_challenge_seed_chain_from_statement_cooperative_kernel",
+                buffers: buffers,
+                inlineUInt32Buffers: inlineParams,
+                elementCount: 32,
+                threadsPerThreadgroup: 32,
+                countBufferIndex: 15
+            )
+        ])
+#endif
+#if DEBUG
+        return try superNeoDebugMeasure("ce-response challenge seed decode") {
+            let bytes = outputBuffer.array(of: UInt8.self, count: outputByteCount)
+            return try stride(from: 0, to: bytes.count, by: Digest256.byteCount).map { start in
+                try Digest256(Array(bytes[start..<(start + Digest256.byteCount)]))
+            }
+        }
+#else
+        let bytes = outputBuffer.array(of: UInt8.self, count: outputByteCount)
+        return try stride(from: 0, to: bytes.count, by: Digest256.byteCount).map { start in
+            try Digest256(Array(bytes[start..<(start + Digest256.byteCount)]))
+        }
+#endif
     }
 
     private struct PreframedHashInputBuffers {

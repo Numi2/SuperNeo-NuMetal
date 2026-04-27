@@ -260,6 +260,14 @@ public enum SuperNeoSplitQRO {
         Array(sumCheckTranscriptChallengeFieldDomain.utf8)
     }
 
+    static var sumCheckTranscriptSeedDomainBytes: [UInt8] {
+        Array(sumCheckTranscriptSeedDomain.utf8)
+    }
+
+    static var sumCheckTranscriptInitialStateDomainBytes: [UInt8] {
+        Array(sumCheckTranscriptInitialStateDomain.utf8)
+    }
+
     static func sumCheckTranscriptChallenge(
         label: String,
         proofKind: ProofEnvelopeKind,

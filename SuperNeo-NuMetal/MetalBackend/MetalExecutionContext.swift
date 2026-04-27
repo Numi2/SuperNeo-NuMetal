@@ -207,6 +207,7 @@ public final class MetalExecutionContext: @unchecked Sendable {
             "shake256_digest384_preframed_kernel",
             "ce_challenge_seed_chain_kernel",
             "ce_challenge_seed_chain_cooperative_kernel",
+            "ce_challenge_seed_chain_from_statement_cooperative_kernel",
             "transformed_matvec_kernel",
             "transformed_matvec_sparse_aware_kernel",
             "sparse_transformed_matvec_kernel",

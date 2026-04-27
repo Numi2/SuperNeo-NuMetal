@@ -261,6 +261,64 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         XCTAssertEqual(observed, expected)
     }
 
+    func testMetalCEChallengeSeedChainFromStatementMatchesCPUTranscript() throws {
+        let device = try requireMetalDevice()
+        let backend = SuperNeoMetalBackend(context: try MetalExecutionContext(device: device))
+        let domainSeparator = "SuperNeo-NuMetal.ce-opening.stern/test-fused"
+        let statementBytes = Array("metal-ce-challenge-fused-statement".utf8)
+        let commitments = (0..<11).map { round in
+            (0..<(13 + round * 3)).map { UInt8(truncatingIfNeeded: round * 31 + $0 * 5) }
+        }
+        let responses = (0..<11).map { round in
+            (0..<(19 + round)).map { UInt8(truncatingIfNeeded: round * 17 + $0 * 9) }
+        }
+        let roundCountPayload = withUnsafeBytes(of: UInt64(commitments.count).littleEndian, Array.init)
+
+        var cpuTranscript = SumCheckTranscript(
+            domainSeparator: domainSeparator,
+            seed: statementBytes,
+            proofKind: .terminalLocal
+        )
+        cpuTranscript.absorb(statementBytes)
+        cpuTranscript.absorb(roundCountPayload)
+        var expected: [Digest256] = []
+        expected.reserveCapacity(commitments.count)
+        for index in commitments.indices {
+            cpuTranscript.absorb(commitments[index])
+            expected.append(cpuTranscript.fieldChallengeSeedForBatchExpansion())
+            cpuTranscript.absorb(responses[index])
+        }
+
+        var commitmentBytes: [UInt8] = []
+        var commitmentOffsets: [UInt32] = []
+        var commitmentLengths: [UInt32] = []
+        var responseBytes: [UInt8] = []
+        var responseOffsets: [UInt32] = []
+        var responseLengths: [UInt32] = []
+        for index in commitments.indices {
+            commitmentOffsets.append(UInt32(commitmentBytes.count))
+            commitmentLengths.append(UInt32(commitments[index].count))
+            commitmentBytes.append(contentsOf: commitments[index])
+            responseOffsets.append(UInt32(responseBytes.count))
+            responseLengths.append(UInt32(responses[index].count))
+            responseBytes.append(contentsOf: responses[index])
+        }
+
+        let observed = try backend.ceChallengeSeedChainFromStatement(
+            proofKind: .terminalLocal,
+            statementBytes: statementBytes,
+            domainSeparatorBytes: Array(domainSeparator.utf8),
+            roundCountPayload: roundCountPayload,
+            commitmentBytes: commitmentBytes,
+            commitmentOffsets: commitmentOffsets,
+            commitmentLengths: commitmentLengths,
+            responseBytes: responseBytes,
+            responseOffsets: responseOffsets,
+            responseLengths: responseLengths
+        )
+        XCTAssertEqual(observed, expected)
+    }
+
     func testTier0CTCOContextBinderIncludesProofKindAndRootBlocks() throws {
         let shape = Digest256.hash("shape")
         let statement = Digest256.hash("statement")

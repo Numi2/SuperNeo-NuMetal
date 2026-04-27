@@ -742,13 +742,38 @@ private func terminalPrimitiveAIRRequired(
     .required(condition, kind: kind, provenance: provenance, label: label)
 }
 
-private func terminalPrimitiveAIRDigestFields(_ digest: Digest256) -> [GoldilocksField] {
-    stride(from: 0, to: digest.superNeoBytes.count, by: 4).map { offset in
-        let chunk = digest.superNeoBytes[offset..<min(offset + 4, digest.superNeoBytes.count)]
-        let value = chunk.enumerated().reduce(UInt32(0)) { partial, pair in
-            partial | (UInt32(pair.element) << UInt32(pair.offset * 8))
-        }
-        return GoldilocksField(UInt64(value))
+private func terminalPrimitiveAIRDigestField(_ bytes: [UInt8], offset: Int) -> GoldilocksField {
+    let end = min(offset + 4, bytes.count)
+    var value = UInt32(0)
+    var shift = UInt32(0)
+    var index = offset
+    while index < end {
+        value |= UInt32(bytes[index]) << shift
+        shift += 8
+        index += 1
+    }
+    return GoldilocksField(UInt64(value))
+}
+
+private func terminalPrimitiveAIRAppendDigestRows(
+    to rows: inout [SuperNeoTerminalVerifierAIRConstraintRow],
+    kind: SuperNeoTerminalVerifierAIRConstraintKind,
+    provenance: SuperNeoTerminalVerifierAIRRowProvenance,
+    label: String,
+    observed: Digest256,
+    expected: Digest256
+) {
+    let observedBytes = observed.bytes
+    let expectedBytes = expected.bytes
+    rows.reserveCapacity(rows.count + Digest256.byteCount / 4)
+    for (limbIndex, offset) in stride(from: 0, to: Digest256.byteCount, by: 4).enumerated() {
+        rows.append(terminalPrimitiveAIRFieldRow(
+            kind: kind,
+            provenance: provenance,
+            label: "\(label)-limb-\(limbIndex)",
+            observed: terminalPrimitiveAIRDigestField(observedBytes, offset: offset),
+            expected: terminalPrimitiveAIRDigestField(expectedBytes, offset: offset)
+        ))
     }
 }
 
@@ -759,15 +784,16 @@ private func terminalPrimitiveAIRDigestRows(
     observed: Digest256,
     expected: Digest256
 ) -> [SuperNeoTerminalVerifierAIRConstraintRow] {
-    zip(terminalPrimitiveAIRDigestFields(observed), terminalPrimitiveAIRDigestFields(expected)).enumerated().map { index, pair in
-        terminalPrimitiveAIRFieldRow(
-            kind: kind,
-            provenance: provenance,
-            label: "\(label)-limb-\(index)",
-            observed: pair.0,
-            expected: pair.1
-        )
-    }
+    var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+    terminalPrimitiveAIRAppendDigestRows(
+        to: &rows,
+        kind: kind,
+        provenance: provenance,
+        label: label,
+        observed: observed,
+        expected: expected
+    )
+    return rows
 }
 
 private func terminalPrimitiveAIRObjectDigestRows(
@@ -815,11 +841,14 @@ private func terminalPrimitiveAIRCompactRows(
     _ primitiveRows: [SuperNeoTerminalVerifierAIRConstraintRow],
     kind: SuperNeoTerminalVerifierAIRConstraintKind,
     label: String,
-    sampleStride: Int = 32
-) -> [SuperNeoTerminalVerifierAIRConstraintRow] {
-    let summary = SuperNeoTerminalVerifierAIRPrimitiveBatch.summarize(
+    sampleStride: Int = 32,
+    metalHashBackend: SuperNeoMetalBackend? = nil
+) throws -> [SuperNeoTerminalVerifierAIRConstraintRow] {
+    let summary = try SuperNeoTerminalVerifierAIRPrimitiveBatch.summarizeAccelerated(
         primitiveRows,
-        label: label
+        label: label,
+        metalHashBackend: metalHashBackend,
+        metalTimingLabel: "\(label)-primitive-batch-coefficients"
     )
 
     var compact: [SuperNeoTerminalVerifierAIRConstraintRow] = [
@@ -1348,10 +1377,13 @@ public enum CEOpeningRelation {
         let responseChallenges: [Int]
 #if DEBUG
         responseChallenges = try superNeoDebugMeasure("ce-response challenge derivation") {
+            let statementBytes = superNeoDebugMeasure("ce-response statement transcript serialization") {
+                statement.superNeoBytes
+            }
             let seeds = try superNeoDebugMeasure("ce-response challenge seed derivation") {
                 try deriveCEOpeningChallengeSeeds(
                     proof: proof,
-                    statement: statement,
+                    statementBytes: statementBytes,
                     transcriptMaterial: roundTranscriptMaterial,
                     metalHashBackend: verifierContext.metalHashBackend
                 )
@@ -1362,15 +1394,16 @@ public enum CEOpeningRelation {
                     metalHashBackend: verifierContext.metalHashBackend
                 ) ?? deriveCEOpeningChallengesSerial(
                     proof: proof,
-                    statement: statement,
+                    statementBytes: statementBytes,
                     transcriptMaterial: roundTranscriptMaterial
                 )
             }
         }
 #else
+        let statementBytes = statement.superNeoBytes
         let seeds = try deriveCEOpeningChallengeSeeds(
             proof: proof,
-            statement: statement,
+            statementBytes: statementBytes,
             transcriptMaterial: roundTranscriptMaterial,
             metalHashBackend: verifierContext.metalHashBackend
         )
@@ -1379,7 +1412,7 @@ public enum CEOpeningRelation {
             metalHashBackend: verifierContext.metalHashBackend
         ) ?? deriveCEOpeningChallengesSerial(
             proof: proof,
-            statement: statement,
+            statementBytes: statementBytes,
             transcriptMaterial: roundTranscriptMaterial
         )
 #endif
@@ -1482,31 +1515,24 @@ public enum CEOpeningRelation {
                 expected: GoldilocksField(UInt64(linearJobs.count))
             ))
             func emitPrivateLinearDigestRows() throws {
-                var labels: [String] = []
-                var observedDigests: [Digest256] = []
                 let digestCount = min(linearJobs.count, instances.count)
-                labels.reserveCapacity(digestCount)
-                observedDigests.reserveCapacity(digestCount)
-                let expectedDigests: [Digest256]
+                rows.reserveCapacity(rows.count + digestCount * (Digest256.byteCount / 4))
                 if let metalHashBackend = verifierContext.metalHashBackend, digestCount >= 64 {
                     var flatBatch = CEOpeningFlatDigestInputBatch()
                     flatBatch.reserveCapacity(digestCount * 2_048, digestCount: digestCount)
-                    for index in linearJobs.indices where index < instances.count {
+                    for index in 0..<digestCount {
                         let job = linearJobs[index]
-                        let instance = job.challenge == 0
-                            ? instances[index]
-                            : try subtractTarget(instances[index], target: verifierContext.target(at: job.openingIndex))
-                        labels.append("ce-round-\(job.roundIndex)-opening-\(job.openingIndex)-mask-linear-digest")
-                        observedDigests.append(job.commitments.maskLinearDigest)
+                        let target = job.challenge == 0 ? nil : verifierContext.target(at: job.openingIndex)
                         try flatBatch.append(
                             tag: 1,
                             roundIndex: job.roundIndex,
                             openingIndex: job.openingIndex,
                             permutationBytes: job.permutationBytes,
-                            instance: instance
+                            instance: instances[index],
+                            subtracting: target
                         )
                     }
-                    expectedDigests = try metalHashBackend.sha256Digest256PreframedFlatBatch(
+                    let expectedDigests = try metalHashBackend.sha256Digest256PreframedFlatBatch(
                         bytes: flatBatch.bytes,
                         offsets: flatBatch.offsets,
                         lengths: flatBatch.lengths
@@ -1519,33 +1545,38 @@ public enum CEOpeningRelation {
                         )
                     }
 #endif
+                    for index in 0..<expectedDigests.count {
+                        let job = linearJobs[index]
+                        terminalPrimitiveAIRAppendDigestRows(
+                            to: &rows,
+                            kind: kind,
+                            provenance: .hashSubrelation,
+                            label: "ce-round-\(job.roundIndex)-opening-\(job.openingIndex)-mask-linear-digest",
+                            observed: job.commitments.maskLinearDigest,
+                            expected: expectedDigests[index]
+                        )
+                    }
                 } else {
-                    var digestInputs: [[UInt8]] = []
-                    digestInputs.reserveCapacity(digestCount)
-                    for index in linearJobs.indices where index < instances.count {
+                    for index in 0..<digestCount {
                         let job = linearJobs[index]
                         let instance = job.challenge == 0
                             ? instances[index]
                             : try subtractTarget(instances[index], target: verifierContext.target(at: job.openingIndex))
-                        labels.append("ce-round-\(job.roundIndex)-opening-\(job.openingIndex)-mask-linear-digest")
-                        observedDigests.append(job.commitments.maskLinearDigest)
-                        digestInputs.append(ceOpeningDigestInput(
+                        let expectedDigest = Digest256.hash(ceOpeningDigestInput(
                             tag: 1,
                             roundIndex: job.roundIndex,
                             openingIndex: job.openingIndex,
                             payloadParts: [job.permutationBytes, instance.superNeoBytes]
                         ))
+                        terminalPrimitiveAIRAppendDigestRows(
+                            to: &rows,
+                            kind: kind,
+                            provenance: .hashSubrelation,
+                            label: "ce-round-\(job.roundIndex)-opening-\(job.openingIndex)-mask-linear-digest",
+                            observed: job.commitments.maskLinearDigest,
+                            expected: expectedDigest
+                        )
                     }
-                    expectedDigests = digestInputs.map(Digest256.hash)
-                }
-                for index in expectedDigests.indices {
-                    rows.append(contentsOf: terminalPrimitiveAIRDigestRows(
-                        kind: kind,
-                        provenance: .hashSubrelation,
-                        label: labels[index],
-                        observed: observedDigests[index],
-                        expected: expectedDigests[index]
-                    ))
                 }
             }
 #if DEBUG
@@ -1557,20 +1588,22 @@ public enum CEOpeningRelation {
 #endif
         }
 #if DEBUG
-        return superNeoDebugMeasure("ce-primitive row compacting") {
-            terminalPrimitiveAIRCompactRows(
+        return try superNeoDebugMeasure("ce-primitive row compacting") {
+            try terminalPrimitiveAIRCompactRows(
                 rows,
                 kind: kind,
                 label: "terminal-ce-ajtai",
-                sampleStride: 29
+                sampleStride: 29,
+                metalHashBackend: verifierContext.metalHashBackend
             )
         }
 #else
-        return terminalPrimitiveAIRCompactRows(
+        return try terminalPrimitiveAIRCompactRows(
             rows,
             kind: kind,
             label: "terminal-ce-ajtai",
-            sampleStride: 29
+            sampleStride: 29,
+            metalHashBackend: verifierContext.metalHashBackend
         )
 #endif
     }
@@ -6245,17 +6278,16 @@ private struct CEOpeningRoundPrimitiveMaterial: Sendable {
 
 private func deriveCEOpeningChallengeSeeds(
     proof: CEOpeningProof,
-    statement: TerminalCEStatement,
+    statementBytes: [UInt8],
     transcriptMaterial: CEOpeningTranscriptMaterial,
     metalHashBackend: SuperNeoMetalBackend?
 ) throws -> [Digest256] {
-    var transcript = makeCEOpeningTranscript(statement: statement)
     if let metalHashBackend, proof.rounds.count >= 64,
        case .flatBatch(let transcriptBatch) = transcriptMaterial {
-        let seeds = try metalHashBackend.ceChallengeSeedChain(
-            proofKind: transcript.proofKind,
-            challengeTapeSeed: transcript.challengeTapeSeed,
-            initialStateDigest: transcript.currentStateDigestForBatching,
+        let seeds = try metalHashBackend.ceChallengeSeedChainFromStatement(
+            proofKind: .terminalLocal,
+            statementBytes: statementBytes,
+            domainSeparatorBytes: Array(ceOpeningTranscriptDomainSeparator.utf8),
             roundCountPayload: ceEncodeCount(proof.rounds.count),
             commitmentBytes: transcriptBatch.commitmentBytes,
             commitmentOffsets: transcriptBatch.commitmentOffsets,
@@ -6274,6 +6306,7 @@ private func deriveCEOpeningChallengeSeeds(
 #endif
         return seeds
     }
+    var transcript = makeCEOpeningTranscript(statementBytes: statementBytes)
     let roundTranscriptBytes: [CEOpeningRoundTranscriptBytes]
     switch transcriptMaterial {
     case .roundBytes(let rows):
@@ -6296,7 +6329,7 @@ private func deriveCEOpeningChallengeSeeds(
 
 private func deriveCEOpeningChallengesSerial(
     proof: CEOpeningProof,
-    statement: TerminalCEStatement,
+    statementBytes: [UInt8],
     transcriptMaterial: CEOpeningTranscriptMaterial
 ) -> [Int] {
     let roundTranscriptBytes: [CEOpeningRoundTranscriptBytes]
@@ -6306,7 +6339,7 @@ private func deriveCEOpeningChallengesSerial(
     case .flatBatch:
         roundTranscriptBytes = proof.rounds.map(ceRoundTranscriptBytes)
     }
-    var transcript = makeCEOpeningTranscript(statement: statement)
+    var transcript = makeCEOpeningTranscript(statementBytes: statementBytes)
     transcript.absorb(ceEncodeCount(proof.rounds.count))
     var challenges: [Int] = []
     challenges.reserveCapacity(proof.rounds.count)
@@ -7460,12 +7493,16 @@ private let ceOpeningTranscriptDomainSeparator = "SuperNeo-NuMetal.ce-opening.st
 private let ceOpeningTranscriptFieldLabelBytes = Array("\(ceOpeningTranscriptDomainSeparator)/field".utf8)
 
 private func makeCEOpeningTranscript(statement: TerminalCEStatement) -> SumCheckTranscript {
+    makeCEOpeningTranscript(statementBytes: statement.superNeoBytes)
+}
+
+private func makeCEOpeningTranscript(statementBytes: [UInt8]) -> SumCheckTranscript {
     var transcript = SumCheckTranscript(
         domainSeparator: ceOpeningTranscriptDomainSeparator,
-        seed: statement.superNeoBytes,
+        seed: statementBytes,
         proofKind: .terminalLocal
     )
-    transcript.absorb(statement.superNeoBytes)
+    transcript.absorb(statementBytes)
     return transcript
 }
 
@@ -7540,12 +7577,13 @@ private struct CEOpeningFlatDigestInputBatch {
         roundIndex: Int,
         openingIndex: Int,
         permutationBytes: [UInt8],
-        instance: CEInstance
+        instance: CEInstance,
+        subtracting target: CEPrivateTarget? = nil
     ) throws {
         guard let offset = UInt32(exactly: bytes.count) else {
             throw SuperNeoError.invalidParameter("CE opening digest flat batch offset exceeds UInt32")
         }
-        let payloadByteCount = permutationBytes.count + ceSerializedByteCount(instance)
+        let payloadByteCount = permutationBytes.count + (try ceSerializedByteCount(instance, subtracting: target))
         appendCEOpeningDigestHeader(
             tag: tag,
             roundIndex: roundIndex,
@@ -7554,7 +7592,7 @@ private struct CEOpeningFlatDigestInputBatch {
             to: &bytes
         )
         bytes.append(contentsOf: permutationBytes)
-        appendCEInstanceBytes(instance, to: &bytes)
+        try appendCEInstanceBytes(instance, subtracting: target, to: &bytes)
         guard let length = UInt32(exactly: bytes.count - Int(offset)) else {
             throw SuperNeoError.invalidParameter("CE opening digest flat batch length exceeds UInt32")
         }
@@ -7586,6 +7624,23 @@ private func ceSerializedByteCount(_ instance: CEInstance) -> Int {
         + instance.matrixEvals.count * CyclotomicRing54.degree * 2 * MemoryLayout<UInt64>.size
 }
 
+private func ceSerializedByteCount(_ instance: CEInstance, subtracting target: CEPrivateTarget?) throws -> Int {
+    guard let target else {
+        return ceSerializedByteCount(instance)
+    }
+    guard instance.matrixEvals.count == target.matrixEvals.count else {
+        throw SuperNeoError.invalidParameter("CE vector length mismatch")
+    }
+    return max(instance.commitment.elements.count, target.commitment.elements.count)
+        * CyclotomicRing54.degree
+        * MemoryLayout<UInt64>.size
+        + ceSerializedByteCount(instance.publicInputEncoding)
+        + MemoryLayout<UInt64>.size
+        + instance.evalPoint.count * 2 * MemoryLayout<UInt64>.size
+        + MemoryLayout<UInt64>.size
+        + instance.matrixEvals.count * CyclotomicRing54.degree * 2 * MemoryLayout<UInt64>.size
+}
+
 private func ceSerializedByteCount(_ publicInput: PublicInputEncoding) -> Int {
     MemoryLayout<UInt64>.size
         + publicInput.field.count * MemoryLayout<UInt64>.size
@@ -7610,6 +7665,30 @@ private func appendCEInstanceBytes(_ instance: CEInstance, to bytes: inout [UInt
     }
 }
 
+private func appendCEInstanceBytes(
+    _ instance: CEInstance,
+    subtracting target: CEPrivateTarget?,
+    to bytes: inout [UInt8]
+) throws {
+    guard let target else {
+        appendCEInstanceBytes(instance, to: &bytes)
+        return
+    }
+    guard instance.matrixEvals.count == target.matrixEvals.count else {
+        throw SuperNeoError.invalidParameter("CE vector length mismatch")
+    }
+    appendAjtaiCommitmentDifferenceBytes(instance.commitment, target.commitment, to: &bytes)
+    appendPublicInputEncodingBytes(instance.publicInputEncoding, to: &bytes)
+    appendCEEncodedCount(instance.evalPoint.count, to: &bytes)
+    for coordinate in instance.evalPoint {
+        appendGoldilocksExt2Bytes(coordinate, to: &bytes)
+    }
+    appendCEEncodedCount(instance.matrixEvals.count, to: &bytes)
+    for index in instance.matrixEvals.indices {
+        appendCyclotomicExt2RingDifferenceBytes(instance.matrixEvals[index], target.matrixEvals[index], to: &bytes)
+    }
+}
+
 private func appendPublicInputEncodingBytes(_ publicInput: PublicInputEncoding, to bytes: inout [UInt8]) {
     appendCEEncodedCount(publicInput.field.count, to: &bytes)
     for value in publicInput.field {
@@ -7627,15 +7706,48 @@ private func appendAjtaiCommitmentBytes(_ commitment: AjtaiCommitment, to bytes:
     }
 }
 
+private func appendAjtaiCommitmentDifferenceBytes(
+    _ lhs: AjtaiCommitment,
+    _ rhs: AjtaiCommitment,
+    to bytes: inout [UInt8]
+) {
+    let count = max(lhs.elements.count, rhs.elements.count)
+    for index in 0..<count {
+        let lhsElement = index < lhs.elements.count ? lhs.elements[index] : CyclotomicRing54.zero
+        let rhsElement = index < rhs.elements.count ? rhs.elements[index] : CyclotomicRing54.zero
+        appendCyclotomicRingDifferenceBytes(lhsElement, rhsElement, to: &bytes)
+    }
+}
+
 private func appendCyclotomicRingBytes(_ ring: CyclotomicRing54, to bytes: inout [UInt8]) {
     for coefficient in ring.coefficients {
         appendGoldilocksFieldBytes(coefficient, to: &bytes)
     }
 }
 
+private func appendCyclotomicRingDifferenceBytes(
+    _ lhs: CyclotomicRing54,
+    _ rhs: CyclotomicRing54,
+    to bytes: inout [UInt8]
+) {
+    for index in 0..<CyclotomicRing54.degree {
+        appendGoldilocksFieldBytes(lhs.coefficients[index] - rhs.coefficients[index], to: &bytes)
+    }
+}
+
 private func appendCyclotomicExt2RingBytes(_ ring: CyclotomicExt2Ring54, to bytes: inout [UInt8]) {
     for coefficient in ring.coefficients {
         appendGoldilocksExt2Bytes(coefficient, to: &bytes)
+    }
+}
+
+private func appendCyclotomicExt2RingDifferenceBytes(
+    _ lhs: CyclotomicExt2Ring54,
+    _ rhs: CyclotomicExt2Ring54,
+    to bytes: inout [UInt8]
+) {
+    for index in 0..<CyclotomicExt2Ring54.degree {
+        appendGoldilocksExt2Bytes(lhs.coefficients[index] - rhs.coefficients[index], to: &bytes)
     }
 }
 

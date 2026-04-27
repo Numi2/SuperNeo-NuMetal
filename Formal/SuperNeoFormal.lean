@@ -23,6 +23,7 @@ import SuperNeoFormal.PiRLCFiniteSoundness
 import SuperNeoFormal.PiCCS
 import SuperNeoFormal.CCSSemantics
 import SuperNeoFormal.PiCCSSoundness
+import SuperNeoFormal.PrimitiveVerifierConstraints
 import SuperNeoFormal.PiCCSConstructiveFiniteSoundness
 import SuperNeoFormal.CTCORepeatedTapeSoundness
 import SuperNeoFormal.TerminalCE

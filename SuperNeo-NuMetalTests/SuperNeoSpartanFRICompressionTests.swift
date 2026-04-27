@@ -550,6 +550,36 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
         XCTAssertNotEqual(mutated.aggregateResidual, .zero)
     }
 
+    func testMetalPrimitiveBatchCoefficientSummaryMatchesCPU() throws {
+        let device = try requireMetalDevice()
+        let backend = SuperNeoMetalBackend(context: try MetalExecutionContext(device: device))
+        var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+        rows.reserveCapacity(700)
+        for index in 0..<700 {
+            let kind: SuperNeoTerminalVerifierAIRConstraintKind = index.isMultiple(of: 2)
+                ? .terminalCEOpening
+                : .piDECVerifier
+            let provenance: SuperNeoTerminalVerifierAIRRowProvenance = index.isMultiple(of: 5)
+                ? .hashSubrelation
+                : .primitiveArithmetic
+            rows.append(SuperNeoTerminalVerifierAIRConstraintRow(
+                kind: kind,
+                provenance: provenance,
+                label: "metal-batch-row-\(index)",
+                observed: GoldilocksField(UInt64(10_000 + index * 7)),
+                expected: GoldilocksField(UInt64(10_000 + index * 7 + (index == 331 ? 1 : 0)))
+            ))
+        }
+        let cpu = SuperNeoTerminalVerifierAIRPrimitiveBatch.summarize(rows, label: "metal-batch-test")
+        let metal = try SuperNeoTerminalVerifierAIRPrimitiveBatch.summarizeAccelerated(
+            rows,
+            label: "metal-batch-test",
+            metalHashBackend: backend
+        )
+        XCTAssertEqual(metal, cpu)
+        XCTAssertNotEqual(metal.aggregateResidual, GoldilocksField.zero)
+    }
+
     func testTerminalVerifierAIRPrimitiveBatchBindsPublicContext() throws {
         let rows = (0..<3).map { index in
             SuperNeoTerminalVerifierAIRConstraintRow(

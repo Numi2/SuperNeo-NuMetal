@@ -1400,6 +1400,15 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         _ primitiveRows: [SuperNeoTerminalVerifierAIRConstraintRow],
         label: String
     ) -> SuperNeoTerminalVerifierAIRPrimitiveBatchSummary {
+        try! summarizeAccelerated(primitiveRows, label: label, metalHashBackend: nil)
+    }
+
+    static func summarizeAccelerated(
+        _ primitiveRows: [SuperNeoTerminalVerifierAIRConstraintRow],
+        label: String,
+        metalHashBackend: SuperNeoMetalBackend?,
+        metalTimingLabel: String? = nil
+    ) throws -> SuperNeoTerminalVerifierAIRPrimitiveBatchSummary {
         let labelEncoding = spartanFRIEncodeString(label)
         let observedTranscriptDigest = transcriptDigest(
             rowCount: primitiveRows.count,
@@ -1422,16 +1431,15 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         }
         var aggregateResidual = GoldilocksField.zero
         var indexAccumulator = GoldilocksField.zero
-        var coefficients: [GoldilocksField] = []
-        coefficients.reserveCapacity(primitiveRows.count)
+        let coefficients = try coefficients(
+            rows: primitiveRows,
+            labelEncoding: labelEncoding,
+            challengeDigest: challengeDigest,
+            metalHashBackend: metalHashBackend,
+            metalTimingLabel: metalTimingLabel
+        )
         for (index, row) in primitiveRows.enumerated() {
-            let coefficient = coefficient(
-                row: row,
-                labelEncoding: labelEncoding,
-                index: index,
-                challengeDigest: challengeDigest
-            )
-            coefficients.append(coefficient)
+            let coefficient = coefficients[index]
             aggregateResidual = aggregateResidual + row.residual * coefficient
             indexAccumulator = indexAccumulator + coefficient * GoldilocksField(UInt64(index + 1))
         }
@@ -1608,6 +1616,113 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         let fields = spartanFRIDigestFields(coinDigest)
         return fields[0] + GoldilocksField(UInt64(index + 1))
     }
+
+    private static func coefficients(
+        rows: [SuperNeoTerminalVerifierAIRConstraintRow],
+        labelEncoding: [UInt8],
+        challengeDigest: Digest256,
+        metalHashBackend: SuperNeoMetalBackend?,
+        metalTimingLabel: String?
+    ) throws -> [GoldilocksField] {
+        guard let metalHashBackend, rows.count >= 512 else {
+            var coefficients: [GoldilocksField] = []
+            coefficients.reserveCapacity(rows.count)
+            for (index, row) in rows.enumerated() {
+                coefficients.append(coefficient(
+                    row: row,
+                    labelEncoding: labelEncoding,
+                    index: index,
+                    challengeDigest: challengeDigest
+                ))
+            }
+            return coefficients
+        }
+        let flatBatch = try coefficientInputFlatBatch(
+            rows: rows,
+            labelEncoding: labelEncoding,
+            challengeDigest: challengeDigest
+        )
+        let coinDigests = try metalHashBackend.sha256Digest256PreframedFlatBatch(
+            bytes: flatBatch.bytes,
+            offsets: flatBatch.offsets,
+            lengths: flatBatch.lengths
+        )
+#if DEBUG
+        if let metalTimingLabel,
+           let timing = metalHashBackend.context.lastCommandBufferTiming {
+            SuperNeoSpartanFRIDebugProfileContext.current?.recordMetalCommandTiming(
+                metalTimingLabel,
+                timing: timing
+            )
+        }
+#endif
+        guard coinDigests.count == rows.count else {
+            throw SuperNeoError.metalFailure("Metal primitive batch coefficient derivation returned wrong digest count")
+        }
+        var coefficients: [GoldilocksField] = []
+        coefficients.reserveCapacity(rows.count)
+        for (index, coinDigest) in coinDigests.enumerated() {
+            coefficients.append(firstDigestField(coinDigest) + GoldilocksField(UInt64(index + 1)))
+        }
+        return coefficients
+    }
+
+    private struct CoefficientInputFlatBatch {
+        var bytes: [UInt8] = []
+        var offsets: [UInt32] = []
+        var lengths: [UInt32] = []
+    }
+
+    private static func coefficientInputFlatBatch(
+        rows: [SuperNeoTerminalVerifierAIRConstraintRow],
+        labelEncoding: [UInt8],
+        challengeDigest: Digest256
+    ) throws -> CoefficientInputFlatBatch {
+        let inputLength = batchCoinDomain.count
+            + labelEncoding.count
+            + Digest256.byteCount
+            + MemoryLayout<UInt64>.size
+            + 2
+            + Digest256.byteCount
+        var batch = CoefficientInputFlatBatch()
+        batch.bytes.reserveCapacity(inputLength * rows.count)
+        batch.offsets.reserveCapacity(rows.count)
+        batch.lengths.reserveCapacity(rows.count)
+        for (index, row) in rows.enumerated() {
+            guard let offset = UInt32(exactly: batch.bytes.count) else {
+                throw SuperNeoError.invalidParameter("primitive batch coefficient input offset exceeds UInt32")
+            }
+            batch.offsets.append(offset)
+            batch.bytes.append(contentsOf: batchCoinDomain)
+            batch.bytes.append(contentsOf: labelEncoding)
+            batch.bytes.append(contentsOf: challengeDigest.bytes)
+            appendCount(index, to: &batch.bytes)
+            batch.bytes.append(row.kind.rawValue)
+            batch.bytes.append(row.provenance.rawValue)
+            batch.bytes.append(contentsOf: row.labelDigest.bytes)
+            guard let length = UInt32(exactly: batch.bytes.count - Int(offset)) else {
+                throw SuperNeoError.invalidParameter("primitive batch coefficient input length exceeds UInt32")
+            }
+            batch.lengths.append(length)
+        }
+        return batch
+    }
+
+    private static func appendCount(_ value: Int, to bytes: inout [UInt8]) {
+        var littleEndian = UInt64(value).littleEndian
+        withUnsafeBytes(of: &littleEndian) { buffer in
+            bytes.append(contentsOf: buffer)
+        }
+    }
+
+    private static func firstDigestField(_ digest: Digest256) -> GoldilocksField {
+        let bytes = digest.bytes
+        let value = UInt32(bytes[0])
+            | (UInt32(bytes[1]) << 8)
+            | (UInt32(bytes[2]) << 16)
+            | (UInt32(bytes[3]) << 24)
+        return GoldilocksField(UInt64(value))
+    }
 }
 
 public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
@@ -1771,28 +1886,32 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
             : nil
         let constraintRows = terminalVerifierAIRConstraintRows(
             sourceProofKind: statement.sourceProofKind,
+            expectedSourceProofKind: statement.sourceProofKind,
             sourceProofByteCount: statement.sourceProofByteCount,
             sourceProofDigest: statement.sourceProofDigest,
             canonicalSourceEncodingDigest: statement.sourceProofDigest,
             profileID: statement.profileID,
+            expectedProfileID: policy.profileID,
             shapeDigest: statement.shapeDigest,
+            expectedShapeDigest: policy.shapeDigest,
             statementDigest: statement.statementDigest,
+            expectedStatementDigest: policy.statementDigest,
             verifierKeyDigest: statement.verifierKeyDigest,
+            expectedVerifierKeyDigest: verifierKeyDigest,
             transcriptDomain: statement.transcriptDomain,
+            expectedTranscriptDomain: policy.transcriptDomain,
             publicInputDigest: statement.publicInputDigest,
+            expectedPublicInputDigest: spartanFRIPublicInputDigest(publicInput),
             recursiveRelationDigest: publicInput.recursiveRelationDigest,
+            expectedRecursiveRelationDigest: publicInput.recursiveRelationDigest,
             compressionPolicyDigest: policyDigest,
+            expectedCompressionPolicyDigest: terminalVerifierCompressionPolicyDigest(policy),
             terminalStatementDigest: statement.terminalStatementDigest,
             foldProofDigest: statement.foldProofDigest,
             ceOpeningProofDigest: statement.ceOpeningProofDigest,
             publicCoinBindingDigest: publicCoinBindingDigest,
+            expectedPublicCoinBindingDigest: publicCoinBindingDigest,
             innerCompressedProofDigest: innerCompressedProofDigest,
-            contextBound: true,
-            sourceDigestComputed: true,
-            verifierKeyBound: true,
-            publicStatementBound: true,
-            recursiveRelationBound: true,
-            compressionPolicyBound: true,
             piCCSChecks: terminalVerifierAIRSourceFreePCSRows(kind: .piCCSVerifier, label: "piccs"),
             piRLCChecks: terminalVerifierAIRSourceFreePCSRows(kind: .piRLCVerifier, label: "pirlc"),
             piDECChecks: terminalVerifierAIRSourceFreePCSRows(kind: .piDECVerifier, label: "pidec"),
@@ -1861,12 +1980,6 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
         let sourceDigests = decodedSource.sourceDigests
         let sourceDigest = Digest256.hash(proofBytes)
 #endif
-        let publicStatement = CCSStatement(
-            shapeDigest: publicInput.shape.shapeDigest,
-            ccsInstances: publicInput.instances,
-            priorCEInstances: publicInput.priorClaims.map(CEInstance.init),
-            recursiveRelationDigest: publicInput.recursiveRelationDigest
-        )
         let policyDigest = terminalVerifierCompressionPolicyDigest(policy)
         let statement = try SuperNeoSpartanFRICompressionStatement(
             sourceProofKind: header.kind,
@@ -1882,16 +1995,6 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
             foldProofDigest: sourceDigests.foldProofDigest,
             ceOpeningProofDigest: sourceDigests.ceOpeningProofDigest
         )
-        let sourceDigestProven = true
-        let contextBound = header.profileID == expectedContext.profileID
-            && header.kind == expectedContext.kind
-            && header.shapeDigest == expectedContext.shapeDigest
-            && header.statementDigest == expectedContext.statementDigest
-            && header.verifierKeyDigest == expectedContext.verifierKeyDigest
-            && header.transcriptDomain == expectedContext.transcriptDomain
-        let publicStatementBound = publicStatement.shapeDigest == expectedContext.shapeDigest
-            && publicStatement.statementDigest == expectedContext.statementDigest
-        let recursiveBound = publicStatement.recursiveRelationDigest == publicInput.recursiveRelationDigest
 #if DEBUG
         let constraintMaterial = try superNeoDebugMeasure("primitive row emission") {
             try terminalVerifierAIRConstraintMaterialForSource(
@@ -1913,6 +2016,12 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
             publicInputDigest: statement.publicInputDigest,
             recursiveRelationDigest: publicInput.recursiveRelationDigest
         )
+        let expectedPublicCoinBindingDigest = terminalVerifierAIRPublicCoinBindingDigest(
+            transcriptDomain: expectedContext.transcriptDomain,
+            statementDigest: expectedContext.statementDigest,
+            publicInputDigest: spartanFRIPublicInputDigest(publicInput),
+            recursiveRelationDigest: publicInput.recursiveRelationDigest
+        )
         let innerCompressedProofDigest = header.kind == .compressedPublic
             ? terminalVerifierAIRInnerCompressedDigest(statement: statement, policyDigest: policyDigest)
             : nil
@@ -1920,28 +2029,32 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
         let constraintRows = superNeoDebugMeasure("primitive row emission") {
             terminalVerifierAIRConstraintRows(
                 sourceProofKind: header.kind,
+                expectedSourceProofKind: expectedContext.kind,
                 sourceProofByteCount: proofBytes.count,
                 sourceProofDigest: sourceDigest,
                 canonicalSourceEncodingDigest: sourceDigest,
                 profileID: header.profileID,
+                expectedProfileID: expectedContext.profileID,
                 shapeDigest: header.shapeDigest,
+                expectedShapeDigest: expectedContext.shapeDigest,
                 statementDigest: header.statementDigest,
+                expectedStatementDigest: expectedContext.statementDigest,
                 verifierKeyDigest: header.verifierKeyDigest,
+                expectedVerifierKeyDigest: verifier.key.verifierKeyDigest,
                 transcriptDomain: header.transcriptDomain,
+                expectedTranscriptDomain: expectedContext.transcriptDomain,
                 publicInputDigest: statement.publicInputDigest,
+                expectedPublicInputDigest: spartanFRIPublicInputDigest(publicInput),
                 recursiveRelationDigest: publicInput.recursiveRelationDigest,
+                expectedRecursiveRelationDigest: publicInput.recursiveRelationDigest,
                 compressionPolicyDigest: policyDigest,
+                expectedCompressionPolicyDigest: terminalVerifierCompressionPolicyDigest(policy),
                 terminalStatementDigest: sourceDigests.terminalStatementDigest,
                 foldProofDigest: sourceDigests.foldProofDigest,
                 ceOpeningProofDigest: sourceDigests.ceOpeningProofDigest,
                 publicCoinBindingDigest: publicCoinBindingDigest,
+                expectedPublicCoinBindingDigest: expectedPublicCoinBindingDigest,
                 innerCompressedProofDigest: innerCompressedProofDigest,
-                contextBound: contextBound,
-                sourceDigestComputed: sourceDigestProven,
-                verifierKeyBound: expectedContext.verifierKeyDigest == verifier.key.verifierKeyDigest,
-                publicStatementBound: publicStatementBound,
-                recursiveRelationBound: recursiveBound,
-                compressionPolicyBound: true,
                 piCCSChecks: constraintMaterial.piCCSRows,
                 piRLCChecks: constraintMaterial.piRLCRows,
                 piDECChecks: constraintMaterial.piDECRows,
@@ -1953,28 +2066,32 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
 #else
         let constraintRows = terminalVerifierAIRConstraintRows(
             sourceProofKind: header.kind,
+            expectedSourceProofKind: expectedContext.kind,
             sourceProofByteCount: proofBytes.count,
             sourceProofDigest: sourceDigest,
             canonicalSourceEncodingDigest: sourceDigest,
             profileID: header.profileID,
+            expectedProfileID: expectedContext.profileID,
             shapeDigest: header.shapeDigest,
+            expectedShapeDigest: expectedContext.shapeDigest,
             statementDigest: header.statementDigest,
+            expectedStatementDigest: expectedContext.statementDigest,
             verifierKeyDigest: header.verifierKeyDigest,
+            expectedVerifierKeyDigest: verifier.key.verifierKeyDigest,
             transcriptDomain: header.transcriptDomain,
+            expectedTranscriptDomain: expectedContext.transcriptDomain,
             publicInputDigest: statement.publicInputDigest,
+            expectedPublicInputDigest: spartanFRIPublicInputDigest(publicInput),
             recursiveRelationDigest: publicInput.recursiveRelationDigest,
+            expectedRecursiveRelationDigest: publicInput.recursiveRelationDigest,
             compressionPolicyDigest: policyDigest,
+            expectedCompressionPolicyDigest: terminalVerifierCompressionPolicyDigest(policy),
             terminalStatementDigest: sourceDigests.terminalStatementDigest,
             foldProofDigest: sourceDigests.foldProofDigest,
             ceOpeningProofDigest: sourceDigests.ceOpeningProofDigest,
             publicCoinBindingDigest: publicCoinBindingDigest,
+            expectedPublicCoinBindingDigest: expectedPublicCoinBindingDigest,
             innerCompressedProofDigest: innerCompressedProofDigest,
-            contextBound: contextBound,
-            sourceDigestComputed: sourceDigestProven,
-            verifierKeyBound: expectedContext.verifierKeyDigest == verifier.key.verifierKeyDigest,
-            publicStatementBound: publicStatementBound,
-            recursiveRelationBound: recursiveBound,
-            compressionPolicyBound: true,
             piCCSChecks: constraintMaterial.piCCSRows,
             piRLCChecks: constraintMaterial.piRLCRows,
             piDECChecks: constraintMaterial.piDECRows,
@@ -4311,28 +4428,32 @@ private func terminalVerifierAIRCEMetalWorkspace(
 
 private func terminalVerifierAIRConstraintRows(
     sourceProofKind: ProofEnvelopeKind,
+    expectedSourceProofKind: ProofEnvelopeKind,
     sourceProofByteCount: Int,
     sourceProofDigest: Digest256,
     canonicalSourceEncodingDigest: Digest256,
     profileID: UInt16,
+    expectedProfileID: UInt16,
     shapeDigest: Digest256,
+    expectedShapeDigest: Digest256,
     statementDigest: Digest256,
+    expectedStatementDigest: Digest256,
     verifierKeyDigest: Digest256,
+    expectedVerifierKeyDigest: Digest256,
     transcriptDomain: Digest256,
+    expectedTranscriptDomain: Digest256,
     publicInputDigest: Digest256,
+    expectedPublicInputDigest: Digest256,
     recursiveRelationDigest: Digest256?,
+    expectedRecursiveRelationDigest: Digest256?,
     compressionPolicyDigest: Digest256,
+    expectedCompressionPolicyDigest: Digest256,
     terminalStatementDigest: Digest256,
     foldProofDigest: Digest256,
     ceOpeningProofDigest: Digest256,
     publicCoinBindingDigest: Digest256,
+    expectedPublicCoinBindingDigest: Digest256,
     innerCompressedProofDigest: Digest256?,
-    contextBound: Bool,
-    sourceDigestComputed: Bool,
-    verifierKeyBound: Bool,
-    publicStatementBound: Bool,
-    recursiveRelationBound: Bool,
-    compressionPolicyBound: Bool,
     piCCSChecks: [SuperNeoTerminalVerifierAIRConstraintRow],
     piRLCChecks: [SuperNeoTerminalVerifierAIRConstraintRow],
     piDECChecks: [SuperNeoTerminalVerifierAIRConstraintRow],
@@ -4340,11 +4461,15 @@ private func terminalVerifierAIRConstraintRows(
     innerCompressedChecks: [SuperNeoTerminalVerifierAIRConstraintRow]
 ) -> [SuperNeoTerminalVerifierAIRConstraintRow] {
     var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
-    rows.append(.required(
-        sourceProofKind == .terminalLocal || sourceProofKind == .compressedPublic,
+    let sourceKind = GoldilocksField(UInt64(sourceProofKind.rawValue))
+    let terminalKind = GoldilocksField(UInt64(ProofEnvelopeKind.terminalLocal.rawValue))
+    let compressedKind = GoldilocksField(UInt64(ProofEnvelopeKind.compressedPublic.rawValue))
+    rows.append(terminalVerifierAIRFieldRow(
         kind: .canonicalSourceRepresentation,
         provenance: .canonicalDecoding,
-        label: "source-kind-terminal"
+        label: "source-kind-terminal-or-compressed",
+        observed: (sourceKind - terminalKind) * (sourceKind - compressedKind),
+        expected: .zero
     ))
     rows.append(.required(
         sourceProofByteCount > ProofEnvelopeHeader.byteCount,
@@ -4352,18 +4477,34 @@ private func terminalVerifierAIRConstraintRows(
         provenance: .canonicalDecoding,
         label: "source-byte-count"
     ))
-    rows.append(.required(
-        contextBound,
+    rows.append(terminalVerifierAIRFieldRow(
         kind: .canonicalSourceRepresentation,
         provenance: .canonicalDecoding,
-        label: "canonical-context-bound"
+        label: "canonical-context-kind",
+        observed: sourceKind,
+        expected: GoldilocksField(UInt64(expectedSourceProofKind.rawValue))
     ))
-    rows.append(.required(
-        sourceDigestComputed,
+    rows.append(terminalVerifierAIRFieldRow(
         kind: .canonicalSourceRepresentation,
-        provenance: .hashSubrelation,
-        label: "source-digest-computed-from-canonical-encoding"
+        provenance: .canonicalDecoding,
+        label: "canonical-context-profile-id",
+        observed: GoldilocksField(UInt64(profileID)),
+        expected: GoldilocksField(UInt64(expectedProfileID))
     ))
+    for (label, observed, expected) in [
+        ("canonical-context-shape", shapeDigest, expectedShapeDigest),
+        ("canonical-context-statement", statementDigest, expectedStatementDigest),
+        ("canonical-context-verifier-key", verifierKeyDigest, expectedVerifierKeyDigest),
+        ("canonical-context-transcript-domain", transcriptDomain, expectedTranscriptDomain)
+    ] {
+        rows.append(contentsOf: terminalVerifierAIRDigestRows(
+            kind: .canonicalSourceRepresentation,
+            provenance: .canonicalDecoding,
+            label: label,
+            observed: observed,
+            expected: expected
+        ))
+    }
     rows.append(contentsOf: terminalVerifierAIRDigestRows(
         kind: .canonicalSourceRepresentation,
         provenance: .hashSubrelation,
@@ -4376,39 +4517,43 @@ private func terminalVerifierAIRConstraintRows(
         provenance: .publicInputBinding,
         label: "profile-id",
         observed: GoldilocksField(UInt64(profileID)),
-        expected: GoldilocksField(UInt64(profileID))
+        expected: GoldilocksField(UInt64(expectedProfileID))
     ))
-    for (label, digest) in [
-        ("shape", shapeDigest),
-        ("statement", statementDigest),
-        ("verifier-key", verifierKeyDigest),
-        ("transcript-domain", transcriptDomain),
-        ("public-input", publicInputDigest),
-        ("compression-policy", compressionPolicyDigest),
-        ("terminal-statement", terminalStatementDigest),
-        ("fold-proof", foldProofDigest),
-        ("ce-opening-proof", ceOpeningProofDigest),
-        ("public-coin-binding", publicCoinBindingDigest)
+    for (label, observed, expected) in [
+        ("shape", shapeDigest, expectedShapeDigest),
+        ("statement", statementDigest, expectedStatementDigest),
+        ("verifier-key", verifierKeyDigest, expectedVerifierKeyDigest),
+        ("transcript-domain", transcriptDomain, expectedTranscriptDomain),
+        ("public-input", publicInputDigest, expectedPublicInputDigest),
+        ("compression-policy", compressionPolicyDigest, expectedCompressionPolicyDigest),
+        ("terminal-statement", terminalStatementDigest, terminalStatementDigest),
+        ("fold-proof", foldProofDigest, foldProofDigest),
+        ("ce-opening-proof", ceOpeningProofDigest, ceOpeningProofDigest),
+        ("public-coin-binding", publicCoinBindingDigest, expectedPublicCoinBindingDigest)
     ] {
         rows.append(contentsOf: terminalVerifierAIRDigestRows(
             kind: .publicBinding,
             provenance: .publicInputBinding,
             label: label,
-            observed: digest,
-            expected: digest
+            observed: observed,
+            expected: expected
         ))
     }
-    rows.append(.required(verifierKeyBound, kind: .publicBinding, provenance: .publicInputBinding, label: "verifier-key-bound"))
-    rows.append(.required(publicStatementBound, kind: .publicBinding, provenance: .publicInputBinding, label: "public-statement-bound"))
-    rows.append(.required(recursiveRelationBound, kind: .publicBinding, provenance: .publicInputBinding, label: "recursive-relation-bound"))
-    rows.append(.required(compressionPolicyBound, kind: .publicBinding, provenance: .publicInputBinding, label: "compression-policy-bound"))
     if let recursiveRelationDigest {
         rows.append(contentsOf: terminalVerifierAIRDigestRows(
             kind: .publicBinding,
             provenance: .publicInputBinding,
             label: "recursive-relation-public-input",
             observed: recursiveRelationDigest,
-            expected: recursiveRelationDigest
+            expected: expectedRecursiveRelationDigest ?? terminalVerifierAIRRecursiveRelationDigest(nil)
+        ))
+    } else {
+        rows.append(contentsOf: terminalVerifierAIRDigestRows(
+            kind: .publicBinding,
+            provenance: .publicInputBinding,
+            label: "recursive-relation-public-input-absent",
+            observed: terminalVerifierAIRRecursiveRelationDigest(nil),
+            expected: expectedRecursiveRelationDigest ?? terminalVerifierAIRRecursiveRelationDigest(nil)
         ))
     }
     rows.append(contentsOf: piCCSChecks)
@@ -4896,17 +5041,7 @@ private func terminalVerifierAIRAcceptSubrelation(
         domain: "SuperNeo-NuMetal.terminal-verifier-air.accept-aggregation.v1",
         rowBindingContext: rowBindingContext
     )
-    let acceptBit = spec.acceptBit
     builder.appendPair(aggregate, .zero)
-    builder.appendPair(acceptBit, .one)
-    builder.appendConstraintRows([
-        .required(
-            spec.accepts,
-            kind: .acceptAggregation,
-            provenance: .primitiveArithmetic,
-            label: "accept-derived-from-zero-residual"
-        )
-    ])
     return builder.finish()
 }
 

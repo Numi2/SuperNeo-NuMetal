@@ -308,6 +308,10 @@ Product/security behavior is evidence-parametric. Any product proof-path,
 transcript, policy, schema, compression, or benchmark change should be reconciled
 with the relevant manifests:
 
+The `TestVectors/product-extractor-loss-accounting-v1.json` manifest is the
+checked extractor loss accounting surface for the selected-depth product
+security theorem.
+
 - `TestVectors/numiseal-conformance-scope-v1.json`
 - `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`
 - `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`
