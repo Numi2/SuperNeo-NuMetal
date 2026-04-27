@@ -9155,6 +9155,99 @@ final class MetalDifferentialTests: SuperNeoTestCase {
         XCTAssertNil(highAssurancePreparedContext.metalWorkspace)
     }
 
+    func testBenchmarkQuickMetalFoldMatchesCPUReference() throws {
+        let device = try requireMetalDevice()
+        let context = try MetalExecutionContext(device: device)
+        try context.prewarmSuperNeoPipelines()
+
+        for benchmarkCase in SuperNeoBenchmarkFixtures.quickCases {
+            let fixture = try SuperNeoBenchmarkFixture(benchmarkCase: benchmarkCase)
+            let optimizedCPUReference = try SuperNeoProver(
+                parameters: fixture.parameters,
+                key: fixture.key,
+                executionPolicy: .metalAccelerated
+            ).foldWithOutput(
+                fixture.input,
+                transcriptSeed: fixture.transcriptSeed
+            )
+            let metalProver = SuperNeoProver(
+                parameters: fixture.parameters,
+                key: fixture.key,
+                context: context,
+                executionPolicy: .metalAccelerated
+            )
+            let metalPreparedContext = try metalProver.prepareFoldContext(for: fixture.input)
+            let metal = try metalProver.foldWithOutput(
+                fixture.input,
+                transcriptSeed: fixture.transcriptSeed
+            )
+            let preparedMetal = try metalProver.foldWithOutput(
+                fixture.input,
+                transcriptSeed: fixture.transcriptSeed,
+                preparedContext: metalPreparedContext
+            )
+            let verifier = SuperNeoVerifier(parameters: fixture.parameters, key: fixture.key)
+
+            let optimizedCPUReduction = verifier.reduceFold(
+                publicInput: fixture.publicInput,
+                proof: optimizedCPUReference.proof,
+                transcriptSeed: fixture.transcriptSeed
+            )
+            let metalReduction = verifier.reduceFold(
+                publicInput: fixture.publicInput,
+                proof: metal.proof,
+                transcriptSeed: fixture.transcriptSeed
+            )
+            let preparedMetalReduction = verifier.reduceFold(
+                publicInput: fixture.publicInput,
+                proof: preparedMetal.proof,
+                transcriptSeed: fixture.transcriptSeed
+            )
+            XCTAssertTrue(
+                optimizedCPUReduction.isReductionAccepted,
+                "\(benchmarkCase.label): same-policy CPU reference rejected: \(optimizedCPUReduction.reason ?? "unknown")"
+            )
+            XCTAssertTrue(metalReduction.isReductionAccepted, "\(benchmarkCase.label): Metal reduction rejected: \(metalReduction.reason ?? "unknown")")
+            XCTAssertTrue(
+                preparedMetalReduction.isReductionAccepted,
+                "\(benchmarkCase.label): prepared Metal reduction rejected: \(preparedMetalReduction.reason ?? "unknown")"
+            )
+            XCTAssertEqual(
+                metal.proof.outputClaims,
+                metal.outputClaims.map(Self.publicFoldClaim),
+                "\(benchmarkCase.label): Metal proof/output claim boundary mismatch"
+            )
+            XCTAssertEqual(
+                preparedMetal.proof.outputClaims,
+                preparedMetal.outputClaims.map(Self.publicFoldClaim),
+                "\(benchmarkCase.label): prepared Metal proof/output claim boundary mismatch"
+            )
+
+            var mismatches: [String] = []
+            if metal.proof.sumCheck != optimizedCPUReference.proof.sumCheck { mismatches.append("sum-check") }
+            if metal.proof.piCCSClaims != optimizedCPUReference.proof.piCCSClaims { mismatches.append("PiCCS claims") }
+            if metal.proof.randomLinearCombinationChallenges != optimizedCPUReference.proof.randomLinearCombinationChallenges {
+                mismatches.append("PiRLC challenges")
+            }
+            if metal.proof.foldedClaim != optimizedCPUReference.proof.foldedClaim { mismatches.append("folded claim") }
+            if metal.proof.decomposition != optimizedCPUReference.proof.decomposition { mismatches.append("decomposition") }
+            if metal.proof.outputClaims != optimizedCPUReference.proof.outputClaims { mismatches.append("output claims") }
+            if metal.proof.auxiliaryPiCCSTapes != optimizedCPUReference.proof.auxiliaryPiCCSTapes { mismatches.append("auxiliary PiCCS") }
+            if metal.proof.auxiliaryPiRLCBranches != optimizedCPUReference.proof.auxiliaryPiRLCBranches { mismatches.append("auxiliary PiRLC") }
+            if preparedMetal.proof != optimizedCPUReference.proof { mismatches.append("prepared proof") }
+            XCTAssertTrue(mismatches.isEmpty, "\(benchmarkCase.label): Metal proof mismatch against same-policy CPU in \(mismatches.joined(separator: ", "))")
+        }
+    }
+
+    private static func publicFoldClaim(_ claim: CCSEvaluationClaim) -> CCSEvaluationClaim {
+        CCSEvaluationClaim(
+            commitment: claim.commitment,
+            publicInput: claim.publicInput,
+            point: claim.point,
+            evaluations: claim.evaluations
+        )
+    }
+
     func testTier0MetalSeededDifferentialCorpusMatchesCPUOracle() throws {
         let device = try requireMetalDevice()
         let context = try MetalExecutionContext(device: device)

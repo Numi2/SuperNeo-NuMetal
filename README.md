@@ -161,6 +161,106 @@ swift run superneo verify \
   /tmp/numiseal-zk-product.json
 ```
 
+## Measurement Costs And Benchmarks
+
+Benchmark rows are rendered by `Scripts/render-benchmark-report.swift` from
+`benchmark-results/results.json`. Fresh local runs write to
+`benchmark-results/`; checked snapshots under `Docs/BenchmarkReports/` are
+release evidence only when explicitly refreshed.
+
+The timing table records more than one cost:
+
+- `Time`: benchmark wall-clock time.
+- `GPU`: Metal command-buffer execution time when the row uses Metal.
+- `Encode`, `Commit`, `Wait`: CPU-side Metal dispatch costs.
+- `p95`: package-benchmark 95th percentile when present.
+- `Derived`: folds/s, constraints/s, or commitments/s where the row has a
+  meaningful rate.
+- `Allocations`: total allocation count from the benchmark harness.
+
+Fresh local quick measurements were regenerated on 2026-04-27 from the current
+working tree. Metadata: Apple M4 MacBook Air, 24 GB RAM, macOS 26.5, Swift 6.3,
+Xcode 26.4, benchmark profile `quick`, cases `m64-K1-k0-binary` and
+`m256-K2-k1-binary`. The current report is `benchmark-results/report.md`; the
+Metal fold rows below were rerun as targeted filtered rows after the same-policy
+CPU oracle fix.
+
+| Surface | Row | Measurement |
+| --- | --- | ---: |
+| Source fold prover | `fold/cpu/m256-K2-k1-binary` | 562 ms, 1.78 folds/s, 456 constraints/s |
+| Source fold prover | `fold/prepared/cpu/m256-K2-k1-binary` | 560 ms, 1.79 folds/s, 457 constraints/s |
+| Source fold prover | `fold/metal/m256-K2-k1-binary` | 301 ms, 3.32 folds/s, 850 constraints/s |
+| Source fold prover | `fold/prepared/metal/m256-K2-k1-binary` | 157 ms, 6.37 folds/s, 1631 constraints/s |
+| Source fold prover | `fold/cpu/m64-K1-k0-binary` | 116 ms, 8.62 folds/s, 552 constraints/s |
+| Source fold prover | `fold/prepared/cpu/m64-K1-k0-binary` | 116 ms, 8.62 folds/s, 552 constraints/s |
+| Source fold prover | `fold/metal/m64-K1-k0-binary` | 34 ms, 29.41 folds/s, 1882 constraints/s |
+| Source fold prover | `fold/prepared/metal/m64-K1-k0-binary` | 32 ms, 31.25 folds/s, 2000 constraints/s |
+| Source fold verifier | `reduceFold/cpu/m256-K2-k1-binary` | 12 ms |
+| Source fold verifier | `reduceFold/cpu/m64-K1-k0-binary` | 5.47 ms |
+| Terminal verifier | `terminalVerify/cpu/m256-K2-k1-binary` | 45 ms |
+| Terminal verifier | `terminalVerify/cpu/m64-K1-k0-binary` | 40 ms |
+| Fold stages | `stage/sumcheck`, `stage/piCCSClaims`, `stage/piRLC`, `stage/piDEC` on `m64-K1-k0-binary` | 619 us, 2.62 ms, 1.27 ms, 37 ms |
+| Prepared stages | `stage/prepared/sumcheck`, `stage/prepared/piRLC`, `stage/prepared/piDEC` on `m64-K1-k0-binary` | 625 us, 152 us, 34 ms |
+| NumiSeal terminal product | `numisealProduct/prove` / `verify` on `one-hot-u2-terminal` | 274 ms / 92 ms |
+| NumiSealZK product | `numisealProduct/prove` / `verify` on `one-hot-u2-zk` | 274 ms / 87 ms |
+| Recursive carry child | `numisealProduct/recursiveCarry/prove` / `verify` | 291 ms / 92 ms |
+| Product controls | `productControls/replayIdentity` / `auditEventEncode` | 26 us / 13.3 us |
+| Ajtai commitment | `kernel/ajtaiCommit/cpu/m64-K1-k0-binary` | 53 us, 18867.92 commitments/s |
+| Pay-per-bit optimized commit | `kernel/ajtaiCommit/payPerBitOptimized/cpu/m64-K1-k0-binary` | 73 us, 13698.63 commitments/s |
+| Ajtai work-profile cost | `kernel/ajtaiCommit/workProfile/m64-K1-k0-binary` | 2.58 us, 387146.73 commitments/s |
+
+Fresh fold proof-size rows from the same report:
+
+| Case | Constraints | Proof | Envelope | Sum-check | PiCCS | PiRLC | PiDEC | Output claims |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `m64-K1-k0-binary` | 64 | 951800 B | 951941 B | 672 B | 10920 B | 11352 B | 145280 B | 152880 B |
+| `m256-K2-k1-binary` | 256 | 1000120 B | 1000261 B | 880 B | 32856 B | 12248 B | 145280 B | 153328 B |
+
+Metal fold benchmark rows now compare against a same-policy CPU oracle
+(`.metalAccelerated`) and still require normal CPU verifier acceptance. Do not
+compare these rows byte-for-byte against the default constant-work CPU fold:
+the default and accelerated policies can produce different valid PiDEC/output
+claim shapes. Other Metal kernel rows still record dispatch costs; for example
+`kernel/fieldMultiply/metal/m64-K1-k0-binary` measured 531 us while the CPU
+field multiply row measured 334 ns, so small-kernel Metal rows remain
+dispatch-bound.
+
+Fresh local CLI artifact byte counts for the same `one-hot-u2` NumiSeal product
+smoke:
+
+- NumiSeal terminal product: `1028837 B` source-fold envelope, `244225 B`
+  product proof envelope, `1728748 B` canonical artifact.
+- NumiSealZK product: `1028837 B` source-fold envelope, `245435 B` product
+  proof envelope, `1732166 B` canonical artifact.
+- ZK overhead versus terminal in this smoke: `+1210 B` proof envelope and
+  `+3418 B` canonical artifact.
+- Both fresh CLI smokes reported `sourceFoldOutputClaimCount = 14` under
+  `sourceDecompositionProfile = "pay-per-bit-v1"`.
+
+Pay-per-bit measurement is split between protocol acceptance and cost-model
+evidence. Product verification requires `pay-per-bit-v1`, while
+`superneo-payperbit-eval` reports how fixed 14-limb decomposition compares to
+pay-per-bit accounting:
+
+```sh
+swift run superneo-payperbit-eval \
+  --profile full \
+  --format markdown \
+  --output benchmark-results/payperbit-profile-evaluation.md
+```
+
+Representative full-profile model rows:
+
+| Case | Current slots | Padded ppb slots | Active digit slots | Padded ratio | Active ratio | Opening ratio |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `m64-K2-k0-binary` | 1512 | 108 | 29 | 14.00x | 52.14x | 14.00x |
+| `m256-K2-k0-binary` | 3780 | 270 | 129 | 14.00x | 29.30x | 14.00x |
+| `m1024-K2-k0-binary` | 14364 | 1026 | 525 | 14.00x | 27.36x | 14.00x |
+| `m256-K2-k1-small` | 3780 | 540 | 282 | 7.00x | 13.40x | 7.00x |
+
+These ratios are measurement/model evidence for explicit optimized lanes. They
+do not silently change high-assurance product defaults.
+
 ## Validation Gates
 
 Run the full repository-local release-candidate gate:
@@ -197,7 +297,12 @@ Scripts/reproduce-superneo-paper.sh quick
 ```
 
 Use `quick` before performance-sensitive edits. Use `full` only when refreshing
-checked benchmark evidence.
+checked benchmark evidence. Heavy CE proof and compressed-envelope rows are
+opt-in:
+
+```sh
+SUPERNEO_BENCHMARK_CE=1 Scripts/run-benchmarks.sh quick
+```
 
 ## Machine Evidence To Keep In Sync
 
@@ -237,6 +342,7 @@ with the relevant manifests:
 - `Docs/CryptographicSecurityDossier-2026-04-16.md`: evidence-parametric
   security dossier.
 - `Docs/Benchmarking.md`: benchmark commands and coverage contract.
+- `Docs/BenchmarkReports/README.md`: checked benchmark report landing area.
 - `Docs/GPUDeterminism.md`: Metal acceleration and trust policies.
 - `Docs/ProductionReadinessAuditPacket-2026-04-16.md`: release-candidate gate
   packet.

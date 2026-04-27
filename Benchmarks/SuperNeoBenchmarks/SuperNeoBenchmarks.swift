@@ -131,6 +131,26 @@ private func requireValid(_ result: NumiSealProductVerificationResult) throws {
     }
 }
 
+private func benchmarkPublicClaim(_ claim: CCSEvaluationClaim) -> CCSEvaluationClaim {
+    CCSEvaluationClaim(
+        commitment: claim.commitment,
+        publicInput: claim.publicInput,
+        point: claim.point,
+        evaluations: claim.evaluations
+    )
+}
+
+private func makeBenchmarkQROChallenge(_ label: String) throws -> SuperNeoQROChallenge {
+    try SuperNeoQROChallenge(
+        sessionID: "benchmark/\(label)",
+        verifierPublicCoin: Digest256.hash("qro-public-coin/benchmark/\(label)").superNeoBytes,
+        transcriptContext: SuperNeoSplitQRO.framedBytes(
+            domain: "superneo/benchmarks/qro-context/v1",
+            frames: [Array(label.utf8)]
+        )
+    )
+}
+
 private final class NumiSealProductBenchmarkFixture {
     let prepared: SuperNeoPreparedR1CS
     let terminalRequest: NumiSealProvingRequest
@@ -163,11 +183,21 @@ private final class NumiSealProductBenchmarkFixture {
         let prover = NumiSealProductProver()
         let verifier = NumiSealProductVerifier()
         let workloadParameters = ["selectedCount": "1"]
+        let terminalQROChallenge = try benchmarkSetupStep("build NumiSeal terminal QRO challenge") {
+            try makeBenchmarkQROChallenge("numiseal-terminal")
+        }
+        let zkQROChallenge = try benchmarkSetupStep("build NumiSealZK QRO challenge") {
+            try makeBenchmarkQROChallenge("numiseal-zk")
+        }
+        let recursiveChildQROChallenge = try benchmarkSetupStep("build recursive child QRO challenge") {
+            try makeBenchmarkQROChallenge("numiseal-recursive-child")
+        }
         let terminalRequest = NumiSealProvingRequest(
             preparedR1CS: prepared,
             workload: "one-hot-vector-v1",
             bitCount: 2,
             publicInputs: [1],
+            qroChallenge: terminalQROChallenge,
             keySeedUTF8: keySeed,
             workloadParameters: workloadParameters,
             laneID: laneID,
@@ -182,6 +212,7 @@ private final class NumiSealProductBenchmarkFixture {
                 artifact: terminalArtifact,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: terminalQROChallenge,
                 executionPolicy: .highAssurance
             )
         }
@@ -190,6 +221,7 @@ private final class NumiSealProductBenchmarkFixture {
             workload: "one-hot-vector-v1",
             bitCount: 2,
             publicInputs: [1],
+            qroChallenge: zkQROChallenge,
             keySeedUTF8: keySeed,
             workloadParameters: workloadParameters,
             laneID: laneID,
@@ -205,6 +237,7 @@ private final class NumiSealProductBenchmarkFixture {
                 artifact: zkArtifact,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: zkQROChallenge,
                 executionPolicy: .highAssurance
             )
         }
@@ -221,6 +254,7 @@ private final class NumiSealProductBenchmarkFixture {
             workload: "one-hot-vector-v1",
             bitCount: 2,
             publicInputs: [1],
+            qroChallenge: recursiveChildQROChallenge,
             keySeedUTF8: keySeed,
             workloadParameters: workloadParameters,
             laneID: laneID,
@@ -236,6 +270,7 @@ private final class NumiSealProductBenchmarkFixture {
                 artifact: recursiveChildArtifact,
                 sourcePublicInput: prepared.publicFoldInput,
                 key: prepared.key,
+                qroChallenge: recursiveChildQROChallenge,
                 executionPolicy: .highAssurance,
                 recursiveCarryParent: recursiveParent
             )
@@ -403,14 +438,30 @@ private func registerEndToEndBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
             context: metalContext,
             executionPolicy: .metalAccelerated
         )
+        let metalCPUReference = benchmarkSetupValue("failed to build Metal-policy CPU reference for \(label)") {
+            try SuperNeoProver(
+                parameters: fixture.parameters,
+                key: fixture.key,
+                executionPolicy: .metalAccelerated
+            ).foldWithOutput(fixture.input, transcriptSeed: fixture.transcriptSeed)
+        }
         let metalPreparedContext = benchmarkSetupValue("failed to prepare Metal fold context for \(label)") {
             try metalProver.prepareFoldContext(for: fixture.input)
         }
         Benchmark("fold/metal/\(label)", configuration: defaultConfiguration) { benchmark in
             let output = try metalProver.foldWithOutput(fixture.input, transcriptSeed: fixture.transcriptSeed)
             try requireBenchmarkInvariant(
-                output.proof == fixture.referenceFold.proof,
-                "Metal fold output did not match CPU reference for \(label)"
+                output.proof == metalCPUReference.proof,
+                "Metal fold output did not match same-policy CPU reference for \(label)"
+            )
+            try requireValid(verifier.reduceFold(
+                publicInput: fixture.publicInput,
+                proof: output.proof,
+                transcriptSeed: fixture.transcriptSeed
+            ))
+            try requireBenchmarkInvariant(
+                output.proof.outputClaims == output.outputClaims.map(benchmarkPublicClaim),
+                "Metal fold proof/output claim boundary mismatch for \(label)"
             )
             recordMetalTiming(benchmark, context: metalContext)
             blackHole(output.outputClaims.count)
@@ -423,8 +474,17 @@ private func registerEndToEndBenchmarks(_ fixture: SuperNeoBenchmarkFixture) {
                 preparedContext: metalPreparedContext
             )
             try requireBenchmarkInvariant(
-                output.proof == fixture.referenceFold.proof,
-                "prepared Metal fold output did not match CPU reference for \(label)"
+                output.proof == metalCPUReference.proof,
+                "prepared Metal fold output did not match same-policy CPU reference for \(label)"
+            )
+            try requireValid(verifier.reduceFold(
+                publicInput: fixture.publicInput,
+                proof: output.proof,
+                transcriptSeed: fixture.transcriptSeed
+            ))
+            try requireBenchmarkInvariant(
+                output.proof.outputClaims == output.outputClaims.map(benchmarkPublicClaim),
+                "prepared Metal fold proof/output claim boundary mismatch for \(label)"
             )
             recordMetalTiming(benchmark, context: metalContext)
             blackHole(output.outputClaims.count)
@@ -700,6 +760,7 @@ private func registerNumiSealProductBenchmarks(_ fixture: NumiSealProductBenchma
             artifact: artifact,
             sourcePublicInput: fixture.prepared.publicFoldInput,
             key: fixture.prepared.key,
+            qroChallenge: fixture.terminalRequest.qroChallenge,
             executionPolicy: .highAssurance
         )
         try requireValid(result)
@@ -711,6 +772,7 @@ private func registerNumiSealProductBenchmarks(_ fixture: NumiSealProductBenchma
             artifact: fixture.terminalArtifact,
             sourcePublicInput: fixture.prepared.publicFoldInput,
             key: fixture.prepared.key,
+            qroChallenge: fixture.terminalRequest.qroChallenge,
             executionPolicy: .highAssurance
         )
         try requireValid(result)
@@ -722,6 +784,7 @@ private func registerNumiSealProductBenchmarks(_ fixture: NumiSealProductBenchma
             artifact: artifact,
             sourcePublicInput: fixture.prepared.publicFoldInput,
             key: fixture.prepared.key,
+            qroChallenge: fixture.zkRequest.qroChallenge,
             executionPolicy: .highAssurance
         )
         try requireValid(result)
@@ -733,6 +796,7 @@ private func registerNumiSealProductBenchmarks(_ fixture: NumiSealProductBenchma
             artifact: fixture.zkArtifact,
             sourcePublicInput: fixture.prepared.publicFoldInput,
             key: fixture.prepared.key,
+            qroChallenge: fixture.zkRequest.qroChallenge,
             executionPolicy: .highAssurance
         )
         try requireValid(result)
@@ -744,6 +808,7 @@ private func registerNumiSealProductBenchmarks(_ fixture: NumiSealProductBenchma
             artifact: artifact,
             sourcePublicInput: fixture.prepared.publicFoldInput,
             key: fixture.prepared.key,
+            qroChallenge: fixture.recursiveChildRequest.qroChallenge,
             executionPolicy: .highAssurance,
             recursiveCarryParent: fixture.recursiveParent
         )
@@ -756,6 +821,7 @@ private func registerNumiSealProductBenchmarks(_ fixture: NumiSealProductBenchma
             artifact: fixture.recursiveChildArtifact,
             sourcePublicInput: fixture.prepared.publicFoldInput,
             key: fixture.prepared.key,
+            qroChallenge: fixture.recursiveChildRequest.qroChallenge,
             executionPolicy: .highAssurance,
             recursiveCarryParent: fixture.recursiveParent
         )
