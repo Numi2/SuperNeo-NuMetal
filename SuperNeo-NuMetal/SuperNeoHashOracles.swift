@@ -186,6 +186,37 @@ public enum SuperNeoSplitQRO {
         }
     }
 
+    static func challengeExpansionFramedInput(
+        seed: Digest256,
+        proofKind: ProofEnvelopeKind,
+        labelBytes: [UInt8],
+        digestIndex: UInt64
+    ) -> [UInt8] {
+        framedBytes(
+            domain: challengeExpandDomain,
+            frames: [
+                [proofKind.rawValue],
+                seed.superNeoBytes,
+                labelBytes,
+                withUnsafeBytes(of: digestIndex.littleEndian, Array.init)
+            ]
+        )
+    }
+
+    static func firstGoldilocksFieldFromChallengeBytes(_ bytes: [UInt8]) -> GoldilocksField? {
+        var offset = 0
+        while offset + MemoryLayout<UInt64>.size <= bytes.count {
+            let value = bytes.withUnsafeBytes {
+                $0.loadUnaligned(fromByteOffset: offset, as: UInt64.self).littleEndian
+            }
+            if value < GoldilocksField.modulus {
+                return GoldilocksField(value)
+            }
+            offset += MemoryLayout<UInt64>.size
+        }
+        return nil
+    }
+
     static func sumCheckTranscriptFieldChallenge(
         proofKind: ProofEnvelopeKind,
         challengeTapeSeed: Digest256,
@@ -202,6 +233,31 @@ public enum SuperNeoSplitQRO {
             ],
             outputByteCount: Digest256.byteCount
         ))
+    }
+
+    static func sumCheckTranscriptFieldChallengeFramedInput(
+        proofKind: ProofEnvelopeKind,
+        challengeTapeSeed: Digest256,
+        stateDigest: Digest256,
+        challengeCounter: UInt64
+    ) -> [UInt8] {
+        framedBytes(
+            domain: sumCheckTranscriptChallengeFieldDomain,
+            frames: [
+                [proofKind.rawValue],
+                challengeTapeSeed.superNeoBytes,
+                stateDigest.superNeoBytes,
+                withUnsafeBytes(of: challengeCounter.littleEndian, Array.init)
+            ]
+        )
+    }
+
+    static var sumCheckTranscriptAbsorbStateDomainBytes: [UInt8] {
+        Array(sumCheckTranscriptAbsorbStateDomain.utf8)
+    }
+
+    static var sumCheckTranscriptChallengeFieldDomainBytes: [UInt8] {
+        Array(sumCheckTranscriptChallengeFieldDomain.utf8)
     }
 
     static func sumCheckTranscriptChallenge(
@@ -268,6 +324,22 @@ public enum SuperNeoSplitQRO {
             ],
             outputByteCount: Digest256.byteCount
         ))
+    }
+
+    static func sumCheckTranscriptAbsorbStateFramedInput(
+        proofKind: ProofEnvelopeKind,
+        stateDigest: Digest256,
+        bytes: [UInt8]
+    ) -> [UInt8] {
+        framedBytes(
+            domain: sumCheckTranscriptAbsorbStateDomain,
+            frames: [
+                [proofKind.rawValue],
+                stateDigest.superNeoBytes,
+                withUnsafeBytes(of: UInt64(bytes.count).littleEndian, Array.init),
+                bytes
+            ]
+        )
     }
 
     public static func appendFrame(_ frame: [UInt8], to bytes: inout [UInt8]) {

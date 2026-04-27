@@ -323,32 +323,56 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         try binaryFieldOperation(lhs, rhs, pipelineName: "goldilocks_mul_kernel")
     }
 
+    func sha256Digest256PreframedBatch(_ inputs: [[UInt8]]) throws -> [Digest256] {
+        guard !inputs.isEmpty else { return [] }
+        let buffers = try makePreframedHashInputBuffers(inputs, role: "Metal SHA-256")
+        return try sha256Digest256PreframedBatch(buffers: buffers, count: inputs.count)
+    }
+
+    func sha256Digest256PreframedFlatBatch(
+        bytes: [UInt8],
+        offsets: [UInt32],
+        lengths: [UInt32]
+    ) throws -> [Digest256] {
+        guard offsets.count == lengths.count else {
+            throw SuperNeoError.invalidParameter("Metal SHA-256 flat batch offset/length count mismatch")
+        }
+        guard !offsets.isEmpty else { return [] }
+        try validatePreframedHashFlatBatch(bytes: bytes, offsets: offsets, lengths: lengths, role: "Metal SHA-256")
+        let buffers = try PreframedHashInputBuffers(
+            bytes: context.makeBuffer(bytes),
+            offsets: context.makeBuffer(offsets),
+            lengths: context.makeBuffer(lengths)
+        )
+        return try sha256Digest256PreframedBatch(buffers: buffers, count: offsets.count)
+    }
+
+    private func sha256Digest256PreframedBatch(
+        buffers: PreframedHashInputBuffers,
+        count: Int
+    ) throws -> [Digest256] {
+        let outputByteCount = try checkedProduct([count, Digest256.byteCount], name: "Metal SHA-256 output byte count")
+        let outputBuffer = try context.makeEmptyBuffer(count: outputByteCount, as: UInt8.self)
+        try context.dispatch1D(
+            pipelineName: "sha256_digest256_preframed_kernel",
+            buffers: [buffers.bytes, buffers.offsets, buffers.lengths, outputBuffer],
+            countBufferIndex: 4,
+            elementCount: count
+        )
+        let bytes = outputBuffer.array(of: UInt8.self, count: outputByteCount)
+        return try stride(from: 0, to: bytes.count, by: Digest256.byteCount).map { start in
+            try Digest256(Array(bytes[start..<(start + Digest256.byteCount)]))
+        }
+    }
+
     func shake256Digest384PreframedBatch(_ inputs: [[UInt8]]) throws -> [Digest384] {
         guard !inputs.isEmpty else { return [] }
-        var offsets: [UInt32] = []
-        var lengths: [UInt32] = []
-        offsets.reserveCapacity(inputs.count)
-        lengths.reserveCapacity(inputs.count)
-        var flattened: [UInt8] = []
-        for (index, input) in inputs.enumerated() {
-            guard let offset = UInt32(exactly: flattened.count) else {
-                throw SuperNeoError.invalidParameter("Metal SHAKE input batch offset \(index) exceeds UInt32")
-            }
-            guard let length = UInt32(exactly: input.count) else {
-                throw SuperNeoError.invalidParameter("Metal SHAKE input \(index) length exceeds UInt32")
-            }
-            offsets.append(offset)
-            lengths.append(length)
-            flattened.append(contentsOf: input)
-        }
-        let inputBuffer = try context.makeBuffer(flattened)
-        let offsetBuffer = try context.makeBuffer(offsets)
-        let lengthBuffer = try context.makeBuffer(lengths)
+        let buffers = try makePreframedHashInputBuffers(inputs, role: "Metal SHAKE")
         let outputLaneCount = try checkedProduct([inputs.count, Digest384.byteCount / 8], name: "Metal SHAKE output lane count")
         let outputBuffer = try context.makeEmptyBuffer(count: outputLaneCount, as: UInt64.self)
         try context.dispatch1D(
             pipelineName: "shake256_digest384_preframed_kernel",
-            buffers: [inputBuffer, offsetBuffer, lengthBuffer, outputBuffer],
+            buffers: [buffers.bytes, buffers.offsets, buffers.lengths, outputBuffer],
             countBufferIndex: 4,
             elementCount: inputs.count
         )
@@ -360,6 +384,139 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
                 bytes.append(contentsOf: withUnsafeBytes(of: lane.littleEndian, Array.init))
             }
             return try Digest384(bytes)
+        }
+    }
+
+    func shake256Digest256PreframedBatch(_ inputs: [[UInt8]]) throws -> [Digest256] {
+        try shake256Digest384PreframedBatch(inputs).map {
+            try Digest256(Array($0.superNeoBytes.prefix(Digest256.byteCount)))
+        }
+    }
+
+    func ceChallengeSeedChain(
+        proofKind: ProofEnvelopeKind,
+        challengeTapeSeed: Digest256,
+        initialStateDigest: Digest256,
+        roundCountPayload: [UInt8],
+        commitmentBytes: [UInt8],
+        commitmentOffsets: [UInt32],
+        commitmentLengths: [UInt32],
+        responseBytes: [UInt8],
+        responseOffsets: [UInt32],
+        responseLengths: [UInt32]
+    ) throws -> [Digest256] {
+        guard roundCountPayload.count == MemoryLayout<UInt64>.size else {
+            throw SuperNeoError.invalidParameter("CE challenge seed chain round-count payload must be 8 bytes")
+        }
+        guard commitmentOffsets.count == commitmentLengths.count,
+              responseOffsets.count == responseLengths.count,
+              commitmentOffsets.count == responseOffsets.count else {
+            throw SuperNeoError.invalidParameter("CE challenge seed chain transcript batch count mismatch")
+        }
+        guard !commitmentOffsets.isEmpty else { return [] }
+        try validatePreframedHashFlatBatch(
+            bytes: commitmentBytes,
+            offsets: commitmentOffsets,
+            lengths: commitmentLengths,
+            role: "Metal CE challenge commitment transcript"
+        )
+        try validatePreframedHashFlatBatch(
+            bytes: responseBytes,
+            offsets: responseOffsets,
+            lengths: responseLengths,
+            role: "Metal CE challenge response transcript"
+        )
+        let absorbDomainBytes = SuperNeoSplitQRO.sumCheckTranscriptAbsorbStateDomainBytes
+        let fieldChallengeDomainBytes = SuperNeoSplitQRO.sumCheckTranscriptChallengeFieldDomainBytes
+        guard let roundCount = UInt32(exactly: commitmentOffsets.count),
+              let proofKindValue = UInt32(exactly: proofKind.rawValue),
+              let absorbDomainLength = UInt32(exactly: absorbDomainBytes.count),
+              let fieldChallengeDomainLength = UInt32(exactly: fieldChallengeDomainBytes.count) else {
+            throw SuperNeoError.invalidParameter("CE challenge seed chain parameter exceeds UInt32")
+        }
+        let outputByteCount = try checkedProduct(
+            [commitmentOffsets.count, Digest256.byteCount],
+            name: "Metal CE challenge seed output byte count"
+        )
+        let outputBuffer = try context.makeEmptyBuffer(count: outputByteCount, as: UInt8.self)
+        try context.dispatch1D(
+            pipelineName: "ce_challenge_seed_chain_kernel",
+            buffers: [
+                try context.makeBuffer(commitmentBytes),
+                try context.makeBuffer(commitmentOffsets),
+                try context.makeBuffer(commitmentLengths),
+                try context.makeBuffer(responseBytes),
+                try context.makeBuffer(responseOffsets),
+                try context.makeBuffer(responseLengths),
+                try context.makeBuffer(challengeTapeSeed.bytes),
+                try context.makeBuffer(initialStateDigest.bytes),
+                try context.makeBuffer(roundCountPayload),
+                outputBuffer,
+                try context.makeBuffer(absorbDomainBytes),
+                try context.makeBuffer(fieldChallengeDomainBytes)
+            ],
+            inlineUInt32Buffers: [
+                MetalInlineUInt32Buffer(index: 12, values: [
+                    roundCount,
+                    proofKindValue,
+                    absorbDomainLength,
+                    fieldChallengeDomainLength
+                ])
+            ],
+            countBufferIndex: 13,
+            elementCount: 1
+        )
+        let bytes = outputBuffer.array(of: UInt8.self, count: outputByteCount)
+        return try stride(from: 0, to: bytes.count, by: Digest256.byteCount).map { start in
+            try Digest256(Array(bytes[start..<(start + Digest256.byteCount)]))
+        }
+    }
+
+    private struct PreframedHashInputBuffers {
+        let bytes: MTLBuffer
+        let offsets: MTLBuffer
+        let lengths: MTLBuffer
+    }
+
+    private func makePreframedHashInputBuffers(
+        _ inputs: [[UInt8]],
+        role: String
+    ) throws -> PreframedHashInputBuffers {
+        var offsets: [UInt32] = []
+        var lengths: [UInt32] = []
+        offsets.reserveCapacity(inputs.count)
+        lengths.reserveCapacity(inputs.count)
+        var flattened: [UInt8] = []
+        for (index, input) in inputs.enumerated() {
+            guard let offset = UInt32(exactly: flattened.count) else {
+                throw SuperNeoError.invalidParameter("\(role) input batch offset \(index) exceeds UInt32")
+            }
+            guard let length = UInt32(exactly: input.count) else {
+                throw SuperNeoError.invalidParameter("\(role) input \(index) length exceeds UInt32")
+            }
+            offsets.append(offset)
+            lengths.append(length)
+            flattened.append(contentsOf: input)
+        }
+        return try PreframedHashInputBuffers(
+            bytes: context.makeBuffer(flattened),
+            offsets: context.makeBuffer(offsets),
+            lengths: context.makeBuffer(lengths)
+        )
+    }
+
+    private func validatePreframedHashFlatBatch(
+        bytes: [UInt8],
+        offsets: [UInt32],
+        lengths: [UInt32],
+        role: String
+    ) throws {
+        for index in offsets.indices {
+            let offset = Int(offsets[index])
+            let length = Int(lengths[index])
+            guard offset <= bytes.count, length <= bytes.count - offset else {
+                throw SuperNeoError.invalidParameter("\(role) flat input \(index) exceeds byte buffer")
+            }
         }
     }
 

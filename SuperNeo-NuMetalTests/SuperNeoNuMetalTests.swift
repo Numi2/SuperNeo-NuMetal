@@ -167,6 +167,100 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         )
     }
 
+    func testMetalBatchSHA256PreframedMatchesCPUVectors() throws {
+        let device = try requireMetalDevice()
+        let backend = SuperNeoMetalBackend(context: try MetalExecutionContext(device: device))
+        let vectors: [[UInt8]] = [
+            [],
+            Array("abc".utf8),
+            Array("SuperNeo CE digest".utf8),
+            (0..<55).map { UInt8(truncatingIfNeeded: $0 * 3 + 1) },
+            (0..<56).map { UInt8(truncatingIfNeeded: $0 * 5 + 7) },
+            (0..<64).map { UInt8(truncatingIfNeeded: $0 * 11 + 9) },
+            (0..<192).map { UInt8(truncatingIfNeeded: $0 * 17 + 13) }
+        ]
+        XCTAssertEqual(
+            try backend.sha256Digest256PreframedBatch(vectors),
+            vectors.map { Digest256.hash($0) }
+        )
+        var flatBytes: [UInt8] = []
+        var offsets: [UInt32] = []
+        var lengths: [UInt32] = []
+        for vector in vectors {
+            offsets.append(UInt32(flatBytes.count))
+            lengths.append(UInt32(vector.count))
+            flatBytes.append(contentsOf: vector)
+        }
+        XCTAssertEqual(
+            try backend.sha256Digest256PreframedFlatBatch(bytes: flatBytes, offsets: offsets, lengths: lengths),
+            vectors.map { Digest256.hash($0) },
+            "Metal SHA-256 flat batch must hash the same preframed byte ranges as the array batch"
+        )
+        XCTAssertEqual(
+            try backend.sha256Digest256PreframedBatch(Array(vectors.reversed())),
+            Array(vectors.map { Digest256.hash($0) }.reversed()),
+            "Metal SHA-256 batch output must depend only on each preframed job, not batch position"
+        )
+    }
+
+    func testMetalCEChallengeSeedChainMatchesCPUTranscript() throws {
+        let device = try requireMetalDevice()
+        let backend = SuperNeoMetalBackend(context: try MetalExecutionContext(device: device))
+        let commitments = (0..<9).map { round in
+            (0..<(17 + round)).map { UInt8(truncatingIfNeeded: round * 19 + $0 * 7) }
+        }
+        let responses = (0..<9).map { round in
+            (0..<(29 + round * 2)).map { UInt8(truncatingIfNeeded: round * 23 + $0 * 11) }
+        }
+        let baseTranscript = SumCheckTranscript(
+            domainSeparator: "SuperNeo-NuMetal.ce-opening.v1/test",
+            seed: Array("metal-ce-challenge-seed-chain".utf8),
+            proofKind: .terminalLocal
+        )
+        let initialState = baseTranscript.currentStateDigestForBatching
+        let challengeTapeSeed = baseTranscript.challengeTapeSeed
+        let roundCountPayload = withUnsafeBytes(of: UInt64(commitments.count).littleEndian, Array.init)
+
+        var cpuTranscript = baseTranscript
+        cpuTranscript.absorb(roundCountPayload)
+        var expected: [Digest256] = []
+        expected.reserveCapacity(commitments.count)
+        for index in commitments.indices {
+            cpuTranscript.absorb(commitments[index])
+            expected.append(cpuTranscript.fieldChallengeSeedForBatchExpansion())
+            cpuTranscript.absorb(responses[index])
+        }
+
+        var commitmentBytes: [UInt8] = []
+        var commitmentOffsets: [UInt32] = []
+        var commitmentLengths: [UInt32] = []
+        var responseBytes: [UInt8] = []
+        var responseOffsets: [UInt32] = []
+        var responseLengths: [UInt32] = []
+        for index in commitments.indices {
+            commitmentOffsets.append(UInt32(commitmentBytes.count))
+            commitmentLengths.append(UInt32(commitments[index].count))
+            commitmentBytes.append(contentsOf: commitments[index])
+            responseOffsets.append(UInt32(responseBytes.count))
+            responseLengths.append(UInt32(responses[index].count))
+            responseBytes.append(contentsOf: responses[index])
+        }
+
+        let observed = try backend.ceChallengeSeedChain(
+            proofKind: .terminalLocal,
+            challengeTapeSeed: challengeTapeSeed,
+            initialStateDigest: initialState,
+            roundCountPayload: roundCountPayload,
+            commitmentBytes: commitmentBytes,
+            commitmentOffsets: commitmentOffsets,
+            commitmentLengths: commitmentLengths,
+            responseBytes: responseBytes,
+            responseOffsets: responseOffsets,
+            responseLengths: responseLengths
+        )
+        XCTAssertEqual(observed, expected)
+    }
+
     func testTier0CTCOContextBinderIncludesProofKindAndRootBlocks() throws {
         let shape = Digest256.hash("shape")
         let statement = Digest256.hash("statement")

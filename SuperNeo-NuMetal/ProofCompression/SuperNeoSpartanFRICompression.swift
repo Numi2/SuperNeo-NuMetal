@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 public struct SuperNeoSpartanFRICompressionStatement: Equatable, Sendable, SuperNeoByteEncodable {
@@ -1390,33 +1391,17 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         _ primitiveRows: [SuperNeoTerminalVerifierAIRConstraintRow],
         label: String
     ) -> SuperNeoTerminalVerifierAIRPrimitiveBatchSummary {
-        let observedRowBytes = primitiveRows.enumerated().flatMap { index, row in
-            rowEncoding(
-                rowCount: primitiveRows.count,
-                index: index,
-                row: row,
-                label: label,
-                observed: row.observed
-            )
-        }
-        let expectedRowBytes = primitiveRows.enumerated().flatMap { index, row in
-            rowEncoding(
-                rowCount: primitiveRows.count,
-                index: index,
-                row: row,
-                label: label,
-                observed: row.expected
-            )
-        }
         let observedTranscriptDigest = transcriptDigest(
             rowCount: primitiveRows.count,
             label: label,
-            rowBytes: observedRowBytes
+            rows: primitiveRows,
+            observedValue: { $0.observed }
         )
         let expectedTranscriptDigest = transcriptDigest(
             rowCount: primitiveRows.count,
             label: label,
-            rowBytes: expectedRowBytes
+            rows: primitiveRows,
+            observedValue: { $0.expected }
         )
         let challengeDigest = Digest256.hash(
             Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-batch-challenge-after-row-transcript.v1".utf8)
@@ -1528,35 +1513,52 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         )
     }
 
-    private static func rowEncoding(
+    private static func updateRowEncoding(
+        _ hasher: inout SHA256,
         rowCount: Int,
         index: Int,
         row: SuperNeoTerminalVerifierAIRConstraintRow,
         label: String,
         observed: GoldilocksField
-    ) -> [UInt8] {
-        Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-row.v2".utf8)
-            + spartanFRIEncodeString(label)
-            + spartanFRIEncodeCount(rowCount)
-            + spartanFRIEncodeCount(index)
-            + [row.kind.rawValue, row.provenance.rawValue]
-            + row.labelDigest.superNeoBytes
-            + observed.superNeoBytes
-            + row.expected.superNeoBytes
-            + (observed - row.expected).superNeoBytes
+    ) {
+        update(&hasher, Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-row.v2".utf8))
+        update(&hasher, spartanFRIEncodeString(label))
+        update(&hasher, spartanFRIEncodeCount(rowCount))
+        update(&hasher, spartanFRIEncodeCount(index))
+        update(&hasher, [row.kind.rawValue, row.provenance.rawValue])
+        update(&hasher, row.labelDigest.superNeoBytes)
+        update(&hasher, observed.superNeoBytes)
+        update(&hasher, row.expected.superNeoBytes)
+        update(&hasher, (observed - row.expected).superNeoBytes)
     }
 
     private static func transcriptDigest(
         rowCount: Int,
         label: String,
-        rowBytes: [UInt8]
+        rows: [SuperNeoTerminalVerifierAIRConstraintRow],
+        observedValue: (SuperNeoTerminalVerifierAIRConstraintRow) -> GoldilocksField
     ) -> Digest256 {
-        Digest256.hash(
-            Array("SuperNeo-NuMetal.terminal-verifier-air.full-primitive-row-transcript.v1".utf8)
-                + spartanFRIEncodeString(label)
-                + spartanFRIEncodeCount(rowCount)
-                + rowBytes
-        )
+        Digest256.hashUpdating { hasher in
+            update(&hasher, Array("SuperNeo-NuMetal.terminal-verifier-air.full-primitive-row-transcript.v1".utf8))
+            update(&hasher, spartanFRIEncodeString(label))
+            update(&hasher, spartanFRIEncodeCount(rowCount))
+            for (index, row) in rows.enumerated() {
+                updateRowEncoding(
+                    &hasher,
+                    rowCount: rowCount,
+                    index: index,
+                    row: row,
+                    label: label,
+                    observed: observedValue(row)
+                )
+            }
+        }
+    }
+
+    private static func update(_ hasher: inout SHA256, _ bytes: [UInt8]) {
+        bytes.withUnsafeBytes { rawBuffer in
+            hasher.update(bufferPointer: rawBuffer)
+        }
     }
 
     private static func coefficient(

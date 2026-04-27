@@ -1179,6 +1179,18 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             profile.metalCommandTimings["ce-private linear combined commit/eval"]?.invocationCount ?? 0,
             0
         )
+        XCTAssertGreaterThan(
+            profile.metalCommandTimings["ce-private linear digest row emission"]?.invocationCount ?? 0,
+            0
+        )
+        XCTAssertGreaterThan(
+            profile.metalCommandTimings["ce-response challenge seed derivation"]?.invocationCount ?? 0,
+            0
+        )
+        XCTAssertGreaterThan(
+            profile.metalCommandTimings["ce-response challenge expansion"]?.invocationCount ?? 0,
+            0
+        )
     }
 
     func testMetalProducedRealSourceProofVerifiesWithCPUByteVerifier() throws {
@@ -1205,6 +1217,15 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
         XCTAssertGreaterThan(metalTiming.invocationCount, 0)
         XCTAssertGreaterThan(metalTiming.commandCount, 0)
         XCTAssertGreaterThan(metalTiming.elementCount, 0)
+        let digestTiming = try XCTUnwrap(profile.metalCommandTimings["ce-private linear digest row emission"])
+        XCTAssertGreaterThan(digestTiming.invocationCount, 0)
+        XCTAssertGreaterThan(digestTiming.elementCount, 0)
+        let seedTiming = try XCTUnwrap(profile.metalCommandTimings["ce-response challenge seed derivation"])
+        XCTAssertGreaterThan(seedTiming.invocationCount, 0)
+        XCTAssertGreaterThan(seedTiming.elementCount, 0)
+        let challengeTiming = try XCTUnwrap(profile.metalCommandTimings["ce-response challenge expansion"])
+        XCTAssertGreaterThan(challengeTiming.invocationCount, 0)
+        XCTAssertGreaterThan(challengeTiming.elementCount, 0)
         XCTAssertEqual(
             SuperNeoSpartanFRICompressor.verifyCompressionProof(
                 proofBytes: proof.superNeoBytes,

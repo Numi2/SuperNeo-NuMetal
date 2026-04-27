@@ -210,6 +210,22 @@ public struct SumCheckTranscript: Sendable {
         )
     }
 
+    var currentStateDigestForBatching: Digest256 {
+        stateDigest
+    }
+
+    mutating func absorbUsingMetal(_ bytes: [UInt8], backend: SuperNeoMetalBackend) throws {
+        let input = SuperNeoSplitQRO.sumCheckTranscriptAbsorbStateFramedInput(
+            proofKind: proofKind,
+            stateDigest: stateDigest,
+            bytes: bytes
+        )
+        guard let digest = try backend.shake256Digest256PreframedBatch([input]).first else {
+            throw SuperNeoError.metalFailure("Metal transcript absorb produced no digest")
+        }
+        stateDigest = digest
+    }
+
     public mutating func challengeField() -> GoldilocksField {
         let seed = makeFieldChallengeSeed()
         return SuperNeoSplitQRO.expandChallengeField(
@@ -217,6 +233,21 @@ public struct SumCheckTranscript: Sendable {
             proofKind: proofKind,
             labelBytes: fieldChallengeLabelBytes
         )
+    }
+
+    mutating func fieldChallengeSeedForBatchExpansion() -> Digest256 {
+        makeFieldChallengeSeed()
+    }
+
+    mutating func fieldChallengeSeedInputForBatchExpansion() -> [UInt8] {
+        let input = SuperNeoSplitQRO.sumCheckTranscriptFieldChallengeFramedInput(
+            proofKind: proofKind,
+            challengeTapeSeed: challengeTapeSeed,
+            stateDigest: stateDigest,
+            challengeCounter: challengeCounter
+        )
+        challengeCounter &+= 1
+        return input
     }
 
     public mutating func challengeExt2() -> GoldilocksExt2 {

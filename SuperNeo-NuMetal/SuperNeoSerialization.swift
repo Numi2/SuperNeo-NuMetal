@@ -35,6 +35,12 @@ public struct Digest256: Equatable, Hashable, Sendable, SuperNeoByteEncodable {
         return Self(unchecked: Array(hasher.finalize()))
     }
 
+    static func hashUpdating(_ body: (inout SHA256) -> Void) -> Self {
+        var hasher = SHA256()
+        body(&hasher)
+        return Self(unchecked: Array(hasher.finalize()))
+    }
+
     public static func hash(_ string: String) -> Self {
         hash(Array(string.utf8))
     }

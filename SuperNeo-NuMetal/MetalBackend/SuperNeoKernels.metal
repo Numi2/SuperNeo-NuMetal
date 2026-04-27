@@ -6,6 +6,30 @@ constant ulong GOLDILOCKS_EPSILON = 0xffffffffUL;
 constant ulong GOLDILOCKS_LIMB_MASK = 0xffffffffUL;
 constant uint SHAKE256_RATE_BYTES = 136;
 
+constant uint SHA256_INITIAL_STATE[8] = {
+    0x6a09e667U, 0xbb67ae85U, 0x3c6ef372U, 0xa54ff53aU,
+    0x510e527fU, 0x9b05688cU, 0x1f83d9abU, 0x5be0cd19U
+};
+
+constant uint SHA256_ROUND_CONSTANTS[64] = {
+    0x428a2f98U, 0x71374491U, 0xb5c0fbcfU, 0xe9b5dba5U,
+    0x3956c25bU, 0x59f111f1U, 0x923f82a4U, 0xab1c5ed5U,
+    0xd807aa98U, 0x12835b01U, 0x243185beU, 0x550c7dc3U,
+    0x72be5d74U, 0x80deb1feU, 0x9bdc06a7U, 0xc19bf174U,
+    0xe49b69c1U, 0xefbe4786U, 0x0fc19dc6U, 0x240ca1ccU,
+    0x2de92c6fU, 0x4a7484aaU, 0x5cb0a9dcU, 0x76f988daU,
+    0x983e5152U, 0xa831c66dU, 0xb00327c8U, 0xbf597fc7U,
+    0xc6e00bf3U, 0xd5a79147U, 0x06ca6351U, 0x14292967U,
+    0x27b70a85U, 0x2e1b2138U, 0x4d2c6dfcU, 0x53380d13U,
+    0x650a7354U, 0x766a0abbU, 0x81c2c92eU, 0x92722c85U,
+    0xa2bfe8a1U, 0xa81a664bU, 0xc24b8b70U, 0xc76c51a3U,
+    0xd192e819U, 0xd6990624U, 0xf40e3585U, 0x106aa070U,
+    0x19a4c116U, 0x1e376c08U, 0x2748774cU, 0x34b0bcb5U,
+    0x391c0cb3U, 0x4ed8aa4aU, 0x5b9cca4fU, 0x682e6ff3U,
+    0x748f82eeU, 0x78a5636fU, 0x84c87814U, 0x8cc70208U,
+    0x90befffaU, 0xa4506cebU, 0xbef9a3f7U, 0xc67178f2U
+};
+
 constant ulong KECCAK_ROUND_CONSTANTS[24] = {
     0x0000000000000001UL, 0x0000000000008082UL,
     0x800000000000808aUL, 0x8000000080008000UL,
@@ -78,6 +102,175 @@ inline void shake256_absorb_byte(thread ulong *state, thread uint &blockOffset, 
         keccak_f1600(state);
         blockOffset = 0;
     }
+}
+
+inline void shake256_absorb_device_bytes(
+    thread ulong *state,
+    thread uint &blockOffset,
+    device const uchar *bytes,
+    uint start,
+    uint length
+) {
+    for (uint index = 0; index < length; index++) {
+        shake256_absorb_byte(state, blockOffset, bytes[start + index]);
+    }
+}
+
+inline void shake256_absorb_thread_bytes(
+    thread ulong *state,
+    thread uint &blockOffset,
+    thread const uchar *bytes,
+    uint length
+) {
+    for (uint index = 0; index < length; index++) {
+        shake256_absorb_byte(state, blockOffset, bytes[index]);
+    }
+}
+
+inline void shake256_absorb_u64_le(thread ulong *state, thread uint &blockOffset, ulong value) {
+    for (uint byteIndex = 0; byteIndex < 8; byteIndex++) {
+        shake256_absorb_byte(state, blockOffset, uchar((value >> (byteIndex * 8)) & 0xffUL));
+    }
+}
+
+inline void shake256_absorb_device_frame(
+    thread ulong *state,
+    thread uint &blockOffset,
+    device const uchar *bytes,
+    uint start,
+    uint length
+) {
+    shake256_absorb_u64_le(state, blockOffset, ulong(length));
+    shake256_absorb_device_bytes(state, blockOffset, bytes, start, length);
+}
+
+inline void shake256_absorb_thread_frame(
+    thread ulong *state,
+    thread uint &blockOffset,
+    thread const uchar *bytes,
+    uint length
+) {
+    shake256_absorb_u64_le(state, blockOffset, ulong(length));
+    shake256_absorb_thread_bytes(state, blockOffset, bytes, length);
+}
+
+inline void shake256_absorb_single_byte_frame(thread ulong *state, thread uint &blockOffset, uchar byte) {
+    shake256_absorb_u64_le(state, blockOffset, 1UL);
+    shake256_absorb_byte(state, blockOffset, byte);
+}
+
+inline void shake256_absorb_u64_le_frame(thread ulong *state, thread uint &blockOffset, ulong value) {
+    shake256_absorb_u64_le(state, blockOffset, 8UL);
+    shake256_absorb_u64_le(state, blockOffset, value);
+}
+
+inline void shake256_squeeze_digest256(thread ulong *state, uint blockOffset, thread uchar *outBytes) {
+    const uint suffixLane = blockOffset >> 3;
+    const uint suffixShift = (blockOffset & 7) * 8;
+    state[suffixLane] ^= (ulong(0x1f) << suffixShift);
+    state[(SHAKE256_RATE_BYTES - 1) >> 3] ^= (ulong(0x80) << (((SHAKE256_RATE_BYTES - 1) & 7) * 8));
+    keccak_f1600(state);
+    for (uint lane = 0; lane < 4; lane++) {
+        const ulong value = state[lane];
+        for (uint byteIndex = 0; byteIndex < 8; byteIndex++) {
+            outBytes[lane * 8 + byteIndex] = uchar((value >> (byteIndex * 8)) & 0xffUL);
+        }
+    }
+}
+
+inline void shake256_digest_sumcheck_absorb_state(
+    uchar proofKind,
+    thread const uchar *stateDigest,
+    device const uchar *payloadBytes,
+    uint payloadOffset,
+    uint payloadLength,
+    device const uchar *domainBytes,
+    uint domainLength,
+    thread uchar *outDigest
+) {
+    ulong state[25];
+    for (uint lane = 0; lane < 25; lane++) {
+        state[lane] = 0;
+    }
+    uint blockOffset = 0;
+    shake256_absorb_device_frame(state, blockOffset, domainBytes, 0, domainLength);
+    shake256_absorb_single_byte_frame(state, blockOffset, proofKind);
+    shake256_absorb_thread_frame(state, blockOffset, stateDigest, 32);
+    shake256_absorb_u64_le_frame(state, blockOffset, ulong(payloadLength));
+    shake256_absorb_device_frame(state, blockOffset, payloadBytes, payloadOffset, payloadLength);
+    shake256_squeeze_digest256(state, blockOffset, outDigest);
+}
+
+inline void shake256_digest_sumcheck_challenge_seed(
+    uchar proofKind,
+    device const uchar *challengeTapeSeed,
+    thread const uchar *stateDigest,
+    ulong challengeCounter,
+    device const uchar *domainBytes,
+    uint domainLength,
+    thread uchar *outDigest
+) {
+    ulong state[25];
+    for (uint lane = 0; lane < 25; lane++) {
+        state[lane] = 0;
+    }
+    uint blockOffset = 0;
+    shake256_absorb_device_frame(state, blockOffset, domainBytes, 0, domainLength);
+    shake256_absorb_single_byte_frame(state, blockOffset, proofKind);
+    shake256_absorb_device_frame(state, blockOffset, challengeTapeSeed, 0, 32);
+    shake256_absorb_thread_frame(state, blockOffset, stateDigest, 32);
+    shake256_absorb_u64_le_frame(state, blockOffset, challengeCounter);
+    shake256_squeeze_digest256(state, blockOffset, outDigest);
+}
+
+inline uint rotate_right_u32(uint value, uint amount) {
+    return (value >> amount) | (value << (32 - amount));
+}
+
+inline uint sha256_ch(uint x, uint y, uint z) {
+    return (x & y) ^ ((~x) & z);
+}
+
+inline uint sha256_maj(uint x, uint y, uint z) {
+    return (x & y) ^ (x & z) ^ (y & z);
+}
+
+inline uint sha256_big_sigma0(uint x) {
+    return rotate_right_u32(x, 2) ^ rotate_right_u32(x, 13) ^ rotate_right_u32(x, 22);
+}
+
+inline uint sha256_big_sigma1(uint x) {
+    return rotate_right_u32(x, 6) ^ rotate_right_u32(x, 11) ^ rotate_right_u32(x, 25);
+}
+
+inline uint sha256_small_sigma0(uint x) {
+    return rotate_right_u32(x, 7) ^ rotate_right_u32(x, 18) ^ (x >> 3);
+}
+
+inline uint sha256_small_sigma1(uint x) {
+    return rotate_right_u32(x, 17) ^ rotate_right_u32(x, 19) ^ (x >> 10);
+}
+
+inline uchar sha256_padded_byte(
+    device const uchar *inputBytes,
+    uint start,
+    uint length,
+    uint paddedLength,
+    uint index
+) {
+    if (index < length) {
+        return inputBytes[start + index];
+    }
+    if (index == length) {
+        return 0x80;
+    }
+    const uint lengthStart = paddedLength - 8;
+    if (index >= lengthStart) {
+        const ulong bitLength = ulong(length) * 8UL;
+        const uint shift = (7 - (index - lengthStart)) * 8;
+        return uchar((bitLength >> shift) & 0xffUL);
+    }
+    return 0;
 }
 
 // constant-time-source-scope: metal-goldilocks-common-arithmetic begin
@@ -195,6 +388,83 @@ kernel void goldilocks_mul_kernel(
     out[id] = goldilocks_mul(lhs[id], rhs[id]);
 }
 
+kernel void sha256_digest256_preframed_kernel(
+    device const uchar *inputBytes [[buffer(0)]],
+    device const uint *inputOffsets [[buffer(1)]],
+    device const uint *inputLengths [[buffer(2)]],
+    device uchar *outputBytes [[buffer(3)]],
+    constant uint &count [[buffer(4)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id >= count) { return; }
+
+    uint h[8];
+    for (uint word = 0; word < 8; word++) {
+        h[word] = SHA256_INITIAL_STATE[word];
+    }
+
+    const uint start = inputOffsets[id];
+    const uint length = inputLengths[id];
+    const uint blockCount = (length + 9 + 63) / 64;
+    const uint paddedLength = blockCount * 64;
+    uint w[64];
+
+    for (uint blockIndex = 0; blockIndex < blockCount; blockIndex++) {
+        const uint blockOffset = blockIndex * 64;
+        for (uint word = 0; word < 16; word++) {
+            const uint byteIndex = blockOffset + word * 4;
+            w[word] =
+                (uint(sha256_padded_byte(inputBytes, start, length, paddedLength, byteIndex)) << 24)
+                | (uint(sha256_padded_byte(inputBytes, start, length, paddedLength, byteIndex + 1)) << 16)
+                | (uint(sha256_padded_byte(inputBytes, start, length, paddedLength, byteIndex + 2)) << 8)
+                | uint(sha256_padded_byte(inputBytes, start, length, paddedLength, byteIndex + 3));
+        }
+        for (uint word = 16; word < 64; word++) {
+            w[word] = sha256_small_sigma1(w[word - 2]) + w[word - 7]
+                + sha256_small_sigma0(w[word - 15]) + w[word - 16];
+        }
+
+        uint a = h[0];
+        uint b = h[1];
+        uint c = h[2];
+        uint d = h[3];
+        uint e = h[4];
+        uint f = h[5];
+        uint g = h[6];
+        uint hh = h[7];
+        for (uint round = 0; round < 64; round++) {
+            const uint t1 = hh + sha256_big_sigma1(e) + sha256_ch(e, f, g)
+                + SHA256_ROUND_CONSTANTS[round] + w[round];
+            const uint t2 = sha256_big_sigma0(a) + sha256_maj(a, b, c);
+            hh = g;
+            g = f;
+            f = e;
+            e = d + t1;
+            d = c;
+            c = b;
+            b = a;
+            a = t1 + t2;
+        }
+
+        h[0] += a;
+        h[1] += b;
+        h[2] += c;
+        h[3] += d;
+        h[4] += e;
+        h[5] += f;
+        h[6] += g;
+        h[7] += hh;
+    }
+
+    const uint outputBase = id * 32;
+    for (uint word = 0; word < 8; word++) {
+        outputBytes[outputBase + word * 4] = uchar((h[word] >> 24) & 0xff);
+        outputBytes[outputBase + word * 4 + 1] = uchar((h[word] >> 16) & 0xff);
+        outputBytes[outputBase + word * 4 + 2] = uchar((h[word] >> 8) & 0xff);
+        outputBytes[outputBase + word * 4 + 3] = uchar(h[word] & 0xff);
+    }
+}
+
 kernel void shake256_digest384_preframed_kernel(
     device const uchar *inputBytes [[buffer(0)]],
     device const uint *inputOffsets [[buffer(1)]],
@@ -226,6 +496,93 @@ kernel void shake256_digest384_preframed_kernel(
     const uint outputBase = id * 6;
     for (uint lane = 0; lane < 6; lane++) {
         outputLanes[outputBase + lane] = state[lane];
+    }
+}
+
+kernel void ce_challenge_seed_chain_kernel(
+    device const uchar *commitmentBytes [[buffer(0)]],
+    device const uint *commitmentOffsets [[buffer(1)]],
+    device const uint *commitmentLengths [[buffer(2)]],
+    device const uchar *responseBytes [[buffer(3)]],
+    device const uint *responseOffsets [[buffer(4)]],
+    device const uint *responseLengths [[buffer(5)]],
+    device const uchar *challengeTapeSeed [[buffer(6)]],
+    device const uchar *initialStateDigest [[buffer(7)]],
+    device const uchar *roundCountPayload [[buffer(8)]],
+    device uchar *outputSeedBytes [[buffer(9)]],
+    device const uchar *absorbDomainBytes [[buffer(10)]],
+    device const uchar *fieldChallengeDomainBytes [[buffer(11)]],
+    constant uint *params [[buffer(12)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id != 0) { return; }
+    const uint roundCount = params[0];
+    const uchar proofKind = uchar(params[1]);
+    const uint absorbDomainLength = params[2];
+    const uint fieldChallengeDomainLength = params[3];
+
+    uchar stateDigest[32];
+    uchar nextDigest[32];
+    for (uint byteIndex = 0; byteIndex < 32; byteIndex++) {
+        stateDigest[byteIndex] = initialStateDigest[byteIndex];
+    }
+
+    shake256_digest_sumcheck_absorb_state(
+        proofKind,
+        stateDigest,
+        roundCountPayload,
+        0,
+        8,
+        absorbDomainBytes,
+        absorbDomainLength,
+        nextDigest
+    );
+    for (uint byteIndex = 0; byteIndex < 32; byteIndex++) {
+        stateDigest[byteIndex] = nextDigest[byteIndex];
+    }
+
+    for (uint roundIndex = 0; roundIndex < roundCount; roundIndex++) {
+        shake256_digest_sumcheck_absorb_state(
+            proofKind,
+            stateDigest,
+            commitmentBytes,
+            commitmentOffsets[roundIndex],
+            commitmentLengths[roundIndex],
+            absorbDomainBytes,
+            absorbDomainLength,
+            nextDigest
+        );
+        for (uint byteIndex = 0; byteIndex < 32; byteIndex++) {
+            stateDigest[byteIndex] = nextDigest[byteIndex];
+        }
+
+        shake256_digest_sumcheck_challenge_seed(
+            proofKind,
+            challengeTapeSeed,
+            stateDigest,
+            ulong(roundIndex),
+            fieldChallengeDomainBytes,
+            fieldChallengeDomainLength,
+            nextDigest
+        );
+        const uint outputBase = roundIndex * 32;
+        for (uint byteIndex = 0; byteIndex < 32; byteIndex++) {
+            outputSeedBytes[outputBase + byteIndex] = nextDigest[byteIndex];
+        }
+
+        shake256_digest_sumcheck_absorb_state(
+            proofKind,
+            stateDigest,
+            responseBytes,
+            responseOffsets[roundIndex],
+            responseLengths[roundIndex],
+            absorbDomainBytes,
+            absorbDomainLength,
+            nextDigest
+        );
+        for (uint byteIndex = 0; byteIndex < 32; byteIndex++) {
+            stateDigest[byteIndex] = nextDigest[byteIndex];
+        }
     }
 }
 
