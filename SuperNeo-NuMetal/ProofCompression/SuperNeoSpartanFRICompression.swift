@@ -246,13 +246,21 @@ public struct SuperNeoFRIMerkleOpening: Equatable, Sendable, SuperNeoByteEncodab
 
     public func verifies(root: Digest384, domain: String) -> Bool {
         guard index >= 0, index < leafCount else { return false }
-        var digest = spartanFRILeafDigest(domain: domain, index: index, leafCount: leafCount, point: point, value: value)
+        let leafDomain = "\(domain)/leaf"
+        let nodeDomain = "\(domain)/node"
+        var digest = spartanFRILeafDigest(
+            leafDomain: leafDomain,
+            index: index,
+            leafCount: leafCount,
+            point: point,
+            value: value
+        )
         for sibling in siblings {
             switch sibling.position {
             case .left:
-                digest = SuperNeoSplitQRO.hMerkleNode(domain: domain, left: sibling.digest, right: digest)
+                digest = SuperNeoSplitQRO.hBind(domain: nodeDomain, frames: [sibling.digest.superNeoBytes, digest.superNeoBytes])
             case .right:
-                digest = SuperNeoSplitQRO.hMerkleNode(domain: domain, left: digest, right: sibling.digest)
+                digest = SuperNeoSplitQRO.hBind(domain: nodeDomain, frames: [digest.superNeoBytes, sibling.digest.superNeoBytes])
             }
         }
         return digest == root
@@ -2193,7 +2201,7 @@ final class SuperNeoSpartanFRICompressionDebugRecorder {
     }
 }
 
-private enum SuperNeoSpartanFRIDebugProfileContext {
+enum SuperNeoSpartanFRIDebugProfileContext {
     private static let key = "SuperNeoSpartanFRICompressionDebugRecorder"
 
     static var current: SuperNeoSpartanFRICompressionDebugRecorder? {
@@ -2208,7 +2216,7 @@ private enum SuperNeoSpartanFRIDebugProfileContext {
     }
 }
 
-private func superNeoDebugMeasure<T>(_ phase: String, _ body: () throws -> T) rethrows -> T {
+func superNeoDebugMeasure<T>(_ phase: String, _ body: () throws -> T) rethrows -> T {
     if let recorder = SuperNeoSpartanFRIDebugProfileContext.current {
         return try recorder.measure(phase, body)
     }
@@ -3082,9 +3090,11 @@ private struct SpartanFRIMerkleTree {
         self.domain = domain
         self.leaves = leaves
         self.points = points
+        let leafDomain = "\(domain)/leaf"
+        let nodeDomain = "\(domain)/node"
         var current = try spartanFRIParallelMap(count: leaves.count) { index in
             spartanFRILeafDigest(
-                domain: domain,
+                leafDomain: leafDomain,
                 index: index,
                 leafCount: leaves.count,
                 point: points[index],
@@ -3095,7 +3105,10 @@ private struct SpartanFRIMerkleTree {
         while current.count > 1 {
             let next = try spartanFRIParallelMap(count: current.count / 2) { pairIndex in
                 let index = pairIndex * 2
-                return SuperNeoSplitQRO.hMerkleNode(domain: domain, left: current[index], right: current[index + 1])
+                return SuperNeoSplitQRO.hBind(
+                    domain: nodeDomain,
+                    frames: [current[index].superNeoBytes, current[index + 1].superNeoBytes]
+                )
             }
             levels.append(next)
             current = next
@@ -3468,6 +3481,8 @@ private func verifyFRIProof(
         throw SuperNeoError.verificationFailed("FRI query schedule mismatch")
     }
     let baseDomain = "superneo/spartan-fri/\(label)"
+    let layerDomains = commitments.indices.map { "\(baseDomain)/layer-\($0)" }
+    let layerPathLengths = commitments.map { spartanFRILog2($0.domainSize) }
     var finalRoot = proof.domainRoot
     var finalCoset = proof.cosetGenerator
     for _ in 0..<proof.foldingChallenges.count {
@@ -3475,7 +3490,7 @@ private func verifyFRIProof(
         finalCoset = finalCoset.squared()
     }
     let finalDomainSize = commitments.last?.domainSize ?? 0
-    let finalDomain = "\(baseDomain)/layer-\(proof.foldingChallenges.count)"
+    let finalDomain = layerDomains[proof.foldingChallenges.count]
     let finalPoints = spartanFRIDomainPoints(size: finalDomainSize, root: finalRoot, coset: finalCoset)
     let finalTree = try SpartanFRIMerkleTree(
         domain: finalDomain,
@@ -3488,6 +3503,7 @@ private func verifyFRIProof(
 
     var initialSamples: [SpartanFRISample] = []
     initialSamples.reserveCapacity(proof.queryProofs.count * 2)
+    let invTwo = try GoldilocksField(2).inverse()
     for query in proof.queryProofs {
         var index = query.initialIndex
         var currentDomainSize = proof.paddedDomainSize
@@ -3502,8 +3518,6 @@ private func verifyFRIProof(
             guard openings.count == 3 else {
                 throw SuperNeoError.verificationFailed("FRI query opening arity mismatch")
             }
-            let layerDomain = "\(baseDomain)/layer-\(round)"
-            let nextDomain = "\(baseDomain)/layer-\(round + 1)"
             let positive = openings[0]
             let negative = openings[1]
             let next = openings[2]
@@ -3539,17 +3553,16 @@ private func verifyFRIProof(
                   next.leafCount == commitments[round + 1].domainSize else {
                 throw SuperNeoError.verificationFailed("FRI Merkle opening leaf count mismatch")
             }
-            guard positive.siblings.count == spartanFRILog2(commitments[round].domainSize),
-                  negative.siblings.count == spartanFRILog2(commitments[round].domainSize),
-                  next.siblings.count == spartanFRILog2(commitments[round + 1].domainSize) else {
+            guard positive.siblings.count == layerPathLengths[round],
+                  negative.siblings.count == layerPathLengths[round],
+                  next.siblings.count == layerPathLengths[round + 1] else {
                 throw SuperNeoError.verificationFailed("FRI Merkle opening path length mismatch")
             }
-            guard positive.verifies(root: commitments[round].root, domain: layerDomain),
-                  negative.verifies(root: commitments[round].root, domain: layerDomain),
-                  next.verifies(root: commitments[round + 1].root, domain: nextDomain) else {
+            guard positive.verifies(root: commitments[round].root, domain: layerDomains[round]),
+                  negative.verifies(root: commitments[round].root, domain: layerDomains[round]),
+                  next.verifies(root: commitments[round + 1].root, domain: layerDomains[round + 1]) else {
                 throw SuperNeoError.verificationFailed("FRI Merkle opening mismatch")
             }
-            let invTwo = try GoldilocksField(2).inverse()
             let invTwoX = try (positive.point + positive.point).inverse()
             let evenEvaluation = (positive.value + negative.value) * invTwo
             let oddEvaluation = (positive.value - negative.value) * invTwoX
@@ -4758,14 +4771,14 @@ private func spartanFRIDigest384Fields(_ digest: Digest384) -> [GoldilocksField]
 }
 
 private func spartanFRILeafDigest(
-    domain: String,
+    leafDomain: String,
     index: Int,
     leafCount: Int,
     point: GoldilocksField,
     value: GoldilocksField
 ) -> Digest384 {
-    SuperNeoSplitQRO.hMerkleLeaf(
-        domain: domain,
+    SuperNeoSplitQRO.hBind(
+        domain: leafDomain,
         frames: [
             spartanFRIEncodeCount(index),
             spartanFRIEncodeCount(leafCount),
@@ -4991,15 +5004,19 @@ private func spartanFRIRadix2NTT(_ values: inout [GoldilocksField], root: Goldil
     var length = 2
     while length <= count {
         let stepRoot = root.pow(UInt64(count / length))
+        let half = length / 2
+        var twiddles = Array(repeating: GoldilocksField.one, count: half)
+        if half > 1 {
+            for offset in 1..<half {
+                twiddles[offset] = twiddles[offset - 1] * stepRoot
+            }
+        }
         for start in stride(from: 0, to: count, by: length) {
-            var power = GoldilocksField.one
-            let half = length / 2
             for offset in 0..<half {
                 let even = values[start + offset]
-                let odd = values[start + offset + half] * power
+                let odd = values[start + offset + half] * twiddles[offset]
                 values[start + offset] = even + odd
                 values[start + offset + half] = even - odd
-                power = power * stepRoot
             }
         }
         length <<= 1

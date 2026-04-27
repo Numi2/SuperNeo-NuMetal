@@ -24,6 +24,14 @@ public struct Digest384: Equatable, Hashable, Sendable, SuperNeoByteEncodable {
         shake256(Array(string.utf8))
     }
 
+    static func shake256Framed(domain: String, frames: [[UInt8]]) -> Self {
+        Self(unchecked: SuperNeoSHAKE256.squeezeFramed(
+            domain: domain,
+            frames: frames,
+            outputByteCount: Self.byteCount
+        ))
+    }
+
     public init(hexDigest raw: String, name: String = "digest") throws {
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard value.range(of: "^[0-9a-f]{96}$", options: .regularExpression) != nil else {
@@ -58,6 +66,14 @@ public extension Digest256 {
     static func shake256(_ string: String) -> Self {
         shake256(Array(string.utf8))
     }
+
+    static func shake256Framed(domain: String, frames: [[UInt8]]) -> Self {
+        try! Self(SuperNeoSHAKE256.squeezeFramed(
+            domain: domain,
+            frames: frames,
+            outputByteCount: Self.byteCount
+        ))
+    }
 }
 
 public enum SuperNeoSplitQRO {
@@ -75,11 +91,11 @@ public enum SuperNeoSplitQRO {
     }
 
     public static func hChal(domain: String = challengeDomain, frames: [[UInt8]]) -> Digest256 {
-        Digest256.shake256(framedBytes(domain: domain, frames: frames))
+        Digest256.shake256Framed(domain: domain, frames: frames)
     }
 
     public static func hBind(domain: String = bindingDomain, frames: [[UInt8]]) -> Digest384 {
-        Digest384.shake256(framedBytes(domain: domain, frames: frames))
+        Digest384.shake256Framed(domain: domain, frames: frames)
     }
 
     public static func hMerkleLeaf(domain: String = merkleDomain, frames: [[UInt8]]) -> Digest384 {
@@ -110,12 +126,35 @@ public enum SuperNeoSplitQRO {
         label: String,
         index: UInt64
     ) -> Digest256 {
-        hChal(domain: "\(challengeDomain)/expand", frames: [
-            [proofKind.rawValue],
-            seed.superNeoBytes,
-            Array(label.utf8),
-            encodeUInt64(index)
-        ])
+        try! Digest256(SuperNeoSHAKE256.squeezeFramedFast(
+            domain: "\(challengeDomain)/expand",
+            frames: [
+                .byte(proofKind.rawValue),
+                .bytes(seed.superNeoBytes),
+                .utf8(label),
+                .uint64LE(index)
+            ],
+            outputByteCount: Digest256.byteCount
+        ))
+    }
+
+    static func sumCheckTranscriptChallenge(
+        label: String,
+        proofKind: ProofEnvelopeKind,
+        challengeTapeSeed: Digest256,
+        stateDigest: Digest256,
+        challengeCounter: UInt64
+    ) -> Digest256 {
+        try! Digest256(SuperNeoSHAKE256.squeezeFramedFast(
+            domain: "\(challengeDomain)/sumcheck-transcript-challenge/\(label)",
+            frames: [
+                .byte(proofKind.rawValue),
+                .bytes(challengeTapeSeed.superNeoBytes),
+                .bytes(stateDigest.superNeoBytes),
+                .uint64LE(challengeCounter)
+            ],
+            outputByteCount: Digest256.byteCount
+        ))
     }
 
     public static func appendFrame(_ frame: [UInt8], to bytes: inout [UInt8]) {
@@ -630,6 +669,13 @@ public extension ProofEnvelopeKind {
     }
 }
 
+private enum SuperNeoSHAKEFrame {
+    case bytes([UInt8])
+    case utf8(String)
+    case byte(UInt8)
+    case uint64LE(UInt64)
+}
+
 private enum SuperNeoSHAKE256 {
     private static let rate = 136
     private static let suffix: UInt8 = 0x1f
@@ -639,7 +685,7 @@ private enum SuperNeoSHAKE256 {
         var state = [UInt64](repeating: 0, count: 25)
         var offset = 0
         while offset + rate <= input.count {
-            xorBlock(Array(input[offset..<offset + rate]), into: &state)
+            xorRateBytes(input, offset: offset, into: &state)
             KeccakF1600.permute(&state)
             offset += rate
         }
@@ -653,38 +699,210 @@ private enum SuperNeoSHAKE256 {
         xorBlock(finalBlock, into: &state)
         KeccakF1600.permute(&state)
 
+        return squeezeOutput(from: &state, outputByteCount: outputByteCount)
+    }
+
+    static func squeezeFramed(domain: String, frames: [[UInt8]], outputByteCount: Int) -> [UInt8] {
+        precondition(outputByteCount >= 0, "outputByteCount must be non-negative")
+        var state = [UInt64](repeating: 0, count: 25)
+        var block = [UInt8](repeating: 0, count: rate)
+        var blockByteCount = 0
+
+        func absorb(_ bytes: [UInt8]) {
+            var offset = 0
+            while offset < bytes.count {
+                if blockByteCount == 0, bytes.count - offset >= rate {
+                    SuperNeoSHAKE256.xorRateBytes(bytes, offset: offset, into: &state)
+                    KeccakF1600.permute(&state)
+                    offset += rate
+                    continue
+                }
+                let take = min(rate - blockByteCount, bytes.count - offset)
+                for byteIndex in 0..<take {
+                    block[blockByteCount + byteIndex] = bytes[offset + byteIndex]
+                }
+                blockByteCount += take
+                offset += take
+                if blockByteCount == rate {
+                    xorBlock(block, into: &state)
+                    KeccakF1600.permute(&state)
+                    zeroRateBlock(&block)
+                    blockByteCount = 0
+                }
+            }
+        }
+
+        func absorbByte(_ byte: UInt8) {
+            block[blockByteCount] = byte
+            blockByteCount += 1
+            if blockByteCount == rate {
+                SuperNeoSHAKE256.xorBlock(block, into: &state)
+                KeccakF1600.permute(&state)
+                SuperNeoSHAKE256.zeroRateBlock(&block)
+                blockByteCount = 0
+            }
+        }
+
+        func absorbLength(_ value: UInt64) {
+            for byteIndex in 0..<8 {
+                absorbByte(UInt8(truncatingIfNeeded: value >> UInt64(byteIndex * 8)))
+            }
+        }
+
+        func absorbFrame(_ bytes: [UInt8]) {
+            absorbLength(UInt64(bytes.count))
+            absorb(bytes)
+        }
+
+        absorbLength(UInt64(domain.utf8.count))
+        for byte in domain.utf8 {
+            absorbByte(byte)
+        }
+        for frame in frames {
+            absorbFrame(frame)
+        }
+        block[blockByteCount] ^= suffix
+        block[rate - 1] ^= 0x80
+        xorBlock(block, into: &state)
+        KeccakF1600.permute(&state)
+        return squeezeOutput(from: &state, outputByteCount: outputByteCount)
+    }
+
+    static func squeezeFramedFast(domain: String, frames: [SuperNeoSHAKEFrame], outputByteCount: Int) -> [UInt8] {
+        precondition(outputByteCount >= 0, "outputByteCount must be non-negative")
+        var state = [UInt64](repeating: 0, count: 25)
+        var block = [UInt8](repeating: 0, count: rate)
+        var blockByteCount = 0
+
+        func absorb(_ bytes: [UInt8]) {
+            var offset = 0
+            while offset < bytes.count {
+                if blockByteCount == 0, bytes.count - offset >= rate {
+                    SuperNeoSHAKE256.xorRateBytes(bytes, offset: offset, into: &state)
+                    KeccakF1600.permute(&state)
+                    offset += rate
+                    continue
+                }
+                let take = min(rate - blockByteCount, bytes.count - offset)
+                for byteIndex in 0..<take {
+                    block[blockByteCount + byteIndex] = bytes[offset + byteIndex]
+                }
+                blockByteCount += take
+                offset += take
+                if blockByteCount == rate {
+                    SuperNeoSHAKE256.xorBlock(block, into: &state)
+                    KeccakF1600.permute(&state)
+                    SuperNeoSHAKE256.zeroRateBlock(&block)
+                    blockByteCount = 0
+                }
+            }
+        }
+
+        func absorbByte(_ byte: UInt8) {
+            block[blockByteCount] = byte
+            blockByteCount += 1
+            if blockByteCount == rate {
+                SuperNeoSHAKE256.xorBlock(block, into: &state)
+                KeccakF1600.permute(&state)
+                SuperNeoSHAKE256.zeroRateBlock(&block)
+                blockByteCount = 0
+            }
+        }
+
+        func absorbLength(_ value: UInt64) {
+            for byteIndex in 0..<8 {
+                absorbByte(UInt8(truncatingIfNeeded: value >> UInt64(byteIndex * 8)))
+            }
+        }
+
+        func absorbUTF8(_ string: String) {
+            absorbLength(UInt64(string.utf8.count))
+            for byte in string.utf8 {
+                absorbByte(byte)
+            }
+        }
+
+        func absorbFrame(_ frame: SuperNeoSHAKEFrame) {
+            switch frame {
+            case .bytes(let bytes):
+                absorbLength(UInt64(bytes.count))
+                absorb(bytes)
+            case .utf8(let string):
+                absorbUTF8(string)
+            case .byte(let byte):
+                absorbLength(1)
+                absorbByte(byte)
+            case .uint64LE(let value):
+                absorbLength(8)
+                for byteIndex in 0..<8 {
+                    absorbByte(UInt8(truncatingIfNeeded: value >> UInt64(byteIndex * 8)))
+                }
+            }
+        }
+
+        absorbUTF8(domain)
+        for frame in frames {
+            absorbFrame(frame)
+        }
+        block[blockByteCount] ^= suffix
+        block[rate - 1] ^= 0x80
+        xorBlock(block, into: &state)
+        KeccakF1600.permute(&state)
+        return squeezeOutput(from: &state, outputByteCount: outputByteCount)
+    }
+
+    private static func xorBlock(_ block: [UInt8], into state: inout [UInt64]) {
+        precondition(block.count == rate, "SHAKE256 block must match rate")
+        xorRateBytes(block, offset: 0, into: &state)
+    }
+
+    private static func xorRateBytes(_ bytes: [UInt8], offset: Int, into state: inout [UInt64]) {
+        precondition(offset >= 0 && offset + rate <= bytes.count, "SHAKE256 block range must match rate")
+        bytes.withUnsafeBytes { rawBytes in
+            for laneIndex in 0..<(rate / 8) {
+                let lane = rawBytes.loadUnaligned(
+                    fromByteOffset: offset + laneIndex * MemoryLayout<UInt64>.size,
+                    as: UInt64.self
+                ).littleEndian
+                state[laneIndex] ^= lane
+            }
+        }
+    }
+
+    private static func zeroRateBlock(_ block: inout [UInt8]) {
+        for index in block.indices {
+            block[index] = 0
+        }
+    }
+
+    private static func appendStateRateBytes(
+        _ state: [UInt64],
+        to output: inout [UInt8],
+        maxByteCount: Int
+    ) {
+        var remaining = maxByteCount
+        for lane in state.prefix(rate / 8) {
+            guard remaining > 0 else { return }
+            var littleEndianLane = lane.littleEndian
+            withUnsafeBytes(of: &littleEndianLane) { laneBytes in
+                let count = min(remaining, laneBytes.count)
+                output.append(contentsOf: laneBytes.prefix(count))
+                remaining -= count
+            }
+        }
+    }
+
+    private static func squeezeOutput(from state: inout [UInt64], outputByteCount: Int) -> [UInt8] {
         var output: [UInt8] = []
         output.reserveCapacity(outputByteCount)
         while output.count < outputByteCount {
-            let block = stateRateBytes(state)
             let remaining = outputByteCount - output.count
-            output.append(contentsOf: block.prefix(remaining))
+            appendStateRateBytes(state, to: &output, maxByteCount: remaining)
             if output.count < outputByteCount {
                 KeccakF1600.permute(&state)
             }
         }
         return output
-    }
-
-    private static func xorBlock(_ block: [UInt8], into state: inout [UInt64]) {
-        precondition(block.count == rate, "SHAKE256 block must match rate")
-        for laneIndex in 0..<(rate / 8) {
-            var lane: UInt64 = 0
-            let base = laneIndex * 8
-            for byteIndex in 0..<8 {
-                lane |= UInt64(block[base + byteIndex]) << (8 * byteIndex)
-            }
-            state[laneIndex] ^= lane
-        }
-    }
-
-    private static func stateRateBytes(_ state: [UInt64]) -> [UInt8] {
-        var bytes: [UInt8] = []
-        bytes.reserveCapacity(rate)
-        for lane in state.prefix(rate / 8) {
-            bytes.append(contentsOf: withUnsafeBytes(of: lane.littleEndian, Array.init))
-        }
-        return bytes
     }
 }
 
@@ -714,9 +932,10 @@ private enum KeccakF1600 {
 
     static func permute(_ state: inout [UInt64]) {
         precondition(state.count == 25, "Keccak-f[1600] state must have 25 lanes")
+        var c = [UInt64](repeating: 0, count: 5)
+        var d = [UInt64](repeating: 0, count: 5)
+        var b = [UInt64](repeating: 0, count: 25)
         for roundConstant in roundConstants {
-            var c = [UInt64](repeating: 0, count: 5)
-            var d = [UInt64](repeating: 0, count: 5)
             for x in 0..<5 {
                 c[x] = state[x] ^ state[x + 5] ^ state[x + 10] ^ state[x + 15] ^ state[x + 20]
             }
@@ -729,7 +948,6 @@ private enum KeccakF1600 {
                 }
             }
 
-            var b = [UInt64](repeating: 0, count: 25)
             for x in 0..<5 {
                 for y in 0..<5 {
                     let destination = y + 5 * ((2 * x + 3 * y) % 5)

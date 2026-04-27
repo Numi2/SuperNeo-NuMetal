@@ -219,8 +219,28 @@ public struct SumCheckTranscript: Sendable {
     }
 
     public mutating func challengeField() -> GoldilocksField {
-        var tape = makeChallengeTape(label: "field")
-        return tape.nextField()
+        let seed = makeChallengeSeed(label: "field")
+        let tapeLabel = "\(domainSeparator)/field"
+        var digestIndex = UInt64(0)
+        while true {
+            let digest = SuperNeoSplitQRO.expandChallenge(
+                seed: seed,
+                proofKind: proofKind,
+                label: tapeLabel,
+                index: digestIndex
+            )
+            digestIndex &+= 1
+            let bytes = digest.superNeoBytes
+            for offset in stride(from: 0, to: bytes.count, by: 8) {
+                var value = UInt64(0)
+                for byteIndex in 0..<8 {
+                    value |= UInt64(bytes[offset + byteIndex]) << UInt64(byteIndex * 8)
+                }
+                if value < GoldilocksField.modulus {
+                    return GoldilocksField(value)
+                }
+            }
+        }
     }
 
     public mutating func challengeExt2() -> GoldilocksExt2 {
@@ -234,21 +254,24 @@ public struct SumCheckTranscript: Sendable {
     }
 
     private mutating func makeChallengeTape(label: String) -> SuperNeoChallengeTape {
-        let seed = SuperNeoSplitQRO.hChal(
-            domain: "\(SuperNeoSplitQRO.challengeDomain)/sumcheck-transcript-challenge/\(label)",
-            frames: [
-                [proofKind.rawValue],
-                challengeTapeSeed.superNeoBytes,
-                stateDigest.superNeoBytes,
-                SuperNeoSplitQRO.encodeUInt64(challengeCounter)
-            ]
-        )
-        challengeCounter &+= 1
+        let seed = makeChallengeSeed(label: label)
         return SuperNeoChallengeTape(
             seed: seed,
             proofKind: proofKind,
             label: "\(domainSeparator)/\(label)"
         )
+    }
+
+    private mutating func makeChallengeSeed(label: String) -> Digest256 {
+        let seed = SuperNeoSplitQRO.sumCheckTranscriptChallenge(
+            label: label,
+            proofKind: proofKind,
+            challengeTapeSeed: challengeTapeSeed,
+            stateDigest: stateDigest,
+            challengeCounter: challengeCounter
+        )
+        challengeCounter &+= 1
+        return seed
     }
 
     private static func frameLength(_ value: Int) -> [UInt8] {

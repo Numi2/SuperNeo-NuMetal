@@ -1262,6 +1262,22 @@ public enum CEOpeningRelation {
             expected: GoldilocksField(UInt64(CEOpeningProof.roundCount))
         ))
 
+#if DEBUG
+        let transformedMatrices = try superNeoDebugMeasure("ce-compile sparse shape") {
+            try shape.compiledSparseForSuperNeo().transformedSparseMatrices
+        }
+        let verifierContext = try superNeoDebugMeasure("ce-verifier context construction") {
+            try CEOpeningVerifierContext(
+                statement: statement,
+                shape: shape,
+                key: key,
+                transformedMatrices: transformedMatrices,
+                metalWorkspace: metalWorkspace,
+                parameters: parameters,
+                executionPolicy: executionPolicy
+            )
+        }
+#else
         let transformedMatrices = try shape.compiledSparseForSuperNeo().transformedSparseMatrices
         let verifierContext = try CEOpeningVerifierContext(
             statement: statement,
@@ -1272,58 +1288,113 @@ public enum CEOpeningRelation {
             parameters: parameters,
             executionPolicy: executionPolicy
         )
-        for openingIndex in statement.openings.indices {
-            let opening = statement.openings[openingIndex]
-            rows.append(terminalPrimitiveAIRRequired(
-                opening.instance.commitment.elements.count == key.parameters.kappa,
-                kind: kind,
-                provenance: .canonicalDecoding,
-                label: "ce-opening-\(openingIndex)-commitment-dimension"
-            ))
-            rows.append(terminalPrimitiveAIRRequired(
-                opening.instance.publicInput.count == shape.nPublicField,
-                kind: kind,
-                provenance: .canonicalDecoding,
-                label: "ce-opening-\(openingIndex)-public-input-dimension"
-            ))
-            rows.append(terminalPrimitiveAIRRequired(
-                opening.instance.matrixEvals.count == shape.numMatrices,
-                kind: kind,
-                provenance: .canonicalDecoding,
-                label: "ce-opening-\(openingIndex)-matrix-eval-dimension"
-            ))
-            rows.append(terminalPrimitiveAIRRequired(
-                opening.instance.publicInput.allSatisfy { signedMagnitude($0) < UInt64(parameters.normBound) },
-                kind: kind,
-                provenance: .primitiveArithmetic,
-                label: "ce-opening-\(openingIndex)-public-input-low-norm"
-            ))
-            let target = verifierContext.target(at: openingIndex)
-            rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
-                kind: kind,
-                provenance: .primitiveArithmetic,
-                label: "ce-opening-\(openingIndex)-ajtai-public-plus-private-target",
-                observedBytes: opening.instance.commitment.superNeoBytes,
-                expectedBytes: (target.publicCommitment + target.commitment).superNeoBytes
-            ))
+#endif
+        func emitTargetRows() {
+            for openingIndex in statement.openings.indices {
+                let opening = statement.openings[openingIndex]
+                rows.append(terminalPrimitiveAIRRequired(
+                    opening.instance.commitment.elements.count == key.parameters.kappa,
+                    kind: kind,
+                    provenance: .canonicalDecoding,
+                    label: "ce-opening-\(openingIndex)-commitment-dimension"
+                ))
+                rows.append(terminalPrimitiveAIRRequired(
+                    opening.instance.publicInput.count == shape.nPublicField,
+                    kind: kind,
+                    provenance: .canonicalDecoding,
+                    label: "ce-opening-\(openingIndex)-public-input-dimension"
+                ))
+                rows.append(terminalPrimitiveAIRRequired(
+                    opening.instance.matrixEvals.count == shape.numMatrices,
+                    kind: kind,
+                    provenance: .canonicalDecoding,
+                    label: "ce-opening-\(openingIndex)-matrix-eval-dimension"
+                ))
+                rows.append(terminalPrimitiveAIRRequired(
+                    opening.instance.publicInput.allSatisfy { signedMagnitude($0) < UInt64(parameters.normBound) },
+                    kind: kind,
+                    provenance: .primitiveArithmetic,
+                    label: "ce-opening-\(openingIndex)-public-input-low-norm"
+                ))
+                let target = verifierContext.target(at: openingIndex)
+                rows.append(contentsOf: terminalPrimitiveAIRObjectDigestRows(
+                    kind: kind,
+                    provenance: .primitiveArithmetic,
+                    label: "ce-opening-\(openingIndex)-ajtai-public-plus-private-target",
+                    observedBytes: opening.instance.commitment.superNeoBytes,
+                    expectedBytes: (target.publicCommitment + target.commitment).superNeoBytes
+                ))
+            }
         }
+#if DEBUG
+        superNeoDebugMeasure("ce-target row emission") {
+            emitTargetRows()
+        }
+#else
+        emitTargetRows()
+#endif
 
+#if DEBUG
+        let roundTranscriptBytes = try superNeoDebugMeasure("ce-response transcript byte precompute") {
+            try ceParallelMap(count: proof.rounds.count) { roundIndex in
+                let round = proof.rounds[roundIndex]
+                return CEOpeningRoundTranscriptBytes(
+                    commitments: round.commitments.flatMap(\.superNeoBytes),
+                    response: round.response.superNeoBytes
+                )
+            }
+        }
+#else
+        let roundTranscriptBytes = try ceParallelMap(count: proof.rounds.count) { roundIndex in
+            let round = proof.rounds[roundIndex]
+            return CEOpeningRoundTranscriptBytes(
+                commitments: round.commitments.flatMap(\.superNeoBytes),
+                response: round.response.superNeoBytes
+            )
+        }
+#endif
+        let responseChallenges: [Int]
+#if DEBUG
+        responseChallenges = superNeoDebugMeasure("ce-response challenge derivation") {
+            var transcript = makeCEOpeningTranscript(statement: statement)
+            transcript.absorb(ceEncodeCount(proof.rounds.count))
+            var challenges: [Int] = []
+            challenges.reserveCapacity(proof.rounds.count)
+            for roundIndex in proof.rounds.indices {
+                transcript.absorb(roundTranscriptBytes[roundIndex].commitments)
+                let challenge = ceOpeningChallenge(transcript: &transcript)
+                challenges.append(challenge)
+                transcript.absorb(roundTranscriptBytes[roundIndex].response)
+            }
+            return challenges
+        }
+#else
         var transcript = makeCEOpeningTranscript(statement: statement)
         transcript.absorb(ceEncodeCount(proof.rounds.count))
-        var linearJobs: [CEOpeningVerifierLinearJob] = []
-        linearJobs.reserveCapacity(proof.rounds.count * max(1, statement.openings.count))
+        var challenges: [Int] = []
+        challenges.reserveCapacity(proof.rounds.count)
+        for roundIndex in proof.rounds.indices {
+            transcript.absorb(roundTranscriptBytes[roundIndex].commitments)
+            let challenge = ceOpeningChallenge(transcript: &transcript)
+            challenges.append(challenge)
+            transcript.absorb(roundTranscriptBytes[roundIndex].response)
+        }
+        responseChallenges = challenges
+#endif
 
-        for (roundIndex, round) in proof.rounds.enumerated() {
-            rows.append(terminalPrimitiveAIRFieldRow(
+        @Sendable func makeResponseMaterial(roundIndex: Int) throws -> CEOpeningRoundPrimitiveMaterial {
+            let round = proof.rounds[roundIndex]
+            let challenge = responseChallenges[roundIndex]
+            var roundRows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
+            var roundLinearJobs: [CEOpeningVerifierLinearJob] = []
+            roundRows.append(terminalPrimitiveAIRFieldRow(
                 kind: kind,
                 provenance: .canonicalDecoding,
                 label: "ce-round-\(roundIndex)-commitment-count",
                 observed: GoldilocksField(UInt64(round.commitments.count)),
                 expected: GoldilocksField(UInt64(statement.openings.count))
             ))
-            transcript.absorb(round.commitments.flatMap(\.superNeoBytes))
-            let challenge = ceOpeningChallenge(transcript: &transcript)
-            rows.append(terminalPrimitiveAIRFieldRow(
+            roundRows.append(terminalPrimitiveAIRFieldRow(
                 kind: kind,
                 provenance: .publicCoinBinding,
                 label: "ce-round-\(roundIndex)-challenge",
@@ -1333,25 +1404,25 @@ public enum CEOpeningRelation {
 
             switch (challenge, round.response) {
             case (0, .mask(let openings)):
-                rows.append(contentsOf: terminalVerifierAIRMaskPrimitiveRows(
+                roundRows.append(contentsOf: terminalVerifierAIRMaskPrimitiveRows(
                     openings: openings,
                     roundIndex: roundIndex,
                     commitments: round.commitments,
                     statement: statement,
                     verifierContext: verifierContext,
-                    jobs: &linearJobs
+                    jobs: &roundLinearJobs
                 ))
             case (1, .maskedWitness(let openings)):
-                rows.append(contentsOf: terminalVerifierAIRMaskedWitnessPrimitiveRows(
+                roundRows.append(contentsOf: terminalVerifierAIRMaskedWitnessPrimitiveRows(
                     openings: openings,
                     roundIndex: roundIndex,
                     commitments: round.commitments,
                     statement: statement,
                     verifierContext: verifierContext,
-                    jobs: &linearJobs
+                    jobs: &roundLinearJobs
                 ))
             case (2, .permutedWitness(let openings)):
-                rows.append(contentsOf: try terminalVerifierAIRPermutedWitnessPrimitiveRows(
+                roundRows.append(contentsOf: try terminalVerifierAIRPermutedWitnessPrimitiveRows(
                     openings: openings,
                     roundIndex: roundIndex,
                     commitments: round.commitments,
@@ -1359,21 +1430,48 @@ public enum CEOpeningRelation {
                     verifierContext: verifierContext
                 ))
             default:
-                rows.append(terminalPrimitiveAIRRequired(
+                roundRows.append(terminalPrimitiveAIRRequired(
                     false,
                     kind: kind,
                     provenance: .canonicalDecoding,
                     label: "ce-round-\(roundIndex)-challenge-response-shape"
                 ))
             }
-            transcript.absorb(round.response.superNeoBytes)
+            return CEOpeningRoundPrimitiveMaterial(rows: roundRows, linearJobs: roundLinearJobs)
+        }
+        let responseMaterials: [CEOpeningRoundPrimitiveMaterial]
+#if DEBUG
+        responseMaterials = try superNeoDebugMeasure("ce-response primitive row parallel build") {
+            try ceParallelMap(count: proof.rounds.count) { roundIndex in
+                try makeResponseMaterial(roundIndex: roundIndex)
+            }
+        }
+#else
+        responseMaterials = try ceParallelMap(count: proof.rounds.count) { roundIndex in
+            try makeResponseMaterial(roundIndex: roundIndex)
+        }
+#endif
+        var linearJobs: [CEOpeningVerifierLinearJob] = []
+        linearJobs.reserveCapacity(proof.rounds.count * max(1, statement.openings.count))
+        for material in responseMaterials {
+            rows.append(contentsOf: material.rows)
+            linearJobs.append(contentsOf: material.linearJobs)
         }
 
         if !linearJobs.isEmpty {
+#if DEBUG
+            let instances = try superNeoDebugMeasure("ce-private linear instance batch") {
+                try verifierContext.makePrivateLinearInstances(
+                    vectors: linearJobs.map(\.vector),
+                    openingIndices: linearJobs.map(\.openingIndex)
+                )
+            }
+#else
             let instances = try verifierContext.makePrivateLinearInstances(
                 vectors: linearJobs.map(\.vector),
                 openingIndices: linearJobs.map(\.openingIndex)
             )
+#endif
             rows.append(terminalPrimitiveAIRFieldRow(
                 kind: kind,
                 provenance: .primitiveArithmetic,
@@ -1381,31 +1479,51 @@ public enum CEOpeningRelation {
                 observed: GoldilocksField(UInt64(instances.count)),
                 expected: GoldilocksField(UInt64(linearJobs.count))
             ))
-            for index in linearJobs.indices where index < instances.count {
-                let job = linearJobs[index]
-                let instance = job.challenge == 0
-                    ? instances[index]
-                    : try subtractTarget(instances[index], target: verifierContext.target(at: job.openingIndex))
-                rows.append(contentsOf: terminalPrimitiveAIRDigestRows(
-                    kind: kind,
-                    provenance: .hashSubrelation,
-                    label: "ce-round-\(job.roundIndex)-opening-\(job.openingIndex)-mask-linear-digest",
-                    observed: job.commitments.maskLinearDigest,
-                    expected: ceOpeningDigest(
-                        tag: 1,
-                        roundIndex: job.roundIndex,
-                        openingIndex: job.openingIndex,
-                        payload: job.permutationBytes + instance.superNeoBytes
-                    )
-                ))
+            func emitPrivateLinearDigestRows() throws {
+                for index in linearJobs.indices where index < instances.count {
+                    let job = linearJobs[index]
+                    let instance = job.challenge == 0
+                        ? instances[index]
+                        : try subtractTarget(instances[index], target: verifierContext.target(at: job.openingIndex))
+                    rows.append(contentsOf: terminalPrimitiveAIRDigestRows(
+                        kind: kind,
+                        provenance: .hashSubrelation,
+                        label: "ce-round-\(job.roundIndex)-opening-\(job.openingIndex)-mask-linear-digest",
+                        observed: job.commitments.maskLinearDigest,
+                        expected: ceOpeningDigest(
+                            tag: 1,
+                            roundIndex: job.roundIndex,
+                            openingIndex: job.openingIndex,
+                            payload: job.permutationBytes + instance.superNeoBytes
+                        )
+                    ))
+                }
             }
+#if DEBUG
+            try superNeoDebugMeasure("ce-private linear digest row emission") {
+                try emitPrivateLinearDigestRows()
+            }
+#else
+            try emitPrivateLinearDigestRows()
+#endif
         }
+#if DEBUG
+        return superNeoDebugMeasure("ce-primitive row compacting") {
+            terminalPrimitiveAIRCompactRows(
+                rows,
+                kind: kind,
+                label: "terminal-ce-ajtai",
+                sampleStride: 29
+            )
+        }
+#else
         return terminalPrimitiveAIRCompactRows(
             rows,
             kind: kind,
             label: "terminal-ce-ajtai",
             sampleStride: 29
         )
+#endif
     }
 }
 
@@ -5918,13 +6036,23 @@ private struct CEOpeningProverOpeningMaterial {
     let permutedMasked: [GoldilocksField]
 }
 
-private struct CEOpeningVerifierLinearJob {
+private struct CEOpeningVerifierLinearJob: Sendable {
     let challenge: Int
     let roundIndex: Int
     let openingIndex: Int
     let permutationBytes: [UInt8]
     let vector: [GoldilocksField]
     let commitments: CEOpeningProofCommitments
+}
+
+private struct CEOpeningRoundTranscriptBytes: Sendable {
+    let commitments: [UInt8]
+    let response: [UInt8]
+}
+
+private struct CEOpeningRoundPrimitiveMaterial: Sendable {
+    let rows: [SuperNeoTerminalVerifierAIRConstraintRow]
+    let linearJobs: [CEOpeningVerifierLinearJob]
 }
 
 private func ceParallelMap<T: Sendable>(
@@ -6103,8 +6231,11 @@ private struct CEOpeningPrivateLinearBatchContext {
             throw SuperNeoError.invalidParameter("CE opening private-linear batch count mismatch")
         }
 
-        let packedWitnesses = try zip(vectors, openingIndices).map { vector, openingIndex in
-            try opening(at: openingIndex).packedZeroPublicWitness(privateVector: vector, shape: shape)
+        let packedWitnesses = try ceParallelMap(count: vectors.count) { index in
+            try opening(at: openingIndices[index]).packedZeroPublicWitness(
+                privateVector: vectors[index],
+                shape: shape
+            )
         }
         if let metalWorkspace,
            !executionPolicy.usesConstantWorkCPU,
