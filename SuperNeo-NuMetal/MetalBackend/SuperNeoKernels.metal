@@ -223,6 +223,307 @@ inline void shake256_digest_sumcheck_challenge_seed(
     shake256_squeeze_digest256(state, blockOffset, outDigest);
 }
 
+inline ulong tg_load_device_lane(
+    device const uchar *bytes,
+    uint start,
+    uint length,
+    uint chunkOffset,
+    uint blockOffset,
+    uint take,
+    uint lane
+) {
+    ulong value = 0;
+    const uint laneStart = lane * 8;
+    for (uint byteIndex = 0; byteIndex < 8; byteIndex++) {
+        const uint absoluteBlockIndex = laneStart + byteIndex;
+        if (absoluteBlockIndex >= blockOffset && absoluteBlockIndex < blockOffset + take) {
+            const uint sourceIndex = chunkOffset + absoluteBlockIndex - blockOffset;
+            if (sourceIndex < length) {
+                value |= ulong(bytes[start + sourceIndex]) << (byteIndex * 8);
+            }
+        }
+    }
+    return value;
+}
+
+inline ulong tg_load_thread_lane(
+    thread const uchar *bytes,
+    uint length,
+    uint chunkOffset,
+    uint blockOffset,
+    uint take,
+    uint lane
+) {
+    ulong value = 0;
+    const uint laneStart = lane * 8;
+    for (uint byteIndex = 0; byteIndex < 8; byteIndex++) {
+        const uint absoluteBlockIndex = laneStart + byteIndex;
+        if (absoluteBlockIndex >= blockOffset && absoluteBlockIndex < blockOffset + take) {
+            const uint sourceIndex = chunkOffset + absoluteBlockIndex - blockOffset;
+            if (sourceIndex < length) {
+                value |= ulong(bytes[sourceIndex]) << (byteIndex * 8);
+            }
+        }
+    }
+    return value;
+}
+
+inline void tg_keccak_f1600(
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    uint tid
+) {
+    threadgroup ulong *b = work;
+    threadgroup ulong *c = work + 25;
+    threadgroup ulong *d = work + 30;
+    for (uint round = 0; round < 24; round++) {
+        if (tid < 5) {
+            c[tid] = lanes[tid] ^ lanes[tid + 5] ^ lanes[tid + 10] ^ lanes[tid + 15] ^ lanes[tid + 20];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (tid < 5) {
+            d[tid] = c[(tid + 4) % 5] ^ rotate_left_u64(c[(tid + 1) % 5], 1);
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (tid < 25) {
+            const uint x = tid % 5;
+            const uint y = tid / 5;
+            lanes[tid] ^= d[x];
+            const uint destination = y + 5 * ((2 * x + 3 * y) % 5);
+            b[destination] = rotate_left_u64(lanes[tid], KECCAK_ROTATION_OFFSETS[tid]);
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (tid < 25) {
+            const uint x = tid % 5;
+            const uint y = tid / 5;
+            lanes[tid] = b[tid]
+                ^ ((~b[((x + 1) % 5) + 5 * y]) & b[((x + 2) % 5) + 5 * y]);
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (tid == 0) {
+            lanes[0] ^= KECCAK_ROUND_CONSTANTS[round];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+}
+
+inline void tg_shake256_absorb_device_bytes(
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    threadgroup uint *blockOffset,
+    device const uchar *bytes,
+    uint start,
+    uint length,
+    uint tid
+) {
+    uint offset = 0;
+    while (offset < length) {
+        const uint currentBlockOffset = blockOffset[0];
+        const uint take = min(SHAKE256_RATE_BYTES - currentBlockOffset, length - offset);
+        if (tid < (SHAKE256_RATE_BYTES / 8)) {
+            lanes[tid] ^= tg_load_device_lane(bytes, start, length, offset, currentBlockOffset, take, tid);
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (tid == 0) {
+            blockOffset[0] = currentBlockOffset + take;
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        offset += take;
+        if (blockOffset[0] == SHAKE256_RATE_BYTES) {
+            if (tid == 0) {
+                blockOffset[0] = 0;
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            tg_keccak_f1600(lanes, work, tid);
+        }
+    }
+}
+
+inline void tg_shake256_absorb_thread_bytes(
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    threadgroup uint *blockOffset,
+    thread const uchar *bytes,
+    uint length,
+    uint tid
+) {
+    uint offset = 0;
+    while (offset < length) {
+        const uint currentBlockOffset = blockOffset[0];
+        const uint take = min(SHAKE256_RATE_BYTES - currentBlockOffset, length - offset);
+        if (tid < (SHAKE256_RATE_BYTES / 8)) {
+            lanes[tid] ^= tg_load_thread_lane(bytes, length, offset, currentBlockOffset, take, tid);
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (tid == 0) {
+            blockOffset[0] = currentBlockOffset + take;
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        offset += take;
+        if (blockOffset[0] == SHAKE256_RATE_BYTES) {
+            if (tid == 0) {
+                blockOffset[0] = 0;
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            tg_keccak_f1600(lanes, work, tid);
+        }
+    }
+}
+
+inline void tg_shake256_absorb_u64_le(
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    threadgroup uint *blockOffset,
+    ulong value,
+    uint tid
+) {
+    uchar bytes[8];
+    for (uint index = 0; index < 8; index++) {
+        bytes[index] = uchar((value >> (index * 8)) & 0xffUL);
+    }
+    tg_shake256_absorb_thread_bytes(lanes, work, blockOffset, bytes, 8, tid);
+}
+
+inline void tg_shake256_absorb_device_frame(
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    threadgroup uint *blockOffset,
+    device const uchar *bytes,
+    uint start,
+    uint length,
+    uint tid
+) {
+    tg_shake256_absorb_u64_le(lanes, work, blockOffset, ulong(length), tid);
+    tg_shake256_absorb_device_bytes(lanes, work, blockOffset, bytes, start, length, tid);
+}
+
+inline void tg_shake256_absorb_thread_frame(
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    threadgroup uint *blockOffset,
+    thread const uchar *bytes,
+    uint length,
+    uint tid
+) {
+    tg_shake256_absorb_u64_le(lanes, work, blockOffset, ulong(length), tid);
+    tg_shake256_absorb_thread_bytes(lanes, work, blockOffset, bytes, length, tid);
+}
+
+inline void tg_shake256_absorb_single_byte_frame(
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    threadgroup uint *blockOffset,
+    uchar byte,
+    uint tid
+) {
+    uchar bytes[1];
+    bytes[0] = byte;
+    tg_shake256_absorb_thread_frame(lanes, work, blockOffset, bytes, 1, tid);
+}
+
+inline void tg_shake256_absorb_u64_le_frame(
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    threadgroup uint *blockOffset,
+    ulong value,
+    uint tid
+) {
+    uchar bytes[8];
+    for (uint index = 0; index < 8; index++) {
+        bytes[index] = uchar((value >> (index * 8)) & 0xffUL);
+    }
+    tg_shake256_absorb_thread_frame(lanes, work, blockOffset, bytes, 8, tid);
+}
+
+inline void tg_shake256_finalize_digest256(
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    threadgroup uint *blockOffset,
+    thread uchar *outDigest,
+    uint tid
+) {
+    const uint currentBlockOffset = blockOffset[0];
+    const uint suffixLane = currentBlockOffset >> 3;
+    const uint suffixShift = (currentBlockOffset & 7) * 8;
+    if (tid < 25) {
+        ulong value = 0;
+        if (tid == suffixLane) {
+            value ^= ulong(0x1f) << suffixShift;
+        }
+        if (tid == ((SHAKE256_RATE_BYTES - 1) >> 3)) {
+            value ^= ulong(0x80) << (((SHAKE256_RATE_BYTES - 1) & 7) * 8);
+        }
+        lanes[tid] ^= value;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    tg_keccak_f1600(lanes, work, tid);
+    if (tid < 32) {
+        const uint lane = tid >> 3;
+        const uint byteIndex = tid & 7;
+        outDigest[tid] = uchar((lanes[lane] >> (byteIndex * 8)) & 0xffUL);
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+}
+
+inline void tg_shake256_reset(
+    threadgroup ulong *lanes,
+    threadgroup uint *blockOffset,
+    uint tid
+) {
+    if (tid < 25) {
+        lanes[tid] = 0;
+    }
+    if (tid == 0) {
+        blockOffset[0] = 0;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+}
+
+inline void tg_shake256_digest_sumcheck_absorb_state(
+    uchar proofKind,
+    thread const uchar *stateDigest,
+    device const uchar *payloadBytes,
+    uint payloadOffset,
+    uint payloadLength,
+    device const uchar *domainBytes,
+    uint domainLength,
+    thread uchar *outDigest,
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    threadgroup uint *blockOffset,
+    uint tid
+) {
+    tg_shake256_reset(lanes, blockOffset, tid);
+    tg_shake256_absorb_device_frame(lanes, work, blockOffset, domainBytes, 0, domainLength, tid);
+    tg_shake256_absorb_single_byte_frame(lanes, work, blockOffset, proofKind, tid);
+    tg_shake256_absorb_thread_frame(lanes, work, blockOffset, stateDigest, 32, tid);
+    tg_shake256_absorb_u64_le_frame(lanes, work, blockOffset, ulong(payloadLength), tid);
+    tg_shake256_absorb_device_frame(lanes, work, blockOffset, payloadBytes, payloadOffset, payloadLength, tid);
+    tg_shake256_finalize_digest256(lanes, work, blockOffset, outDigest, tid);
+}
+
+inline void tg_shake256_digest_sumcheck_challenge_seed(
+    uchar proofKind,
+    device const uchar *challengeTapeSeed,
+    thread const uchar *stateDigest,
+    ulong challengeCounter,
+    device const uchar *domainBytes,
+    uint domainLength,
+    thread uchar *outDigest,
+    threadgroup ulong *lanes,
+    threadgroup ulong *work,
+    threadgroup uint *blockOffset,
+    uint tid
+) {
+    tg_shake256_reset(lanes, blockOffset, tid);
+    tg_shake256_absorb_device_frame(lanes, work, blockOffset, domainBytes, 0, domainLength, tid);
+    tg_shake256_absorb_single_byte_frame(lanes, work, blockOffset, proofKind, tid);
+    tg_shake256_absorb_device_frame(lanes, work, blockOffset, challengeTapeSeed, 0, 32, tid);
+    tg_shake256_absorb_thread_frame(lanes, work, blockOffset, stateDigest, 32, tid);
+    tg_shake256_absorb_u64_le_frame(lanes, work, blockOffset, challengeCounter, tid);
+    tg_shake256_finalize_digest256(lanes, work, blockOffset, outDigest, tid);
+}
+
 inline uint rotate_right_u32(uint value, uint amount) {
     return (value >> amount) | (value << (32 - amount));
 }
@@ -583,6 +884,131 @@ kernel void ce_challenge_seed_chain_kernel(
         for (uint byteIndex = 0; byteIndex < 32; byteIndex++) {
             stateDigest[byteIndex] = nextDigest[byteIndex];
         }
+    }
+}
+
+kernel void ce_challenge_seed_chain_cooperative_kernel(
+    device const uchar *commitmentBytes [[buffer(0)]],
+    device const uint *commitmentOffsets [[buffer(1)]],
+    device const uint *commitmentLengths [[buffer(2)]],
+    device const uchar *responseBytes [[buffer(3)]],
+    device const uint *responseOffsets [[buffer(4)]],
+    device const uint *responseLengths [[buffer(5)]],
+    device const uchar *challengeTapeSeed [[buffer(6)]],
+    device const uchar *initialStateDigest [[buffer(7)]],
+    device const uchar *roundCountPayload [[buffer(8)]],
+    device uchar *outputSeedBytes [[buffer(9)]],
+    device const uchar *absorbDomainBytes [[buffer(10)]],
+    device const uchar *fieldChallengeDomainBytes [[buffer(11)]],
+    constant uint *params [[buffer(12)]],
+    uint tid [[thread_index_in_threadgroup]]
+) {
+    const uint roundCount = params[0];
+    const uchar proofKind = uchar(params[1]);
+    const uint absorbDomainLength = params[2];
+    const uint fieldChallengeDomainLength = params[3];
+
+    threadgroup ulong lanes[25];
+    threadgroup ulong work[35];
+    threadgroup uint blockOffset[1];
+    threadgroup uchar stateDigest[32];
+    threadgroup uchar nextDigest[32];
+    uchar localStateDigest[32];
+    uchar localNextDigest[32];
+
+    if (tid < 32) {
+        stateDigest[tid] = initialStateDigest[tid];
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    for (uint byteIndex = 0; byteIndex < 32; byteIndex++) {
+        localStateDigest[byteIndex] = stateDigest[byteIndex];
+    }
+    tg_shake256_digest_sumcheck_absorb_state(
+        proofKind,
+        localStateDigest,
+        roundCountPayload,
+        0,
+        8,
+        absorbDomainBytes,
+        absorbDomainLength,
+        localNextDigest,
+        lanes,
+        work,
+        blockOffset,
+        tid
+    );
+    if (tid < 32) {
+        stateDigest[tid] = localNextDigest[tid];
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    for (uint roundIndex = 0; roundIndex < roundCount; roundIndex++) {
+        for (uint byteIndex = 0; byteIndex < 32; byteIndex++) {
+            localStateDigest[byteIndex] = stateDigest[byteIndex];
+        }
+        tg_shake256_digest_sumcheck_absorb_state(
+            proofKind,
+            localStateDigest,
+            commitmentBytes,
+            commitmentOffsets[roundIndex],
+            commitmentLengths[roundIndex],
+            absorbDomainBytes,
+            absorbDomainLength,
+            localNextDigest,
+            lanes,
+            work,
+            blockOffset,
+            tid
+        );
+        if (tid < 32) {
+            stateDigest[tid] = localNextDigest[tid];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+
+        for (uint byteIndex = 0; byteIndex < 32; byteIndex++) {
+            localStateDigest[byteIndex] = stateDigest[byteIndex];
+        }
+        tg_shake256_digest_sumcheck_challenge_seed(
+            proofKind,
+            challengeTapeSeed,
+            localStateDigest,
+            ulong(roundIndex),
+            fieldChallengeDomainBytes,
+            fieldChallengeDomainLength,
+            localNextDigest,
+            lanes,
+            work,
+            blockOffset,
+            tid
+        );
+        if (tid < 32) {
+            const uint outputBase = roundIndex * 32;
+            outputSeedBytes[outputBase + tid] = localNextDigest[tid];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+
+        for (uint byteIndex = 0; byteIndex < 32; byteIndex++) {
+            localStateDigest[byteIndex] = stateDigest[byteIndex];
+        }
+        tg_shake256_digest_sumcheck_absorb_state(
+            proofKind,
+            localStateDigest,
+            responseBytes,
+            responseOffsets[roundIndex],
+            responseLengths[roundIndex],
+            absorbDomainBytes,
+            absorbDomainLength,
+            localNextDigest,
+            lanes,
+            work,
+            blockOffset,
+            tid
+        );
+        if (tid < 32) {
+            stateDigest[tid] = localNextDigest[tid];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
     }
 }
 

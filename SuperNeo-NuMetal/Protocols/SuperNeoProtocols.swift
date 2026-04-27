@@ -1334,24 +1334,16 @@ public enum CEOpeningRelation {
         emitTargetRows()
 #endif
 
+        let useMetalChallengeDerivation = verifierContext.metalHashBackend != nil && proof.rounds.count >= 64
 #if DEBUG
-        let roundTranscriptBytes = try superNeoDebugMeasure("ce-response transcript byte precompute") {
-            try ceParallelMap(count: proof.rounds.count) { roundIndex in
-                let round = proof.rounds[roundIndex]
-                return CEOpeningRoundTranscriptBytes(
-                    commitments: round.commitments.flatMap(\.superNeoBytes),
-                    response: round.response.superNeoBytes
-                )
-            }
+        let roundTranscriptMaterial = try superNeoDebugMeasure("ce-response transcript byte precompute") {
+            try makeCEOpeningTranscriptMaterial(proof: proof, preferFlat: useMetalChallengeDerivation)
         }
 #else
-        let roundTranscriptBytes = try ceParallelMap(count: proof.rounds.count) { roundIndex in
-            let round = proof.rounds[roundIndex]
-            return CEOpeningRoundTranscriptBytes(
-                commitments: round.commitments.flatMap(\.superNeoBytes),
-                response: round.response.superNeoBytes
-            )
-        }
+        let roundTranscriptMaterial = try makeCEOpeningTranscriptMaterial(
+            proof: proof,
+            preferFlat: useMetalChallengeDerivation
+        )
 #endif
         let responseChallenges: [Int]
 #if DEBUG
@@ -1360,7 +1352,7 @@ public enum CEOpeningRelation {
                 try deriveCEOpeningChallengeSeeds(
                     proof: proof,
                     statement: statement,
-                    roundTranscriptBytes: roundTranscriptBytes,
+                    transcriptMaterial: roundTranscriptMaterial,
                     metalHashBackend: verifierContext.metalHashBackend
                 )
             }
@@ -1371,7 +1363,7 @@ public enum CEOpeningRelation {
                 ) ?? deriveCEOpeningChallengesSerial(
                     proof: proof,
                     statement: statement,
-                    roundTranscriptBytes: roundTranscriptBytes
+                    transcriptMaterial: roundTranscriptMaterial
                 )
             }
         }
@@ -1379,7 +1371,7 @@ public enum CEOpeningRelation {
         let seeds = try deriveCEOpeningChallengeSeeds(
             proof: proof,
             statement: statement,
-            roundTranscriptBytes: roundTranscriptBytes,
+            transcriptMaterial: roundTranscriptMaterial,
             metalHashBackend: verifierContext.metalHashBackend
         )
         responseChallenges = try expandCEOpeningChallenges(
@@ -1388,7 +1380,7 @@ public enum CEOpeningRelation {
         ) ?? deriveCEOpeningChallengesSerial(
             proof: proof,
             statement: statement,
-            roundTranscriptBytes: roundTranscriptBytes
+            transcriptMaterial: roundTranscriptMaterial
         )
 #endif
 
@@ -6137,6 +6129,11 @@ private struct CEOpeningRoundTranscriptBytes: Sendable {
     let response: [UInt8]
 }
 
+private enum CEOpeningTranscriptMaterial: Sendable {
+    case roundBytes([CEOpeningRoundTranscriptBytes])
+    case flatBatch(CEOpeningFlatTranscriptBatch)
+}
+
 private struct CEOpeningFlatTranscriptBatch: Sendable {
     let commitmentBytes: [UInt8]
     let commitmentOffsets: [UInt32]
@@ -6144,6 +6141,47 @@ private struct CEOpeningFlatTranscriptBatch: Sendable {
     let responseBytes: [UInt8]
     let responseOffsets: [UInt32]
     let responseLengths: [UInt32]
+
+    init(proof: CEOpeningProof) throws {
+        var commitmentBytes: [UInt8] = []
+        var commitmentOffsets: [UInt32] = []
+        var commitmentLengths: [UInt32] = []
+        var responseBytes: [UInt8] = []
+        var responseOffsets: [UInt32] = []
+        var responseLengths: [UInt32] = []
+        commitmentOffsets.reserveCapacity(proof.rounds.count)
+        commitmentLengths.reserveCapacity(proof.rounds.count)
+        responseOffsets.reserveCapacity(proof.rounds.count)
+        responseLengths.reserveCapacity(proof.rounds.count)
+        for (roundIndex, round) in proof.rounds.enumerated() {
+            guard let commitmentOffset = UInt32(exactly: commitmentBytes.count),
+                  let responseOffset = UInt32(exactly: responseBytes.count) else {
+                throw SuperNeoError.invalidParameter("CE opening round \(roundIndex) flat transcript offset exceeds UInt32")
+            }
+            commitmentOffsets.append(commitmentOffset)
+            let commitmentStart = commitmentBytes.count
+            for commitment in round.commitments {
+                commitmentBytes.append(contentsOf: commitment.superNeoBytes)
+            }
+            guard let commitmentLength = UInt32(exactly: commitmentBytes.count - commitmentStart) else {
+                throw SuperNeoError.invalidParameter("CE opening round \(roundIndex) commitment transcript exceeds UInt32")
+            }
+            commitmentLengths.append(commitmentLength)
+
+            responseOffsets.append(responseOffset)
+            responseBytes.append(contentsOf: round.response.superNeoBytes)
+            guard let responseLength = UInt32(exactly: responseBytes.count - Int(responseOffset)) else {
+                throw SuperNeoError.invalidParameter("CE opening round \(roundIndex) response transcript exceeds UInt32")
+            }
+            responseLengths.append(responseLength)
+        }
+        self.commitmentBytes = commitmentBytes
+        self.commitmentOffsets = commitmentOffsets
+        self.commitmentLengths = commitmentLengths
+        self.responseBytes = responseBytes
+        self.responseOffsets = responseOffsets
+        self.responseLengths = responseLengths
+    }
 
     init(_ rounds: [CEOpeningRoundTranscriptBytes]) throws {
         var commitmentBytes: [UInt8] = []
@@ -6181,6 +6219,25 @@ private struct CEOpeningFlatTranscriptBatch: Sendable {
     }
 }
 
+private func makeCEOpeningTranscriptMaterial(
+    proof: CEOpeningProof,
+    preferFlat: Bool
+) throws -> CEOpeningTranscriptMaterial {
+    if preferFlat {
+        return .flatBatch(try CEOpeningFlatTranscriptBatch(proof: proof))
+    }
+    return .roundBytes(try ceParallelMap(count: proof.rounds.count) { roundIndex in
+        ceRoundTranscriptBytes(proof.rounds[roundIndex])
+    })
+}
+
+private func ceRoundTranscriptBytes(_ round: CEOpeningProofRound) -> CEOpeningRoundTranscriptBytes {
+    CEOpeningRoundTranscriptBytes(
+        commitments: round.commitments.flatMap(\.superNeoBytes),
+        response: round.response.superNeoBytes
+    )
+}
+
 private struct CEOpeningRoundPrimitiveMaterial: Sendable {
     let rows: [SuperNeoTerminalVerifierAIRConstraintRow]
     let linearJobs: [CEOpeningVerifierLinearJob]
@@ -6189,12 +6246,12 @@ private struct CEOpeningRoundPrimitiveMaterial: Sendable {
 private func deriveCEOpeningChallengeSeeds(
     proof: CEOpeningProof,
     statement: TerminalCEStatement,
-    roundTranscriptBytes: [CEOpeningRoundTranscriptBytes],
+    transcriptMaterial: CEOpeningTranscriptMaterial,
     metalHashBackend: SuperNeoMetalBackend?
 ) throws -> [Digest256] {
     var transcript = makeCEOpeningTranscript(statement: statement)
-    if let metalHashBackend, proof.rounds.count >= 64 {
-        let transcriptBatch = try CEOpeningFlatTranscriptBatch(roundTranscriptBytes)
+    if let metalHashBackend, proof.rounds.count >= 64,
+       case .flatBatch(let transcriptBatch) = transcriptMaterial {
         let seeds = try metalHashBackend.ceChallengeSeedChain(
             proofKind: transcript.proofKind,
             challengeTapeSeed: transcript.challengeTapeSeed,
@@ -6217,6 +6274,15 @@ private func deriveCEOpeningChallengeSeeds(
 #endif
         return seeds
     }
+    let roundTranscriptBytes: [CEOpeningRoundTranscriptBytes]
+    switch transcriptMaterial {
+    case .roundBytes(let rows):
+        roundTranscriptBytes = rows
+    case .flatBatch:
+        roundTranscriptBytes = try ceParallelMap(count: proof.rounds.count) { roundIndex in
+            ceRoundTranscriptBytes(proof.rounds[roundIndex])
+        }
+    }
     transcript.absorb(ceEncodeCount(proof.rounds.count))
     var seeds: [Digest256] = []
     seeds.reserveCapacity(proof.rounds.count)
@@ -6231,8 +6297,15 @@ private func deriveCEOpeningChallengeSeeds(
 private func deriveCEOpeningChallengesSerial(
     proof: CEOpeningProof,
     statement: TerminalCEStatement,
-    roundTranscriptBytes: [CEOpeningRoundTranscriptBytes]
+    transcriptMaterial: CEOpeningTranscriptMaterial
 ) -> [Int] {
+    let roundTranscriptBytes: [CEOpeningRoundTranscriptBytes]
+    switch transcriptMaterial {
+    case .roundBytes(let rows):
+        roundTranscriptBytes = rows
+    case .flatBatch:
+        roundTranscriptBytes = proof.rounds.map(ceRoundTranscriptBytes)
+    }
     var transcript = makeCEOpeningTranscript(statement: statement)
     transcript.absorb(ceEncodeCount(proof.rounds.count))
     var challenges: [Int] = []

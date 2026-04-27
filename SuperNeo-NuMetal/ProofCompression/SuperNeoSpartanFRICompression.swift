@@ -1370,6 +1370,15 @@ struct SuperNeoTerminalVerifierAIRPrimitiveBatchSummary: Equatable, Sendable {
 }
 
 enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
+    private static let fullPrimitiveRowTranscriptDomain =
+        Array("SuperNeo-NuMetal.terminal-verifier-air.full-primitive-row-transcript.v1".utf8)
+    private static let primitiveRowDomain =
+        Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-row.v2".utf8)
+    private static let batchChallengeDomain =
+        Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-batch-challenge-after-row-transcript.v1".utf8)
+    private static let batchCoinDomain =
+        Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-batch-coin.v2".utf8)
+
     static func validateCanonicalRowIndices(_ indices: [Int]) throws {
         guard indices == Array(indices.indices) else {
             throw SuperNeoError.invalidParameter("terminal verifier AIR primitive batch row indices must be contiguous and ordered")
@@ -1391,25 +1400,26 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         _ primitiveRows: [SuperNeoTerminalVerifierAIRConstraintRow],
         label: String
     ) -> SuperNeoTerminalVerifierAIRPrimitiveBatchSummary {
+        let labelEncoding = spartanFRIEncodeString(label)
         let observedTranscriptDigest = transcriptDigest(
             rowCount: primitiveRows.count,
-            label: label,
+            labelEncoding: labelEncoding,
             rows: primitiveRows,
             observedValue: { $0.observed }
         )
         let expectedTranscriptDigest = transcriptDigest(
             rowCount: primitiveRows.count,
-            label: label,
+            labelEncoding: labelEncoding,
             rows: primitiveRows,
             observedValue: { $0.expected }
         )
-        let challengeDigest = Digest256.hash(
-            Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-batch-challenge-after-row-transcript.v1".utf8)
-                + spartanFRIEncodeString(label)
-                + spartanFRIEncodeCount(primitiveRows.count)
-                + observedTranscriptDigest.superNeoBytes
-                + expectedTranscriptDigest.superNeoBytes
-        )
+        let challengeDigest = Digest256.hashUpdating { hasher in
+            update(&hasher, batchChallengeDomain)
+            update(&hasher, labelEncoding)
+            updateCount(&hasher, primitiveRows.count)
+            updateDigest(&hasher, observedTranscriptDigest)
+            updateDigest(&hasher, expectedTranscriptDigest)
+        }
         var aggregateResidual = GoldilocksField.zero
         var indexAccumulator = GoldilocksField.zero
         var coefficients: [GoldilocksField] = []
@@ -1417,7 +1427,7 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         for (index, row) in primitiveRows.enumerated() {
             let coefficient = coefficient(
                 row: row,
-                label: label,
+                labelEncoding: labelEncoding,
                 index: index,
                 challengeDigest: challengeDigest
             )
@@ -1518,37 +1528,37 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         rowCount: Int,
         index: Int,
         row: SuperNeoTerminalVerifierAIRConstraintRow,
-        label: String,
+        labelEncoding: [UInt8],
         observed: GoldilocksField
     ) {
-        update(&hasher, Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-row.v2".utf8))
-        update(&hasher, spartanFRIEncodeString(label))
-        update(&hasher, spartanFRIEncodeCount(rowCount))
-        update(&hasher, spartanFRIEncodeCount(index))
+        update(&hasher, primitiveRowDomain)
+        update(&hasher, labelEncoding)
+        updateCount(&hasher, rowCount)
+        updateCount(&hasher, index)
         update(&hasher, [row.kind.rawValue, row.provenance.rawValue])
-        update(&hasher, row.labelDigest.superNeoBytes)
-        update(&hasher, observed.superNeoBytes)
-        update(&hasher, row.expected.superNeoBytes)
-        update(&hasher, (observed - row.expected).superNeoBytes)
+        updateDigest(&hasher, row.labelDigest)
+        updateField(&hasher, observed)
+        updateField(&hasher, row.expected)
+        updateField(&hasher, observed - row.expected)
     }
 
     private static func transcriptDigest(
         rowCount: Int,
-        label: String,
+        labelEncoding: [UInt8],
         rows: [SuperNeoTerminalVerifierAIRConstraintRow],
         observedValue: (SuperNeoTerminalVerifierAIRConstraintRow) -> GoldilocksField
     ) -> Digest256 {
         Digest256.hashUpdating { hasher in
-            update(&hasher, Array("SuperNeo-NuMetal.terminal-verifier-air.full-primitive-row-transcript.v1".utf8))
-            update(&hasher, spartanFRIEncodeString(label))
-            update(&hasher, spartanFRIEncodeCount(rowCount))
+            update(&hasher, fullPrimitiveRowTranscriptDomain)
+            update(&hasher, labelEncoding)
+            updateCount(&hasher, rowCount)
             for (index, row) in rows.enumerated() {
                 updateRowEncoding(
                     &hasher,
                     rowCount: rowCount,
                     index: index,
                     row: row,
-                    label: label,
+                    labelEncoding: labelEncoding,
                     observed: observedValue(row)
                 )
             }
@@ -1561,20 +1571,40 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         }
     }
 
+    private static func updateCount(_ hasher: inout SHA256, _ value: Int) {
+        var littleEndian = UInt64(value).littleEndian
+        withUnsafeBytes(of: &littleEndian) { rawBuffer in
+            hasher.update(bufferPointer: rawBuffer)
+        }
+    }
+
+    private static func updateField(_ hasher: inout SHA256, _ value: GoldilocksField) {
+        var littleEndian = value.rawValue.littleEndian
+        withUnsafeBytes(of: &littleEndian) { rawBuffer in
+            hasher.update(bufferPointer: rawBuffer)
+        }
+    }
+
+    private static func updateDigest(_ hasher: inout SHA256, _ digest: Digest256) {
+        digest.bytes.withUnsafeBytes { rawBuffer in
+            hasher.update(bufferPointer: rawBuffer)
+        }
+    }
+
     private static func coefficient(
         row: SuperNeoTerminalVerifierAIRConstraintRow,
-        label: String,
+        labelEncoding: [UInt8],
         index: Int,
         challengeDigest: Digest256
     ) -> GoldilocksField {
-        let coinDigest = Digest256.hash(
-            Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-batch-coin.v2".utf8)
-                + spartanFRIEncodeString(label)
-                + challengeDigest.superNeoBytes
-                + spartanFRIEncodeCount(index)
-                + [row.kind.rawValue, row.provenance.rawValue]
-                + row.labelDigest.superNeoBytes
-        )
+        let coinDigest = Digest256.hashUpdating { hasher in
+            update(&hasher, batchCoinDomain)
+            update(&hasher, labelEncoding)
+            updateDigest(&hasher, challengeDigest)
+            updateCount(&hasher, index)
+            update(&hasher, [row.kind.rawValue, row.provenance.rawValue])
+            updateDigest(&hasher, row.labelDigest)
+        }
         let fields = spartanFRIDigestFields(coinDigest)
         return fields[0] + GoldilocksField(UInt64(index + 1))
     }
@@ -2881,27 +2911,22 @@ public enum SuperNeoSpartanFRICompressor {
         )
 #if DEBUG
         let jointPCS = try superNeoDebugMeasure("joint query opening materialization") {
-            let jointTracePCS = try makeFRIProof(
-                plan: tracePlan,
-                queryIndicesOverride: jointQueryIndices
+            try makeTerminalVerifierJointPCSProofs(
+                tracePlan: tracePlan,
+                residualPlan: residualPlan,
+                jointQueryIndices: jointQueryIndices
             )
-            let residualPCS = try makeFRIProof(
-                plan: residualPlan,
-                queryIndicesOverride: jointQueryIndices
-            )
-            return (trace: jointTracePCS, residual: residualPCS)
         }
         let jointTracePCS = jointPCS.trace
         let residualPCS = jointPCS.residual
 #else
-        let jointTracePCS = try makeFRIProof(
-            plan: tracePlan,
-            queryIndicesOverride: jointQueryIndices
+        let jointPCS = try makeTerminalVerifierJointPCSProofs(
+            tracePlan: tracePlan,
+            residualPlan: residualPlan,
+            jointQueryIndices: jointQueryIndices
         )
-        let residualPCS = try makeFRIProof(
-            plan: residualPlan,
-            queryIndicesOverride: jointQueryIndices
-        )
+        let jointTracePCS = jointPCS.trace
+        let residualPCS = jointPCS.residual
 #endif
         return try SuperNeoTerminalVerifierPCSProof(
             sourceProofKind: statement.sourceProofKind,
@@ -2923,6 +2948,52 @@ public enum SuperNeoSpartanFRICompressor {
             tracePCS: jointTracePCS,
             residualPCS: residualPCS
         )
+    }
+
+    private static func makeTerminalVerifierJointPCSProofs(
+        tracePlan: SpartanFRIProverPlan,
+        residualPlan: SpartanFRIProverPlan,
+        jointQueryIndices: [Int]
+    ) throws -> (trace: SuperNeoFRIProof, residual: SuperNeoFRIProof) {
+        let lock = NSLock()
+        var traceResult: Result<SuperNeoFRIProof, Error>?
+        var residualResult: Result<SuperNeoFRIProof, Error>?
+        let group = DispatchGroup()
+        let queue = DispatchQueue.global(qos: .userInitiated)
+
+        group.enter()
+        queue.async {
+            let result = Result {
+                try makeFRIProof(
+                    plan: tracePlan,
+                    queryIndicesOverride: jointQueryIndices
+                )
+            }
+            lock.lock()
+            traceResult = result
+            lock.unlock()
+            group.leave()
+        }
+
+        group.enter()
+        queue.async {
+            let result = Result {
+                try makeFRIProof(
+                    plan: residualPlan,
+                    queryIndicesOverride: jointQueryIndices
+                )
+            }
+            lock.lock()
+            residualResult = result
+            lock.unlock()
+            group.leave()
+        }
+
+        group.wait()
+        guard let traceResult, let residualResult else {
+            throw SuperNeoError.invalidParameter("terminal verifier joint PCS materialization did not complete")
+        }
+        return (try traceResult.get(), try residualResult.get())
     }
 
     private static func makeTerminalVerifierFRIPlans(
@@ -3271,7 +3342,7 @@ private struct SpartanFRISample {
 }
 
 private struct SpartanFRIMerkleTree {
-    private static let metalHashMinimumBatchSize = 128
+    private static let metalHashMinimumBatchSize = 16
 
     let domain: String
     let leaves: [GoldilocksField]
@@ -3339,18 +3410,25 @@ private struct SpartanFRIMerkleTree {
         metalHashBackend: SuperNeoMetalBackend?
     ) throws -> [Digest384] {
         if let metalHashBackend, leaves.count >= metalHashMinimumBatchSize {
-            let inputs = leaves.indices.map { index in
-                SuperNeoSplitQRO.hBindFramedInput(
-                    domain: leafDomain,
-                    frames: [
-                        spartanFRIEncodeCount(index),
-                        spartanFRIEncodeCount(leaves.count),
-                        points[index].superNeoBytes,
-                        leaves[index].superNeoBytes
-                    ]
-                )
+            let leafDomainBytes = Array(leafDomain.utf8)
+            var batch = PreframedFlatHashBatch(
+                estimatedInputCount: leaves.count,
+                estimatedBytesPerInput: leafDomainBytes.count + 72
+            )
+            for index in leaves.indices {
+                try batch.beginInput()
+                batch.appendFrame(leafDomainBytes)
+                batch.appendCountFrame(index)
+                batch.appendCountFrame(leaves.count)
+                batch.appendFieldFrame(points[index])
+                batch.appendFieldFrame(leaves[index])
+                try batch.finishInput()
             }
-            let digests = try metalHashBackend.shake256Digest384PreframedBatch(inputs)
+            let digests = try metalHashBackend.shake256Digest384PreframedFlatBatch(
+                bytes: batch.bytes,
+                offsets: batch.offsets,
+                lengths: batch.lengths
+            )
 #if DEBUG
             recordFRIMetalHashTiming(label: "fri merkle leaf hashing", backend: metalHashBackend)
 #endif
@@ -3373,13 +3451,23 @@ private struct SpartanFRIMerkleTree {
         metalHashBackend: SuperNeoMetalBackend?
     ) throws -> [Digest384] {
         if let metalHashBackend, current.count / 2 >= metalHashMinimumBatchSize {
-            let inputs = stride(from: 0, to: current.count, by: 2).map { index in
-                SuperNeoSplitQRO.hBindFramedInput(
-                    domain: nodeDomain,
-                    frames: [current[index].superNeoBytes, current[index + 1].superNeoBytes]
-                )
+            let nodeDomainBytes = Array(nodeDomain.utf8)
+            var batch = PreframedFlatHashBatch(
+                estimatedInputCount: current.count / 2,
+                estimatedBytesPerInput: nodeDomainBytes.count + 120
+            )
+            for index in stride(from: 0, to: current.count, by: 2) {
+                try batch.beginInput()
+                batch.appendFrame(nodeDomainBytes)
+                batch.appendDigest384Frame(current[index])
+                batch.appendDigest384Frame(current[index + 1])
+                try batch.finishInput()
             }
-            let digests = try metalHashBackend.shake256Digest384PreframedBatch(inputs)
+            let digests = try metalHashBackend.shake256Digest384PreframedFlatBatch(
+                bytes: batch.bytes,
+                offsets: batch.offsets,
+                lengths: batch.lengths
+            )
 #if DEBUG
             recordFRIMetalHashTiming(label: "fri merkle internal node hashing", backend: metalHashBackend)
 #endif
@@ -3396,6 +3484,70 @@ private struct SpartanFRIMerkleTree {
 
     var root: Digest384 {
         levels.last?.first ?? SuperNeoSplitQRO.hMerkleLeaf(domain: domain, frames: [])
+    }
+
+    private struct PreframedFlatHashBatch {
+        var bytes: [UInt8]
+        var offsets: [UInt32]
+        var lengths: [UInt32]
+
+        init(estimatedInputCount: Int, estimatedBytesPerInput: Int) {
+            self.bytes = []
+            self.bytes.reserveCapacity(max(0, estimatedInputCount * estimatedBytesPerInput))
+            self.offsets = []
+            self.offsets.reserveCapacity(max(0, estimatedInputCount))
+            self.lengths = []
+            self.lengths.reserveCapacity(max(0, estimatedInputCount))
+        }
+
+        mutating func beginInput() throws {
+            guard bytes.count <= Int(UInt32.max) else {
+                throw SuperNeoError.invalidParameter("FRI Merkle preframed batch offset exceeds UInt32")
+            }
+            offsets.append(UInt32(bytes.count))
+        }
+
+        mutating func finishInput() throws {
+            guard let start = offsets.last.map(Int.init) else {
+                throw SuperNeoError.invalidParameter("FRI Merkle preframed batch input was not started")
+            }
+            let length = bytes.count - start
+            guard length >= 0, length <= Int(UInt32.max) else {
+                throw SuperNeoError.invalidParameter("FRI Merkle preframed batch length exceeds UInt32")
+            }
+            lengths.append(UInt32(length))
+        }
+
+        mutating func appendFrame(_ frame: [UInt8]) {
+            appendFrameLength(frame.count)
+            bytes.append(contentsOf: frame)
+        }
+
+        mutating func appendCountFrame(_ value: Int) {
+            appendFrameLength(MemoryLayout<UInt64>.size)
+            appendUInt64LE(UInt64(value))
+        }
+
+        mutating func appendFieldFrame(_ value: GoldilocksField) {
+            appendFrameLength(MemoryLayout<UInt64>.size)
+            appendUInt64LE(value.rawValue)
+        }
+
+        mutating func appendDigest384Frame(_ digest: Digest384) {
+            appendFrameLength(Digest384.byteCount)
+            bytes.append(contentsOf: digest.bytes)
+        }
+
+        private mutating func appendFrameLength(_ length: Int) {
+            appendUInt64LE(UInt64(length))
+        }
+
+        private mutating func appendUInt64LE(_ value: UInt64) {
+            var littleEndian = value.littleEndian
+            withUnsafeBytes(of: &littleEndian) { rawBuffer in
+                bytes.append(contentsOf: rawBuffer)
+            }
+        }
     }
 
     func opening(at index: Int) throws -> SuperNeoFRIMerkleOpening {

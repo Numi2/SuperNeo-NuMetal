@@ -368,13 +368,38 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
     func shake256Digest384PreframedBatch(_ inputs: [[UInt8]]) throws -> [Digest384] {
         guard !inputs.isEmpty else { return [] }
         let buffers = try makePreframedHashInputBuffers(inputs, role: "Metal SHAKE")
-        let outputLaneCount = try checkedProduct([inputs.count, Digest384.byteCount / 8], name: "Metal SHAKE output lane count")
+        return try shake256Digest384PreframedBatch(buffers: buffers, count: inputs.count)
+    }
+
+    func shake256Digest384PreframedFlatBatch(
+        bytes: [UInt8],
+        offsets: [UInt32],
+        lengths: [UInt32]
+    ) throws -> [Digest384] {
+        guard offsets.count == lengths.count else {
+            throw SuperNeoError.invalidParameter("Metal SHAKE flat batch offset/length count mismatch")
+        }
+        guard !offsets.isEmpty else { return [] }
+        try validatePreframedHashFlatBatch(bytes: bytes, offsets: offsets, lengths: lengths, role: "Metal SHAKE")
+        let buffers = try PreframedHashInputBuffers(
+            bytes: context.makeBuffer(bytes),
+            offsets: context.makeBuffer(offsets),
+            lengths: context.makeBuffer(lengths)
+        )
+        return try shake256Digest384PreframedBatch(buffers: buffers, count: offsets.count)
+    }
+
+    private func shake256Digest384PreframedBatch(
+        buffers: PreframedHashInputBuffers,
+        count: Int
+    ) throws -> [Digest384] {
+        let outputLaneCount = try checkedProduct([count, Digest384.byteCount / 8], name: "Metal SHAKE output lane count")
         let outputBuffer = try context.makeEmptyBuffer(count: outputLaneCount, as: UInt64.self)
         try context.dispatch1D(
             pipelineName: "shake256_digest384_preframed_kernel",
             buffers: [buffers.bytes, buffers.offsets, buffers.lengths, outputBuffer],
             countBufferIndex: 4,
-            elementCount: inputs.count
+            elementCount: count
         )
         let lanes = outputBuffer.array(of: UInt64.self, count: outputLaneCount)
         return try stride(from: 0, to: lanes.count, by: Digest384.byteCount / 8).map { start in
@@ -439,33 +464,38 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
             name: "Metal CE challenge seed output byte count"
         )
         let outputBuffer = try context.makeEmptyBuffer(count: outputByteCount, as: UInt8.self)
-        try context.dispatch1D(
-            pipelineName: "ce_challenge_seed_chain_kernel",
-            buffers: [
-                try context.makeBuffer(commitmentBytes),
-                try context.makeBuffer(commitmentOffsets),
-                try context.makeBuffer(commitmentLengths),
-                try context.makeBuffer(responseBytes),
-                try context.makeBuffer(responseOffsets),
-                try context.makeBuffer(responseLengths),
-                try context.makeBuffer(challengeTapeSeed.bytes),
-                try context.makeBuffer(initialStateDigest.bytes),
-                try context.makeBuffer(roundCountPayload),
-                outputBuffer,
-                try context.makeBuffer(absorbDomainBytes),
-                try context.makeBuffer(fieldChallengeDomainBytes)
-            ],
-            inlineUInt32Buffers: [
-                MetalInlineUInt32Buffer(index: 12, values: [
-                    roundCount,
-                    proofKindValue,
-                    absorbDomainLength,
-                    fieldChallengeDomainLength
-                ])
-            ],
-            countBufferIndex: 13,
-            elementCount: 1
-        )
+        let buffers = [
+            try context.makeBuffer(commitmentBytes),
+            try context.makeBuffer(commitmentOffsets),
+            try context.makeBuffer(commitmentLengths),
+            try context.makeBuffer(responseBytes),
+            try context.makeBuffer(responseOffsets),
+            try context.makeBuffer(responseLengths),
+            try context.makeBuffer(challengeTapeSeed.bytes),
+            try context.makeBuffer(initialStateDigest.bytes),
+            try context.makeBuffer(roundCountPayload),
+            outputBuffer,
+            try context.makeBuffer(absorbDomainBytes),
+            try context.makeBuffer(fieldChallengeDomainBytes)
+        ]
+        let inlineParams = [
+            MetalInlineUInt32Buffer(index: 12, values: [
+                roundCount,
+                proofKindValue,
+                absorbDomainLength,
+                fieldChallengeDomainLength
+            ])
+        ]
+        try context.dispatch1DSequence([
+            MetalDispatchCommand(
+                pipelineName: "ce_challenge_seed_chain_cooperative_kernel",
+                buffers: buffers,
+                inlineUInt32Buffers: inlineParams,
+                elementCount: 32,
+                threadsPerThreadgroup: 32,
+                countBufferIndex: 13
+            )
+        ])
         let bytes = outputBuffer.array(of: UInt8.self, count: outputByteCount)
         return try stride(from: 0, to: bytes.count, by: Digest256.byteCount).map { start in
             try Digest256(Array(bytes[start..<(start + Digest256.byteCount)]))
