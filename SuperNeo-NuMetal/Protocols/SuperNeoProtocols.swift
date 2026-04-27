@@ -3800,7 +3800,8 @@ private enum SuperNeoProtocolOracle {
         if let metalWorkspace, !executionPolicy.usesConstantWorkCPU {
             let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
                 messages: packedWitnesses,
-                point: point
+                point: point,
+                executionPolicy: executionPolicy.metalKernelExecutionPolicy
             )
             recomputedCommitments = combined.commitments
             evaluations = combined.evaluations
@@ -4199,7 +4200,8 @@ private enum SuperNeoProtocolOracle {
         } else if let metalWorkspace, !executionPolicy.usesConstantWorkCPU {
             let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
                 messages: packedLimbs,
-                point: claim.point
+                point: claim.point,
+                executionPolicy: executionPolicy.metalKernelExecutionPolicy
             )
             limbCommitments = combined.commitments
             limbEvaluations = combined.evaluations
@@ -6197,6 +6199,8 @@ private func makeProverRoundBatch(
 }
 
 private struct CEOpeningPrivateLinearBatchContext {
+    private static let metalPrivateLinearMaxBatchSize = 128
+
     let shape: CCSShape
     let key: AjtaiCommitmentKey
     let transformedMatrices: [SparseRingMatrixCSR]
@@ -6259,27 +6263,60 @@ private struct CEOpeningPrivateLinearBatchContext {
             throw SuperNeoError.invalidParameter("CE opening private-linear batch count mismatch")
         }
 
-        let packedWitnesses = try ceParallelMap(count: vectors.count) { index in
+        let packedWitnesses: [[CyclotomicRing54]]
+#if DEBUG
+        packedWitnesses = try superNeoDebugMeasure("ce-private linear witness packing") {
+            try ceParallelMap(count: vectors.count) { index in
+                try opening(at: openingIndices[index]).packedZeroPublicWitness(
+                    privateVector: vectors[index],
+                    shape: shape
+                )
+            }
+        }
+#else
+        packedWitnesses = try ceParallelMap(count: vectors.count) { index in
             try opening(at: openingIndices[index]).packedZeroPublicWitness(
                 privateVector: vectors[index],
                 shape: shape
             )
         }
+#endif
         if let metalWorkspace,
            !executionPolicy.usesConstantWorkCPU,
            let sharedPoint = sharedEvaluationPoint(for: openingIndices) {
             let computations = try SuperNeoBenchmarkSignpost.measure("ceMetalCombinedCommitEval") {
+#if DEBUG
+                try superNeoDebugMeasure("ce-private linear metal combined commit/eval") {
+                    try makeMetalPrivateLinearComputations(
+                        packedWitnesses: packedWitnesses,
+                        point: sharedPoint,
+                        metalWorkspace: metalWorkspace,
+                        executionPolicy: executionPolicy
+                    )
+                }
+#else
                 try makeMetalPrivateLinearComputations(
                     packedWitnesses: packedWitnesses,
                     point: sharedPoint,
-                    metalWorkspace: metalWorkspace
+                    metalWorkspace: metalWorkspace,
+                    executionPolicy: executionPolicy
                 )
+#endif
             }
             if executionPolicy.requiresMetalCPUCheck {
+#if DEBUG
+                let cpuComputations = try superNeoDebugMeasure("ce-private linear CPU redundancy check") {
+                    try makeCPUPrivateLinearComputations(
+                        packedWitnesses: packedWitnesses,
+                        openingIndices: openingIndices
+                    )
+                }
+#else
                 let cpuComputations = try makeCPUPrivateLinearComputations(
                     packedWitnesses: packedWitnesses,
                     openingIndices: openingIndices
                 )
+#endif
                 guard computations == cpuComputations else {
                     throw SuperNeoError.metalFailure("Metal CE private-linear batch failed CPU cross-check")
                 }
@@ -6342,10 +6379,12 @@ private struct CEOpeningPrivateLinearBatchContext {
     private func makeMetalPrivateLinearComputations(
         packedWitnesses: [[CyclotomicRing54]],
         point: [GoldilocksExt2],
-        metalWorkspace: SuperNeoMetalWorkspace
+        metalWorkspace: SuperNeoMetalWorkspace,
+        executionPolicy: SuperNeoExecutionPolicy
     ) throws -> [CEPrivateLinearComputation] {
         guard !packedWitnesses.isEmpty else { return [] }
-        let maxBatchSize = AjtaiMatvecSchedule.default.maxBatchSize
+        let schedule = try AjtaiMatvecSchedule(maxBatchSize: Self.metalPrivateLinearMaxBatchSize)
+        let maxBatchSize = schedule.maxBatchSize
         var computations: [CEPrivateLinearComputation] = []
         computations.reserveCapacity(packedWitnesses.count)
 
@@ -6354,8 +6393,18 @@ private struct CEOpeningPrivateLinearBatchContext {
             let batchEnd = min(batchStart + maxBatchSize, packedWitnesses.count)
             let combined = try metalWorkspace.commitmentsAndTransformedEvaluations(
                 messages: Array(packedWitnesses[batchStart..<batchEnd]),
-                point: point
+                point: point,
+                schedule: schedule,
+                executionPolicy: executionPolicy.metalKernelExecutionPolicy
             )
+#if DEBUG
+            if let timing = metalWorkspace.context.lastCommandBufferTiming {
+                SuperNeoSpartanFRIDebugProfileContext.current?.recordMetalCommandTiming(
+                    "ce-private linear combined commit/eval",
+                    timing: timing
+                )
+            }
+#endif
             guard combined.commitments.count == batchEnd - batchStart,
                   combined.evaluations.count == batchEnd - batchStart else {
                 throw SuperNeoError.invalidParameter("CE opening Metal batch output count mismatch")
@@ -6549,7 +6598,8 @@ private func makeCEPrivateTargets(
         let combined = try SuperNeoBenchmarkSignpost.measure("ceTargetMetalCombinedCommitEval") {
             try metalWorkspace.commitmentsAndTransformedEvaluations(
                 messages: packedWitnesses,
-                point: group.point
+                point: group.point,
+                executionPolicy: executionPolicy.metalKernelExecutionPolicy
             )
         }
         guard combined.commitments.count == group.indices.count,

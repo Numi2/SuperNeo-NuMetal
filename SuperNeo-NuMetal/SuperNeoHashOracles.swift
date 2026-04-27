@@ -80,6 +80,11 @@ public enum SuperNeoSplitQRO {
     public static let challengeDomain = "superneo/numiseal/chal/v2"
     public static let bindingDomain = "superneo/numiseal/bind/v2"
     public static let merkleDomain = "superneo/numiseal/merkle/v2"
+    private static let challengeExpandDomain = "\(challengeDomain)/expand"
+    private static let sumCheckTranscriptSeedDomain = "\(challengeDomain)/sumcheck-transcript-seed"
+    private static let sumCheckTranscriptInitialStateDomain = "\(challengeDomain)/sumcheck-transcript-state/init"
+    private static let sumCheckTranscriptAbsorbStateDomain = "\(challengeDomain)/sumcheck-transcript-state/absorb"
+    private static let sumCheckTranscriptChallengeFieldDomain = "\(challengeDomain)/sumcheck-transcript-challenge/field"
 
     public static func framedBytes(domain: String, frames: [[UInt8]]) -> [UInt8] {
         var bytes: [UInt8] = []
@@ -88,6 +93,10 @@ public enum SuperNeoSplitQRO {
             appendFrame(frame, to: &bytes)
         }
         return bytes
+    }
+
+    static func hBindFramedInput(domain: String = bindingDomain, frames: [[UInt8]]) -> [UInt8] {
+        framedBytes(domain: domain, frames: frames)
     }
 
     public static func hChal(domain: String = challengeDomain, frames: [[UInt8]]) -> Digest256 {
@@ -127,7 +136,7 @@ public enum SuperNeoSplitQRO {
         index: UInt64
     ) -> Digest256 {
         try! Digest256(SuperNeoSHAKE256.squeezeFramedFast(
-            domain: "\(challengeDomain)/expand",
+            domain: challengeExpandDomain,
             frames: [
                 .byte(proofKind.rawValue),
                 .bytes(seed.superNeoBytes),
@@ -143,14 +152,26 @@ public enum SuperNeoSplitQRO {
         proofKind: ProofEnvelopeKind,
         label: String
     ) -> GoldilocksField {
+        expandChallengeField(
+            seed: seed,
+            proofKind: proofKind,
+            labelBytes: Array(label.utf8)
+        )
+    }
+
+    static func expandChallengeField(
+        seed: Digest256,
+        proofKind: ProofEnvelopeKind,
+        labelBytes: [UInt8]
+    ) -> GoldilocksField {
         var digestIndex = UInt64(0)
         while true {
             let bytes = SuperNeoSHAKE256.squeezeFramedFast(
-                domain: "\(challengeDomain)/expand",
+                domain: challengeExpandDomain,
                 frames: [
                     .byte(proofKind.rawValue),
                     .bytes(seed.superNeoBytes),
-                    .utf8(label),
+                    .bytes(labelBytes),
                     .uint64LE(digestIndex)
                 ],
                 outputByteCount: Digest256.byteCount
@@ -163,6 +184,24 @@ public enum SuperNeoSplitQRO {
                 }
             }
         }
+    }
+
+    static func sumCheckTranscriptFieldChallenge(
+        proofKind: ProofEnvelopeKind,
+        challengeTapeSeed: Digest256,
+        stateDigest: Digest256,
+        challengeCounter: UInt64
+    ) -> Digest256 {
+        try! Digest256(SuperNeoSHAKE256.squeezeFramedFast(
+            domain: sumCheckTranscriptChallengeFieldDomain,
+            frames: [
+                .byte(proofKind.rawValue),
+                .bytes(challengeTapeSeed.superNeoBytes),
+                .bytes(stateDigest.superNeoBytes),
+                .uint64LE(challengeCounter)
+            ],
+            outputByteCount: Digest256.byteCount
+        ))
     }
 
     static func sumCheckTranscriptChallenge(
@@ -190,7 +229,7 @@ public enum SuperNeoSplitQRO {
         proofKind: ProofEnvelopeKind
     ) -> Digest256 {
         try! Digest256(SuperNeoSHAKE256.squeezeFramedFast(
-            domain: "\(challengeDomain)/sumcheck-transcript-seed",
+            domain: sumCheckTranscriptSeedDomain,
             frames: [
                 .byte(proofKind.rawValue),
                 .utf8(domainSeparator),
@@ -205,7 +244,7 @@ public enum SuperNeoSplitQRO {
         seedDigest: Digest256
     ) -> Digest256 {
         try! Digest256(SuperNeoSHAKE256.squeezeFramedFast(
-            domain: "\(challengeDomain)/sumcheck-transcript-state/init",
+            domain: sumCheckTranscriptInitialStateDomain,
             frames: [
                 .byte(proofKind.rawValue),
                 .bytes(seedDigest.superNeoBytes)
@@ -220,7 +259,7 @@ public enum SuperNeoSplitQRO {
         bytes: [UInt8]
     ) -> Digest256 {
         try! Digest256(SuperNeoSHAKE256.squeezeFramedFast(
-            domain: "\(challengeDomain)/sumcheck-transcript-state/absorb",
+            domain: sumCheckTranscriptAbsorbStateDomain,
             frames: [
                 .byte(proofKind.rawValue),
                 .bytes(stateDigest.superNeoBytes),
@@ -1013,35 +1052,42 @@ private enum KeccakF1600 {
 
     static func permute(_ state: inout [UInt64]) {
         precondition(state.count == 25, "Keccak-f[1600] state must have 25 lanes")
-        var c = [UInt64](repeating: 0, count: 5)
-        var d = [UInt64](repeating: 0, count: 5)
-        var b = [UInt64](repeating: 0, count: 25)
-        for roundConstant in roundConstants {
-            for x in 0..<5 {
-                c[x] = state[x] ^ state[x + 5] ^ state[x + 10] ^ state[x + 15] ^ state[x + 20]
-            }
-            for x in 0..<5 {
-                d[x] = c[(x + 4) % 5] ^ rotateLeft(c[(x + 1) % 5], by: 1)
-            }
-            for x in 0..<5 {
-                for y in 0..<5 {
-                    state[x + 5 * y] ^= d[x]
-                }
-            }
+        state.withUnsafeMutableBufferPointer { lanes in
+            withUnsafeTemporaryAllocation(of: UInt64.self, capacity: 5) { c in
+                withUnsafeTemporaryAllocation(of: UInt64.self, capacity: 5) { d in
+                    withUnsafeTemporaryAllocation(of: UInt64.self, capacity: 25) { b in
+                        for roundConstant in roundConstants {
+                            for x in 0..<5 {
+                                c[x] = lanes[x] ^ lanes[x + 5] ^ lanes[x + 10] ^ lanes[x + 15] ^ lanes[x + 20]
+                            }
+                            for x in 0..<5 {
+                                d[x] = c[(x + 4) % 5] ^ rotateLeft(c[(x + 1) % 5], by: 1)
+                            }
+                            for x in 0..<5 {
+                                for y in 0..<5 {
+                                    lanes[x + 5 * y] ^= d[x]
+                                }
+                            }
 
-            for x in 0..<5 {
-                for y in 0..<5 {
-                    let destination = y + 5 * ((2 * x + 3 * y) % 5)
-                    b[destination] = rotateLeft(state[x + 5 * y], by: rotationOffsets[x + 5 * y])
-                }
-            }
+                            for x in 0..<5 {
+                                for y in 0..<5 {
+                                    let source = x + 5 * y
+                                    let destination = y + 5 * ((2 * x + 3 * y) % 5)
+                                    b[destination] = rotateLeft(lanes[source], by: rotationOffsets[source])
+                                }
+                            }
 
-            for x in 0..<5 {
-                for y in 0..<5 {
-                    state[x + 5 * y] = b[x + 5 * y] ^ ((~b[((x + 1) % 5) + 5 * y]) & b[((x + 2) % 5) + 5 * y])
+                            for x in 0..<5 {
+                                for y in 0..<5 {
+                                    lanes[x + 5 * y] = b[x + 5 * y]
+                                        ^ ((~b[((x + 1) % 5) + 5 * y]) & b[((x + 2) % 5) + 5 * y])
+                                }
+                            }
+                            lanes[0] ^= roundConstant
+                        }
+                    }
                 }
             }
-            state[0] ^= roundConstant
         }
     }
 

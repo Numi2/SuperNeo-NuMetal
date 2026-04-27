@@ -203,6 +203,7 @@ public final class MetalExecutionContext: @unchecked Sendable {
             "numiseal_dense_fold_kernel",
             "numiseal_eq_weight_kernel",
             "numiseal_sumcheck_accumulate_kernel",
+            "shake256_digest384_preframed_kernel",
             "transformed_matvec_kernel",
             "transformed_matvec_sparse_aware_kernel",
             "sparse_transformed_matvec_kernel",
@@ -215,7 +216,9 @@ public final class MetalExecutionContext: @unchecked Sendable {
             "ajtai_matvec_ring_batch_coeff_kernel",
             "ajtai_matvec_ring_batch_coeff_small_message_kernel",
             "ajtai_matvec_tile_kernel",
-            "ajtai_matvec_reduce_kernel"
+            "ajtai_matvec_reduce_kernel",
+            "fri_bit_reverse_permute_kernel",
+            "fri_ntt_stage_kernel"
         ])
         guard failures.isEmpty else {
             let message = failures

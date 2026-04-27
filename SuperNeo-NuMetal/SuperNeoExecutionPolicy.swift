@@ -40,6 +40,7 @@ public struct SuperNeoExecutionPolicy: Equatable, Sendable {
     /// on their target hardware.
     public static let metalAccelerated = SuperNeoExecutionPolicy(
         secretArithmetic: .optimized,
+        metalTrust: .accelerationOnly,
         metalRouting: .always
     )
 
@@ -75,6 +76,14 @@ public struct SuperNeoExecutionPolicy: Equatable, Sendable {
 
     var requiresMetalCPUCheck: Bool {
         metalTrust == .cpuRedundant
+    }
+
+    var metalKernelExecutionPolicy: SuperNeoExecutionPolicy {
+        SuperNeoExecutionPolicy(
+            secretArithmetic: secretArithmetic,
+            metalTrust: .accelerationOnly,
+            metalRouting: metalRouting
+        )
     }
 
     func usesMetalAcceleration(for shape: CCSShape) -> Bool {

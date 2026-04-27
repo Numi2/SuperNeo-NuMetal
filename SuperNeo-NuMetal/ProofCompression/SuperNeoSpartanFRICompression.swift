@@ -2063,6 +2063,7 @@ public struct SuperNeoTerminalVerifierAIRSpecEvaluation: Equatable, Sendable {
 struct SuperNeoSpartanFRICompressionDebugProfile: Equatable {
     let phaseNanoseconds: [String: UInt64]
     let phaseCounts: [String: Int]
+    let metalCommandTimings: [String: SuperNeoSpartanFRIMetalCommandTimingProfile]
     let primitiveRowCount: Int
     let rowProvenanceCounts: [String: Int]
     let rowKindCounts: [String: Int]
@@ -2090,6 +2091,25 @@ struct SuperNeoSpartanFRICompressionDebugProfile: Equatable {
             let leaves = friLayerLeafCounts[label]?.map(String.init).joined(separator: ",") ?? ""
             return "  \(label): plans=\(friPlanBuildCounts[label] ?? 0), layers=\(friLayerCounts[label] ?? 0), leaves=[\(leaves)]"
         }
+        let metalLines = metalCommandTimings.keys.sorted().map { label in
+            let timing = metalCommandTimings[label] ?? .empty
+            let encodeMS = Double(timing.encodeNanoseconds) / 1_000_000.0
+            let commitMS = Double(timing.commitNanoseconds) / 1_000_000.0
+            let waitMS = Double(timing.waitNanoseconds) / 1_000_000.0
+            let gpuMS = Double(timing.gpuNanoseconds) / 1_000_000.0
+            return String(
+                format: "  %@: invocations=%d, commands=%d, elements=%d, encode=%.3f ms, commit=%.3f ms, wait=%.3f ms, gpu=%.3f ms (%d samples)",
+                label,
+                timing.invocationCount,
+                timing.commandCount,
+                timing.elementCount,
+                encodeMS,
+                commitMS,
+                waitMS,
+                gpuMS,
+                timing.gpuSampleCount
+            )
+        }
         return """
         SuperNeo source-free compression profile
         phases:
@@ -2107,13 +2127,39 @@ struct SuperNeoSpartanFRICompressionDebugProfile: Equatable {
           rowKindCounts=\(rowKindCounts)
         fri:
         \(friLines.joined(separator: "\n"))
+        metal:
+        \(metalLines.joined(separator: "\n"))
         """
     }
 }
 
+struct SuperNeoSpartanFRIMetalCommandTimingProfile: Equatable, Sendable {
+    static let empty = SuperNeoSpartanFRIMetalCommandTimingProfile(
+        invocationCount: 0,
+        commandCount: 0,
+        elementCount: 0,
+        encodeNanoseconds: 0,
+        commitNanoseconds: 0,
+        waitNanoseconds: 0,
+        gpuNanoseconds: 0,
+        gpuSampleCount: 0
+    )
+
+    var invocationCount: Int
+    var commandCount: Int
+    var elementCount: Int
+    var encodeNanoseconds: UInt64
+    var commitNanoseconds: UInt64
+    var waitNanoseconds: UInt64
+    var gpuNanoseconds: UInt64
+    var gpuSampleCount: Int
+}
+
 final class SuperNeoSpartanFRICompressionDebugRecorder {
+    private let lock = NSLock()
     private var phaseNanoseconds: [String: UInt64] = [:]
     private var phaseCounts: [String: Int] = [:]
+    private var metalCommandTimings: [String: SuperNeoSpartanFRIMetalCommandTimingProfile] = [:]
     private var primitiveRowCount = 0
     private var rowProvenanceCounts: [String: Int] = [:]
     private var rowKindCounts: [String: Int] = [:]
@@ -2139,13 +2185,21 @@ final class SuperNeoSpartanFRICompressionDebugRecorder {
         let start = DispatchTime.now().uptimeNanoseconds
         defer {
             let elapsed = DispatchTime.now().uptimeNanoseconds - start
-            phaseNanoseconds[phase, default: 0] += elapsed
-            phaseCounts[phase, default: 0] += 1
+            recordPhaseNanoseconds(phase, elapsed)
         }
         return try body()
     }
 
+    func recordPhaseNanoseconds(_ phase: String, _ elapsed: UInt64) {
+        lock.lock()
+        defer { lock.unlock() }
+        phaseNanoseconds[phase, default: 0] += elapsed
+        phaseCounts[phase, default: 0] += 1
+    }
+
     func recordPrimitiveRows(_ rows: [SuperNeoTerminalVerifierAIRConstraintRow]) {
+        lock.lock()
+        defer { lock.unlock() }
         primitiveRowCount = rows.count
         rowProvenanceCounts = Dictionary(grouping: rows, by: { String(describing: $0.provenance) })
             .mapValues(\.count)
@@ -2159,6 +2213,8 @@ final class SuperNeoSpartanFRICompressionDebugRecorder {
         paddedDomainSize: Int,
         blowupFactor: Int
     ) {
+        lock.lock()
+        defer { lock.unlock() }
         terminalAIRMaterialBuildCount += 1
         self.traceLength = traceLength
         self.residualLength = residualLength
@@ -2167,23 +2223,54 @@ final class SuperNeoSpartanFRICompressionDebugRecorder {
     }
 
     func recordRowTranscriptBuild() {
+        lock.lock()
+        defer { lock.unlock() }
         rowTranscriptBuildCount += 1
     }
 
     func recordQueryCount(_ queryCount: Int) {
+        lock.lock()
+        defer { lock.unlock() }
         self.queryCount = queryCount
     }
 
     fileprivate func recordFRIPlan(_ plan: SpartanFRIProverPlan) {
+        lock.lock()
+        defer { lock.unlock() }
         friPlanBuildCounts[plan.label, default: 0] += 1
         friLayerCounts[plan.label] = plan.commitments.count
         friLayerLeafCounts[plan.label] = plan.commitments.map(\.domainSize)
     }
 
+    func recordMetalCommandTiming(_ label: String, timing: MetalCommandBufferTiming) {
+        lock.lock()
+        defer { lock.unlock() }
+        var aggregate = metalCommandTimings[label] ?? .empty
+        aggregate.invocationCount += 1
+        aggregate.commandCount += timing.commandCount
+        aggregate.elementCount += timing.elementCount
+        aggregate.encodeNanoseconds += Self.nanoseconds(from: timing.encodeWallTimeSeconds)
+        aggregate.commitNanoseconds += Self.nanoseconds(from: timing.commitWallTimeSeconds)
+        aggregate.waitNanoseconds += Self.nanoseconds(from: timing.waitWallTimeSeconds)
+        if let gpuTimeSeconds = timing.gpuTimeSeconds {
+            aggregate.gpuNanoseconds += Self.nanoseconds(from: gpuTimeSeconds)
+            aggregate.gpuSampleCount += 1
+        }
+        metalCommandTimings[label] = aggregate
+    }
+
+    private static func nanoseconds(from seconds: Double) -> UInt64 {
+        guard seconds.isFinite, seconds > 0 else { return 0 }
+        return UInt64(seconds * 1_000_000_000)
+    }
+
     var snapshot: SuperNeoSpartanFRICompressionDebugProfile {
-        SuperNeoSpartanFRICompressionDebugProfile(
+        lock.lock()
+        defer { lock.unlock() }
+        return SuperNeoSpartanFRICompressionDebugProfile(
             phaseNanoseconds: phaseNanoseconds,
             phaseCounts: phaseCounts,
+            metalCommandTimings: metalCommandTimings,
             primitiveRowCount: primitiveRowCount,
             rowProvenanceCounts: rowProvenanceCounts,
             rowKindCounts: rowKindCounts,
@@ -2221,6 +2308,11 @@ func superNeoDebugMeasure<T>(_ phase: String, _ body: () throws -> T) rethrows -
         return try recorder.measure(phase, body)
     }
     return try body()
+}
+
+func recordFRIMetalHashTiming(label: String, backend: SuperNeoMetalBackend) {
+    guard let timing = backend.context.lastCommandBufferTiming else { return }
+    SuperNeoSpartanFRIDebugProfileContext.current?.recordMetalCommandTiming(label, timing: timing)
 }
 
 struct SuperNeoTerminalAIRTestMaterial: Equatable, Sendable {
@@ -2262,6 +2354,10 @@ public enum SuperNeoSpartanFRICompressor {
             context: metalContext,
             executionPolicy: executionPolicy
         )
+        let friHashBackend = sourceFreeFRIHashBackend(
+            metalContext: metalContext,
+            executionPolicy: executionPolicy
+        )
         let specEvaluation = try SuperNeoTerminalVerifierAIRSpec.evaluateCanonicalSource(
             publicInput: publicInput,
             proofBytes: proofBytes,
@@ -2284,7 +2380,8 @@ public enum SuperNeoSpartanFRICompressor {
         let terminalVerifierPCSProof = try makeTerminalVerifierPCSProof(
             material: terminalAIRMaterial,
             policy: trustedPolicy,
-            queryCount: queryCount
+            queryCount: queryCount,
+            friHashBackend: friHashBackend
         )
 #if DEBUG
         let trace = superNeoDebugMeasure("trace vector construction") {
@@ -2332,7 +2429,8 @@ public enum SuperNeoSpartanFRICompressor {
             blowupFactor: blowupFactor,
             claimedDegreeBound: claimedDegreeBound,
             label: "witness-trace",
-            bindingDigest: arithmetizationDigest
+            bindingDigest: arithmetizationDigest,
+            friHashBackend: friHashBackend
         )
         let residualPCS = try makeFRIProof(
             vector: residual,
@@ -2341,7 +2439,8 @@ public enum SuperNeoSpartanFRICompressor {
             blowupFactor: blowupFactor,
             claimedDegreeBound: claimedDegreeBound,
             label: "r1cs-residual",
-            bindingDigest: arithmetizationDigest
+            bindingDigest: arithmetizationDigest,
+            friHashBackend: friHashBackend
         )
         let proof = try SuperNeoSpartanFRICompressionProof(
             statement: compressionStatement,
@@ -2622,6 +2721,14 @@ public enum SuperNeoSpartanFRICompressor {
         let paddedDomainSize: Int
     }
 
+    private static func sourceFreeFRIHashBackend(
+        metalContext: MetalExecutionContext?,
+        executionPolicy: SuperNeoExecutionPolicy
+    ) -> SuperNeoMetalBackend? {
+        guard let metalContext, !executionPolicy.usesConstantWorkCPU else { return nil }
+        return SuperNeoMetalBackend(context: metalContext)
+    }
+
     private static func makeTerminalVerifierPCSProverMaterial(
         spec: SuperNeoTerminalVerifierAIRSpec,
         publicInput: SuperNeoPublicFoldInput,
@@ -2699,7 +2806,8 @@ public enum SuperNeoSpartanFRICompressor {
         spec: SuperNeoTerminalVerifierAIRSpec,
         publicInput: SuperNeoPublicFoldInput,
         policy: SuperNeoTerminalProofAcceptancePolicy,
-        queryCount: Int
+        queryCount: Int,
+        friHashBackend: SuperNeoMetalBackend? = nil
     ) throws -> SuperNeoTerminalVerifierPCSProof {
         let material = try makeTerminalVerifierPCSProverMaterial(
             spec: spec,
@@ -2709,14 +2817,16 @@ public enum SuperNeoSpartanFRICompressor {
         return try makeTerminalVerifierPCSProof(
             material: material,
             policy: policy,
-            queryCount: queryCount
+            queryCount: queryCount,
+            friHashBackend: friHashBackend
         )
     }
 
     private static func makeTerminalVerifierPCSProof(
         material: TerminalVerifierPCSProverMaterial,
         policy: SuperNeoTerminalProofAcceptancePolicy,
-        queryCount: Int
+        queryCount: Int,
+        friHashBackend: SuperNeoMetalBackend? = nil
     ) throws -> SuperNeoTerminalVerifierPCSProof {
         let statement = material.statement
         let parameters = material.parameters
@@ -2732,47 +2842,33 @@ public enum SuperNeoSpartanFRICompressor {
         }
 #if DEBUG
         SuperNeoSpartanFRIDebugProfileContext.current?.recordQueryCount(queryCount)
-        let tracePlan = try superNeoDebugMeasure("trace FRI plan construction") {
-            try makeFRIProverPlan(
-                vector: trace,
+        let plans = try superNeoDebugMeasure("terminal verifier FRI plan construction") {
+            try makeTerminalVerifierFRIPlans(
+                trace: trace,
+                residual: residual,
                 paddedDomainSize: paddedDomainSize,
                 queryCount: queryCount,
                 blowupFactor: blowupFactor,
                 claimedDegreeBound: trace.count,
-                label: "terminal-verifier-trace",
-                bindingDigest: relationDigest
+                relationDigest: relationDigest,
+                friHashBackend: friHashBackend
             )
         }
-        let residualPlan = try superNeoDebugMeasure("residual FRI plan construction") {
-            try makeFRIProverPlan(
-                vector: residual,
-                paddedDomainSize: paddedDomainSize,
-                queryCount: queryCount,
-                blowupFactor: blowupFactor,
-                claimedDegreeBound: trace.count,
-                label: "terminal-verifier-residual",
-                bindingDigest: relationDigest
-            )
-        }
+        let tracePlan = plans.trace
+        let residualPlan = plans.residual
 #else
-        let tracePlan = try makeFRIProverPlan(
-            vector: trace,
+        let plans = try makeTerminalVerifierFRIPlans(
+            trace: trace,
+            residual: residual,
             paddedDomainSize: paddedDomainSize,
             queryCount: queryCount,
             blowupFactor: blowupFactor,
             claimedDegreeBound: trace.count,
-            label: "terminal-verifier-trace",
-            bindingDigest: relationDigest
+            relationDigest: relationDigest,
+            friHashBackend: friHashBackend
         )
-        let residualPlan = try makeFRIProverPlan(
-            vector: residual,
-            paddedDomainSize: paddedDomainSize,
-            queryCount: queryCount,
-            blowupFactor: blowupFactor,
-            claimedDegreeBound: trace.count,
-            label: "terminal-verifier-residual",
-            bindingDigest: relationDigest
-        )
+        let tracePlan = plans.trace
+        let residualPlan = plans.residual
 #endif
         let jointQueryIndices = terminalVerifierAIRQueryIndices(
             traceCommitments: tracePlan.commitments,
@@ -2825,6 +2921,101 @@ public enum SuperNeoSpartanFRICompressor {
             tracePCS: jointTracePCS,
             residualPCS: residualPCS
         )
+    }
+
+    private static func makeTerminalVerifierFRIPlans(
+        trace: [GoldilocksField],
+        residual: [GoldilocksField],
+        paddedDomainSize: Int,
+        queryCount: Int,
+        blowupFactor: Int,
+        claimedDegreeBound: Int,
+        relationDigest: Digest256,
+        friHashBackend: SuperNeoMetalBackend? = nil
+    ) throws -> (trace: SpartanFRIProverPlan, residual: SpartanFRIProverPlan) {
+        let lock = NSLock()
+        var traceResult: Result<SpartanFRIProverPlan, Error>?
+        var residualResult: Result<SpartanFRIProverPlan, Error>?
+#if DEBUG
+        var traceElapsed: UInt64 = 0
+        var residualElapsed: UInt64 = 0
+#endif
+        let group = DispatchGroup()
+        let queue = DispatchQueue.global(qos: .userInitiated)
+
+        group.enter()
+        queue.async {
+#if DEBUG
+            let start = DispatchTime.now().uptimeNanoseconds
+#endif
+            let result = Result {
+                try makeFRIProverPlan(
+                    vector: trace,
+                    paddedDomainSize: paddedDomainSize,
+                    queryCount: queryCount,
+                    blowupFactor: blowupFactor,
+                    claimedDegreeBound: claimedDegreeBound,
+                    label: "terminal-verifier-trace",
+                    bindingDigest: relationDigest,
+                    friHashBackend: friHashBackend
+                )
+            }
+#if DEBUG
+            let elapsed = DispatchTime.now().uptimeNanoseconds - start
+#endif
+            lock.lock()
+            traceResult = result
+#if DEBUG
+            traceElapsed = elapsed
+#endif
+            lock.unlock()
+            group.leave()
+        }
+
+        group.enter()
+        queue.async {
+#if DEBUG
+            let start = DispatchTime.now().uptimeNanoseconds
+#endif
+            let result = Result {
+                try makeFRIProverPlan(
+                    vector: residual,
+                    paddedDomainSize: paddedDomainSize,
+                    queryCount: queryCount,
+                    blowupFactor: blowupFactor,
+                    claimedDegreeBound: claimedDegreeBound,
+                    label: "terminal-verifier-residual",
+                    bindingDigest: relationDigest,
+                    friHashBackend: friHashBackend
+                )
+            }
+#if DEBUG
+            let elapsed = DispatchTime.now().uptimeNanoseconds - start
+#endif
+            lock.lock()
+            residualResult = result
+#if DEBUG
+            residualElapsed = elapsed
+#endif
+            lock.unlock()
+            group.leave()
+        }
+
+        group.wait()
+        guard let traceResult, let residualResult else {
+            throw SuperNeoError.invalidParameter("terminal verifier FRI plan construction did not complete")
+        }
+        let tracePlan = try traceResult.get()
+        let residualPlan = try residualResult.get()
+#if DEBUG
+        if let recorder = SuperNeoSpartanFRIDebugProfileContext.current {
+            recorder.recordPhaseNanoseconds("trace FRI plan construction", traceElapsed)
+            recorder.recordPhaseNanoseconds("residual FRI plan construction", residualElapsed)
+            recorder.recordFRIPlan(tracePlan)
+            recorder.recordFRIPlan(residualPlan)
+        }
+#endif
+        return (tracePlan, residualPlan)
     }
 
     private static func verifyTerminalVerifierPCSProof(
@@ -3078,12 +3269,19 @@ private struct SpartanFRISample {
 }
 
 private struct SpartanFRIMerkleTree {
+    private static let metalHashMinimumBatchSize = 128
+
     let domain: String
     let leaves: [GoldilocksField]
     let points: [GoldilocksField]
     let levels: [[Digest384]]
 
-    init(domain: String, leaves: [GoldilocksField], points: [GoldilocksField]) throws {
+    init(
+        domain: String,
+        leaves: [GoldilocksField],
+        points: [GoldilocksField],
+        metalHashBackend: SuperNeoMetalBackend? = nil
+    ) throws {
         guard !leaves.isEmpty, leaves.count == points.count, leaves.count.nonzeroBitCount == 1 else {
             throw SuperNeoError.invalidParameter("FRI Merkle tree requires a nonempty power-of-two point/value domain")
         }
@@ -3092,7 +3290,71 @@ private struct SpartanFRIMerkleTree {
         self.points = points
         let leafDomain = "\(domain)/leaf"
         let nodeDomain = "\(domain)/node"
-        var current = try spartanFRIParallelMap(count: leaves.count) { index in
+#if DEBUG
+        var current = try superNeoDebugMeasure("fri merkle leaf hashing") {
+            try Self.leafDigests(
+                leafDomain: leafDomain,
+                leaves: leaves,
+                points: points,
+                metalHashBackend: metalHashBackend
+            )
+        }
+#else
+        var current = try Self.leafDigests(
+            leafDomain: leafDomain,
+            leaves: leaves,
+            points: points,
+            metalHashBackend: metalHashBackend
+        )
+#endif
+        var levels = [current]
+        while current.count > 1 {
+#if DEBUG
+            let next = try superNeoDebugMeasure("fri merkle internal node hashing") {
+                try Self.nodeDigests(
+                    nodeDomain: nodeDomain,
+                    current: current,
+                    metalHashBackend: metalHashBackend
+                )
+            }
+#else
+            let next = try Self.nodeDigests(
+                nodeDomain: nodeDomain,
+                current: current,
+                metalHashBackend: metalHashBackend
+            )
+#endif
+            levels.append(next)
+            current = next
+        }
+        self.levels = levels
+    }
+
+    private static func leafDigests(
+        leafDomain: String,
+        leaves: [GoldilocksField],
+        points: [GoldilocksField],
+        metalHashBackend: SuperNeoMetalBackend?
+    ) throws -> [Digest384] {
+        if let metalHashBackend, leaves.count >= metalHashMinimumBatchSize {
+            let inputs = leaves.indices.map { index in
+                SuperNeoSplitQRO.hBindFramedInput(
+                    domain: leafDomain,
+                    frames: [
+                        spartanFRIEncodeCount(index),
+                        spartanFRIEncodeCount(leaves.count),
+                        points[index].superNeoBytes,
+                        leaves[index].superNeoBytes
+                    ]
+                )
+            }
+            let digests = try metalHashBackend.shake256Digest384PreframedBatch(inputs)
+#if DEBUG
+            recordFRIMetalHashTiming(label: "fri merkle leaf hashing", backend: metalHashBackend)
+#endif
+            return digests
+        }
+        return try spartanFRIParallelMap(count: leaves.count) { index in
             spartanFRILeafDigest(
                 leafDomain: leafDomain,
                 index: index,
@@ -3101,19 +3363,33 @@ private struct SpartanFRIMerkleTree {
                 value: leaves[index]
             )
         }
-        var levels = [current]
-        while current.count > 1 {
-            let next = try spartanFRIParallelMap(count: current.count / 2) { pairIndex in
-                let index = pairIndex * 2
-                return SuperNeoSplitQRO.hBind(
+    }
+
+    private static func nodeDigests(
+        nodeDomain: String,
+        current: [Digest384],
+        metalHashBackend: SuperNeoMetalBackend?
+    ) throws -> [Digest384] {
+        if let metalHashBackend, current.count / 2 >= metalHashMinimumBatchSize {
+            let inputs = stride(from: 0, to: current.count, by: 2).map { index in
+                SuperNeoSplitQRO.hBindFramedInput(
                     domain: nodeDomain,
                     frames: [current[index].superNeoBytes, current[index + 1].superNeoBytes]
                 )
             }
-            levels.append(next)
-            current = next
+            let digests = try metalHashBackend.shake256Digest384PreframedBatch(inputs)
+#if DEBUG
+            recordFRIMetalHashTiming(label: "fri merkle internal node hashing", backend: metalHashBackend)
+#endif
+            return digests
         }
-        self.levels = levels
+        return try spartanFRIParallelMap(count: current.count / 2) { pairIndex in
+            let index = pairIndex * 2
+            return SuperNeoSplitQRO.hBind(
+                domain: nodeDomain,
+                frames: [current[index].superNeoBytes, current[index + 1].superNeoBytes]
+            )
+        }
     }
 
     var root: Digest384 {
@@ -3191,9 +3467,10 @@ func makeFRIProof(
     queryCount: Int,
     blowupFactor: Int = SuperNeoSpartanFRICompressionProof.defaultBlowupFactor,
     claimedDegreeBound: Int? = nil,
-    label: String,
-    bindingDigest: Digest256,
-    queryIndicesOverride: [Int]? = nil
+        label: String,
+        bindingDigest: Digest256,
+        queryIndicesOverride: [Int]? = nil,
+        friHashBackend: SuperNeoMetalBackend? = nil
 ) throws -> SuperNeoFRIProof {
     let plan = try makeFRIProverPlan(
         vector: vector,
@@ -3202,7 +3479,8 @@ func makeFRIProof(
         blowupFactor: blowupFactor,
         claimedDegreeBound: claimedDegreeBound,
         label: label,
-        bindingDigest: bindingDigest
+        bindingDigest: bindingDigest,
+        friHashBackend: friHashBackend
     )
     return try makeFRIProof(plan: plan, queryIndicesOverride: queryIndicesOverride)
 }
@@ -3214,7 +3492,8 @@ private func makeFRIProverPlan(
     blowupFactor: Int = SuperNeoSpartanFRICompressionProof.defaultBlowupFactor,
     claimedDegreeBound: Int? = nil,
     label: String,
-    bindingDigest: Digest256
+    bindingDigest: Digest256,
+    friHashBackend: SuperNeoMetalBackend? = nil
 ) throws -> SpartanFRIProverPlan {
     guard !vector.isEmpty else {
         throw SuperNeoError.invalidParameter("FRI proof requires a nonempty vector")
@@ -3256,6 +3535,27 @@ private func makeFRIProverPlan(
     let baseDomain = "superneo/spartan-fri/\(label)"
     var round = 0
     while true {
+#if DEBUG
+        let points = superNeoDebugMeasure("fri domain point construction") {
+            spartanFRIDomainPoints(size: currentDomainSize, root: currentRoot, coset: currentCoset)
+        }
+        let layerValues = try superNeoDebugMeasure("fri domain evaluation") {
+            try spartanFRIEvaluatePolynomialOnDomain(
+                coefficients,
+                size: currentDomainSize,
+                root: currentRoot,
+                coset: currentCoset
+            )
+        }
+        let tree = try superNeoDebugMeasure("fri merkle tree construction") {
+            try SpartanFRIMerkleTree(
+                domain: "\(baseDomain)/layer-\(round)",
+                leaves: layerValues,
+                points: points,
+                metalHashBackend: friHashBackend
+            )
+        }
+#else
         let points = spartanFRIDomainPoints(size: currentDomainSize, root: currentRoot, coset: currentCoset)
         let layerValues = try spartanFRIEvaluatePolynomialOnDomain(
             coefficients,
@@ -3263,7 +3563,13 @@ private func makeFRIProverPlan(
             root: currentRoot,
             coset: currentCoset
         )
-        let tree = try SpartanFRIMerkleTree(domain: "\(baseDomain)/layer-\(round)", leaves: layerValues, points: points)
+        let tree = try SpartanFRIMerkleTree(
+            domain: "\(baseDomain)/layer-\(round)",
+            leaves: layerValues,
+            points: points,
+            metalHashBackend: friHashBackend
+        )
+#endif
         let commitment = SuperNeoFRICommitment(domainSize: currentDomainSize, root: tree.root)
         trees.append(tree)
         commitments.append(commitment)
@@ -3280,7 +3586,13 @@ private func makeFRIProverPlan(
             blowupFactor: blowupFactor
         )
         challenges.append(alpha)
+#if DEBUG
+        coefficients = superNeoDebugMeasure("fri coefficient folding") {
+            spartanFRIFoldCoefficients(coefficients, challenge: alpha)
+        }
+#else
         coefficients = spartanFRIFoldCoefficients(coefficients, challenge: alpha)
+#endif
         currentDegreeBound = max(1, (currentDegreeBound + 1) / 2)
         currentDomainSize /= 2
         currentRoot = currentRoot.squared()
@@ -3781,6 +4093,9 @@ private func terminalVerifierAIRConstraintMaterialForSource(
         terminalVerifierAIRInnerCompressedPrimitiveRows(envelope: $0)
     } ?? terminalVerifierAIRNoInnerCompressedPrimitiveRows()
 #if DEBUG
+    let ceMetalWorkspace = try superNeoDebugMeasure("ce-metal workspace construction") {
+        try terminalVerifierAIRCEMetalWorkspace(publicInput: publicInput, verifier: verifier)
+    }
     let foldRows = try superNeoDebugMeasure("fold-boundary primitive row emission") {
         try verifier.terminalVerifierAIRPrimitiveRows(
             publicInput: publicInput,
@@ -3795,11 +4110,12 @@ private func terminalVerifierAIRConstraintMaterialForSource(
             shape: publicInput.shape,
             key: verifier.key,
             parameters: verifier.parameters,
-            metalWorkspace: nil,
+            metalWorkspace: ceMetalWorkspace,
             executionPolicy: verifier.executionPolicy
         )
     }
 #else
+    let ceMetalWorkspace = try terminalVerifierAIRCEMetalWorkspace(publicInput: publicInput, verifier: verifier)
     let foldRows = try verifier.terminalVerifierAIRPrimitiveRows(
         publicInput: publicInput,
         proof: decodedSource.foldProof,
@@ -3811,7 +4127,7 @@ private func terminalVerifierAIRConstraintMaterialForSource(
         shape: publicInput.shape,
         key: verifier.key,
         parameters: verifier.parameters,
-        metalWorkspace: nil,
+        metalWorkspace: ceMetalWorkspace,
         executionPolicy: verifier.executionPolicy
     )
 #endif
@@ -3821,6 +4137,21 @@ private func terminalVerifierAIRConstraintMaterialForSource(
         piDECRows: foldRows.piDECRows,
         terminalCERows: ceRows,
         innerCompressedRows: innerCompressedRows
+    )
+}
+
+private func terminalVerifierAIRCEMetalWorkspace(
+    publicInput: SuperNeoPublicFoldInput,
+    verifier: SuperNeoVerifier
+) throws -> SuperNeoMetalWorkspace? {
+    guard let context = verifier.context,
+          verifier.executionPolicy.usesMetalAcceleration(for: publicInput.shape) else {
+        return nil
+    }
+    return try SuperNeoMetalWorkspace(
+        context: context,
+        key: verifier.key,
+        compiledShape: publicInput.shape.compiledSparseForSuperNeo()
     )
 }
 
@@ -5114,13 +5445,17 @@ enum SuperNeoSpartanFRITestHooks {
         proofBytes: [UInt8],
         publicInput: SuperNeoPublicFoldInput,
         verifierKey: AjtaiCommitmentKey,
-        policy: SuperNeoTerminalProofAcceptancePolicy
+        policy: SuperNeoTerminalProofAcceptancePolicy,
+        metalContext: MetalExecutionContext? = nil,
+        executionPolicy: SuperNeoExecutionPolicy = .default
     ) throws -> SuperNeoTerminalAIRTestMaterial {
         try SuperNeoSpartanFRICompressor.makeTerminalVerifierAIRMaterialForTesting(
             proofBytes: proofBytes,
             publicInput: publicInput,
             verifierKey: verifierKey,
-            policy: policy
+            policy: policy,
+            metalContext: metalContext,
+            executionPolicy: executionPolicy
         )
     }
 }

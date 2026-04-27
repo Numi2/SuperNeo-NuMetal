@@ -323,6 +323,113 @@ public final class SuperNeoMetalBackend: @unchecked Sendable {
         try binaryFieldOperation(lhs, rhs, pipelineName: "goldilocks_mul_kernel")
     }
 
+    func shake256Digest384PreframedBatch(_ inputs: [[UInt8]]) throws -> [Digest384] {
+        guard !inputs.isEmpty else { return [] }
+        var offsets: [UInt32] = []
+        var lengths: [UInt32] = []
+        offsets.reserveCapacity(inputs.count)
+        lengths.reserveCapacity(inputs.count)
+        var flattened: [UInt8] = []
+        for (index, input) in inputs.enumerated() {
+            guard let offset = UInt32(exactly: flattened.count) else {
+                throw SuperNeoError.invalidParameter("Metal SHAKE input batch offset \(index) exceeds UInt32")
+            }
+            guard let length = UInt32(exactly: input.count) else {
+                throw SuperNeoError.invalidParameter("Metal SHAKE input \(index) length exceeds UInt32")
+            }
+            offsets.append(offset)
+            lengths.append(length)
+            flattened.append(contentsOf: input)
+        }
+        let inputBuffer = try context.makeBuffer(flattened)
+        let offsetBuffer = try context.makeBuffer(offsets)
+        let lengthBuffer = try context.makeBuffer(lengths)
+        let outputLaneCount = try checkedProduct([inputs.count, Digest384.byteCount / 8], name: "Metal SHAKE output lane count")
+        let outputBuffer = try context.makeEmptyBuffer(count: outputLaneCount, as: UInt64.self)
+        try context.dispatch1D(
+            pipelineName: "shake256_digest384_preframed_kernel",
+            buffers: [inputBuffer, offsetBuffer, lengthBuffer, outputBuffer],
+            countBufferIndex: 4,
+            elementCount: inputs.count
+        )
+        let lanes = outputBuffer.array(of: UInt64.self, count: outputLaneCount)
+        return try stride(from: 0, to: lanes.count, by: Digest384.byteCount / 8).map { start in
+            var bytes: [UInt8] = []
+            bytes.reserveCapacity(Digest384.byteCount)
+            for lane in lanes[start..<(start + Digest384.byteCount / 8)] {
+                bytes.append(contentsOf: withUnsafeBytes(of: lane.littleEndian, Array.init))
+            }
+            return try Digest384(bytes)
+        }
+    }
+
+    func friEvaluatePolynomialOnDomain(
+        coefficients: [GoldilocksField],
+        size: Int,
+        root: GoldilocksField,
+        coset: GoldilocksField
+    ) throws -> [GoldilocksField] {
+        guard size > 0, size.nonzeroBitCount == 1 else {
+            throw SuperNeoError.invalidParameter("Metal FRI domain evaluation requires a power-of-two domain")
+        }
+        guard coefficients.count <= size else {
+            throw SuperNeoError.invalidParameter("Metal FRI coefficient count exceeds evaluation domain")
+        }
+        var values = Array(repeating: GoldilocksField.zero, count: size)
+        var cosetPower = GoldilocksField.one
+        for index in coefficients.indices {
+            values[index] = coefficients[index] * cosetPower
+            cosetPower = cosetPower * coset
+        }
+
+        let inputBuffer = try context.makeBuffer(values.map(\.rawValue))
+        let workBuffer = try context.makeEmptyBuffer(count: size, as: UInt64.self)
+        var commands: [MetalDispatchCommand] = []
+        commands.reserveCapacity(size.trailingZeroBitCount + 1)
+        commands.append(MetalDispatchCommand(
+            pipelineName: "fri_bit_reverse_permute_kernel",
+            buffers: [inputBuffer, workBuffer],
+            inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 2, values: [
+                try checkedUInt32(size, name: "Metal FRI domain size"),
+                try checkedUInt32(size.trailingZeroBitCount, name: "Metal FRI domain bit count")
+            ])],
+            elementCount: size,
+            countBufferIndex: 3
+        ))
+
+        var retainedTwiddleBuffers: [MTLBuffer] = []
+        retainedTwiddleBuffers.reserveCapacity(size.trailingZeroBitCount)
+        var length = 2
+        while length <= size {
+            let half = length / 2
+            let stepRoot = root.pow(UInt64(size / length))
+            var twiddles = Array(repeating: GoldilocksField.one, count: half)
+            if half > 1 {
+                for offset in 1..<half {
+                    twiddles[offset] = twiddles[offset - 1] * stepRoot
+                }
+            }
+            let twiddleBuffer = try context.makeBuffer(twiddles.map(\.rawValue))
+            retainedTwiddleBuffers.append(twiddleBuffer)
+            commands.append(MetalDispatchCommand(
+                pipelineName: "fri_ntt_stage_kernel",
+                buffers: [workBuffer, twiddleBuffer],
+                inlineUInt32Buffers: [MetalInlineUInt32Buffer(index: 2, values: [
+                    try checkedUInt32(size, name: "Metal FRI domain size"),
+                    try checkedUInt32(length, name: "Metal FRI stage length"),
+                    try checkedUInt32(half, name: "Metal FRI stage half length")
+                ])],
+                elementCount: size / 2,
+                countBufferIndex: 3
+            ))
+            length <<= 1
+        }
+
+        try context.dispatch1DSequence(commands)
+        _ = retainedTwiddleBuffers
+        return workBuffer.array(of: UInt64.self, count: size).map { GoldilocksField($0) }
+    }
+
     public func add(_ lhs: [CyclotomicRing54], _ rhs: [CyclotomicRing54]) throws -> [CyclotomicRing54] {
         guard lhs.count == rhs.count else {
             throw SuperNeoError.invalidParameter("ring vector length mismatch")

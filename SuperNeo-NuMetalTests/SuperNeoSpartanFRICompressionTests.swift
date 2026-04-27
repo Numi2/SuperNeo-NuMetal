@@ -1,4 +1,5 @@
 import XCTest
+import Metal
 @_spi(Benchmarking) @testable import SuperNeo_NuMetal
 
 final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
@@ -842,6 +843,44 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
         }
     }
 
+    func testSpartanFRIMetalNTTMatchesCPUNotVerifierShortcut() throws {
+        let device = try requireMetalDevice()
+        let backend = SuperNeoMetalBackend(context: try MetalExecutionContext(device: device))
+        let cosets: [GoldilocksField] = [.one, GoldilocksField(3), GoldilocksField(7)]
+
+        for size in [8, 16, 64] {
+            let root = try SuperNeoSpartanFRITestHooks.rootOfUnity(order: size)
+            let polynomials: [[GoldilocksField]] = [
+                [.zero],
+                [GoldilocksField(5)],
+                (0..<(size / 2)).map { GoldilocksField(UInt64($0 * 5 + 2)) },
+                (0..<size).map { GoldilocksField(UInt64($0 * 11 + 1)) }
+            ]
+
+            for coset in cosets {
+                for coefficients in polynomials {
+                    let cpu = try SuperNeoSpartanFRITestHooks.nttEvaluateOnDomain(
+                        coefficients: coefficients,
+                        size: size,
+                        root: root,
+                        coset: coset
+                    )
+                    let metal = try backend.friEvaluatePolynomialOnDomain(
+                        coefficients: coefficients,
+                        size: size,
+                        root: root,
+                        coset: coset
+                    )
+                    XCTAssertEqual(
+                        metal,
+                        cpu,
+                        "experimental Metal FRI NTT must be byte-identical to CPU domain evaluation"
+                    )
+                }
+            }
+        }
+    }
+
     func testSpartanFRIPlanReuseMatchesFreshProofAndBindsJointQueries() throws {
         let vector = (0..<16).map { GoldilocksField(UInt64($0 * 3 + 1)) }
         let binding = Digest256.hash("fri-plan-reuse-test")
@@ -1031,6 +1070,11 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             "row transcript + aggregate residual construction",
             "trace vector construction",
             "residual vector construction",
+            "fri domain point construction",
+            "fri domain evaluation",
+            "fri merkle leaf hashing",
+            "fri merkle internal node hashing",
+            "fri merkle tree construction",
             "trace FRI plan construction",
             "residual FRI plan construction",
             "joint query opening materialization",
@@ -1101,6 +1145,75 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             verifierKey: fixture.verifierKey,
             policy: fixture.policy
         ).isValid, "real-source recursiveRelationDigest mutation")
+    }
+
+    func testMetalTerminalAIRMaterialMatchesCPUForRealSourceFixture() throws {
+        let device = try requireMetalDevice()
+        let context = try MetalExecutionContext(device: device)
+        let fixture = try makeMinimalTerminalSourceEnvelopeFixture()
+
+        let cpuMaterial = try SuperNeoSpartanFRITestHooks.terminalAIRMaterialForSourceEnvelope(
+            proofBytes: fixture.sourceProofBytes,
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.policy
+        )
+        let recorder = SuperNeoSpartanFRICompressionDebugRecorder()
+        let metalMaterial = try recorder.activate {
+            try SuperNeoSpartanFRITestHooks.terminalAIRMaterialForSourceEnvelope(
+                proofBytes: fixture.sourceProofBytes,
+                publicInput: fixture.publicInput,
+                verifierKey: fixture.verifierKey,
+                policy: fixture.policy,
+                metalContext: context,
+                executionPolicy: .cpuRedundantMetal
+            )
+        }
+
+        XCTAssertEqual(metalMaterial, cpuMaterial)
+        let profile = recorder.snapshot
+        XCTAssertGreaterThan(profile.phaseCounts["ce-metal workspace construction"] ?? 0, 0)
+        XCTAssertGreaterThan(profile.phaseCounts["ce-private linear metal combined commit/eval"] ?? 0, 0)
+        XCTAssertGreaterThan(profile.phaseCounts["ce-private linear CPU redundancy check"] ?? 0, 0)
+        XCTAssertGreaterThan(
+            profile.metalCommandTimings["ce-private linear combined commit/eval"]?.invocationCount ?? 0,
+            0
+        )
+    }
+
+    func testMetalProducedRealSourceProofVerifiesWithCPUByteVerifier() throws {
+        let device = try requireMetalDevice()
+        let context = try MetalExecutionContext(device: device)
+        let fixture = try makeMinimalTerminalSourceEnvelopeFixture()
+        let recorder = SuperNeoSpartanFRICompressionDebugRecorder()
+
+        let proof = try recorder.activate {
+            try SuperNeoSpartanFRICompressor.compressAcceptedProof(
+                publicInput: fixture.publicInput,
+                proofBytes: fixture.sourceProofBytes,
+                verifierKey: fixture.verifierKey,
+                policy: fixture.policy,
+                metalContext: context,
+                executionPolicy: .metalAccelerated
+            )
+        }
+
+        let profile = recorder.snapshot
+        print(profile.report)
+        XCTAssertGreaterThan(profile.phaseCounts["ce-private linear metal combined commit/eval"] ?? 0, 0)
+        let metalTiming = try XCTUnwrap(profile.metalCommandTimings["ce-private linear combined commit/eval"])
+        XCTAssertGreaterThan(metalTiming.invocationCount, 0)
+        XCTAssertGreaterThan(metalTiming.commandCount, 0)
+        XCTAssertGreaterThan(metalTiming.elementCount, 0)
+        XCTAssertEqual(
+            SuperNeoSpartanFRICompressor.verifyCompressionProof(
+                proofBytes: proof.superNeoBytes,
+                publicInput: fixture.publicInput,
+                verifierKey: fixture.verifierKey,
+                policy: fixture.policy
+            ),
+            .valid
+        )
     }
 
     func testSourceFreePCSValidThenMutatedBindingsReject() throws {

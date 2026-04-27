@@ -121,6 +121,52 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         )
     }
 
+    func testMetalBatchSHAKEPreframedMatchesCPUVectors() throws {
+        let device = try requireMetalDevice()
+        let backend = SuperNeoMetalBackend(context: try MetalExecutionContext(device: device))
+        func encodeCount(_ value: Int) -> [UInt8] {
+            withUnsafeBytes(of: UInt64(value).littleEndian, Array.init)
+        }
+        let vectors: [(domain: String, frames: [[UInt8]])] = [
+            ("superneo/test/metal-shake/empty", []),
+            ("superneo/test/metal-shake/single-empty-frame", [[]]),
+            ("superneo/test/metal-shake/single-frame", [Array("abc".utf8)]),
+            ("superneo/test/metal-shake/multi-frame", [
+                Array("ctx".utf8),
+                [0, 1, 2, 3],
+                Digest256.hash("metal-shake-vector").superNeoBytes
+            ]),
+            ("superneo/test/metal-shake/long-frame", [
+                (0..<384).map { UInt8(truncatingIfNeeded: $0 * 17 + 3) }
+            ]),
+            ("superneo/spartan-fri/test/layer-0/leaf", [
+                encodeCount(7),
+                encodeCount(16),
+                GoldilocksField(123).superNeoBytes,
+                GoldilocksField(456).superNeoBytes
+            ]),
+            ("superneo/spartan-fri/test/layer-0/node", [
+                Digest384.shake256("metal-shake-left").superNeoBytes,
+                Digest384.shake256("metal-shake-right").superNeoBytes
+            ])
+        ]
+        let preframed = vectors.map {
+            SuperNeoSplitQRO.hBindFramedInput(domain: $0.domain, frames: $0.frames)
+        }
+        let expected = vectors.map {
+            SuperNeoSplitQRO.hBind(domain: $0.domain, frames: $0.frames)
+        }
+        XCTAssertEqual(try backend.shake256Digest384PreframedBatch(preframed), expected)
+
+        let reversedInputs = Array(preframed.reversed())
+        let reversedExpected = Array(expected.reversed())
+        XCTAssertEqual(
+            try backend.shake256Digest384PreframedBatch(reversedInputs),
+            reversedExpected,
+            "Metal SHAKE batch output must depend only on each preframed job, not batch position"
+        )
+    }
+
     func testTier0CTCOContextBinderIncludesProofKindAndRootBlocks() throws {
         let shape = Digest256.hash("shape")
         let statement = Digest256.hash("statement")
@@ -509,6 +555,40 @@ final class AlgebraCoreTests: SuperNeoTestCase {
         let ring = transcript.challengeRing()
         XCTAssertEqual(ring, replay.challengeRing())
         XCTAssertNotEqual(ring, differentPayload.challengeRing())
+    }
+
+    func testTier0TranscriptFieldFastPathMatchesGenericFraming() throws {
+        let seed = Digest256.hash("tier0-field-fast-path-seed")
+        let state = Digest256.hash("tier0-field-fast-path-state")
+        let counter = UInt64(17)
+        let genericSeed = SuperNeoSplitQRO.sumCheckTranscriptChallenge(
+            label: "field",
+            proofKind: .terminalLocal,
+            challengeTapeSeed: seed,
+            stateDigest: state,
+            challengeCounter: counter
+        )
+        let fastSeed = SuperNeoSplitQRO.sumCheckTranscriptFieldChallenge(
+            proofKind: .terminalLocal,
+            challengeTapeSeed: seed,
+            stateDigest: state,
+            challengeCounter: counter
+        )
+        XCTAssertEqual(fastSeed, genericSeed)
+
+        let label = "SuperNeo-NuMetal.ce-opening.stern/field"
+        XCTAssertEqual(
+            SuperNeoSplitQRO.expandChallengeField(
+                seed: genericSeed,
+                proofKind: .terminalLocal,
+                label: label
+            ),
+            SuperNeoSplitQRO.expandChallengeField(
+                seed: genericSeed,
+                proofKind: .terminalLocal,
+                labelBytes: Array(label.utf8)
+            )
+        )
     }
 
     func testTier0CyclotomicRingSeededLawsAndEmbedding() throws {

@@ -4,6 +4,81 @@ using namespace metal;
 constant ulong GOLDILOCKS_MODULUS = 0xffffffff00000001UL;
 constant ulong GOLDILOCKS_EPSILON = 0xffffffffUL;
 constant ulong GOLDILOCKS_LIMB_MASK = 0xffffffffUL;
+constant uint SHAKE256_RATE_BYTES = 136;
+
+constant ulong KECCAK_ROUND_CONSTANTS[24] = {
+    0x0000000000000001UL, 0x0000000000008082UL,
+    0x800000000000808aUL, 0x8000000080008000UL,
+    0x000000000000808bUL, 0x0000000080000001UL,
+    0x8000000080008081UL, 0x8000000000008009UL,
+    0x000000000000008aUL, 0x0000000000000088UL,
+    0x0000000080008009UL, 0x000000008000000aUL,
+    0x000000008000808bUL, 0x800000000000008bUL,
+    0x8000000000008089UL, 0x8000000000008003UL,
+    0x8000000000008002UL, 0x8000000000000080UL,
+    0x000000000000800aUL, 0x800000008000000aUL,
+    0x8000000080008081UL, 0x8000000000008080UL,
+    0x0000000080000001UL, 0x8000000080008008UL
+};
+
+constant uint KECCAK_ROTATION_OFFSETS[25] = {
+    0, 1, 62, 28, 27,
+    36, 44, 6, 55, 20,
+    3, 10, 43, 25, 39,
+    41, 45, 15, 21, 8,
+    18, 2, 61, 56, 14
+};
+
+inline ulong rotate_left_u64(ulong value, uint amount) {
+    return amount == 0 ? value : ((value << amount) | (value >> (64 - amount)));
+}
+
+inline void keccak_f1600(thread ulong *lanes) {
+    ulong c[5];
+    ulong d[5];
+    ulong b[25];
+
+    for (uint round = 0; round < 24; round++) {
+        for (uint x = 0; x < 5; x++) {
+            c[x] = lanes[x] ^ lanes[x + 5] ^ lanes[x + 10] ^ lanes[x + 15] ^ lanes[x + 20];
+        }
+        for (uint x = 0; x < 5; x++) {
+            d[x] = c[(x + 4) % 5] ^ rotate_left_u64(c[(x + 1) % 5], 1);
+        }
+        for (uint x = 0; x < 5; x++) {
+            for (uint y = 0; y < 5; y++) {
+                lanes[x + 5 * y] ^= d[x];
+            }
+        }
+
+        for (uint x = 0; x < 5; x++) {
+            for (uint y = 0; y < 5; y++) {
+                const uint source = x + 5 * y;
+                const uint destination = y + 5 * ((2 * x + 3 * y) % 5);
+                b[destination] = rotate_left_u64(lanes[source], KECCAK_ROTATION_OFFSETS[source]);
+            }
+        }
+
+        for (uint x = 0; x < 5; x++) {
+            for (uint y = 0; y < 5; y++) {
+                lanes[x + 5 * y] = b[x + 5 * y]
+                    ^ ((~b[((x + 1) % 5) + 5 * y]) & b[((x + 2) % 5) + 5 * y]);
+            }
+        }
+        lanes[0] ^= KECCAK_ROUND_CONSTANTS[round];
+    }
+}
+
+inline void shake256_absorb_byte(thread ulong *state, thread uint &blockOffset, uchar byte) {
+    const uint laneIndex = blockOffset >> 3;
+    const uint laneShift = (blockOffset & 7) * 8;
+    state[laneIndex] ^= (ulong(byte) << laneShift);
+    blockOffset += 1;
+    if (blockOffset == SHAKE256_RATE_BYTES) {
+        keccak_f1600(state);
+        blockOffset = 0;
+    }
+}
 
 // constant-time-source-scope: metal-goldilocks-common-arithmetic begin
 inline ulong ct_mask(bool condition) {
@@ -118,6 +193,40 @@ kernel void goldilocks_mul_kernel(
 ) {
     if (id >= count) { return; }
     out[id] = goldilocks_mul(lhs[id], rhs[id]);
+}
+
+kernel void shake256_digest384_preframed_kernel(
+    device const uchar *inputBytes [[buffer(0)]],
+    device const uint *inputOffsets [[buffer(1)]],
+    device const uint *inputLengths [[buffer(2)]],
+    device ulong *outputLanes [[buffer(3)]],
+    constant uint &count [[buffer(4)]],
+    uint id [[thread_position_in_grid]]
+) {
+    if (id >= count) { return; }
+
+    ulong state[25];
+    for (uint lane = 0; lane < 25; lane++) {
+        state[lane] = 0;
+    }
+
+    uint blockOffset = 0;
+    const uint start = inputOffsets[id];
+    const uint length = inputLengths[id];
+    for (uint offset = 0; offset < length; offset++) {
+        shake256_absorb_byte(state, blockOffset, inputBytes[start + offset]);
+    }
+
+    const uint suffixLane = blockOffset >> 3;
+    const uint suffixShift = (blockOffset & 7) * 8;
+    state[suffixLane] ^= (ulong(0x1f) << suffixShift);
+    state[(SHAKE256_RATE_BYTES - 1) >> 3] ^= (ulong(0x80) << (((SHAKE256_RATE_BYTES - 1) & 7) * 8));
+    keccak_f1600(state);
+
+    const uint outputBase = id * 6;
+    for (uint lane = 0; lane < 6; lane++) {
+        outputLanes[outputBase + lane] = state[lane];
+    }
 }
 
 kernel void ring_add_kernel(
@@ -952,4 +1061,51 @@ kernel void ajtai_matvec_reduce_kernel(
     for (uint coeff = 0; coeff < 54; coeff++) {
         outRows[outOffset + coeff] = acc[coeff];
     }
+}
+
+inline uint reverse_low_bits(uint value, uint bitCount) {
+    uint reversed = 0;
+    for (uint bit = 0; bit < bitCount; bit++) {
+        reversed = (reversed << 1) | (value & 1);
+        value >>= 1;
+    }
+    return reversed;
+}
+
+kernel void fri_bit_reverse_permute_kernel(
+    device const ulong *input [[buffer(0)]],
+    device ulong *output [[buffer(1)]],
+    constant uint *params [[buffer(2)]],
+    uint id [[thread_position_in_grid]]
+) {
+    const uint count = params[0];
+    const uint bitCount = params[1];
+    if (id >= count) {
+        return;
+    }
+    const uint reversed = reverse_low_bits(id, bitCount);
+    output[reversed] = input[id];
+}
+
+kernel void fri_ntt_stage_kernel(
+    device ulong *values [[buffer(0)]],
+    device const ulong *twiddles [[buffer(1)]],
+    constant uint *params [[buffer(2)]],
+    uint id [[thread_position_in_grid]]
+) {
+    const uint count = params[0];
+    const uint length = params[1];
+    const uint halfCount = params[2];
+    const uint pairCount = count >> 1;
+    if (id >= pairCount) {
+        return;
+    }
+    const uint group = id / halfCount;
+    const uint offset = id - group * halfCount;
+    const uint first = group * length + offset;
+    const uint second = first + halfCount;
+    const ulong even = values[first];
+    const ulong odd = goldilocks_mul(values[second], twiddles[offset]);
+    values[first] = goldilocks_add(even, odd);
+    values[second] = goldilocks_sub(even, odd);
 }
