@@ -183,23 +183,17 @@ public struct SumCheckTranscript: Sendable {
 
     public init(domainSeparator: String, seed: [UInt8] = [], proofKind: ProofEnvelopeKind? = nil) {
         let resolvedProofKind = proofKind ?? Self.inferProofKind(from: seed) ?? .foldReduction
-        let seedDigest = SuperNeoSplitQRO.hChal(
-            domain: "\(SuperNeoSplitQRO.challengeDomain)/sumcheck-transcript-seed",
-            frames: [
-                [resolvedProofKind.rawValue],
-                Array(domainSeparator.utf8),
-                seed
-            ]
+        let seedDigest = SuperNeoSplitQRO.sumCheckTranscriptSeed(
+            domainSeparator: domainSeparator,
+            seed: seed,
+            proofKind: resolvedProofKind
         )
         self.proofKind = resolvedProofKind
         self.challengeTapeSeed = seedDigest
         self.domainSeparator = domainSeparator
-        self.stateDigest = SuperNeoSplitQRO.hChal(
-            domain: "\(SuperNeoSplitQRO.challengeDomain)/sumcheck-transcript-state/init",
-            frames: [
-                [resolvedProofKind.rawValue],
-                seedDigest.superNeoBytes
-            ]
+        self.stateDigest = SuperNeoSplitQRO.sumCheckTranscriptInitialState(
+            proofKind: resolvedProofKind,
+            seedDigest: seedDigest
         )
         self.challengeCounter = 0
         absorb(Array(domainSeparator.utf8))
@@ -207,40 +201,20 @@ public struct SumCheckTranscript: Sendable {
     }
 
     public mutating func absorb(_ bytes: [UInt8]) {
-        stateDigest = SuperNeoSplitQRO.hChal(
-            domain: "\(SuperNeoSplitQRO.challengeDomain)/sumcheck-transcript-state/absorb",
-            frames: [
-                [proofKind.rawValue],
-                stateDigest.superNeoBytes,
-                Self.frameLength(bytes.count),
-                bytes
-            ]
+        stateDigest = SuperNeoSplitQRO.sumCheckTranscriptAbsorbState(
+            proofKind: proofKind,
+            stateDigest: stateDigest,
+            bytes: bytes
         )
     }
 
     public mutating func challengeField() -> GoldilocksField {
         let seed = makeChallengeSeed(label: "field")
-        let tapeLabel = "\(domainSeparator)/field"
-        var digestIndex = UInt64(0)
-        while true {
-            let digest = SuperNeoSplitQRO.expandChallenge(
-                seed: seed,
-                proofKind: proofKind,
-                label: tapeLabel,
-                index: digestIndex
-            )
-            digestIndex &+= 1
-            let bytes = digest.superNeoBytes
-            for offset in stride(from: 0, to: bytes.count, by: 8) {
-                var value = UInt64(0)
-                for byteIndex in 0..<8 {
-                    value |= UInt64(bytes[offset + byteIndex]) << UInt64(byteIndex * 8)
-                }
-                if value < GoldilocksField.modulus {
-                    return GoldilocksField(value)
-                }
-            }
-        }
+        return SuperNeoSplitQRO.expandChallengeField(
+            seed: seed,
+            proofKind: proofKind,
+            label: "\(domainSeparator)/field"
+        )
     }
 
     public mutating func challengeExt2() -> GoldilocksExt2 {
@@ -272,10 +246,6 @@ public struct SumCheckTranscript: Sendable {
         )
         challengeCounter &+= 1
         return seed
-    }
-
-    private static func frameLength(_ value: Int) -> [UInt8] {
-        withUnsafeBytes(of: UInt64(value).littleEndian, Array.init)
     }
 
     private static func inferProofKind(from seed: [UInt8]) -> ProofEnvelopeKind? {

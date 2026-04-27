@@ -18,8 +18,21 @@ public struct Digest256: Equatable, Hashable, Sendable, SuperNeoByteEncodable {
     }
 
     public static func hash(_ bytes: [UInt8]) -> Self {
-        let digest = SHA256.hash(data: Data(bytes))
-        return Self(unchecked: Array(digest))
+        var hasher = SHA256()
+        bytes.withUnsafeBytes { rawBuffer in
+            hasher.update(bufferPointer: rawBuffer)
+        }
+        return Self(unchecked: Array(hasher.finalize()))
+    }
+
+    public static func hash(frames: [[UInt8]]) -> Self {
+        var hasher = SHA256()
+        for frame in frames {
+            frame.withUnsafeBytes { rawBuffer in
+                hasher.update(bufferPointer: rawBuffer)
+            }
+        }
+        return Self(unchecked: Array(hasher.finalize()))
     }
 
     public static func hash(_ string: String) -> Self {

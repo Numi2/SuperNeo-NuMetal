@@ -138,6 +138,33 @@ public enum SuperNeoSplitQRO {
         ))
     }
 
+    static func expandChallengeField(
+        seed: Digest256,
+        proofKind: ProofEnvelopeKind,
+        label: String
+    ) -> GoldilocksField {
+        var digestIndex = UInt64(0)
+        while true {
+            let bytes = SuperNeoSHAKE256.squeezeFramedFast(
+                domain: "\(challengeDomain)/expand",
+                frames: [
+                    .byte(proofKind.rawValue),
+                    .bytes(seed.superNeoBytes),
+                    .utf8(label),
+                    .uint64LE(digestIndex)
+                ],
+                outputByteCount: Digest256.byteCount
+            )
+            digestIndex &+= 1
+            for offset in stride(from: 0, to: bytes.count, by: 8) {
+                let value = SuperNeoSHAKE256.loadUInt64LE(bytes, offset: offset)
+                if value < GoldilocksField.modulus {
+                    return GoldilocksField(value)
+                }
+            }
+        }
+    }
+
     static func sumCheckTranscriptChallenge(
         label: String,
         proofKind: ProofEnvelopeKind,
@@ -152,6 +179,53 @@ public enum SuperNeoSplitQRO {
                 .bytes(challengeTapeSeed.superNeoBytes),
                 .bytes(stateDigest.superNeoBytes),
                 .uint64LE(challengeCounter)
+            ],
+            outputByteCount: Digest256.byteCount
+        ))
+    }
+
+    static func sumCheckTranscriptSeed(
+        domainSeparator: String,
+        seed: [UInt8],
+        proofKind: ProofEnvelopeKind
+    ) -> Digest256 {
+        try! Digest256(SuperNeoSHAKE256.squeezeFramedFast(
+            domain: "\(challengeDomain)/sumcheck-transcript-seed",
+            frames: [
+                .byte(proofKind.rawValue),
+                .utf8(domainSeparator),
+                .bytes(seed)
+            ],
+            outputByteCount: Digest256.byteCount
+        ))
+    }
+
+    static func sumCheckTranscriptInitialState(
+        proofKind: ProofEnvelopeKind,
+        seedDigest: Digest256
+    ) -> Digest256 {
+        try! Digest256(SuperNeoSHAKE256.squeezeFramedFast(
+            domain: "\(challengeDomain)/sumcheck-transcript-state/init",
+            frames: [
+                .byte(proofKind.rawValue),
+                .bytes(seedDigest.superNeoBytes)
+            ],
+            outputByteCount: Digest256.byteCount
+        ))
+    }
+
+    static func sumCheckTranscriptAbsorbState(
+        proofKind: ProofEnvelopeKind,
+        stateDigest: Digest256,
+        bytes: [UInt8]
+    ) -> Digest256 {
+        try! Digest256(SuperNeoSHAKE256.squeezeFramedFast(
+            domain: "\(challengeDomain)/sumcheck-transcript-state/absorb",
+            frames: [
+                .byte(proofKind.rawValue),
+                .bytes(stateDigest.superNeoBytes),
+                .uint64LE(UInt64(bytes.count)),
+                .bytes(bytes)
             ],
             outputByteCount: Digest256.byteCount
         ))
@@ -872,6 +946,13 @@ private enum SuperNeoSHAKE256 {
     private static func zeroRateBlock(_ block: inout [UInt8]) {
         for index in block.indices {
             block[index] = 0
+        }
+    }
+
+    static func loadUInt64LE(_ bytes: [UInt8], offset: Int) -> UInt64 {
+        precondition(offset >= 0 && offset + MemoryLayout<UInt64>.size <= bytes.count, "UInt64 byte range out of bounds")
+        return bytes.withUnsafeBytes {
+            $0.loadUnaligned(fromByteOffset: offset, as: UInt64.self).littleEndian
         }
     }
 

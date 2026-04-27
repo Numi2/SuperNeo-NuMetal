@@ -4582,6 +4582,34 @@ private func packedEvaluationWitness(_ witness: [GoldilocksField], shape: CCSSha
     return packed
 }
 
+private func packedZeroPublicEvaluationWitness(
+    privateVector: [GoldilocksField],
+    publicInputCount: Int,
+    shape: CCSShape
+) throws -> [CyclotomicRing54] {
+    guard try isValidPrivateVectorLength(privateVector.count, publicInputCount: publicInputCount, shape: shape) else {
+        throw SuperNeoError.invalidParameter("CE opening private vector length mismatch")
+    }
+    let totalCount = publicInputCount + privateVector.count
+    let paddedLength = SuperNeoEmbedding.paddedLength(forFieldElementCount: totalCount)
+    guard paddedLength / CyclotomicRing54.degree == shape.nRing else {
+        throw SuperNeoError.invalidParameter("evaluation witness ring length mismatch")
+    }
+    var packed: [CyclotomicRing54] = []
+    packed.reserveCapacity(shape.nRing)
+    for ringIndex in 0..<shape.nRing {
+        var coefficients = Array(repeating: GoldilocksField.zero, count: CyclotomicRing54.degree)
+        let ringBase = ringIndex * CyclotomicRing54.degree
+        for coefficientIndex in 0..<CyclotomicRing54.degree {
+            let fieldIndex = ringBase + coefficientIndex
+            guard fieldIndex >= publicInputCount, fieldIndex < totalCount else { continue }
+            coefficients[coefficientIndex] = privateVector[fieldIndex - publicInputCount]
+        }
+        packed.append(CyclotomicRing54(coefficients))
+    }
+    return packed
+}
+
 private func validateCommitmentKey(_ key: AjtaiCommitmentKey, matches shape: CCSShape, role: String) throws {
     guard key.matrix.columns == shape.nRing else {
         throw SuperNeoError.invalidParameter("\(role) key column count must match shape.nRing")
@@ -6386,10 +6414,11 @@ private struct CEOpeningPrivateLinearOpeningContext {
     }
 
     func packedZeroPublicWitness(privateVector: [GoldilocksField], shape: CCSShape) throws -> [CyclotomicRing54] {
-        guard try acceptsPrivateVector(count: privateVector.count, shape: shape) else {
-            throw SuperNeoError.invalidParameter("CE opening private vector length mismatch")
-        }
-        return try packedEvaluationWitness(publicZeros + privateVector, shape: shape)
+        try packedZeroPublicEvaluationWitness(
+            privateVector: privateVector,
+            publicInputCount: publicZeros.count,
+            shape: shape
+        )
     }
 }
 
@@ -7102,15 +7131,17 @@ private func ceOpeningChallenge(transcript: inout SumCheckTranscript) -> Int {
     }
 }
 
+private let ceOpeningDigestDomainBytes = Array("SuperNeo-NuMetal.ce-opening.commitment".utf8)
+
 private func ceOpeningDigest(tag: UInt8, roundIndex: Int, openingIndex: Int, payload: [UInt8]) -> Digest256 {
-    Digest256.hash(
-        Array("SuperNeo-NuMetal.ce-opening.commitment".utf8)
-            + [tag]
-            + ceEncodeCount(roundIndex)
-            + ceEncodeCount(openingIndex)
-            + ceEncodeCount(payload.count)
-            + payload
-    )
+    Digest256.hash(frames: [
+        ceOpeningDigestDomainBytes,
+        [tag],
+        ceEncodeCount(roundIndex),
+        ceEncodeCount(openingIndex),
+        ceEncodeCount(payload.count),
+        payload
+    ])
 }
 
 private func ceEncodeVector(_ vector: [GoldilocksField]) -> [UInt8] {
