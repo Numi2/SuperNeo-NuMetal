@@ -181,33 +181,31 @@ The timing table records more than one cost:
 Fresh local quick measurements were regenerated on 2026-04-27 from the current
 working tree. Metadata: Apple M4 MacBook Air, 24 GB RAM, macOS 26.5, Swift 6.3,
 Xcode 26.4, benchmark profile `quick`, cases `m64-K1-k0-binary` and
-`m256-K2-k1-binary`. The current report is `benchmark-results/report.md`; the
-Metal fold rows below were rerun as targeted filtered rows after the same-policy
-CPU oracle fix.
+`m256-K2-k1-binary`. The current report is `benchmark-results/report.md`.
 
 | Surface | Row | Measurement |
 | --- | --- | ---: |
-| Source fold prover | `fold/cpu/m256-K2-k1-binary` | 562 ms, 1.78 folds/s, 456 constraints/s |
-| Source fold prover | `fold/prepared/cpu/m256-K2-k1-binary` | 560 ms, 1.79 folds/s, 457 constraints/s |
-| Source fold prover | `fold/metal/m256-K2-k1-binary` | 301 ms, 3.32 folds/s, 850 constraints/s |
-| Source fold prover | `fold/prepared/metal/m256-K2-k1-binary` | 157 ms, 6.37 folds/s, 1631 constraints/s |
-| Source fold prover | `fold/cpu/m64-K1-k0-binary` | 116 ms, 8.62 folds/s, 552 constraints/s |
-| Source fold prover | `fold/prepared/cpu/m64-K1-k0-binary` | 116 ms, 8.62 folds/s, 552 constraints/s |
-| Source fold prover | `fold/metal/m64-K1-k0-binary` | 34 ms, 29.41 folds/s, 1882 constraints/s |
-| Source fold prover | `fold/prepared/metal/m64-K1-k0-binary` | 32 ms, 31.25 folds/s, 2000 constraints/s |
+| Source fold prover | `fold/cpu/m256-K2-k1-binary` | 606 ms, 1.65 folds/s, 422 constraints/s |
+| Source fold prover | `fold/prepared/cpu/m256-K2-k1-binary` | 567 ms, 1.76 folds/s, 451 constraints/s |
+| Source fold prover | `fold/metal/m256-K2-k1-binary` | 83 ms, 12.05 folds/s, 3084 constraints/s |
+| Source fold prover | `fold/prepared/metal/m256-K2-k1-binary` | 78 ms, 12.82 folds/s, 3282 constraints/s |
+| Source fold prover | `fold/cpu/m64-K1-k0-binary` | 117 ms, 8.55 folds/s, 547 constraints/s |
+| Source fold prover | `fold/prepared/cpu/m64-K1-k0-binary` | 117 ms, 8.55 folds/s, 547 constraints/s |
+| Source fold prover | `fold/metal/m64-K1-k0-binary` | 24 ms, 41.67 folds/s, 2667 constraints/s |
+| Source fold prover | `fold/prepared/metal/m64-K1-k0-binary` | 25 ms, 40.00 folds/s, 2560 constraints/s |
 | Source fold verifier | `reduceFold/cpu/m256-K2-k1-binary` | 12 ms |
-| Source fold verifier | `reduceFold/cpu/m64-K1-k0-binary` | 5.47 ms |
-| Terminal verifier | `terminalVerify/cpu/m256-K2-k1-binary` | 45 ms |
+| Source fold verifier | `reduceFold/cpu/m64-K1-k0-binary` | 5.44 ms |
+| Terminal verifier | `terminalVerify/cpu/m256-K2-k1-binary` | 42 ms |
 | Terminal verifier | `terminalVerify/cpu/m64-K1-k0-binary` | 40 ms |
-| Fold stages | `stage/sumcheck`, `stage/piCCSClaims`, `stage/piRLC`, `stage/piDEC` on `m64-K1-k0-binary` | 619 us, 2.62 ms, 1.27 ms, 37 ms |
-| Prepared stages | `stage/prepared/sumcheck`, `stage/prepared/piRLC`, `stage/prepared/piDEC` on `m64-K1-k0-binary` | 625 us, 152 us, 34 ms |
-| NumiSeal terminal product | `numisealProduct/prove` / `verify` on `one-hot-u2-terminal` | 274 ms / 92 ms |
+| Fold stages | `stage/sumcheck`, `stage/piCCSClaims`, `stage/piRLC`, `stage/piDEC` on `m64-K1-k0-binary` | 602 us, 2.55 ms, 1.29 ms, 34 ms |
+| Prepared stages | `stage/prepared/sumcheck`, `stage/prepared/piCCSClaims`, `stage/prepared/piRLC`, `stage/prepared/piDEC` on `m64-K1-k0-binary` | 556 us, 2.58 ms, 149 us, 35 ms |
+| NumiSeal terminal product | `numisealProduct/prove` / `verify` on `one-hot-u2-terminal` | 278 ms / 90 ms |
 | NumiSealZK product | `numisealProduct/prove` / `verify` on `one-hot-u2-zk` | 274 ms / 87 ms |
 | Recursive carry child | `numisealProduct/recursiveCarry/prove` / `verify` | 291 ms / 92 ms |
-| Product controls | `productControls/replayIdentity` / `auditEventEncode` | 26 us / 13.3 us |
-| Ajtai commitment | `kernel/ajtaiCommit/cpu/m64-K1-k0-binary` | 53 us, 18867.92 commitments/s |
-| Pay-per-bit optimized commit | `kernel/ajtaiCommit/payPerBitOptimized/cpu/m64-K1-k0-binary` | 73 us, 13698.63 commitments/s |
-| Ajtai work-profile cost | `kernel/ajtaiCommit/workProfile/m64-K1-k0-binary` | 2.58 us, 387146.73 commitments/s |
+| Product controls | `productControls/replayIdentity` / `auditEventEncode` | 26 us / 13.2 us |
+| Ajtai commitment | `kernel/ajtaiCommit/cpu/m64-K1-k0-binary` | 48 us, 20833.33 commitments/s |
+| Pay-per-bit optimized commit | `kernel/ajtaiCommit/payPerBitOptimized/cpu/m64-K1-k0-binary` | 51 us, 19607.84 commitments/s |
+| Ajtai work-profile cost | `kernel/ajtaiCommit/workProfile/m64-K1-k0-binary` | 2.12 us, 470588.24 commitments/s |
 
 Fresh fold proof-size rows from the same report:
 
@@ -221,8 +219,8 @@ Metal fold benchmark rows now compare against a same-policy CPU oracle
 compare these rows byte-for-byte against the default constant-work CPU fold:
 the default and accelerated policies can produce different valid PiDEC/output
 claim shapes. Other Metal kernel rows still record dispatch costs; for example
-`kernel/fieldMultiply/metal/m64-K1-k0-binary` measured 531 us while the CPU
-field multiply row measured 334 ns, so small-kernel Metal rows remain
+`kernel/fieldMultiply/metal/m64-K1-k0-binary` measured 2.02 ms while the CPU
+field multiply row measured 458 ns, so small-kernel Metal rows remain
 dispatch-bound.
 
 Fresh local CLI artifact byte counts for the same `one-hot-u2` NumiSeal product
