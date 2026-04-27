@@ -1,84 +1,175 @@
 # SuperNeo NuMetal
 
-SuperNeo NuMetal is a Swift/Metal research implementation of the SuperNeo
-folding stack over the `Goldilocks/Phi81(d=54)` profile. It contains the Swift
-prover/verifier, NumiSeal product paths, QRO-bound product verification,
-checked evidence manifests, benchmark tooling, and a Lean 4 formal track under
-`Formal/`.
+SuperNeo NuMetal is a Swift and Metal research implementation of the SuperNeo
+folding stack over the `Goldilocks/Phi81(d=54)` profile. The repository contains
+the Swift prover/verifier, NumiSeal product proof paths, proof-envelope and
+compression experiments, Metal acceleration lanes, checked evidence manifests,
+benchmark tooling, and a Lean 4 formal track under `Formal/`.
 
-## Current Architecture
+The repository-local status is: completed formal protocol theorem, checked
+bounded-depth product/evidence surface, and release-candidate tooling. This is
+not an independently audited production SNARK or a production post-quantum
+security claim.
 
-- Product proving defaults to NumiSealZK.
-- Product verification uses the explicit QRO public-coin path in
-  `Docs/QROProductArchitecture-2026-04-25.md`.
+## Current Implementation Snapshot
+
+### Core Folding Stack
+
+- CCS/R1CS frontends, Goldilocks field arithmetic, Phi81 ring arithmetic,
+  Ajtai commitments, PiCCS/PiRLC/PiDEC folding, terminal CE opening checks, and
+  compressed terminal envelopes are implemented in `SuperNeo-NuMetal/`.
+- `reduceFold` verifies the public fold reduction; terminal acceptance requires
+  `verifyTerminalFold` or terminal-envelope verification.
+- Proof envelopes bind proof kind, profile, shape, public statement, verifier
+  key, transcript domain, and exact body length.
+- Source-fold product artifacts use `sourceDecompositionProfile =
+  "pay-per-bit-v1"`; fixed 14-limb source decomposition is no longer the
+  selected product path.
+
+### Product Path
+
+- Product proving defaults to NumiSealZK with `zkMode =
+  "masked-digit-tensor-v1"`.
 - Product artifacts must be `NumiSealProductArtifact.artifactVersion == 2`.
-- Old artifact-selected transcript seeds and self-described NumiSeal JSON are
-  not product acceptance paths.
-- Source-fold decomposition/opening uses the selected `pay-per-bit-v1` profile,
-  not fixed 14-limb decomposition.
-- Pay-per-bit artifacts bind the decomposition profile and must satisfy
-  recomposition plus matching decomposition/output claim counts.
-- Signed side-channel certificates remain optional for `correctness-only`
-  trusted contexts; stricter trusted contexts can require a minimum certificate
-  level.
+- Product verification uses the explicit QRO public-coin architecture described
+  in `Docs/QROProductArchitecture-2026-04-25.md`.
+- Artifact-selected transcript seeds and legacy self-described NumiSeal JSON
+  are not product acceptance paths.
+- Signed issued-QRO packs bind trusted context, provenance inputs, verifier key,
+  public inputs, transcript domain, issue window, and single-use replay policy.
+- Product-control verification binds replay/audit state, CTCO roots, QROM
+  evidence metadata, trace evidence, carry context, aggregate digests, and proof
+  transcript digests.
 
-## Claim Boundary
+### Proof Compression And Performance Work
 
-Repository-local claim: the checked bounded-depth evidence surface is internally
-consistent for development and release-candidate use.
+- `SuperNeoSpartanFRICompressor` implements an experimental Spartan/FRI-style
+  compression path for accepted terminal or compressed-terminal source proofs.
+- The compression path includes terminal-verifier AIR material, FRI PCS proofs,
+  Merkle openings, query schedule checks, residual checks, source-bound
+  verification, and verifier-key-required source-free verification.
+- Metal acceleration covers batched SHAKE/SHA-256 hashing, CE challenge
+  seed-chain work, FRI domain evaluation/NTT experiments, Ajtai batch
+  commitments, transformed matrix evaluation, and combined commit/eval
+  workspace paths.
+- Default and high-assurance policies keep secret-bearing work on the
+  constant-work CPU path; accelerated and CPU-redundant Metal modes are explicit
+  opt-ins.
 
-Not claimed: production post-quantum security, production QROM security,
-whole-stack constant-time certification, hosted operations security, public
-distribution assurance, or independent cryptographic and implementation review.
+### Formal And Evidence Track
 
-## Evidence To Keep In Sync
+- Lean sources under `Formal/` cover the repository model: transcript
+  well-formedness, typed digest domains, proof-envelope binding, Phi81/Goldilocks
+  surfaces, PiCCS/PiRLC/PiDEC soundness surfaces, terminal CE accounting,
+  NumiSeal typed carry, QRO/QROM ledgers, and the product theorem wiring.
+- `TestVectors/` contains strict vector schemas and machine-readable evidence
+  manifests for product security, QROM accounting, loss budgets, release
+  distribution, constant-time scope/lowering, E2E proof metrics, and benchmark
+  coverage.
+- `Scripts/production-gate.sh` is the repository-local release-candidate gate.
 
-The current product/security gate is evidence-parametric. These records are the
-main machine-readable anchors:
+## Repository Map
 
-- `TestVectors/product-crypto-security-dossier-v1.json`
-- `TestVectors/product-selected-depth-loss-accounting-v1.json`
-- `TestVectors/product-extractor-loss-accounting-v1.json`
-- `TestVectors/product-total-loss-budget-v1.json`
-- `TestVectors/product-release-distribution-evidence-v1.json`
-- `TestVectors/product-qrom-public-coin-accounting-v1.json`
-- `TestVectors/product-qrom-transcript-schedule-v1.json`
-- `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`
-- `TestVectors/product-qrom-collision-malleability-evidence-v1.json`
-- `TestVectors/product-qrom-transform-preconditions-v1.json`
-- `TestVectors/product-qrom-interactive-reduction-v1.json`
-- `TestVectors/benchmark-coverage-v1.json`
+- `SuperNeo-NuMetal/`: Swift library implementation, protocol paths, proof
+  compression, serialization, product integration, and Metal backend.
+- `SuperNeoCLI/`: `superneo` development and product-smoke CLI.
+- `SuperNeo-NuMetalTests/`: protocol, product, compression, verifier-negative,
+  policy, and Metal differential tests.
+- `Formal/`: Lean 4 formal workspace.
+- `Docs/`: architecture, proof semantics, product, release, operations,
+  benchmark, and security-boundary notes.
+- `TestVectors/`: checked public vectors, schemas, and evidence fixtures.
+- `Evidence/`: constant-time and compiler-lowering evidence records.
+- `Scripts/`: validation, release, benchmark, estimator, reproduction, and
+  evidence-generation tooling.
+- `Benchmarks/`: Swift Benchmark-based performance harness.
 
-Keep the extractor loss accounting, total-loss accounting, release distribution evidence,
-QRO/QROM evidence, and benchmark coverage manifests aligned with any product
-proof-path change.
+## SwiftPM Products
 
-## Fast Orientation
+- `SuperNeo_NuMetal`: library target.
+- `superneo`: main CLI.
+- `superneo-formal-vectors`: Swift-to-formal vector emission.
+- `superneo-ct-observe`: constant-time observation tooling.
+- `superneo-payperbit-eval`: pay-per-bit profile evaluation tooling.
 
-- `SuperNeo-NuMetal/`: Swift implementation, protocol paths, serialization, and
-  product-facing code.
-- `Formal/`: Lean 4 workspace and theorem stack.
-- `Docs/`: current architecture, release, security, schema, and operations
-  notes.
-- `Scripts/`: validation, release, estimator, benchmark, and evidence tooling.
-- `TestVectors/`: checked vector and evidence fixtures.
-- `Evidence/`: release and constant-time evidence records.
+## Quick Start
 
-## Useful Commands
-
-Build the Swift package:
+Build the CLI:
 
 ```sh
 swift build --product superneo
 ```
 
-Run the production gate when intentionally validating everything:
+Run the Swift test suite:
+
+```sh
+swift test
+```
+
+Create and verify a fold artifact:
+
+```sh
+swift run superneo prove \
+  --workload one-hot \
+  --bits 0,0,1,0 \
+  --output /tmp/one-hot-fold.json
+
+swift run superneo verify /tmp/one-hot-fold.json
+```
+
+Create and verify a terminal artifact:
+
+```sh
+swift run superneo prove \
+  --workload one-hot \
+  --kind compressed-terminal \
+  --bits 0,0,1,0 \
+  --output /tmp/one-hot-terminal.json
+
+swift run superneo verify --require-terminal /tmp/one-hot-terminal.json
+```
+
+Run a local NumiSealZK smoke proof with explicit QRO public coins:
+
+```sh
+swift run superneo prove \
+  --seal numiseal \
+  --bits 0,1 \
+  --qro-session-id local-product-session-v1 \
+  --qro-public-coin-hex 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
+  --numiseal-execution-policy zk-high-assurance-cpu \
+  --max-obligations-per-aggregate 32 \
+  --output /tmp/numiseal-zk-product.json
+
+swift run superneo verify \
+  --qro-session-id local-product-session-v1 \
+  --qro-public-coin-hex 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
+  /tmp/numiseal-zk-product.json
+```
+
+Use product-control verification when validating signed context/provenance,
+issued-QRO, replay, revocation, and audit inputs:
+
+```sh
+swift run superneo verify \
+  --product \
+  --operator-profile profile.json \
+  --context-pack context.json \
+  --artifact-provenance provenance.json \
+  --qro-challenge-pack issued-qro.json \
+  --revocation-feed revocations.json \
+  /tmp/numiseal-zk-product.json
+```
+
+## Validation Gates
+
+Run the full repository-local release-candidate gate:
 
 ```sh
 Scripts/production-gate.sh
 ```
 
-Run the focused documentation/evidence checks after doc or evidence edits:
+Run focused checks after README, docs, or evidence edits:
 
 ```sh
 python3 Scripts/validate-doc-links.py
@@ -96,21 +187,79 @@ cd Formal
 lake build SuperNeoFormal
 ```
 
-## Current Human Docs
+Run benchmark profiles:
 
-- `Docs/QROProductArchitecture-2026-04-25.md`: selected QRO product path.
-- `Docs/CryptographicSecurityDossier-2026-04-16.md`: evidence-parametric
-  security dossier.
-- `Docs/WhatThisProves.md`: public claim boundaries.
+```sh
+Scripts/run-benchmarks.sh quick
+Scripts/run-benchmarks.sh scaling
+Scripts/run-benchmarks.sh full
+Scripts/reproduce-superneo-paper.sh quick
+```
+
+Use `quick` before performance-sensitive edits. Use `full` only when refreshing
+checked benchmark evidence.
+
+## Machine Evidence To Keep In Sync
+
+Product/security behavior is evidence-parametric. Any product proof-path,
+transcript, policy, schema, compression, or benchmark change should be reconciled
+with the relevant manifests:
+
+- `TestVectors/numiseal-conformance-scope-v1.json`
+- `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`
+- `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`
+- `TestVectors/product-crypto-security-dossier-v1.json`
+- `TestVectors/product-selected-depth-loss-accounting-v1.json`
+- `TestVectors/product-extractor-loss-accounting-v1.json`
+- `TestVectors/product-total-loss-budget-v1.json`
+- `TestVectors/product-release-distribution-evidence-v1.json`
+- `TestVectors/product-qrom-public-coin-accounting-v1.json`
+- `TestVectors/product-qrom-transcript-schedule-v1.json`
+- `TestVectors/product-qrom-sampler-encoding-evidence-v1.json`
+- `TestVectors/product-qrom-collision-malleability-evidence-v1.json`
+- `TestVectors/product-qrom-transform-preconditions-v1.json`
+- `TestVectors/product-qrom-interactive-reduction-v1.json`
+- `TestVectors/constant-time-scope-v1.json`
+- `TestVectors/constant-time-lowering-evidence-v1.json`
+- `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
+- `TestVectors/e2e-proof-metrics-v1.json`
+- `TestVectors/benchmark-coverage-v1.json`
+
+## Human Source Of Truth
+
+- `Docs/WhatThisProves.md`: proof semantics and claim boundaries.
+- `Docs/QROProductArchitecture-2026-04-25.md`: selected product QRO path.
 - `Docs/ProofEnvelope.md`: proof-envelope binding and parser rules.
 - `Docs/CLI.md`: active CLI surface.
-- `Docs/Benchmarking.md`: benchmark commands and coverage gate.
-- `math-audit.md`: formal audit notes.
-- `notes-math-ai.md`: theorem-package direction.
+- `Docs/RoadmapStatus.md`: compact architecture and priority map.
+- `Docs/ProductIntegrationLayer-2026-04-16.md`: product integration layer.
+- `Docs/ProductOperationsReadiness-2026-04-16.md`: local product-control state.
+- `Docs/CryptographicSecurityDossier-2026-04-16.md`: evidence-parametric
+  security dossier.
+- `Docs/Benchmarking.md`: benchmark commands and coverage contract.
+- `Docs/GPUDeterminism.md`: Metal acceleration and trust policies.
+- `Docs/ProductionReadinessAuditPacket-2026-04-16.md`: release-candidate gate
+  packet.
+- `Docs/SuperNeoPaperImplementationTracks-2026-04-25.md`: paper-to-repo
+  implementation tracker.
+- `math-audit.md` and `notes-math-ai.md`: formal audit and theorem-package
+  notes.
+
+## Claim Boundary
+
+Repository-local claim: the checked bounded-depth evidence surface is internally
+consistent for development and release-candidate use.
+
+Not claimed: production post-quantum security, production QROM security,
+whole-stack constant-time certification, hosted operations security, public
+distribution assurance, general external program compilation, or independent
+cryptographic and implementation review.
 
 ## Do Not Reintroduce
 
 - Fixed-14 source-fold decomposition as the default product path.
 - Product acceptance through artifact-selected Fiat-Shamir transcript seeds.
 - Self-described legacy NumiSeal JSON verification.
+- Silent promotion of optimized pay-per-bit, Metal, proof-compression, or
+  concrete-hash lanes into high-assurance product defaults.
 - Production-security wording that is not backed by the checked evidence set.
