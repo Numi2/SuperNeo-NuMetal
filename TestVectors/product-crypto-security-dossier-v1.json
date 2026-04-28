@@ -218,7 +218,7 @@
     "status": "profile-bound-recorded-product-path-losses-not-fully-instantiated",
     "failureProbabilityBudgetRecorded": true,
     "finiteProtocolLossObstructionManifest": "TestVectors/product-finite-protocol-loss-obstruction-v1.json",
-    "selectedNumericLossStatus": "One-shot PiRLC/PiCCS finite certificates remain explicit non-128-bit blockers against a 2^-128 claim, but the selected fixed-kind CTCO repeated-tape route instantiates epsilon_fold <= 16/q^4 + 1/5^81 and terminal CE at epsilon_terminal_ce <= (2/3)^226 under terminal CE 226 rounds.",
+    "selectedNumericLossStatus": "One-shot PiRLC/PiCCS finite certificates remain explicit non-128-bit blockers against a 2^-128 claim, but the selected fixed-kind CTCO repeated-tape route instantiates epsilon_fold <= 16/q^4 + 1/5^81, terminal CE at epsilon_terminal_ce <= (2/3)^226 under terminal CE 226 rounds, and primitiveBatchCancellation <= batchContextCount/q^4 with selectedPrimitiveBatchLaneCount = 4.",
     "remainingObligations": [
       "keep the one-shot finite-protocol lower-bound blockers in the ledger so no one-shot 128-bit claim can be promoted",
       "prove typed carry vector norm preservation across producer and consumer recursion handoff",

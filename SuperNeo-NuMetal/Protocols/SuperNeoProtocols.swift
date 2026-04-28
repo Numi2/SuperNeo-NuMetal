@@ -842,14 +842,21 @@ private func terminalPrimitiveAIRCompactRows(
     kind: SuperNeoTerminalVerifierAIRConstraintKind,
     label: String,
     sampleStride: Int = 32,
-    metalHashBackend: SuperNeoMetalBackend? = nil
+    metalHashBackend: SuperNeoMetalBackend? = nil,
+    batchContext: SuperNeoTerminalVerifierAIRPrimitiveBatchContext? = nil
 ) throws -> [SuperNeoTerminalVerifierAIRConstraintRow] {
     let summary = try SuperNeoTerminalVerifierAIRPrimitiveBatch.summarizeAccelerated(
         primitiveRows,
         label: label,
         metalHashBackend: metalHashBackend,
-        metalTimingLabel: "\(label)-primitive-batch-coefficients"
+        metalTimingLabel: "\(label)-primitive-batch-coefficients",
+        retainCoefficients: false,
+        batchContext: batchContext
     )
+    try SuperNeoTerminalVerifierAIRPrimitiveBatch.validateSelectedBatchLaneCount(summary.batchLaneCount)
+    guard summary.batchResiduals.count == SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount else {
+        throw SuperNeoError.invalidParameter("terminal verifier AIR primitive batch must carry exactly four lane residuals")
+    }
 
     var compact: [SuperNeoTerminalVerifierAIRConstraintRow] = [
         terminalPrimitiveAIRFieldRow(
@@ -861,11 +868,22 @@ private func terminalPrimitiveAIRCompactRows(
         ),
         terminalPrimitiveAIRFieldRow(
             kind: kind,
+            provenance: .canonicalDecoding,
+            label: "\(label)-primitive-batch-lane-count",
+            observed: GoldilocksField(UInt64(summary.batchLaneCount)),
+            expected: GoldilocksField(UInt64(SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount))
+        )
+    ]
+    for (laneIndex, residual) in summary.batchResiduals.enumerated() {
+        compact.append(terminalPrimitiveAIRFieldRow(
+            kind: kind,
             provenance: .primitiveArithmetic,
-            label: "\(label)-batched-primitive-residual",
-            observed: summary.aggregateResidual,
+            label: "\(label)-batched-primitive-residual-lane-\(laneIndex)",
+            observed: residual,
             expected: .zero
-        ),
+        ))
+    }
+    compact.append(contentsOf: [
         terminalPrimitiveAIRFieldRow(
             kind: kind,
             provenance: .canonicalDecoding,
@@ -873,7 +891,7 @@ private func terminalPrimitiveAIRCompactRows(
             observed: summary.indexAccumulator,
             expected: summary.indexAccumulator
         )
-    ]
+    ])
     compact.append(contentsOf: terminalPrimitiveAIRDigestRows(
         kind: kind,
         provenance: .hashSubrelation,
@@ -1248,7 +1266,8 @@ public enum CEOpeningRelation {
         key: AjtaiCommitmentKey,
         parameters: SuperNeoParameters = .goldilocks,
         metalWorkspace: SuperNeoMetalWorkspace? = nil,
-        executionPolicy: SuperNeoExecutionPolicy = .default
+        executionPolicy: SuperNeoExecutionPolicy = .default,
+        primitiveBatchContext: SuperNeoTerminalVerifierAIRPrimitiveBatchContext? = nil
     ) throws -> [SuperNeoTerminalVerifierAIRConstraintRow] {
         var rows: [SuperNeoTerminalVerifierAIRConstraintRow] = []
         let kind = SuperNeoTerminalVerifierAIRConstraintKind.terminalCEOpening
@@ -1594,7 +1613,8 @@ public enum CEOpeningRelation {
                 kind: kind,
                 label: "terminal-ce-ajtai",
                 sampleStride: 29,
-                metalHashBackend: verifierContext.metalHashBackend
+                metalHashBackend: verifierContext.metalHashBackend,
+                batchContext: primitiveBatchContext
             )
         }
 #else
@@ -1603,7 +1623,8 @@ public enum CEOpeningRelation {
             kind: kind,
             label: "terminal-ce-ajtai",
             sampleStride: 29,
-            metalHashBackend: verifierContext.metalHashBackend
+            metalHashBackend: verifierContext.metalHashBackend,
+            batchContext: primitiveBatchContext
         )
 #endif
     }
@@ -3668,6 +3689,13 @@ public final class SuperNeoVerifier: @unchecked Sendable {
         proofBytes: [UInt8],
         policy: SuperNeoTerminalProofAcceptancePolicy
     ) -> VerificationResult {
+        if let preflight = terminalProofEnvelopePublicBindingPreflight(
+            publicInput: publicInput,
+            proofBytes: proofBytes,
+            policy: policy
+        ) {
+            return preflight
+        }
         do {
             return try SuperNeoTerminalVerifierAIRSpec.evaluateCanonicalSource(
                 publicInput: publicInput,
@@ -3675,6 +3703,35 @@ public final class SuperNeoVerifier: @unchecked Sendable {
                 verifier: self,
                 policy: policy
             ).result
+        } catch {
+            return .invalid("\(error)")
+        }
+    }
+
+    private func terminalProofEnvelopePublicBindingPreflight(
+        publicInput: SuperNeoPublicFoldInput,
+        proofBytes: [UInt8],
+        policy: SuperNeoTerminalProofAcceptancePolicy
+    ) -> VerificationResult? {
+        do {
+            let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
+            _ = try policy.context(for: header, totalByteCount: proofBytes.count)
+            guard policy.verifierKeyDigest == key.verifierKeyDigest else {
+                return .invalid("input verifier key digest mismatch")
+            }
+            guard publicInput.shape.shapeDigest == policy.shapeDigest else {
+                return .invalid("input shape digest mismatch")
+            }
+            let statement = CCSStatement(
+                shapeDigest: publicInput.shape.shapeDigest,
+                ccsInstances: publicInput.instances,
+                priorCEInstances: publicInput.priorClaims.map { CEInstance($0) },
+                recursiveRelationDigest: publicInput.recursiveRelationDigest
+            )
+            guard statement.statementDigest == policy.statementDigest else {
+                return .invalid("input statement digest mismatch")
+            }
+            return nil
         } catch {
             return .invalid("\(error)")
         }

@@ -16,6 +16,9 @@ GOLDILOCKS_MODULUS = 18_446_744_069_414_584_321
 PIRLC_CRT_COMPONENT_DEGREE = 27
 PIRLC_REPEATED_BRANCH_COUNT = 3
 TERMINAL_CE_ROUNDS = 226
+SELECTED_PRIMITIVE_BATCH_LANE_COUNT = 4
+SELECTED_TERMINAL_BATCH_CONTEXTS_PER_COMPONENT = 1
+SELECTED_PRIMITIVE_BATCH_CONTEXT_COUNT = 3
 
 EXPECTED_TOP_LEVEL_KEYS = {
     "schemaVersion",
@@ -61,6 +64,10 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductSharedBadEventDeduplicationAccepted",
     "ProductExactFiniteProbabilityWiring",
     "ProductExactFiniteProbabilityWiringAccepted",
+    "ProductTerminalAIRPrimitiveBatchMultiLane",
+    "ProductPrimitiveBatchCancellationBound",
+    "ProductPrimitiveBatchCancellationBoundAccepted",
+    "ProductPrimitiveBatchLaneCountSelected",
     "productSecurityTheorem_requires_total_loss_budget",
     "productSecurityTheorem_requires_shared_bad_event_deduplication",
     "productSecurityTheorem_requires_exact_finite_probability_wiring",
@@ -192,6 +199,14 @@ def source_fold_repeated_tape_bound() -> Fraction:
 
 def terminal_ce_226_bound() -> Fraction:
     return Fraction(2**TERMINAL_CE_ROUNDS, 3**TERMINAL_CE_ROUNDS)
+
+
+def primitive_batch_cancellation_bound(context_count: int = SELECTED_TERMINAL_BATCH_CONTEXTS_PER_COMPONENT) -> Fraction:
+    return Fraction(context_count, GOLDILOCKS_MODULUS**SELECTED_PRIMITIVE_BATCH_LANE_COUNT)
+
+
+def terminal_numiseal_seal_bound() -> Fraction:
+    return terminal_ce_226_bound() + primitive_batch_cancellation_bound()
 
 
 def parse_exact_bound(value: Any, label: str) -> Fraction | None:
@@ -404,6 +419,14 @@ def validate_formal_surface(budget: dict[str, Any]) -> None:
     source = module_path.read_text(encoding="utf-8")
     for declaration in EXPECTED_FORMAL_DECLARATIONS:
         require(declaration in source, f"formal theorem source missing {declaration}")
+    for needle in [
+        "def ProductPrimitiveBatchLaneCountSelected (laneCount : Nat) : Prop :=",
+        "laneCount = 4",
+        "batchContextCount",
+        "goldilocksModulus ^ 4",
+        "cancellationEventBoundedByBatchContextCountOverQPowFour",
+    ]:
+        require(needle in source, f"formal primitive batch cancellation surface missing {needle}")
 
 
 def validate_selected_depth(budget: dict[str, Any]) -> None:
@@ -596,8 +619,19 @@ def validate_component_bounds(budget: dict[str, Any]) -> tuple[int, int, list[st
                     "terminal evidence must pin terminal CE repeated challenge closure",
                 )
                 require("(2/3)^226" in evidence, "terminal evidence must pin exact CE expression")
+                require(
+                    "full Goldilocks field elements" in evidence
+                    and "q = 2^64 - 2^32 + 1" in evidence
+                    and "selectedPrimitiveBatchLaneCount = 4" in evidence
+                    and "primitiveBatchCancellation <= batchContextCount/q^4" in evidence
+                    and "batchContextCount = 1" in evidence,
+                    "terminal evidence must charge primitive batching as batchContextCount/q^4 with four selected lanes",
+                )
+                require("1/q" not in evidence, "terminal evidence must not claim primitive batching over 1/q")
+                require("2^32 domain" not in evidence, "terminal evidence must not retain 32-bit batching language")
+                require("UInt32" not in evidence, "terminal evidence must not retain UInt32 batching language")
                 if instantiated:
-                    require(exact_bound == terminal_ce_226_bound(), "terminal-numiseal-seal exactUpperBound mismatch")
+                    require(exact_bound == terminal_numiseal_seal_bound(), "terminal-numiseal-seal exactUpperBound mismatch")
         if component_id == "zk-simulator-composition":
             evidence = require_string(component.get("requiredEvidence"), f"{component_id}.requiredEvidence")
             require(
@@ -733,9 +767,9 @@ def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiate
         instantiated_total
         == Fraction(1, 1 << 129)
         + (3 * source_fold_repeated_tape_bound())
-        + (3 * terminal_ce_226_bound())
+        + (3 * terminal_numiseal_seal_bound())
         + Fraction(11, 1 << 254),
-        "exactFiniteProbabilityWiring instantiated partial sum must include shared core, depth-3 repeated finite-protocol, depth-3 terminal CE, and H_bind collision terms",
+        "exactFiniteProbabilityWiring instantiated partial sum must include shared core, depth-3 repeated finite-protocol, depth-3 terminal CE plus primitive batch cancellation, and H_bind collision terms",
     )
     require(
         wiring.get("sourceFoldRepeatedTapeExpressionExact") == "epsilon_fold <= 16/q^4 + 1/5^81",
@@ -744,6 +778,11 @@ def validate_exact_finite_probability_wiring(budget: dict[str, Any], instantiate
     require(
         wiring.get("terminalCE226ExpressionExact") == "epsilon_terminal_ce <= (2/3)^226",
         "exactFiniteProbabilityWiring.terminalCE226ExpressionExact mismatch",
+    )
+    require(
+        wiring.get("primitiveBatchCancellationExpressionExact")
+        == "primitiveBatchCancellation <= batchContextCount/q^4 with selected batchContextCount = 3 and selectedPrimitiveBatchLaneCount = 4",
+        "exactFiniteProbabilityWiring.primitiveBatchCancellationExpressionExact mismatch",
     )
     require(
         wiring.get("extractorExpressionExact") == "epsilon_extract(depth=3) = 0",
@@ -856,6 +895,33 @@ def validate_docs_and_gate() -> None:
     )
 
 
+def validate_primitive_batch_lane_source() -> None:
+    compression = (ROOT / "SuperNeo-NuMetal" / "ProofCompression" / "SuperNeoSpartanFRICompression.swift").read_text(encoding="utf-8")
+    protocols = (ROOT / "SuperNeo-NuMetal" / "Protocols" / "SuperNeoProtocols.swift").read_text(encoding="utf-8")
+    combined = compression + "\n" + protocols
+    for needle in [
+        "static let selectedPrimitiveBatchLaneCount = 4",
+        "validateSelectedBatchLaneCount",
+        "batchResiduals",
+        "coefficientsByLane",
+        "aggregation.batchResiduals.count == batchLaneCount",
+        "aggregation.coefficientsByLane.count == batchLaneCount",
+        "summary.batchResiduals.count == SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount",
+        "laneIndex",
+        "summary.batchResiduals.enumerated()",
+        "primitive-batch-lane-count",
+        "batched-primitive-residual-lane-\\(laneIndex)",
+        "candidate < GoldilocksField.modulus",
+        "spartanFRIEncodeCount(SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount)",
+    ]:
+        require(needle in combined, f"primitive batch source missing selected four-lane binding: {needle}")
+    batch_coefficient_section = combined.split("superneo/terminal-air/primitive-batch-coeff/v1", 1)[1]
+    require("firstDigestField" not in batch_coefficient_section, "primitive batch coefficients must not use firstDigestField")
+    require("prefix(4)" not in batch_coefficient_section, "primitive batch coefficients must not use four-byte prefixes")
+    require("spartanFRIDigestFields(coinDigest)" not in batch_coefficient_section, "primitive batch coefficients must not truncate through digest fields")
+    require("% GoldilocksField.modulus" not in batch_coefficient_section, "primitive batch coefficients must not use modulo reduction")
+
+
 def validate_budget(path: Path) -> None:
     budget = read_json(path)
     text = json.dumps(budget, sort_keys=True).lower()
@@ -886,6 +952,7 @@ def validate_budget(path: Path) -> None:
     production_gates_satisfied = validate_production_gates(budget)
     validate_promotion_rule(budget, production_gates_satisfied)
     validate_docs_and_gate()
+    validate_primitive_batch_lane_source()
 
 
 def main() -> None:

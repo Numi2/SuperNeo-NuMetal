@@ -68,14 +68,22 @@ final class SuperNeoConcreteHashArithmetizationTests: SuperNeoTestCase {
     }
 
     func testSHA256OneBlockPublicMessageCircuitBindsStructuredMessageBits() throws {
-        let message = Array("SNWOTS1\0".utf8)
-            + withUnsafeBytes(of: UInt16(2).littleEndian, Array.init)
-            + withUnsafeBytes(of: UInt16(2).littleEndian, Array.init)
-            + withUnsafeBytes(of: UInt16(2).littleEndian, Array.init)
-            + withUnsafeBytes(of: UInt16(1).littleEndian, Array.init)
-            + withUnsafeBytes(of: UInt16(0).littleEndian, Array.init)
-            + withUnsafeBytes(of: UInt16(0).littleEndian, Array.init)
-            + Digest256.hash("wots-public-message-input").bytes
+        let parameters = try SuperNeoXMSSWOTSPlusParameters(
+            baseW: 2,
+            messageDigitCount: 2,
+            treeHeight: 2,
+            hashRoundCount: 8,
+            hashMode: .sha256OneBlock
+        )
+        let inputDigest = Digest256.hash("wots-public-message-input")
+        let message = try SuperNeoSHA256WOTSPlusReference.chainStepMessage(
+            inputDigest: inputDigest,
+            parameters: parameters,
+            publicSeed: 1,
+            leafIndex: 0,
+            chainIndex: 0,
+            step: 0
+        )
         let workload = try SuperNeoSHA256OneBlockPublicMessageHashWorkload(messageByteCount: message.count)
         let digest = try workload.digest(message: message)
         let publicInput = try workload.publicInput(message: message, digest: digest)

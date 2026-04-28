@@ -456,6 +456,15 @@ public enum SuperNeoSNARKStyleCompressor {
         guard Digest256.hash(sourceProofBytes) == proof.sourceProofDigest else {
             return .invalid("SNARK-style compression source digest mismatch")
         }
+        let inputStatement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances,
+            priorCEInstances: publicInput.priorClaims.map { CEInstance($0) },
+            recursiveRelationDigest: publicInput.recursiveRelationDigest
+        )
+        guard proof.statementDigest == inputStatement.statementDigest else {
+            return .invalid("SNARK-style compression source proof rejected: input statement digest mismatch")
+        }
         let sourceVerification = SuperNeoVerifier(
             parameters: parameters,
             key: verifierKey,

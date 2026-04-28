@@ -11,6 +11,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 ACCOUNTING = ROOT / "TestVectors" / "product-extractor-loss-accounting-v1.json"
+SELECTED_PRIMITIVE_BATCH_LANE_COUNT = 4
 
 EXPECTED_TOP_LEVEL_KEYS = {
     "schemaVersion",
@@ -61,6 +62,10 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductTerminalVerifierAIRPrimitiveLoweringAccepted",
     "ProductTerminalVerifierAIRPrimitiveBatching",
     "ProductTerminalVerifierAIRPrimitiveBatchingAccepted",
+    "ProductTerminalAIRPrimitiveBatchMultiLane",
+    "ProductPrimitiveBatchCancellationBound",
+    "ProductPrimitiveBatchCancellationBoundAccepted",
+    "ProductPrimitiveBatchLaneCountSelected",
     "ProductAIRRowsNoVerifierBooleanWrapping",
     "ProductAIRRowsNoVerifierBooleanWrappingAccepted",
     "ProductCEAjtaiPrimitiveConstraintSoundness",
@@ -311,6 +316,14 @@ def validate_formal_surface(accounting: dict[str, Any]) -> None:
     source = module_path.read_text(encoding="utf-8")
     for declaration in EXPECTED_FORMAL_DECLARATIONS:
         require(declaration in source, f"formal theorem source missing {declaration}")
+    for needle in [
+        "def ProductPrimitiveBatchLaneCountSelected (laneCount : Nat) : Prop :=",
+        "laneCount = 4",
+        "batchContextCount",
+        "goldilocksModulus ^ 4",
+        "cancellationEventBoundedByBatchContextCountOverQPowFour",
+    ]:
+        require(needle in source, f"formal primitive batch cancellation surface missing {needle}")
     for field in EXPECTED_TERMINAL_VERIFIER_ARITHMETIZATION_FIELDS:
         require(
             field in source,
@@ -341,12 +354,22 @@ def validate_air_primitive_lowering_source() -> None:
         "primitive-row-context-binding",
         "full-primitive-row-transcript",
         "primitive-batch-challenge-after-row-transcript",
-        "primitive-batch-coin.v2",
+        "superneo/terminal-air/primitive-batch-coeff/v1",
+        "static let selectedPrimitiveBatchLaneCount = 4",
+        "validateSelectedBatchLaneCount",
+        "batchResiduals",
+        "coefficientsByLane",
+        "aggregation.batchResiduals.count == batchLaneCount",
+        "aggregation.coefficientsByLane.count == batchLaneCount",
+        "summary.batchResiduals.count == SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount",
+        "laneIndex",
+        "candidate < GoldilocksField.modulus",
         "primitive-row-index-chain",
+        "primitive-batch-lane-count",
         "sourceFreePCSPolicy",
         "sourceFreeTinyPCSFixtureOnly",
         "sourceFreePCSParameters",
-        "batched-primitive-residual",
+        "batched-primitive-residual-lane-\\(laneIndex)",
         "terminal-ce-ajtai",
     ]:
         require(needle in combined, f"terminal verifier AIR primitive lowering missing {needle}")
@@ -366,6 +389,14 @@ def validate_air_primitive_lowering_source() -> None:
     ]
     for needle in forbidden:
         require(needle not in combined, f"terminal verifier AIR must not source rows from {needle}")
+    batch_coefficient_section = combined.split("superneo/terminal-air/primitive-batch-coeff/v1", 1)[1]
+    require("firstDigestField" not in batch_coefficient_section, "primitive batch coefficients must not use firstDigestField")
+    require("prefix(4)" not in batch_coefficient_section, "primitive batch coefficients must not use four-byte prefixes")
+    require(
+        "spartanFRIDigestFields(coinDigest)" not in batch_coefficient_section,
+        "primitive batch coefficients must not truncate SHA-256 through digest fields",
+    )
+    require("% GoldilocksField.modulus" not in batch_coefficient_section, "primitive batch coefficients must not use modulo reduction")
 
 
 def validate_selected_depth(accounting: dict[str, Any]) -> None:

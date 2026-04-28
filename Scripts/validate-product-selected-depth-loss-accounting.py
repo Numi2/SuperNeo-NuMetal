@@ -11,6 +11,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "TestVectors" / "product-selected-depth-loss-accounting-v1.json"
+SELECTED_PRIMITIVE_BATCH_LANE_COUNT = 4
 
 EXPECTED_TOP_LEVEL_KEYS = {
     "schemaVersion",
@@ -78,6 +79,10 @@ EXPECTED_FORMAL_DECLARATIONS = {
     "ProductTerminalVerifierAIRPrimitiveLoweringAccepted",
     "ProductTerminalVerifierAIRPrimitiveBatching",
     "ProductTerminalVerifierAIRPrimitiveBatchingAccepted",
+    "ProductTerminalAIRPrimitiveBatchMultiLane",
+    "ProductPrimitiveBatchCancellationBound",
+    "ProductPrimitiveBatchCancellationBoundAccepted",
+    "ProductPrimitiveBatchLaneCountSelected",
     "ProductAIRRowsNoVerifierBooleanWrapping",
     "ProductAIRRowsNoVerifierBooleanWrappingAccepted",
     "ProductCEAjtaiPrimitiveConstraintSoundness",
@@ -444,6 +449,14 @@ def validate_formal_surface(ledger: dict[str, Any]) -> None:
     source = module_path.read_text(encoding="utf-8")
     for declaration in EXPECTED_FORMAL_DECLARATIONS:
         require(declaration in source, f"formal theorem source missing {declaration}")
+    for needle in [
+        "def ProductPrimitiveBatchLaneCountSelected (laneCount : Nat) : Prop :=",
+        "laneCount = 4",
+        "batchContextCount",
+        "goldilocksModulus ^ 4",
+        "cancellationEventBoundedByBatchContextCountOverQPowFour",
+    ]:
+        require(needle in source, f"formal primitive batch cancellation surface missing {needle}")
     for field in EXPECTED_TERMINAL_VERIFIER_ARITHMETIZATION_FIELDS:
         require(
             field in source,
@@ -474,12 +487,22 @@ def validate_air_primitive_lowering_source() -> None:
         "primitive-row-context-binding",
         "full-primitive-row-transcript",
         "primitive-batch-challenge-after-row-transcript",
-        "primitive-batch-coin.v2",
+        "superneo/terminal-air/primitive-batch-coeff/v1",
+        "static let selectedPrimitiveBatchLaneCount = 4",
+        "validateSelectedBatchLaneCount",
+        "batchResiduals",
+        "coefficientsByLane",
+        "aggregation.batchResiduals.count == batchLaneCount",
+        "aggregation.coefficientsByLane.count == batchLaneCount",
+        "summary.batchResiduals.count == SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount",
+        "laneIndex",
+        "candidate < GoldilocksField.modulus",
         "primitive-row-index-chain",
+        "primitive-batch-lane-count",
         "sourceFreePCSPolicy",
         "sourceFreeTinyPCSFixtureOnly",
         "sourceFreePCSParameters",
-        "batched-primitive-residual",
+        "batched-primitive-residual-lane-\\(laneIndex)",
         "terminal-ce-ajtai",
     ]:
         require(needle in combined, f"terminal verifier AIR primitive lowering missing {needle}")
@@ -499,6 +522,14 @@ def validate_air_primitive_lowering_source() -> None:
     ]
     for needle in forbidden:
         require(needle not in combined, f"terminal verifier AIR must not source rows from {needle}")
+    batch_coefficient_section = combined.split("superneo/terminal-air/primitive-batch-coeff/v1", 1)[1]
+    require("firstDigestField" not in batch_coefficient_section, "primitive batch coefficients must not use firstDigestField")
+    require("prefix(4)" not in batch_coefficient_section, "primitive batch coefficients must not use four-byte prefixes")
+    require(
+        "spartanFRIDigestFields(coinDigest)" not in batch_coefficient_section,
+        "primitive batch coefficients must not truncate SHA-256 through digest fields",
+    )
+    require("% GoldilocksField.modulus" not in batch_coefficient_section, "primitive batch coefficients must not use modulo reduction")
 
 
 def validate_selected_depth(ledger: dict[str, Any]) -> None:
@@ -602,6 +633,17 @@ def validate_component_losses(ledger: dict[str, Any]) -> None:
                     and "(2/3)^226" in evidence,
                     "terminal-numiseal-seal evidence must pin terminal CE repeated challenge closure",
                 )
+                require(
+                    "full Goldilocks field elements" in evidence
+                    and "q = 2^64 - 2^32 + 1" in evidence
+                    and "selectedPrimitiveBatchLaneCount = 4" in evidence
+                    and "primitiveBatchCancellation <= batchContextCount/q^4" in evidence
+                    and "batchContextCount = 1" in evidence,
+                    "terminal-numiseal-seal evidence must charge primitive batching as batchContextCount/q^4 with four selected lanes",
+                )
+                require("1/q" not in evidence, "terminal evidence must not claim primitive batching over 1/q")
+                require("2^32 domain" not in evidence, "terminal evidence must not retain 32-bit batching language")
+                require("UInt32" not in evidence, "terminal evidence must not retain UInt32 batching language")
             if component_id == "source-fold-knowledge":
                 require(
                     "fixed-kind CTCO repeated-tape" in evidence

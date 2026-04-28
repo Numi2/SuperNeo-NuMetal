@@ -255,7 +255,7 @@ def selected_instantiated_partial_sum() -> Fraction:
     return (
         Fraction(1, 1 << 129)
         + (3 * (Fraction(16, GOLDILOCKS_MODULUS**4) + Fraction(1, 5**81)))
-        + (3 * Fraction(2**226, 3**226))
+        + (3 * (Fraction(2**226, 3**226) + Fraction(1, GOLDILOCKS_MODULUS**4)))
         + Fraction(11, 1 << 254)
     )
 

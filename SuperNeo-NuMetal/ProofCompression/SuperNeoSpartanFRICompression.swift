@@ -733,6 +733,7 @@ public struct SuperNeoTerminalVerifierPCSProof: Equatable, Sendable, SuperNeoByt
                 + publicInputDigest.superNeoBytes
                 + (recursiveRelationDigest.map { [UInt8(1)] + $0.superNeoBytes } ?? [UInt8(0)])
                 + compressionPolicyDigest.superNeoBytes
+                + spartanFRIEncodeCount(SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount)
                 + terminalStatementDigest.superNeoBytes
                 + foldProofDigest.superNeoBytes
                 + ceOpeningProofDigest.superNeoBytes
@@ -1364,20 +1365,42 @@ struct SuperNeoTerminalVerifierAIRPrimitiveBatchSummary: Equatable, Sendable {
     let observedTranscriptDigest: Digest256
     let expectedTranscriptDigest: Digest256
     let challengeDigest: Digest256
-    let aggregateResidual: GoldilocksField
+    let batchLaneCount: Int
+    let batchResiduals: [GoldilocksField]
     let indexAccumulator: GoldilocksField
-    let coefficients: [GoldilocksField]
+    let coefficientsByLane: [[GoldilocksField]]
+
+    var aggregateResidual: GoldilocksField {
+        batchResiduals.first ?? .zero
+    }
+
+    var coefficients: [GoldilocksField] {
+        coefficientsByLane.first ?? []
+    }
+}
+
+struct SuperNeoTerminalVerifierAIRPrimitiveBatchContext: Equatable, Sendable {
+    let terminalVerifierRelationDigest: Digest256
+    let recursiveRelationDigest: Digest256
+    let sourceDigest: Digest256
+    let sourceByteCount: Int
+    let publicInputDigest: Digest256
+    let compressionPolicyDigest: Digest256
 }
 
 enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
+    static let selectedPrimitiveBatchLaneCount = 4
+
     private static let fullPrimitiveRowTranscriptDomain =
         Array("SuperNeo-NuMetal.terminal-verifier-air.full-primitive-row-transcript.v1".utf8)
     private static let primitiveRowDomain =
         Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-row.v2".utf8)
     private static let batchChallengeDomain =
         Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-batch-challenge-after-row-transcript.v1".utf8)
-    private static let batchCoinDomain =
-        Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-batch-coin.v2".utf8)
+    private static let batchCoefficientDomain =
+        Array("superneo/terminal-air/primitive-batch-coeff/v1".utf8)
+    private static let noBatchContextDomain =
+        Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-batch.no-public-context.v1".utf8)
 
     static func validateCanonicalRowIndices(_ indices: [Int]) throws {
         guard indices == Array(indices.indices) else {
@@ -1407,51 +1430,75 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         _ primitiveRows: [SuperNeoTerminalVerifierAIRConstraintRow],
         label: String,
         metalHashBackend: SuperNeoMetalBackend?,
-        metalTimingLabel: String? = nil
+        metalTimingLabel: String? = nil,
+        retainCoefficients: Bool = true,
+        batchContext: SuperNeoTerminalVerifierAIRPrimitiveBatchContext? = nil,
+        batchLaneCount: Int = Self.selectedPrimitiveBatchLaneCount
     ) throws -> SuperNeoTerminalVerifierAIRPrimitiveBatchSummary {
+        try validateSelectedBatchLaneCount(batchLaneCount)
         let labelEncoding = spartanFRIEncodeString(label)
         let observedTranscriptDigest = transcriptDigest(
             rowCount: primitiveRows.count,
             labelEncoding: labelEncoding,
             rows: primitiveRows,
+            batchLaneCount: batchLaneCount,
             observedValue: { $0.observed }
         )
         let expectedTranscriptDigest = transcriptDigest(
             rowCount: primitiveRows.count,
             labelEncoding: labelEncoding,
             rows: primitiveRows,
+            batchLaneCount: batchLaneCount,
             observedValue: { $0.expected }
         )
         let challengeDigest = Digest256.hashUpdating { hasher in
             update(&hasher, batchChallengeDomain)
             update(&hasher, labelEncoding)
             updateCount(&hasher, primitiveRows.count)
+            updateCount(&hasher, batchLaneCount)
             updateDigest(&hasher, observedTranscriptDigest)
             updateDigest(&hasher, expectedTranscriptDigest)
+            updateBatchContext(&hasher, batchContext)
         }
-        var aggregateResidual = GoldilocksField.zero
-        var indexAccumulator = GoldilocksField.zero
-        let coefficients = try coefficients(
+        let aggregation = try aggregateCoefficients(
             rows: primitiveRows,
             labelEncoding: labelEncoding,
+            observedTranscriptDigest: observedTranscriptDigest,
+            expectedTranscriptDigest: expectedTranscriptDigest,
             challengeDigest: challengeDigest,
+            batchContext: batchContext,
             metalHashBackend: metalHashBackend,
-            metalTimingLabel: metalTimingLabel
+            metalTimingLabel: metalTimingLabel,
+            retainCoefficients: retainCoefficients,
+            batchLaneCount: batchLaneCount
         )
-        for (index, row) in primitiveRows.enumerated() {
-            let coefficient = coefficients[index]
-            aggregateResidual = aggregateResidual + row.residual * coefficient
-            indexAccumulator = indexAccumulator + coefficient * GoldilocksField(UInt64(index + 1))
+        guard aggregation.batchResiduals.count == batchLaneCount else {
+            throw SuperNeoError.invalidParameter("terminal verifier AIR primitive batch residual lane count mismatch")
+        }
+        if retainCoefficients {
+            guard aggregation.coefficientsByLane.count == batchLaneCount,
+                  aggregation.coefficientsByLane.allSatisfy({ $0.count == primitiveRows.count }) else {
+                throw SuperNeoError.invalidParameter("terminal verifier AIR primitive batch coefficient lane count mismatch")
+            }
         }
         return SuperNeoTerminalVerifierAIRPrimitiveBatchSummary(
             rowCount: primitiveRows.count,
             observedTranscriptDigest: observedTranscriptDigest,
             expectedTranscriptDigest: expectedTranscriptDigest,
             challengeDigest: challengeDigest,
-            aggregateResidual: aggregateResidual,
-            indexAccumulator: indexAccumulator,
-            coefficients: coefficients
+            batchLaneCount: batchLaneCount,
+            batchResiduals: aggregation.batchResiduals,
+            indexAccumulator: aggregation.indexAccumulator,
+            coefficientsByLane: aggregation.coefficientsByLane
         )
+    }
+
+    static func validateSelectedBatchLaneCount(_ batchLaneCount: Int) throws {
+        guard batchLaneCount == selectedPrimitiveBatchLaneCount else {
+            throw SuperNeoError.invalidParameter(
+                "terminal verifier AIR primitive batch lane count must equal selectedPrimitiveBatchLaneCount = 4"
+            )
+        }
     }
 
     static func contextRoot(
@@ -1462,7 +1509,8 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         sourceDigest: Digest256,
         sourceByteCount: Int,
         publicInputDigest: Digest256,
-        compressionPolicyDigest: Digest256
+        compressionPolicyDigest: Digest256,
+        batchLaneCount: Int = Self.selectedPrimitiveBatchLaneCount
     ) -> Digest256 {
         Digest256.hash(
             Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-batch-context-root.v1".utf8)
@@ -1473,6 +1521,7 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
                 + spartanFRIEncodeCount(sourceByteCount)
                 + publicInputDigest.superNeoBytes
                 + compressionPolicyDigest.superNeoBytes
+                + spartanFRIEncodeCount(batchLaneCount)
                 + spartanFRIEncodeCount(rows.count)
                 + rows.enumerated().flatMap { index, row in
                     contextRowDigest(
@@ -1488,7 +1537,8 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
                         compressionPolicyDigest: compressionPolicyDigest,
                         terminalStatementDigest: .hash("SuperNeo-NuMetal.terminal-verifier-air.context-root.no-terminal-statement"),
                         foldProofDigest: .hash("SuperNeo-NuMetal.terminal-verifier-air.context-root.no-fold-proof"),
-                        ceOpeningProofDigest: .hash("SuperNeo-NuMetal.terminal-verifier-air.context-root.no-ce-opening")
+                        ceOpeningProofDigest: .hash("SuperNeo-NuMetal.terminal-verifier-air.context-root.no-ce-opening"),
+                        primitiveBatchLaneCount: batchLaneCount
                     ).superNeoBytes
                 }
         )
@@ -1507,7 +1557,8 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         compressionPolicyDigest: Digest256,
         terminalStatementDigest: Digest256,
         foldProofDigest: Digest256,
-        ceOpeningProofDigest: Digest256
+        ceOpeningProofDigest: Digest256,
+        primitiveBatchLaneCount: Int = Self.selectedPrimitiveBatchLaneCount
     ) -> Digest256 {
         Digest256.hash(
             Array("SuperNeo-NuMetal.terminal-verifier-air.primitive-row-context-binding.v1".utf8)
@@ -1525,6 +1576,7 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
                 + spartanFRIEncodeCount(sourceByteCount)
                 + publicInputDigest.superNeoBytes
                 + compressionPolicyDigest.superNeoBytes
+                + spartanFRIEncodeCount(primitiveBatchLaneCount)
                 + terminalStatementDigest.superNeoBytes
                 + foldProofDigest.superNeoBytes
                 + ceOpeningProofDigest.superNeoBytes
@@ -1537,11 +1589,13 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         index: Int,
         row: SuperNeoTerminalVerifierAIRConstraintRow,
         labelEncoding: [UInt8],
+        batchLaneCount: Int,
         observed: GoldilocksField
     ) {
         update(&hasher, primitiveRowDomain)
         update(&hasher, labelEncoding)
         updateCount(&hasher, rowCount)
+        updateCount(&hasher, batchLaneCount)
         updateCount(&hasher, index)
         update(&hasher, [row.kind.rawValue, row.provenance.rawValue])
         updateDigest(&hasher, row.labelDigest)
@@ -1554,12 +1608,14 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         rowCount: Int,
         labelEncoding: [UInt8],
         rows: [SuperNeoTerminalVerifierAIRConstraintRow],
+        batchLaneCount: Int,
         observedValue: (SuperNeoTerminalVerifierAIRConstraintRow) -> GoldilocksField
     ) -> Digest256 {
         Digest256.hashUpdating { hasher in
             update(&hasher, fullPrimitiveRowTranscriptDomain)
             update(&hasher, labelEncoding)
             updateCount(&hasher, rowCount)
+            updateCount(&hasher, batchLaneCount)
             for (index, row) in rows.enumerated() {
                 updateRowEncoding(
                     &hasher,
@@ -1567,6 +1623,7 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
                     index: index,
                     row: row,
                     labelEncoding: labelEncoding,
+                    batchLaneCount: batchLaneCount,
                     observed: observedValue(row)
                 )
             }
@@ -1599,48 +1656,134 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
         }
     }
 
+    private static func updateBatchContext(
+        _ hasher: inout SHA256,
+        _ context: SuperNeoTerminalVerifierAIRPrimitiveBatchContext?
+    ) {
+        guard let context else {
+            update(&hasher, [0])
+            update(&hasher, noBatchContextDomain)
+            return
+        }
+        update(&hasher, [1])
+        updateDigest(&hasher, context.terminalVerifierRelationDigest)
+        updateDigest(&hasher, context.recursiveRelationDigest)
+        updateDigest(&hasher, context.sourceDigest)
+        updateCount(&hasher, context.sourceByteCount)
+        updateDigest(&hasher, context.publicInputDigest)
+        updateDigest(&hasher, context.compressionPolicyDigest)
+    }
+
     private static func coefficient(
         row: SuperNeoTerminalVerifierAIRConstraintRow,
         labelEncoding: [UInt8],
+        laneIndex: Int,
         index: Int,
-        challengeDigest: Digest256
-    ) -> GoldilocksField {
-        let coinDigest = Digest256.hashUpdating { hasher in
-            update(&hasher, batchCoinDomain)
-            update(&hasher, labelEncoding)
-            updateDigest(&hasher, challengeDigest)
-            updateCount(&hasher, index)
-            update(&hasher, [row.kind.rawValue, row.provenance.rawValue])
-            updateDigest(&hasher, row.labelDigest)
-        }
-        let fields = spartanFRIDigestFields(coinDigest)
-        return fields[0] + GoldilocksField(UInt64(index + 1))
-    }
-
-    private static func coefficients(
-        rows: [SuperNeoTerminalVerifierAIRConstraintRow],
-        labelEncoding: [UInt8],
+        observedTranscriptDigest: Digest256,
+        expectedTranscriptDigest: Digest256,
         challengeDigest: Digest256,
-        metalHashBackend: SuperNeoMetalBackend?,
-        metalTimingLabel: String?
-    ) throws -> [GoldilocksField] {
-        guard let metalHashBackend, rows.count >= 512 else {
-            var coefficients: [GoldilocksField] = []
-            coefficients.reserveCapacity(rows.count)
-            for (index, row) in rows.enumerated() {
-                coefficients.append(coefficient(
+        batchContext: SuperNeoTerminalVerifierAIRPrimitiveBatchContext?,
+        startingCounter: UInt64 = 0
+    ) -> GoldilocksField {
+        var counter = startingCounter
+        while true {
+            let coinDigest = Digest256.hashUpdating { hasher in
+                updateCoefficientInput(
+                    &hasher,
                     row: row,
                     labelEncoding: labelEncoding,
+                    laneIndex: laneIndex,
                     index: index,
-                    challengeDigest: challengeDigest
-                ))
+                    counter: counter,
+                    observedTranscriptDigest: observedTranscriptDigest,
+                    expectedTranscriptDigest: expectedTranscriptDigest,
+                    challengeDigest: challengeDigest,
+                    batchContext: batchContext
+                )
             }
-            return coefficients
+            if let coefficient = coefficient(from: coinDigest) {
+                return coefficient
+            }
+            counter &+= 1
+        }
+    }
+
+    private struct CoefficientAggregation {
+        let batchResiduals: [GoldilocksField]
+        let indexAccumulator: GoldilocksField
+        let coefficientsByLane: [[GoldilocksField]]
+    }
+
+    private static func aggregateCoefficients(
+        rows: [SuperNeoTerminalVerifierAIRConstraintRow],
+        labelEncoding: [UInt8],
+        observedTranscriptDigest: Digest256,
+        expectedTranscriptDigest: Digest256,
+        challengeDigest: Digest256,
+        batchContext: SuperNeoTerminalVerifierAIRPrimitiveBatchContext?,
+        metalHashBackend: SuperNeoMetalBackend?,
+        metalTimingLabel: String?,
+        retainCoefficients: Bool,
+        batchLaneCount: Int
+    ) throws -> CoefficientAggregation {
+        var batchResiduals = Array(repeating: GoldilocksField.zero, count: batchLaneCount)
+        var indexAccumulator = GoldilocksField.zero
+        var coefficientsByLane = retainCoefficients
+            ? Array(repeating: [GoldilocksField](), count: batchLaneCount)
+            : []
+        if retainCoefficients {
+            for laneIndex in coefficientsByLane.indices {
+                coefficientsByLane[laneIndex].reserveCapacity(rows.count)
+            }
+        }
+        func appendCoefficient(
+            _ coefficient: GoldilocksField,
+            row: SuperNeoTerminalVerifierAIRConstraintRow,
+            laneIndex: Int,
+            index: Int
+        ) {
+            if retainCoefficients {
+                coefficientsByLane[laneIndex].append(coefficient)
+            }
+            batchResiduals[laneIndex] = batchResiduals[laneIndex] + row.residual * coefficient
+            indexAccumulator = indexAccumulator
+                + coefficient * GoldilocksField(UInt64(index + 1)) * GoldilocksField(UInt64(laneIndex + 1))
+        }
+
+        guard let metalHashBackend, rows.count >= 512 else {
+            for laneIndex in 0..<batchLaneCount {
+                for (index, row) in rows.enumerated() {
+                    appendCoefficient(
+                        coefficient(
+                            row: row,
+                            labelEncoding: labelEncoding,
+                            laneIndex: laneIndex,
+                            index: index,
+                            observedTranscriptDigest: observedTranscriptDigest,
+                            expectedTranscriptDigest: expectedTranscriptDigest,
+                            challengeDigest: challengeDigest,
+                            batchContext: batchContext
+                        ),
+                        row: row,
+                        laneIndex: laneIndex,
+                        index: index
+                    )
+                }
+            }
+            return CoefficientAggregation(
+                batchResiduals: batchResiduals,
+                indexAccumulator: indexAccumulator,
+                coefficientsByLane: coefficientsByLane
+            )
         }
         let flatBatch = try coefficientInputFlatBatch(
             rows: rows,
             labelEncoding: labelEncoding,
-            challengeDigest: challengeDigest
+            observedTranscriptDigest: observedTranscriptDigest,
+            expectedTranscriptDigest: expectedTranscriptDigest,
+            challengeDigest: challengeDigest,
+            batchContext: batchContext,
+            batchLaneCount: batchLaneCount
         )
         let coinDigests = try metalHashBackend.sha256Digest256PreframedFlatBatch(
             bytes: flatBatch.bytes,
@@ -1656,15 +1799,36 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
             )
         }
 #endif
-        guard coinDigests.count == rows.count else {
+        guard coinDigests.count == rows.count * batchLaneCount else {
             throw SuperNeoError.metalFailure("Metal primitive batch coefficient derivation returned wrong digest count")
         }
-        var coefficients: [GoldilocksField] = []
-        coefficients.reserveCapacity(rows.count)
-        for (index, coinDigest) in coinDigests.enumerated() {
-            coefficients.append(firstDigestField(coinDigest) + GoldilocksField(UInt64(index + 1)))
+        for laneIndex in 0..<batchLaneCount {
+            for (index, row) in rows.enumerated() {
+                let digestIndex = laneIndex * rows.count + index
+                let coefficient = Self.coefficient(from: coinDigests[digestIndex]) ?? Self.coefficient(
+                    row: row,
+                    labelEncoding: labelEncoding,
+                    laneIndex: laneIndex,
+                    index: index,
+                    observedTranscriptDigest: observedTranscriptDigest,
+                    expectedTranscriptDigest: expectedTranscriptDigest,
+                    challengeDigest: challengeDigest,
+                    batchContext: batchContext,
+                    startingCounter: 1
+                )
+                appendCoefficient(
+                    coefficient,
+                    row: row,
+                    laneIndex: laneIndex,
+                    index: index
+                )
+            }
         }
-        return coefficients
+        return CoefficientAggregation(
+            batchResiduals: batchResiduals,
+            indexAccumulator: indexAccumulator,
+            coefficientsByLane: coefficientsByLane
+        )
     }
 
     private struct CoefficientInputFlatBatch {
@@ -1676,52 +1840,142 @@ enum SuperNeoTerminalVerifierAIRPrimitiveBatch {
     private static func coefficientInputFlatBatch(
         rows: [SuperNeoTerminalVerifierAIRConstraintRow],
         labelEncoding: [UInt8],
-        challengeDigest: Digest256
+        observedTranscriptDigest: Digest256,
+        expectedTranscriptDigest: Digest256,
+        challengeDigest: Digest256,
+        batchContext: SuperNeoTerminalVerifierAIRPrimitiveBatchContext?,
+        batchLaneCount: Int
     ) throws -> CoefficientInputFlatBatch {
-        let inputLength = batchCoinDomain.count
-            + labelEncoding.count
-            + Digest256.byteCount
-            + MemoryLayout<UInt64>.size
-            + 2
-            + Digest256.byteCount
         var batch = CoefficientInputFlatBatch()
-        batch.bytes.reserveCapacity(inputLength * rows.count)
-        batch.offsets.reserveCapacity(rows.count)
-        batch.lengths.reserveCapacity(rows.count)
-        for (index, row) in rows.enumerated() {
-            guard let offset = UInt32(exactly: batch.bytes.count) else {
-                throw SuperNeoError.invalidParameter("primitive batch coefficient input offset exceeds UInt32")
+        batch.offsets.reserveCapacity(rows.count * batchLaneCount)
+        batch.lengths.reserveCapacity(rows.count * batchLaneCount)
+        for laneIndex in 0..<batchLaneCount {
+            for (index, row) in rows.enumerated() {
+                guard let offset = UInt32(exactly: batch.bytes.count) else {
+                    throw SuperNeoError.invalidParameter("primitive batch coefficient input offset exceeds UInt32")
+                }
+                batch.offsets.append(offset)
+                batch.bytes.append(contentsOf: coefficientInputBytes(
+                    row: row,
+                    labelEncoding: labelEncoding,
+                    laneIndex: laneIndex,
+                    index: index,
+                    counter: 0,
+                    observedTranscriptDigest: observedTranscriptDigest,
+                    expectedTranscriptDigest: expectedTranscriptDigest,
+                    challengeDigest: challengeDigest,
+                    batchContext: batchContext
+                ))
+                guard let length = UInt32(exactly: batch.bytes.count - Int(offset)) else {
+                    throw SuperNeoError.invalidParameter("primitive batch coefficient input length exceeds UInt32")
+                }
+                batch.lengths.append(length)
             }
-            batch.offsets.append(offset)
-            batch.bytes.append(contentsOf: batchCoinDomain)
-            batch.bytes.append(contentsOf: labelEncoding)
-            batch.bytes.append(contentsOf: challengeDigest.bytes)
-            appendCount(index, to: &batch.bytes)
-            batch.bytes.append(row.kind.rawValue)
-            batch.bytes.append(row.provenance.rawValue)
-            batch.bytes.append(contentsOf: row.labelDigest.bytes)
-            guard let length = UInt32(exactly: batch.bytes.count - Int(offset)) else {
-                throw SuperNeoError.invalidParameter("primitive batch coefficient input length exceeds UInt32")
-            }
-            batch.lengths.append(length)
         }
         return batch
     }
 
+    private static func updateCoefficientInput(
+        _ hasher: inout SHA256,
+        row: SuperNeoTerminalVerifierAIRConstraintRow,
+        labelEncoding: [UInt8],
+        laneIndex: Int,
+        index: Int,
+        counter: UInt64,
+        observedTranscriptDigest: Digest256,
+        expectedTranscriptDigest: Digest256,
+        challengeDigest: Digest256,
+        batchContext: SuperNeoTerminalVerifierAIRPrimitiveBatchContext?
+    ) {
+        update(&hasher, batchCoefficientDomain)
+        update(&hasher, labelEncoding)
+        updateDigest(&hasher, observedTranscriptDigest)
+        updateDigest(&hasher, expectedTranscriptDigest)
+        updateDigest(&hasher, challengeDigest)
+        updateBatchContext(&hasher, batchContext)
+        updateCount(&hasher, laneIndex)
+        updateCount(&hasher, index)
+        updateUInt64(&hasher, counter)
+        update(&hasher, [row.kind.rawValue, row.provenance.rawValue])
+        updateDigest(&hasher, row.labelDigest)
+    }
+
+    private static func coefficientInputBytes(
+        row: SuperNeoTerminalVerifierAIRConstraintRow,
+        labelEncoding: [UInt8],
+        laneIndex: Int,
+        index: Int,
+        counter: UInt64,
+        observedTranscriptDigest: Digest256,
+        expectedTranscriptDigest: Digest256,
+        challengeDigest: Digest256,
+        batchContext: SuperNeoTerminalVerifierAIRPrimitiveBatchContext?
+    ) -> [UInt8] {
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(256 + labelEncoding.count)
+        bytes.append(contentsOf: batchCoefficientDomain)
+        bytes.append(contentsOf: labelEncoding)
+        bytes.append(contentsOf: observedTranscriptDigest.bytes)
+        bytes.append(contentsOf: expectedTranscriptDigest.bytes)
+        bytes.append(contentsOf: challengeDigest.bytes)
+        appendBatchContext(batchContext, to: &bytes)
+        appendCount(laneIndex, to: &bytes)
+        appendCount(index, to: &bytes)
+        appendUInt64(counter, to: &bytes)
+        bytes.append(row.kind.rawValue)
+        bytes.append(row.provenance.rawValue)
+        bytes.append(contentsOf: row.labelDigest.bytes)
+        return bytes
+    }
+
+    private static func appendBatchContext(
+        _ context: SuperNeoTerminalVerifierAIRPrimitiveBatchContext?,
+        to bytes: inout [UInt8]
+    ) {
+        guard let context else {
+            bytes.append(0)
+            bytes.append(contentsOf: noBatchContextDomain)
+            return
+        }
+        bytes.append(1)
+        bytes.append(contentsOf: context.terminalVerifierRelationDigest.bytes)
+        bytes.append(contentsOf: context.recursiveRelationDigest.bytes)
+        bytes.append(contentsOf: context.sourceDigest.bytes)
+        appendCount(context.sourceByteCount, to: &bytes)
+        bytes.append(contentsOf: context.publicInputDigest.bytes)
+        bytes.append(contentsOf: context.compressionPolicyDigest.bytes)
+    }
+
     private static func appendCount(_ value: Int, to bytes: inout [UInt8]) {
-        var littleEndian = UInt64(value).littleEndian
+        appendUInt64(UInt64(value), to: &bytes)
+    }
+
+    private static func appendUInt64(_ value: UInt64, to bytes: inout [UInt8]) {
+        var littleEndian = value.littleEndian
         withUnsafeBytes(of: &littleEndian) { buffer in
             bytes.append(contentsOf: buffer)
         }
     }
 
-    private static func firstDigestField(_ digest: Digest256) -> GoldilocksField {
+    private static func updateUInt64(_ hasher: inout SHA256, _ value: UInt64) {
+        var littleEndian = value.littleEndian
+        withUnsafeBytes(of: &littleEndian) { rawBuffer in
+            hasher.update(bufferPointer: rawBuffer)
+        }
+    }
+
+    private static func coefficient(from digest: Digest256) -> GoldilocksField? {
         let bytes = digest.bytes
-        let value = UInt32(bytes[0])
-            | (UInt32(bytes[1]) << 8)
-            | (UInt32(bytes[2]) << 16)
-            | (UInt32(bytes[3]) << 24)
-        return GoldilocksField(UInt64(value))
+        let candidate = UInt64(bytes[0])
+            | (UInt64(bytes[1]) << 8)
+            | (UInt64(bytes[2]) << 16)
+            | (UInt64(bytes[3]) << 24)
+            | (UInt64(bytes[4]) << 32)
+            | (UInt64(bytes[5]) << 40)
+            | (UInt64(bytes[6]) << 48)
+            | (UInt64(bytes[7]) << 56)
+        guard candidate < GoldilocksField.modulus else { return nil }
+        return GoldilocksField(candidate)
     }
 }
 
@@ -1995,19 +2249,27 @@ public struct SuperNeoTerminalVerifierAIRSpec: Equatable, Sendable {
             foldProofDigest: sourceDigests.foldProofDigest,
             ceOpeningProofDigest: sourceDigests.ceOpeningProofDigest
         )
+        let primitiveBatchContext = terminalVerifierAIRPrimitiveBatchContext(
+            statement: statement,
+            publicInput: publicInput,
+            policyDigest: policyDigest,
+            policy: policy
+        )
 #if DEBUG
         let constraintMaterial = try superNeoDebugMeasure("primitive row emission") {
             try terminalVerifierAIRConstraintMaterialForSource(
                 publicInput: publicInput,
                 verifier: verifier,
-                decodedSource: decodedSource
+                decodedSource: decodedSource,
+                primitiveBatchContext: primitiveBatchContext
             )
         }
 #else
         let constraintMaterial = try terminalVerifierAIRConstraintMaterialForSource(
             publicInput: publicInput,
             verifier: verifier,
-            decodedSource: decodedSource
+            decodedSource: decodedSource,
+            primitiveBatchContext: primitiveBatchContext
         )
 #endif
         let publicCoinBindingDigest = terminalVerifierAIRPublicCoinBindingDigest(
@@ -2526,6 +2788,15 @@ public enum SuperNeoSpartanFRICompressor {
             policy: trustedPolicy
         )
         let compressionStatement = terminalAIRMaterial.statement
+        let pcsParameters = sourceFreePCSParameters(for: trustedPolicy)
+        let queryDomainSize = max(1, terminalAIRMaterial.paddedDomainSize / 2)
+        let minimumQueryCount = min(pcsParameters.minimumQueryCount, queryDomainSize)
+        guard queryCount >= minimumQueryCount else {
+            throw SuperNeoError.invalidParameter("Spartan/FRI compression query count below selected minimum")
+        }
+        guard queryCount <= queryDomainSize else {
+            throw SuperNeoError.invalidParameter("Spartan/FRI compression query count exceeds folded pair domain")
+        }
         let terminalVerifierPCSProof = try makeTerminalVerifierPCSProof(
             material: terminalAIRMaterial,
             policy: trustedPolicy,
@@ -2552,7 +2823,6 @@ public enum SuperNeoSpartanFRICompressor {
         let residual = spartanResidualVector(witness: trace, publicTrace: trace)
 #endif
         let claimedDegreeBound = trace.count
-        let pcsParameters = sourceFreePCSParameters(for: trustedPolicy)
         let blowupFactor = pcsParameters.blowupFactor
         let paddedDomainSize = spartanFRINextPowerOfTwo(trace.count * blowupFactor)
         let arithmetizationDigest = SuperNeoSpartanFRICompressionProof.arithmetizationDigest(
@@ -2563,14 +2833,6 @@ public enum SuperNeoSpartanFRICompressor {
             blowupFactor: blowupFactor,
             claimedDegreeBound: claimedDegreeBound
         )
-        let queryDomainSize = max(1, paddedDomainSize / 2)
-        let minimumQueryCount = min(pcsParameters.minimumQueryCount, queryDomainSize)
-        guard queryCount >= minimumQueryCount else {
-            throw SuperNeoError.invalidParameter("Spartan/FRI compression query count below selected minimum")
-        }
-        guard queryCount <= queryDomainSize else {
-            throw SuperNeoError.invalidParameter("Spartan/FRI compression query count exceeds folded pair domain")
-        }
         let witnessPCS = try makeFRIProof(
             vector: trace,
             paddedDomainSize: paddedDomainSize,
@@ -2835,6 +3097,16 @@ public enum SuperNeoSpartanFRICompressor {
         }
         guard Digest256.hash(sourceProofBytes) == proof.statement.sourceProofDigest else {
             return .invalid("Spartan/FRI compression source digest mismatch")
+        }
+        let inputStatement = CCSStatement(
+            shapeDigest: publicInput.shape.shapeDigest,
+            ccsInstances: publicInput.instances,
+            priorCEInstances: publicInput.priorClaims.map(CEInstance.init),
+            recursiveRelationDigest: publicInput.recursiveRelationDigest
+        )
+        guard proof.statement.statementDigest == inputStatement.statementDigest,
+              proof.statement.publicInputDigest == spartanFRIPublicInputDigest(publicInput) else {
+            return .invalid("Spartan/FRI compression source proof rejected: input statement digest mismatch")
         }
         let sourceVerification = SuperNeoVerifier(
             parameters: parameters,
@@ -4288,6 +4560,7 @@ private func terminalVerifierCompressionPolicyDigest(_ policy: SuperNeoTerminalP
             + policy.transcriptDomain.superNeoBytes
             + [kindPolicyByte]
             + [sourceFreePCSByte]
+            + spartanFRIEncodeCount(SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount)
             + (policy.maximumProofByteCount.map { [UInt8(1)] + spartanFRIEncodeCount($0) } ?? [UInt8(0)])
     )
 }
@@ -4347,6 +4620,43 @@ private func terminalVerifierAIRNoInnerCompressedDigest() -> Digest256 {
     Digest256.hash("SuperNeo-NuMetal.terminal-verifier-air.no-inner-compressed-proof.v1")
 }
 
+private func terminalVerifierAIRPrimitiveBatchContext(
+    statement: SuperNeoSpartanFRICompressionStatement,
+    publicInput: SuperNeoPublicFoldInput,
+    policyDigest: Digest256,
+    policy: SuperNeoTerminalProofAcceptancePolicy
+) -> SuperNeoTerminalVerifierAIRPrimitiveBatchContext {
+    let traceLength = terminalVerifierAIRCompactTraceLength()
+    let parameters = sourceFreePCSParameters(for: policy)
+    let paddedDomainSize = spartanFRINextPowerOfTwo(traceLength * parameters.blowupFactor)
+    let relationDigest = SuperNeoTerminalVerifierPCSProof.computeRelationDigest(
+        sourceProofKind: statement.sourceProofKind,
+        sourceProofByteCount: statement.sourceProofByteCount,
+        sourceProofDigest: statement.sourceProofDigest,
+        profileID: statement.profileID,
+        shapeDigest: statement.shapeDigest,
+        statementDigest: statement.statementDigest,
+        verifierKeyDigest: statement.verifierKeyDigest,
+        transcriptDomain: statement.transcriptDomain,
+        publicInputDigest: statement.publicInputDigest,
+        recursiveRelationDigest: publicInput.recursiveRelationDigest,
+        compressionPolicyDigest: policyDigest,
+        terminalStatementDigest: statement.terminalStatementDigest,
+        foldProofDigest: statement.foldProofDigest,
+        ceOpeningProofDigest: statement.ceOpeningProofDigest,
+        traceVectorLength: traceLength,
+        paddedDomainSize: paddedDomainSize
+    )
+    return SuperNeoTerminalVerifierAIRPrimitiveBatchContext(
+        terminalVerifierRelationDigest: relationDigest,
+        recursiveRelationDigest: terminalVerifierAIRRecursiveRelationDigest(publicInput.recursiveRelationDigest),
+        sourceDigest: statement.sourceProofDigest,
+        sourceByteCount: statement.sourceProofByteCount,
+        publicInputDigest: statement.publicInputDigest,
+        compressionPolicyDigest: policyDigest
+    )
+}
+
 private struct TerminalVerifierAIRConstraintMaterial {
     let piCCSRows: [SuperNeoTerminalVerifierAIRConstraintRow]
     let piRLCRows: [SuperNeoTerminalVerifierAIRConstraintRow]
@@ -4358,7 +4668,8 @@ private struct TerminalVerifierAIRConstraintMaterial {
 private func terminalVerifierAIRConstraintMaterialForSource(
     publicInput: SuperNeoPublicFoldInput,
     verifier: SuperNeoVerifier,
-    decodedSource: TerminalVerifierDecodedSource
+    decodedSource: TerminalVerifierDecodedSource,
+    primitiveBatchContext: SuperNeoTerminalVerifierAIRPrimitiveBatchContext?
 ) throws -> TerminalVerifierAIRConstraintMaterial {
     let innerCompressedRows = decodedSource.compressedEnvelope.map {
         terminalVerifierAIRInnerCompressedPrimitiveRows(envelope: $0)
@@ -4382,7 +4693,8 @@ private func terminalVerifierAIRConstraintMaterialForSource(
             key: verifier.key,
             parameters: verifier.parameters,
             metalWorkspace: ceMetalWorkspace,
-            executionPolicy: verifier.executionPolicy
+            executionPolicy: verifier.executionPolicy,
+            primitiveBatchContext: primitiveBatchContext
         )
     }
 #else
@@ -4399,7 +4711,8 @@ private func terminalVerifierAIRConstraintMaterialForSource(
         key: verifier.key,
         parameters: verifier.parameters,
         metalWorkspace: ceMetalWorkspace,
-        executionPolicy: verifier.executionPolicy
+        executionPolicy: verifier.executionPolicy,
+        primitiveBatchContext: primitiveBatchContext
     )
 #endif
     return TerminalVerifierAIRConstraintMaterial(
@@ -5229,7 +5542,8 @@ private struct TerminalVerifierAIRRowBindingContext {
             compressionPolicyDigest: compressionPolicyDigest,
             terminalStatementDigest: terminalStatementDigest,
             foldProofDigest: foldProofDigest,
-            ceOpeningProofDigest: ceOpeningProofDigest
+            ceOpeningProofDigest: ceOpeningProofDigest,
+            primitiveBatchLaneCount: SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount
         )
     }
 }

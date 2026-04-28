@@ -372,6 +372,14 @@ final class PaperImplementationTracksTests: XCTestCase {
         )
 
         XCTAssertEqual(
+            SuperNeoVerifier(key: prepared.key).verifyTerminalProofEnvelope(
+                publicInput: wrongPublicInput,
+                proofBytes: envelope.superNeoBytes,
+                policy: policy
+            ),
+            .invalid("input statement digest mismatch")
+        )
+        XCTAssertEqual(
             SuperNeoSNARKStyleCompressor.verifyCompressionProof(
                 compressionProof,
                 sourceProofBytes: envelope.superNeoBytes,

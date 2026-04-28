@@ -648,32 +648,101 @@ def ProductTerminalVerifierAIRPrimitiveLoweringAccepted
     ∧ lowering.aggregateResidualCoversEveryCommittedPrimitiveRow
     ∧ lowering.sampledPrimitiveRowsNotUsedAsSoundnessSubstitute
 
+def ProductPrimitiveBatchLaneCountSelected (laneCount : Nat) : Prop :=
+  laneCount = 4
+
+structure ProductTerminalAIRPrimitiveBatchMultiLane where
+  selectedPrimitiveBatchLaneCount : Nat
+  batchResidualLaneCount : Nat
+  selectedLaneCountPinned :
+    ProductPrimitiveBatchLaneCountSelected selectedPrimitiveBatchLaneCount
+  proofCarriesEveryLaneResidual : Prop
+  verifierRequiresEveryLaneResidualZero : Prop
+  noLaneIsAuditOnly : Prop
+  rowTranscriptBindsBatchLaneCount : Prop
+  challengeTranscriptBindsBatchLaneCount : Prop
+  airTraceBindsAllLaneResiduals : Prop
+  pcsFriBindsAllLaneResiduals : Prop
+
+def ProductTerminalAIRPrimitiveBatchMultiLaneAccepted
+    (multiLane : ProductTerminalAIRPrimitiveBatchMultiLane) : Prop :=
+  ProductPrimitiveBatchLaneCountSelected multiLane.selectedPrimitiveBatchLaneCount
+    ∧ multiLane.batchResidualLaneCount = multiLane.selectedPrimitiveBatchLaneCount
+    ∧ multiLane.proofCarriesEveryLaneResidual
+    ∧ multiLane.verifierRequiresEveryLaneResidualZero
+    ∧ multiLane.noLaneIsAuditOnly
+    ∧ multiLane.rowTranscriptBindsBatchLaneCount
+    ∧ multiLane.challengeTranscriptBindsBatchLaneCount
+    ∧ multiLane.airTraceBindsAllLaneResiduals
+    ∧ multiLane.pcsFriBindsAllLaneResiduals
+
+structure ProductPrimitiveBatchCancellationBound where
+  goldilocksModulus : Nat
+  batchContextCount : Nat
+  selectedPrimitiveBatchLaneCount : Nat
+  numerator : Nat
+  denominator : Nat
+  laneCountSelected :
+    ProductPrimitiveBatchLaneCountSelected selectedPrimitiveBatchLaneCount
+  numeratorIsBatchContextCount : numerator = batchContextCount
+  denominatorIsGoldilocksQPowSelectedLaneCount :
+    denominator = goldilocksModulus ^ selectedPrimitiveBatchLaneCount
+  cancellationEventBoundedByBatchContextCountOverQPowFour : Prop
+
+def ProductPrimitiveBatchCancellationBoundAccepted
+    (bound : ProductPrimitiveBatchCancellationBound) : Prop :=
+  bound.goldilocksModulus = 18446744069414584321
+    ∧ 0 < bound.batchContextCount
+    ∧ ProductPrimitiveBatchLaneCountSelected bound.selectedPrimitiveBatchLaneCount
+    ∧ bound.numerator = bound.batchContextCount
+    ∧ bound.denominator = bound.goldilocksModulus ^ bound.selectedPrimitiveBatchLaneCount
+    ∧ bound.denominator = bound.goldilocksModulus ^ 4
+    ∧ bound.cancellationEventBoundedByBatchContextCountOverQPowFour
+
 structure ProductTerminalVerifierAIRPrimitiveBatching where
   lowering : ProductTerminalVerifierAIRPrimitiveLowering
+  multiLane : ProductTerminalAIRPrimitiveBatchMultiLane
+  cancellationBound : ProductPrimitiveBatchCancellationBound
   everyPrimitiveRowCanonicallyEncoded : Prop
   fullPrimitiveRowTranscriptCommitted : Prop
   noOmittedRowsOrDuplicateRowIndices : Prop
   batchingChallengesDerivedAfterTranscriptCommitment : Prop
+  batchingCoefficientsRejectionSampledGoldilocksFieldElements : Prop
+  batchingBadEventBoundChargedOverGoldilocksFieldSize : Prop
+  batchingBadEventBoundChargedOverQFourthPower : Prop
   aggregateResidualCoversAllPrimitiveRows : Prop
+  aggregateResidualCoversAllPrimitiveRowsAndAllBatchLanes : Prop
   sampledRowsAreAuditOnly : Prop
   aggregateResidualBoundIntoPCSFRI : Prop
+  allLaneResidualsBoundIntoPCSFRI : Prop
   rowTranscriptBindsTerminalVerifierRelationDigest : Prop
   rowTranscriptBindsRecursiveRelationDigest : Prop
   rowTranscriptBindsSourceDigestAndByteCount : Prop
+  rowTranscriptBindsPrimitiveBatchLaneCount : Prop
+  proofBytesBindPrimitiveBatchLaneCount : Prop
 
 def ProductTerminalVerifierAIRPrimitiveBatchingAccepted
     (batching : ProductTerminalVerifierAIRPrimitiveBatching) : Prop :=
   ProductTerminalVerifierAIRPrimitiveLoweringAccepted batching.lowering
+    ∧ ProductTerminalAIRPrimitiveBatchMultiLaneAccepted batching.multiLane
+    ∧ ProductPrimitiveBatchCancellationBoundAccepted batching.cancellationBound
     ∧ batching.everyPrimitiveRowCanonicallyEncoded
     ∧ batching.fullPrimitiveRowTranscriptCommitted
     ∧ batching.noOmittedRowsOrDuplicateRowIndices
     ∧ batching.batchingChallengesDerivedAfterTranscriptCommitment
+    ∧ batching.batchingCoefficientsRejectionSampledGoldilocksFieldElements
+    ∧ batching.batchingBadEventBoundChargedOverGoldilocksFieldSize
+    ∧ batching.batchingBadEventBoundChargedOverQFourthPower
     ∧ batching.aggregateResidualCoversAllPrimitiveRows
+    ∧ batching.aggregateResidualCoversAllPrimitiveRowsAndAllBatchLanes
     ∧ batching.sampledRowsAreAuditOnly
     ∧ batching.aggregateResidualBoundIntoPCSFRI
+    ∧ batching.allLaneResidualsBoundIntoPCSFRI
     ∧ batching.rowTranscriptBindsTerminalVerifierRelationDigest
     ∧ batching.rowTranscriptBindsRecursiveRelationDigest
     ∧ batching.rowTranscriptBindsSourceDigestAndByteCount
+    ∧ batching.rowTranscriptBindsPrimitiveBatchLaneCount
+    ∧ batching.proofBytesBindPrimitiveBatchLaneCount
 
 structure ProductAIRRowsNoVerifierBooleanWrapping where
   lowering : ProductTerminalVerifierAIRPrimitiveLowering
@@ -1330,6 +1399,7 @@ structure ProductExactFiniteProbabilityWiring where
   qromTermSeparatedFromCollisionLedger : Prop
   sourceFoldRepeatedTapeExpressionExact : Prop
   terminalCE226ExpressionExact : Prop
+  primitiveBatchCancellationExpressionExact : Prop
   hbindCollisionExpressionExact : Prop
   selectedDepthBudgetComparisonUsesExactRationals : Prop
 
@@ -1345,6 +1415,7 @@ def ProductExactFiniteProbabilityWiringAccepted
     ∧ wiring.qromTermSeparatedFromCollisionLedger
     ∧ wiring.sourceFoldRepeatedTapeExpressionExact
     ∧ wiring.terminalCE226ExpressionExact
+    ∧ wiring.primitiveBatchCancellationExpressionExact
     ∧ wiring.hbindCollisionExpressionExact
     ∧ wiring.selectedDepthBudgetComparisonUsesExactRationals
 
@@ -1499,6 +1570,7 @@ structure ProductTotalLossBudget where
   exactArithmeticPinned : Prop
   qromLedgerTermMappingPinned : Prop
   extractorLedgerTermMappingPinned : Prop
+  primitiveBatchCancellationTermIncluded : Prop
   allRequiredTermsInstantiated : Prop
   missingRequiredTermSetEmpty : Prop
   selectedDepthLossWithinBudget : Prop
@@ -1511,6 +1583,7 @@ def ProductTotalLossBudgetAccepted
     ∧ budget.exactArithmeticPinned
     ∧ budget.qromLedgerTermMappingPinned
     ∧ budget.extractorLedgerTermMappingPinned
+    ∧ budget.primitiveBatchCancellationTermIncluded
     ∧ budget.allRequiredTermsInstantiated
     ∧ budget.missingRequiredTermSetEmpty
     ∧ budget.selectedDepthLossWithinBudget
@@ -2243,6 +2316,7 @@ theorem productSecurityTheorem_requires_total_loss_budget
     budget.exactArithmeticPinned
       ∧ budget.qromLedgerTermMappingPinned
       ∧ budget.extractorLedgerTermMappingPinned
+      ∧ budget.primitiveBatchCancellationTermIncluded
       ∧ budget.allRequiredTermsInstantiated
       ∧ budget.missingRequiredTermSetEmpty
       ∧ budget.selectedDepthLossWithinBudget
@@ -2253,11 +2327,12 @@ theorem productSecurityTheorem_requires_total_loss_budget
       hArithmetic,
       hQROM,
       hExtractor,
+      hPrimitiveBatch,
       hAll,
       hMissing,
       hWithin,
       hPromotion⟩
-  exact ⟨hArithmetic, hQROM, hExtractor, hAll, hMissing, hWithin, hPromotion⟩
+  exact ⟨hArithmetic, hQROM, hExtractor, hPrimitiveBatch, hAll, hMissing, hWithin, hPromotion⟩
 
 theorem productSecurityTheorem_requires_exact_finite_probability_wiring
     {wiring : ProductExactFiniteProbabilityWiring}
@@ -2272,6 +2347,7 @@ theorem productSecurityTheorem_requires_exact_finite_probability_wiring
       ∧ wiring.qromTermSeparatedFromCollisionLedger
       ∧ wiring.sourceFoldRepeatedTapeExpressionExact
       ∧ wiring.terminalCE226ExpressionExact
+      ∧ wiring.primitiveBatchCancellationExpressionExact
       ∧ wiring.hbindCollisionExpressionExact
       ∧ wiring.selectedDepthBudgetComparisonUsesExactRationals := by
   exact hWiring

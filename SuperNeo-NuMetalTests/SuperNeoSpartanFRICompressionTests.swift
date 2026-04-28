@@ -516,7 +516,20 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
 
         let base = SuperNeoTerminalVerifierAIRPrimitiveBatch.summarize(rows, label: "batch-test")
         XCTAssertEqual(base.rowCount, rows.count)
-        XCTAssertEqual(base.aggregateResidual, .zero)
+        XCTAssertEqual(
+            base.batchLaneCount,
+            SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount
+        )
+        XCTAssertEqual(
+            base.batchResiduals,
+            Array(
+                repeating: GoldilocksField.zero,
+                count: SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount
+            )
+        )
+        XCTAssertEqual(base.coefficientsByLane.count, SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount)
+        XCTAssertTrue(base.coefficientsByLane.allSatisfy { $0.count == rows.count })
+        XCTAssertNotEqual(base.coefficientsByLane[0][25], base.coefficientsByLane[1][25])
 
         let missing = SuperNeoTerminalVerifierAIRPrimitiveBatch.summarize(
             Array(rows.dropLast()),
@@ -546,8 +559,50 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
         )
         XCTAssertNotEqual(base.observedTranscriptDigest, mutated.observedTranscriptDigest)
         XCTAssertNotEqual(base.challengeDigest, mutated.challengeDigest)
-        XCTAssertNotEqual(base.coefficients[25], mutated.coefficients[25])
-        XCTAssertNotEqual(mutated.aggregateResidual, .zero)
+        XCTAssertTrue(zip(base.coefficientsByLane, mutated.coefficientsByLane).contains { pair in
+            pair.0[25] != pair.1[25]
+        })
+        XCTAssertTrue(mutated.batchResiduals.contains { $0 != .zero })
+
+        var unsampledMutationRows = rows
+        unsampledMutationRows[33] = SuperNeoTerminalVerifierAIRConstraintRow(
+            kind: .terminalCEOpening,
+            provenance: .primitiveArithmetic,
+            label: "batch-row-33",
+            observed: GoldilocksField(7_033),
+            expected: GoldilocksField(1_033)
+        )
+        let unsampledMutation = SuperNeoTerminalVerifierAIRPrimitiveBatch.summarize(
+            unsampledMutationRows,
+            label: "batch-test"
+        )
+        XCTAssertNotEqual(base.observedTranscriptDigest, unsampledMutation.observedTranscriptDigest)
+        XCTAssertNotEqual(base.challengeDigest, unsampledMutation.challengeDigest)
+        XCTAssertNotEqual(base.coefficientsByLane, unsampledMutation.coefficientsByLane)
+        XCTAssertTrue(unsampledMutation.batchResiduals.contains { $0 != .zero })
+        XCTAssertTrue(base.coefficientsByLane.flatMap { $0 }.contains { $0.rawValue > UInt64(UInt32.max) })
+    }
+
+    func testTerminalVerifierAIRPrimitiveBatchRequiresSelectedFourLanes() throws {
+        let rows = (0..<8).map { index in
+            SuperNeoTerminalVerifierAIRConstraintRow(
+                kind: .terminalCEOpening,
+                provenance: .primitiveArithmetic,
+                label: "lane-count-row-\(index)",
+                observed: GoldilocksField(UInt64(index + 1)),
+                expected: GoldilocksField(UInt64(index + 1))
+            )
+        }
+
+        XCTAssertEqual(SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount, 4)
+        for laneCount in [1, 2, 3, 5] {
+            XCTAssertThrowsError(try SuperNeoTerminalVerifierAIRPrimitiveBatch.summarizeAccelerated(
+                rows,
+                label: "lane-count-test",
+                metalHashBackend: nil,
+                batchLaneCount: laneCount
+            ))
+        }
     }
 
     func testMetalPrimitiveBatchCoefficientSummaryMatchesCPU() throws {
@@ -570,14 +625,31 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
                 expected: GoldilocksField(UInt64(10_000 + index * 7 + (index == 331 ? 1 : 0)))
             ))
         }
-        let cpu = SuperNeoTerminalVerifierAIRPrimitiveBatch.summarize(rows, label: "metal-batch-test")
+        let context = SuperNeoTerminalVerifierAIRPrimitiveBatchContext(
+            terminalVerifierRelationDigest: Digest256.hash("metal-batch-relation"),
+            recursiveRelationDigest: Digest256.hash("metal-batch-recursive"),
+            sourceDigest: Digest256.hash("metal-batch-source"),
+            sourceByteCount: 700,
+            publicInputDigest: Digest256.hash("metal-batch-public-input"),
+            compressionPolicyDigest: Digest256.hash("metal-batch-policy")
+        )
+        let cpu = try SuperNeoTerminalVerifierAIRPrimitiveBatch.summarizeAccelerated(
+            rows,
+            label: "metal-batch-test",
+            metalHashBackend: nil,
+            batchContext: context
+        )
         let metal = try SuperNeoTerminalVerifierAIRPrimitiveBatch.summarizeAccelerated(
             rows,
             label: "metal-batch-test",
-            metalHashBackend: backend
+            metalHashBackend: backend,
+            batchContext: context
         )
         XCTAssertEqual(metal, cpu)
-        XCTAssertNotEqual(metal.aggregateResidual, GoldilocksField.zero)
+        XCTAssertEqual(metal.batchLaneCount, 4)
+        XCTAssertEqual(metal.batchResiduals, cpu.batchResiduals)
+        XCTAssertEqual(metal.coefficientsByLane, cpu.coefficientsByLane)
+        XCTAssertTrue(metal.batchResiduals.contains { $0 != .zero })
     }
 
     func testTerminalVerifierAIRPrimitiveBatchBindsPublicContext() throws {
@@ -595,6 +667,14 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
         let source = Digest256.hash("batch-context-source")
         let publicInput = Digest256.hash("batch-context-public-input")
         let policy = Digest256.hash("batch-context-policy")
+        let context = SuperNeoTerminalVerifierAIRPrimitiveBatchContext(
+            terminalVerifierRelationDigest: relation,
+            recursiveRelationDigest: recursive,
+            sourceDigest: source,
+            sourceByteCount: 99,
+            publicInputDigest: publicInput,
+            compressionPolicyDigest: policy
+        )
         let root = SuperNeoTerminalVerifierAIRPrimitiveBatch.contextRoot(
             rows: rows,
             label: "context-test",
@@ -632,6 +712,101 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
         XCTAssertNotEqual(root, contextRoot(sourceByteCount: 100))
         XCTAssertNotEqual(root, contextRoot(publicInputDigest: Digest256.hash("batch-context-public-input-mutated")))
         XCTAssertNotEqual(root, contextRoot(policyDigest: Digest256.hash("batch-context-policy-mutated")))
+
+        let baseSummary = try SuperNeoTerminalVerifierAIRPrimitiveBatch.summarizeAccelerated(
+            rows,
+            label: "context-test",
+            metalHashBackend: nil,
+            batchContext: context
+        )
+        func makeSummary(
+            relationDigest: Digest256 = relation,
+            recursiveDigest: Digest256 = recursive,
+            sourceDigest: Digest256 = source,
+            sourceByteCount: Int = 99,
+            publicInputDigest: Digest256 = publicInput,
+            policyDigest: Digest256 = policy
+        ) throws -> SuperNeoTerminalVerifierAIRPrimitiveBatchSummary {
+            try SuperNeoTerminalVerifierAIRPrimitiveBatch.summarizeAccelerated(
+                rows,
+                label: "context-test",
+                metalHashBackend: nil,
+                batchContext: SuperNeoTerminalVerifierAIRPrimitiveBatchContext(
+                    terminalVerifierRelationDigest: relationDigest,
+                    recursiveRelationDigest: recursiveDigest,
+                    sourceDigest: sourceDigest,
+                    sourceByteCount: sourceByteCount,
+                    publicInputDigest: publicInputDigest,
+                    compressionPolicyDigest: policyDigest
+                )
+            )
+        }
+
+        XCTAssertNotEqual(
+            baseSummary.coefficientsByLane,
+            try makeSummary(relationDigest: Digest256.hash("batch-context-relation-mutated")).coefficientsByLane
+        )
+        XCTAssertNotEqual(
+            baseSummary.coefficientsByLane,
+            try makeSummary(recursiveDigest: Digest256.hash("batch-context-recursive-mutated")).coefficientsByLane
+        )
+        XCTAssertNotEqual(
+            baseSummary.coefficientsByLane,
+            try makeSummary(sourceDigest: Digest256.hash("batch-context-source-mutated")).coefficientsByLane
+        )
+        XCTAssertNotEqual(baseSummary.coefficientsByLane, try makeSummary(sourceByteCount: 100).coefficientsByLane)
+        XCTAssertNotEqual(
+            baseSummary.coefficientsByLane,
+            try makeSummary(publicInputDigest: Digest256.hash("batch-context-public-input-mutated")).coefficientsByLane
+        )
+        XCTAssertNotEqual(
+            baseSummary.coefficientsByLane,
+            try makeSummary(policyDigest: Digest256.hash("batch-context-policy-mutated")).coefficientsByLane
+        )
+    }
+
+    func testPrimitiveBatchCoefficientDerivationRejectsThirtyTwoBitShortcutsInSource() throws {
+        let testURL = URL(fileURLWithPath: #filePath)
+        let sourceURL = testURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("SuperNeo-NuMetal/ProofCompression/SuperNeoSpartanFRICompression.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        XCTAssertFalse(source.contains("firstDigestField"))
+
+        let coefficientStart = try XCTUnwrap(
+            source.range(of: "private static func coefficient(\n        row:")
+        )
+        let flatBatchStart = try XCTUnwrap(source.range(of: "private struct CoefficientInputFlatBatch"))
+        let derivationSource = String(source[coefficientStart.lowerBound..<flatBatchStart.lowerBound])
+        XCTAssertFalse(derivationSource.contains("UInt32"))
+        XCTAssertFalse(derivationSource.contains("prefix(4)"))
+        XCTAssertFalse(derivationSource.contains("spartanFRIDigestFields"))
+        XCTAssertFalse(derivationSource.contains("% GoldilocksField.modulus"))
+        XCTAssertTrue(derivationSource.contains("laneIndex"))
+        XCTAssertTrue(source.contains("static let selectedPrimitiveBatchLaneCount = 4"))
+        XCTAssertTrue(source.contains("spartanFRIEncodeCount(SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount)"))
+        XCTAssertTrue(source.contains("aggregation.batchResiduals.count == batchLaneCount"))
+        XCTAssertTrue(source.contains("aggregation.coefficientsByLane.count == batchLaneCount"))
+
+        let samplerStart = try XCTUnwrap(source.range(of: "private static func coefficient(from digest: Digest256)"))
+        let samplerEnd = try XCTUnwrap(source.range(of: "\n}\n\npublic struct SuperNeoTerminalVerifierAIRSpec"))
+        let samplerSource = String(source[samplerStart.lowerBound..<samplerEnd.lowerBound])
+        XCTAssertFalse(samplerSource.contains("UInt32"))
+        XCTAssertFalse(samplerSource.contains("prefix(4)"))
+        XCTAssertTrue(samplerSource.contains("bytes[7]"))
+        XCTAssertTrue(samplerSource.contains("candidate < GoldilocksField.modulus"))
+
+        let protocolURL = testURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("SuperNeo-NuMetal/Protocols/SuperNeoProtocols.swift")
+        let protocolSource = try String(contentsOf: protocolURL, encoding: .utf8)
+        XCTAssertTrue(protocolSource.contains("summary.batchResiduals.enumerated()"))
+        XCTAssertTrue(protocolSource.contains("primitive-batch-lane-count"))
+        XCTAssertTrue(protocolSource.contains("batched-primitive-residual-lane-\\(laneIndex)"))
+        XCTAssertTrue(protocolSource.contains("summary.batchResiduals.count == SuperNeoTerminalVerifierAIRPrimitiveBatch.selectedPrimitiveBatchLaneCount"))
+        XCTAssertTrue(protocolSource.contains("expected: .zero"))
     }
 
     func testTerminalVerifierAIRPrimitiveBatchRejectsShortcutProvenance() throws {
@@ -689,6 +864,99 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
         XCTAssertTrue(rows.piRLCRows.contains { $0.provenance == .publicCoinBinding && $0.residual != .zero })
         XCTAssertTrue(rows.piCCSRows.allSatisfy { $0.provenance != .friPCSVerifier })
         XCTAssertTrue(rows.piDECRows.allSatisfy { $0.provenance != .friPCSVerifier })
+    }
+
+    func testTerminalVerifierAIRPiRLCRejectsSelfConsistentRLCWithUnboundChallenge() throws {
+        let fixture = try makeFoldFixture()
+        let proof = try SuperNeoProver(key: fixture.key)
+            .foldWithOutput(fixture.input, transcriptSeed: fixture.seed)
+            .proof
+        var challenges = proof.randomLinearCombinationChallenges
+        challenges[0] = challenges[0] + CyclotomicRing54.one
+        let foldedClaim = try paperReferenceRandomLinearCombination(
+            claims: proof.piCCSClaims,
+            challenges: challenges
+        )
+        let tampered = replacing(
+            proof,
+            randomLinearCombinationChallenges: challenges,
+            foldedClaim: foldedClaim
+        )
+
+        let rows = try SuperNeoVerifier(key: fixture.key).terminalVerifierAIRPrimitiveRows(
+            publicInput: SuperNeoPublicFoldInput(fixture.input),
+            proof: tampered,
+            transcriptSeed: fixture.seed
+        )
+
+        XCTAssertTrue(rows.piRLCRows.contains {
+            $0.provenance == SuperNeoTerminalVerifierAIRRowProvenance.publicCoinBinding
+                && $0.residual != .zero
+        })
+        XCTAssertTrue(rows.piRLCRows
+            .filter { $0.provenance == SuperNeoTerminalVerifierAIRRowProvenance.primitiveArithmetic }
+            .allSatisfy { $0.residual == .zero })
+    }
+
+    func testTerminalVerifierAIRPiRLCRejectsPublicCoinContextMismatchWithUsedChallengeFixed() throws {
+        let fixture = try makeFoldFixture()
+        let proof = try SuperNeoProver(key: fixture.key)
+            .foldWithOutput(fixture.input, transcriptSeed: fixture.seed)
+            .proof
+
+        let rows = try SuperNeoVerifier(key: fixture.key).terminalVerifierAIRPrimitiveRows(
+            publicInput: SuperNeoPublicFoldInput(fixture.input),
+            proof: proof,
+            transcriptSeed: fixture.seed + Array("-wrong-pirlc-context".utf8)
+        )
+
+        XCTAssertTrue(rows.piRLCRows.contains {
+            $0.provenance == SuperNeoTerminalVerifierAIRRowProvenance.publicCoinBinding
+                && $0.residual != .zero
+        })
+        XCTAssertTrue(rows.piRLCRows
+            .filter { $0.provenance == SuperNeoTerminalVerifierAIRRowProvenance.primitiveArithmetic }
+            .allSatisfy { $0.residual == .zero })
+    }
+
+    func testTerminalVerifierAIRPiRLCRejectsChallengeReorderEvenWhenRLCIsRecomputed() throws {
+        let fixture = try makeFoldFixture()
+        let multiInput = SuperNeoFoldInput(
+            shape: fixture.input.shape,
+            instances: fixture.input.instances + fixture.input.instances,
+            witnesses: fixture.input.witnesses + fixture.input.witnesses
+        )
+        let proof = try SuperNeoProver(key: fixture.key)
+            .foldWithOutput(multiInput, transcriptSeed: fixture.seed)
+            .proof
+        XCTAssertGreaterThanOrEqual(proof.randomLinearCombinationChallenges.count, 2)
+        let reorderedChallenges = Array(proof.randomLinearCombinationChallenges.reversed())
+        if reorderedChallenges == proof.randomLinearCombinationChallenges {
+            throw XCTSkip("deterministic fixture sampled identical PiRLC challenges")
+        }
+        let foldedClaim = try paperReferenceRandomLinearCombination(
+            claims: proof.piCCSClaims,
+            challenges: reorderedChallenges
+        )
+        let tampered = replacing(
+            proof,
+            randomLinearCombinationChallenges: reorderedChallenges,
+            foldedClaim: foldedClaim
+        )
+
+        let rows = try SuperNeoVerifier(key: fixture.key).terminalVerifierAIRPrimitiveRows(
+            publicInput: SuperNeoPublicFoldInput(multiInput),
+            proof: tampered,
+            transcriptSeed: fixture.seed
+        )
+
+        XCTAssertTrue(rows.piRLCRows.contains {
+            $0.provenance == SuperNeoTerminalVerifierAIRRowProvenance.publicCoinBinding
+                && $0.residual != .zero
+        })
+        XCTAssertTrue(rows.piRLCRows
+            .filter { $0.provenance == SuperNeoTerminalVerifierAIRRowProvenance.primitiveArithmetic }
+            .allSatisfy { $0.residual == .zero })
     }
 
     func testSpartanFRICompressionRejectsBelowMinimumQueryCount() throws {
@@ -995,6 +1263,30 @@ final class SuperNeoSpartanFRICompressionTests: SuperNeoTestCase {
             verifierKey: fixture.verifierKey,
             policy: fixture.productionPolicy
         ).isValid, "production residual commitment mutation")
+
+        let mutatedRelationDigest = try mutateFirstOccurrence(
+            proofBytes: productionProof.superNeoBytes,
+            target: productionProof.terminalVerifierPCSProof.relationDigest.superNeoBytes,
+            label: "production terminal relation digest"
+        )
+        XCTAssertFalse(SuperNeoSpartanFRICompressor.verifyCompressionProof(
+            proofBytes: mutatedRelationDigest,
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.productionPolicy
+        ).isValid, "production relation digest mutation")
+
+        let mutatedPolicyDigest = try mutateFirstOccurrence(
+            proofBytes: productionProof.superNeoBytes,
+            target: productionProof.terminalVerifierPCSProof.compressionPolicyDigest.superNeoBytes,
+            label: "production compression policy digest"
+        )
+        XCTAssertFalse(SuperNeoSpartanFRICompressor.verifyCompressionProof(
+            proofBytes: mutatedPolicyDigest,
+            publicInput: fixture.publicInput,
+            verifierKey: fixture.verifierKey,
+            policy: fixture.productionPolicy
+        ).isValid, "production policy digest mutation")
 
         let wrongRecursiveInput = SuperNeoPublicFoldInput(
             shape: fixture.publicInput.shape,
