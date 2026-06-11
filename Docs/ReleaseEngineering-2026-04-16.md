@@ -11,21 +11,22 @@ Allowed for development, benchmarks, and integration demos. It must not claim
 production post-quantum security, production QROM security, whole-stack
 constant-time behavior, or independent cryptographic and implementation review.
 
-### Repository-Local Production-Security Promotion
+### Archived Repository-Local Production-Security Promotion
 
-Repository-local production-security promotion requires the full production gate
-and checked evidence set. It is still not a public deployment approval.
+Repository-local production-security promotion is no longer part of the default
+completion gate. Historical evidence validators remain in the repository, but
+production-security wording should not be promoted from the default build gate.
 
-Required command:
+Default completion command:
 
 ```sh
 Scripts/production-gate.sh
 ```
 
-Run it without `--skip-formal`. The full production gate must pass before any
-repository-local promotion wording. Release records must include artifact digest provenance.
+Release records must include artifact digest provenance when separate release
+evidence validation is intentionally run.
 
-## Required Evidence And Validators
+## Historical Evidence And Validators
 
 - `Scripts/validate-numiseal-conformance-scope.py`
 - `Scripts/test-numiseal-conformance-scope-validation.py`

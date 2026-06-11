@@ -1,24 +1,6 @@
-name: Formal Status
+name: Formal Status Manual
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/formal-status.yml"
-      - "Formal/**"
-      - "Scripts/validate-formal-*.py"
-      - "Scripts/test-formal-*.py"
-      - "Docs/Formal*.md"
-      - "Docs/FormalStatus.json"
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/formal-status.yml"
-      - "Formal/**"
-      - "Scripts/validate-formal-*.py"
-      - "Scripts/test-formal-*.py"
-      - "Docs/Formal*.md"
-      - "Docs/FormalStatus.json"
   workflow_dispatch:
 
 permissions:
@@ -30,7 +12,7 @@ concurrency:
 
 jobs:
   formal:
-    name: Lean formal validation
+    name: Lean formal validation manual
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

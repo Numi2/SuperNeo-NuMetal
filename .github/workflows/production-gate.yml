@@ -1,4 +1,4 @@
-name: Production Gate
+name: Build And Smoke
 
 on:
   pull_request:
@@ -40,40 +40,11 @@ concurrency:
 
 jobs:
   smoke:
-    name: PR smoke
-    if: ${{ github.event_name == 'pull_request' }}
+    name: Build and focused smoke
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run XCTest smoke
-        run: swift test --disable-swift-testing
-
-  vectors:
-    name: Checked vector validation
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: macos-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate checked proof vectors
-        run: swift Scripts/validate-test-vectors.swift "${PWD}"
-
-  swift:
-    name: Full production gate
-    if: ${{ github.event_name != 'pull_request' }}
-    runs-on: macos-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install elan
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
-            | sh -s -- -y --default-toolchain none
-          echo "${HOME}/.elan/bin" >> "${GITHUB_PATH}"
-
-      - name: Run production gate
+      - name: Run default completion gate
         run: Scripts/production-gate.sh

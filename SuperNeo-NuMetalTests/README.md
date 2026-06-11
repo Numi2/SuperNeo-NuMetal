@@ -63,3 +63,9 @@ swift test --disable-swift-testing --scratch-path /tmp/superneo-spm-build
 
 If a change crosses layers, run the smallest affected set first, then
 `Scripts/test-slice.sh all` before handing off.
+
+The default SwiftPM test target intentionally excludes archived research-gate
+suites that require long proof-compression, IVC/PCD, paper-track, or XMSS
+coverage. The supported `all` slice also avoids long proof-construction and
+product-surface gates; run those classes explicitly when changing their layer.
+The archived files remain in this directory as reference material.

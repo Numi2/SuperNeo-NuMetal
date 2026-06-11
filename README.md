@@ -100,10 +100,10 @@ Build the CLI:
 swift build --product superneo
 ```
 
-Run the Swift test suite:
+Run the default completion gate:
 
 ```sh
-swift test
+Scripts/production-gate.sh
 ```
 
 Create and verify a fold artifact:
@@ -259,19 +259,18 @@ Representative full-profile model rows:
 These ratios are measurement/model evidence for explicit optimized lanes. They
 do not silently change high-assurance product defaults.
 
-## Validation Gates
+## Validation
 
-Run the full repository-local release-candidate gate:
+Run the default build, focused smoke-test, and CLI prove/verify check:
 
 ```sh
 Scripts/production-gate.sh
 ```
 
-Run focused checks after README, docs, or evidence edits:
+Run focused optional checks after README, docs, or evidence edits:
 
 ```sh
 python3 Scripts/validate-doc-links.py
-python3 Scripts/validate-release-readiness-policy.py
 python3 Scripts/validate-product-ops-surface.py
 python3 Scripts/validate-benchmark-coverage.py
 python3 Scripts/validate-product-extractor-loss-accounting.py

@@ -82,7 +82,10 @@ covering:
 - `TestVectors/e2e-proof-metrics-v1.json`
 - `TestVectors/benchmark-coverage-v1.json`
 
-## Required Validators
+## Historical Required Validators
+
+These validators belong to the archived production-readiness evidence packet,
+not the default repository completion gate.
 
 - `Scripts/validate-release-readiness-policy.py`
 - `Scripts/validate-doc-links.py`

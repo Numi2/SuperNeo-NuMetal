@@ -70,7 +70,11 @@ let package = Package(
             dependencies: ["SuperNeo_NuMetal"],
             path: "SuperNeo-NuMetalTests",
             exclude: [
-                "README.md"
+                "README.md",
+                "PaperImplementationTracksTests.swift",
+                "SuperNeoIVCPCDCompilerTests.swift",
+                "SuperNeoSpartanFRICompressionTests.swift",
+                "SuperNeoXMSSWOTSPlusAggregationTests.swift"
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v5)

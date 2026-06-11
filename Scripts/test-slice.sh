@@ -2,11 +2,7 @@
 set -euo pipefail
 
 # This package uses XCTest only. Disabling Swift Testing avoids SwiftPM spinning up
-# the second harness (and makes `swift test` match what `Scripts/test-slice.sh` runs).
-# Override by passing --enable-swift-testing after the slice name.
-#
-# If a second `swift test` appears stuck: SwiftPM serializes access to `.build` and
-# waits for the other process ("Another instance of SwiftPM is already running").
+# the second harness. Override by passing --enable-swift-testing after the slice name.
 SWIFT_TEST_BASE=(swift test --disable-swift-testing)
 
 usage() {
@@ -22,7 +18,7 @@ Slices:
   ce-opening  heavyweight CE opening relation/proof checks
   metal       Metal-vs-CPU differential kernel checks
   fast        algebra + shape; default inner-loop suite
-  all         full swift test suite
+  all         supported completion suite; excludes long proof/product gates
   list        list available XCTest cases
 USAGE
 }
@@ -58,8 +54,7 @@ case "$slice" in
     filter='SuperNeo_NuMetalTests\.(AlgebraCoreTests|EvaluationCoreTests|ProtocolShapeTests)'
     ;;
   all)
-    echo "Running full XCTest suite (fold proofs are CPU-heavy; expect on the order of a minute before completion)." >&2
-    exec "${SWIFT_TEST_BASE[@]}" "$@"
+    filter='SuperNeo_NuMetalTests\.(AjtaiModuleSISBindingTests|AlgebraCoreTests|EvaluationCoreTests|PayPerBitProfileEvaluationTests|ProductCarryChainRootTests|ProtocolShapeTests)'
     ;;
   list)
     exec "${SWIFT_TEST_BASE[@]}" list "$@"

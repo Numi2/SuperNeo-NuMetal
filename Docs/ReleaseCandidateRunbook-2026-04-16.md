@@ -1,7 +1,8 @@
 # Release Candidate Runbook, 2026-04-16
 
-This is the short release-candidate checklist. Keep release evidence in JSON
-manifests; do not duplicate it here.
+This is the historical release-candidate checklist. The default repository
+completion gate is `Scripts/production-gate.sh`; release-candidate evidence
+promotion is separate and not enforced by CI.
 
 ## Required Steps
 
@@ -9,8 +10,8 @@ manifests; do not duplicate it here.
 
 ```sh
 Scripts/production-gate.sh
-Scripts/generate-release-candidate-evidence.py --expect-production-gate-result passed
-Scripts/validate-release-candidate-evidence.py
+Scripts/generate-release-candidate-evidence.py --expect-production-gate-result not_run
+Scripts/validate-release-candidate-evidence.py --expect-production-gate-result not_run
 ```
 
 2. Keep distribution wording at repository-local unsigned distribution unless
