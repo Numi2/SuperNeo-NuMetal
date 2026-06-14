@@ -168,6 +168,96 @@ def DFMSTh31LocalPurifiedMeasurementBound
       (DFMSOperatorCommutator localOracle localMeasurement)
     ≤ 8 * DFMSTh31LocalSqrtTerm n gammaX
 
+theorem dfmsTh31_exactFourierProjectorTerm_le_localSqrtTerm
+    (n gammaX : Nat) :
+    DFMSTh31ExactFourierProjectorTerm n gammaX ≤
+      DFMSTh31LocalSqrtTerm n gammaX := by
+  unfold DFMSTh31ExactFourierProjectorTerm DFMSTh31LocalSqrtTerm
+  apply Real.sqrt_le_sqrt
+  have hNonneg :
+      0 ≤
+        ((gammaX : ℝ) ^ 2) / (((2 : ℝ) ^ n) ^ 2) :=
+    div_nonneg (sq_nonneg _) (sq_nonneg _)
+  linarith
+
+theorem DFMSTh31FourierProjectorBound.of_exactNorm
+    (n gammaX : Nat)
+    (fourier matchProjector :
+      DFMSContinuousOperator (DFMSTh31LocalQueryBasis n))
+    (hExact :
+      DFMSTh31FourierProjectorExactNorm
+        n gammaX fourier matchProjector) :
+    DFMSTh31FourierProjectorBound
+      n gammaX fourier matchProjector := by
+  unfold DFMSTh31FourierProjectorExactNorm at hExact
+  unfold DFMSTh31FourierProjectorBound
+  rw [hExact]
+  exact dfmsTh31_exactFourierProjectorTerm_le_localSqrtTerm n gammaX
+
+theorem DFMSTh31LocalOracleProjectorBound.of_factorTwo
+    (n gammaX : Nat)
+    (fourier localOracle matchProjector :
+      DFMSContinuousOperator (DFMSTh31LocalQueryBasis n))
+    (hFactorTwo :
+      DFMSTh31LocalOracleProjectorFactorTwo
+        n fourier localOracle matchProjector)
+    (hFourier :
+      DFMSTh31FourierProjectorBound
+        n gammaX fourier matchProjector) :
+    DFMSTh31LocalOracleProjectorBound
+      n gammaX localOracle matchProjector := by
+  unfold DFMSTh31LocalOracleProjectorFactorTwo at hFactorTwo
+  unfold DFMSTh31FourierProjectorBound at hFourier
+  unfold DFMSTh31LocalOracleProjectorBound
+  linarith
+
+def DFMSTh31NoMatchProjectorReduction
+    (n : Nat)
+    (localOracle matchProjector noMatchProjector :
+      DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)) : Prop :=
+  DFMSOperatorNorm
+      (DFMSOperatorCommutator localOracle noMatchProjector)
+    ≤ DFMSOperatorNorm
+        (DFMSOperatorCommutator localOracle matchProjector)
+
+theorem DFMSTh31NoMatchProjectorBound.of_reduction
+    (n gammaX : Nat)
+    (localOracle matchProjector noMatchProjector :
+      DFMSContinuousOperator (DFMSTh31LocalQueryBasis n))
+    (hReduction :
+      DFMSTh31NoMatchProjectorReduction
+        n localOracle matchProjector noMatchProjector)
+    (hMatchBound :
+      DFMSTh31LocalOracleProjectorBound
+        n gammaX localOracle matchProjector) :
+    DFMSTh31NoMatchProjectorBound
+      n gammaX localOracle noMatchProjector := by
+  unfold DFMSTh31NoMatchProjectorReduction at hReduction
+  unfold DFMSTh31LocalOracleProjectorBound at hMatchBound
+  unfold DFMSTh31NoMatchProjectorBound
+  linarith
+
+theorem DFMSTh31LocalPurifiedMeasurementBound.of_reduction
+    (n gammaX : Nat)
+    (localOracle localMeasurement matchProjector noMatchProjector :
+      DFMSContinuousOperator (DFMSTh31LocalQueryBasis n))
+    (hReduction :
+      DFMSTh31PurifiedMeasurementReduction
+        n localOracle localMeasurement matchProjector noMatchProjector)
+    (hMatchBound :
+      DFMSTh31LocalOracleProjectorBound
+        n gammaX localOracle matchProjector)
+    (hNoMatchBound :
+      DFMSTh31NoMatchProjectorBound
+        n gammaX localOracle noMatchProjector) :
+    DFMSTh31LocalPurifiedMeasurementBound
+      n gammaX localOracle localMeasurement := by
+  unfold DFMSTh31PurifiedMeasurementReduction at hReduction
+  unfold DFMSTh31LocalOracleProjectorBound at hMatchBound
+  unfold DFMSTh31NoMatchProjectorBound at hNoMatchBound
+  unfold DFMSTh31LocalPurifiedMeasurementBound
+  linarith
+
 structure DFMSTh31OperatorModel
     (n : Nat)
     (X : Type) [Fintype X] [DecidableEq X] where
@@ -179,6 +269,24 @@ structure DFMSTh31OperatorModel
   purifiedMeasurementImplementsFirstMatchProjectors : Prop
   purifiedMeasurementImplementsFirstMatchProjectorsHolds :
     purifiedMeasurementImplementsFirstMatchProjectors
+
+def DFMSTh31GlobalBlockDiagonalReduction
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop) [DecidableRel R]
+    (operatorModel : DFMSTh31OperatorModel n X)
+    (localOracle localPurifiedMeasurement :
+      X → DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)) : Prop :=
+  (∀ x,
+      DFMSTh31LocalPurifiedMeasurementBound
+        n
+        (DFMSTh31GammaX R x)
+        (localOracle x)
+        (localPurifiedMeasurement x)) →
+    DFMSTh31CommutatorBound
+      R
+      operatorModel.oracleQuery
+      operatorModel.purifiedMeasurement
 
 structure DFMSTh31AnalyticProof
     (n : Nat)
@@ -214,13 +322,6 @@ structure DFMSTh31AnalyticProof
         (DFMSTh31GammaX R x)
         (localFourier x)
         (localMatchProjector x)
-  fourierProjectorBound :
-    ∀ x,
-      DFMSTh31FourierProjectorBound
-        n
-        (DFMSTh31GammaX R x)
-        (localFourier x)
-        (localMatchProjector x)
   localOracleProjectorFactorTwo :
     ∀ x,
       DFMSTh31LocalOracleProjectorFactorTwo
@@ -228,19 +329,12 @@ structure DFMSTh31AnalyticProof
         (localFourier x)
         (localOracle x)
         (localMatchProjector x)
-  localOracleProjectorBound :
+  noMatchProjectorReduction :
     ∀ x,
-      DFMSTh31LocalOracleProjectorBound
+      DFMSTh31NoMatchProjectorReduction
         n
-        (DFMSTh31GammaX R x)
         (localOracle x)
         (localMatchProjector x)
-  noMatchProjectorBound :
-    ∀ x,
-      DFMSTh31NoMatchProjectorBound
-        n
-        (DFMSTh31GammaX R x)
-        (localOracle x)
         (localNoMatchProjector x)
   purifiedMeasurementReduction :
     ∀ x,
@@ -250,18 +344,12 @@ structure DFMSTh31AnalyticProof
         (localPurifiedMeasurement x)
         (localMatchProjector x)
         (localNoMatchProjector x)
-  localPurifiedMeasurementBound :
-    ∀ x,
-      DFMSTh31LocalPurifiedMeasurementBound
-        n
-        (DFMSTh31GammaX R x)
-        (localOracle x)
-        (localPurifiedMeasurement x)
-  globalBlockDiagonalMaxStep :
-    DFMSTh31CommutatorBound
+  globalBlockDiagonalReduction :
+    DFMSTh31GlobalBlockDiagonalReduction
       R
-      operatorModel.oracleQuery
-      operatorModel.purifiedMeasurement
+      operatorModel
+      localOracle
+      localPurifiedMeasurement
 
 def DFMSTh31OperatorModelAccepted
     {n : Nat}
@@ -318,6 +406,12 @@ def DFMSTh31AnalyticProofAccepted
         (analytic.localOracle x)
         (analytic.localMatchProjector x))
     ∧ (∀ x,
+      DFMSTh31NoMatchProjectorReduction
+        n
+        (analytic.localOracle x)
+        (analytic.localMatchProjector x)
+        (analytic.localNoMatchProjector x))
+    ∧ (∀ x,
       DFMSTh31NoMatchProjectorBound
         n
         (DFMSTh31GammaX R x)
@@ -336,10 +430,112 @@ def DFMSTh31AnalyticProofAccepted
         (DFMSTh31GammaX R x)
         (analytic.localOracle x)
         (analytic.localPurifiedMeasurement x))
+    ∧ DFMSTh31GlobalBlockDiagonalReduction
+      R
+      operatorModel
+      analytic.localOracle
+      analytic.localPurifiedMeasurement
     ∧ DFMSTh31CommutatorBound
       R
       operatorModel.oracleQuery
       operatorModel.purifiedMeasurement
+
+theorem DFMSTh31AnalyticProof.fourierProjectorBound
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (x : X) :
+    DFMSTh31FourierProjectorBound
+      n
+      (DFMSTh31GammaX R x)
+      (analytic.localFourier x)
+      (analytic.localMatchProjector x) :=
+  DFMSTh31FourierProjectorBound.of_exactNorm
+    n
+    (DFMSTh31GammaX R x)
+    (analytic.localFourier x)
+    (analytic.localMatchProjector x)
+    (analytic.fourierProjectorExactNorm x)
+
+theorem DFMSTh31AnalyticProof.localOracleProjectorBound
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (x : X) :
+    DFMSTh31LocalOracleProjectorBound
+      n
+      (DFMSTh31GammaX R x)
+      (analytic.localOracle x)
+      (analytic.localMatchProjector x) :=
+  DFMSTh31LocalOracleProjectorBound.of_factorTwo
+    n
+    (DFMSTh31GammaX R x)
+    (analytic.localFourier x)
+    (analytic.localOracle x)
+    (analytic.localMatchProjector x)
+    (analytic.localOracleProjectorFactorTwo x)
+    (analytic.fourierProjectorBound x)
+
+theorem DFMSTh31AnalyticProof.noMatchProjectorBound
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (x : X) :
+    DFMSTh31NoMatchProjectorBound
+      n
+      (DFMSTh31GammaX R x)
+      (analytic.localOracle x)
+      (analytic.localNoMatchProjector x) :=
+  DFMSTh31NoMatchProjectorBound.of_reduction
+    n
+    (DFMSTh31GammaX R x)
+    (analytic.localOracle x)
+    (analytic.localMatchProjector x)
+    (analytic.localNoMatchProjector x)
+    (analytic.noMatchProjectorReduction x)
+    (analytic.localOracleProjectorBound x)
+
+theorem DFMSTh31AnalyticProof.localPurifiedMeasurementBound
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (x : X) :
+    DFMSTh31LocalPurifiedMeasurementBound
+      n
+      (DFMSTh31GammaX R x)
+      (analytic.localOracle x)
+      (analytic.localPurifiedMeasurement x) :=
+  DFMSTh31LocalPurifiedMeasurementBound.of_reduction
+    n
+    (DFMSTh31GammaX R x)
+    (analytic.localOracle x)
+    (analytic.localPurifiedMeasurement x)
+    (analytic.localMatchProjector x)
+    (analytic.localNoMatchProjector x)
+    (analytic.purifiedMeasurementReduction x)
+    (analytic.localOracleProjectorBound x)
+    (analytic.noMatchProjectorBound x)
+
+theorem DFMSTh31AnalyticProof.globalCommutatorBound
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel) :
+    DFMSTh31CommutatorBound
+      R
+      operatorModel.oracleQuery
+      operatorModel.purifiedMeasurement :=
+  analytic.globalBlockDiagonalReduction
+    (fun x => analytic.localPurifiedMeasurementBound x)
 
 theorem DFMSTh31AnalyticProof.accepted
     {n : Nat}
@@ -354,10 +550,12 @@ theorem DFMSTh31AnalyticProof.accepted
     analytic.fourierProjectorBound,
     analytic.localOracleProjectorFactorTwo,
     analytic.localOracleProjectorBound,
+    analytic.noMatchProjectorReduction,
     analytic.noMatchProjectorBound,
     analytic.purifiedMeasurementReduction,
     analytic.localPurifiedMeasurementBound,
-    analytic.globalBlockDiagonalMaxStep⟩
+    analytic.globalBlockDiagonalReduction,
+    analytic.globalCommutatorBound⟩
 
 structure DFMSTh31CommutatorTheorem
     (n : Nat)
@@ -387,7 +585,7 @@ theorem DFMSTh31CommutatorTheorem.accepted
     DFMSTh31CommutatorTheoremAccepted theoremRecord :=
   ⟨theoremRecord.operatorModel.accepted,
     theoremRecord.analyticProof.accepted,
-    theoremRecord.analyticProof.globalBlockDiagonalMaxStep⟩
+    theoremRecord.analyticProof.globalCommutatorBound⟩
 
 structure DFMSTh31ExactEvidence where
   n : Nat
