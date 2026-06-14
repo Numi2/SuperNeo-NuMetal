@@ -3165,12 +3165,29 @@ structure ProductPublicCoinTranscriptSchedule where
   domainSeparationBindingPinned : Prop
   proofKindSeparationBindingPinned : Prop
   numericQuantumQueryBoundsInstantiated : Prop
-  transcriptScheduleTheoremApplies : Prop
 
 def ProductWellFormedTranscriptScheduleTheorem : Prop :=
   Function.Injective
     (fun transcript : WellFormedTranscript =>
       transcriptBytes transcript.state)
+
+structure ProductTranscriptScheduleTheorem where
+  wellFormedTranscriptBytesInjective :
+    ProductWellFormedTranscriptScheduleTheorem
+
+def ProductTranscriptScheduleTheoremAccepted
+    (_theoremRecord : ProductTranscriptScheduleTheorem) : Prop :=
+  ProductWellFormedTranscriptScheduleTheorem
+
+theorem ProductTranscriptScheduleTheorem.accepted
+    (theoremRecord : ProductTranscriptScheduleTheorem) :
+    ProductTranscriptScheduleTheoremAccepted theoremRecord :=
+  theoremRecord.wellFormedTranscriptBytesInjective
+
+def ProductTranscriptScheduleTheorem.ofLeanProof :
+    ProductTranscriptScheduleTheorem where
+  wellFormedTranscriptBytesInjective :=
+    wellFormedTranscript_bytes_injective
 
 def ProductPublicCoinTranscriptScheduleAccepted
     (schedule : ProductPublicCoinTranscriptSchedule) : Prop :=
@@ -3185,7 +3202,8 @@ def ProductPublicCoinTranscriptScheduleAccepted
     ∧ schedule.domainSeparationBindingPinned
     ∧ schedule.proofKindSeparationBindingPinned
     ∧ schedule.numericQuantumQueryBoundsInstantiated
-    ∧ schedule.transcriptScheduleTheoremApplies
+    ∧ ProductTranscriptScheduleTheoremAccepted
+      ProductTranscriptScheduleTheorem.ofLeanProof
 
 def ProductPublicCoinTranscriptSchedule.ofInstantiatedQROM
     (evidence : ProductInstantiatedQROMEvidence)
@@ -3212,8 +3230,6 @@ def ProductPublicCoinTranscriptSchedule.ofInstantiatedQROM
     evidence.hashInstantiation.proofKindBytesInjective
   numericQuantumQueryBoundsInstantiated :=
     ProductQROMCollisionBoundAccepted evidence.collisionBound
-  transcriptScheduleTheoremApplies :=
-    ProductWellFormedTranscriptScheduleTheorem
 
 theorem productPublicCoinTranscriptScheduleAccepted_of_instantiatedQROM
     {evidence : ProductInstantiatedQROMEvidence}
@@ -3296,7 +3312,7 @@ structure ProductPublicCoinTransformPreconditions where
   transcriptScheduleAccepted : Prop
   underlyingInteractiveSecurityBoundInstantiated : Prop
   quantumOracleQueryBoundInstantiated : Prop
-  qromReductionLossInstantiated : Prop
+  qromReductionLossBound : ProductNumericLossTerm
 
 def ProductPublicCoinTransformPreconditionsAccepted
     (preconditions : ProductPublicCoinTransformPreconditions) : Prop :=
@@ -3311,14 +3327,13 @@ def ProductPublicCoinTransformPreconditionsAccepted
     ∧ preconditions.transcriptScheduleAccepted
     ∧ preconditions.underlyingInteractiveSecurityBoundInstantiated
     ∧ preconditions.quantumOracleQueryBoundInstantiated
-    ∧ preconditions.qromReductionLossInstantiated
+    ∧ ProductNumericLossTermAccepted preconditions.qromReductionLossBound
 
 def ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
     (evidence : ProductInstantiatedQROMEvidence)
     (schedule : ProductPublicCoinTranscriptSchedule)
     (theoremFamilyPinned : Prop)
-    (challengeSpaceAndUniformityPinned : Prop)
-    (qromReductionLossInstantiated : Prop) :
+    (challengeSpaceAndUniformityPinned : Prop) :
     ProductPublicCoinTransformPreconditions where
   selectedDepth := 3
   selectedDepthPositive := show 0 < 3 by decide
@@ -3338,7 +3353,7 @@ def ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
     ProductInteractiveSecurityBoundsAccepted evidence.interactiveBounds
   quantumOracleQueryBoundInstantiated :=
     ProductQROMCollisionBoundAccepted evidence.collisionBound
-  qromReductionLossInstantiated := qromReductionLossInstantiated
+  qromReductionLossBound := evidence.totalLoss.qromLossBound
 
 theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
     {evidence : ProductInstantiatedQROMEvidence}
@@ -3347,17 +3362,14 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
     (hSchedule : ProductPublicCoinTranscriptScheduleAccepted schedule)
     {theoremFamilyPinned : Prop}
     {challengeSpaceAndUniformityPinned : Prop}
-    {qromReductionLossInstantiated : Prop}
     (hFamily : theoremFamilyPinned)
-    (hUniformity : challengeSpaceAndUniformityPinned)
-    (hReductionLoss : qromReductionLossInstantiated) :
+    (hUniformity : challengeSpaceAndUniformityPinned) :
     ProductPublicCoinTransformPreconditionsAccepted
       (ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
         evidence
         schedule
         theoremFamilyPinned
-        challengeSpaceAndUniformityPinned
-        qromReductionLossInstantiated) := by
+        challengeSpaceAndUniformityPinned) := by
   rcases hEvidence with
     ⟨hHash,
       hProtocols,
@@ -3370,7 +3382,7 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
       hInteractive,
       _,
       _,
-      _⟩
+      hTotalLoss⟩
   have hScheduleAccepted :
       ProductPublicCoinTranscriptScheduleAccepted schedule :=
     hSchedule
@@ -3428,7 +3440,7 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
       hScheduleAccepted,
       hInteractive,
       hCollision,
-      hReductionLoss⟩
+      hTotalLoss.1⟩
 
 structure ProductQROMInteractiveReduction where
   selectedDepth : Nat
@@ -3441,7 +3453,7 @@ structure ProductQROMInteractiveReduction where
   challengeUniformityProofPinned : Prop
   quantumQueryPolicyBoundPinned : Prop
   dfm20LossFormulaPinned : Prop
-  numericSelectedLossInstantiated : Prop
+  numericSelectedLossBound : ProductNumericLossTerm
   underlyingInteractiveSecurityInstantiated : Prop
   totalLossBudgetInterfacePinned : Prop
 
@@ -3457,7 +3469,7 @@ def ProductQROMInteractiveReductionAccepted
     ∧ reduction.challengeUniformityProofPinned
     ∧ reduction.quantumQueryPolicyBoundPinned
     ∧ reduction.dfm20LossFormulaPinned
-    ∧ reduction.numericSelectedLossInstantiated
+    ∧ ProductNumericLossTermAccepted reduction.numericSelectedLossBound
     ∧ reduction.underlyingInteractiveSecurityInstantiated
     ∧ reduction.totalLossBudgetInterfacePinned
 
@@ -3465,7 +3477,6 @@ def ProductQROMInteractiveReduction.ofTransformPreconditions
     (preconditions : ProductPublicCoinTransformPreconditions)
     (challengeCountFormulasPinned : Prop)
     (dfm20LossFormulaPinned : Prop)
-    (numericSelectedLossInstantiated : Prop)
     (totalLossBudgetInterfacePinned : Prop) :
     ProductQROMInteractiveReduction where
   selectedDepth := 3
@@ -3484,7 +3495,7 @@ def ProductQROMInteractiveReduction.ofTransformPreconditions
   quantumQueryPolicyBoundPinned :=
     preconditions.quantumOracleQueryBoundInstantiated
   dfm20LossFormulaPinned := dfm20LossFormulaPinned
-  numericSelectedLossInstantiated := numericSelectedLossInstantiated
+  numericSelectedLossBound := preconditions.qromReductionLossBound
   underlyingInteractiveSecurityInstantiated :=
     preconditions.underlyingInteractiveSecurityBoundInstantiated
   totalLossBudgetInterfacePinned := totalLossBudgetInterfacePinned
@@ -3495,18 +3506,15 @@ theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
       ProductPublicCoinTransformPreconditionsAccepted preconditions)
     {challengeCountFormulasPinned : Prop}
     {dfm20LossFormulaPinned : Prop}
-    {numericSelectedLossInstantiated : Prop}
     {totalLossBudgetInterfacePinned : Prop}
     (hChallengeCounts : challengeCountFormulasPinned)
     (hDFM20Formula : dfm20LossFormulaPinned)
-    (hNumericLoss : numericSelectedLossInstantiated)
     (hBudgetInterface : totalLossBudgetInterfacePinned) :
     ProductQROMInteractiveReductionAccepted
       (ProductQROMInteractiveReduction.ofTransformPreconditions
         preconditions
         challengeCountFormulasPinned
         dfm20LossFormulaPinned
-        numericSelectedLossInstantiated
         totalLossBudgetInterfacePinned) := by
   rcases hPreconditions with
     ⟨_,
@@ -3520,7 +3528,7 @@ theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
       _,
       hInteractive,
       hQueries,
-      _⟩
+      hReductionLoss⟩
   exact
     ⟨rfl,
       show 0 < 3 by decide,
@@ -3532,7 +3540,7 @@ theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
       hUniformity,
       hQueries,
       hDFM20Formula,
-      hNumericLoss,
+      hReductionLoss,
       hInteractive,
       hBudgetInterface⟩
 
@@ -3544,6 +3552,8 @@ structure ProductQROMReductionTheorem where
   oracleModelAssumptions : ProductQROMOracleModelAssumptions
   interactiveReduction : ProductQROMInteractiveReduction
   reductionLossBound : ProductNumericLossTerm
+  reductionLossBound_eq :
+    reductionLossBound = interactiveReduction.numericSelectedLossBound
   transcriptScheduleAccepted :
     ProductPublicCoinTranscriptScheduleAccepted transcriptSchedule
   transformPreconditionsAccepted :
@@ -3572,6 +3582,8 @@ def ProductQROMReductionTheoremAccepted
       theoremRecord.oracleModelAssumptions
     ∧ ProductQROMInteractiveReductionAccepted
       theoremRecord.interactiveReduction
+    ∧ theoremRecord.reductionLossBound =
+      theoremRecord.interactiveReduction.numericSelectedLossBound
     ∧ ProductNumericLossTermAccepted theoremRecord.reductionLossBound
 
 theorem ProductQROMReductionTheorem.accepted
@@ -3583,6 +3595,7 @@ theorem ProductQROMReductionTheorem.accepted
     theoremRecord.exactFiniteProbabilityWiringAccepted,
     theoremRecord.oracleModelAssumptionsAccepted,
     theoremRecord.interactiveReductionAccepted,
+    theoremRecord.reductionLossBound_eq,
     theoremRecord.reductionLossBoundAccepted⟩
 
 structure ProductPublicCoinLossAccounting where
@@ -4098,37 +4111,80 @@ theorem productTotalLossBudgetAccepted_of_components
       hClosure⟩
 
 structure ProductLatticeParameterBounds where
-  qRingDimensionAndNormBound : Prop
-  decompositionAndChallengeParameterBounds : Prop
-  normGrowthAcrossFoldAndNumiSealBound : Prop
+  qRingDimension : Nat
+  qRingDimensionPositive : 0 < qRingDimension
+  modulusBits : Nat
+  modulusBitsPositive : 0 < modulusBits
+  messageNormBound : Nat
+  decompositionBase : Nat
+  decompositionBaseLargeEnough : 2 ≤ decompositionBase
+  decompositionLength : Nat
+  decompositionLengthPositive : 0 < decompositionLength
+  challengeNormBound : Nat
+  foldAndNumiSealStepCount : Nat
+  normGrowthBound : Nat
+  normGrowthBudget : Nat
+  normGrowthWithinBudget : normGrowthBound ≤ normGrowthBudget
 
 def ProductLatticeParameterBoundsAccepted
     (bounds : ProductLatticeParameterBounds) : Prop :=
-  bounds.qRingDimensionAndNormBound
-    ∧ bounds.decompositionAndChallengeParameterBounds
-    ∧ bounds.normGrowthAcrossFoldAndNumiSealBound
+  0 < bounds.qRingDimension
+    ∧ 0 < bounds.modulusBits
+    ∧ 2 ≤ bounds.decompositionBase
+    ∧ 0 < bounds.decompositionLength
+    ∧ bounds.normGrowthBound ≤ bounds.normGrowthBudget
+
+theorem ProductLatticeParameterBounds.accepted
+    (bounds : ProductLatticeParameterBounds) :
+    ProductLatticeParameterBoundsAccepted bounds :=
+  ⟨bounds.qRingDimensionPositive,
+    bounds.modulusBitsPositive,
+    bounds.decompositionBaseLargeEnough,
+    bounds.decompositionLengthPositive,
+    bounds.normGrowthWithinBudget⟩
 
 structure ProductLatticeReductionLossBounds where
-  reductionLossBoundInstantiated : Prop
-  reductionLossBoundIncludedInProductLedger : Prop
+  reductionLoss : ProductNumericLossTerm
+  ledgerTerm : ProductTotalLossTermKind
+  ledgerTermCovered : ledgerTerm ∈ ProductTotalLossRequiredTerms
 
 def ProductLatticeReductionLossBoundsAccepted
     (bounds : ProductLatticeReductionLossBounds) : Prop :=
-  bounds.reductionLossBoundInstantiated
-    ∧ bounds.reductionLossBoundIncludedInProductLedger
+  ProductNumericLossTermAccepted bounds.reductionLoss
+    ∧ bounds.ledgerTerm ∈ ProductTotalLossRequiredTerms
+
+theorem ProductLatticeReductionLossBounds.accepted
+    (bounds : ProductLatticeReductionLossBounds) :
+    ProductLatticeReductionLossBoundsAccepted bounds :=
+  ⟨bounds.reductionLoss.accepted, bounds.ledgerTermCovered⟩
 
 structure ProductLatticeConcreteCostBounds where
-  classicalAttackCostBound : Prop
-  quantumAttackCostBound : Prop
-  parameterSensitivityBound : Prop
-  failureProbabilityBudgetBound : Prop
+  claimedClassicalSecurityBits : Nat
+  claimedQuantumSecurityBits : Nat
+  classicalAttackCostBits : Nat
+  quantumAttackCostBits : Nat
+  classicalAttackCostBound : claimedClassicalSecurityBits ≤ classicalAttackCostBits
+  quantumAttackCostBound : claimedQuantumSecurityBits ≤ quantumAttackCostBits
+  parameterSensitivityRadius : Nat
+  parameterSensitivityBudget : Nat
+  parameterSensitivityWithinBudget :
+    parameterSensitivityRadius ≤ parameterSensitivityBudget
+  failureProbabilityBound : ProductNumericLossTerm
 
 def ProductLatticeConcreteCostBoundsAccepted
     (bounds : ProductLatticeConcreteCostBounds) : Prop :=
-  bounds.classicalAttackCostBound
-    ∧ bounds.quantumAttackCostBound
-    ∧ bounds.parameterSensitivityBound
-    ∧ bounds.failureProbabilityBudgetBound
+  bounds.claimedClassicalSecurityBits ≤ bounds.classicalAttackCostBits
+    ∧ bounds.claimedQuantumSecurityBits ≤ bounds.quantumAttackCostBits
+    ∧ bounds.parameterSensitivityRadius ≤ bounds.parameterSensitivityBudget
+    ∧ ProductNumericLossTermAccepted bounds.failureProbabilityBound
+
+theorem ProductLatticeConcreteCostBounds.accepted
+    (bounds : ProductLatticeConcreteCostBounds) :
+    ProductLatticeConcreteCostBoundsAccepted bounds :=
+  ⟨bounds.classicalAttackCostBound,
+    bounds.quantumAttackCostBound,
+    bounds.parameterSensitivityWithinBudget,
+    bounds.failureProbabilityBound.accepted⟩
 
 structure ProductLatticeAssumptionDossier where
   moduleSISStatementPinned : Prop
@@ -4153,6 +4209,13 @@ def ProductLatticeParameterClosureAccepted
   ProductLatticeParameterBoundsAccepted closure.parameterBounds
     ∧ ProductLatticeReductionLossBoundsAccepted closure.reductionLossBounds
     ∧ ProductLatticeConcreteCostBoundsAccepted closure.concreteCostBounds
+
+theorem ProductLatticeParameterClosure.accepted
+    (closure : ProductLatticeParameterClosure) :
+    ProductLatticeParameterClosureAccepted closure :=
+  ⟨closure.parameterBounds.accepted,
+    closure.reductionLossBounds.accepted,
+    closure.concreteCostBounds.accepted⟩
 
 def ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificate
     {columns : Nat}
@@ -4270,9 +4333,7 @@ def ProductPublicCoinQROMEvidence.ofInstantiatedQROM
 theorem productPublicCoinQROMAccepted_of_instantiatedQROM
     {evidence : ProductInstantiatedQROMEvidence}
     (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence)
-    {qromReductionTheorem : ProductQROMReductionTheorem}
-    (hQROMReductionTheorem :
-      ProductQROMReductionTheoremAccepted qromReductionTheorem) :
+    {qromReductionTheorem : ProductQROMReductionTheorem} :
     ProductPublicCoinQROMAccepted
       (ProductPublicCoinQROMEvidence.ofInstantiatedQROM
         evidence
@@ -4310,7 +4371,7 @@ theorem productPublicCoinQROMAccepted_of_instantiatedQROM
       ⟨hChallengeDomains, hBindingDomains⟩,
       hProofKindBytes,
       hMalleability,
-      hQROMReductionTheorem⟩
+      ProductQROMReductionTheorem.accepted qromReductionTheorem⟩
 
 structure ProductSecurityTheoremObligationStatus where
   numiSealProduct : NumiSealProductTheoremObligationStatus
@@ -4462,12 +4523,8 @@ theorem productSecurityTheorem_from_components
         recursiveCarryChainRootRecurrence)
     (hExtractorLossClosure :
       ProductExtractorLossClosureAccepted extractorLossClosure)
-    (hLatticeParameterClosure :
-      ProductLatticeParameterClosureAccepted latticeParameterClosure)
     (hInstantiatedQROM :
       ProductInstantiatedQROMEvidenceAccepted instantiatedQROM)
-    (hQROMReductionTheorem :
-      ProductQROMReductionTheoremAccepted qromReductionTheorem)
     (hTotalLossClosure :
       ProductTotalLossClosureAccepted totalLossClosure)
     (hProductRelations :
@@ -4535,7 +4592,7 @@ theorem productSecurityTheorem_from_components
           latticeParameterClosure) :=
     productLatticeAssumptionDossierAccepted_of_verifiedAjtaiKernelCertificateAndClosure
       latticeCertificate
-      hLatticeParameterClosure
+      (ProductLatticeParameterClosure.accepted latticeParameterClosure)
   have hDerivedPublicCoinAccounting :
       ProductPublicCoinLossAccountingAccepted
         (ProductPublicCoinLossAccounting.ofInstantiatedQROM instantiatedQROM) :=
@@ -4548,7 +4605,6 @@ theorem productSecurityTheorem_from_components
           qromReductionTheorem) :=
     productPublicCoinQROMAccepted_of_instantiatedQROM
       hInstantiatedQROM
-      hQROMReductionTheorem
   have hDerivedTotalLossBudget :
       ProductTotalLossBudgetAccepted
         (ProductTotalLossBudget.ofAcceptedComponents
@@ -5019,7 +5075,8 @@ theorem productSecurityTheorem_requires_qrom_transcript_schedule
       ∧ schedule.domainSeparationBindingPinned
       ∧ schedule.proofKindSeparationBindingPinned
       ∧ schedule.numericQuantumQueryBoundsInstantiated
-      ∧ schedule.transcriptScheduleTheoremApplies := by
+      ∧ ProductTranscriptScheduleTheoremAccepted
+        ProductTranscriptScheduleTheorem.ofLeanProof := by
   rcases hSchedule with
     ⟨_,
       _,
@@ -5032,7 +5089,7 @@ theorem productSecurityTheorem_requires_qrom_transcript_schedule
       hDomain,
       hProofKindSeparation,
       hNumericQueries,
-      hTheoremApplies⟩
+      hScheduleTheorem⟩
   exact
     ⟨hProofKinds,
       hChallengeLabels,
@@ -5040,7 +5097,7 @@ theorem productSecurityTheorem_requires_qrom_transcript_schedule
       hDomain,
       hProofKindSeparation,
       hNumericQueries,
-      hTheoremApplies⟩
+      hScheduleTheorem⟩
 
 theorem productSecurityTheorem_requires_qrom_transform_preconditions
     {preconditions : ProductPublicCoinTransformPreconditions}
@@ -5055,7 +5112,8 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
       ∧ preconditions.transcriptScheduleAccepted
       ∧ preconditions.underlyingInteractiveSecurityBoundInstantiated
       ∧ preconditions.quantumOracleQueryBoundInstantiated
-      ∧ preconditions.qromReductionLossInstantiated := by
+      ∧ ProductNumericLossTermAccepted
+        preconditions.qromReductionLossBound := by
   rcases hPreconditions with
     ⟨_,
       _,
@@ -5092,7 +5150,7 @@ theorem productSecurityTheorem_requires_qrom_interactive_reduction
       ∧ reduction.challengeUniformityProofPinned
       ∧ reduction.quantumQueryPolicyBoundPinned
       ∧ reduction.dfm20LossFormulaPinned
-      ∧ reduction.numericSelectedLossInstantiated
+      ∧ ProductNumericLossTermAccepted reduction.numericSelectedLossBound
       ∧ reduction.underlyingInteractiveSecurityInstantiated
       ∧ reduction.totalLossBudgetInterfacePinned := by
   rcases hReduction with
