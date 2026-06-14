@@ -1,8 +1,9 @@
 # SuperNeo Test Vectors
 
 `TestVectors/` contains checked public fixtures for cross-version and
-cross-implementation verification. Treat JSON schemas and evidence manifests as
-machine contracts; this README is only a compact map.
+cross-implementation verification. Treat the proof artifacts and JSON schemas as
+machine contracts; archived product evidence manifests are retained for
+reference, not as development blockers.
 
 ## Core Files
 
@@ -71,25 +72,21 @@ For fold vectors, the verifier returns the artifact-recorded adaptive CE
 obligations for terminal verification. For terminal vectors, a strict verifier
 must require terminal acceptance and reject fold-only artifacts in their place.
 
-## Validation
+## Active Validation
 
-Use the production gate for full validation:
+Regenerate the active proof vectors into a temporary directory and verify them:
 
 ```sh
-Scripts/production-gate.sh
+Scripts/regenerate-test-vectors.sh
 ```
 
-Useful focused checks:
+Compare regenerated proof-vector bytes against the checked fixtures when
+investigating serialization or transcript drift:
 
 ```sh
-swift Scripts/validate-test-vectors.swift
-python3 Scripts/validate-numiseal-conformance-scope.py
-python3 Scripts/validate-product-crypto-security-dossier.py
-python3 Scripts/validate-product-selected-depth-loss-accounting.py
-python3 Scripts/validate-product-extractor-loss-accounting.py
-python3 Scripts/validate-product-total-loss-budget.py
-python3 Scripts/validate-product-release-distribution-evidence.py
-python3 Scripts/validate-benchmark-coverage.py
+Scripts/regenerate-test-vectors.sh --check
+swift Scripts/parse-test-vectors.swift
+Scripts/fuzz-malformed-artifacts.sh
 ```
 
 If any digest changes, treat it as a serialization, transcript, normalization,
