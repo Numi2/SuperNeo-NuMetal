@@ -40,7 +40,7 @@ Run the estimator parameter reproduction in dry-run mode:
 
 ```bash
 Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/legacy-gates/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json
 ```
 
 Run the pinned Sage-backed estimator lane only when the Sage/lattice-estimator
@@ -48,7 +48,7 @@ toolchain is present:
 
 ```bash
 Scripts/reproduce-lattice-estimator.sh --full --pinned lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/validate-lattice-estimator-artifact.py --expect-status ran --expect-latest-status absent --require-claimed-security lattice-estimator-results/superneo-goldilocks-phi81.json
+Scripts/legacy-gates/validate-lattice-estimator-artifact.py --expect-status ran --expect-latest-status absent --require-claimed-security lattice-estimator-results/superneo-goldilocks-phi81.json
 ```
 
 ## Claim Boundary

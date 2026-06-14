@@ -24,13 +24,12 @@ coverage. It binds benchmark row prefixes to:
 - `Benchmarks/SuperNeoBenchmarks/SuperNeoBenchmarks.swift`
 - `Scripts/render-benchmark-report.swift`
 - `Scripts/compare-benchmark-results.swift`
-- `Scripts/production-gate.sh`
 
-The production gate validates this with:
+Validate benchmark coverage manually with:
 
 ```sh
-Scripts/validate-benchmark-coverage.py
-Scripts/test-benchmark-coverage-validation.py
+Scripts/legacy-gates/validate-benchmark-coverage.py
+Scripts/legacy-gates/test-benchmark-coverage-validation.py
 ```
 
 ## Profiles

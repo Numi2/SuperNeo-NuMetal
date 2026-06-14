@@ -9,9 +9,9 @@ a production latency or capacity claim.
 - `TestVectors/e2e-proof-metrics-v1.json` pins deterministic proof-size rows
   for the currently tracked release vectors and the generated NumiSeal product
   smoke budgets under `sourceDecompositionProfile = pay-per-bit-v1`.
-- `Scripts/validate-e2e-proof-metrics.py` checks the metric schema, expected
+- `Scripts/legacy-gates/validate-e2e-proof-metrics.py` checks the metric schema, expected
   row identities, and fail-closed status.
-- `Scripts/test-e2e-proof-metrics-validation.py` mutates the metric contract so
+- `Scripts/legacy-gates/test-e2e-proof-metrics-validation.py` mutates the metric contract so
   missing rows, stale limits, and premature production claims are rejected.
 
 ## Current Boundary

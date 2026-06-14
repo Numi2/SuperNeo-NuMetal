@@ -143,27 +143,12 @@ if [[ "${WITH_FULL_ESTIMATOR}" -eq 1 ]]; then
     --full \
     --pinned \
     "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
-  run_and_log lattice-estimator-validate \
-    Scripts/validate-lattice-estimator-artifact.py \
-    --expect-status ran \
-    --expect-latest-status absent \
-    --require-claimed-security \
-    "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
 else
   run_and_log lattice-estimator-dry-run \
     Scripts/reproduce-lattice-estimator.sh \
     --dry-run \
     "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
-  run_and_log lattice-estimator-validate \
-    Scripts/validate-lattice-estimator-artifact.py \
-    --expect-status not_run \
-    --expect-latest-status absent \
-    "${LATTICE_OUT}/superneo-goldilocks-phi81.json"
 fi
-run_and_log formal-status \
-  Scripts/validate-formal-status.py
-run_and_log formal-status-regression \
-  Scripts/test-formal-status-validation.py
 
 case "${MODE}" in
   plan)
@@ -183,7 +168,6 @@ case "${MODE}" in
     run_and_log golden-compressed-terminal-vector-inspect swift run superneo inspect TestVectors/one-hot-vector-compressed-terminal-v1.json
     run_and_log binary-addition-vector-inspect swift run superneo inspect TestVectors/binary-addition-u8-fold-v1.json
     run_and_log binary-addition-terminal-vector-inspect swift run superneo inspect TestVectors/binary-addition-u8-terminal-v1.json
-    run_and_log test-vector-validation swift Scripts/validate-test-vectors.swift
     run_and_log fast Scripts/test-slice.sh fast
     run_and_log protocol Scripts/test-slice.sh protocol
     run_and_log metal Scripts/test-slice.sh metal

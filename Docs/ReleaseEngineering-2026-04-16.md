@@ -14,13 +14,14 @@ constant-time behavior, or independent cryptographic and implementation review.
 ### Archived Repository-Local Production-Security Promotion
 
 Repository-local production-security promotion is no longer part of the default
-completion gate. Historical evidence validators remain in the repository, but
-production-security wording should not be promoted from the default build gate.
+smoke command. Historical evidence validators remain in the repository, but
+production-security wording should not be promoted from the default build/test
+smoke.
 
-Default completion command:
+Default smoke command:
 
 ```sh
-Scripts/production-gate.sh
+Scripts/check-smoke.sh
 ```
 
 Release records must include artifact digest provenance when separate release
@@ -28,8 +29,8 @@ evidence validation is intentionally run.
 
 ## Historical Evidence And Validators
 
-- `Scripts/validate-numiseal-conformance-scope.py`
-- `Scripts/test-numiseal-conformance-scope-validation.py`
+- `Scripts/legacy-gates/validate-numiseal-conformance-scope.py`
+- `Scripts/legacy-gates/test-numiseal-conformance-scope-validation.py`
 - `TestVectors/numiseal-end-to-end-theorem-scope-v1.json`
 - `TestVectors/numiseal-zk-mask-distribution-evidence-v1.json`
 - `TestVectors/product-crypto-security-dossier-v1.json`
@@ -44,12 +45,12 @@ evidence validation is intentionally run.
 - `TestVectors/product-total-loss-budget-v1.json`
 - `TestVectors/product-release-distribution-evidence-v1.json`
 - `Docs/CryptographicSecurityDossier-2026-04-16.md`
-- `Scripts/validate-constant-time-scope.py`
-- `Scripts/validate-constant-time-lowering-evidence.py`
+- `Scripts/legacy-gates/validate-constant-time-scope.py`
+- `Scripts/legacy-gates/validate-constant-time-lowering-evidence.py`
 - `Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json`
-- `Scripts/validate-e2e-proof-metrics.py`
-- `Scripts/validate-product-ops-surface.py`
-- `Scripts/generate-release-candidate-evidence.py`
+- `Scripts/legacy-gates/validate-e2e-proof-metrics.py`
+- `Scripts/legacy-gates/validate-product-ops-surface.py`
+- `Scripts/legacy-gates/generate-release-candidate-evidence.py`
 
 ## Required Digest Labels
 

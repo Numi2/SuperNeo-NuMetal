@@ -43,7 +43,6 @@ def copy_repo_subset(destination: Path) -> None:
         "Docs/ProductionReadinessAuditPacket-2026-04-16.md",
         "Docs/ReleaseEngineering-2026-04-16.md",
         "Docs/ReleaseCandidateRunbook-2026-04-16.md",
-        "Scripts/production-gate.sh",
         "Scripts/validate-release-readiness-policy.py",
         "Scripts/validate-product-ops-surface.py",
         "Scripts/test-product-ops-surface-validation.py",
@@ -74,17 +73,6 @@ def main() -> None:
             "operator state:",
         )
         run_validator(tmp, expect_ok=False, expected="operations readiness:")
-
-    with tempfile.TemporaryDirectory(prefix="superneo-product-ops-validation-") as raw_tmp:
-        tmp = Path(raw_tmp)
-        copy_repo_subset(tmp)
-
-        replace_text(
-            tmp / "Scripts" / "production-gate.sh",
-            "run_step Scripts/validate-product-ops-surface.py",
-            "# validator omitted",
-        )
-        run_validator(tmp, expect_ok=False, expected="validate-product-ops-surface.py")
 
     with tempfile.TemporaryDirectory(prefix="superneo-product-ops-validation-") as raw_tmp:
         tmp = Path(raw_tmp)

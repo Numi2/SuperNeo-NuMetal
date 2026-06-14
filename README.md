@@ -62,11 +62,10 @@ security claim.
   well-formedness, typed digest domains, proof-envelope binding, Phi81/Goldilocks
   surfaces, PiCCS/PiRLC/PiDEC soundness surfaces, terminal CE accounting,
   NumiSeal typed carry, QRO/QROM ledgers, and the product theorem wiring.
-- `TestVectors/` contains strict vector schemas and machine-readable evidence
-  manifests for product security, QROM accounting, loss budgets, release
-  distribution, constant-time scope/lowering, E2E proof metrics, and benchmark
-  coverage.
-- `Scripts/production-gate.sh` is the repository-local release-candidate gate.
+- `TestVectors/` contains checked public vectors and fixtures for wire-format
+  compatibility, verifier behavior, and regression testing.
+- `Scripts/check-smoke.sh` is the only daily smoke check. Historical policy,
+  wording, and evidence gates are quarantined under `Scripts/legacy-gates/`.
 
 ## Repository Map
 
@@ -80,8 +79,8 @@ security claim.
   benchmark, and security-boundary notes.
 - `TestVectors/`: checked public vectors, schemas, and evidence fixtures.
 - `Evidence/`: constant-time and compiler-lowering evidence records.
-- `Scripts/`: validation, release, benchmark, estimator, reproduction, and
-  evidence-generation tooling.
+- `Scripts/`: smoke, benchmark, estimator, reproduction, and attack-oriented
+  development tooling.
 - `Benchmarks/`: Swift Benchmark-based performance harness.
 
 ## SwiftPM Products
@@ -100,10 +99,10 @@ Build the CLI:
 swift build --product superneo
 ```
 
-Run the default completion gate:
+Run the default smoke check:
 
 ```sh
-Scripts/production-gate.sh
+Scripts/check-smoke.sh
 ```
 
 Create and verify a fold artifact:
@@ -144,20 +143,6 @@ swift run superneo prove \
 swift run superneo verify \
   --qro-session-id local-product-session-v1 \
   --qro-public-coin-hex 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
-  /tmp/numiseal-zk-product.json
-```
-
-Use product-control verification when validating signed context/provenance,
-issued-QRO, replay, revocation, and audit inputs:
-
-```sh
-swift run superneo verify \
-  --product \
-  --operator-profile profile.json \
-  --context-pack context.json \
-  --artifact-provenance provenance.json \
-  --qro-challenge-pack issued-qro.json \
-  --revocation-feed revocations.json \
   /tmp/numiseal-zk-product.json
 ```
 
@@ -229,9 +214,9 @@ smoke:
 - NumiSeal terminal product: `1028837 B` source-fold envelope, `244225 B`
   product proof envelope, `1728748 B` canonical artifact.
 - NumiSealZK product: `1028837 B` source-fold envelope, `245435 B` product
-  proof envelope, `1732166 B` canonical artifact.
+  proof envelope, `1730112 B` canonical artifact.
 - ZK overhead versus terminal in this smoke: `+1210 B` proof envelope and
-  `+3418 B` canonical artifact.
+  `+1364 B` canonical artifact.
 - Both fresh CLI smokes reported `sourceFoldOutputClaimCount = 14` under
   `sourceDecompositionProfile = "pay-per-bit-v1"`.
 
@@ -259,23 +244,51 @@ Representative full-profile model rows:
 These ratios are measurement/model evidence for explicit optimized lanes. They
 do not silently change high-assurance product defaults.
 
-## Validation
+## Daily Check
 
 Run the default build, focused smoke-test, and CLI prove/verify check:
 
 ```sh
-Scripts/production-gate.sh
+Scripts/check-smoke.sh
 ```
 
-Run focused optional checks after README, docs, or evidence edits:
+The smoke check is intentionally small. It verifies that the package builds,
+the fast unit slice passes, a tiny proof verifies, and checked JSON vectors
+still parse. It is not a release gate.
+
+Historical policy, wording, release-readiness, QROM, conformance, benchmark,
+and evidence scripts live in `Scripts/legacy-gates/`. They are retained for
+reference, but they do not block development.
+
+Run malformed-artifact fuzzing when touching serialization or verifier code:
 
 ```sh
-python3 Scripts/validate-doc-links.py
-python3 Scripts/validate-product-ops-surface.py
-python3 Scripts/validate-benchmark-coverage.py
-python3 Scripts/validate-product-extractor-loss-accounting.py
-python3 Scripts/validate-product-release-distribution-evidence.py
+Scripts/fuzz-malformed-artifacts.sh
 ```
+
+The fuzzer generates one valid tiny proof, mutates artifact metadata and proof
+envelope bytes, and requires the CLI verifier to reject every mutant.
+
+## Crypto Development Focus
+
+Start with `Docs/PrimitiveSpec.md` when changing protocol behavior. It is the
+short working spec for the primitive, statement binding, transcript design, and
+canonical serialization.
+
+Prefer checks that directly catch broken cryptography or implementation bugs:
+
+- negative verifier tests,
+- malformed proof fuzzing,
+- stable test-vector generation,
+- transcript/domain-separation review,
+- canonical serialization tests,
+- parameter-set review,
+- constant-time code-shape review,
+- prover/verifier simplification.
+
+Rule for new checks: if a check does not directly catch a broken proof, broken
+verifier, bad encoding, bad parameter, or side-channel hazard, it must not block
+development.
 
 Build the formal import wall:
 
@@ -301,11 +314,10 @@ opt-in:
 SUPERNEO_BENCHMARK_CE=1 Scripts/run-benchmarks.sh quick
 ```
 
-## Machine Evidence To Keep In Sync
+## Legacy Evidence
 
-Product/security behavior is evidence-parametric. Any product proof-path,
-transcript, policy, schema, compression, or benchmark change should be reconciled
-with the relevant manifests:
+Product/security evidence manifests are archived reference material during core
+development. They should not block ordinary proof-system work:
 
 The `TestVectors/product-extractor-loss-accounting-v1.json` manifest is the
 checked extractor loss accounting surface for the selected-depth product
@@ -334,6 +346,7 @@ security theorem.
 ## Human Source Of Truth
 
 - `Docs/WhatThisProves.md`: proof semantics and claim boundaries.
+- `Docs/PrimitiveSpec.md`: concise construction and attack-surface spec.
 - `Docs/QROProductArchitecture-2026-04-25.md`: selected product QRO path.
 - `Docs/ProofEnvelope.md`: proof-envelope binding and parser rules.
 - `Docs/CLI.md`: active CLI surface.
@@ -345,8 +358,8 @@ security theorem.
 - `Docs/Benchmarking.md`: benchmark commands and coverage contract.
 - `Docs/BenchmarkReports/README.md`: checked benchmark report landing area.
 - `Docs/GPUDeterminism.md`: Metal acceleration and trust policies.
-- `Docs/ProductionReadinessAuditPacket-2026-04-16.md`: release-candidate gate
-  packet.
+- `Docs/ProductionReadinessAuditPacket-2026-04-16.md`: legacy release-candidate
+  evidence packet.
 - `Docs/SuperNeoPaperImplementationTracks-2026-04-25.md`: paper-to-repo
   implementation tracker.
 - `math-audit.md` and `notes-math-ai.md`: formal audit and theorem-package

@@ -73,7 +73,7 @@ def validate(path: Path, *, allow_dirty: bool, expected_gate_result: str | None)
     if expected_gate_result is not None:
         require(result == expected_gate_result, f"productionGate.result must be {expected_gate_result}")
     if result == "passed":
-        require(command == "Scripts/production-gate.sh", "passed release evidence must come from the full production gate")
+        require(command == "Scripts/production-gate.sh", "passed release evidence must come from the default smoke command")
 
     toolchain = require_dict(evidence.get("toolchain"), "toolchain")
     for key in ("swift", "lean", "lake"):

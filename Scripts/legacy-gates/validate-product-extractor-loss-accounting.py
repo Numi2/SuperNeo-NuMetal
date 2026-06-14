@@ -622,15 +622,6 @@ def validate_docs_and_gate() -> None:
         text = (ROOT / relative).read_text(encoding="utf-8")
         for needle in needles:
             require(needle in text, f"{relative} missing {needle}")
-    gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
-    require(
-        "run_step Scripts/validate-product-extractor-loss-accounting.py" in gate,
-        "production gate must run extractor loss-accounting validator",
-    )
-    require(
-        "run_step Scripts/test-product-extractor-loss-accounting-validation.py" in gate,
-        "production gate must run extractor loss-accounting regression tests",
-    )
 
 
 def validate_accounting(path: Path) -> None:

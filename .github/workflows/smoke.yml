@@ -3,7 +3,7 @@ name: Build And Smoke
 on:
   pull_request:
     paths:
-      - ".github/workflows/production-gate.yml"
+      - ".github/workflows/smoke.yml"
       - "Package.swift"
       - "Sources/**"
       - "SuperNeo-NuMetal/**"
@@ -18,7 +18,7 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/production-gate.yml"
+      - ".github/workflows/smoke.yml"
       - "Package.swift"
       - "Sources/**"
       - "SuperNeo-NuMetal/**"
@@ -46,5 +46,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run default completion gate
-        run: Scripts/production-gate.sh
+      - name: Run smoke check
+        run: Scripts/check-smoke.sh

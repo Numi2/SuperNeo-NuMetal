@@ -991,15 +991,6 @@ def validate_docs_and_gate() -> None:
     ]:
         require(needle in doc, f"cryptographic security dossier doc missing {needle}")
 
-    gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
-    require(
-        "run_step Scripts/validate-product-crypto-security-dossier.py" in gate,
-        "production gate must run product crypto security dossier validator",
-    )
-    require(
-        "run_step Scripts/test-product-crypto-security-dossier-validation.py" in gate,
-        "production gate must run product crypto security dossier validator regression tests",
-    )
 
 
 def validate_dossier(path: Path) -> None:

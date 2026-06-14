@@ -85,7 +85,7 @@
       ],
       "requiredSnippets": [
         "UInt64.bitWidth",
-        "Self.select",
+        "Self.constantTimeSelect",
         "result * base",
         "base = base * base"
       ],

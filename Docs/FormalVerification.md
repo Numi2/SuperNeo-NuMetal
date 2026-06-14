@@ -39,7 +39,7 @@ supports, resolves each declared Lean module to its source file, and requires
 closed theorem groups to reference declarations that are present in that module:
 
 ```sh
-Scripts/validate-formal-status.py
+Scripts/legacy-gates/validate-formal-status.py
 ```
 
 The regression harness mutates temporary manifest copies and confirms the
@@ -49,7 +49,7 @@ assumption/boundary declarations in stronger-label groups, documentation
 overclaims, and completed-label dependency drift:
 
 ```sh
-Scripts/test-formal-status-validation.py
+Scripts/legacy-gates/test-formal-status-validation.py
 ```
 
 Allowed labels are:

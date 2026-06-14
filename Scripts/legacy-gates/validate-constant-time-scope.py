@@ -172,11 +172,6 @@ def main() -> None:
         "openBoundaries must name allocator/runtime behavior",
     )
 
-    gate = path_text("Scripts/production-gate.sh")
-    require(
-        "run_step Scripts/validate-constant-time-scope.py" in gate,
-        "production gate must run validate-constant-time-scope.py",
-    )
     release_policy = path_text("Scripts/validate-release-readiness-policy.py")
     require(
         "TestVectors/constant-time-scope-v1.json" in release_policy,

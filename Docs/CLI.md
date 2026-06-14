@@ -69,17 +69,6 @@ requires a signed issued-QRO pack, and records replay/audit state. Side-channel
 certificates are optional for default `correctness-only` contexts and validated
 when supplied; stricter trusted contexts may require them.
 
-```sh
-swift run superneo verify \
-  --product \
-  --operator-profile profile.json \
-  --context-pack context.json \
-  --artifact-provenance provenance.json \
-  --qro-challenge-pack issued-qro.json \
-  --revocation-feed revocations.json \
-  /tmp/numiseal-zk-product.json
-```
-
 For typed-required recursive carry, add:
 
 ```sh
@@ -93,7 +82,7 @@ For typed-required recursive carry, add:
 swift run superneo product-issue-qro \
   --context-id ctx-one-hot-v1 \
   --signing-key-file qro-ed25519-private.b64 \
-  --valid-until 2026-04-26T00:00:00Z \
+  --valid-until 2026-12-31T00:00:00Z \
   --bits 0,0,1,0 \
   --qro-session-id issue-one-hot-v1 \
   --output issued-qro.json

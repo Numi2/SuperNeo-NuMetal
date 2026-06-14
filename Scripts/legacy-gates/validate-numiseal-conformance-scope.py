@@ -474,15 +474,6 @@ def main() -> None:
     seen = {validate_surface(surface, test_source) for surface in surfaces}
     require(seen == REQUIRED_SURFACES, f"surfaces must be exactly {sorted(REQUIRED_SURFACES)}")
 
-    gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
-    require(
-        "Scripts/validate-numiseal-conformance-scope.py" in gate,
-        "production gate must run validate-numiseal-conformance-scope.py",
-    )
-    require(
-        "Scripts/test-numiseal-conformance-scope-validation.py" in gate,
-        "production gate must run NumiSeal conformance scope regression tests",
-    )
     release_validator = (ROOT / "Scripts" / "validate-release-readiness-policy.py").read_text(encoding="utf-8")
     require(
         "TestVectors/numiseal-conformance-scope-v1.json" in release_validator,

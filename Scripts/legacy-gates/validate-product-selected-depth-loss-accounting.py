@@ -793,31 +793,6 @@ def validate_promotion_and_blockers(ledger: dict[str, Any]) -> None:
     require(promotion.get("requiresAllComponentLossesInstantiated") is True, "promotionRule.requiresAllComponentLossesInstantiated must be true")
     require(promotion.get("requiresTotalLossWithinBudget") is True, "promotionRule.requiresTotalLossWithinBudget must be true")
 
-
-def validate_docs_and_gate() -> None:
-    gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
-    require(
-        "run_step Scripts/validate-product-selected-depth-loss-accounting.py" in gate,
-        "production gate must run selected-depth loss-accounting validator",
-    )
-    require(
-        "run_step Scripts/test-product-selected-depth-loss-accounting-validation.py" in gate,
-        "production gate must run selected-depth loss-accounting regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-qrom-collision-malleability-evidence.py" in gate,
-        "production gate must run QROM collision/malleability evidence validator",
-    )
-    require(
-        "run_step Scripts/validate-product-shared-bad-event-dedup.py" in gate,
-        "production gate must run shared bad-event dedup validator",
-    )
-    require(
-        "run_step Scripts/validate-product-finite-protocol-loss-obstruction.py" in gate,
-        "production gate must run finite-protocol loss obstruction validator",
-    )
-
-
 def validate_ledger(path: Path) -> None:
     ledger = read_json(path)
     text = json.dumps(ledger, sort_keys=True).lower()
@@ -837,7 +812,6 @@ def validate_ledger(path: Path) -> None:
     validate_component_losses(ledger)
     validate_total_loss_rule(ledger)
     validate_promotion_and_blockers(ledger)
-    validate_docs_and_gate()
 
 
 def main() -> None:

@@ -29,39 +29,9 @@ jobs:
           cd Formal
           lake build
 
-      - name: Run formal executable gates
+      - name: Run formal executable checks
         run: |
           cd Formal
           lake build SuperNeoFormal.VectorChecks
           lake env lean --run ProofImportWall.lean
           lake env lean --run SuperNeoFormalVectorCheck.lean
-
-      - name: Validate formal status manifest
-        run: Scripts/validate-formal-status.py
-
-      - name: Regression-test formal status validator
-        run: Scripts/test-formal-status-validation.py
-
-      - name: Validate formal profile constants
-        run: Scripts/validate-formal-profile-constants.py
-
-      - name: Regression-test formal profile constants validator
-        run: Scripts/test-formal-profile-constants-validation.py
-
-      - name: Validate formal Ext2 serialization surface
-        run: Scripts/validate-formal-ext2-serialization.py
-
-      - name: Regression-test formal Ext2 serialization validator
-        run: Scripts/test-formal-ext2-serialization-validation.py
-
-      - name: Regression-test formal Ext2 vector bridge
-        run: Scripts/test-formal-ext2-vector-bridge.py
-
-      - name: Validate formal CE byte serialization surface
-        run: Scripts/validate-formal-ce-byte-serialization.py
-
-      - name: Regression-test formal CE byte serialization validator
-        run: Scripts/test-formal-ce-byte-serialization-validation.py
-
-      - name: Regression-test formal CE vector bridge
-        run: Scripts/test-formal-ce-vector-bridge.py

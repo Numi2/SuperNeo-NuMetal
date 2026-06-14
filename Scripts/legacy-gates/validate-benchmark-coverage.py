@@ -186,11 +186,9 @@ def validate_manifest(manifest_path: Path) -> None:
     for needle in ["repository-local performance claim", "metal availability", "competitor"]:
         require(needle in boundary_text, f"coverageBoundaries must mention {needle}")
 
-    gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
-    require("run_step Scripts/validate-benchmark-coverage.py" in gate, "production gate must validate benchmark coverage")
-    require("run_step Scripts/test-benchmark-coverage-validation.py" in gate, "production gate must run benchmark coverage regression tests")
     docs = (ROOT / "Docs" / "Benchmarking.md").read_text(encoding="utf-8")
     require("TestVectors/benchmark-coverage-v1.json" in docs, "Benchmarking docs must mention benchmark coverage manifest")
+    require("Validate benchmark coverage manually" in docs, "Benchmarking docs must keep benchmark validation manual")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     require("TestVectors/benchmark-coverage-v1.json" in readme, "README must mention benchmark coverage manifest")
 

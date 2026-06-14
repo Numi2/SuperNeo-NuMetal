@@ -127,6 +127,6 @@ Validation commands:
 ```sh
 cd Formal && lake build
 cd ..
-Scripts/validate-formal-status.py
-Scripts/test-formal-status-validation.py
+Scripts/legacy-gates/validate-formal-status.py
+Scripts/legacy-gates/test-formal-status-validation.py
 ```

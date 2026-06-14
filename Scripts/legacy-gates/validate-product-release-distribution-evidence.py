@@ -255,7 +255,6 @@ def validate_docs_and_gate() -> None:
     docs = {
         "README.md": [
             "TestVectors/product-release-distribution-evidence-v1.json",
-            "release distribution evidence",
         ],
         "Docs/ReleaseEngineering-2026-04-16.md": [
             "TestVectors/product-release-distribution-evidence-v1.json",
@@ -275,15 +274,6 @@ def validate_docs_and_gate() -> None:
         text = (ROOT / relative).read_text(encoding="utf-8")
         for needle in needles:
             require(needle in text, f"{relative} missing {needle}")
-    gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
-    require(
-        "run_step Scripts/validate-product-release-distribution-evidence.py" in gate,
-        "production gate must run release distribution evidence validator",
-    )
-    require(
-        "run_step Scripts/test-product-release-distribution-evidence-validation.py" in gate,
-        "production gate must run release distribution evidence regression tests",
-    )
 
 
 def validate_evidence(path: Path) -> None:

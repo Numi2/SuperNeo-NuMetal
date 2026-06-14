@@ -866,35 +866,6 @@ def validate_promotion_rule(budget: dict[str, Any], production_gates_satisfied: 
     )
     require(promotion.get("requiresSelectedDepthLedgerUpdate") is False, "promotionRule.requiresSelectedDepthLedgerUpdate must be false")
 
-
-def validate_docs_and_gate() -> None:
-    gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
-    require(
-        "run_step Scripts/validate-product-total-loss-budget.py" in gate,
-        "production gate must run total-loss budget validator",
-    )
-    require(
-        "run_step Scripts/test-product-total-loss-budget-validation.py" in gate,
-        "production gate must run total-loss budget regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-qrom-collision-malleability-evidence.py" in gate,
-        "production gate must run QROM collision/malleability evidence validator",
-    )
-    require(
-        "run_step Scripts/validate-product-shared-bad-event-dedup.py" in gate,
-        "production gate must run shared bad-event dedup validator",
-    )
-    require(
-        "run_step Scripts/validate-product-finite-protocol-loss-obstruction.py" in gate,
-        "production gate must run finite-protocol loss obstruction validator",
-    )
-    require(
-        "run_step Scripts/test-product-shared-bad-event-dedup-validation.py" in gate,
-        "production gate must run shared bad-event dedup regression tests",
-    )
-
-
 def validate_primitive_batch_lane_source() -> None:
     compression = (ROOT / "SuperNeo-NuMetal" / "ProofCompression" / "SuperNeoSpartanFRICompression.swift").read_text(encoding="utf-8")
     protocols = (ROOT / "SuperNeo-NuMetal" / "Protocols" / "SuperNeoProtocols.swift").read_text(encoding="utf-8")
@@ -951,7 +922,6 @@ def validate_budget(path: Path) -> None:
     validate_exact_finite_probability_wiring(budget, instantiated_total)
     production_gates_satisfied = validate_production_gates(budget)
     validate_promotion_rule(budget, production_gates_satisfied)
-    validate_docs_and_gate()
     validate_primitive_batch_lane_source()
 
 

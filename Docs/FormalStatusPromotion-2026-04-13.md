@@ -66,10 +66,10 @@ Commands run locally on 2026-04-13:
 
 ```sh
 (cd Formal && lake build)
-Scripts/validate-formal-status.py
-Scripts/test-formal-status-validation.py
+Scripts/legacy-gates/validate-formal-status.py
+Scripts/legacy-gates/test-formal-status-validation.py
 swift test --disable-swift-testing --filter ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile
-Scripts/production-gate.sh
+Scripts/check-smoke.sh
 ```
 
 Results:

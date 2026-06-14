@@ -8,6 +8,7 @@ current source-of-truth files.
 ## Active Architecture
 
 - Product architecture: `Docs/QROProductArchitecture-2026-04-25.md`
+- Primitive spec: `Docs/PrimitiveSpec.md`
 - Paper development notes: `Docs/SuperNeoPaperDevelopmentNotes-2026-04-25.md`
 - Paper implementation tracks: `Docs/SuperNeoPaperImplementationTracks-2026-04-25.md`
 - Paper reproduction: `Docs/PaperReproduction.md`
@@ -36,7 +37,7 @@ current source-of-truth files.
 - Threat model: `Docs/ThreatModel.md`
 - GPU determinism and Metal policy: `Docs/GPUDeterminism.md`
 - High-assurance hardening: `Docs/HighAssuranceHardening-2026-04-13.md`
-- Release gate: `Docs/ProductionReadinessAuditPacket-2026-04-16.md`
+- Archived release evidence packet: `Docs/ProductionReadinessAuditPacket-2026-04-16.md`
 - Release policy: `Docs/ReleaseEngineering-2026-04-16.md`
 - Schema ledger: `Docs/SchemaCompatibility-2026-04-16.md`
 - Benchmark coverage: `Docs/Benchmarking.md`

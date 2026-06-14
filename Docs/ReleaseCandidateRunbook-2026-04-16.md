@@ -1,7 +1,7 @@
 # Release Candidate Runbook, 2026-04-16
 
 This is the historical release-candidate checklist. The default repository
-completion gate is `Scripts/production-gate.sh`; release-candidate evidence
+smoke command is `Scripts/check-smoke.sh`; release-candidate evidence
 promotion is separate and not enforced by CI.
 
 ## Required Steps
@@ -9,9 +9,9 @@ promotion is separate and not enforced by CI.
 1. Run:
 
 ```sh
-Scripts/production-gate.sh
-Scripts/generate-release-candidate-evidence.py --expect-production-gate-result not_run
-Scripts/validate-release-candidate-evidence.py --expect-production-gate-result not_run
+Scripts/check-smoke.sh
+Scripts/legacy-gates/generate-release-candidate-evidence.py --expect-production-gate-result not_run
+Scripts/legacy-gates/validate-release-candidate-evidence.py --expect-production-gate-result not_run
 ```
 
 2. Keep distribution wording at repository-local unsigned distribution unless

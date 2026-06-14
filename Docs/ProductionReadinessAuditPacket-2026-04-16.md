@@ -2,25 +2,22 @@
 
 Formal status: completed formal protocol theorem.
 
-This is the compact reviewer entry point. It records the repository-local gate
-state and links to machine-readable evidence. It is not a production deployment
-approval.
+This is the archived reviewer entry point. It records historical
+repository-local evidence and links to machine-readable artifacts. It is not a
+production deployment approval.
 
-## Gate Result
+## Smoke Result
 
 Command:
 
 ```sh
-Scripts/production-gate.sh
+Scripts/check-smoke.sh
 ```
 
 Result: passed.
 
-The gate includes Swift build/test coverage, checked vector validation, Lean
-formal checks, product cryptographic evidence validation, QRO/QROM evidence
-validation, total-loss budget validation, release distribution evidence
-validation, E2E proof metrics, benchmark coverage, local product-ops readiness,
-schema compatibility, and CI drift checks.
+This command is the default build/test/CLI smoke. It does not run the archived
+release evidence validators below.
 
 ## Claim Boundaries
 
@@ -85,49 +82,49 @@ covering:
 ## Historical Required Validators
 
 These validators belong to the archived production-readiness evidence packet,
-not the default repository completion gate.
+not the default repository smoke command.
 
-- `Scripts/validate-release-readiness-policy.py`
-- `Scripts/validate-doc-links.py`
-- `Scripts/validate-numiseal-conformance-scope.py`
-- `Scripts/test-numiseal-conformance-scope-validation.py`
-- `Scripts/validate-constant-time-scope.py`
-- `Scripts/test-constant-time-scope-validation.py`
-- `Scripts/validate-constant-time-lowering-evidence.py`
-- `Scripts/test-constant-time-lowering-evidence-validation.py`
-- `Scripts/generate-constant-time-release-evidence.py`
-- `Scripts/validate-numiseal-product-artifact-schema.py`
-- `Scripts/test-numiseal-product-artifact-schema-validation.py`
-- `Scripts/validate-product-crypto-security-dossier.py`
-- `Scripts/test-product-crypto-security-dossier-validation.py`
-- `Scripts/validate-product-selected-depth-loss-accounting.py`
-- `Scripts/test-product-selected-depth-loss-accounting-validation.py`
-- `Scripts/validate-product-extractor-loss-accounting.py`
-- `Scripts/test-product-extractor-loss-accounting-validation.py`
-- `Scripts/validate-product-qrom-public-coin-accounting.py`
-- `Scripts/test-product-qrom-public-coin-accounting-validation.py`
-- `Scripts/validate-product-qrom-transcript-schedule.py`
-- `Scripts/test-product-qrom-transcript-schedule-validation.py`
-- `Scripts/validate-product-qrom-sampler-encoding-evidence.py`
-- `Scripts/test-product-qrom-sampler-encoding-evidence-validation.py`
-- `Scripts/validate-product-qrom-collision-malleability-evidence.py`
-- `Scripts/test-product-qrom-collision-malleability-evidence-validation.py`
-- `Scripts/validate-product-qrom-transform-preconditions.py`
-- `Scripts/test-product-qrom-transform-preconditions-validation.py`
-- `Scripts/validate-product-qrom-interactive-reduction.py`
-- `Scripts/test-product-qrom-interactive-reduction-validation.py`
-- `Scripts/validate-product-total-loss-budget.py`
-- `Scripts/test-product-total-loss-budget-validation.py`
-- `Scripts/validate-product-release-distribution-evidence.py`
-- `Scripts/test-product-release-distribution-evidence-validation.py`
-- `Scripts/validate-e2e-proof-metrics.py`
-- `Scripts/test-e2e-proof-metrics-validation.py`
-- `Scripts/validate-benchmark-coverage.py`
-- `Scripts/test-benchmark-coverage-validation.py`
-- `Scripts/validate-product-ops-surface.py`
-- `Scripts/test-product-ops-surface-validation.py`
-- `Scripts/generate-release-candidate-evidence.py`
-- `Scripts/validate-release-candidate-evidence.py`
+- `Scripts/legacy-gates/validate-release-readiness-policy.py`
+- `Scripts/legacy-gates/validate-doc-links.py`
+- `Scripts/legacy-gates/validate-numiseal-conformance-scope.py`
+- `Scripts/legacy-gates/test-numiseal-conformance-scope-validation.py`
+- `Scripts/legacy-gates/validate-constant-time-scope.py`
+- `Scripts/legacy-gates/test-constant-time-scope-validation.py`
+- `Scripts/legacy-gates/validate-constant-time-lowering-evidence.py`
+- `Scripts/legacy-gates/test-constant-time-lowering-evidence-validation.py`
+- `Scripts/legacy-gates/generate-constant-time-release-evidence.py`
+- `Scripts/legacy-gates/validate-numiseal-product-artifact-schema.py`
+- `Scripts/legacy-gates/test-numiseal-product-artifact-schema-validation.py`
+- `Scripts/legacy-gates/validate-product-crypto-security-dossier.py`
+- `Scripts/legacy-gates/test-product-crypto-security-dossier-validation.py`
+- `Scripts/legacy-gates/validate-product-selected-depth-loss-accounting.py`
+- `Scripts/legacy-gates/test-product-selected-depth-loss-accounting-validation.py`
+- `Scripts/legacy-gates/validate-product-extractor-loss-accounting.py`
+- `Scripts/legacy-gates/test-product-extractor-loss-accounting-validation.py`
+- `Scripts/legacy-gates/validate-product-qrom-public-coin-accounting.py`
+- `Scripts/legacy-gates/test-product-qrom-public-coin-accounting-validation.py`
+- `Scripts/legacy-gates/validate-product-qrom-transcript-schedule.py`
+- `Scripts/legacy-gates/test-product-qrom-transcript-schedule-validation.py`
+- `Scripts/legacy-gates/validate-product-qrom-sampler-encoding-evidence.py`
+- `Scripts/legacy-gates/test-product-qrom-sampler-encoding-evidence-validation.py`
+- `Scripts/legacy-gates/validate-product-qrom-collision-malleability-evidence.py`
+- `Scripts/legacy-gates/test-product-qrom-collision-malleability-evidence-validation.py`
+- `Scripts/legacy-gates/validate-product-qrom-transform-preconditions.py`
+- `Scripts/legacy-gates/test-product-qrom-transform-preconditions-validation.py`
+- `Scripts/legacy-gates/validate-product-qrom-interactive-reduction.py`
+- `Scripts/legacy-gates/test-product-qrom-interactive-reduction-validation.py`
+- `Scripts/legacy-gates/validate-product-total-loss-budget.py`
+- `Scripts/legacy-gates/test-product-total-loss-budget-validation.py`
+- `Scripts/legacy-gates/validate-product-release-distribution-evidence.py`
+- `Scripts/legacy-gates/test-product-release-distribution-evidence-validation.py`
+- `Scripts/legacy-gates/validate-e2e-proof-metrics.py`
+- `Scripts/legacy-gates/test-e2e-proof-metrics-validation.py`
+- `Scripts/legacy-gates/validate-benchmark-coverage.py`
+- `Scripts/legacy-gates/test-benchmark-coverage-validation.py`
+- `Scripts/legacy-gates/validate-product-ops-surface.py`
+- `Scripts/legacy-gates/test-product-ops-surface-validation.py`
+- `Scripts/legacy-gates/generate-release-candidate-evidence.py`
+- `Scripts/legacy-gates/validate-release-candidate-evidence.py`
 
 ## Evidence Keywords
 

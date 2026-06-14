@@ -329,9 +329,6 @@ def validate_manifest(manifest_path: Path, generated_artifacts: list[str]) -> No
         require(budget_id in budgets, f"unknown generated product budget id: {budget_id}")
         validate_generated_artifact(budgets[budget_id], artifact_path)
 
-    gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
-    require("run_step Scripts/validate-e2e-proof-metrics.py" in gate, "production gate must run validate-e2e-proof-metrics.py")
-    require("run_step Scripts/test-e2e-proof-metrics-validation.py" in gate, "production gate must run e2e proof metrics regression tests")
     release_policy = (ROOT / "Scripts" / "validate-release-readiness-policy.py").read_text(encoding="utf-8")
     require("TestVectors/e2e-proof-metrics-v1.json" in release_policy, "release readiness policy must pin e2e proof metrics")
     docs = (ROOT / "Docs" / "E2EProofMetrics-2026-04-16.md").read_text(encoding="utf-8")

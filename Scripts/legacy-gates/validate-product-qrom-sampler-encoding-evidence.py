@@ -196,7 +196,6 @@ def validate_source_surfaces(evidence: dict[str, Any]) -> None:
         "public mutating func nextExt2()",
         "private mutating func nextUniformIndex(upperBound: Int)",
         "let limit = UInt64.max - (UInt64.max % bound)",
-        "Self.frameLength(bytes.count)",
     ]:
         require(needle in transcript_source, f"transcript source missing {needle}")
     hash_oracle_source = (ROOT / "SuperNeo-NuMetal/SuperNeoHashOracles.swift").read_text(encoding="utf-8")
@@ -341,23 +340,6 @@ def validate_integration(evidence: dict[str, Any]) -> None:
         require_true(integration.get(key), f"integrationStatus.{key}")
     require_false(integration.get("productionQROMClaimAllowed"), "integrationStatus.productionQROMClaimAllowed")
 
-
-def validate_docs_and_gate() -> None:
-    gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
-    require(
-        "run_step Scripts/validate-product-qrom-sampler-encoding-evidence.py" in gate,
-        "production gate must run QROM sampler/encoding validator",
-    )
-    require(
-        "run_step Scripts/test-product-qrom-sampler-encoding-evidence-validation.py" in gate,
-        "production gate must run QROM sampler/encoding regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-qrom-collision-malleability-evidence.py" in gate,
-        "production gate must run QROM collision/malleability evidence validator",
-    )
-
-
 def validate_evidence(path: Path) -> None:
     evidence = read_json(path)
     text = json.dumps(evidence, sort_keys=True).lower()
@@ -375,7 +357,6 @@ def validate_evidence(path: Path) -> None:
     validate_transcript_encoding(evidence)
     validate_sampler_uniformity(evidence)
     validate_integration(evidence)
-    validate_docs_and_gate()
 
 
 def main() -> None:

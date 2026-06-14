@@ -8,7 +8,7 @@ It records the repo-facing development slices and their acceptance criteria.
 
 | Track | Current state | Next acceptance check |
 | --- | --- | --- |
-| Paper reproduction docs | Missing DocC/script docs have replacement entry points. | `python3 Scripts/validate-doc-links.py` and `Scripts/reproduce-superneo-paper.sh plan` |
+| Paper reproduction docs | Missing DocC/script docs have replacement entry points. | `python3 Scripts/legacy-gates/validate-doc-links.py` and `Scripts/reproduce-superneo-paper.sh plan` |
 | Pay-per-bit wins | Optimized base-2 decomposition commitment lane now emits only active limbs, benchmark rows exercise recomposition, and product proving output carries `SuperNeoPayPerBitWitnessEvidence` for prepared witnesses. | Extend the optimized lane into every product benchmark profile and Metal workspace path. |
 | Recursive IVC/PCD | `NumiSealBoundedRecursiveDriver` builds selected-depth typed-carry chains and now has a bounded PCD DAG driver that binds fan-in parent sets into trusted frontend context and accounting. | Add CLI exposure and persisted run artifacts for depth-3 release evidence. |
 | PQ signature demo | `SuperNeoXMSSWOTSPlusAggregationWorkload` adds XMSS/WOTS+ shaped verification as constraints: WOTS+ checksum digits, conditional chain completion, L-tree public-key compression, XMSS authentication path recomposition, and a `prepareManyForFolding` path that folds multiple signatures as separate CCS instances under the small-norm profile. | Extend the bit-sliced hash gadget toward an audited XMSS/SLH-DSA hash adapter and add larger parameter/performance runs. |

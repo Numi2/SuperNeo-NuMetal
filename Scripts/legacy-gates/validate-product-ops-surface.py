@@ -148,7 +148,6 @@ def validate_docs() -> None:
             "Docs/ProductOperationsReadiness-2026-04-16.md",
             "Scripts/validate-product-ops-surface.py",
             "Scripts/test-product-ops-surface-validation.py",
-            "local product-ops readiness",
             "signed revocation feed",
         ],
     )
@@ -171,15 +170,7 @@ def validate_docs() -> None:
             "product operations doc must not encode outsourced review as a dependency")
 
 
-def validate_gate_wiring() -> None:
-    require_contains(
-        "Scripts/production-gate.sh",
-        [
-            "product operations readiness surface validation",
-            "run_step Scripts/validate-product-ops-surface.py",
-            "run_step Scripts/test-product-ops-surface-validation.py",
-        ],
-    )
+def validate_release_policy_references() -> None:
     require_contains(
         "Scripts/validate-release-readiness-policy.py",
         [
@@ -194,7 +185,7 @@ def main() -> None:
     validate_library_surface()
     validate_cli_surface()
     validate_docs()
-    validate_gate_wiring()
+    validate_release_policy_references()
     print("product ops surface validation passed")
 
 

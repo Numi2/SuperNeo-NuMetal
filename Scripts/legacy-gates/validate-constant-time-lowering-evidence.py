@@ -766,15 +766,6 @@ def main() -> None:
     validate_observation_lane_contract(manifest)
     validate_release_evidence(manifest, scope)
 
-    gate = read_text("Scripts/production-gate.sh")
-    require(
-        "run_step Scripts/validate-constant-time-lowering-evidence.py" in gate,
-        "production gate must run validate-constant-time-lowering-evidence.py",
-    )
-    require(
-        "run_step Scripts/test-constant-time-lowering-evidence-validation.py" in gate,
-        "production gate must run lowering evidence regression tests",
-    )
     release_policy = read_text("Scripts/validate-release-readiness-policy.py")
     require(
         "TestVectors/constant-time-lowering-evidence-v1.json" in release_policy,

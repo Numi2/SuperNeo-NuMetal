@@ -108,15 +108,12 @@ let claims = [
             "Docs/LatticeEstimatorReproduction.md",
             "SuperNeoParameterProfile.goldilocksPhi81",
             "Scripts/reproduce-lattice-estimator.sh",
-            "Scripts/validate-lattice-estimator-artifact.py",
             "ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile"
         ],
         commands: [
             "swift test --disable-swift-testing --filter ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile",
             "Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json",
-            "Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json",
             "Scripts/reproduce-lattice-estimator.sh --full --pinned lattice-estimator-results/superneo-goldilocks-phi81.json",
-            "Scripts/validate-lattice-estimator-artifact.py --expect-status ran --expect-latest-status absent --require-claimed-security lattice-estimator-results/superneo-goldilocks-phi81.json",
             "Scripts/reproduce-lattice-estimator.sh --full --pinned --latest lattice-estimator-results/superneo-goldilocks-phi81-latest-monitoring.json"
         ],
         benchmarkSelectors: [],
@@ -200,8 +197,7 @@ let claims = [
             "swift run superneo verify TestVectors/one-hot-vector-fold-v1.json",
             "swift run superneo verify --require-terminal TestVectors/one-hot-vector-compressed-terminal-v1.json",
             "swift run superneo verify TestVectors/binary-addition-u8-fold-v1.json",
-            "swift run superneo verify --require-terminal TestVectors/binary-addition-u8-terminal-v1.json",
-            "swift Scripts/validate-test-vectors.swift"
+            "swift run superneo verify --require-terminal TestVectors/binary-addition-u8-terminal-v1.json"
         ],
         benchmarkSelectors: [],
         generatedArtifacts: [
@@ -319,13 +315,9 @@ swift run superneo inspect TestVectors/one-hot-vector-fold-v1.json
 swift run superneo inspect TestVectors/one-hot-vector-compressed-terminal-v1.json
 swift run superneo inspect TestVectors/binary-addition-u8-fold-v1.json
 swift run superneo inspect TestVectors/binary-addition-u8-terminal-v1.json
-swift Scripts/validate-test-vectors.swift
 swift run superneo-payperbit-eval --profile \(benchmarkProfile) --format markdown --output payperbit-profile/profile-evaluation.md
 swift run superneo-payperbit-eval --profile \(benchmarkProfile) --format json --output payperbit-profile/profile-evaluation.json
 Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/validate-formal-status.py
-Scripts/test-formal-status-validation.py
 Scripts/test-slice.sh fast
 Scripts/test-slice.sh protocol
 Scripts/test-slice.sh metal

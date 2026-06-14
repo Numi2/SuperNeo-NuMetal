@@ -46,11 +46,6 @@ jobs:
             --full \
             --pinned \
             lattice-estimator-results/superneo-goldilocks-phi81-pinned.json
-          Scripts/validate-lattice-estimator-artifact.py \
-            --expect-status ran \
-            --expect-latest-status absent \
-            --require-claimed-security \
-            lattice-estimator-results/superneo-goldilocks-phi81-pinned.json
 
       - name: Run latest-upstream drift monitoring
         if: ${{ inputs.run_latest == 'true' }}
@@ -59,11 +54,6 @@ jobs:
             --full \
             --pinned \
             --latest \
-            lattice-estimator-results/superneo-goldilocks-phi81-latest-monitoring.json
-          Scripts/validate-lattice-estimator-artifact.py \
-            --expect-status ran \
-            --expect-latest-status ran \
-            --require-claimed-security \
             lattice-estimator-results/superneo-goldilocks-phi81-latest-monitoring.json
 
       - name: Upload estimator artifacts

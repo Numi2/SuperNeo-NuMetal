@@ -36,5 +36,5 @@ Still external to repository-local acceptance:
 
 Pinned Sage-backed lattice estimator reproduction is tracked under
 `lattice-estimator-results/` and validated by
-`Scripts/validate-lattice-estimator-artifact.py`. Latest-upstream estimator runs
+`Scripts/legacy-gates/validate-lattice-estimator-artifact.py`. Latest-upstream estimator runs
 remain drift monitoring, not the selected security claim.

@@ -19,17 +19,17 @@ Machine-readable scope:
 - `TestVectors/product-total-loss-budget-v1.json`
 - `TestVectors/product-release-distribution-evidence-v1.json`
 - `Formal/SuperNeoFormal/ProductSecurityTheorem.lean`
-- `Scripts/validate-product-crypto-security-dossier.py`
-- `Scripts/validate-product-selected-depth-loss-accounting.py`
-- `Scripts/validate-product-extractor-loss-accounting.py`
-- `Scripts/validate-product-qrom-public-coin-accounting.py`
-- `Scripts/validate-product-qrom-transcript-schedule.py`
-- `Scripts/validate-product-qrom-sampler-encoding-evidence.py`
-- `Scripts/validate-product-qrom-collision-malleability-evidence.py`
-- `Scripts/validate-product-qrom-transform-preconditions.py`
-- `Scripts/validate-product-qrom-interactive-reduction.py`
-- `Scripts/validate-product-total-loss-budget.py`
-- `Scripts/validate-product-release-distribution-evidence.py`
+- `Scripts/legacy-gates/validate-product-crypto-security-dossier.py`
+- `Scripts/legacy-gates/validate-product-selected-depth-loss-accounting.py`
+- `Scripts/legacy-gates/validate-product-extractor-loss-accounting.py`
+- `Scripts/legacy-gates/validate-product-qrom-public-coin-accounting.py`
+- `Scripts/legacy-gates/validate-product-qrom-transcript-schedule.py`
+- `Scripts/legacy-gates/validate-product-qrom-sampler-encoding-evidence.py`
+- `Scripts/legacy-gates/validate-product-qrom-collision-malleability-evidence.py`
+- `Scripts/legacy-gates/validate-product-qrom-transform-preconditions.py`
+- `Scripts/legacy-gates/validate-product-qrom-interactive-reduction.py`
+- `Scripts/legacy-gates/validate-product-total-loss-budget.py`
+- `Scripts/legacy-gates/validate-product-release-distribution-evidence.py`
 
 The current status is a repository-local bounded-depth product theorem surface
 with local typed parent-child carry evidence. The selected finite-protocol loss
@@ -228,7 +228,7 @@ The pinned assumption is Module-SIS over Goldilocks/Phi81 Ajtai commitments:
 
 The pinned default estimator lane records `129.1` rop bits, matching the paper
 threshold lane. `Scripts/reproduce-lattice-estimator.sh` and
-`Scripts/validate-lattice-estimator-artifact.py` preserve the pinned estimator
+`Scripts/legacy-gates/validate-lattice-estimator-artifact.py` preserve the pinned estimator
 lane and sensitivity-row validation, including lower conservative quantum and
 enumeration models, so the product dossier does not permit a broad production
 post-quantum claim. NIST FIPS 203/204/205 set the reference bar for precise

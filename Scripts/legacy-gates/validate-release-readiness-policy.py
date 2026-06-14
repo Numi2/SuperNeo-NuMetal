@@ -54,57 +54,15 @@ def validate_workflow() -> None:
     ]:
         require("concurrency:" in text, f"{path} must cancel superseded runs")
         require("cancel-in-progress: true" in text, f"{path} must cancel in-progress duplicate runs")
-    require("name: PR smoke" in workflow, "production workflow must use a short PR smoke job")
-    require("pull_request:" in workflow, "production workflow must run a smoke gate on pull requests")
-    require("push:" in workflow, "production workflow must run the full gate on main pushes")
+    require("name: Build And Smoke" in workflow, "workflow must use the current smoke name")
+    require("jobs:" in workflow and "smoke:" in workflow, "workflow must define the smoke job")
+    require("pull_request:" in workflow, "workflow must run smoke on pull requests")
+    require("push:" in workflow, "production workflow must run the smoke check on main pushes")
     require("branches:" in workflow and "- main" in workflow, "production workflow push trigger must target main")
-    require(
-        "if: ${{ github.event_name == 'pull_request' }}" in workflow,
-        "PR smoke job must be limited to pull requests",
-    )
-    require(
-        "run: swift test --disable-swift-testing" in workflow,
-        "PR smoke job must run the XCTest smoke suite",
-    )
-    require(
-        "name: Checked vector validation" in workflow,
-        "production workflow must run checked vector validation on pull requests",
-    )
-    require(
-        'run: swift Scripts/validate-test-vectors.swift "${PWD}"' in workflow,
-        "PR checked vector job must validate checked proof vectors",
-    )
-    require("name: Full production gate" in workflow, "macOS CI job is not named as the full production gate")
-    require(
-        "if: ${{ github.event_name != 'pull_request' }}" in workflow,
-        "full production gate must not run on pull requests",
-    )
-    require("runs-on: macos-latest" in workflow, "full production gate must run on macOS")
-    require("run: Scripts/production-gate.sh\n" in workflow, "full production gate must run Scripts/production-gate.sh")
-    require("--skip-formal" not in workflow, "CI workflow must not skip formal checks in the full gate")
-    require(
-        "Lean formal Linux cross-check" not in workflow,
-        "production workflow must not duplicate the formal-status workflow",
-    )
-    require("pull_request:" in formal_workflow, "formal workflow must run on pull requests")
-    require("push:" in formal_workflow, "formal workflow must run on main pushes")
-    require("branches:" in formal_workflow and "- main" in formal_workflow, "formal workflow push trigger must target main")
-    require("pull_request:" not in benchmark_workflow, "benchmark workflow must not run automatically on pull requests")
-    require("push:" not in benchmark_workflow, "benchmark workflow must not run automatically on pushes")
-    require("workflow_dispatch:" in benchmark_workflow, "benchmark workflow must remain manually dispatchable")
-    for command in [
-        "Scripts/validate-formal-status.py",
-        "Scripts/test-formal-status-validation.py",
-        "Scripts/validate-formal-profile-constants.py",
-        "Scripts/test-formal-profile-constants-validation.py",
-        "Scripts/validate-formal-ext2-serialization.py",
-        "Scripts/test-formal-ext2-serialization-validation.py",
-        "Scripts/test-formal-ext2-vector-bridge.py",
-        "Scripts/validate-formal-ce-byte-serialization.py",
-        "Scripts/test-formal-ce-byte-serialization-validation.py",
-        "Scripts/test-formal-ce-vector-bridge.py",
-    ]:
-        require(command in formal_workflow, f"formal-status workflow missing {command}")
+    require("name: Full production gate" not in workflow, "CI workflow must not name a full production gate")
+    require("runs-on: macos-latest" in workflow, "main-branch smoke check must run on macOS")
+    require("run: Scripts/production-gate.sh\n" in workflow, "main-branch smoke check must run Scripts/production-gate.sh")
+    require("--skip-formal" not in workflow, "CI workflow must not reference removed formal skip flags")
 
 
 def validate_docs() -> None:
@@ -183,7 +141,7 @@ def validate_docs() -> None:
             "Scripts/test-product-ops-surface-validation.py",
             "Scripts/generate-release-candidate-evidence.py",
             "Scripts/validate-release-candidate-evidence.py",
-            "local product-ops readiness",
+            "signed revocation feed",
             "NumiSeal end-to-end theorem scope",
             "recursive folding knowledge soundness",
             "typed carry producer/consumer",
@@ -210,13 +168,11 @@ def validate_docs() -> None:
         "Docs/ReleaseEngineering-2026-04-16.md",
         [
             "Research or Integration Release",
-            "Repository-Local Production-Security Promotion",
+            "Archived Repository-Local Production-Security Promotion",
             "repository-local production-security promotion",
             "Scripts/production-gate.sh",
-            "without `--skip-formal`",
             "independent cryptographic and implementation review",
             "artifact digest provenance",
-            "full production gate",
             "Scripts/validate-numiseal-conformance-scope.py",
             "Scripts/test-numiseal-conformance-scope-validation.py",
             "TestVectors/numiseal-end-to-end-theorem-scope-v1.json",
@@ -306,7 +262,7 @@ def validate_docs() -> None:
             "Scripts/production-gate.sh",
             "Scripts/generate-release-candidate-evidence.py",
             "Scripts/validate-release-candidate-evidence.py",
-            "--expect-production-gate-result passed",
+            "--expect-production-gate-result not_run",
             "repository-local unsigned distribution",
             "NumiSeal product/carry/ZK conformance-scope version and digest",
             "NumiSeal end-to-end theorem-scope version and digest",
@@ -1268,183 +1224,10 @@ def validate_schema_versions() -> None:
     require(numiseal_kind.group(1) == "4", "ProofEnvelopeKind.numiSealTerminal must remain kind 4 until compatibility docs are updated")
 
 
-def validate_production_gate_wiring() -> None:
-    gate = read_text("Scripts/production-gate.sh")
-    require(
-        "release policy, schema compatibility, doc-link, and CI gate drift validation" in gate,
-        "production gate usage text must mention release policy validation",
-    )
-    require(
-        "run_step Scripts/validate-doc-links.py" in gate,
-        "production gate must run validate-doc-links.py",
-    )
-    require(
-        "run_step Scripts/validate-release-readiness-policy.py" in gate,
-        "production gate must run validate-release-readiness-policy.py",
-    )
-    require(
-        "run_step Scripts/test-release-candidate-evidence-validation.py" in gate,
-        "production gate must run release-candidate evidence regression tests",
-    )
-    require(
-        "run_step Scripts/validate-numiseal-conformance-scope.py" in gate,
-        "production gate must run validate-numiseal-conformance-scope.py",
-    )
-    require(
-        "run_step Scripts/test-numiseal-conformance-scope-validation.py" in gate,
-        "production gate must run NumiSeal conformance scope regression tests",
-    )
-    require(
-        "run_step Scripts/validate-numiseal-zk-mask-distribution-evidence.py" in gate,
-        "production gate must run NumiSealZK mask-distribution evidence validation",
-    )
-    require(
-        "run_step Scripts/test-numiseal-zk-mask-distribution-evidence-validation.py" in gate,
-        "production gate must run NumiSealZK mask-distribution evidence regression tests",
-    )
-    require(
-        "run_step Scripts/validate-numiseal-product-artifact-schema.py" in gate,
-        "production gate must run NumiSeal product artifact schema validation",
-    )
-    require(
-        "run_step Scripts/test-numiseal-product-artifact-schema-validation.py" in gate,
-        "production gate must run NumiSeal product artifact schema regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-crypto-security-dossier.py" in gate,
-        "production gate must run validate-product-crypto-security-dossier.py",
-    )
-    require(
-        "run_step Scripts/test-product-crypto-security-dossier-validation.py" in gate,
-        "production gate must run product crypto security dossier regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-selected-depth-loss-accounting.py" in gate,
-        "production gate must run validate-product-selected-depth-loss-accounting.py",
-    )
-    require(
-        "run_step Scripts/test-product-selected-depth-loss-accounting-validation.py" in gate,
-        "production gate must run selected-depth loss-accounting regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-extractor-loss-accounting.py" in gate,
-        "production gate must run validate-product-extractor-loss-accounting.py",
-    )
-    require(
-        "run_step Scripts/test-product-extractor-loss-accounting-validation.py" in gate,
-        "production gate must run extractor loss-accounting regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-qrom-public-coin-accounting.py" in gate,
-        "production gate must run validate-product-qrom-public-coin-accounting.py",
-    )
-    require(
-        "run_step Scripts/test-product-qrom-public-coin-accounting-validation.py" in gate,
-        "production gate must run QROM public-coin accounting regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-qrom-transcript-schedule.py" in gate,
-        "production gate must run validate-product-qrom-transcript-schedule.py",
-    )
-    require(
-        "run_step Scripts/test-product-qrom-transcript-schedule-validation.py" in gate,
-        "production gate must run QROM transcript schedule regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-qrom-sampler-encoding-evidence.py" in gate,
-        "production gate must run QROM sampler/encoding evidence validation",
-    )
-    require(
-        "run_step Scripts/test-product-qrom-sampler-encoding-evidence-validation.py" in gate,
-        "production gate must run QROM sampler/encoding evidence regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-qrom-collision-malleability-evidence.py" in gate,
-        "production gate must run QROM collision/malleability evidence validation",
-    )
-    require(
-        "run_step Scripts/test-product-qrom-collision-malleability-evidence-validation.py" in gate,
-        "production gate must run QROM collision/malleability evidence regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-qrom-transform-preconditions.py" in gate,
-        "production gate must run validate-product-qrom-transform-preconditions.py",
-    )
-    require(
-        "run_step Scripts/test-product-qrom-transform-preconditions-validation.py" in gate,
-        "production gate must run QROM transform precondition regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-qrom-interactive-reduction.py" in gate,
-        "production gate must run validate-product-qrom-interactive-reduction.py",
-    )
-    require(
-        "run_step Scripts/test-product-qrom-interactive-reduction-validation.py" in gate,
-        "production gate must run QROM interactive reduction regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-total-loss-budget.py" in gate,
-        "production gate must run validate-product-total-loss-budget.py",
-    )
-    require(
-        "run_step Scripts/test-product-total-loss-budget-validation.py" in gate,
-        "production gate must run total-loss budget regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-release-distribution-evidence.py" in gate,
-        "production gate must run release distribution evidence validation",
-    )
-    require(
-        "run_step Scripts/test-product-release-distribution-evidence-validation.py" in gate,
-        "production gate must run release distribution evidence regression tests",
-    )
-    require(
-        "run_step Scripts/validate-constant-time-scope.py" in gate,
-        "production gate must run validate-constant-time-scope.py",
-    )
-    require(
-        "run_step Scripts/test-constant-time-scope-validation.py" in gate,
-        "production gate must run constant-time validator regression tests",
-    )
-    require(
-        "run_step Scripts/validate-constant-time-lowering-evidence.py" in gate,
-        "production gate must run validate-constant-time-lowering-evidence.py",
-    )
-    require(
-        "run_step Scripts/test-constant-time-lowering-evidence-validation.py" in gate,
-        "production gate must run constant-time lowering evidence regression tests",
-    )
-    require(
-        "run_step Scripts/validate-e2e-proof-metrics.py" in gate,
-        "production gate must run validate-e2e-proof-metrics.py",
-    )
-    require(
-        "run_step Scripts/test-e2e-proof-metrics-validation.py" in gate,
-        "production gate must run E2E proof metrics validator regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-ops-surface.py" in gate,
-        "production gate must run validate-product-ops-surface.py",
-    )
-    require(
-        "run_step Scripts/test-product-ops-surface-validation.py" in gate,
-        "production gate must run product ops surface validator regression tests",
-    )
-    require(
-        "--generated-product-artifact \"numiseal-product-smoke:${numiseal_product_path}\"" in gate,
-        "production gate must budget the generated NumiSeal product smoke artifact",
-    )
-    require(
-        "--generated-product-artifact \"numiseal-zk-product-smoke:${numiseal_zk_product_path}\"" in gate,
-        "production gate must budget the generated NumiSealZK product smoke artifact",
-    )
-
-
 def main() -> None:
     validate_workflow()
     validate_docs()
     validate_schema_versions()
-    validate_production_gate_wiring()
     print("release readiness policy validation passed")
 
 

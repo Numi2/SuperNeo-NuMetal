@@ -528,23 +528,6 @@ def validate_promotion_and_blockers(schedule: dict[str, Any]) -> None:
     )
     require(promotion.get("requiresDigestCollisionBound") is True, "promotionRule.requiresDigestCollisionBound must be true")
 
-
-def validate_docs_and_gate() -> None:
-    gate = (ROOT / "Scripts" / "production-gate.sh").read_text(encoding="utf-8")
-    require(
-        "run_step Scripts/validate-product-qrom-transcript-schedule.py" in gate,
-        "production gate must run QROM transcript schedule validator",
-    )
-    require(
-        "run_step Scripts/test-product-qrom-transcript-schedule-validation.py" in gate,
-        "production gate must run QROM transcript schedule regression tests",
-    )
-    require(
-        "run_step Scripts/validate-product-qrom-collision-malleability-evidence.py" in gate,
-        "production gate must run QROM collision/malleability evidence validator",
-    )
-
-
 def validate_schedule(path: Path) -> None:
     schedule = read_json(path)
     text = json.dumps(schedule, sort_keys=True).lower()
@@ -564,7 +547,6 @@ def validate_schedule(path: Path) -> None:
     validate_schedule_entries(schedule)
     validate_ledger_binding(schedule)
     validate_promotion_and_blockers(schedule)
-    validate_docs_and_gate()
 
 
 def main() -> None:

@@ -8,6 +8,10 @@ deterministic field/ring/evaluation corpus and CCS/transcript/serialization
 shape checks. The Ajtai commitment corpus is high-signal but slower, so it has
 its own slice.
 
+Run `Scripts/fuzz-malformed-artifacts.sh` when changing artifact parsing,
+canonical serialization, transcript binding, or verifier acceptance. It attacks
+the CLI verifier with mutated proof artifacts and fails if a mutant verifies.
+
 Use the focused slices when changing a specific layer:
 
 ```sh
@@ -64,8 +68,6 @@ swift test --disable-swift-testing --scratch-path /tmp/superneo-spm-build
 If a change crosses layers, run the smallest affected set first, then
 `Scripts/test-slice.sh all` before handing off.
 
-The default SwiftPM test target intentionally excludes archived research-gate
-suites that require long proof-compression, IVC/PCD, paper-track, or XMSS
-coverage. The supported `all` slice also avoids long proof-construction and
-product-surface gates; run those classes explicitly when changing their layer.
-The archived files remain in this directory as reference material.
+The default SwiftPM test target intentionally excludes long research suites for
+proof compression, IVC/PCD, paper-track, or XMSS coverage. Run those classes
+explicitly when changing their layer.
