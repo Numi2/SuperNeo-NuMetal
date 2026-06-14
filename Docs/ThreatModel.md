@@ -10,14 +10,14 @@ This is the paper-facing threat-model summary for the current repository.
 - Integrity of signed trusted context, provenance, issued-QRO, replay, and audit
   records.
 - Privacy properties claimed for NumiSealZK masking and simulator-coupling
-  evidence.
+  arguments.
 - Parameter and estimator evidence for the selected Goldilocks/Phi81 profile.
 
 ## Adversary Model
 
 The checked repository surface considers malformed artifacts, replayed issued
 QRO challenges, mismatched product contexts, noncanonical encodings, transcript
-confusion, invalid terminal relation acceptance, and evidence-manifest drift.
+confusion, invalid terminal relation acceptance, and parameter misuse.
 
 The product path expects callers to supply valid signed context/provenance/QRO
 inputs and to configure any stricter side-channel certificate requirements in
@@ -38,6 +38,7 @@ The repository does not model or certify:
 ## Sources
 
 - [WhatThisProves.md](WhatThisProves.md)
+- [PrimitiveSpec.md](PrimitiveSpec.md)
+- [Parameters.md](Parameters.md)
+- [ProofEnvelope.md](ProofEnvelope.md)
 - [QROProductArchitecture-2026-04-25.md](QROProductArchitecture-2026-04-25.md)
-- [ProductOperationsReadiness-2026-04-16.md](ProductOperationsReadiness-2026-04-16.md)
-- [CryptographicSecurityDossier-2026-04-16.md](CryptographicSecurityDossier-2026-04-16.md)

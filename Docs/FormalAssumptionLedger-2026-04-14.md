@@ -122,11 +122,12 @@ path. This preserves audit history while preventing a direct promotion of
 
 ## Verification
 
-Validation commands:
+Formal build commands:
 
 ```sh
-cd Formal && lake build
-cd ..
-Scripts/legacy-gates/validate-formal-status.py
-Scripts/legacy-gates/test-formal-status-validation.py
+cd Formal
+lake build
+lake build SuperNeoFormal.VectorChecks
+lake env lean --run ProofImportWall.lean
+lake env lean --run SuperNeoFormalVectorCheck.lean
 ```

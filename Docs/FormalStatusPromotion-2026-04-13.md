@@ -57,8 +57,8 @@ theorem.
 - The Ajtai binding statement remains conditional on the explicit MSIS
   no-short-kernel assumption represented in the Lean model.
 - Local validation in this workspace now runs `lake build` through elan. The
-  GitHub formal workflow remains the authoritative shared proof-build gate for
-  formal changes.
+  GitHub formal workflow remains the shared proof-build check for formal
+  changes.
 
 ## Validation
 
@@ -66,8 +66,6 @@ Commands run locally on 2026-04-13:
 
 ```sh
 (cd Formal && lake build)
-Scripts/legacy-gates/validate-formal-status.py
-Scripts/legacy-gates/test-formal-status-validation.py
 swift test --disable-swift-testing --filter ProtocolShapeTests/testGoldilocksParameterProfileMatchesPaperProfile
 Scripts/check-smoke.sh
 ```

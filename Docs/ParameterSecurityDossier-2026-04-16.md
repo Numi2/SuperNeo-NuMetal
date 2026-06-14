@@ -213,7 +213,6 @@ Pinned command:
 
 ```sh
 Scripts/reproduce-lattice-estimator.sh --full --pinned lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/legacy-gates/validate-lattice-estimator-artifact.py --expect-status ran --expect-latest-status absent --require-claimed-security lattice-estimator-results/superneo-goldilocks-phi81.json
 ```
 
 Pinned artifact:
@@ -235,9 +234,9 @@ Manual audit rows from the same estimator checkout and same `SIS.Parameters`:
 | ChaLoy21 | `88.7` | `345` | `3129` | alternate costing |
 | LaaMosPol14 | `122.4` | `345` | `3129` | alternate costing |
 
-This is the main adversarial-reading point: the repository's release gate
-reproduces the paper/default estimator threshold, while broader quantum/cautious
-cost models do not support a 128-bit quantum claim for `kappa = 18`.
+This is the main adversarial-reading point: the pinned estimator lane reproduces
+the paper/default threshold, while broader quantum/cautious cost models do not
+support a 128-bit quantum claim for `kappa = 18`.
 
 ## Sensitivity Analysis
 

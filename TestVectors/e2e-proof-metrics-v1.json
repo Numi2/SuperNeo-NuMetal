@@ -35,7 +35,7 @@
   "latencyEvidencePolicy": {
     "benchmarkCommand": "Scripts/run-benchmarks.sh quick",
     "productionReleaseRequiresFreshBenchmarkReport": true,
-    "trackedReportDirectory": "Docs/BenchmarkReports"
+    "trackedReportDirectory": "Docs/Archive/compliance/BenchmarkReports"
   },
   "openBoundaries": [
     "Checked vector byte counts are deterministic serialization budgets for repository-local performance promotion.",

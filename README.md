@@ -3,13 +3,13 @@
 SuperNeo NuMetal is a Swift and Metal research implementation of the SuperNeo
 folding stack over the `Goldilocks/Phi81(d=54)` profile. The repository contains
 the Swift prover/verifier, NumiSeal product proof paths, proof-envelope and
-compression experiments, Metal acceleration lanes, checked evidence manifests,
-benchmark tooling, and a Lean 4 formal track under `Formal/`.
+compression experiments, Metal acceleration lanes, verifier-negative tests,
+stable proof vectors, malformed-artifact fuzzing, and a Lean 4 formal track
+under `Formal/`.
 
-The repository-local status is: completed formal protocol theorem, checked
-bounded-depth product/evidence surface, and release-candidate tooling. This is
-not an independently audited production SNARK or a production post-quantum
-security claim.
+The repository-local status is: active cryptographic implementation research.
+This is not an independently audited production SNARK, a release-candidate
+packet, or a production post-quantum security claim.
 
 ## Current Implementation Snapshot
 
@@ -56,7 +56,7 @@ security claim.
   constant-work CPU path; accelerated and CPU-redundant Metal modes are explicit
   opt-ins.
 
-### Formal And Evidence Track
+### Formal And Attack Track
 
 - Lean sources under `Formal/` cover the repository model: transcript
   well-formedness, typed digest domains, proof-envelope binding, Phi81/Goldilocks
@@ -64,6 +64,9 @@ security claim.
   NumiSeal typed carry, QRO/QROM ledgers, and the product theorem wiring.
 - `TestVectors/` contains checked public vectors and fixtures for wire-format
   compatibility, verifier behavior, and regression testing.
+- `Scripts/fuzz-malformed-artifacts.sh`, `Scripts/test-slice.sh attack`, and
+  `Scripts/regenerate-test-vectors.sh` are the preferred checks when touching
+  verifier acceptance, canonical serialization, or transcript binding.
 - `Scripts/check-smoke.sh` is the only daily smoke check. Historical policy,
   wording, and evidence gates are quarantined under `Scripts/legacy-gates/`.
 
@@ -75,8 +78,8 @@ security claim.
 - `SuperNeo-NuMetalTests/`: protocol, product, compression, verifier-negative,
   policy, and Metal differential tests.
 - `Formal/`: Lean 4 formal workspace.
-- `Docs/`: architecture, proof semantics, product, release, operations,
-  benchmark, and security-boundary notes.
+- `Docs/`: active construction, proof semantics, threat model, parameter,
+  transcript, and security-boundary notes.
 - `TestVectors/`: checked public vectors, schemas, and evidence fixtures.
 - `Evidence/`: constant-time and compiler-lowering evidence records.
 - `Scripts/`: smoke, benchmark, estimator, reproduction, and attack-oriented
@@ -150,8 +153,8 @@ swift run superneo verify \
 
 Benchmark rows are rendered by `Scripts/render-benchmark-report.swift` from
 `benchmark-results/results.json`. Fresh local runs write to
-`benchmark-results/`; checked snapshots under `Docs/BenchmarkReports/` are
-release evidence only when explicitly refreshed.
+`benchmark-results/`; old checked snapshots live under
+`Docs/Archive/compliance/BenchmarkReports/` for reference only.
 
 The timing table records more than one cost:
 
@@ -333,19 +336,20 @@ SUPERNEO_BENCHMARK_CE=1 Scripts/run-benchmarks.sh quick
 
 - `Docs/WhatThisProves.md`: proof semantics and claim boundaries.
 - `Docs/PrimitiveSpec.md`: concise construction and attack-surface spec.
+- `Docs/ThreatModel.md`: assets, adversary model, and explicit non-goals.
+- `Docs/Parameters.md`: selected parameter profile and estimator pointers.
 - `Docs/QROProductArchitecture-2026-04-25.md`: selected product QRO path.
 - `Docs/ProofEnvelope.md`: proof-envelope binding and parser rules.
 - `Docs/CLI.md`: active CLI surface.
 - `Docs/RoadmapStatus.md`: compact architecture and priority map.
 - `Docs/ProductIntegrationLayer-2026-04-16.md`: product integration layer.
-- `Docs/ProductOperationsReadiness-2026-04-16.md`: local product-control state.
-- `Docs/CryptographicSecurityDossier-2026-04-16.md`: evidence-parametric
-  security dossier.
-- `Docs/Benchmarking.md`: benchmark commands and coverage contract.
-- `Docs/BenchmarkReports/README.md`: checked benchmark report landing area.
 - `Docs/GPUDeterminism.md`: Metal acceleration and trust policies.
-- `Docs/ProductionReadinessAuditPacket-2026-04-16.md`: legacy release-candidate
-  evidence packet.
+- `Docs/CryptographicSideChannelAudit-2026-04-25.md`: constant-time/code-shape
+  review notes.
+- `Docs/Benchmarking.md`: benchmark commands; reporting only, not a development
+  gate.
+- `Docs/Archive/compliance/`: old release, dossier, conformance, benchmark, and
+  product-control evidence material kept for reference only.
 - `Docs/SuperNeoPaperImplementationTracks-2026-04-25.md`: paper-to-repo
   implementation tracker.
 - `math-audit.md` and `notes-math-ai.md`: formal audit and theorem-package

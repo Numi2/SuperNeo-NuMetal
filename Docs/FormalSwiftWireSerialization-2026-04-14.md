@@ -76,11 +76,7 @@ production QROM theorem.
 ## Verification
 
 The declarations are tracked by `Docs/FormalStatus.json`, and the full formal
-target builds with `lake build`. `Scripts/legacy-gates/validate-formal-ext2-serialization.py`
-checks the Lean Ext2 and Phi81/Ext2 coefficient grammars against the Swift
-encoder/parser shape, direct 16-byte reader call sites, Ext2 ring caller layout,
-Ext2 caller-surface grammar, and the independent Swift runtime fixture test.
-`Scripts/legacy-gates/validate-formal-ce-byte-serialization.py`
-checks the CE byte grammar against Swift CE proof encoding/parsing and the
-all-tags parser fixture. Both mutation harnesses are part of the production
-gate.
+target builds with `lake build`. The useful development checks are the Lean
+vector checks plus Swift serialization tests that exercise the same Ext2,
+Phi81/Ext2, and CE byte grammars. These checks are about parser/wire-format
+agreement, not release promotion.

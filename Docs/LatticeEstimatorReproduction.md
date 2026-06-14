@@ -18,21 +18,18 @@ the repository.
 
 ```bash
 Scripts/reproduce-lattice-estimator.sh --dry-run lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/legacy-gates/validate-lattice-estimator-artifact.py --expect-status not_run --expect-latest-status absent lattice-estimator-results/superneo-goldilocks-phi81.json
 ```
 
 ```bash
 Scripts/reproduce-lattice-estimator.sh --full --pinned lattice-estimator-results/superneo-goldilocks-phi81.json
-Scripts/legacy-gates/validate-lattice-estimator-artifact.py --expect-status ran --expect-latest-status absent --require-claimed-security lattice-estimator-results/superneo-goldilocks-phi81.json
 ```
 
 ## Maintained Inputs
 
-The current input derivation is documented in [Parameters.md](Parameters.md)
-and [CryptographicSecurityDossier-2026-04-16.md](CryptographicSecurityDossier-2026-04-16.md).
-The generated artifact schema and validators are under
-[Scripts/reproduce-lattice-estimator.py](../Scripts/reproduce-lattice-estimator.py)
-and [Scripts/legacy-gates/validate-lattice-estimator-artifact.py](../Scripts/legacy-gates/validate-lattice-estimator-artifact.py).
+The current input derivation is documented in [Parameters.md](Parameters.md) and
+[ParameterSecurityDossier-2026-04-16.md](ParameterSecurityDossier-2026-04-16.md).
+The generated artifact code is
+[Scripts/reproduce-lattice-estimator.py](../Scripts/reproduce-lattice-estimator.py).
 
 ## Sensitivity Policy
 
@@ -42,6 +39,6 @@ support, expansion factor, selected fresh/prior bounds, or norm bound requires:
 - regenerating the estimator artifact,
 - rerunning the profile-shape test,
 - updating [ParameterSecurityDossier-2026-04-16.md](ParameterSecurityDossier-2026-04-16.md),
-- updating [product-crypto-security-dossier-v1.json](../TestVectors/product-crypto-security-dossier-v1.json),
-- and keeping production PQ wording disabled until the release gate accepts the
-  new evidence set.
+- updating [Parameters.md](Parameters.md),
+- and keeping production PQ wording out of scope until the parameter change has
+  independent cryptographic review.

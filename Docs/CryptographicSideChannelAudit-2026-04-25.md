@@ -48,11 +48,9 @@ allowed production constant-time claims even though the same evidence records de
 open compiler/lowering and hardware-observation work. That was not a defensible whole-stack
 constant-time claim.
 
-Fix: `TestVectors/constant-time-lowering-evidence-v1.json`, the compiler/hardware lane
-reports, the release evidence manifest, and the product loss/dossier manifests now keep
-`productionConstantTimeClaimAllowed` false. Validators were updated to enforce that
-non-certifying state while hardware coverage remains open; the scoped compiler/lowering
-input is now pinned by `compiler-lowering-audit-v1`.
+Fix: do not promote the compiler/hardware lane reports into whole-stack
+constant-time claims while hardware coverage remains open. Treat the scoped
+compiler/lowering input as code-shape evidence only.
 
 ### F-03: High-assurance defaults are useful, but optimized paths remain data-dependent
 

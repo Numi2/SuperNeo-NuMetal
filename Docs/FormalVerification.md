@@ -15,41 +15,23 @@ finite model. Ajtai binding is consumed through certified
 verifier keys, transcript byte injectivity is theorem-facing only for
 well-formed length-counted transcript states, theorem-critical bindings have a
 384-bit typed digest layer, and finite PiRLC/PiCCS/terminal-CE/transcript
-probability accounting exists over explicit bad challenge/seed sets. The active
-status keeps the two former integration IDs in `Docs/FormalStatus.json` as
-closed promotion gates: constructive terminal CE localization instantiation for
-the concrete Swift/Fiat-Shamir tape and CRT-based PiRLC finite-soundness
-completion. PiRLC now has concrete folded-claim linear observations, finite
-observation-family bad-seed accounting with an explicit family-cardinality
-multiplier, and a direct certificate for the selected public-fields-zero
-relation.
-
-The historical `closed_under_*` groups remain documented for auditability, but
-the manifest now uses corrected-core group IDs plus closed integration gates.
-The status validator rejects declaration reuse across theorem groups, prevents
-boundary/assumption declarations from being promoted into completed-theorem
-groups, and rejects documentation that claims the completed label unless the
-promotion gates are closed.
+probability accounting exists over explicit bad challenge/seed sets. PiRLC now
+has concrete folded-claim linear observations, finite observation-family
+bad-seed accounting with an explicit family-cardinality multiplier, and a direct
+certificate for the selected public-fields-zero relation.
 
 ## Status Manifest
 
-`Docs/FormalStatus.json` is the source of truth for documentation labels. The
-validator checks that docs do not claim a stronger status than the manifest
-supports, resolves each declared Lean module to its source file, and requires
-closed theorem groups to reference declarations that are present in that module:
+`Docs/FormalStatus.json` records the theorem groups and the Lean declarations
+they are meant to track. For active development, build the formal workspace and
+run the executable formal vector checks:
 
 ```sh
-Scripts/legacy-gates/validate-formal-status.py
-```
-
-The regression harness mutates temporary manifest copies and confirms the
-validator fails closed for missing integration gates, non-closed integration
-gates at promotion, missing declarations, closed groups without any declaration,
-assumption/boundary declarations in stronger-label groups, documentation
-overclaims, and completed-label dependency drift:
-
-```sh
-Scripts/legacy-gates/test-formal-status-validation.py
+cd Formal
+lake build
+lake build SuperNeoFormal.VectorChecks
+lake env lean --run ProofImportWall.lean
+lake env lean --run SuperNeoFormalVectorCheck.lean
 ```
 
 Allowed labels are:

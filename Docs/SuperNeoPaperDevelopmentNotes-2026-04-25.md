@@ -22,9 +22,9 @@ the paper more tightly. It is a roadmap note, not a security claim.
 - The selected concrete profile is present as Goldilocks/Phi81(d=54), with
   `kappa = 18`, norm bound `2`, challenge coefficients `[-2, -1, 0, 1, 2]`,
   decomposition length `14`, and the 129-bit assumption-scoped estimator lane.
-- The repository has a serious formal/evidence track: Lean protocol surfaces,
-  product theorem ledgers, QRO/QROM evidence manifests, release gates, and
-  benchmark coverage.
+- The repository has a serious formal and attack-oriented track: Lean protocol
+  surfaces, verifier-negative tests, malformed-artifact fuzzing, stable vectors,
+  QRO/QROM threat analysis, and benchmark instrumentation.
 
 ## Development Priorities
 

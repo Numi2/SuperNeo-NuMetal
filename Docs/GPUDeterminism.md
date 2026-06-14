@@ -15,15 +15,14 @@ The runtime policy surface is implemented in
 [SuperNeoExecutionPolicy.swift](../SuperNeo-NuMetal/SuperNeoExecutionPolicy.swift)
 and the Metal backend under [MetalBackend](../SuperNeo-NuMetal/MetalBackend).
 
-## Evidence
+## Review Surface
 
-Relevant evidence and docs:
+Relevant code-shape and determinism notes:
 
-- [ConstantTimeEvidence-2026-04-16.md](ConstantTimeEvidence-2026-04-16.md)
 - [CryptographicSideChannelAudit-2026-04-25.md](CryptographicSideChannelAudit-2026-04-25.md)
 - [constant-time-scope-v1.json](../TestVectors/constant-time-scope-v1.json)
 - [constant-time-lowering-evidence-v1.json](../TestVectors/constant-time-lowering-evidence-v1.json)
-- [ConstantTime evidence manifest](../Evidence/ConstantTime/swift-llvm-metal-v1/manifest.json)
+- [Archive/compliance/ConstantTimeEvidence-2026-04-16.md](Archive/compliance/ConstantTimeEvidence-2026-04-16.md)
 
 ## Claim Boundary
 

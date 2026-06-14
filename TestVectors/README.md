@@ -40,7 +40,7 @@ reference, not as development blockers.
 - `constant-time-lowering-evidence-v1.json`: Swift/LLVM/Metal lowering
   evidence pointer.
 - `e2e-proof-metrics-v1.json`: proof-envelope and product artifact byte counts.
-- `benchmark-coverage-v1.json`: whole-stack benchmark coverage contract.
+- `benchmark-coverage-v1.json`: archived benchmark coverage map.
 
 ## Active Verification Rules
 

@@ -163,7 +163,7 @@
     {
       "id": "product-ops-replay",
       "ledgerSymbol": "epsilon_replay",
-      "sourceManifest": "Docs/ProductOperationsReadiness-2026-04-16.md",
+      "sourceManifest": "Docs/Archive/compliance/ProductOperationsReadiness-2026-04-16.md",
       "currentMultiplicityAtSelectedDepth": 0,
       "requiredForSelectedDepth": false,
       "lossInstantiated": false,

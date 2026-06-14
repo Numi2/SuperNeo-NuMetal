@@ -339,7 +339,7 @@
   },
   "documentation_claims": [
     {
-      "path": "Docs/AuditBlockerNarrowing-2026-04-16.md",
+      "path": "Docs/Archive/compliance/AuditBlockerNarrowing-2026-04-16.md",
       "label": "completed formal protocol theorem"
     },
     {
@@ -387,7 +387,7 @@
       "label": "completed formal protocol theorem"
     },
     {
-      "path": "Docs/ProductionReadinessAuditPacket-2026-04-16.md",
+      "path": "Docs/Archive/compliance/ProductionReadinessAuditPacket-2026-04-16.md",
       "label": "completed formal protocol theorem"
     },
     {

@@ -1,8 +1,8 @@
 # Benchmarking
 
 This page is the current benchmark entry point. It is intentionally short; raw
-reports live under `benchmark-results/` and checked report snapshots live under
-`Docs/BenchmarkReports/`.
+reports live under `benchmark-results/`. Old checked report snapshots live under
+`Docs/Archive/compliance/BenchmarkReports/` for reference only.
 
 ## Commands
 
@@ -33,8 +33,8 @@ It is not a development gate.
 
 - `quick`: small CPU rows plus Metal when available.
 - `scaling`: larger fold and commitment rows.
-- `full`: selected proof, fold, NumiSeal, product-controls, and release evidence
-  rows.
+- `full`: selected proof, fold, NumiSeal, product-control, and heavier
+  performance rows.
 
 Useful filters:
 
@@ -45,8 +45,7 @@ SUPERNEO_BENCHMARK_CE=1 Scripts/run-benchmarks.sh quick
 
 ## Boundaries
 
-The checked benchmark coverage supports repository-local performance evidence.
-It does not claim hosted throughput, capacity planning, universal hardware
-performance, or competitor superiority. Same-hardware competitor evidence is
-pinned separately by `Docs/CompetitivePerformance-2026-04-21.md` and
-`TestVectors/competitive-performance-comparison-v1.json`.
+Benchmark reports are local measurements for investigation. They do not claim
+hosted throughput, capacity planning, universal hardware performance, competitor
+superiority, or release readiness. Historical same-hardware comparison material
+lives under `Docs/Archive/compliance/`.

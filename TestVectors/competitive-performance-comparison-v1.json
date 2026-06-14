@@ -4,8 +4,8 @@
   "claimStatus": "same-hardware-competitive-performance-evidence",
   "capturedAtUTC": "2026-04-21T20:44:50Z",
   "localBenchmarkEvidence": {
-    "metadata": "Docs/BenchmarkReports/competitive-performance-2026-04-21-metadata.json",
-    "report": "Docs/BenchmarkReports/competitive-performance-2026-04-21-report.md",
+    "metadata": "Docs/Archive/compliance/BenchmarkReports/competitive-performance-2026-04-21-metadata.json",
+    "report": "Docs/Archive/compliance/BenchmarkReports/competitive-performance-2026-04-21-report.md",
     "generatedAtUTC": "2026-04-21T20:44:50Z"
   },
   "sameHardwareEnvironment": {
