@@ -460,7 +460,7 @@ var report: [String] = [
     "",
     "Mode: `\(mode)`",
     "",
-    "This artifact maps the bundled Neo/SuperNeo paper claims to repository commands, tests, benchmark selectors, and generated files. It is an implementation-reproduction harness: it does not re-prove the paper's theorems. It records the exact Module-SIS estimator parameters in dry-run mode; full lattice-estimator execution is claimed only from the pinned Sage-backed lane when that lane reports `status: ran` and validation passes.",
+    "This artifact maps the bundled Neo/SuperNeo paper claims to repository commands, tests, benchmark selectors, and generated files. It is an implementation-reproduction harness: it does not re-prove the paper's theorems. It records the exact Module-SIS estimator parameters in dry-run mode; full lattice-estimator execution is claimed only from the pinned Sage-backed lane when that lane reports `status: ran`.",
     "",
     "## Generated Artifacts",
     "",
@@ -539,7 +539,7 @@ report.append(contentsOf: [
     "",
     "## Required Interpretation",
     "",
-    "A passing artifact supports the implementation claims listed above. It does not certify production security. Side-channel and malicious-GPU resistance depend on using the explicit high-assurance execution policy and on the remaining boundaries documented in `Docs/HighAssuranceHardening-2026-04-13.md`. Independent Module-SIS estimation is only claimed from the pinned reproduction lane when `Scripts/reproduce-lattice-estimator.sh --full --pinned` completes under Sage and validation passes with `--require-claimed-security`. Latest-upstream runs are drift monitoring only."
+    "A passing artifact supports the implementation claims listed above. It does not certify production security. Side-channel and malicious-GPU resistance depend on using the explicit high-assurance execution policy and on the remaining boundaries documented in `Docs/HighAssuranceHardening-2026-04-13.md`. Independent Module-SIS estimation is only claimed from the pinned reproduction lane when `Scripts/reproduce-lattice-estimator.sh --full --pinned` completes under Sage and reports the expected pinned result. Latest-upstream runs are drift monitoring only."
 ])
 
 try report.joined(separator: "\n").write(to: reportURL, atomically: true, encoding: .utf8)

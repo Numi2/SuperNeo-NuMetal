@@ -76,7 +76,7 @@ Results:
 - Formal manifest validation: passed.
 - Formal-status mutation regression tests: passed.
 - Goldilocks/Phi81 profile test: passed.
-- Production gate: passed, including release build, debug and release XCTest
-  suites, checked-in vector validation, lattice-estimator dry-run validation,
-  formal-status validation, formal-status regression tests, and strict release
-  CLI proof/verify smoke checks.
+- Historical release bundle: passed at the time, including release build, debug
+  and release XCTest suites, checked-in vector parsing, lattice-estimator
+  dry-run output, and CLI proof/verify smoke checks. This bundle is archived
+  context, not an active development gate.

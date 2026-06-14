@@ -78,6 +78,6 @@ cd Formal
 lake build
 ```
 
-The CI workflow `Formal Status` runs `lake build`, validates the status
-manifest, and runs the mutation-regression harness for changes touching
-`Formal/`, the manifest, validator scripts, or status-bearing docs.
+The manual CI workflow `Formal Status` runs `lake build` and the executable
+formal vector checks. Treat it as proof-work verification, not a documentation
+promotion gate.

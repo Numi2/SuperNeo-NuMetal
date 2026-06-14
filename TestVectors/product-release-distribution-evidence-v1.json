@@ -82,7 +82,7 @@
   "requiredVerificationSteps": [
     "verify release evidence schema and digest before trusting release notes",
     "verify every artifact digest is listed in the provenance packet",
-    "verify production gate result equals passed for release candidates that claim the full local gate",
+    "verify archived release-bundle result before trusting release-candidate notes",
     "verify the release evidence digest is archived with the release artifacts"
   ],
   "signingStatus": {

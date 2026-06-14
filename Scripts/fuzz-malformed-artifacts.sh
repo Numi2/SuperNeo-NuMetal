@@ -2,11 +2,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CASES="${SUPERNEO_FUZZ_CASES:-24}"
+CASES="${SUPERNEO_FUZZ_CASES:-all}"
 
 usage() {
   cat <<'USAGE'
-Usage: Scripts/fuzz-malformed-artifacts.sh [case-count]
+Usage: Scripts/fuzz-malformed-artifacts.sh [case-count|all]
 
 Generate a tiny valid fold artifact, mutate its JSON and embedded proof envelope,
 and require every mutant to be rejected by `superneo verify`.
@@ -28,6 +28,8 @@ if [[ $# -gt 0 ]]; then
 fi
 
 case "${CASES}" in
+  all)
+    ;;
   ''|*[!0-9]*)
     usage >&2
     exit 64
@@ -62,19 +64,31 @@ import sys
 
 seed_path = pathlib.Path(sys.argv[1])
 out_dir = pathlib.Path(sys.argv[2])
-case_count = int(sys.argv[3])
+case_count = sys.argv[3]
 
-artifact = json.loads(seed_path.read_text(encoding="utf-8"))
+seed_text = seed_path.read_text(encoding="utf-8")
+artifact = json.loads(seed_text)
 
 def write_case(index, label, value):
     path = out_dir / f"mutant-{index:03d}-{label}.json"
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if isinstance(value, str):
+        path.write_text(value + "\n", encoding="utf-8")
+    else:
+        path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
 
 def clone():
     return json.loads(json.dumps(artifact))
 
 mutants = []
+
+case = clone()
+case["unexpectedTopLevelField"] = "must reject unknown top-level artifact fields"
+mutants.append(("unknown-top-level", case))
+
+case = clone()
+case["publicInputs"] = "0"
+mutants.append(("public-input-type", case))
 
 case = clone()
 case["publicInputs"] = [0]
@@ -137,11 +151,29 @@ case["workloadParameters"] = {"selectedCount": "2"}
 mutants.append(("workload-parameters", case))
 
 case = clone()
+case["workloadParameters"] = {"unexpected": "1"}
+mutants.append(("unknown-workload-parameter", case))
+
+case = clone()
 case.pop("proofEnvelopeBase64")
 mutants.append(("missing-envelope", case))
 
+duplicate_proof_kind = seed_text.replace(
+    '"proofKind"',
+    '"proofKind":"fold","proofKind"',
+    1
+)
+if duplicate_proof_kind == seed_text:
+    raise SystemExit("seed artifact did not contain proofKind")
+mutants.append(("duplicate-proof-kind-key", duplicate_proof_kind))
+
+if case_count == "all":
+    selected_mutants = mutants
+else:
+    selected_mutants = mutants[:int(case_count)]
+
 written = []
-for index, (label, value) in enumerate(mutants[:case_count]):
+for index, (label, value) in enumerate(selected_mutants):
     written.append(str(write_case(index, label, value)))
 
 manifest = out_dir / "mutants.txt"
