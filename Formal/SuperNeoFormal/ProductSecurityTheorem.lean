@@ -2067,7 +2067,6 @@ def ProductQROMCompilerOverheadBound.ofCompiler
     (compiler : ProductChallengeTapeCommitOpenCompiler)
     (idealSplitQROModelPinned : Prop)
     (onlineExtractabilityAssumptionPinned : Prop)
-    (compilerAddsNoLegacyRoundFactor : Prop)
     (compilerOverheadExactZeroInIdealModel : Prop)
     (hashModelGapSeparated : Prop)
     (totalLossLedgerReceivesQROMTerm : Prop) :
@@ -2077,7 +2076,8 @@ def ProductQROMCompilerOverheadBound.ofCompiler
   idealSplitQROModelPinned := idealSplitQROModelPinned
   onlineExtractabilityAssumptionPinned :=
     onlineExtractabilityAssumptionPinned
-  compilerAddsNoLegacyRoundFactor := compilerAddsNoLegacyRoundFactor
+  compilerAddsNoLegacyRoundFactor :=
+    compiler.legacyDFM20InterfaceDeprecated
   compilerOverheadExactZeroInIdealModel :=
     compilerOverheadExactZeroInIdealModel
   hashModelGapSeparated := hashModelGapSeparated
@@ -2088,13 +2088,11 @@ theorem productQROMCompilerOverheadBoundAccepted_of_compiler
     (hCompiler : ProductChallengeTapeCommitOpenCompilerAccepted compiler)
     {idealSplitQROModelPinned : Prop}
     {onlineExtractabilityAssumptionPinned : Prop}
-    {compilerAddsNoLegacyRoundFactor : Prop}
     {compilerOverheadExactZeroInIdealModel : Prop}
     {hashModelGapSeparated : Prop}
     {totalLossLedgerReceivesQROMTerm : Prop}
     (hIdealSplitQRO : idealSplitQROModelPinned)
     (hOnlineExtractability : onlineExtractabilityAssumptionPinned)
-    (hNoLegacyFactor : compilerAddsNoLegacyRoundFactor)
     (hOverheadZero : compilerOverheadExactZeroInIdealModel)
     (hHashGap : hashModelGapSeparated)
     (hLedgerReceivesQROM : totalLossLedgerReceivesQROMTerm) :
@@ -2103,12 +2101,21 @@ theorem productQROMCompilerOverheadBoundAccepted_of_compiler
         compiler
         idealSplitQROModelPinned
         onlineExtractabilityAssumptionPinned
-        compilerAddsNoLegacyRoundFactor
         compilerOverheadExactZeroInIdealModel
         hashModelGapSeparated
         totalLossLedgerReceivesQROMTerm) := by
+  rcases hCompiler with
+    ⟨hFamily,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hNoLegacyFactor⟩
   exact
-    ⟨hCompiler.1,
+    ⟨hFamily,
       rfl,
       show 0 < 3 by decide,
       hIdealSplitQRO,
@@ -2524,7 +2531,6 @@ def ProductPublicCoinTranscriptScheduleAccepted
 
 def ProductPublicCoinTranscriptSchedule.ofInstantiatedQROM
     (evidence : ProductInstantiatedQROMEvidence)
-    (interactiveRoundSchedulePinned : Prop)
     (publicCoinChallengeLabelsPinned : Prop)
     (oracleQueryFamiliesPinned : Prop)
     (transcriptStateTransitionsPinned : Prop)
@@ -2534,7 +2540,8 @@ def ProductPublicCoinTranscriptSchedule.ofInstantiatedQROM
   selectedDepthPositive := show 0 < 3 by decide
   acceptedProofKindsPinned :=
     evidence.protocolDefinitions.acceptedProofKindsPinned
-  interactiveRoundSchedulePinned := interactiveRoundSchedulePinned
+  interactiveRoundSchedulePinned :=
+    evidence.protocolDefinitions.allKindsThreeMovePublicCoin
   publicCoinChallengeLabelsPinned := publicCoinChallengeLabelsPinned
   oracleQueryFamiliesPinned := oracleQueryFamiliesPinned
   transcriptStateTransitionsPinned := transcriptStateTransitionsPinned
@@ -2553,12 +2560,10 @@ def ProductPublicCoinTranscriptSchedule.ofInstantiatedQROM
 theorem productPublicCoinTranscriptScheduleAccepted_of_instantiatedQROM
     {evidence : ProductInstantiatedQROMEvidence}
     (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence)
-    {interactiveRoundSchedulePinned : Prop}
     {publicCoinChallengeLabelsPinned : Prop}
     {oracleQueryFamiliesPinned : Prop}
     {transcriptStateTransitionsPinned : Prop}
     {witnessIndependentOracleLabelsPinned : Prop}
-    (hRounds : interactiveRoundSchedulePinned)
     (hChallengeLabels : publicCoinChallengeLabelsPinned)
     (hOracleFamilies : oracleQueryFamiliesPinned)
     (hTranscriptTransitions : transcriptStateTransitionsPinned)
@@ -2566,7 +2571,6 @@ theorem productPublicCoinTranscriptScheduleAccepted_of_instantiatedQROM
     ProductPublicCoinTranscriptScheduleAccepted
       (ProductPublicCoinTranscriptSchedule.ofInstantiatedQROM
         evidence
-        interactiveRoundSchedulePinned
         publicCoinChallengeLabelsPinned
         oracleQueryFamiliesPinned
         transcriptStateTransitionsPinned
@@ -2601,7 +2605,7 @@ theorem productPublicCoinTranscriptScheduleAccepted_of_instantiatedQROM
     ⟨_,
       _,
       hAcceptedKinds,
-      _,
+      hThreeMove,
       _,
       _,
       _,
@@ -2612,7 +2616,7 @@ theorem productPublicCoinTranscriptScheduleAccepted_of_instantiatedQROM
     ⟨rfl,
       show 0 < 3 by decide,
       hAcceptedKinds,
-      hRounds,
+      hThreeMove,
       hChallengeLabels,
       hOracleFamilies,
       hTranscriptTransitions,
@@ -2655,7 +2659,6 @@ def ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
     (evidence : ProductInstantiatedQROMEvidence)
     (schedule : ProductPublicCoinTranscriptSchedule)
     (theoremFamilyPinned : Prop)
-    (constantRoundOddMessageScheduleSpecified : Prop)
     (challengeSpaceAndUniformityPinned : Prop)
     (qromReductionLossInstantiated : Prop)
     (transformSoundnessTheoremApplies : Prop) :
@@ -2666,7 +2669,7 @@ def ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
   publicCoinInteractiveProtocolSpecified :=
     ProductInteractiveProtocolDefinitionsAccepted evidence.protocolDefinitions
   constantRoundOddMessageScheduleSpecified :=
-    constantRoundOddMessageScheduleSpecified
+    evidence.protocolDefinitions.allKindsThreeMovePublicCoin
   challengeSpaceAndUniformityPinned := challengeSpaceAndUniformityPinned
   transcriptOracleEncodingInjective :=
     evidence.hashInstantiation.framedEncodingInjective
@@ -2686,12 +2689,10 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
     {schedule : ProductPublicCoinTranscriptSchedule}
     (hSchedule : ProductPublicCoinTranscriptScheduleAccepted schedule)
     {theoremFamilyPinned : Prop}
-    {constantRoundOddMessageScheduleSpecified : Prop}
     {challengeSpaceAndUniformityPinned : Prop}
     {qromReductionLossInstantiated : Prop}
     {transformSoundnessTheoremApplies : Prop}
     (hFamily : theoremFamilyPinned)
-    (hConstantRound : constantRoundOddMessageScheduleSpecified)
     (hUniformity : challengeSpaceAndUniformityPinned)
     (hReductionLoss : qromReductionLossInstantiated)
     (hTransformTheorem : transformSoundnessTheoremApplies) :
@@ -2700,7 +2701,6 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
         evidence
         schedule
         theoremFamilyPinned
-        constantRoundOddMessageScheduleSpecified
         challengeSpaceAndUniformityPinned
         qromReductionLossInstantiated
         transformSoundnessTheoremApplies) := by
@@ -2714,6 +2714,22 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
       hCollision,
       _,
       hInteractive,
+      _,
+      _,
+      _⟩
+  have hProtocolsAccepted :
+      ProductInteractiveProtocolDefinitionsAccepted
+        evidence.protocolDefinitions :=
+    hProtocols
+  rcases hProtocols with
+    ⟨_,
+      _,
+      _,
+      hThreeMove,
+      _,
+      _,
+      _,
+      _,
       _,
       _,
       _⟩
@@ -2734,8 +2750,8 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
     ⟨rfl,
       show 0 < 3 by decide,
       hFamily,
-      hProtocols,
-      hConstantRound,
+      hProtocolsAccepted,
+      hThreeMove,
       hUniformity,
       ⟨hFramed, hProofKind⟩,
       hSchedule,
