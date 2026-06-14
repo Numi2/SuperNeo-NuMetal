@@ -1,6 +1,9 @@
 import SuperNeoFormal.NumiSealProductTheorem
 import SuperNeoFormal.ProductBadEventLedger
 import SuperNeoFormal.CTCORepeatedTapeSoundness
+import SuperNeoFormal.PiCCSFiniteSoundness
+import SuperNeoFormal.CertifiedAjtai
+import SuperNeoFormal.WellFormedTranscript
 
 /-!
 Product cryptographic security theorem surface.
@@ -66,6 +69,73 @@ def ProductSystemBindingsAccepted (bindings : ProductSystemBindings) : Prop :=
     ∧ bindings.proofEnvelopeHeadersBound
     ∧ bindings.verifierPolicyBound
 
+structure ProductSystemBindingClosure where
+  recursiveCarryChainRootRecurrenceBound : Prop
+  transcriptDomainsBound : Prop
+  artifactMetadataBound : Prop
+  proofEnvelopeHeadersBound : Prop
+
+def ProductSystemBindingClosureAccepted
+    (closure : ProductSystemBindingClosure) : Prop :=
+  closure.recursiveCarryChainRootRecurrenceBound
+    ∧ closure.transcriptDomainsBound
+    ∧ closure.artifactMetadataBound
+    ∧ closure.proofEnvelopeHeadersBound
+
+def ProductSystemBindings.ofProductRelations
+    {depth : Nat}
+    {View Leakage : Type}
+    (relations :
+      NumiSealProductKnowledgeCarryPrivacyRelations depth View Leakage)
+    (closure : ProductSystemBindingClosure) :
+    ProductSystemBindings where
+  sourceFoldRelationBound :=
+    relations.endToEndRelation.sourceFoldRelation
+  terminalRelationBound :=
+    relations.endToEndRelation.terminalSealRelation
+  zkMaskedResidualRelationBound :=
+    relations.endToEndRelation.zkMaskedResidualRelation
+  typedRecursiveCarryRelationBound :=
+    relations.endToEndRelation.typedCarryRelation
+  recursiveCarryChainRootRecurrenceBound :=
+    closure.recursiveCarryChainRootRecurrenceBound
+  transcriptDomainsBound := closure.transcriptDomainsBound
+  artifactMetadataBound := closure.artifactMetadataBound
+  proofEnvelopeHeadersBound := closure.proofEnvelopeHeadersBound
+  verifierPolicyBound := relations.endToEndRelation.productPolicyRelation
+
+theorem productSystemBindingsAccepted_of_productRelations
+    {depth : Nat}
+    {View Leakage : Type}
+    {relations :
+      NumiSealProductKnowledgeCarryPrivacyRelations depth View Leakage}
+    {closure : ProductSystemBindingClosure}
+    (hProduct :
+      NumiSealProductKnowledgeCarryPrivacyHolds relations)
+    (hClosure : ProductSystemBindingClosureAccepted closure) :
+    ProductSystemBindingsAccepted
+      (ProductSystemBindings.ofProductRelations relations closure) := by
+  rcases hProduct with ⟨hEndToEnd, _, _, _⟩
+  rcases hEndToEnd with
+    ⟨hSourceFold,
+      _,
+      hTerminal,
+      hTypedCarry,
+      hZK,
+      hPolicy⟩
+  rcases hClosure with
+    ⟨hChainRoot, hTranscriptDomains, hArtifact, hEnvelope⟩
+  exact
+    ⟨hSourceFold,
+      hTerminal,
+      hZK,
+      hTypedCarry,
+      hChainRoot,
+      hTranscriptDomains,
+      hArtifact,
+      hEnvelope,
+      hPolicy⟩
+
 structure ProductBoundedDepthLossEvidence
     (parameters : ProductSecurityParameters) where
   supportedDepthPositive : 0 < parameters.maximumProductDepth
@@ -121,6 +191,82 @@ def ProductSelectedDepthLossLedgerAccepted
     ∧ ledger.recursiveCarryChainRootRecurrenceBound
     ∧ ledger.constantTimeSideChannelEvidenceClosed
     ∧ ledger.totalLossWithinBudget
+
+structure ProductSelectedDepthLossClosure where
+  sourceFoldLossInstantiated : Prop
+  terminalSealLossInstantiated : Prop
+  recursiveCarryLossInstantiated : Prop
+  zkSimulatorLossInstantiated : Prop
+  productOperationsReplayLossInstantiated : Prop
+  constantTimeSideChannelEvidenceClosed : Prop
+  totalLossWithinBudget : Prop
+
+def ProductSelectedDepthLossClosureAccepted
+    (closure : ProductSelectedDepthLossClosure) : Prop :=
+  closure.sourceFoldLossInstantiated
+    ∧ closure.terminalSealLossInstantiated
+    ∧ closure.recursiveCarryLossInstantiated
+    ∧ closure.zkSimulatorLossInstantiated
+    ∧ closure.productOperationsReplayLossInstantiated
+    ∧ closure.constantTimeSideChannelEvidenceClosed
+    ∧ closure.totalLossWithinBudget
+
+def ProductBoundedDepthLossEvidence.ofSelectedDepthLedger
+    (parameters : ProductSecurityParameters)
+    (ledger : ProductSelectedDepthLossLedger)
+    (hMaximumProductDepth : parameters.maximumProductDepth = 3) :
+    ProductBoundedDepthLossEvidence parameters where
+  supportedDepthPositive := by
+    rw [hMaximumProductDepth]
+    decide
+  allAcceptedLayersWithinDepth :=
+    ledger.selectedDepth ≤ parameters.maximumProductDepth
+  sourceFoldLossAccounted := ledger.sourceFoldLossInstantiated
+  terminalSealLossAccounted := ledger.terminalSealLossInstantiated
+  recursiveCarryLossAccounted := ledger.recursiveCarryLossInstantiated
+  zkMaskingLossAccounted := ledger.zkSimulatorLossInstantiated
+  publicCoinLossAccounted := ledger.publicCoinQROMLossInstantiated
+  totalLossWithinBudget := ledger.totalLossWithinBudget
+
+theorem productBoundedDepthLossAccepted_of_selectedDepthLedger
+    {parameters : ProductSecurityParameters}
+    {ledger : ProductSelectedDepthLossLedger}
+    {hMaximumProductDepth : parameters.maximumProductDepth = 3}
+    (hLedger : ProductSelectedDepthLossLedgerAccepted ledger) :
+    ProductBoundedDepthLossAccepted
+      (ProductBoundedDepthLossEvidence.ofSelectedDepthLedger
+        parameters
+        ledger
+        hMaximumProductDepth) := by
+  rcases hLedger with
+    ⟨hDepth,
+      _,
+      _,
+      hSourceFold,
+      hTerminalSeal,
+      hRecursiveCarry,
+      hZK,
+      hPublicCoin,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hTotal⟩
+  exact
+    ⟨by
+        rw [hMaximumProductDepth]
+        decide,
+      by
+        simp [ProductBoundedDepthLossEvidence.ofSelectedDepthLedger,
+          hDepth,
+          hMaximumProductDepth],
+      hSourceFold,
+      hTerminalSeal,
+      hRecursiveCarry,
+      hZK,
+      hPublicCoin,
+      hTotal⟩
 
 structure ProductFiniteProtocolNumericLossObstruction where
   selectedDepth : Nat
@@ -185,6 +331,245 @@ def ProductAcceptedProofKindExtractorAccepted
     ∧ extractor.extractorLossContributionSpecified
     ∧ extractor.parentChainDependencySpecified
     ∧ extractor.carryChainRootRelatesToExtractedState
+
+def ProductAcceptedProofKindExtractor.ofTerminalCEConstructiveCertificate
+    {Claim Proof Witness Seed : Type}
+    [DecidableEq Seed]
+    {count bound : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → Seed}
+    (certificate :
+      TerminalCEConstructiveFiniteSoundnessCertificate
+        verifyProof
+        opens
+        proofSeed
+        bound)
+    (statement : TerminalCEStatement Claim count)
+    (proof : Proof)
+    (ctcoTraceBlockDependencySpecified : Prop)
+    (extractorLossContributionSpecified : Prop)
+    (parentChainDependencySpecified : Prop)
+    (carryChainRootRelatesToExtractedState : Prop) :
+    ProductAcceptedProofKindExtractor where
+  acceptedInputObjectSpecified := verifyProof statement proof
+  verifierAcceptancePredicateSpecified := certificate.badSeeds.card ≤ bound
+  extractedObjectSpecified :=
+    ∃ witnesses : Fin count → Witness,
+      TerminalLocalBatchRelation statement witnesses opens
+  failureEventsSpecified := proofSeed proof ∉ certificate.badSeeds
+  ctcoTraceBlockDependencySpecified := ctcoTraceBlockDependencySpecified
+  extractorLossContributionSpecified := extractorLossContributionSpecified
+  parentChainDependencySpecified := parentChainDependencySpecified
+  carryChainRootRelatesToExtractedState := carryChainRootRelatesToExtractedState
+
+theorem productTerminalExtractorAccepted_from_constructive_certificate
+    {Claim Proof Witness Seed : Type}
+    [DecidableEq Seed]
+    {count bound : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → Seed}
+    (certificate :
+      TerminalCEConstructiveFiniteSoundnessCertificate
+        verifyProof
+        opens
+        proofSeed
+        bound)
+    (statement : TerminalCEStatement Claim count)
+    (proof : Proof)
+    {ctcoTraceBlockDependencySpecified : Prop}
+    {extractorLossContributionSpecified : Prop}
+    {parentChainDependencySpecified : Prop}
+    {carryChainRootRelatesToExtractedState : Prop}
+    (hVerify : verifyProof statement proof)
+    (hSeed : proofSeed proof ∉ certificate.badSeeds)
+    (hCTCO : ctcoTraceBlockDependencySpecified)
+    (hExtractorLoss : extractorLossContributionSpecified)
+    (hParentChain : parentChainDependencySpecified)
+    (hCarryChain : carryChainRootRelatesToExtractedState) :
+    ProductAcceptedProofKindExtractorAccepted
+      (ProductAcceptedProofKindExtractor.ofTerminalCEConstructiveCertificate
+        certificate
+        statement
+        proof
+        ctcoTraceBlockDependencySpecified
+        extractorLossContributionSpecified
+        parentChainDependencySpecified
+        carryChainRootRelatesToExtractedState) := by
+  exact
+    ⟨hVerify,
+      certificate.card_le,
+      terminalCEConstructive_certificate_extract_outside_bad
+        certificate
+        hVerify
+        hSeed,
+      hSeed,
+      hCTCO,
+      hExtractorLoss,
+      hParentChain,
+      hCarryChain⟩
+
+def ProductAcceptedProofKindExtractor.ofPiRLCConstructiveCertificate
+    {count rows publicCount evalCount pointVars bound : Nat}
+    {point : ProtocolVector Phi81 pointVars}
+    {foldedSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
+    {inputSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
+    {claims :
+      Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars}
+    (certificate :
+      PiRLCConstructiveFiniteSoundnessCertificate
+        point
+        foldedSound
+        inputSound
+        claims
+        bound)
+    (seed : PiRLCChallengeSeed count)
+    (folded : EvaluationClaim Phi81 rows publicCount evalCount pointVars)
+    (ctcoTraceBlockDependencySpecified : Prop)
+    (extractorLossContributionSpecified : Prop)
+    (parentChainDependencySpecified : Prop)
+    (carryChainRootRelatesToExtractedState : Prop) :
+    ProductAcceptedProofKindExtractor where
+  acceptedInputObjectSpecified :=
+    PiRLCConcreteAccepts point seed claims folded
+  verifierAcceptancePredicateSpecified := certificate.badSeeds.card ≤ bound
+  extractedObjectSpecified := AllClaimsSound inputSound claims
+  failureEventsSpecified := seed ∉ certificate.badSeeds
+  ctcoTraceBlockDependencySpecified := ctcoTraceBlockDependencySpecified
+  extractorLossContributionSpecified := extractorLossContributionSpecified
+  parentChainDependencySpecified := parentChainDependencySpecified
+  carryChainRootRelatesToExtractedState := carryChainRootRelatesToExtractedState
+
+theorem productPiRLCExtractorAccepted_from_constructive_certificate
+    {count rows publicCount evalCount pointVars bound : Nat}
+    {point : ProtocolVector Phi81 pointVars}
+    {foldedSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
+    {inputSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
+    {claims :
+      Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars}
+    (certificate :
+      PiRLCConstructiveFiniteSoundnessCertificate
+        point
+        foldedSound
+        inputSound
+        claims
+        bound)
+    (seed : PiRLCChallengeSeed count)
+    (folded : EvaluationClaim Phi81 rows publicCount evalCount pointVars)
+    {ctcoTraceBlockDependencySpecified : Prop}
+    {extractorLossContributionSpecified : Prop}
+    {parentChainDependencySpecified : Prop}
+    {carryChainRootRelatesToExtractedState : Prop}
+    (hAccepts : PiRLCConcreteAccepts point seed claims folded)
+    (hFoldedSound : foldedSound folded)
+    (hSeed : seed ∉ certificate.badSeeds)
+    (hCTCO : ctcoTraceBlockDependencySpecified)
+    (hExtractorLoss : extractorLossContributionSpecified)
+    (hParentChain : parentChainDependencySpecified)
+    (hCarryChain : carryChainRootRelatesToExtractedState) :
+    ProductAcceptedProofKindExtractorAccepted
+      (ProductAcceptedProofKindExtractor.ofPiRLCConstructiveCertificate
+        certificate
+        seed
+        folded
+        ctcoTraceBlockDependencySpecified
+        extractorLossContributionSpecified
+        parentChainDependencySpecified
+        carryChainRootRelatesToExtractedState) := by
+  exact
+    ⟨hAccepts,
+      certificate.card_le,
+      certificate.allInputsSound_outside_bad
+        seed
+        folded
+        hAccepts
+        hFoldedSound
+        hSeed,
+      hSeed,
+      hCTCO,
+      hExtractorLoss,
+      hParentChain,
+      hCarryChain⟩
+
+def ProductAcceptedProofKindExtractor.ofPiCCSFiniteBadChallengeCertificate
+    {F Seed : Type}
+    [Semiring F]
+    [DecidableEq Seed]
+    {state : PiCCSPublicQState F}
+    {traceSound : SumcheckVerifierTrace F → Prop}
+    {traceSeed : SumcheckVerifierTrace F → Seed}
+    {bound : Nat}
+    (certificate :
+      PiCCSFiniteBadChallengeCertificate
+        state
+        traceSound
+        traceSeed
+        bound)
+    (trace : SumcheckVerifierTrace F)
+    (ctcoTraceBlockDependencySpecified : Prop)
+    (extractorLossContributionSpecified : Prop)
+    (parentChainDependencySpecified : Prop)
+    (carryChainRootRelatesToExtractedState : Prop) :
+    ProductAcceptedProofKindExtractor where
+  acceptedInputObjectSpecified := PiCCSAccepts state trace
+  verifierAcceptancePredicateSpecified := certificate.badSeeds.card ≤ bound
+  extractedObjectSpecified := traceSound trace
+  failureEventsSpecified := traceSeed trace ∉ certificate.badSeeds
+  ctcoTraceBlockDependencySpecified := ctcoTraceBlockDependencySpecified
+  extractorLossContributionSpecified := extractorLossContributionSpecified
+  parentChainDependencySpecified := parentChainDependencySpecified
+  carryChainRootRelatesToExtractedState := carryChainRootRelatesToExtractedState
+
+theorem productPiCCSExtractorAccepted_from_finite_bad_challenge_certificate
+    {F Seed : Type}
+    [Semiring F]
+    [DecidableEq Seed]
+    {state : PiCCSPublicQState F}
+    {traceSound : SumcheckVerifierTrace F → Prop}
+    {traceSeed : SumcheckVerifierTrace F → Seed}
+    {bound : Nat}
+    (certificate :
+      PiCCSFiniteBadChallengeCertificate
+        state
+        traceSound
+        traceSeed
+        bound)
+    (trace : SumcheckVerifierTrace F)
+    {ctcoTraceBlockDependencySpecified : Prop}
+    {extractorLossContributionSpecified : Prop}
+    {parentChainDependencySpecified : Prop}
+    {carryChainRootRelatesToExtractedState : Prop}
+    (hAccepts : PiCCSAccepts state trace)
+    (hSeed : traceSeed trace ∉ certificate.badSeeds)
+    (hCTCO : ctcoTraceBlockDependencySpecified)
+    (hExtractorLoss : extractorLossContributionSpecified)
+    (hParentChain : parentChainDependencySpecified)
+    (hCarryChain : carryChainRootRelatesToExtractedState) :
+    ProductAcceptedProofKindExtractorAccepted
+      (ProductAcceptedProofKindExtractor.ofPiCCSFiniteBadChallengeCertificate
+        certificate
+        trace
+        ctcoTraceBlockDependencySpecified
+        extractorLossContributionSpecified
+        parentChainDependencySpecified
+        carryChainRootRelatesToExtractedState) := by
+  exact
+    ⟨hAccepts,
+      certificate.card_le,
+      piccs_traceSound_of_seed_not_bad
+        certificate
+        hAccepts
+        hSeed,
+      hSeed,
+      hCTCO,
+      hExtractorLoss,
+      hParentChain,
+      hCarryChain⟩
 
 structure ProductPerKindExtractorTheorems where
   fold : ProductAcceptedProofKindExtractor
@@ -261,10 +646,10 @@ structure ProductTerminalVerifierArithmetization where
   spartanFRITraceBindsTerminalVerifierRelation : Prop
   malformedFRITraceRejected : Prop
   sourceFreeAcceptanceRequiresVerifierKey : Prop
-  productionVerifierConsumesCompressedProofBytes : Prop
-  productionVerifierRejectsExpandedVerifierWitness : Prop
-  sourceProofBytesAbsentFromProductionVerifier : Prop
-  expandedVerifierTraceAbsentFromProductionVerifier : Prop
+  concreteVerifierConsumesCompressedProofBytes : Prop
+  concreteVerifierRejectsExpandedVerifierWitness : Prop
+  sourceProofBytesAbsentFromConcreteVerifier : Prop
+  expandedVerifierTraceAbsentFromConcreteVerifier : Prop
   terminalVerifierTraceColumnsCommitted : Prop
   terminalVerifierBoundaryConstraintsCommitted : Prop
   terminalVerifierTransitionConstraintsCommitted : Prop
@@ -321,10 +706,10 @@ def ProductTerminalVerifierArithmetizationAccepted
     ∧ arith.spartanFRITraceBindsTerminalVerifierRelation
     ∧ arith.malformedFRITraceRejected
     ∧ arith.sourceFreeAcceptanceRequiresVerifierKey
-    ∧ arith.productionVerifierConsumesCompressedProofBytes
-    ∧ arith.productionVerifierRejectsExpandedVerifierWitness
-    ∧ arith.sourceProofBytesAbsentFromProductionVerifier
-    ∧ arith.expandedVerifierTraceAbsentFromProductionVerifier
+    ∧ arith.concreteVerifierConsumesCompressedProofBytes
+    ∧ arith.concreteVerifierRejectsExpandedVerifierWitness
+    ∧ arith.sourceProofBytesAbsentFromConcreteVerifier
+    ∧ arith.expandedVerifierTraceAbsentFromConcreteVerifier
     ∧ arith.terminalVerifierTraceColumnsCommitted
     ∧ arith.terminalVerifierBoundaryConstraintsCommitted
     ∧ arith.terminalVerifierTransitionConstraintsCommitted
@@ -363,10 +748,10 @@ theorem productCompressionSourceFree_from_terminalVerifierArithmetization
     (hArith : ProductTerminalVerifierArithmetizationAccepted arith) :
     arith.sourceFreeSNARKStyleAcceptance
       ∧ arith.sourceFreeSpartanFRIAcceptance
-      ∧ arith.productionVerifierConsumesCompressedProofBytes
-      ∧ arith.sourceProofBytesAbsentFromProductionVerifier
-      ∧ arith.productionVerifierRejectsExpandedVerifierWitness
-      ∧ arith.expandedVerifierTraceAbsentFromProductionVerifier
+      ∧ arith.concreteVerifierConsumesCompressedProofBytes
+      ∧ arith.sourceProofBytesAbsentFromConcreteVerifier
+      ∧ arith.concreteVerifierRejectsExpandedVerifierWitness
+      ∧ arith.expandedVerifierTraceAbsentFromConcreteVerifier
       ∧ arith.canonicalSourceEnvelopeDigestBound
       ∧ arith.verifierRelationRerunsFoldReduction
       ∧ arith.verifierRelationRerunsPiCCS
@@ -437,6 +822,7 @@ theorem productCompressionSourceFree_from_terminalVerifierArithmetization
       _,
       _,
       _,
+      _,
       _⟩
   exact ⟨hSNARK, hSpartan, hBytes, hNoSourceBytes, hNoWitness, hNoTrace,
     hSourceDigest, hFold, hPiCCS, hPiRLC, hPiDEC, hAjtai, hModuleSIS, hCE,
@@ -460,7 +846,7 @@ structure ProductTerminalVerifierAIRSpec where
   ceAjtaiArithmeticConstrained : Prop
   moduleSISNormAndShapeChecksSpecified : Prop
   optionalInnerCompressedVerifierDomainSeparated : Prop
-  productionVerifierDoesNotAcceptExpandedWitness : Prop
+  concreteVerifierDoesNotAcceptExpandedWitness : Prop
   acceptBitDerivedFromSpecPredicates : Prop
   emitsNormalResultAndAIRConstraintRowsFromSameSteps : Prop
   noAssertedStageAcceptanceFlags : Prop
@@ -497,7 +883,7 @@ def ProductTerminalVerifierAIRSpecAccepted
     ∧ spec.ceAjtaiArithmeticConstrained
     ∧ spec.moduleSISNormAndShapeChecksSpecified
     ∧ spec.optionalInnerCompressedVerifierDomainSeparated
-    ∧ spec.productionVerifierDoesNotAcceptExpandedWitness
+    ∧ spec.concreteVerifierDoesNotAcceptExpandedWitness
     ∧ spec.acceptBitDerivedFromSpecPredicates
     ∧ spec.emitsNormalResultAndAIRConstraintRowsFromSameSteps
     ∧ spec.noAssertedStageAcceptanceFlags
@@ -562,7 +948,7 @@ structure ProductTerminalVerifierAIRConstraintExactness where
   noVerifierBooleanWrappingRows : Prop
   rowProvenanceTypedAndInspectable : Prop
   acceptBitDerivedFromResidualAggregate : Prop
-  productionVerifierNoWitnessEscapeHatch : Prop
+  concreteVerifierNoWitnessEscapeHatch : Prop
   compactBatchingEquivalentToFullPrimitiveRows : Prop
   airResidualZeroIffSharedSpecAccepts : Prop
 
@@ -580,7 +966,7 @@ def ProductTerminalVerifierAIRConstraintExactnessAccepted
     ∧ exactness.noVerifierBooleanWrappingRows
     ∧ exactness.rowProvenanceTypedAndInspectable
     ∧ exactness.acceptBitDerivedFromResidualAggregate
-    ∧ exactness.productionVerifierNoWitnessEscapeHatch
+    ∧ exactness.concreteVerifierNoWitnessEscapeHatch
     ∧ exactness.compactBatchingEquivalentToFullPrimitiveRows
     ∧ exactness.airResidualZeroIffSharedSpecAccepts
 
@@ -1068,6 +1454,95 @@ def ProductExtractorLossAccountingAccepted
     ∧ accounting.extractorFailureLossAccounted
     ∧ accounting.extractorLossWithinBudget
 
+structure ProductExtractorLossClosure where
+  acceptedLayerBounded : Prop
+  rewindScheduleBoundToTranscript : Prop
+  extractorFailureLossAccounted : Prop
+  extractorLossWithinBudget : Prop
+
+def ProductExtractorLossClosureAccepted
+    (closure : ProductExtractorLossClosure) : Prop :=
+  closure.acceptedLayerBounded
+    ∧ closure.rewindScheduleBoundToTranscript
+    ∧ closure.extractorFailureLossAccounted
+    ∧ closure.extractorLossWithinBudget
+
+def ProductExtractorLossAccounting.ofAcceptedComponents
+    (perKindExtractorTheorems : ProductPerKindExtractorTheorems)
+    (recursiveCarryChainRootRecurrence :
+      ProductRecursiveCarryChainRootRecurrence)
+    (closure : ProductExtractorLossClosure) :
+    ProductExtractorLossAccounting where
+  selectedDepth := 3
+  selectedDepthPositive := show 0 < 3 by decide
+  acceptedLayerBounded := closure.acceptedLayerBounded
+  sourceFoldExtractorSpecified :=
+    ProductAcceptedProofKindExtractorAccepted
+      perKindExtractorTheorems.fold
+  terminalSealExtractorSpecified :=
+    ProductAcceptedProofKindExtractorAccepted
+      perKindExtractorTheorems.terminal
+  productEnvelopeExtractorSpecified :=
+    ProductPerKindExtractorTheoremsAccepted perKindExtractorTheorems
+  recursiveCarryExtractorSpecified :=
+    ProductAcceptedProofKindExtractorAccepted
+      perKindExtractorTheorems.recursiveCarryDepthLeThree
+  perKindExtractorTheorems := perKindExtractorTheorems
+  recursiveCarryChainRootRecurrence := recursiveCarryChainRootRecurrence
+  rewindScheduleBoundToTranscript :=
+    closure.rewindScheduleBoundToTranscript
+  extractorFailureLossAccounted := closure.extractorFailureLossAccounted
+  extractorLossWithinBudget := closure.extractorLossWithinBudget
+
+theorem productExtractorLossAccountingAccepted_of_components
+    {perKindExtractorTheorems : ProductPerKindExtractorTheorems}
+    {recursiveCarryChainRootRecurrence :
+      ProductRecursiveCarryChainRootRecurrence}
+    {closure : ProductExtractorLossClosure}
+    (hPerKind :
+      ProductPerKindExtractorTheoremsAccepted perKindExtractorTheorems)
+    (hRecurrence :
+      ProductRecursiveCarryChainRootRecurrenceAccepted
+        recursiveCarryChainRootRecurrence)
+    (hClosure : ProductExtractorLossClosureAccepted closure) :
+    ProductExtractorLossAccountingAccepted
+      (ProductExtractorLossAccounting.ofAcceptedComponents
+        perKindExtractorTheorems
+        recursiveCarryChainRootRecurrence
+        closure) := by
+  rcases hPerKind with
+    ⟨hFold,
+      hTerminal,
+      hCompressedTerminal,
+      hNumiSealTerminal,
+      hNumiSealZKProduct,
+      hRecursiveCarry⟩
+  rcases hClosure with
+    ⟨hLayerBounded, hRewind, hExtractorLoss, hBudget⟩
+  exact
+    ⟨rfl,
+      show 0 < 3 by decide,
+      hLayerBounded,
+      hFold,
+      hTerminal,
+      ⟨hFold,
+        hTerminal,
+        hCompressedTerminal,
+        hNumiSealTerminal,
+        hNumiSealZKProduct,
+        hRecursiveCarry⟩,
+      hRecursiveCarry,
+      ⟨hFold,
+        hTerminal,
+        hCompressedTerminal,
+        hNumiSealTerminal,
+        hNumiSealZKProduct,
+        hRecursiveCarry⟩,
+      hRecurrence,
+      hRewind,
+      hExtractorLoss,
+      hBudget⟩
+
 structure ProductHashOracleInstantiation where
   challengeOracleBits : Nat
   bindingOracleBits : Nat
@@ -1078,7 +1553,6 @@ structure ProductHashOracleInstantiation where
   proofKindBytesInjective : Prop
   challengeDomainsSeparated : Prop
   bindingDomainsSeparated : Prop
-  bindingTargetEventCountPinned : Prop
   concreteHashRecommendationPinned : Prop
   hashQROInstantiationAssumptionPinned : Prop
   hashQROInstantiationProofProvided : Prop
@@ -1094,9 +1568,104 @@ def ProductHashOracleInstantiationAccepted
     ∧ hashes.proofKindBytesInjective
     ∧ hashes.challengeDomainsSeparated
     ∧ hashes.bindingDomainsSeparated
-    ∧ hashes.bindingTargetEventCountPinned
     ∧ hashes.concreteHashRecommendationPinned
     ∧ hashes.hashQROInstantiationAssumptionPinned
+    ∧ hashes.hashQROInstantiationProofProvided
+
+def ProductFramedEncodingInjective : Prop :=
+  Function.Injective proofEnvelopeTranscriptBinding384Encode
+    ∧ Function.Injective
+      (fun transcript : WellFormedTranscript =>
+        transcriptBytes transcript.state)
+
+theorem productFramedEncodingInjective :
+    ProductFramedEncodingInjective :=
+  ⟨proofEnvelopeTranscriptBinding384Encode_injective,
+    wellFormedTranscript_bytes_injective⟩
+
+def ProductProofKindBytesInjective : Prop :=
+  Function.Injective proofEnvelopeKindEncode
+
+theorem productProofKindBytesInjective :
+    ProductProofKindBytesInjective :=
+  proofEnvelopeKindEncode_injective
+
+def ProductChallengeDomainSeparation : Prop :=
+  domainSeparatorTag ≠ transcriptPayloadTag
+    ∧ ∀ domain payload domainRest payloadRest,
+      transcriptEncode (domainFrame domain :: domainRest) ≠
+        transcriptEncode
+          (payloadFrame transcriptPayloadTag payload :: payloadRest)
+
+theorem productChallengeDomainSeparation :
+    ProductChallengeDomainSeparation :=
+  ⟨domainSeparatorTag_ne_transcriptPayloadTag,
+    domainSeparatedTranscript_ne_payloadTranscript⟩
+
+def ProductBindingDomainSeparation : Prop :=
+  domainSeparatorTag ≠ proofEnvelopeHeaderTag
+    ∧ ∀ domain payload domainRest payloadRest,
+      transcriptEncode (domainFrame domain :: domainRest) ≠
+        transcriptEncode
+          (payloadFrame proofEnvelopeHeaderTag payload :: payloadRest)
+
+theorem productBindingDomainSeparation :
+    ProductBindingDomainSeparation := by
+  refine ⟨domainSeparatorTag_ne_proofEnvelopeHeaderTag, ?_⟩
+  intro domain payload domainRest payloadRest
+  exact transcriptEncode_cons_ne_of_tag_ne
+    domainSeparatorTag_ne_proofEnvelopeHeaderTag
+
+def ProductHashOracleInstantiation.ofSerializationFacts
+    (splitOraclesPinned : Prop)
+    (theoremCriticalBindingsUseHBind : Prop)
+    (concreteHashRecommendationPinned : Prop)
+    (hashQROInstantiationAssumptionPinned : Prop)
+    (hashQROInstantiationProofProvided : Prop) :
+    ProductHashOracleInstantiation where
+  challengeOracleBits := 256
+  bindingOracleBits := 384
+  bindingTargetEventCount := 11
+  splitOraclesPinned := splitOraclesPinned
+  theoremCriticalBindingsUseHBind := theoremCriticalBindingsUseHBind
+  framedEncodingInjective := ProductFramedEncodingInjective
+  proofKindBytesInjective := ProductProofKindBytesInjective
+  challengeDomainsSeparated := ProductChallengeDomainSeparation
+  bindingDomainsSeparated := ProductBindingDomainSeparation
+  concreteHashRecommendationPinned := concreteHashRecommendationPinned
+  hashQROInstantiationAssumptionPinned := hashQROInstantiationAssumptionPinned
+  hashQROInstantiationProofProvided := hashQROInstantiationProofProvided
+
+theorem productHashOracleInstantiationAccepted_of_serializationFacts
+    {splitOraclesPinned : Prop}
+    {theoremCriticalBindingsUseHBind : Prop}
+    {concreteHashRecommendationPinned : Prop}
+    {hashQROInstantiationAssumptionPinned : Prop}
+    {hashQROInstantiationProofProvided : Prop}
+    (hSplitOracles : splitOraclesPinned)
+    (hHBind : theoremCriticalBindingsUseHBind)
+    (hHashRecommendation : concreteHashRecommendationPinned)
+    (hQROAssumption : hashQROInstantiationAssumptionPinned)
+    (hQROProof : hashQROInstantiationProofProvided) :
+    ProductHashOracleInstantiationAccepted
+      (ProductHashOracleInstantiation.ofSerializationFacts
+        splitOraclesPinned
+        theoremCriticalBindingsUseHBind
+        concreteHashRecommendationPinned
+        hashQROInstantiationAssumptionPinned
+        hashQROInstantiationProofProvided) :=
+  ⟨rfl,
+    rfl,
+    rfl,
+    hSplitOracles,
+    hHBind,
+    productFramedEncodingInjective,
+    productProofKindBytesInjective,
+    productChallengeDomainSeparation,
+    productBindingDomainSeparation,
+    hHashRecommendation,
+    hQROAssumption,
+    hQROProof⟩
 
 structure ProductInteractiveProtocolDefinitions where
   selectedDepth : Nat
@@ -1108,7 +1677,7 @@ structure ProductInteractiveProtocolDefinitions where
   verifierChecksRootOpenings : Prop
   compressedTerminalCanonicalDecompression : Prop
   typedCarryBinderSpecified : Prop
-  productionProtocolImplementationComplete : Prop
+  concreteProtocolImplementationComplete : Prop
 
 def ProductInteractiveProtocolDefinitionsAccepted
     (protocols : ProductInteractiveProtocolDefinitions) : Prop :=
@@ -1122,7 +1691,7 @@ def ProductInteractiveProtocolDefinitionsAccepted
     ∧ protocols.verifierChecksRootOpenings
     ∧ protocols.compressedTerminalCanonicalDecompression
     ∧ protocols.typedCarryBinderSpecified
-    ∧ protocols.productionProtocolImplementationComplete
+    ∧ protocols.concreteProtocolImplementationComplete
 
 structure ProductInteractiveSpecialSoundnessData where
   foldExtractorTargetSpecified : Prop
@@ -1180,7 +1749,6 @@ structure ProductChallengeTapeCommitOpenCompiler where
   challengeSeedBits : Nat
   bindingDigestBits : Nat
   merkleNodeDigestBits : Nat
-  compilerFamilyPinned : Prop
   firstMessageBindsAllChallengeIndependentMaterial : Prop
   singleSeedChallengeTapePinned : Prop
   lateMessageBindingPinned : Prop
@@ -1194,12 +1762,81 @@ def ProductChallengeTapeCommitOpenCompilerAccepted
     ∧ compiler.challengeSeedBits = 256
     ∧ compiler.bindingDigestBits = 384
     ∧ compiler.merkleNodeDigestBits = 384
-    ∧ compiler.compilerFamilyPinned
     ∧ compiler.firstMessageBindsAllChallengeIndependentMaterial
     ∧ compiler.singleSeedChallengeTapePinned
     ∧ compiler.lateMessageBindingPinned
     ∧ compiler.tightQROMTransformBounded
     ∧ compiler.legacyDFM20InterfaceDeprecated
+
+def ProductChallengeTapeCommitOpenCompiler.ofHashOracleInstantiation
+    (hashes : ProductHashOracleInstantiation)
+    (compilerFamily : ProductCompilerFamily)
+    (firstMessageBindsAllChallengeIndependentMaterial : Prop)
+    (singleSeedChallengeTapePinned : Prop)
+    (lateMessageBindingPinned : Prop)
+    (tightQROMTransformBounded : Prop)
+    (legacyDFM20InterfaceDeprecated : Prop) :
+    ProductChallengeTapeCommitOpenCompiler where
+  compilerFamily := compilerFamily
+  challengeSeedBits := hashes.challengeOracleBits
+  bindingDigestBits := hashes.bindingOracleBits
+  merkleNodeDigestBits := hashes.bindingOracleBits
+  firstMessageBindsAllChallengeIndependentMaterial :=
+    firstMessageBindsAllChallengeIndependentMaterial
+  singleSeedChallengeTapePinned := singleSeedChallengeTapePinned
+  lateMessageBindingPinned := lateMessageBindingPinned
+  tightQROMTransformBounded := tightQROMTransformBounded
+  legacyDFM20InterfaceDeprecated := legacyDFM20InterfaceDeprecated
+
+theorem productChallengeTapeCommitOpenCompilerAccepted_of_hashOracleInstantiation
+    {hashes : ProductHashOracleInstantiation}
+    (hHashes : ProductHashOracleInstantiationAccepted hashes)
+    {compilerFamily : ProductCompilerFamily}
+    (hFamily :
+      compilerFamily = ProductQROMTransformFamily.ctco
+        ∨ compilerFamily = ProductQROMTransformFamily.merkleStraightline)
+    {firstMessageBindsAllChallengeIndependentMaterial : Prop}
+    {singleSeedChallengeTapePinned : Prop}
+    {lateMessageBindingPinned : Prop}
+    {tightQROMTransformBounded : Prop}
+    {legacyDFM20InterfaceDeprecated : Prop}
+    (hFirstMessage : firstMessageBindsAllChallengeIndependentMaterial)
+    (hSingleSeed : singleSeedChallengeTapePinned)
+    (hLateBinding : lateMessageBindingPinned)
+    (hTightTransform : tightQROMTransformBounded)
+    (hNoLegacyDFM20 : legacyDFM20InterfaceDeprecated) :
+    ProductChallengeTapeCommitOpenCompilerAccepted
+      (ProductChallengeTapeCommitOpenCompiler.ofHashOracleInstantiation
+        hashes
+        compilerFamily
+        firstMessageBindsAllChallengeIndependentMaterial
+        singleSeedChallengeTapePinned
+        lateMessageBindingPinned
+        tightQROMTransformBounded
+        legacyDFM20InterfaceDeprecated) := by
+  rcases hHashes with
+    ⟨hChallengeBits,
+      hBindingBits,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _⟩
+  exact
+    ⟨hFamily,
+      hChallengeBits,
+      hBindingBits,
+      hBindingBits,
+      hFirstMessage,
+      hSingleSeed,
+      hLateBinding,
+      hTightTransform,
+      hNoLegacyDFM20⟩
 
 structure ProductChallengeTapeExpansion where
   challengeSeedBits : Nat
@@ -1227,7 +1864,6 @@ structure ProductQROMCollisionBound where
   bindingTargetEventCount : Nat
   orderedCollisionPairCount : Nat
   targetEnumerationPinned : Prop
-  orderedPairDerivationPinned : Prop
   collisionFormulaPinned : Prop
   collisionBoundInstantiated : Prop
   collisionBoundWithinBudget : Prop
@@ -1239,11 +1875,74 @@ def ProductQROMCollisionBoundAccepted
     ∧ bound.bindingDigestBits = 384
     ∧ bound.bindingTargetEventCount = 11
     ∧ bound.orderedCollisionPairCount = 44
+    ∧ bound.orderedCollisionPairCount = bound.bindingTargetEventCount * 4
     ∧ bound.targetEnumerationPinned
-    ∧ bound.orderedPairDerivationPinned
     ∧ bound.collisionFormulaPinned
     ∧ bound.collisionBoundInstantiated
     ∧ bound.collisionBoundWithinBudget
+
+def ProductQROMCollisionBound.ofHashOracleInstantiation
+    (hashes : ProductHashOracleInstantiation)
+    (targetEnumerationPinned : Prop)
+    (collisionFormulaPinned : Prop)
+    (collisionBoundInstantiated : Prop)
+    (collisionBoundWithinBudget : Prop) :
+    ProductQROMCollisionBound where
+  queryBoundQHLog2 := 64
+  effectiveHashOutputBits := hashes.challengeOracleBits
+  bindingDigestBits := hashes.bindingOracleBits
+  bindingTargetEventCount := hashes.bindingTargetEventCount
+  orderedCollisionPairCount := hashes.bindingTargetEventCount * 4
+  targetEnumerationPinned := targetEnumerationPinned
+  collisionFormulaPinned := collisionFormulaPinned
+  collisionBoundInstantiated := collisionBoundInstantiated
+  collisionBoundWithinBudget := collisionBoundWithinBudget
+
+theorem productQROMCollisionBoundAccepted_of_hashOracleInstantiation
+    {hashes : ProductHashOracleInstantiation}
+    (hHashes : ProductHashOracleInstantiationAccepted hashes)
+    {targetEnumerationPinned : Prop}
+    {collisionFormulaPinned : Prop}
+    {collisionBoundInstantiated : Prop}
+    {collisionBoundWithinBudget : Prop}
+    (hTargetEnumeration : targetEnumerationPinned)
+    (hFormula : collisionFormulaPinned)
+    (hCollisionBound : collisionBoundInstantiated)
+    (hWithinBudget : collisionBoundWithinBudget) :
+    ProductQROMCollisionBoundAccepted
+      (ProductQROMCollisionBound.ofHashOracleInstantiation
+        hashes
+        targetEnumerationPinned
+        collisionFormulaPinned
+        collisionBoundInstantiated
+        collisionBoundWithinBudget) := by
+  rcases hHashes with
+    ⟨hChallengeBits,
+      hBindingBits,
+      hTargetCount,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _⟩
+  exact
+    ⟨rfl,
+      hChallengeBits,
+      hBindingBits,
+      hTargetCount,
+      by
+        simp [ProductQROMCollisionBound.ofHashOracleInstantiation,
+          hTargetCount],
+      by
+        simp [ProductQROMCollisionBound.ofHashOracleInstantiation],
+      hTargetEnumeration,
+      hFormula,
+      hCollisionBound,
+      hWithinBudget⟩
 
 structure ProductQROMMalleabilityBound where
   proofKindMalleabilityChargedToCollisionLedger : Prop
@@ -1330,7 +2029,7 @@ structure ProductQROMTotalLossInstantiated where
   qromExtraLossOnly : Prop
   collisionLedgerIntegrated : Prop
   cryptographicSliceWithinBudget : Prop
-  repoWideNonMathTermsClosed : Prop
+  auxiliaryLedgerTermsAccounted : Prop
 
 def ProductQROMTotalLossInstantiatedAccepted
     (loss : ProductQROMTotalLossInstantiated) : Prop :=
@@ -1339,7 +2038,7 @@ def ProductQROMTotalLossInstantiatedAccepted
     ∧ loss.qromExtraLossOnly
     ∧ loss.collisionLedgerIntegrated
     ∧ loss.cryptographicSliceWithinBudget
-    ∧ loss.repoWideNonMathTermsClosed
+    ∧ loss.auxiliaryLedgerTermsAccounted
 
 structure ProductQROMCompilerOverheadBound where
   selectedFamily : ProductCompilerFamily
@@ -1364,6 +2063,61 @@ def ProductQROMCompilerOverheadBoundAccepted
     ∧ bound.hashModelGapSeparated
     ∧ bound.totalLossLedgerReceivesQROMTerm
 
+def ProductQROMCompilerOverheadBound.ofCompiler
+    (compiler : ProductChallengeTapeCommitOpenCompiler)
+    (idealSplitQROModelPinned : Prop)
+    (onlineExtractabilityAssumptionPinned : Prop)
+    (compilerAddsNoLegacyRoundFactor : Prop)
+    (compilerOverheadExactZeroInIdealModel : Prop)
+    (hashModelGapSeparated : Prop)
+    (totalLossLedgerReceivesQROMTerm : Prop) :
+    ProductQROMCompilerOverheadBound where
+  selectedFamily := compiler.compilerFamily
+  selectedDepth := 3
+  idealSplitQROModelPinned := idealSplitQROModelPinned
+  onlineExtractabilityAssumptionPinned :=
+    onlineExtractabilityAssumptionPinned
+  compilerAddsNoLegacyRoundFactor := compilerAddsNoLegacyRoundFactor
+  compilerOverheadExactZeroInIdealModel :=
+    compilerOverheadExactZeroInIdealModel
+  hashModelGapSeparated := hashModelGapSeparated
+  totalLossLedgerReceivesQROMTerm := totalLossLedgerReceivesQROMTerm
+
+theorem productQROMCompilerOverheadBoundAccepted_of_compiler
+    {compiler : ProductChallengeTapeCommitOpenCompiler}
+    (hCompiler : ProductChallengeTapeCommitOpenCompilerAccepted compiler)
+    {idealSplitQROModelPinned : Prop}
+    {onlineExtractabilityAssumptionPinned : Prop}
+    {compilerAddsNoLegacyRoundFactor : Prop}
+    {compilerOverheadExactZeroInIdealModel : Prop}
+    {hashModelGapSeparated : Prop}
+    {totalLossLedgerReceivesQROMTerm : Prop}
+    (hIdealSplitQRO : idealSplitQROModelPinned)
+    (hOnlineExtractability : onlineExtractabilityAssumptionPinned)
+    (hNoLegacyFactor : compilerAddsNoLegacyRoundFactor)
+    (hOverheadZero : compilerOverheadExactZeroInIdealModel)
+    (hHashGap : hashModelGapSeparated)
+    (hLedgerReceivesQROM : totalLossLedgerReceivesQROMTerm) :
+    ProductQROMCompilerOverheadBoundAccepted
+      (ProductQROMCompilerOverheadBound.ofCompiler
+        compiler
+        idealSplitQROModelPinned
+        onlineExtractabilityAssumptionPinned
+        compilerAddsNoLegacyRoundFactor
+        compilerOverheadExactZeroInIdealModel
+        hashModelGapSeparated
+        totalLossLedgerReceivesQROMTerm) := by
+  exact
+    ⟨hCompiler.1,
+      rfl,
+      show 0 < 3 by decide,
+      hIdealSplitQRO,
+      hOnlineExtractability,
+      hNoLegacyFactor,
+      hOverheadZero,
+      hHashGap,
+      hLedgerReceivesQROM⟩
+
 structure ProductSharedBadEventDeduplication where
   moduleSISSharedTagPinned : Prop
   commitmentSharedTagPinned : Prop
@@ -1373,7 +2127,15 @@ structure ProductSharedBadEventDeduplication where
   qromCollisionSeparatedFromCore : Prop
   selectedDepthLedgerUsesSharedCoreTerm : Prop
   totalLossBudgetChargesSharedCoreOnce : Prop
-  formalAggregateUnionBoundPinned : Prop
+
+def ProductFormalAggregateUnionBound : Prop :=
+  ∀ {Tag : Type} [DecidableEq Tag] (ledger : ProductBadEventLedger Tag),
+    ledger.aggregate.card ≤ ledger.flatCharge
+
+theorem productFormalAggregateUnionBound :
+    ProductFormalAggregateUnionBound := by
+  intro _Tag _hDecidable ledger
+  exact ProductBadEventLedger.aggregate_card_le_flatCharge ledger
 
 def ProductSharedBadEventDeduplicationAccepted
     (dedup : ProductSharedBadEventDeduplication) : Prop :=
@@ -1385,7 +2147,6 @@ def ProductSharedBadEventDeduplicationAccepted
     ∧ dedup.qromCollisionSeparatedFromCore
     ∧ dedup.selectedDepthLedgerUsesSharedCoreTerm
     ∧ dedup.totalLossBudgetChargesSharedCoreOnce
-    ∧ dedup.formalAggregateUnionBoundPinned
 
 structure ProductExactFiniteProbabilityWiring where
   selectedDepth : Nat
@@ -1446,6 +2207,287 @@ def ProductInstantiatedQROMEvidenceAccepted
     ∧ ProductExactFiniteProbabilityWiringAccepted evidence.exactFiniteProbabilityWiring
     ∧ ProductQROMTotalLossInstantiatedAccepted evidence.totalLoss
 
+def ProductInstantiatedQROMEvidence.ofSerializationBackedHashAndCollision
+    (splitOraclesPinned : Prop)
+    (theoremCriticalBindingsUseHBind : Prop)
+    (concreteHashRecommendationPinned : Prop)
+    (hashQROInstantiationAssumptionPinned : Prop)
+    (hashQROInstantiationProofProvided : Prop)
+    (protocolDefinitions : ProductInteractiveProtocolDefinitions)
+    (specialSoundnessData : ProductInteractiveSpecialSoundnessData)
+    (delayedMessageData : ProductInteractiveDelayedMessageData)
+    (uniqueResponseData : ProductInteractiveUniqueResponseData)
+    (compiler : ProductChallengeTapeCommitOpenCompiler)
+    (targetEnumerationPinned : Prop)
+    (collisionFormulaPinned : Prop)
+    (collisionBoundInstantiated : Prop)
+    (collisionBoundWithinBudget : Prop)
+    (malleabilityBound : ProductQROMMalleabilityBound)
+    (interactiveBounds : ProductInteractiveSecurityBounds)
+    (compilerOverheadBound : ProductQROMCompilerOverheadBound)
+    (exactFiniteProbabilityWiring : ProductExactFiniteProbabilityWiring)
+    (totalLoss : ProductQROMTotalLossInstantiated) :
+    ProductInstantiatedQROMEvidence where
+  hashInstantiation :=
+    ProductHashOracleInstantiation.ofSerializationFacts
+      splitOraclesPinned
+      theoremCriticalBindingsUseHBind
+      concreteHashRecommendationPinned
+      hashQROInstantiationAssumptionPinned
+      hashQROInstantiationProofProvided
+  protocolDefinitions := protocolDefinitions
+  specialSoundnessData := specialSoundnessData
+  delayedMessageData := delayedMessageData
+  uniqueResponseData := uniqueResponseData
+  compiler := compiler
+  collisionBound :=
+    ProductQROMCollisionBound.ofHashOracleInstantiation
+      (ProductHashOracleInstantiation.ofSerializationFacts
+        splitOraclesPinned
+        theoremCriticalBindingsUseHBind
+        concreteHashRecommendationPinned
+        hashQROInstantiationAssumptionPinned
+        hashQROInstantiationProofProvided)
+      targetEnumerationPinned
+      collisionFormulaPinned
+      collisionBoundInstantiated
+      collisionBoundWithinBudget
+  malleabilityBound := malleabilityBound
+  interactiveBounds := interactiveBounds
+  compilerOverheadBound := compilerOverheadBound
+  exactFiniteProbabilityWiring := exactFiniteProbabilityWiring
+  totalLoss := totalLoss
+
+theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCollision
+    {splitOraclesPinned : Prop}
+    {theoremCriticalBindingsUseHBind : Prop}
+    {concreteHashRecommendationPinned : Prop}
+    {hashQROInstantiationAssumptionPinned : Prop}
+    {hashQROInstantiationProofProvided : Prop}
+    {protocolDefinitions : ProductInteractiveProtocolDefinitions}
+    {specialSoundnessData : ProductInteractiveSpecialSoundnessData}
+    {delayedMessageData : ProductInteractiveDelayedMessageData}
+    {uniqueResponseData : ProductInteractiveUniqueResponseData}
+    {compiler : ProductChallengeTapeCommitOpenCompiler}
+    {targetEnumerationPinned : Prop}
+    {collisionFormulaPinned : Prop}
+    {collisionBoundInstantiated : Prop}
+    {collisionBoundWithinBudget : Prop}
+    {malleabilityBound : ProductQROMMalleabilityBound}
+    {interactiveBounds : ProductInteractiveSecurityBounds}
+    {compilerOverheadBound : ProductQROMCompilerOverheadBound}
+    {exactFiniteProbabilityWiring : ProductExactFiniteProbabilityWiring}
+    {totalLoss : ProductQROMTotalLossInstantiated}
+    (hSplitOracles : splitOraclesPinned)
+    (hHBind : theoremCriticalBindingsUseHBind)
+    (hHashRecommendation : concreteHashRecommendationPinned)
+    (hQROAssumption : hashQROInstantiationAssumptionPinned)
+    (hQROProof : hashQROInstantiationProofProvided)
+    (hProtocols :
+      ProductInteractiveProtocolDefinitionsAccepted protocolDefinitions)
+    (hSpecialSoundness :
+      ProductInteractiveSpecialSoundnessDataAccepted specialSoundnessData)
+    (hDelayedMessages :
+      ProductInteractiveDelayedMessageDataAccepted delayedMessageData)
+    (hUniqueResponses :
+      ProductInteractiveUniqueResponseDataAccepted uniqueResponseData)
+    (hCompiler : ProductChallengeTapeCommitOpenCompilerAccepted compiler)
+    (hTargetEnumeration : targetEnumerationPinned)
+    (hFormula : collisionFormulaPinned)
+    (hCollisionBound : collisionBoundInstantiated)
+    (hWithinBudget : collisionBoundWithinBudget)
+    (hMalleability : ProductQROMMalleabilityBoundAccepted malleabilityBound)
+    (hInteractiveBounds :
+      ProductInteractiveSecurityBoundsAccepted interactiveBounds)
+    (hCompilerOverhead :
+      ProductQROMCompilerOverheadBoundAccepted compilerOverheadBound)
+    (hExactWiring :
+      ProductExactFiniteProbabilityWiringAccepted exactFiniteProbabilityWiring)
+    (hTotalLoss : ProductQROMTotalLossInstantiatedAccepted totalLoss) :
+    ProductInstantiatedQROMEvidenceAccepted
+      (ProductInstantiatedQROMEvidence.ofSerializationBackedHashAndCollision
+        splitOraclesPinned
+        theoremCriticalBindingsUseHBind
+        concreteHashRecommendationPinned
+        hashQROInstantiationAssumptionPinned
+        hashQROInstantiationProofProvided
+        protocolDefinitions
+        specialSoundnessData
+        delayedMessageData
+        uniqueResponseData
+        compiler
+        targetEnumerationPinned
+        collisionFormulaPinned
+        collisionBoundInstantiated
+        collisionBoundWithinBudget
+        malleabilityBound
+        interactiveBounds
+        compilerOverheadBound
+        exactFiniteProbabilityWiring
+        totalLoss) := by
+  have hHash :
+      ProductHashOracleInstantiationAccepted
+        (ProductHashOracleInstantiation.ofSerializationFacts
+          splitOraclesPinned
+          theoremCriticalBindingsUseHBind
+          concreteHashRecommendationPinned
+          hashQROInstantiationAssumptionPinned
+          hashQROInstantiationProofProvided) :=
+    productHashOracleInstantiationAccepted_of_serializationFacts
+      hSplitOracles
+      hHBind
+      hHashRecommendation
+      hQROAssumption
+      hQROProof
+  have hCollision :
+      ProductQROMCollisionBoundAccepted
+        (ProductQROMCollisionBound.ofHashOracleInstantiation
+          (ProductHashOracleInstantiation.ofSerializationFacts
+            splitOraclesPinned
+            theoremCriticalBindingsUseHBind
+            concreteHashRecommendationPinned
+            hashQROInstantiationAssumptionPinned
+            hashQROInstantiationProofProvided)
+          targetEnumerationPinned
+          collisionFormulaPinned
+          collisionBoundInstantiated
+          collisionBoundWithinBudget) :=
+    productQROMCollisionBoundAccepted_of_hashOracleInstantiation
+      hHash
+      hTargetEnumeration
+      hFormula
+      hCollisionBound
+      hWithinBudget
+  exact
+    ⟨hHash,
+      hProtocols,
+      hSpecialSoundness,
+      hDelayedMessages,
+      hUniqueResponses,
+      hCompiler,
+      hCollision,
+      hMalleability,
+      hInteractiveBounds,
+      hCompilerOverhead,
+      hExactWiring,
+      hTotalLoss⟩
+
+def ProductSelectedDepthLossLedger.ofAcceptedComponents
+    (perKindExtractorTheorems : ProductPerKindExtractorTheorems)
+    (recursiveCarryChainRootRecurrence :
+      ProductRecursiveCarryChainRootRecurrence)
+    (extractorLossClosure : ProductExtractorLossClosure)
+    (qrom : ProductInstantiatedQROMEvidence)
+    (closure : ProductSelectedDepthLossClosure) :
+    ProductSelectedDepthLossLedger where
+  selectedDepth := 3
+  selectedDepthPositive := show 0 < 3 by decide
+  selectedRecursiveCarryHops := 2
+  sourceFoldLossInstantiated := closure.sourceFoldLossInstantiated
+  terminalSealLossInstantiated := closure.terminalSealLossInstantiated
+  recursiveCarryLossInstantiated := closure.recursiveCarryLossInstantiated
+  zkSimulatorLossInstantiated := closure.zkSimulatorLossInstantiated
+  publicCoinQROMLossInstantiated :=
+    ProductInstantiatedQROMEvidenceAccepted qrom
+  extractorLossInstantiated :=
+    ProductExtractorLossAccountingAccepted
+      (ProductExtractorLossAccounting.ofAcceptedComponents
+        perKindExtractorTheorems
+        recursiveCarryChainRootRecurrence
+        extractorLossClosure)
+  productOperationsReplayLossInstantiated :=
+    closure.productOperationsReplayLossInstantiated
+  loadedParentChainRequired :=
+    recursiveCarryChainRootRecurrence.verifierLoadsParentChainBeforeAcceptingRecursiveArtifact
+  recursiveCarryChainRootRecurrenceBound :=
+    ProductRecursiveCarryChainRootRecurrenceAccepted
+      recursiveCarryChainRootRecurrence
+  constantTimeSideChannelEvidenceClosed :=
+    closure.constantTimeSideChannelEvidenceClosed
+  totalLossWithinBudget := closure.totalLossWithinBudget
+
+theorem productSelectedDepthLossLedgerAccepted_of_components
+    {perKindExtractorTheorems : ProductPerKindExtractorTheorems}
+    {recursiveCarryChainRootRecurrence :
+      ProductRecursiveCarryChainRootRecurrence}
+    {extractorLossClosure : ProductExtractorLossClosure}
+    {qrom : ProductInstantiatedQROMEvidence}
+    {closure : ProductSelectedDepthLossClosure}
+    (hPerKind :
+      ProductPerKindExtractorTheoremsAccepted perKindExtractorTheorems)
+    (hRecurrence :
+      ProductRecursiveCarryChainRootRecurrenceAccepted
+        recursiveCarryChainRootRecurrence)
+    (hExtractorClosure :
+      ProductExtractorLossClosureAccepted extractorLossClosure)
+    (hQROM : ProductInstantiatedQROMEvidenceAccepted qrom)
+    (hClosure : ProductSelectedDepthLossClosureAccepted closure) :
+    ProductSelectedDepthLossLedgerAccepted
+      (ProductSelectedDepthLossLedger.ofAcceptedComponents
+        perKindExtractorTheorems
+        recursiveCarryChainRootRecurrence
+        extractorLossClosure
+        qrom
+        closure) := by
+  have hRecurrenceAccepted :
+      ProductRecursiveCarryChainRootRecurrenceAccepted
+        recursiveCarryChainRootRecurrence :=
+    hRecurrence
+  have hExtractorAccounting :
+      ProductExtractorLossAccountingAccepted
+        (ProductExtractorLossAccounting.ofAcceptedComponents
+          perKindExtractorTheorems
+          recursiveCarryChainRootRecurrence
+          extractorLossClosure) :=
+    productExtractorLossAccountingAccepted_of_components
+      hPerKind
+      hRecurrence
+      hExtractorClosure
+  rcases hRecurrence with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      hLoadedParent,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _⟩
+  rcases hClosure with
+    ⟨hSourceFold,
+      hTerminalSeal,
+      hRecursiveCarry,
+      hZK,
+      hProductReplay,
+      hConstantTime,
+      hTotal⟩
+  exact
+    ⟨rfl,
+      rfl,
+      show 0 < 3 by decide,
+      hSourceFold,
+      hTerminalSeal,
+      hRecursiveCarry,
+      hZK,
+      hQROM,
+      hExtractorAccounting,
+      hProductReplay,
+      hLoadedParent,
+      hRecurrenceAccepted,
+      hConstantTime,
+      hTotal⟩
+
 structure ProductPublicCoinTranscriptSchedule where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
@@ -1458,7 +2500,12 @@ structure ProductPublicCoinTranscriptSchedule where
   domainSeparationBindingPinned : Prop
   proofKindSeparationBindingPinned : Prop
   numericQuantumQueryBoundsInstantiated : Prop
-  productionTranscriptScheduleClaimAllowed : Prop
+  transcriptScheduleTheoremApplies : Prop
+
+def ProductWellFormedTranscriptScheduleTheorem : Prop :=
+  Function.Injective
+    (fun transcript : WellFormedTranscript =>
+      transcriptBytes transcript.state)
 
 def ProductPublicCoinTranscriptScheduleAccepted
     (schedule : ProductPublicCoinTranscriptSchedule) : Prop :=
@@ -1473,7 +2520,107 @@ def ProductPublicCoinTranscriptScheduleAccepted
     ∧ schedule.domainSeparationBindingPinned
     ∧ schedule.proofKindSeparationBindingPinned
     ∧ schedule.numericQuantumQueryBoundsInstantiated
-    ∧ schedule.productionTranscriptScheduleClaimAllowed
+    ∧ schedule.transcriptScheduleTheoremApplies
+
+def ProductPublicCoinTranscriptSchedule.ofInstantiatedQROM
+    (evidence : ProductInstantiatedQROMEvidence)
+    (interactiveRoundSchedulePinned : Prop)
+    (publicCoinChallengeLabelsPinned : Prop)
+    (oracleQueryFamiliesPinned : Prop)
+    (transcriptStateTransitionsPinned : Prop)
+    (witnessIndependentOracleLabelsPinned : Prop) :
+    ProductPublicCoinTranscriptSchedule where
+  selectedDepth := 3
+  selectedDepthPositive := show 0 < 3 by decide
+  acceptedProofKindsPinned :=
+    evidence.protocolDefinitions.acceptedProofKindsPinned
+  interactiveRoundSchedulePinned := interactiveRoundSchedulePinned
+  publicCoinChallengeLabelsPinned := publicCoinChallengeLabelsPinned
+  oracleQueryFamiliesPinned := oracleQueryFamiliesPinned
+  transcriptStateTransitionsPinned := transcriptStateTransitionsPinned
+  witnessIndependentOracleLabelsPinned :=
+    witnessIndependentOracleLabelsPinned
+  domainSeparationBindingPinned :=
+    evidence.hashInstantiation.challengeDomainsSeparated
+      ∧ evidence.hashInstantiation.bindingDomainsSeparated
+  proofKindSeparationBindingPinned :=
+    evidence.hashInstantiation.proofKindBytesInjective
+  numericQuantumQueryBoundsInstantiated :=
+    ProductQROMCollisionBoundAccepted evidence.collisionBound
+  transcriptScheduleTheoremApplies :=
+    ProductWellFormedTranscriptScheduleTheorem
+
+theorem productPublicCoinTranscriptScheduleAccepted_of_instantiatedQROM
+    {evidence : ProductInstantiatedQROMEvidence}
+    (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence)
+    {interactiveRoundSchedulePinned : Prop}
+    {publicCoinChallengeLabelsPinned : Prop}
+    {oracleQueryFamiliesPinned : Prop}
+    {transcriptStateTransitionsPinned : Prop}
+    {witnessIndependentOracleLabelsPinned : Prop}
+    (hRounds : interactiveRoundSchedulePinned)
+    (hChallengeLabels : publicCoinChallengeLabelsPinned)
+    (hOracleFamilies : oracleQueryFamiliesPinned)
+    (hTranscriptTransitions : transcriptStateTransitionsPinned)
+    (hWitnessIndependent : witnessIndependentOracleLabelsPinned) :
+    ProductPublicCoinTranscriptScheduleAccepted
+      (ProductPublicCoinTranscriptSchedule.ofInstantiatedQROM
+        evidence
+        interactiveRoundSchedulePinned
+        publicCoinChallengeLabelsPinned
+        oracleQueryFamiliesPinned
+        transcriptStateTransitionsPinned
+        witnessIndependentOracleLabelsPinned) := by
+  rcases hEvidence with
+    ⟨hHash,
+      hProtocols,
+      _,
+      _,
+      _,
+      _,
+      hCollision,
+      _,
+      _,
+      _,
+      _,
+      _⟩
+  rcases hHash with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hProofKindBytes,
+      hChallengeDomains,
+      hBindingDomains,
+      _,
+      _,
+      _⟩
+  rcases hProtocols with
+    ⟨_,
+      _,
+      hAcceptedKinds,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _⟩
+  exact
+    ⟨rfl,
+      show 0 < 3 by decide,
+      hAcceptedKinds,
+      hRounds,
+      hChallengeLabels,
+      hOracleFamilies,
+      hTranscriptTransitions,
+      hWitnessIndependent,
+      ⟨hChallengeDomains, hBindingDomains⟩,
+      hProofKindBytes,
+      hCollision,
+      wellFormedTranscript_bytes_injective⟩
 
 structure ProductPublicCoinTransformPreconditions where
   selectedDepth : Nat
@@ -1487,7 +2634,7 @@ structure ProductPublicCoinTransformPreconditions where
   underlyingInteractiveSecurityBoundInstantiated : Prop
   quantumOracleQueryBoundInstantiated : Prop
   qromReductionLossInstantiated : Prop
-  productionTransformClaimAllowed : Prop
+  transformSoundnessTheoremApplies : Prop
 
 def ProductPublicCoinTransformPreconditionsAccepted
     (preconditions : ProductPublicCoinTransformPreconditions) : Prop :=
@@ -1502,7 +2649,100 @@ def ProductPublicCoinTransformPreconditionsAccepted
     ∧ preconditions.underlyingInteractiveSecurityBoundInstantiated
     ∧ preconditions.quantumOracleQueryBoundInstantiated
     ∧ preconditions.qromReductionLossInstantiated
-    ∧ preconditions.productionTransformClaimAllowed
+    ∧ preconditions.transformSoundnessTheoremApplies
+
+def ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
+    (evidence : ProductInstantiatedQROMEvidence)
+    (schedule : ProductPublicCoinTranscriptSchedule)
+    (theoremFamilyPinned : Prop)
+    (constantRoundOddMessageScheduleSpecified : Prop)
+    (challengeSpaceAndUniformityPinned : Prop)
+    (qromReductionLossInstantiated : Prop)
+    (transformSoundnessTheoremApplies : Prop) :
+    ProductPublicCoinTransformPreconditions where
+  selectedDepth := 3
+  selectedDepthPositive := show 0 < 3 by decide
+  theoremFamilyPinned := theoremFamilyPinned
+  publicCoinInteractiveProtocolSpecified :=
+    ProductInteractiveProtocolDefinitionsAccepted evidence.protocolDefinitions
+  constantRoundOddMessageScheduleSpecified :=
+    constantRoundOddMessageScheduleSpecified
+  challengeSpaceAndUniformityPinned := challengeSpaceAndUniformityPinned
+  transcriptOracleEncodingInjective :=
+    evidence.hashInstantiation.framedEncodingInjective
+      ∧ evidence.hashInstantiation.proofKindBytesInjective
+  transcriptScheduleAccepted :=
+    ProductPublicCoinTranscriptScheduleAccepted schedule
+  underlyingInteractiveSecurityBoundInstantiated :=
+    ProductInteractiveSecurityBoundsAccepted evidence.interactiveBounds
+  quantumOracleQueryBoundInstantiated :=
+    ProductQROMCollisionBoundAccepted evidence.collisionBound
+  qromReductionLossInstantiated := qromReductionLossInstantiated
+  transformSoundnessTheoremApplies := transformSoundnessTheoremApplies
+
+theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
+    {evidence : ProductInstantiatedQROMEvidence}
+    (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence)
+    {schedule : ProductPublicCoinTranscriptSchedule}
+    (hSchedule : ProductPublicCoinTranscriptScheduleAccepted schedule)
+    {theoremFamilyPinned : Prop}
+    {constantRoundOddMessageScheduleSpecified : Prop}
+    {challengeSpaceAndUniformityPinned : Prop}
+    {qromReductionLossInstantiated : Prop}
+    {transformSoundnessTheoremApplies : Prop}
+    (hFamily : theoremFamilyPinned)
+    (hConstantRound : constantRoundOddMessageScheduleSpecified)
+    (hUniformity : challengeSpaceAndUniformityPinned)
+    (hReductionLoss : qromReductionLossInstantiated)
+    (hTransformTheorem : transformSoundnessTheoremApplies) :
+    ProductPublicCoinTransformPreconditionsAccepted
+      (ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
+        evidence
+        schedule
+        theoremFamilyPinned
+        constantRoundOddMessageScheduleSpecified
+        challengeSpaceAndUniformityPinned
+        qromReductionLossInstantiated
+        transformSoundnessTheoremApplies) := by
+  rcases hEvidence with
+    ⟨hHash,
+      hProtocols,
+      _,
+      _,
+      _,
+      _,
+      hCollision,
+      _,
+      hInteractive,
+      _,
+      _,
+      _⟩
+  rcases hHash with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      hFramed,
+      hProofKind,
+      _,
+      _,
+      _,
+      _,
+      _⟩
+  exact
+    ⟨rfl,
+      show 0 < 3 by decide,
+      hFamily,
+      hProtocols,
+      hConstantRound,
+      hUniformity,
+      ⟨hFramed, hProofKind⟩,
+      hSchedule,
+      hInteractive,
+      hCollision,
+      hReductionLoss,
+      hTransformTheorem⟩
 
 structure ProductQROMInteractiveReduction where
   selectedDepth : Nat
@@ -1518,7 +2758,7 @@ structure ProductQROMInteractiveReduction where
   numericSelectedLossInstantiated : Prop
   underlyingInteractiveSecurityInstantiated : Prop
   totalLossBudgetInterfacePinned : Prop
-  productionQROMTheoremClaimAllowed : Prop
+  qromReductionTheoremApplies : Prop
 
 def ProductQROMInteractiveReductionAccepted
     (reduction : ProductQROMInteractiveReduction) : Prop :=
@@ -1535,7 +2775,91 @@ def ProductQROMInteractiveReductionAccepted
     ∧ reduction.numericSelectedLossInstantiated
     ∧ reduction.underlyingInteractiveSecurityInstantiated
     ∧ reduction.totalLossBudgetInterfacePinned
-    ∧ reduction.productionQROMTheoremClaimAllowed
+    ∧ reduction.qromReductionTheoremApplies
+
+def ProductQROMInteractiveReduction.ofTransformPreconditions
+    (preconditions : ProductPublicCoinTransformPreconditions)
+    (acceptedProofKindOrderPinned : Prop)
+    (challengeCountFormulasPinned : Prop)
+    (dfm20LossFormulaPinned : Prop)
+    (numericSelectedLossInstantiated : Prop)
+    (totalLossBudgetInterfacePinned : Prop)
+    (qromReductionTheoremApplies : Prop) :
+    ProductQROMInteractiveReduction where
+  selectedDepth := 3
+  selectedDepthPositive := show 0 < 3 by decide
+  acceptedProofKindOrderPinned := acceptedProofKindOrderPinned
+  protocolMessageAlgorithmsPinned :=
+    preconditions.publicCoinInteractiveProtocolSpecified
+  exactMoveCountsPinned :=
+    preconditions.constantRoundOddMessageScheduleSpecified
+  challengeCountFormulasPinned := challengeCountFormulasPinned
+  transcriptOracleEncodingProofPinned :=
+    preconditions.transcriptOracleEncodingInjective
+  challengeUniformityProofPinned :=
+    preconditions.challengeSpaceAndUniformityPinned
+  quantumQueryPolicyBoundPinned :=
+    preconditions.quantumOracleQueryBoundInstantiated
+  dfm20LossFormulaPinned := dfm20LossFormulaPinned
+  numericSelectedLossInstantiated := numericSelectedLossInstantiated
+  underlyingInteractiveSecurityInstantiated :=
+    preconditions.underlyingInteractiveSecurityBoundInstantiated
+  totalLossBudgetInterfacePinned := totalLossBudgetInterfacePinned
+  qromReductionTheoremApplies := qromReductionTheoremApplies
+
+theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
+    {preconditions : ProductPublicCoinTransformPreconditions}
+    (hPreconditions :
+      ProductPublicCoinTransformPreconditionsAccepted preconditions)
+    {acceptedProofKindOrderPinned : Prop}
+    {challengeCountFormulasPinned : Prop}
+    {dfm20LossFormulaPinned : Prop}
+    {numericSelectedLossInstantiated : Prop}
+    {totalLossBudgetInterfacePinned : Prop}
+    {qromReductionTheoremApplies : Prop}
+    (hAcceptedOrder : acceptedProofKindOrderPinned)
+    (hChallengeCounts : challengeCountFormulasPinned)
+    (hDFM20Formula : dfm20LossFormulaPinned)
+    (hNumericLoss : numericSelectedLossInstantiated)
+    (hBudgetInterface : totalLossBudgetInterfacePinned)
+    (hQROMTheorem : qromReductionTheoremApplies) :
+    ProductQROMInteractiveReductionAccepted
+      (ProductQROMInteractiveReduction.ofTransformPreconditions
+        preconditions
+        acceptedProofKindOrderPinned
+        challengeCountFormulasPinned
+        dfm20LossFormulaPinned
+        numericSelectedLossInstantiated
+        totalLossBudgetInterfacePinned
+        qromReductionTheoremApplies) := by
+  rcases hPreconditions with
+    ⟨_,
+      _,
+      _,
+      hProtocol,
+      hMoveCounts,
+      hUniformity,
+      hEncoding,
+      _,
+      hInteractive,
+      hQueries,
+      _,
+      _⟩
+  exact
+    ⟨rfl,
+      show 0 < 3 by decide,
+      hAcceptedOrder,
+      hProtocol,
+      hMoveCounts,
+      hChallengeCounts,
+      hEncoding,
+      hUniformity,
+      hQueries,
+      hDFM20Formula,
+      hNumericLoss,
+      hInteractive,
+      hBudgetInterface,
+      hQROMTheorem⟩
 
 structure ProductPublicCoinLossAccounting where
   selectedDepth : Nat
@@ -1562,6 +2886,72 @@ def ProductPublicCoinLossAccountingAccepted
     ∧ accounting.transcriptCollisionMalleabilityExcluded
     ∧ accounting.qromLossWithinBudget
 
+def ProductPublicCoinLossAccounting.ofInstantiatedQROM
+    (evidence : ProductInstantiatedQROMEvidence) :
+    ProductPublicCoinLossAccounting where
+  selectedDepth := 3
+  selectedDepthPositive := show 0 < 3 by decide
+  interactiveProtocolSpecified :=
+    ProductInteractiveProtocolDefinitionsAccepted evidence.protocolDefinitions
+  publicCoinChallengeScheduleSpecified :=
+    ProductChallengeTapeCommitOpenCompilerAccepted evidence.compiler
+  qromTransformPreconditionsSatisfied :=
+    ProductQROMCompilerOverheadBoundAccepted evidence.compilerOverheadBound
+  quantumOracleQueryBoundAccounted :=
+    ProductQROMCollisionBoundAccepted evidence.collisionBound
+  transcriptDomainSeparatorsBound :=
+    evidence.hashInstantiation.challengeDomainsSeparated
+      ∧ evidence.hashInstantiation.bindingDomainsSeparated
+  proofKindSeparationBound :=
+    evidence.hashInstantiation.proofKindBytesInjective
+  transcriptCollisionMalleabilityExcluded :=
+    ProductQROMMalleabilityBoundAccepted evidence.malleabilityBound
+  qromLossWithinBudget :=
+    ProductQROMTotalLossInstantiatedAccepted evidence.totalLoss
+
+theorem productPublicCoinLossAccountingAccepted_of_instantiatedQROM
+    {evidence : ProductInstantiatedQROMEvidence}
+    (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence) :
+    ProductPublicCoinLossAccountingAccepted
+      (ProductPublicCoinLossAccounting.ofInstantiatedQROM evidence) := by
+  rcases hEvidence with
+    ⟨hHash,
+      hProtocols,
+      _,
+      _,
+      _,
+      hCompiler,
+      hCollision,
+      hMalleability,
+      _,
+      hCompilerOverhead,
+      _,
+      hLoss⟩
+  rcases hHash with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hProofKindBytes,
+      hChallengeDomains,
+      hBindingDomains,
+      _,
+      _,
+      _⟩
+  exact
+    ⟨rfl,
+      show 0 < 3 by decide,
+      hProtocols,
+      hCompiler,
+      hCompilerOverhead,
+      hCollision,
+      ⟨hChallengeDomains, hBindingDomains⟩,
+      hProofKindBytes,
+      hMalleability,
+      hLoss⟩
+
 structure ProductTotalLossBudget where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
@@ -1572,7 +2962,11 @@ structure ProductTotalLossBudget where
   allRequiredTermsInstantiated : Prop
   missingRequiredTermSetEmpty : Prop
   selectedDepthLossWithinBudget : Prop
-  productionTotalLossClaimAllowed : Prop
+  totalLossBoundInstantiated : Prop
+
+structure ProductTotalLossClosure where
+  missingRequiredTermSetEmpty : Prop
+  totalLossBoundInstantiated : Prop
 
 def ProductTotalLossBudgetAccepted
     (budget : ProductTotalLossBudget) : Prop :=
@@ -1585,7 +2979,117 @@ def ProductTotalLossBudgetAccepted
     ∧ budget.allRequiredTermsInstantiated
     ∧ budget.missingRequiredTermSetEmpty
     ∧ budget.selectedDepthLossWithinBudget
-    ∧ budget.productionTotalLossClaimAllowed
+    ∧ budget.totalLossBoundInstantiated
+
+def ProductTotalLossBudget.ofAcceptedComponents
+    (ledger : ProductSelectedDepthLossLedger)
+    (extractorAccounting : ProductExtractorLossAccounting)
+    (qrom : ProductInstantiatedQROMEvidence)
+    (closure : ProductTotalLossClosure) :
+    ProductTotalLossBudget where
+  selectedDepth := 3
+  selectedDepthPositive := show 0 < 3 by decide
+  exactArithmeticPinned :=
+    ProductExactFiniteProbabilityWiringAccepted qrom.exactFiniteProbabilityWiring
+  qromLedgerTermMappingPinned :=
+    ProductPublicCoinLossAccountingAccepted
+      (ProductPublicCoinLossAccounting.ofInstantiatedQROM qrom)
+  extractorLedgerTermMappingPinned :=
+    ProductExtractorLossAccountingAccepted extractorAccounting
+  primitiveBatchCancellationTermIncluded :=
+    qrom.exactFiniteProbabilityWiring.primitiveBatchCancellationExpressionExact
+  allRequiredTermsInstantiated :=
+    ProductSelectedDepthLossLedgerAccepted ledger
+      ∧ ProductExtractorLossAccountingAccepted extractorAccounting
+      ∧ ProductInstantiatedQROMEvidenceAccepted qrom
+  missingRequiredTermSetEmpty := closure.missingRequiredTermSetEmpty
+  selectedDepthLossWithinBudget := ledger.totalLossWithinBudget
+  totalLossBoundInstantiated := closure.totalLossBoundInstantiated
+
+theorem productTotalLossBudgetAccepted_of_components
+    {ledger : ProductSelectedDepthLossLedger}
+    {extractorAccounting : ProductExtractorLossAccounting}
+    {qrom : ProductInstantiatedQROMEvidence}
+    {closure : ProductTotalLossClosure}
+    (hLedger : ProductSelectedDepthLossLedgerAccepted ledger)
+    (hExtractorAccounting :
+      ProductExtractorLossAccountingAccepted extractorAccounting)
+    (hQROM : ProductInstantiatedQROMEvidenceAccepted qrom)
+    (hClosure :
+      closure.missingRequiredTermSetEmpty
+        ∧ closure.totalLossBoundInstantiated) :
+    ProductTotalLossBudgetAccepted
+      (ProductTotalLossBudget.ofAcceptedComponents
+        ledger
+        extractorAccounting
+        qrom
+        closure) := by
+  have hQROMLedger :
+      ProductPublicCoinLossAccountingAccepted
+        (ProductPublicCoinLossAccounting.ofInstantiatedQROM qrom) :=
+    productPublicCoinLossAccountingAccepted_of_instantiatedQROM hQROM
+  have hAllRequired :
+      ProductSelectedDepthLossLedgerAccepted ledger
+        ∧ ProductExtractorLossAccountingAccepted extractorAccounting
+        ∧ ProductInstantiatedQROMEvidenceAccepted qrom :=
+    ⟨hLedger, hExtractorAccounting, hQROM⟩
+  rcases hLedger with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hSelectedDepthWithinBudget⟩
+  rcases hQROM with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hWiring,
+      _⟩
+  have hExactArithmetic :
+      ProductExactFiniteProbabilityWiringAccepted
+        qrom.exactFiniteProbabilityWiring :=
+    hWiring
+  rcases hWiring with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hPrimitiveBatch,
+      _,
+      _⟩
+  exact
+    ⟨rfl,
+      show 0 < 3 by decide,
+      hExactArithmetic,
+      hQROMLedger,
+      hExtractorAccounting,
+      hPrimitiveBatch,
+      hAllRequired,
+      hClosure.1,
+      hSelectedDepthWithinBudget,
+      hClosure.2⟩
 
 structure ProductLatticeAssumptionDossier where
   moduleSISStatementPinned : Prop
@@ -1610,6 +3114,148 @@ def ProductLatticeAssumptionDossierAccepted
     ∧ dossier.parameterSensitivityRecorded
     ∧ dossier.failureProbabilityBudgetRecorded
 
+structure ProductLatticeParameterClosure where
+  qRingDimensionAndNormPinned : Prop
+  decompositionAndChallengeParametersPinned : Prop
+  normGrowthAcrossFoldAndNumiSealPinned : Prop
+  reductionLossAccounted : Prop
+  classicalCostEstimatePinned : Prop
+  quantumCostEstimatePinned : Prop
+  parameterSensitivityRecorded : Prop
+  failureProbabilityBudgetRecorded : Prop
+
+def ProductLatticeParameterClosureAccepted
+    (closure : ProductLatticeParameterClosure) : Prop :=
+  closure.qRingDimensionAndNormPinned
+    ∧ closure.decompositionAndChallengeParametersPinned
+    ∧ closure.normGrowthAcrossFoldAndNumiSealPinned
+    ∧ closure.reductionLossAccounted
+    ∧ closure.classicalCostEstimatePinned
+    ∧ closure.quantumCostEstimatePinned
+    ∧ closure.parameterSensitivityRecorded
+    ∧ closure.failureProbabilityBudgetRecorded
+
+def ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificate
+    {columns : Nat}
+    {key : CertifiedAjtaiKey columns}
+    {bounded : ConcreteAjtaiMessage columns → Prop}
+    (certificate : VerifiedAjtaiKernelCertificate key bounded)
+    (qRingDimensionAndNormPinned : Prop)
+    (decompositionAndChallengeParametersPinned : Prop)
+    (normGrowthAcrossFoldAndNumiSealPinned : Prop)
+    (reductionLossAccounted : Prop)
+    (classicalCostEstimatePinned : Prop)
+    (quantumCostEstimatePinned : Prop)
+    (parameterSensitivityRecorded : Prop)
+    (failureProbabilityBudgetRecorded : Prop) :
+    ProductLatticeAssumptionDossier where
+  moduleSISStatementPinned :=
+    ModuleSISNoShortKernel key.matrix bounded
+      ∧ checkAjtaiKernelCertificate key certificate.1
+  qRingDimensionAndNormPinned := qRingDimensionAndNormPinned
+  decompositionAndChallengeParametersPinned :=
+    decompositionAndChallengeParametersPinned
+  normGrowthAcrossFoldAndNumiSealPinned :=
+    normGrowthAcrossFoldAndNumiSealPinned
+  reductionLossAccounted := reductionLossAccounted
+  classicalCostEstimatePinned := classicalCostEstimatePinned
+  quantumCostEstimatePinned := quantumCostEstimatePinned
+  parameterSensitivityRecorded := parameterSensitivityRecorded
+  failureProbabilityBudgetRecorded := failureProbabilityBudgetRecorded
+
+def ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificateAndClosure
+    {columns : Nat}
+    {key : CertifiedAjtaiKey columns}
+    {bounded : ConcreteAjtaiMessage columns → Prop}
+    (certificate : VerifiedAjtaiKernelCertificate key bounded)
+    (closure : ProductLatticeParameterClosure) :
+    ProductLatticeAssumptionDossier :=
+  ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificate
+    certificate
+    closure.qRingDimensionAndNormPinned
+    closure.decompositionAndChallengeParametersPinned
+    closure.normGrowthAcrossFoldAndNumiSealPinned
+    closure.reductionLossAccounted
+    closure.classicalCostEstimatePinned
+    closure.quantumCostEstimatePinned
+    closure.parameterSensitivityRecorded
+    closure.failureProbabilityBudgetRecorded
+
+theorem productLatticeAssumptionDossierAccepted_of_verifiedAjtaiKernelCertificate
+    {columns : Nat}
+    {key : CertifiedAjtaiKey columns}
+    {bounded : ConcreteAjtaiMessage columns → Prop}
+    (certificate : VerifiedAjtaiKernelCertificate key bounded)
+    {qRingDimensionAndNormPinned : Prop}
+    {decompositionAndChallengeParametersPinned : Prop}
+    {normGrowthAcrossFoldAndNumiSealPinned : Prop}
+    {reductionLossAccounted : Prop}
+    {classicalCostEstimatePinned : Prop}
+    {quantumCostEstimatePinned : Prop}
+    {parameterSensitivityRecorded : Prop}
+    {failureProbabilityBudgetRecorded : Prop}
+    (hQRing : qRingDimensionAndNormPinned)
+    (hDecomposition : decompositionAndChallengeParametersPinned)
+    (hNormGrowth : normGrowthAcrossFoldAndNumiSealPinned)
+    (hReductionLoss : reductionLossAccounted)
+    (hClassicalCost : classicalCostEstimatePinned)
+    (hQuantumCost : quantumCostEstimatePinned)
+    (hSensitivity : parameterSensitivityRecorded)
+    (hFailureBudget : failureProbabilityBudgetRecorded) :
+    ProductLatticeAssumptionDossierAccepted
+      (ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificate
+        certificate
+        qRingDimensionAndNormPinned
+        decompositionAndChallengeParametersPinned
+        normGrowthAcrossFoldAndNumiSealPinned
+        reductionLossAccounted
+        classicalCostEstimatePinned
+        quantumCostEstimatePinned
+        parameterSensitivityRecorded
+        failureProbabilityBudgetRecorded) := by
+  exact
+    ⟨⟨verifiedCertificate_noShortKernel certificate, certificate.property⟩,
+      hQRing,
+      hDecomposition,
+      hNormGrowth,
+      hReductionLoss,
+      hClassicalCost,
+      hQuantumCost,
+      hSensitivity,
+      hFailureBudget⟩
+
+theorem productLatticeAssumptionDossierAccepted_of_verifiedAjtaiKernelCertificateAndClosure
+    {columns : Nat}
+    {key : CertifiedAjtaiKey columns}
+    {bounded : ConcreteAjtaiMessage columns → Prop}
+    (certificate : VerifiedAjtaiKernelCertificate key bounded)
+    {closure : ProductLatticeParameterClosure}
+    (hClosure : ProductLatticeParameterClosureAccepted closure) :
+    ProductLatticeAssumptionDossierAccepted
+      (ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificateAndClosure
+        certificate
+        closure) := by
+  rcases hClosure with
+    ⟨hQRing,
+      hDecomposition,
+      hNormGrowth,
+      hReductionLoss,
+      hClassicalCost,
+      hQuantumCost,
+      hSensitivity,
+      hFailureBudget⟩
+  exact
+    productLatticeAssumptionDossierAccepted_of_verifiedAjtaiKernelCertificate
+      certificate
+      hQRing
+      hDecomposition
+      hNormGrowth
+      hReductionLoss
+      hClassicalCost
+      hQuantumCost
+      hSensitivity
+      hFailureBudget
+
 structure ProductPublicCoinQROMEvidence where
   interactivePublicCoinProtocolSpecified : Prop
   transformPreconditionsSatisfied : Prop
@@ -1627,6 +3273,62 @@ def ProductPublicCoinQROMAccepted
     ∧ evidence.proofKindSeparationBound
     ∧ evidence.transcriptCollisionMalleabilityExcluded
 
+def ProductPublicCoinQROMEvidence.ofInstantiatedQROM
+    (evidence : ProductInstantiatedQROMEvidence) :
+    ProductPublicCoinQROMEvidence where
+  interactivePublicCoinProtocolSpecified :=
+    ProductInteractiveProtocolDefinitionsAccepted evidence.protocolDefinitions
+  transformPreconditionsSatisfied :=
+    ProductChallengeTapeCommitOpenCompilerAccepted evidence.compiler
+  quantumOracleQueryBoundAccounted :=
+    ProductQROMCollisionBoundAccepted evidence.collisionBound
+  transcriptDomainSeparatorsBound :=
+    evidence.hashInstantiation.challengeDomainsSeparated
+      ∧ evidence.hashInstantiation.bindingDomainsSeparated
+  proofKindSeparationBound :=
+    evidence.hashInstantiation.proofKindBytesInjective
+  transcriptCollisionMalleabilityExcluded :=
+    ProductQROMMalleabilityBoundAccepted evidence.malleabilityBound
+
+theorem productPublicCoinQROMAccepted_of_instantiatedQROM
+    {evidence : ProductInstantiatedQROMEvidence}
+    (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence) :
+    ProductPublicCoinQROMAccepted
+      (ProductPublicCoinQROMEvidence.ofInstantiatedQROM evidence) := by
+  rcases hEvidence with
+    ⟨hHash,
+      hProtocols,
+      _,
+      _,
+      _,
+      hCompiler,
+      hCollision,
+      hMalleability,
+      _,
+      _,
+      _,
+      _⟩
+  rcases hHash with
+    ⟨_,
+      _,
+      _,
+      _,
+      _,
+      _,
+      hProofKindBytes,
+      hChallengeDomains,
+      hBindingDomains,
+      _,
+      _,
+      _⟩
+  exact
+    ⟨hProtocols,
+      hCompiler,
+      hCollision,
+      ⟨hChallengeDomains, hBindingDomains⟩,
+      hProofKindBytes,
+      hMalleability⟩
+
 structure ProductCompletenessSoundnessZKClaim where
   completeness : Prop
   knowledgeSoundness : Prop
@@ -1642,12 +3344,13 @@ def ProductCompletenessSoundnessZKHolds
 
 structure ProductSecurityTheoremObligationStatus where
   numiSealProduct : NumiSealProductTheoremObligationStatus
-  systemBindings : TheoremObligationStatus
-  boundedDepthLoss : TheoremObligationStatus
-  selectedDepthLossLedger : TheoremObligationStatus
-  extractorLossAccounting : TheoremObligationStatus
-  latticeAssumptionDossier : TheoremObligationStatus
-  publicCoinQROM : TheoremObligationStatus
+  systemBindingClosure : TheoremObligationStatus
+  selectedDepthLossClosure : TheoremObligationStatus
+  perKindExtractorTheorems : TheoremObligationStatus
+  recursiveCarryChainRootRecurrence : TheoremObligationStatus
+  extractorLossClosure : TheoremObligationStatus
+  latticeParameterClosure : TheoremObligationStatus
+  instantiatedQROM : TheoremObligationStatus
   totalLossBudget : TheoremObligationStatus
   completeness : TheoremObligationStatus
   knowledgeSoundness : TheoremObligationStatus
@@ -1656,14 +3359,15 @@ structure ProductSecurityTheoremObligationStatus where
 
 def ProductSecurityTheoremObligationStatus.FullyInstantiated
     (status : ProductSecurityTheoremObligationStatus) :
-    Prop :=
+  Prop :=
   status.numiSealProduct.FullyInstantiated
-    ∧ status.systemBindings.Accepted
-    ∧ status.boundedDepthLoss.Accepted
-    ∧ status.selectedDepthLossLedger.Accepted
-    ∧ status.extractorLossAccounting.Accepted
-    ∧ status.latticeAssumptionDossier.Accepted
-    ∧ status.publicCoinQROM.Accepted
+    ∧ status.systemBindingClosure.Accepted
+    ∧ status.selectedDepthLossClosure.Accepted
+    ∧ status.perKindExtractorTheorems.Accepted
+    ∧ status.recursiveCarryChainRootRecurrence.Accepted
+    ∧ status.extractorLossClosure.Accepted
+    ∧ status.latticeParameterClosure.Accepted
+    ∧ status.instantiatedQROM.Accepted
     ∧ status.totalLossBudget.Accepted
     ∧ status.completeness.Accepted
     ∧ status.knowledgeSoundness.Accepted
@@ -1673,75 +3377,288 @@ def ProductSecurityTheoremObligationStatus.FullyInstantiated
 structure ProductSecurityTheoremEvidence
     {depth : Nat}
     {View Leakage : Type}
+    {columns : Nat}
+    {key : CertifiedAjtaiKey columns}
+    {bounded : ConcreteAjtaiMessage columns → Prop}
     (parameters : ProductSecurityParameters)
-    (bindings : ProductSystemBindings)
     (relations :
       NumiSealProductKnowledgeCarryPrivacyRelations depth View Leakage)
-    (losses : ProductBoundedDepthLossEvidence parameters)
-    (assumptions : ProductLatticeAssumptionDossier)
-    (publicCoin : ProductPublicCoinQROMEvidence)
+    (systemBindingClosure : ProductSystemBindingClosure)
+    (maximumProductDepthPinned : parameters.maximumProductDepth = 3)
+    (selectedDepthLossClosure : ProductSelectedDepthLossClosure)
+    (perKindExtractorTheorems : ProductPerKindExtractorTheorems)
+    (recursiveCarryChainRootRecurrence :
+      ProductRecursiveCarryChainRootRecurrence)
+    (extractorLossClosure : ProductExtractorLossClosure)
+    (latticeCertificate : VerifiedAjtaiKernelCertificate key bounded)
+    (latticeParameterClosure : ProductLatticeParameterClosure)
+    (instantiatedQROM : ProductInstantiatedQROMEvidence)
+    (totalLossClosure : ProductTotalLossClosure)
     (claim : ProductCompletenessSoundnessZKClaim) where
   productRelationsHold :
     NumiSealProductKnowledgeCarryPrivacyHolds relations
   completenessSound :
-    ProductSystemBindingsAccepted bindings →
+    ProductSystemBindingsAccepted
+      (ProductSystemBindings.ofProductRelations
+        relations
+        systemBindingClosure) →
       NumiSealProductKnowledgeCarryPrivacyHolds relations →
         claim.completeness
   knowledgeSoundnessSound :
-    ProductBoundedDepthLossAccepted losses →
-      ProductLatticeAssumptionDossierAccepted assumptions →
-      ProductPublicCoinQROMAccepted publicCoin →
+    ProductBoundedDepthLossAccepted
+      (ProductBoundedDepthLossEvidence.ofSelectedDepthLedger
+        parameters
+        (ProductSelectedDepthLossLedger.ofAcceptedComponents
+          perKindExtractorTheorems
+          recursiveCarryChainRootRecurrence
+          extractorLossClosure
+          instantiatedQROM
+          selectedDepthLossClosure)
+        maximumProductDepthPinned) →
+      ProductSelectedDepthLossLedgerAccepted
+        (ProductSelectedDepthLossLedger.ofAcceptedComponents
+          perKindExtractorTheorems
+          recursiveCarryChainRootRecurrence
+          extractorLossClosure
+          instantiatedQROM
+          selectedDepthLossClosure) →
+      ProductExtractorLossAccountingAccepted
+        (ProductExtractorLossAccounting.ofAcceptedComponents
+          perKindExtractorTheorems
+          recursiveCarryChainRootRecurrence
+          extractorLossClosure) →
+      ProductLatticeAssumptionDossierAccepted
+        (ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificateAndClosure
+          latticeCertificate
+          latticeParameterClosure) →
+      ProductInstantiatedQROMEvidenceAccepted instantiatedQROM →
+      ProductPublicCoinLossAccountingAccepted
+        (ProductPublicCoinLossAccounting.ofInstantiatedQROM instantiatedQROM) →
+      ProductTotalLossBudgetAccepted
+        (ProductTotalLossBudget.ofAcceptedComponents
+          (ProductSelectedDepthLossLedger.ofAcceptedComponents
+            perKindExtractorTheorems
+            recursiveCarryChainRootRecurrence
+            extractorLossClosure
+            instantiatedQROM
+            selectedDepthLossClosure)
+          (ProductExtractorLossAccounting.ofAcceptedComponents
+            perKindExtractorTheorems
+            recursiveCarryChainRootRecurrence
+            extractorLossClosure)
+          instantiatedQROM
+          totalLossClosure) →
       NumiSealProductKnowledgeCarryPrivacyHolds relations →
         claim.knowledgeSoundness
   zeroKnowledgeSound :
-    ProductSystemBindingsAccepted bindings →
-      ProductPublicCoinQROMAccepted publicCoin →
+    ProductSystemBindingsAccepted
+      (ProductSystemBindings.ofProductRelations
+        relations
+        systemBindingClosure) →
+      ProductInstantiatedQROMEvidenceAccepted instantiatedQROM →
       NumiSealProductKnowledgeCarryPrivacyHolds relations →
         claim.zeroKnowledge
   compositionSound :
-    ProductSystemBindingsAccepted bindings →
-      ProductBoundedDepthLossAccepted losses →
-      ProductLatticeAssumptionDossierAccepted assumptions →
-      ProductPublicCoinQROMAccepted publicCoin →
+    ProductSystemBindingsAccepted
+      (ProductSystemBindings.ofProductRelations
+        relations
+        systemBindingClosure) →
+      ProductBoundedDepthLossAccepted
+        (ProductBoundedDepthLossEvidence.ofSelectedDepthLedger
+          parameters
+          (ProductSelectedDepthLossLedger.ofAcceptedComponents
+            perKindExtractorTheorems
+            recursiveCarryChainRootRecurrence
+            extractorLossClosure
+            instantiatedQROM
+            selectedDepthLossClosure)
+          maximumProductDepthPinned) →
+      ProductSelectedDepthLossLedgerAccepted
+        (ProductSelectedDepthLossLedger.ofAcceptedComponents
+          perKindExtractorTheorems
+          recursiveCarryChainRootRecurrence
+          extractorLossClosure
+          instantiatedQROM
+          selectedDepthLossClosure) →
+      ProductExtractorLossAccountingAccepted
+        (ProductExtractorLossAccounting.ofAcceptedComponents
+          perKindExtractorTheorems
+          recursiveCarryChainRootRecurrence
+          extractorLossClosure) →
+      ProductLatticeAssumptionDossierAccepted
+        (ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificateAndClosure
+          latticeCertificate
+          latticeParameterClosure) →
+      ProductInstantiatedQROMEvidenceAccepted instantiatedQROM →
+      ProductPublicCoinLossAccountingAccepted
+        (ProductPublicCoinLossAccounting.ofInstantiatedQROM instantiatedQROM) →
+      ProductTotalLossBudgetAccepted
+        (ProductTotalLossBudget.ofAcceptedComponents
+          (ProductSelectedDepthLossLedger.ofAcceptedComponents
+            perKindExtractorTheorems
+            recursiveCarryChainRootRecurrence
+            extractorLossClosure
+            instantiatedQROM
+            selectedDepthLossClosure)
+          (ProductExtractorLossAccounting.ofAcceptedComponents
+            perKindExtractorTheorems
+            recursiveCarryChainRootRecurrence
+            extractorLossClosure)
+          instantiatedQROM
+          totalLossClosure) →
         claim.composition
 
 theorem productSecurityTheorem_from_evidence
     {depth : Nat}
     {View Leakage : Type}
+    {columns : Nat}
+    {key : CertifiedAjtaiKey columns}
+    {bounded : ConcreteAjtaiMessage columns → Prop}
     {parameters : ProductSecurityParameters}
-    {bindings : ProductSystemBindings}
     {relations :
       NumiSealProductKnowledgeCarryPrivacyRelations depth View Leakage}
-    {losses : ProductBoundedDepthLossEvidence parameters}
-    {assumptions : ProductLatticeAssumptionDossier}
-    {publicCoin : ProductPublicCoinQROMEvidence}
+    {systemBindingClosure : ProductSystemBindingClosure}
+    {maximumProductDepthPinned : parameters.maximumProductDepth = 3}
+    {selectedDepthLossClosure : ProductSelectedDepthLossClosure}
+    {perKindExtractorTheorems : ProductPerKindExtractorTheorems}
+    {recursiveCarryChainRootRecurrence :
+      ProductRecursiveCarryChainRootRecurrence}
+    {extractorLossClosure : ProductExtractorLossClosure}
+    {latticeCertificate : VerifiedAjtaiKernelCertificate key bounded}
+    {latticeParameterClosure : ProductLatticeParameterClosure}
+    {instantiatedQROM : ProductInstantiatedQROMEvidence}
+    {totalLossClosure : ProductTotalLossClosure}
     {claim : ProductCompletenessSoundnessZKClaim}
-    (hBindings : ProductSystemBindingsAccepted bindings)
-    (hLosses : ProductBoundedDepthLossAccepted losses)
-    (hAssumptions : ProductLatticeAssumptionDossierAccepted assumptions)
-    (hPublicCoin : ProductPublicCoinQROMAccepted publicCoin)
+    (hSystemBindingClosure :
+      ProductSystemBindingClosureAccepted systemBindingClosure)
+    (hSelectedDepthLossClosure :
+      ProductSelectedDepthLossClosureAccepted selectedDepthLossClosure)
+    (hPerKindExtractorTheorems :
+      ProductPerKindExtractorTheoremsAccepted perKindExtractorTheorems)
+    (hRecursiveCarryChainRootRecurrence :
+      ProductRecursiveCarryChainRootRecurrenceAccepted
+        recursiveCarryChainRootRecurrence)
+    (hExtractorLossClosure :
+      ProductExtractorLossClosureAccepted extractorLossClosure)
+    (hLatticeParameterClosure :
+      ProductLatticeParameterClosureAccepted latticeParameterClosure)
+    (hInstantiatedQROM :
+      ProductInstantiatedQROMEvidenceAccepted instantiatedQROM)
+    (hTotalLossClosure :
+      totalLossClosure.missingRequiredTermSetEmpty
+        ∧ totalLossClosure.totalLossBoundInstantiated)
     (evidence :
       ProductSecurityTheoremEvidence
         parameters
-        bindings
         relations
-        losses
-        assumptions
-        publicCoin
+        systemBindingClosure
+        maximumProductDepthPinned
+        selectedDepthLossClosure
+        perKindExtractorTheorems
+        recursiveCarryChainRootRecurrence
+        extractorLossClosure
+        latticeCertificate
+        latticeParameterClosure
+        instantiatedQROM
+        totalLossClosure
         claim) :
     ProductCompletenessSoundnessZKHolds claim :=
+  let selectedDepthLedger :=
+    ProductSelectedDepthLossLedger.ofAcceptedComponents
+      perKindExtractorTheorems
+      recursiveCarryChainRootRecurrence
+      extractorLossClosure
+      instantiatedQROM
+      selectedDepthLossClosure
+  have hDerivedBindings :
+      ProductSystemBindingsAccepted
+        (ProductSystemBindings.ofProductRelations
+          relations
+          systemBindingClosure) :=
+    productSystemBindingsAccepted_of_productRelations
+      evidence.productRelationsHold
+      hSystemBindingClosure
+  have hDerivedSelectedDepthLedger :
+      ProductSelectedDepthLossLedgerAccepted selectedDepthLedger := by
+    dsimp [selectedDepthLedger]
+    exact productSelectedDepthLossLedgerAccepted_of_components
+      hPerKindExtractorTheorems
+      hRecursiveCarryChainRootRecurrence
+      hExtractorLossClosure
+      hInstantiatedQROM
+      hSelectedDepthLossClosure
+  have hDerivedBoundedDepthLosses :
+      ProductBoundedDepthLossAccepted
+        (ProductBoundedDepthLossEvidence.ofSelectedDepthLedger
+          parameters
+          selectedDepthLedger
+          maximumProductDepthPinned) :=
+    productBoundedDepthLossAccepted_of_selectedDepthLedger
+      hDerivedSelectedDepthLedger
+  have hDerivedExtractorAccounting :
+      ProductExtractorLossAccountingAccepted
+        (ProductExtractorLossAccounting.ofAcceptedComponents
+          perKindExtractorTheorems
+          recursiveCarryChainRootRecurrence
+          extractorLossClosure) :=
+    productExtractorLossAccountingAccepted_of_components
+      hPerKindExtractorTheorems
+      hRecursiveCarryChainRootRecurrence
+      hExtractorLossClosure
+  have hDerivedLatticeAssumptions :
+      ProductLatticeAssumptionDossierAccepted
+        (ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificateAndClosure
+          latticeCertificate
+          latticeParameterClosure) :=
+    productLatticeAssumptionDossierAccepted_of_verifiedAjtaiKernelCertificateAndClosure
+      latticeCertificate
+      hLatticeParameterClosure
+  have hDerivedPublicCoinAccounting :
+      ProductPublicCoinLossAccountingAccepted
+        (ProductPublicCoinLossAccounting.ofInstantiatedQROM instantiatedQROM) :=
+    productPublicCoinLossAccountingAccepted_of_instantiatedQROM
+      hInstantiatedQROM
+  have hDerivedTotalLossBudget :
+      ProductTotalLossBudgetAccepted
+        (ProductTotalLossBudget.ofAcceptedComponents
+          selectedDepthLedger
+          (ProductExtractorLossAccounting.ofAcceptedComponents
+            perKindExtractorTheorems
+            recursiveCarryChainRootRecurrence
+            extractorLossClosure)
+          instantiatedQROM
+          totalLossClosure) :=
+    productTotalLossBudgetAccepted_of_components
+      hDerivedSelectedDepthLedger
+      hDerivedExtractorAccounting
+      hInstantiatedQROM
+      hTotalLossClosure
   ⟨
-    evidence.completenessSound hBindings evidence.productRelationsHold,
+    evidence.completenessSound
+      hDerivedBindings
+      evidence.productRelationsHold,
     evidence.knowledgeSoundnessSound
-      hLosses
-      hAssumptions
-      hPublicCoin
+      hDerivedBoundedDepthLosses
+      hDerivedSelectedDepthLedger
+      hDerivedExtractorAccounting
+      hDerivedLatticeAssumptions
+      hInstantiatedQROM
+      hDerivedPublicCoinAccounting
+      hDerivedTotalLossBudget
       evidence.productRelationsHold,
     evidence.zeroKnowledgeSound
-      hBindings
-      hPublicCoin
+      hDerivedBindings
+      hInstantiatedQROM
       evidence.productRelationsHold,
-    evidence.compositionSound hBindings hLosses hAssumptions hPublicCoin
+    evidence.compositionSound
+      hDerivedBindings
+      hDerivedBoundedDepthLosses
+      hDerivedSelectedDepthLedger
+      hDerivedExtractorAccounting
+      hDerivedLatticeAssumptions
+      hInstantiatedQROM
+      hDerivedPublicCoinAccounting
+      hDerivedTotalLossBudget
   ⟩
 
 theorem productSecurityTheorem_requires_bounded_depth
@@ -1750,6 +3667,18 @@ theorem productSecurityTheorem_requires_bounded_depth
     (hLosses : ProductBoundedDepthLossAccepted losses) :
     0 < parameters.maximumProductDepth :=
   hLosses.1
+
+theorem productSecurityTheorem_derives_bounded_depth_loss
+    {parameters : ProductSecurityParameters}
+    {ledger : ProductSelectedDepthLossLedger}
+    {maximumProductDepthPinned : parameters.maximumProductDepth = 3}
+    (hLedger : ProductSelectedDepthLossLedgerAccepted ledger) :
+    ProductBoundedDepthLossAccepted
+      (ProductBoundedDepthLossEvidence.ofSelectedDepthLedger
+        parameters
+        ledger
+        maximumProductDepthPinned) :=
+  productBoundedDepthLossAccepted_of_selectedDepthLedger hLedger
 
 theorem productSecurityTheorem_requires_selected_depth_loss_accounting
     {ledger : ProductSelectedDepthLossLedger}
@@ -1986,7 +3915,6 @@ theorem ProductQROMTightTransform
       _,
       _,
       _,
-      _,
       hTight,
       _⟩
   rcases hCollision with
@@ -2107,8 +4035,8 @@ theorem productSecurityTheorem_requires_theorem_critical_hbind
       ∧ hashes.bindingTargetEventCount = 11
       ∧ hashes.theoremCriticalBindingsUseHBind
       ∧ hashes.bindingDomainsSeparated
-      ∧ hashes.bindingTargetEventCountPinned
-      ∧ hashes.hashQROInstantiationAssumptionPinned := by
+      ∧ hashes.hashQROInstantiationAssumptionPinned
+      ∧ hashes.hashQROInstantiationProofProvided := by
   rcases hHashes with
     ⟨_,
       hBindingBits,
@@ -2119,16 +4047,16 @@ theorem productSecurityTheorem_requires_theorem_critical_hbind
       _,
       _,
       hBindingDomains,
-      hTargetPinned,
       _,
-      hQROAssumption⟩
+      hQROAssumption,
+      hQROProof⟩
   exact
     ⟨hBindingBits,
       hTargetCount,
       hHBind,
       hBindingDomains,
-      hTargetPinned,
-      hQROAssumption⟩
+      hQROAssumption,
+      hQROProof⟩
 
 theorem productSecurityTheorem_requires_challenge_tape_expansion
     {expansion : ProductChallengeTapeExpansion}
@@ -2151,7 +4079,7 @@ theorem productSecurityTheorem_requires_qrom_transcript_schedule
       ∧ schedule.domainSeparationBindingPinned
       ∧ schedule.proofKindSeparationBindingPinned
       ∧ schedule.numericQuantumQueryBoundsInstantiated
-      ∧ schedule.productionTranscriptScheduleClaimAllowed := by
+      ∧ schedule.transcriptScheduleTheoremApplies := by
   rcases hSchedule with
     ⟨_,
       _,
@@ -2164,7 +4092,7 @@ theorem productSecurityTheorem_requires_qrom_transcript_schedule
       hDomain,
       hProofKindSeparation,
       hNumericQueries,
-      hPromotion⟩
+      hTheoremApplies⟩
   exact
     ⟨hProofKinds,
       hChallengeLabels,
@@ -2172,7 +4100,7 @@ theorem productSecurityTheorem_requires_qrom_transcript_schedule
       hDomain,
       hProofKindSeparation,
       hNumericQueries,
-      hPromotion⟩
+      hTheoremApplies⟩
 
 theorem productSecurityTheorem_requires_qrom_transform_preconditions
     {preconditions : ProductPublicCoinTransformPreconditions}
@@ -2187,7 +4115,7 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
       ∧ preconditions.underlyingInteractiveSecurityBoundInstantiated
       ∧ preconditions.quantumOracleQueryBoundInstantiated
       ∧ preconditions.qromReductionLossInstantiated
-      ∧ preconditions.productionTransformClaimAllowed := by
+      ∧ preconditions.transformSoundnessTheoremApplies := by
   rcases hPreconditions with
     ⟨_,
       _,
@@ -2200,7 +4128,7 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
       hInteractiveSecurity,
       hQuantumQueries,
       hReductionLoss,
-      hPromotion⟩
+      hTheoremApplies⟩
   exact
     ⟨hFamily,
       hInteractive,
@@ -2211,7 +4139,7 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
       hInteractiveSecurity,
       hQuantumQueries,
       hReductionLoss,
-      hPromotion⟩
+      hTheoremApplies⟩
 
 theorem productSecurityTheorem_requires_qrom_interactive_reduction
     {reduction : ProductQROMInteractiveReduction}
@@ -2227,7 +4155,7 @@ theorem productSecurityTheorem_requires_qrom_interactive_reduction
       ∧ reduction.numericSelectedLossInstantiated
       ∧ reduction.underlyingInteractiveSecurityInstantiated
       ∧ reduction.totalLossBudgetInterfacePinned
-      ∧ reduction.productionQROMTheoremClaimAllowed := by
+      ∧ reduction.qromReductionTheoremApplies := by
   rcases hReduction with
     ⟨_,
       _,
@@ -2242,7 +4170,7 @@ theorem productSecurityTheorem_requires_qrom_interactive_reduction
       hNumericLoss,
       hInteractiveSecurity,
       hBudget,
-      hPromotion⟩
+      hTheoremApplies⟩
   exact
     ⟨hOrder,
       hProtocols,
@@ -2255,7 +4183,7 @@ theorem productSecurityTheorem_requires_qrom_interactive_reduction
       hNumericLoss,
       hInteractiveSecurity,
       hBudget,
-      hPromotion⟩
+      hTheoremApplies⟩
 
 theorem productSecurityTheorem_requires_qrom_compiler_overhead_bound
     {bound : ProductQROMCompilerOverheadBound}
@@ -2283,32 +4211,31 @@ theorem productSecurityTheorem_requires_shared_bad_event_deduplication
       ∧ dedup.qromCollisionSeparatedFromCore
       ∧ dedup.selectedDepthLedgerUsesSharedCoreTerm
       ∧ dedup.totalLossBudgetChargesSharedCoreOnce
-      ∧ dedup.formalAggregateUnionBoundPinned := by
-  exact hDedup
+      ∧ ProductFormalAggregateUnionBound := by
+  exact ⟨hDedup.1,
+    hDedup.2.1,
+    hDedup.2.2.1,
+    hDedup.2.2.2.1,
+    hDedup.2.2.2.2.1,
+    hDedup.2.2.2.2.2.1,
+    hDedup.2.2.2.2.2.2.1,
+    hDedup.2.2.2.2.2.2.2,
+    productFormalAggregateUnionBound⟩
 
 theorem productSecurityTheorem_requires_total_loss_budget
     {budget : ProductTotalLossBudget}
     (hBudget : ProductTotalLossBudgetAccepted budget) :
-    budget.exactArithmeticPinned
+    budget.selectedDepth = 3
+      ∧ 0 < budget.selectedDepth
+      ∧ budget.exactArithmeticPinned
       ∧ budget.qromLedgerTermMappingPinned
       ∧ budget.extractorLedgerTermMappingPinned
       ∧ budget.primitiveBatchCancellationTermIncluded
       ∧ budget.allRequiredTermsInstantiated
       ∧ budget.missingRequiredTermSetEmpty
       ∧ budget.selectedDepthLossWithinBudget
-      ∧ budget.productionTotalLossClaimAllowed := by
-  rcases hBudget with
-    ⟨_,
-      _,
-      hArithmetic,
-      hQROM,
-      hExtractor,
-      hPrimitiveBatch,
-      hAll,
-      hMissing,
-      hWithin,
-      hPromotion⟩
-  exact ⟨hArithmetic, hQROM, hExtractor, hPrimitiveBatch, hAll, hMissing, hWithin, hPromotion⟩
+      ∧ budget.totalLossBoundInstantiated := by
+  exact hBudget
 
 theorem productSecurityTheorem_requires_exact_finite_probability_wiring
     {wiring : ProductExactFiniteProbabilityWiring}

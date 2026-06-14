@@ -178,6 +178,25 @@ theorem goldilocksExt2_denominator_nonzero
   exact hValue hZero
 
 structure GoldilocksExt2FieldCertificate where
+  field_instance : Nonempty (Field GoldilocksExt2)
+  zero_matches_model : (0 : GoldilocksExt2) = goldilocksExt2Zero
+  one_matches_model : (1 : GoldilocksExt2) = goldilocksExt2One
+  add_matches_model :
+    ∀ lhs rhs : GoldilocksExt2,
+      lhs + rhs = goldilocksExt2Add lhs rhs
+  neg_matches_model :
+    ∀ value : GoldilocksExt2,
+      -value = goldilocksExt2Neg value
+  sub_matches_model :
+    ∀ lhs rhs : GoldilocksExt2,
+      lhs - rhs = goldilocksExt2Sub lhs rhs
+  mul_matches_model :
+    ∀ lhs rhs : GoldilocksExt2,
+      lhs * rhs = goldilocksExt2Mul lhs rhs
+  denominator_eq_norm :
+    ∀ value : GoldilocksExt2,
+      goldilocksExt2Denominator value =
+        QuadraticAlgebra.norm (goldilocksExt2QuadraticEquiv value)
   denominator_nonzero :
     ∀ value : GoldilocksExt2,
       value ≠ goldilocksExt2Zero →
@@ -189,10 +208,40 @@ structure GoldilocksExt2FieldCertificate where
           goldilocksExt2Denominator value * denominatorInv = 1
 
 def GoldilocksExt2FieldModel : Prop :=
-  ∃ _certificate : GoldilocksExt2FieldCertificate, True
+  Nonempty (Field GoldilocksExt2)
+    ∧ (0 : GoldilocksExt2) = goldilocksExt2Zero
+    ∧ (1 : GoldilocksExt2) = goldilocksExt2One
+    ∧ (∀ lhs rhs : GoldilocksExt2,
+        lhs + rhs = goldilocksExt2Add lhs rhs)
+    ∧ (∀ value : GoldilocksExt2,
+        -value = goldilocksExt2Neg value)
+    ∧ (∀ lhs rhs : GoldilocksExt2,
+        lhs - rhs = goldilocksExt2Sub lhs rhs)
+    ∧ (∀ lhs rhs : GoldilocksExt2,
+        lhs * rhs = goldilocksExt2Mul lhs rhs)
+    ∧ (∀ value : GoldilocksExt2,
+        goldilocksExt2Denominator value =
+          QuadraticAlgebra.norm (goldilocksExt2QuadraticEquiv value))
+    ∧
+  (∀ value : GoldilocksExt2,
+    value ≠ goldilocksExt2Zero →
+      goldilocksExt2Denominator value ≠ 0)
+    ∧
+  (∀ value : GoldilocksExt2,
+    value ≠ goldilocksExt2Zero →
+      ∃ denominatorInv,
+        goldilocksExt2Denominator value * denominatorInv = 1)
 
 def goldilocksExt2FieldCertificateFromField :
     GoldilocksExt2FieldCertificate where
+  field_instance := ⟨goldilocksExt2Field⟩
+  zero_matches_model := goldilocksExt2_zero_matches_model
+  one_matches_model := goldilocksExt2_one_matches_model
+  add_matches_model := goldilocksExt2_add_matches_model
+  neg_matches_model := goldilocksExt2_neg_matches_model
+  sub_matches_model := goldilocksExt2_sub_matches_model
+  mul_matches_model := goldilocksExt2_mul_matches_model
+  denominator_eq_norm := goldilocksExt2_denominator_eq_norm
   denominator_nonzero := goldilocksExt2_denominator_nonzero
   denominator_inverse := by
     intro value hValue
@@ -247,7 +296,16 @@ theorem goldilocksExt2_mul_invData
 theorem goldilocksExt2_field_model_from_certificate
     (certificate : GoldilocksExt2FieldCertificate) :
     GoldilocksExt2FieldModel :=
-  ⟨certificate, trivial⟩
+  ⟨certificate.field_instance,
+    certificate.zero_matches_model,
+    certificate.one_matches_model,
+    certificate.add_matches_model,
+    certificate.neg_matches_model,
+    certificate.sub_matches_model,
+    certificate.mul_matches_model,
+    certificate.denominator_eq_norm,
+    certificate.denominator_nonzero,
+    certificate.denominator_inverse⟩
 
 theorem goldilocksExt2_field_model :
     GoldilocksExt2FieldModel :=
