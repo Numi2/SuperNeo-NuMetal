@@ -6,6 +6,7 @@ import SuperNeoFormal.PiCCSFiniteSoundness
 import SuperNeoFormal.CertifiedAjtai
 import SuperNeoFormal.PrimitiveVerifierConstraints
 import SuperNeoFormal.QuantumRandomOracle
+import SuperNeoFormal.DFMSZhandryOnlineExtraction
 import SuperNeoFormal.WellFormedTranscript
 
 /-!
@@ -2218,9 +2219,22 @@ theorem ProductIdealSplitQROModel.accepted
 structure ProductOnlineExtractabilityAssumption where
   queryBoundQHLog2 : Nat
   queryBoundMatchesProduct : queryBoundQHLog2 = 64
+  dfmsOnlineExtraction : DFMSOnlineExtractionTheorem
+  dfmsQueryBoundWithinProduct :
+    dfmsOnlineExtraction.parameters.queryBound ≤ 2 ^ queryBoundQHLog2
   simulationError : ProductNumericLossTerm
   extractionFailure : ProductNumericLossTerm
   extractorProgrammingLoss : ProductNumericLossTerm
+  simulationErrorCoversDFMSView :
+    dfmsOnlineExtraction.parameters.viewLoss ≤
+      (simulationError.value : ℝ)
+  extractionFailureCoversDFMSFailure :
+    dfmsOnlineExtraction.parameters.extractionLoss +
+        dfmsOnlineExtraction.parameters.linkLoss ≤
+      (extractionFailure.value : ℝ)
+  extractorProgrammingLossCoversDFMSTotal :
+    dfmsOnlineExtraction.parameters.onlineExtractionLoss ≤
+      (extractorProgrammingLoss.value : ℝ)
   extractorProgrammingLossValue_eq :
     extractorProgrammingLoss.value =
       simulationError.value + extractionFailure.value
@@ -2231,9 +2245,20 @@ structure ProductOnlineExtractabilityAssumption where
 def ProductOnlineExtractabilityAssumptionAccepted
     (assumption : ProductOnlineExtractabilityAssumption) : Prop :=
   assumption.queryBoundQHLog2 = 64
+    ∧ DFMSOnlineExtractionTheoremAccepted
+      assumption.dfmsOnlineExtraction
+    ∧ assumption.dfmsOnlineExtraction.parameters.queryBound ≤
+      2 ^ assumption.queryBoundQHLog2
     ∧ ProductNumericLossTermAccepted assumption.simulationError
     ∧ ProductNumericLossTermAccepted assumption.extractionFailure
     ∧ ProductNumericLossTermAccepted assumption.extractorProgrammingLoss
+    ∧ assumption.dfmsOnlineExtraction.parameters.viewLoss ≤
+      (assumption.simulationError.value : ℝ)
+    ∧ assumption.dfmsOnlineExtraction.parameters.extractionLoss +
+        assumption.dfmsOnlineExtraction.parameters.linkLoss ≤
+      (assumption.extractionFailure.value : ℝ)
+    ∧ assumption.dfmsOnlineExtraction.parameters.onlineExtractionLoss ≤
+      (assumption.extractorProgrammingLoss.value : ℝ)
     ∧ assumption.extractorProgrammingLoss.value =
       assumption.simulationError.value + assumption.extractionFailure.value
     ∧ assumption.simulationError.budget +
@@ -2244,9 +2269,14 @@ theorem ProductOnlineExtractabilityAssumption.accepted
     (assumption : ProductOnlineExtractabilityAssumption) :
     ProductOnlineExtractabilityAssumptionAccepted assumption :=
   ⟨assumption.queryBoundMatchesProduct,
+    assumption.dfmsOnlineExtraction.accepted,
+    assumption.dfmsQueryBoundWithinProduct,
     assumption.simulationError.accepted,
     assumption.extractionFailure.accepted,
     assumption.extractorProgrammingLoss.accepted,
+    assumption.simulationErrorCoversDFMSView,
+    assumption.extractionFailureCoversDFMSFailure,
+    assumption.extractorProgrammingLossCoversDFMSTotal,
     assumption.extractorProgrammingLossValue_eq,
     assumption.extractorProgrammingLossBudgetCoversComponents⟩
 
