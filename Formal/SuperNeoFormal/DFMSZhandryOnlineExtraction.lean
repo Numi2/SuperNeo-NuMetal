@@ -178,6 +178,15 @@ noncomputable def DFMSTh31CellFourierOperator
     DFMSContinuousOperator (DFMSTh31CellBasis n) :=
   (DFMSTh31CellFourierMatrix n).toContinuous
 
+noncomputable def DFMSTh31CellMatchProjectorOperator
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSContinuousOperator (DFMSTh31CellBasis n) :=
+  (DFMSTh31CellMatchProjectorMatrix R x).toContinuous
+
 noncomputable def DFMSTh31LocalFourierOperator
     (n : Nat) :
     DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
@@ -229,6 +238,183 @@ theorem DFMSTh31LocalOracleOperator_eq_FEF
   simp [DFMSTh31LocalOracleOperator, DFMSTh31LocalFourierOperator,
     DFMSTh31LocalEvaluationOperator, DFMSMatrixOperator.toContinuous,
     DFMSTh31LocalOracleMatrix, mul_assoc]
+
+noncomputable def DFMSRankOneOperator
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (u v : E) : E →L[ℂ] E :=
+  ContinuousLinearMap.smulRight ((innerSL ℂ) u) v
+
+noncomputable def DFMSSkewRankTwoOperator
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (u v : E) : E →L[ℂ] E :=
+  DFMSRankOneOperator u v - DFMSRankOneOperator v u
+
+noncomputable def DFMSSkewPairOperator
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (e : Fin 2 → E) : E →L[ℂ] E :=
+  DFMSRankOneOperator (e 0) (e 1) -
+    DFMSRankOneOperator (e 1) (e 0)
+
+noncomputable def DFMSSkewPairCoeff
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (e : Fin 2 → E) (x : E) : Fin 2 → ℂ :=
+  fun i => if i = 0 then -inner ℂ (e 1) x else inner ℂ (e 0) x
+
+lemma DFMSSkewPairOperator_apply_eq_sum
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (e : Fin 2 → E) (x : E) :
+    DFMSSkewPairOperator e x =
+      ∑ i, DFMSSkewPairCoeff e x i • e i := by
+  rw [Fin.sum_univ_two]
+  simp [DFMSSkewPairOperator, DFMSRankOneOperator,
+    DFMSSkewPairCoeff, sub_eq_add_neg]
+  abel
+
+lemma DFMSComplex_re_conj_mul_self (z : ℂ) :
+    ((starRingEnd ℂ) z * z).re = ‖z‖ ^ 2 := by
+  rw [Complex.conj_mul']
+  rw [← Complex.ofReal_pow]
+  exact Complex.ofReal_re _
+
+lemma DFMSComplex_re_sum_conj_mul_self_fin_two (a : Fin 2 → ℂ) :
+    (∑ i, (starRingEnd ℂ) (a i) * a i).re =
+      ∑ i, ‖a i‖ ^ 2 := by
+  rw [Fin.sum_univ_two, Fin.sum_univ_two]
+  rw [Complex.add_re]
+  rw [DFMSComplex_re_conj_mul_self, DFMSComplex_re_conj_mul_self]
+
+lemma DFMSSkewPairOperator_apply_norm_sq
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (e : Fin 2 → E) (he : Orthonormal ℂ e) (x : E) :
+    ‖DFMSSkewPairOperator e x‖ ^ 2 =
+      ∑ i, ‖DFMSSkewPairCoeff e x i‖ ^ 2 := by
+  rw [DFMSSkewPairOperator_apply_eq_sum]
+  rw [@InnerProductSpace.norm_sq_eq_re_inner ℂ E _ _ _]
+  rw [he.inner_sum (DFMSSkewPairCoeff e x)
+    (DFMSSkewPairCoeff e x) Finset.univ]
+  exact DFMSComplex_re_sum_conj_mul_self_fin_two _
+
+lemma DFMSSkewPairCoeff_sum_le
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (e : Fin 2 → E) (he : Orthonormal ℂ e) (x : E) :
+    (∑ i, ‖DFMSSkewPairCoeff e x i‖ ^ 2) ≤ ‖x‖ ^ 2 := by
+  rw [Fin.sum_univ_two]
+  have hb := he.sum_inner_products_le x (s := Finset.univ)
+  rw [Fin.sum_univ_two] at hb
+  simpa [DFMSSkewPairCoeff, norm_neg, add_comm] using hb
+
+lemma DFMSSkewPairOperator_norm_le_one
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (e : Fin 2 → E) (he : Orthonormal ℂ e) :
+    ‖DFMSSkewPairOperator e‖ ≤ 1 := by
+  refine ContinuousLinearMap.opNorm_le_bound _ zero_le_one fun x => ?_
+  apply (sq_le_sq₀ (norm_nonneg _) (by positivity)).mp
+  rw [one_mul]
+  rw [DFMSSkewPairOperator_apply_norm_sq e he x]
+  exact DFMSSkewPairCoeff_sum_le e he x
+
+lemma DFMSSkewPairOperator_norm_eq_one
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (e : Fin 2 → E) (he : Orthonormal ℂ e) :
+    ‖DFMSSkewPairOperator e‖ = 1 := by
+  apply le_antisymm
+  · exact DFMSSkewPairOperator_norm_le_one e he
+  · have htest := ContinuousLinearMap.le_opNorm
+      (DFMSSkewPairOperator e) (e 0)
+    have hnorm0 : ‖e 0‖ = 1 := he.norm_eq_one 0
+    have himage : DFMSSkewPairOperator e (e 0) = e 1 := by
+      simp [DFMSSkewPairOperator, DFMSRankOneOperator,
+        he.inner_eq_zero (by decide : (1 : Fin 2) ≠ 0),
+        inner_self_eq_norm_sq_to_K, hnorm0]
+    rw [himage, he.norm_eq_one 1, hnorm0, mul_one] at htest
+    exact htest
+
+lemma DFMSNormalizedPair_orthonormal
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (u v : E) (horth : inner ℂ u v = 0)
+    (hu : u ≠ 0) (hv : v ≠ 0) :
+    Orthonormal ℂ
+      (fun i : Fin 2 =>
+        if i = 0 then ((‖u‖ : ℂ)⁻¹) • u
+        else ((‖v‖ : ℂ)⁻¹) • v) := by
+  constructor
+  · intro i
+    fin_cases i
+    · simp only [Fin.isValue, Fin.zero_eta, ↓reduceIte]
+      rw [norm_smul]
+      simp [norm_ne_zero_iff.mpr hu]
+    · simp only [Fin.isValue, Fin.mk_one, one_ne_zero, ↓reduceIte]
+      rw [norm_smul]
+      simp [norm_ne_zero_iff.mpr hv]
+  · intro i j hij
+    fin_cases i <;> fin_cases j
+    · exact False.elim (hij rfl)
+    · simp only [Fin.isValue, Fin.zero_eta, Fin.mk_one,
+        ↓reduceIte, one_ne_zero]
+      rw [inner_smul_left, inner_smul_right, horth, mul_zero, mul_zero]
+    · simp only [Fin.isValue, Fin.zero_eta, Fin.mk_one,
+        ↓reduceIte, one_ne_zero]
+      rw [inner_smul_left, inner_smul_right]
+      have hvu : inner ℂ v u = 0 := inner_eq_zero_symm.mp horth
+      rw [hvu, mul_zero, mul_zero]
+    · exact False.elim (hij rfl)
+
+lemma DFMSSkewRankTwoOperator_eq_scaled_skewPair
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (u v : E) (hu : u ≠ 0) (hv : v ≠ 0) :
+    DFMSSkewRankTwoOperator u v =
+      ((↑(‖u‖ * ‖v‖) : ℂ)) •
+        DFMSSkewPairOperator
+          (fun i : Fin 2 =>
+            if i = 0 then ((‖u‖ : ℂ)⁻¹) • u
+            else ((‖v‖ : ℂ)⁻¹) • v) := by
+  ext x
+  simp only [DFMSSkewRankTwoOperator, DFMSSkewPairOperator,
+    DFMSRankOneOperator, ContinuousLinearMap.sub_apply,
+    ContinuousLinearMap.smul_apply, ContinuousLinearMap.smulRight_apply,
+    innerSL_apply_apply]
+  simp only [Fin.isValue, one_ne_zero, ↓reduceIte]
+  rw [inner_smul_left, inner_smul_left]
+  simp only [map_inv₀, Complex.conj_ofReal, smul_sub, smul_smul]
+  have hscaleU :
+      ↑(‖u‖ * ‖v‖) *
+          ((↑‖u‖)⁻¹ * inner ℂ u x * (↑‖v‖)⁻¹) =
+        inner ℂ u x := by
+    rw [Complex.ofReal_mul]
+    field_simp [Complex.ofReal_ne_zero.mpr (norm_ne_zero_iff.mpr hu),
+      Complex.ofReal_ne_zero.mpr (norm_ne_zero_iff.mpr hv)]
+  have hscaleV :
+      ↑(‖u‖ * ‖v‖) *
+          ((↑‖v‖)⁻¹ * inner ℂ v x * (↑‖u‖)⁻¹) =
+        inner ℂ v x := by
+    rw [Complex.ofReal_mul]
+    field_simp [Complex.ofReal_ne_zero.mpr (norm_ne_zero_iff.mpr hu),
+      Complex.ofReal_ne_zero.mpr (norm_ne_zero_iff.mpr hv)]
+  rw [hscaleU, hscaleV]
+
+lemma DFMSSkewRankTwoOperator_norm_eq
+    {E : Type} [NormedAddCommGroup E] [InnerProductSpace ℂ E]
+    (u v : E) (horth : inner ℂ u v = 0) :
+    ‖DFMSSkewRankTwoOperator u v‖ = ‖u‖ * ‖v‖ := by
+  by_cases hu : u = 0
+  · subst hu
+    have hzero : DFMSSkewRankTwoOperator (0 : E) v = 0 := by
+      ext x
+      simp [DFMSSkewRankTwoOperator, DFMSRankOneOperator]
+    rw [hzero]
+    simp
+  by_cases hv : v = 0
+  · subst hv
+    have hzero : DFMSSkewRankTwoOperator u (0 : E) = 0 := by
+      ext x
+      simp [DFMSSkewRankTwoOperator, DFMSRankOneOperator]
+    rw [hzero]
+    simp
+  rw [DFMSSkewRankTwoOperator_eq_scaled_skewPair u v hu hv]
+  rw [norm_smul]
+  rw [DFMSSkewPairOperator_norm_eq_one _
+    (DFMSNormalizedPair_orthonormal u v horth hu hv)]
+  simp
 
 theorem DFMSTh31LocalEvaluationMatrix_commutes_matchProjector
     {n : Nat}
@@ -313,6 +499,222 @@ theorem DFMSTh31LocalEvaluationOperator_commutes_matchProjector
           DFMSMatrixOperator (DFMSTh31LocalQueryBasis n) =>
         operator.mulVec vector.ofLp basis)
       (DFMSTh31LocalEvaluationMatrix_commutes_matchProjector R x))
+
+noncomputable def DFMSTh31CellMatchIndicator
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31CellBasis n → ℂ
+  | none => 0
+  | some y => if R x y then 1 else 0
+
+noncomputable def DFMSTh31CellFourierBoundaryVector
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31CellBasis n → ℂ
+  | none => DFMSTh31InvSqrtHashCardinality n
+  | some y => if R x y then 0 else -DFMSTh31InvHashCardinality n
+
+noncomputable def DFMSTh31CellMatchVector
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    EuclideanSpace ℂ (DFMSTh31CellBasis n) :=
+  WithLp.toLp 2 (DFMSTh31CellMatchIndicator R x)
+
+noncomputable def DFMSTh31CellFourierBoundaryEuclideanVector
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    EuclideanSpace ℂ (DFMSTh31CellBasis n) :=
+  WithLp.toLp 2 (DFMSTh31CellFourierBoundaryVector R x)
+
+lemma DFMSTh31CellFourierMatchCommutator_entry
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X)
+    (out input : DFMSTh31CellBasis n) :
+    (DFMSTh31CellFourierMatrix n *
+          DFMSTh31CellMatchProjectorMatrix R x -
+        DFMSTh31CellMatchProjectorMatrix R x *
+          DFMSTh31CellFourierMatrix n) out input =
+      DFMSTh31CellFourierBoundaryVector R x out *
+          DFMSTh31CellMatchIndicator R x input -
+        DFMSTh31CellMatchIndicator R x out *
+          DFMSTh31CellFourierBoundaryVector R x input := by
+  classical
+  simp only [Matrix.sub_apply, Matrix.mul_apply]
+  cases out <;> cases input <;>
+    simp [DFMSTh31CellFourierMatrix,
+      DFMSTh31CellMatchProjectorMatrix,
+      DFMSTh31CellMatchIndicator,
+      DFMSTh31CellFourierBoundaryVector]
+  all_goals split_ifs <;> simp_all
+
+lemma DFMSTh31CellMatchIndicator_star
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X)
+    (cell : DFMSTh31CellBasis n) :
+    star (DFMSTh31CellMatchIndicator R x cell) =
+      DFMSTh31CellMatchIndicator R x cell := by
+  cases cell <;> simp [DFMSTh31CellMatchIndicator]
+
+lemma DFMSTh31CellFourierBoundaryVector_star
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X)
+    (cell : DFMSTh31CellBasis n) :
+    star (DFMSTh31CellFourierBoundaryVector R x cell) =
+      DFMSTh31CellFourierBoundaryVector R x cell := by
+  cases cell with
+  | none =>
+      simp [DFMSTh31CellFourierBoundaryVector,
+        DFMSTh31InvSqrtHashCardinality, Complex.conj_ofReal]
+  | some y =>
+      by_cases h : R x y
+      · simp [DFMSTh31CellFourierBoundaryVector, h]
+      · simp [DFMSTh31CellFourierBoundaryVector, h,
+          DFMSTh31InvHashCardinality, Complex.conj_ofReal]
+
+lemma DFMSTh31CellMatchBoundary_inner_zero
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    inner ℂ
+        (DFMSTh31CellMatchVector R x)
+        (DFMSTh31CellFourierBoundaryEuclideanVector R x) = 0 := by
+  classical
+  rw [DFMSTh31CellMatchVector,
+    DFMSTh31CellFourierBoundaryEuclideanVector]
+  rw [EuclideanSpace.inner_toLp_toLp]
+  simp [dotProduct, DFMSTh31CellMatchIndicator,
+    DFMSTh31CellFourierBoundaryVector]
+  apply Finset.sum_eq_zero
+  intro y _hy
+  by_cases h : R x y <;> simp [h]
+
+theorem DFMSTh31CellFourierMatchCommutator_eq_skewRankTwo
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSOperatorCommutator
+        (DFMSTh31CellFourierOperator n)
+        (DFMSTh31CellMatchProjectorOperator R x) =
+      DFMSSkewRankTwoOperator
+        (DFMSTh31CellMatchVector R x)
+        (DFMSTh31CellFourierBoundaryEuclideanVector R x) := by
+  classical
+  ext vector basis
+  simp only [DFMSOperatorCommutator, DFMSTh31CellFourierOperator,
+    DFMSTh31CellMatchProjectorOperator, DFMSMatrixOperator.toContinuous,
+    ContinuousLinearMap.sub_apply, ContinuousLinearMap.comp_apply]
+  change
+      (((Matrix.toEuclideanCLM (n := DFMSTh31CellBasis n) (𝕜 := ℂ)
+              (DFMSTh31CellFourierMatrix n))
+            ((Matrix.toEuclideanCLM (n := DFMSTh31CellBasis n) (𝕜 := ℂ)
+              (DFMSTh31CellMatchProjectorMatrix R x)) vector)).ofLp basis -
+        ((Matrix.toEuclideanCLM (n := DFMSTh31CellBasis n) (𝕜 := ℂ)
+              (DFMSTh31CellMatchProjectorMatrix R x))
+            ((Matrix.toEuclideanCLM (n := DFMSTh31CellBasis n) (𝕜 := ℂ)
+              (DFMSTh31CellFourierMatrix n)) vector)).ofLp basis) =
+        ((DFMSSkewRankTwoOperator
+          (DFMSTh31CellMatchVector R x)
+          (DFMSTh31CellFourierBoundaryEuclideanVector R x)) vector).ofLp
+          basis
+  rw [Matrix.ofLp_toEuclideanCLM, Matrix.ofLp_toEuclideanCLM]
+  rw [Matrix.ofLp_toEuclideanCLM, Matrix.ofLp_toEuclideanCLM]
+  simp only [Matrix.mulVec_mulVec]
+  rw [← Pi.sub_apply]
+  rw [← Matrix.sub_mulVec]
+  rw [Matrix.mulVec, dotProduct]
+  simp_rw [DFMSTh31CellFourierMatchCommutator_entry R x]
+  simp only [DFMSSkewRankTwoOperator, DFMSRankOneOperator,
+    ContinuousLinearMap.sub_apply, ContinuousLinearMap.smulRight_apply,
+    innerSL_apply_apply, DFMSTh31CellMatchVector,
+    DFMSTh31CellFourierBoundaryEuclideanVector]
+  rw [EuclideanSpace.inner_toLp_toLp,
+    EuclideanSpace.inner_toLp_toLp]
+  simp only [dotProduct]
+  change
+      (∑ input,
+          (DFMSTh31CellFourierBoundaryVector R x basis *
+              DFMSTh31CellMatchIndicator R x input -
+            DFMSTh31CellMatchIndicator R x basis *
+              DFMSTh31CellFourierBoundaryVector R x input) *
+            vector.ofLp input) =
+        (∑ input,
+            vector.ofLp input *
+              star (DFMSTh31CellMatchIndicator R x input)) *
+            DFMSTh31CellFourierBoundaryVector R x basis -
+          (∑ input,
+            vector.ofLp input *
+              star (DFMSTh31CellFourierBoundaryVector R x input)) *
+            DFMSTh31CellMatchIndicator R x basis
+  simp_rw [DFMSTh31CellMatchIndicator_star R x,
+    DFMSTh31CellFourierBoundaryVector_star R x]
+  simp_rw [sub_mul]
+  rw [Finset.sum_sub_distrib]
+  simp_rw [mul_assoc]
+  rw [← Finset.mul_sum, ← Finset.mul_sum]
+  have hsumMatch :
+      (∑ input,
+        DFMSTh31CellMatchIndicator R x input * vector.ofLp input) =
+        ∑ input,
+          vector.ofLp input * DFMSTh31CellMatchIndicator R x input := by
+    apply Finset.sum_congr rfl
+    intro input _hmem
+    ring
+  have hsumBoundary :
+      (∑ input,
+        DFMSTh31CellFourierBoundaryVector R x input *
+          vector.ofLp input) =
+        ∑ input,
+          vector.ofLp input *
+            DFMSTh31CellFourierBoundaryVector R x input := by
+    apply Finset.sum_congr rfl
+    intro input _hmem
+    ring
+  rw [hsumMatch, hsumBoundary]
+  ring
+
+theorem DFMSTh31CellFourierMatchCommutator_rankTwoExactNorm
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSOperatorNorm
+      (DFMSOperatorCommutator
+        (DFMSTh31CellFourierOperator n)
+        (DFMSTh31CellMatchProjectorOperator R x)) =
+      ‖DFMSTh31CellMatchVector R x‖ *
+        ‖DFMSTh31CellFourierBoundaryEuclideanVector R x‖ := by
+  unfold DFMSOperatorNorm
+  rw [DFMSTh31CellFourierMatchCommutator_eq_skewRankTwo R x]
+  exact DFMSSkewRankTwoOperator_norm_eq
+    (DFMSTh31CellMatchVector R x)
+    (DFMSTh31CellFourierBoundaryEuclideanVector R x)
+    (DFMSTh31CellMatchBoundary_inner_zero R x)
 
 def DFMSTh31DatabaseAgreesExcept
     {n : Nat}
@@ -531,6 +933,188 @@ def DFMSTh31ExactFourierProjectorTerm
   Real.sqrt
     ((((2 : ℝ) * (gammaX : ℝ)) / ((2 : ℝ) ^ n)) -
       (((gammaX : ℝ) ^ 2) / (((2 : ℝ) ^ n) ^ 2)))
+
+lemma dfmsTh31_invHashCardinality_norm_sq
+    (n : Nat) :
+    ‖DFMSTh31InvHashCardinality n‖ ^ 2 =
+      (1 : ℝ) / (((2 : ℝ) ^ n) ^ 2) := by
+  rw [← Complex.normSq_eq_norm_sq]
+  simp [DFMSTh31InvHashCardinality, DFMSTh31HashCardinalityReal,
+    div_eq_mul_inv]
+  symm
+  calc
+    ((2 : ℝ) ^ n) ^ 2 = (2 : ℝ) ^ (n * 2) := by rw [pow_mul]
+    _ = (2 : ℝ) ^ (2 * n) := by rw [Nat.mul_comm]
+    _ = ((2 : ℝ) ^ 2) ^ n := by rw [pow_mul]
+    _ = ((2 : ℝ) * 2) ^ n := by rw [pow_two]
+
+lemma dfmsTh31_invSqrtHashCardinality_norm_sq
+    (n : Nat) :
+    ‖DFMSTh31InvSqrtHashCardinality n‖ ^ 2 =
+      (1 : ℝ) / ((2 : ℝ) ^ n) := by
+  rw [← Complex.normSq_eq_norm_sq]
+  simp [DFMSTh31InvSqrtHashCardinality,
+    DFMSTh31HashCardinalityReal, Complex.normSq_ofReal, div_eq_mul_inv]
+
+theorem dfmsTh31_gammaX_le_hashCardinality
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31GammaX R x ≤ 2 ^ n := by
+  calc
+    DFMSTh31GammaX R x ≤ Fintype.card (DFMSBitVector n) := by
+      unfold DFMSTh31GammaX
+      simpa using
+        Finset.card_filter_le
+          (Finset.univ : Finset (DFMSBitVector n))
+          (fun y => R x y)
+    _ = 2 ^ n := dfmsBitVector_card n
+
+lemma DFMSTh31CellMatchVector_norm_sq
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    ‖(DFMSTh31CellMatchVector R x :
+        EuclideanSpace ℂ (DFMSTh31CellBasis n))‖ ^ 2 =
+      (DFMSTh31GammaX R x : ℝ) := by
+  rw [DFMSTh31CellMatchVector]
+  rw [EuclideanSpace.norm_sq_eq]
+  simp [DFMSTh31CellMatchIndicator]
+  rw [DFMSTh31GammaX, Finset.card_filter]
+  rw [Nat.cast_sum]
+  apply Finset.sum_congr rfl
+  intro y _hy
+  by_cases h : R x y <;> simp [h]
+
+lemma DFMSTh31CellFourierBoundary_nonmatch_norm_sum
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    (∑ y : DFMSBitVector n,
+        ‖(if R x y then (0 : ℂ)
+          else -DFMSTh31InvHashCardinality n)‖ ^ 2) =
+      ((Fintype.card (DFMSBitVector n) - DFMSTh31GammaX R x : Nat) : ℝ) /
+        (((2 : ℝ) ^ n) ^ 2) := by
+  have hfilter :
+      ((Finset.univ : Finset (DFMSBitVector n)).filter
+          (fun y => ¬ R x y)).card =
+        Fintype.card (DFMSBitVector n) - DFMSTh31GammaX R x := by
+    rw [DFMSTh31GammaX]
+    rw [← Finset.card_compl
+      ((Finset.univ : Finset (DFMSBitVector n)).filter
+        (fun y => R x y))]
+    congr 1
+    ext y
+    simp
+  calc
+    (∑ y : DFMSBitVector n,
+        ‖(if R x y then (0 : ℂ)
+          else -DFMSTh31InvHashCardinality n)‖ ^ 2) =
+        ∑ y ∈ (Finset.univ : Finset (DFMSBitVector n)) with ¬ R x y,
+          ((1 : ℝ) / (((2 : ℝ) ^ n) ^ 2)) := by
+      rw [Finset.sum_filter]
+      apply Finset.sum_congr rfl
+      intro y _hy
+      by_cases h : R x y <;>
+        simp [h, dfmsTh31_invHashCardinality_norm_sq n]
+    _ =
+        (((Finset.univ : Finset (DFMSBitVector n)).filter
+          (fun y => ¬ R x y)).card : ℝ) *
+          ((1 : ℝ) / (((2 : ℝ) ^ n) ^ 2)) := by
+      rw [Finset.sum_const, nsmul_eq_mul]
+    _ =
+        ((Fintype.card (DFMSBitVector n) -
+            DFMSTh31GammaX R x : Nat) : ℝ) /
+          (((2 : ℝ) ^ n) ^ 2) := by
+      rw [hfilter]
+      ring
+
+lemma DFMSTh31CellFourierBoundary_norm_sq_count
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    ‖(DFMSTh31CellFourierBoundaryEuclideanVector R x :
+        EuclideanSpace ℂ (DFMSTh31CellBasis n))‖ ^ 2 =
+      (1 : ℝ) / ((2 : ℝ) ^ n) +
+        ((2 ^ n - DFMSTh31GammaX R x : Nat) : ℝ) /
+          (((2 : ℝ) ^ n) ^ 2) := by
+  rw [DFMSTh31CellFourierBoundaryEuclideanVector]
+  rw [EuclideanSpace.norm_sq_eq]
+  simp [DFMSTh31CellFourierBoundaryVector,
+    dfmsTh31_invSqrtHashCardinality_norm_sq n]
+  simpa [dfmsBitVector_card n] using
+    DFMSTh31CellFourierBoundary_nonmatch_norm_sum R x
+
+lemma DFMSTh31CellFourierBoundary_norm_sq
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    ‖(DFMSTh31CellFourierBoundaryEuclideanVector R x :
+        EuclideanSpace ℂ (DFMSTh31CellBasis n))‖ ^ 2 =
+      (2 : ℝ) / ((2 : ℝ) ^ n) -
+        (DFMSTh31GammaX R x : ℝ) / (((2 : ℝ) ^ n) ^ 2) := by
+  rw [DFMSTh31CellFourierBoundary_norm_sq_count R x]
+  have hpowpos : (0 : ℝ) < (2 : ℝ) ^ n := by positivity
+  rw [Nat.cast_sub (dfmsTh31_gammaX_le_hashCardinality R x)]
+  rw [Nat.cast_pow]
+  field_simp [ne_of_gt hpowpos]
+  ring
+
+theorem DFMSTh31CellFourierMatchCommutator_exactNorm
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSOperatorNorm
+      (DFMSOperatorCommutator
+        (DFMSTh31CellFourierOperator n)
+        (DFMSTh31CellMatchProjectorOperator R x)) =
+      DFMSTh31ExactFourierProjectorTerm
+        n
+        (DFMSTh31GammaX R x) := by
+  rw [DFMSTh31CellFourierMatchCommutator_rankTwoExactNorm R x]
+  unfold DFMSTh31ExactFourierProjectorTerm
+  let u : EuclideanSpace ℂ (DFMSTh31CellBasis n) :=
+    DFMSTh31CellMatchVector R x
+  let v : EuclideanSpace ℂ (DFMSTh31CellBasis n) :=
+    DFMSTh31CellFourierBoundaryEuclideanVector R x
+  have hprodSq :
+      (‖u‖ * ‖v‖) ^ 2 =
+        (((2 : ℝ) * (DFMSTh31GammaX R x : ℝ)) / ((2 : ℝ) ^ n)) -
+          (((DFMSTh31GammaX R x : ℝ) ^ 2) /
+            (((2 : ℝ) ^ n) ^ 2)) := by
+    rw [mul_pow]
+    rw [show ‖u‖ ^ 2 =
+        (DFMSTh31GammaX R x : ℝ) by
+      simpa [u] using DFMSTh31CellMatchVector_norm_sq R x]
+    rw [show ‖v‖ ^ 2 =
+        (2 : ℝ) / ((2 : ℝ) ^ n) -
+          (DFMSTh31GammaX R x : ℝ) /
+            (((2 : ℝ) ^ n) ^ 2) by
+      simpa [v] using DFMSTh31CellFourierBoundary_norm_sq R x]
+    ring
+  have hRadNonneg :
+      0 ≤
+        (((2 : ℝ) * (DFMSTh31GammaX R x : ℝ)) / ((2 : ℝ) ^ n)) -
+          (((DFMSTh31GammaX R x : ℝ) ^ 2) /
+            (((2 : ℝ) ^ n) ^ 2)) := by
+    rw [← hprodSq]
+    exact sq_nonneg _
+  rw [← (sq_eq_sq₀
+    (mul_nonneg (norm_nonneg u) (norm_nonneg v))
+    (Real.sqrt_nonneg _))]
+  rw [hprodSq, Real.sq_sqrt hRadNonneg]
 
 def DFMSTh31FourierProjectorExactNorm
     (n gammaX : Nat)
