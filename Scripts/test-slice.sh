@@ -15,6 +15,7 @@ Slices:
   evaluation  multilinear evaluation corpus
   shape       transcript, matrix, CCS shape, serialization, digest checks
   protocol    fold verification and adversarial proof checks
+  attack      verifier-negative/product mutation checks
   ce-opening  heavyweight CE opening relation/proof checks
   metal       Metal-vs-CPU differential kernel checks
   fast        algebra + shape; default inner-loop suite
@@ -43,6 +44,9 @@ case "$slice" in
     ;;
   protocol|e2e)
     filter='SuperNeo_NuMetalTests\.(ProtocolSmokeTests|ProtocolE2ETests)'
+    ;;
+  attack|negative)
+    filter='SuperNeo_NuMetalTests\.VerifierNegativeTests'
     ;;
   ce-opening|opening)
     filter='SuperNeo_NuMetalTests\.CEOpeningProtocolTests'

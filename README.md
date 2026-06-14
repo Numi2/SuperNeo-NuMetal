@@ -264,6 +264,7 @@ Run malformed-artifact fuzzing when touching serialization or verifier code:
 
 ```sh
 Scripts/fuzz-malformed-artifacts.sh
+Scripts/test-slice.sh attack
 ```
 
 The fuzzer generates one valid tiny proof, mutates artifact metadata and proof

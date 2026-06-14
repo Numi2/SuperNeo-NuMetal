@@ -20,6 +20,7 @@ Scripts/test-slice.sh commitment
 Scripts/test-slice.sh evaluation
 Scripts/test-slice.sh shape
 Scripts/test-slice.sh protocol
+Scripts/test-slice.sh attack
 Scripts/test-slice.sh ce-opening
 Scripts/test-slice.sh metal
 Scripts/test-slice.sh all
@@ -34,6 +35,7 @@ The classes intentionally map to the filters:
 | `evaluation` | `EvaluationCoreTests` | multilinear evaluation and hypercube oracle checks |
 | `shape` | `ProtocolShapeTests` | sumcheck transcript binding, matrices, CCS shape encoding, public-instance digests |
 | `protocol` | `ProtocolSmokeTests`, `ProtocolE2ETests` | fold proof construction, verification, envelopes, adversarial mutations |
+| `attack` | `VerifierNegativeTests` | product/verifier rejection paths and mutation checks |
 | `ce-opening` | `CEOpeningProtocolTests` | CE opening local relation and heavyweight public proof verification |
 | `metal` | `MetalDifferentialTests` | Metal kernels and GPU/CPU differential behavior |
 
