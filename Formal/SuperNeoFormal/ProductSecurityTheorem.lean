@@ -1,8 +1,10 @@
 import SuperNeoFormal.NumiSealProductTheorem
 import SuperNeoFormal.ProductBadEventLedger
 import SuperNeoFormal.CTCORepeatedTapeSoundness
+import SuperNeoFormal.ErrorLedger
 import SuperNeoFormal.PiCCSFiniteSoundness
 import SuperNeoFormal.CertifiedAjtai
+import SuperNeoFormal.PrimitiveVerifierConstraints
 import SuperNeoFormal.WellFormedTranscript
 
 /-!
@@ -46,6 +48,21 @@ structure ProductSecurityParameters where
   soundnessLossBudgetBits : Nat
   recursionDepthModel : ProductRecursionDepthModel
   publicCoinModel : ProductPublicCoinModel
+
+structure ProductNumericLossTerm where
+  value : ℚ
+  budget : ℚ
+  nonnegative : 0 ≤ value
+  withinBudget : value ≤ budget
+
+def ProductNumericLossTermAccepted
+    (term : ProductNumericLossTerm) : Prop :=
+  0 ≤ term.value ∧ term.value ≤ term.budget
+
+theorem ProductNumericLossTerm.accepted
+    (term : ProductNumericLossTerm) :
+    ProductNumericLossTermAccepted term :=
+  ⟨term.nonnegative, term.withinBudget⟩
 
 structure ProductSystemBindings where
   sourceFoldRelationBound : Prop
@@ -145,7 +162,7 @@ structure ProductBoundedDepthLossEvidence
   recursiveCarryLossAccounted : Prop
   zkMaskingLossAccounted : Prop
   publicCoinLossAccounted : Prop
-  totalLossWithinBudget : Prop
+  totalLossBound : ProductNumericLossTerm
 
 def ProductBoundedDepthLossAccepted
     {parameters : ProductSecurityParameters}
@@ -157,7 +174,7 @@ def ProductBoundedDepthLossAccepted
     ∧ losses.recursiveCarryLossAccounted
     ∧ losses.zkMaskingLossAccounted
     ∧ losses.publicCoinLossAccounted
-    ∧ losses.totalLossWithinBudget
+    ∧ ProductNumericLossTermAccepted losses.totalLossBound
 
 structure ProductSelectedDepthLossLedger where
   selectedDepth : Nat
@@ -173,7 +190,7 @@ structure ProductSelectedDepthLossLedger where
   loadedParentChainRequired : Prop
   recursiveCarryChainRootRecurrenceBound : Prop
   constantTimeSideChannelEvidenceClosed : Prop
-  totalLossWithinBudget : Prop
+  selectedDepthTotalLoss : ProductNumericLossTerm
 
 def ProductSelectedDepthLossLedgerAccepted
     (ledger : ProductSelectedDepthLossLedger) : Prop :=
@@ -190,7 +207,7 @@ def ProductSelectedDepthLossLedgerAccepted
     ∧ ledger.loadedParentChainRequired
     ∧ ledger.recursiveCarryChainRootRecurrenceBound
     ∧ ledger.constantTimeSideChannelEvidenceClosed
-    ∧ ledger.totalLossWithinBudget
+    ∧ ProductNumericLossTermAccepted ledger.selectedDepthTotalLoss
 
 structure ProductSelectedDepthLossClosure where
   sourceFoldLossInstantiated : Prop
@@ -199,7 +216,7 @@ structure ProductSelectedDepthLossClosure where
   zkSimulatorLossInstantiated : Prop
   productOperationsReplayLossInstantiated : Prop
   constantTimeSideChannelEvidenceClosed : Prop
-  totalLossWithinBudget : Prop
+  selectedDepthTotalLoss : ProductNumericLossTerm
 
 def ProductSelectedDepthLossClosureAccepted
     (closure : ProductSelectedDepthLossClosure) : Prop :=
@@ -209,7 +226,7 @@ def ProductSelectedDepthLossClosureAccepted
     ∧ closure.zkSimulatorLossInstantiated
     ∧ closure.productOperationsReplayLossInstantiated
     ∧ closure.constantTimeSideChannelEvidenceClosed
-    ∧ closure.totalLossWithinBudget
+    ∧ ProductNumericLossTermAccepted closure.selectedDepthTotalLoss
 
 def ProductBoundedDepthLossEvidence.ofSelectedDepthLedger
     (parameters : ProductSecurityParameters)
@@ -226,7 +243,7 @@ def ProductBoundedDepthLossEvidence.ofSelectedDepthLedger
   recursiveCarryLossAccounted := ledger.recursiveCarryLossInstantiated
   zkMaskingLossAccounted := ledger.zkSimulatorLossInstantiated
   publicCoinLossAccounted := ledger.publicCoinQROMLossInstantiated
-  totalLossWithinBudget := ledger.totalLossWithinBudget
+  totalLossBound := ledger.selectedDepthTotalLoss
 
 theorem productBoundedDepthLossAccepted_of_selectedDepthLedger
     {parameters : ProductSecurityParameters}
@@ -311,26 +328,104 @@ inductive ProductDepthOneExpectedProofKind where
   | numiSealZKProduct
   deriving DecidableEq, Repr
 
+structure ProductLocalExtractorTheorem where
+  Seed : Type
+  acceptedInput : Prop
+  challengeSeed : Seed
+  badSet : Finset Seed
+  badSetCardinalityBound : Nat
+  extractionConclusion : Prop
+  lossBoundConclusion : Prop
+  acceptedInputHolds : acceptedInput
+  outsideBadSetHolds : challengeSeed ∉ badSet
+  badSetCardinality : badSet.card ≤ badSetCardinalityBound
+  extractOutsideBad :
+    acceptedInput → challengeSeed ∉ badSet → extractionConclusion
+  lossBound : lossBoundConclusion
+
+def ProductLocalExtractorTheoremAccepted
+    (extractor : ProductLocalExtractorTheorem) : Prop :=
+  extractor.acceptedInput
+    ∧ extractor.challengeSeed ∉ extractor.badSet
+    ∧ extractor.badSet.card ≤ extractor.badSetCardinalityBound
+    ∧ extractor.extractionConclusion
+    ∧ extractor.lossBoundConclusion
+
+theorem ProductLocalExtractorTheorem.accepted
+    (extractor : ProductLocalExtractorTheorem) :
+    ProductLocalExtractorTheoremAccepted extractor := by
+  exact
+    ⟨extractor.acceptedInputHolds,
+      extractor.outsideBadSetHolds,
+      extractor.badSetCardinality,
+      extractor.extractOutsideBad
+        extractor.acceptedInputHolds
+        extractor.outsideBadSetHolds,
+      extractor.lossBound⟩
+
 structure ProductAcceptedProofKindExtractor where
-  acceptedInputObjectSpecified : Prop
-  verifierAcceptancePredicateSpecified : Prop
-  extractedObjectSpecified : Prop
-  failureEventsSpecified : Prop
-  ctcoTraceBlockDependencySpecified : Prop
-  extractorLossContributionSpecified : Prop
-  parentChainDependencySpecified : Prop
-  carryChainRootRelatesToExtractedState : Prop
+  localExtractor : ProductLocalExtractorTheorem
+  ctcoTraceBlockDependencyBound : Prop
+  parentChainDependencyBound : Prop
+  carryChainRootRelationBound : Prop
+  ctcoTraceBlockDependency : ctcoTraceBlockDependencyBound
+  parentChainDependency : parentChainDependencyBound
+  carryChainRootRelation : carryChainRootRelationBound
 
 def ProductAcceptedProofKindExtractorAccepted
     (extractor : ProductAcceptedProofKindExtractor) : Prop :=
-  extractor.acceptedInputObjectSpecified
-    ∧ extractor.verifierAcceptancePredicateSpecified
-    ∧ extractor.extractedObjectSpecified
-    ∧ extractor.failureEventsSpecified
-    ∧ extractor.ctcoTraceBlockDependencySpecified
-    ∧ extractor.extractorLossContributionSpecified
-    ∧ extractor.parentChainDependencySpecified
-    ∧ extractor.carryChainRootRelatesToExtractedState
+  ProductLocalExtractorTheoremAccepted extractor.localExtractor
+    ∧ extractor.ctcoTraceBlockDependencyBound
+    ∧ extractor.parentChainDependencyBound
+    ∧ extractor.carryChainRootRelationBound
+
+theorem productAcceptedProofKindExtractorAccepted
+    (extractor : ProductAcceptedProofKindExtractor) :
+    ProductAcceptedProofKindExtractorAccepted extractor := by
+  exact
+    ⟨ProductLocalExtractorTheorem.accepted extractor.localExtractor,
+      extractor.ctcoTraceBlockDependency,
+      extractor.parentChainDependency,
+      extractor.carryChainRootRelation⟩
+
+def ProductLocalExtractorTheorem.ofTerminalCEConstructiveCertificate
+    {Claim Proof Witness Seed : Type}
+    [DecidableEq Seed]
+    {count bound : Nat}
+    {verifyProof : TerminalCEStatement Claim count → Proof → Prop}
+    {opens : Claim → Witness → Prop}
+    {proofSeed : Proof → Seed}
+    (certificate :
+      TerminalCEConstructiveFiniteSoundnessCertificate
+        verifyProof
+        opens
+        proofSeed
+        bound)
+    (statement : TerminalCEStatement Claim count)
+    (proof : Proof)
+    (lossBoundConclusion : Prop)
+    (hAcceptedInput : verifyProof statement proof)
+    (hOutsideBadSet : proofSeed proof ∉ certificate.badSeeds)
+    (hLossBound : lossBoundConclusion) :
+    ProductLocalExtractorTheorem where
+  Seed := Seed
+  acceptedInput := verifyProof statement proof
+  challengeSeed := proofSeed proof
+  badSet := certificate.badSeeds
+  badSetCardinalityBound := bound
+  extractionConclusion :=
+    ∃ witnesses : Fin count → Witness,
+      TerminalLocalBatchRelation statement witnesses opens
+  lossBoundConclusion := lossBoundConclusion
+  acceptedInputHolds := hAcceptedInput
+  outsideBadSetHolds := hOutsideBadSet
+  badSetCardinality := certificate.card_le
+  extractOutsideBad := fun hVerify hSeed =>
+    terminalCEConstructive_certificate_extract_outside_bad
+      certificate
+      hVerify
+      hSeed
+  lossBound := hLossBound
 
 def ProductAcceptedProofKindExtractor.ofTerminalCEConstructiveCertificate
     {Claim Proof Witness Seed : Type}
@@ -347,21 +442,32 @@ def ProductAcceptedProofKindExtractor.ofTerminalCEConstructiveCertificate
         bound)
     (statement : TerminalCEStatement Claim count)
     (proof : Proof)
-    (ctcoTraceBlockDependencySpecified : Prop)
-    (extractorLossContributionSpecified : Prop)
-    (parentChainDependencySpecified : Prop)
-    (carryChainRootRelatesToExtractedState : Prop) :
+    (ctcoTraceBlockDependencyBound : Prop)
+    (extractorLossContributionBound : Prop)
+    (parentChainDependencyBound : Prop)
+    (carryChainRootRelationBound : Prop)
+    (hAcceptedInput : verifyProof statement proof)
+    (hOutsideBadSet : proofSeed proof ∉ certificate.badSeeds)
+    (hCTCO : ctcoTraceBlockDependencyBound)
+    (hExtractorLoss : extractorLossContributionBound)
+    (hParentChain : parentChainDependencyBound)
+    (hCarryChain : carryChainRootRelationBound) :
     ProductAcceptedProofKindExtractor where
-  acceptedInputObjectSpecified := verifyProof statement proof
-  verifierAcceptancePredicateSpecified := certificate.badSeeds.card ≤ bound
-  extractedObjectSpecified :=
-    ∃ witnesses : Fin count → Witness,
-      TerminalLocalBatchRelation statement witnesses opens
-  failureEventsSpecified := proofSeed proof ∉ certificate.badSeeds
-  ctcoTraceBlockDependencySpecified := ctcoTraceBlockDependencySpecified
-  extractorLossContributionSpecified := extractorLossContributionSpecified
-  parentChainDependencySpecified := parentChainDependencySpecified
-  carryChainRootRelatesToExtractedState := carryChainRootRelatesToExtractedState
+  localExtractor :=
+    ProductLocalExtractorTheorem.ofTerminalCEConstructiveCertificate
+      certificate
+      statement
+      proof
+      extractorLossContributionBound
+      hAcceptedInput
+      hOutsideBadSet
+      hExtractorLoss
+  ctcoTraceBlockDependencyBound := ctcoTraceBlockDependencyBound
+  parentChainDependencyBound := parentChainDependencyBound
+  carryChainRootRelationBound := carryChainRootRelationBound
+  ctcoTraceBlockDependency := hCTCO
+  parentChainDependency := hParentChain
+  carryChainRootRelation := hCarryChain
 
 theorem productTerminalExtractorAccepted_from_constructive_certificate
     {Claim Proof Witness Seed : Type}
@@ -378,37 +484,78 @@ theorem productTerminalExtractorAccepted_from_constructive_certificate
         bound)
     (statement : TerminalCEStatement Claim count)
     (proof : Proof)
-    {ctcoTraceBlockDependencySpecified : Prop}
-    {extractorLossContributionSpecified : Prop}
-    {parentChainDependencySpecified : Prop}
+    {ctcoTraceBlockDependencyBound : Prop}
+    {extractorLossContributionBound : Prop}
+    {parentChainDependencyBound : Prop}
     {carryChainRootRelatesToExtractedState : Prop}
     (hVerify : verifyProof statement proof)
     (hSeed : proofSeed proof ∉ certificate.badSeeds)
-    (hCTCO : ctcoTraceBlockDependencySpecified)
-    (hExtractorLoss : extractorLossContributionSpecified)
-    (hParentChain : parentChainDependencySpecified)
+    (hCTCO : ctcoTraceBlockDependencyBound)
+    (hExtractorLoss : extractorLossContributionBound)
+    (hParentChain : parentChainDependencyBound)
     (hCarryChain : carryChainRootRelatesToExtractedState) :
     ProductAcceptedProofKindExtractorAccepted
       (ProductAcceptedProofKindExtractor.ofTerminalCEConstructiveCertificate
         certificate
         statement
         proof
-        ctcoTraceBlockDependencySpecified
-        extractorLossContributionSpecified
-        parentChainDependencySpecified
-        carryChainRootRelatesToExtractedState) := by
-  exact
-    ⟨hVerify,
-      certificate.card_le,
-      terminalCEConstructive_certificate_extract_outside_bad
-        certificate
+        ctcoTraceBlockDependencyBound
+        extractorLossContributionBound
+        parentChainDependencyBound
+        carryChainRootRelatesToExtractedState
         hVerify
-        hSeed,
-      hSeed,
-      hCTCO,
-      hExtractorLoss,
-      hParentChain,
-      hCarryChain⟩
+        hSeed
+        hCTCO
+        hExtractorLoss
+        hParentChain
+        hCarryChain) := by
+  exact productAcceptedProofKindExtractorAccepted _
+
+def ProductLocalExtractorTheorem.ofPiRLCConstructiveCertificate
+    {count rows publicCount evalCount pointVars bound : Nat}
+    {point : ProtocolVector Phi81 pointVars}
+    {foldedSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
+    {inputSound :
+      EvaluationClaim Phi81 rows publicCount evalCount pointVars → Prop}
+    {claims :
+      Fin count → EvaluationClaim Phi81 rows publicCount evalCount pointVars}
+    (certificate :
+      PiRLCConstructiveFiniteSoundnessCertificate
+        point
+        foldedSound
+        inputSound
+        claims
+        bound)
+    (seed : PiRLCChallengeSeed count)
+    (folded : EvaluationClaim Phi81 rows publicCount evalCount pointVars)
+    (lossBoundConclusion : Prop)
+    (hAcceptedInput :
+      PiRLCConcreteAccepts point seed claims folded
+        ∧ foldedSound folded)
+    (hOutsideBadSet : seed ∉ certificate.badSeeds)
+    (hLossBound : lossBoundConclusion) :
+    ProductLocalExtractorTheorem where
+  Seed := PiRLCChallengeSeed count
+  acceptedInput :=
+    PiRLCConcreteAccepts point seed claims folded
+      ∧ foldedSound folded
+  challengeSeed := seed
+  badSet := certificate.badSeeds
+  badSetCardinalityBound := bound
+  extractionConclusion := AllClaimsSound inputSound claims
+  lossBoundConclusion := lossBoundConclusion
+  acceptedInputHolds := hAcceptedInput
+  outsideBadSetHolds := hOutsideBadSet
+  badSetCardinality := certificate.card_le
+  extractOutsideBad := fun hInput hSeed =>
+    certificate.allInputsSound_outside_bad
+      seed
+      folded
+      hInput.1
+      hInput.2
+      hSeed
+  lossBound := hLossBound
 
 def ProductAcceptedProofKindExtractor.ofPiRLCConstructiveCertificate
     {count rows publicCount evalCount pointVars bound : Nat}
@@ -428,20 +575,34 @@ def ProductAcceptedProofKindExtractor.ofPiRLCConstructiveCertificate
         bound)
     (seed : PiRLCChallengeSeed count)
     (folded : EvaluationClaim Phi81 rows publicCount evalCount pointVars)
-    (ctcoTraceBlockDependencySpecified : Prop)
-    (extractorLossContributionSpecified : Prop)
-    (parentChainDependencySpecified : Prop)
-    (carryChainRootRelatesToExtractedState : Prop) :
+    (ctcoTraceBlockDependencyBound : Prop)
+    (extractorLossContributionBound : Prop)
+    (parentChainDependencyBound : Prop)
+    (carryChainRootRelationBound : Prop)
+    (hAcceptedInput :
+      PiRLCConcreteAccepts point seed claims folded
+        ∧ foldedSound folded)
+    (hOutsideBadSet : seed ∉ certificate.badSeeds)
+    (hCTCO : ctcoTraceBlockDependencyBound)
+    (hExtractorLoss : extractorLossContributionBound)
+    (hParentChain : parentChainDependencyBound)
+    (hCarryChain : carryChainRootRelationBound) :
     ProductAcceptedProofKindExtractor where
-  acceptedInputObjectSpecified :=
-    PiRLCConcreteAccepts point seed claims folded
-  verifierAcceptancePredicateSpecified := certificate.badSeeds.card ≤ bound
-  extractedObjectSpecified := AllClaimsSound inputSound claims
-  failureEventsSpecified := seed ∉ certificate.badSeeds
-  ctcoTraceBlockDependencySpecified := ctcoTraceBlockDependencySpecified
-  extractorLossContributionSpecified := extractorLossContributionSpecified
-  parentChainDependencySpecified := parentChainDependencySpecified
-  carryChainRootRelatesToExtractedState := carryChainRootRelatesToExtractedState
+  localExtractor :=
+    ProductLocalExtractorTheorem.ofPiRLCConstructiveCertificate
+      certificate
+      seed
+      folded
+      extractorLossContributionBound
+      hAcceptedInput
+      hOutsideBadSet
+      hExtractorLoss
+  ctcoTraceBlockDependencyBound := ctcoTraceBlockDependencyBound
+  parentChainDependencyBound := parentChainDependencyBound
+  carryChainRootRelationBound := carryChainRootRelationBound
+  ctcoTraceBlockDependency := hCTCO
+  parentChainDependency := hParentChain
+  carryChainRootRelation := hCarryChain
 
 theorem productPiRLCExtractorAccepted_from_constructive_certificate
     {count rows publicCount evalCount pointVars bound : Nat}
@@ -461,40 +622,70 @@ theorem productPiRLCExtractorAccepted_from_constructive_certificate
         bound)
     (seed : PiRLCChallengeSeed count)
     (folded : EvaluationClaim Phi81 rows publicCount evalCount pointVars)
-    {ctcoTraceBlockDependencySpecified : Prop}
-    {extractorLossContributionSpecified : Prop}
-    {parentChainDependencySpecified : Prop}
+    {ctcoTraceBlockDependencyBound : Prop}
+    {extractorLossContributionBound : Prop}
+    {parentChainDependencyBound : Prop}
     {carryChainRootRelatesToExtractedState : Prop}
     (hAccepts : PiRLCConcreteAccepts point seed claims folded)
     (hFoldedSound : foldedSound folded)
     (hSeed : seed ∉ certificate.badSeeds)
-    (hCTCO : ctcoTraceBlockDependencySpecified)
-    (hExtractorLoss : extractorLossContributionSpecified)
-    (hParentChain : parentChainDependencySpecified)
+    (hCTCO : ctcoTraceBlockDependencyBound)
+    (hExtractorLoss : extractorLossContributionBound)
+    (hParentChain : parentChainDependencyBound)
     (hCarryChain : carryChainRootRelatesToExtractedState) :
     ProductAcceptedProofKindExtractorAccepted
       (ProductAcceptedProofKindExtractor.ofPiRLCConstructiveCertificate
         certificate
         seed
         folded
-        ctcoTraceBlockDependencySpecified
-        extractorLossContributionSpecified
-        parentChainDependencySpecified
-        carryChainRootRelatesToExtractedState) := by
-  exact
-    ⟨hAccepts,
-      certificate.card_le,
-      certificate.allInputsSound_outside_bad
-        seed
-        folded
-        hAccepts
-        hFoldedSound
-        hSeed,
-      hSeed,
-      hCTCO,
-      hExtractorLoss,
-      hParentChain,
-      hCarryChain⟩
+        ctcoTraceBlockDependencyBound
+        extractorLossContributionBound
+        parentChainDependencyBound
+        carryChainRootRelatesToExtractedState
+        ⟨hAccepts, hFoldedSound⟩
+        hSeed
+        hCTCO
+        hExtractorLoss
+        hParentChain
+        hCarryChain) := by
+  exact productAcceptedProofKindExtractorAccepted _
+
+def ProductLocalExtractorTheorem.ofPiCCSFiniteBadChallengeCertificate
+    {F Seed : Type}
+    [Semiring F]
+    [DecidableEq Seed]
+    {state : PiCCSPublicQState F}
+    {traceSound : SumcheckVerifierTrace F → Prop}
+    {traceSeed : SumcheckVerifierTrace F → Seed}
+    {bound : Nat}
+    (certificate :
+      PiCCSFiniteBadChallengeCertificate
+        state
+        traceSound
+        traceSeed
+        bound)
+    (trace : SumcheckVerifierTrace F)
+    (lossBoundConclusion : Prop)
+    (hAcceptedInput : PiCCSAccepts state trace)
+    (hOutsideBadSet : traceSeed trace ∉ certificate.badSeeds)
+    (hLossBound : lossBoundConclusion) :
+    ProductLocalExtractorTheorem where
+  Seed := Seed
+  acceptedInput := PiCCSAccepts state trace
+  challengeSeed := traceSeed trace
+  badSet := certificate.badSeeds
+  badSetCardinalityBound := bound
+  extractionConclusion := traceSound trace
+  lossBoundConclusion := lossBoundConclusion
+  acceptedInputHolds := hAcceptedInput
+  outsideBadSetHolds := hOutsideBadSet
+  badSetCardinality := certificate.card_le
+  extractOutsideBad := fun hAccepts hSeed =>
+    piccs_traceSound_of_seed_not_bad
+      certificate
+      hAccepts
+      hSeed
+  lossBound := hLossBound
 
 def ProductAcceptedProofKindExtractor.ofPiCCSFiniteBadChallengeCertificate
     {F Seed : Type}
@@ -511,19 +702,31 @@ def ProductAcceptedProofKindExtractor.ofPiCCSFiniteBadChallengeCertificate
         traceSeed
         bound)
     (trace : SumcheckVerifierTrace F)
-    (ctcoTraceBlockDependencySpecified : Prop)
-    (extractorLossContributionSpecified : Prop)
-    (parentChainDependencySpecified : Prop)
-    (carryChainRootRelatesToExtractedState : Prop) :
+    (ctcoTraceBlockDependencyBound : Prop)
+    (extractorLossContributionBound : Prop)
+    (parentChainDependencyBound : Prop)
+    (carryChainRootRelationBound : Prop)
+    (hAcceptedInput : PiCCSAccepts state trace)
+    (hOutsideBadSet : traceSeed trace ∉ certificate.badSeeds)
+    (hCTCO : ctcoTraceBlockDependencyBound)
+    (hExtractorLoss : extractorLossContributionBound)
+    (hParentChain : parentChainDependencyBound)
+    (hCarryChain : carryChainRootRelationBound) :
     ProductAcceptedProofKindExtractor where
-  acceptedInputObjectSpecified := PiCCSAccepts state trace
-  verifierAcceptancePredicateSpecified := certificate.badSeeds.card ≤ bound
-  extractedObjectSpecified := traceSound trace
-  failureEventsSpecified := traceSeed trace ∉ certificate.badSeeds
-  ctcoTraceBlockDependencySpecified := ctcoTraceBlockDependencySpecified
-  extractorLossContributionSpecified := extractorLossContributionSpecified
-  parentChainDependencySpecified := parentChainDependencySpecified
-  carryChainRootRelatesToExtractedState := carryChainRootRelatesToExtractedState
+  localExtractor :=
+    ProductLocalExtractorTheorem.ofPiCCSFiniteBadChallengeCertificate
+      certificate
+      trace
+      extractorLossContributionBound
+      hAcceptedInput
+      hOutsideBadSet
+      hExtractorLoss
+  ctcoTraceBlockDependencyBound := ctcoTraceBlockDependencyBound
+  parentChainDependencyBound := parentChainDependencyBound
+  carryChainRootRelationBound := carryChainRootRelationBound
+  ctcoTraceBlockDependency := hCTCO
+  parentChainDependency := hParentChain
+  carryChainRootRelation := hCarryChain
 
 theorem productPiCCSExtractorAccepted_from_finite_bad_challenge_certificate
     {F Seed : Type}
@@ -540,36 +743,31 @@ theorem productPiCCSExtractorAccepted_from_finite_bad_challenge_certificate
         traceSeed
         bound)
     (trace : SumcheckVerifierTrace F)
-    {ctcoTraceBlockDependencySpecified : Prop}
-    {extractorLossContributionSpecified : Prop}
-    {parentChainDependencySpecified : Prop}
+    {ctcoTraceBlockDependencyBound : Prop}
+    {extractorLossContributionBound : Prop}
+    {parentChainDependencyBound : Prop}
     {carryChainRootRelatesToExtractedState : Prop}
     (hAccepts : PiCCSAccepts state trace)
     (hSeed : traceSeed trace ∉ certificate.badSeeds)
-    (hCTCO : ctcoTraceBlockDependencySpecified)
-    (hExtractorLoss : extractorLossContributionSpecified)
-    (hParentChain : parentChainDependencySpecified)
+    (hCTCO : ctcoTraceBlockDependencyBound)
+    (hExtractorLoss : extractorLossContributionBound)
+    (hParentChain : parentChainDependencyBound)
     (hCarryChain : carryChainRootRelatesToExtractedState) :
     ProductAcceptedProofKindExtractorAccepted
       (ProductAcceptedProofKindExtractor.ofPiCCSFiniteBadChallengeCertificate
         certificate
         trace
-        ctcoTraceBlockDependencySpecified
-        extractorLossContributionSpecified
-        parentChainDependencySpecified
-        carryChainRootRelatesToExtractedState) := by
-  exact
-    ⟨hAccepts,
-      certificate.card_le,
-      piccs_traceSound_of_seed_not_bad
-        certificate
+        ctcoTraceBlockDependencyBound
+        extractorLossContributionBound
+        parentChainDependencyBound
+        carryChainRootRelatesToExtractedState
         hAccepts
-        hSeed,
-      hSeed,
-      hCTCO,
-      hExtractorLoss,
-      hParentChain,
-      hCarryChain⟩
+        hSeed
+        hCTCO
+        hExtractorLoss
+        hParentChain
+        hCarryChain) := by
+  exact productAcceptedProofKindExtractorAccepted _
 
 structure ProductPerKindExtractorTheorems where
   fold : ProductAcceptedProofKindExtractor
@@ -624,6 +822,81 @@ theorem productRecursiveCarryDepthLeThreeExtractor_from_acceptedProof
     ProductAcceptedProofKindExtractorAccepted theorems.recursiveCarryDepthLeThree := by
   exact hTheorems.right.right.right.right.right
 
+structure ProductVerifierAIRPredicateImplication where
+  sourcePredicate : Prop
+  targetPredicate : Prop
+  implication : sourcePredicate → targetPredicate
+
+def ProductVerifierAIRPredicateImplicationAccepted
+    (obligation : ProductVerifierAIRPredicateImplication) : Prop :=
+  obligation.sourcePredicate → obligation.targetPredicate
+
+theorem productVerifierAIRPredicateImplicationAccepted
+    (obligation : ProductVerifierAIRPredicateImplication) :
+    ProductVerifierAIRPredicateImplicationAccepted obligation :=
+  obligation.implication
+
+structure ProductVerifierAIRPredicateEquivalence where
+  leftPredicate : Prop
+  rightPredicate : Prop
+  equivalence : leftPredicate ↔ rightPredicate
+
+def ProductVerifierAIRPredicateEquivalenceAccepted
+    (obligation : ProductVerifierAIRPredicateEquivalence) : Prop :=
+  obligation.leftPredicate ↔ obligation.rightPredicate
+
+theorem productVerifierAIRPredicateEquivalenceAccepted
+    (obligation : ProductVerifierAIRPredicateEquivalence) :
+    ProductVerifierAIRPredicateEquivalenceAccepted obligation :=
+  obligation.equivalence
+
+def ProductPiCCSPiRLCPiDECPrimitiveLoweringTheorem : Prop :=
+  ∀ {F RF : Type} [Semiring F] [CommRing RF]
+    {pirlcCount pirlcRows pirlcPublicCount pirlcEvalCount pirlcPointVars
+      pidecRows pidecColumns pidecCount : Nat}
+    (bundle :
+      PiCCSPiRLCPiDECPrimitiveBundle F RF
+        pirlcCount pirlcRows pirlcPublicCount pirlcEvalCount pirlcPointVars
+        pidecRows pidecColumns pidecCount),
+      PiCCSPiRLCPiDECPrimitiveConstraints bundle ↔
+        PiCCSPiRLCPiDECVerifierSteps bundle
+
+theorem productPiCCSPiRLCPiDECPrimitiveLoweringTheorem :
+    ProductPiCCSPiRLCPiDECPrimitiveLoweringTheorem := by
+  intro F RF _hF _hRF pirlcCount pirlcRows pirlcPublicCount pirlcEvalCount
+    pirlcPointVars pidecRows pidecColumns pidecCount bundle
+  exact piCCS_piRLC_piDEC_primitiveConstraints_iff_verifierSteps bundle
+
+def ProductTerminalAIRPrimitiveFamilyScheduleTheorem : Prop :=
+  ∀ {K RF : Type} [CommRing K] [CommRing RF]
+    {piccsRounds
+      pirlcCount pirlcRows pirlcPublicCount pirlcEvalCount pirlcPointVars
+      pidecRows pidecColumns pidecCount pidecSignedDigitCount
+      pidecDecompositionCount pidecPublicSplitCount pidecLowNormCount
+      ceRows ceColumns cePublicCount ceEvalCount cePointVars : Nat}
+    (rows :
+      TerminalAIRPrimitiveFamilyScheduledRows K RF
+        piccsRounds
+        pirlcCount pirlcRows pirlcPublicCount pirlcEvalCount
+        pirlcPointVars
+        pidecRows pidecColumns pidecCount pidecSignedDigitCount
+        pidecDecompositionCount pidecPublicSplitCount pidecLowNormCount
+        ceRows ceColumns cePublicCount ceEvalCount cePointVars),
+      TerminalAIRPrimitiveFamilyAllScheduledRowsZero rows ↔
+        PiCCSConcreteVerifierStep rows.piccsAir ∧
+        PiRLCConcreteVerifierStep rows.pirlcAir ∧
+        PiDECConcreteVerifierStep rows.pidecAir ∧
+        CEAjtaiConcreteVerifierStep rows.ceAjtaiAir
+
+theorem productTerminalAIRPrimitiveFamilyScheduleTheorem :
+    ProductTerminalAIRPrimitiveFamilyScheduleTheorem := by
+  intro K RF _hK _hRF piccsRounds pirlcCount pirlcRows pirlcPublicCount
+    pirlcEvalCount pirlcPointVars pidecRows pidecColumns pidecCount
+    pidecSignedDigitCount pidecDecompositionCount pidecPublicSplitCount
+    pidecLowNormCount ceRows ceColumns cePublicCount ceEvalCount cePointVars
+    rows
+  exact terminalAIRPrimitiveFamily_allScheduledRowsZero_iff_verifierSteps rows
+
 structure ProductTerminalVerifierArithmetization where
   relationTagPinned : Prop
   canonicalSourceEnvelopeDigestBound : Prop
@@ -633,55 +906,97 @@ structure ProductTerminalVerifierArithmetization where
   terminalStatementDigestBound : Prop
   foldProofDigestBound : Prop
   ceOpeningProofDigestBound : Prop
-  verifierRelationRerunsFoldReduction : Prop
-  verifierRelationRerunsTerminalCEOpening : Prop
-  verifierRelationRerunsPiCCS : Prop
-  verifierRelationRerunsPiRLC : Prop
-  verifierRelationRerunsPiDEC : Prop
-  verifierRelationRerunsAjtaiOpening : Prop
-  verifierRelationChecksModuleSISNorms : Prop
-  fakeSourceDigestRejected : Prop
-  sourceFreeSNARKStyleAcceptance : Prop
-  sourceFreeSpartanFRIAcceptance : Prop
-  spartanFRITraceBindsTerminalVerifierRelation : Prop
-  malformedFRITraceRejected : Prop
-  sourceFreeAcceptanceRequiresVerifierKey : Prop
-  concreteVerifierConsumesCompressedProofBytes : Prop
-  concreteVerifierRejectsExpandedVerifierWitness : Prop
-  sourceProofBytesAbsentFromConcreteVerifier : Prop
-  expandedVerifierTraceAbsentFromConcreteVerifier : Prop
-  terminalVerifierTraceColumnsCommitted : Prop
-  terminalVerifierBoundaryConstraintsCommitted : Prop
-  terminalVerifierTransitionConstraintsCommitted : Prop
-  terminalVerifierResidualPolynomialCommitted : Prop
-  traceResidualPCSFRIQueriesVerified : Prop
-  terminalVerifierExecutionIsProvedRelation : Prop
-  terminalAcceptBitOneConstrained : Prop
-  canonicalDecodingConstrainedAtAIRLevel : Prop
-  hashDigestBindingsConstrainedAtAIRLevel : Prop
-  piCCSVerifierConstrainedAtAIRLevel : Prop
-  piRLCVerifierConstrainedAtAIRLevel : Prop
-  piDECVerifierConstrainedAtAIRLevel : Prop
-  terminalCEVerifierConstrainedAtAIRLevel : Prop
-  friPCSVerifierConstrainedAtAIRLevel : Prop
-  jointTraceResidualQueryScheduleBound : Prop
-  traceResidualOpeningsPairedByQueryPoint : Prop
-  residualEqualsAIRConstraintEvaluation : Prop
-  acceptBitDerivedFromAIRConstraints : Prop
-  terminalVerifierTypedAIRSubrelationsDeclared : Prop
-  canonicalSourceRepresentationSubrelationConstrained : Prop
-  publicBindingSubrelationConstrained : Prop
-  piCCSVerifierSubrelationConstrained : Prop
-  piRLCVerifierSubrelationConstrained : Prop
-  piDECVerifierSubrelationConstrained : Prop
-  terminalCEOpeningSubrelationConstrained : Prop
-  innerCompressedProofVerifierSubrelationGatedBySourceKind : Prop
-  outerFRIVerifierSeparatedFromTerminalAIR : Prop
-  residualAggregationUsesTypedSubrelations : Prop
-  residualPolynomialEncodesAggregateVerifierConstraints : Prop
-  sharedSpecEmitsExecutableConstraintRows : Prop
-  airResidualZeroIffSharedSpecAccepts : Prop
-  normalTerminalVerifierAcceptanceEquivalentToZeroResidual : Prop
+  verifierRelationRerunsFoldReduction :
+    ProductVerifierAIRPredicateImplication
+  verifierRelationRerunsTerminalCEOpening :
+    ProductVerifierAIRPredicateImplication
+  verifierRelationRerunsPiCCS : ProductVerifierAIRPredicateImplication
+  verifierRelationRerunsPiRLC : ProductVerifierAIRPredicateImplication
+  verifierRelationRerunsPiDEC : ProductVerifierAIRPredicateImplication
+  verifierRelationRerunsAjtaiOpening :
+    ProductVerifierAIRPredicateImplication
+  verifierRelationChecksModuleSISNorms :
+    ProductVerifierAIRPredicateImplication
+  fakeSourceDigestRejected : ProductVerifierAIRPredicateImplication
+  sourceFreeSNARKStyleAcceptance : ProductVerifierAIRPredicateImplication
+  sourceFreeSpartanFRIAcceptance : ProductVerifierAIRPredicateImplication
+  spartanFRITraceBindsTerminalVerifierRelation :
+    ProductVerifierAIRPredicateImplication
+  malformedFRITraceRejected : ProductVerifierAIRPredicateImplication
+  sourceFreeAcceptanceRequiresVerifierKey :
+    ProductVerifierAIRPredicateImplication
+  concreteVerifierConsumesCompressedProofBytes :
+    ProductVerifierAIRPredicateImplication
+  concreteVerifierRejectsExpandedVerifierWitness :
+    ProductVerifierAIRPredicateImplication
+  sourceProofBytesAbsentFromConcreteVerifier :
+    ProductVerifierAIRPredicateImplication
+  expandedVerifierTraceAbsentFromConcreteVerifier :
+    ProductVerifierAIRPredicateImplication
+  terminalVerifierTraceColumnsCommitted :
+    ProductVerifierAIRPredicateImplication
+  terminalVerifierBoundaryConstraintsCommitted :
+    ProductVerifierAIRPredicateImplication
+  terminalVerifierTransitionConstraintsCommitted :
+    ProductVerifierAIRPredicateImplication
+  terminalVerifierResidualPolynomialCommitted :
+    ProductVerifierAIRPredicateImplication
+  traceResidualPCSFRIQueriesVerified :
+    ProductVerifierAIRPredicateImplication
+  terminalVerifierExecutionIsProvedRelation :
+    ProductVerifierAIRPredicateImplication
+  terminalAcceptBitOneConstrained :
+    ProductVerifierAIRPredicateImplication
+  canonicalDecodingConstrainedAtAIRLevel :
+    ProductVerifierAIRPredicateImplication
+  hashDigestBindingsConstrainedAtAIRLevel :
+    ProductVerifierAIRPredicateImplication
+  piCCSVerifierConstrainedAtAIRLevel :
+    ProductVerifierAIRPredicateImplication
+  piRLCVerifierConstrainedAtAIRLevel :
+    ProductVerifierAIRPredicateImplication
+  piDECVerifierConstrainedAtAIRLevel :
+    ProductVerifierAIRPredicateImplication
+  terminalCEVerifierConstrainedAtAIRLevel :
+    ProductVerifierAIRPredicateImplication
+  friPCSVerifierConstrainedAtAIRLevel :
+    ProductVerifierAIRPredicateImplication
+  jointTraceResidualQueryScheduleBound :
+    ProductVerifierAIRPredicateImplication
+  traceResidualOpeningsPairedByQueryPoint :
+    ProductVerifierAIRPredicateImplication
+  residualEqualsAIRConstraintEvaluation :
+    ProductVerifierAIRPredicateEquivalence
+  acceptBitDerivedFromAIRConstraints :
+    ProductVerifierAIRPredicateImplication
+  terminalVerifierTypedAIRSubrelationsDeclared :
+    ProductVerifierAIRPredicateImplication
+  canonicalSourceRepresentationSubrelationConstrained :
+    ProductVerifierAIRPredicateImplication
+  publicBindingSubrelationConstrained :
+    ProductVerifierAIRPredicateImplication
+  piCCSVerifierSubrelationConstrained :
+    ProductVerifierAIRPredicateImplication
+  piRLCVerifierSubrelationConstrained :
+    ProductVerifierAIRPredicateImplication
+  piDECVerifierSubrelationConstrained :
+    ProductVerifierAIRPredicateImplication
+  terminalCEOpeningSubrelationConstrained :
+    ProductVerifierAIRPredicateImplication
+  innerCompressedProofVerifierSubrelationGatedBySourceKind :
+    ProductVerifierAIRPredicateImplication
+  outerFRIVerifierSeparatedFromTerminalAIR :
+    ProductVerifierAIRPredicateImplication
+  residualAggregationUsesTypedSubrelations :
+    ProductVerifierAIRPredicateImplication
+  residualPolynomialEncodesAggregateVerifierConstraints :
+    ProductVerifierAIRPredicateImplication
+  sharedSpecEmitsExecutableConstraintRows :
+    ProductVerifierAIRPredicateImplication
+  airResidualZeroIffSharedSpecAccepts :
+    ProductVerifierAIRPredicateEquivalence
+  normalTerminalVerifierAcceptanceEquivalentToZeroResidual :
+    ProductVerifierAIRPredicateEquivalence
 
 def ProductTerminalVerifierArithmetizationAccepted
     (arith : ProductTerminalVerifierArithmetization) : Prop :=
@@ -693,81 +1008,151 @@ def ProductTerminalVerifierArithmetizationAccepted
     ∧ arith.terminalStatementDigestBound
     ∧ arith.foldProofDigestBound
     ∧ arith.ceOpeningProofDigestBound
-    ∧ arith.verifierRelationRerunsFoldReduction
-    ∧ arith.verifierRelationRerunsTerminalCEOpening
-    ∧ arith.verifierRelationRerunsPiCCS
-    ∧ arith.verifierRelationRerunsPiRLC
-    ∧ arith.verifierRelationRerunsPiDEC
-    ∧ arith.verifierRelationRerunsAjtaiOpening
-    ∧ arith.verifierRelationChecksModuleSISNorms
-    ∧ arith.fakeSourceDigestRejected
-    ∧ arith.sourceFreeSNARKStyleAcceptance
-    ∧ arith.sourceFreeSpartanFRIAcceptance
-    ∧ arith.spartanFRITraceBindsTerminalVerifierRelation
-    ∧ arith.malformedFRITraceRejected
-    ∧ arith.sourceFreeAcceptanceRequiresVerifierKey
-    ∧ arith.concreteVerifierConsumesCompressedProofBytes
-    ∧ arith.concreteVerifierRejectsExpandedVerifierWitness
-    ∧ arith.sourceProofBytesAbsentFromConcreteVerifier
-    ∧ arith.expandedVerifierTraceAbsentFromConcreteVerifier
-    ∧ arith.terminalVerifierTraceColumnsCommitted
-    ∧ arith.terminalVerifierBoundaryConstraintsCommitted
-    ∧ arith.terminalVerifierTransitionConstraintsCommitted
-    ∧ arith.terminalVerifierResidualPolynomialCommitted
-    ∧ arith.traceResidualPCSFRIQueriesVerified
-    ∧ arith.terminalVerifierExecutionIsProvedRelation
-    ∧ arith.terminalAcceptBitOneConstrained
-    ∧ arith.canonicalDecodingConstrainedAtAIRLevel
-    ∧ arith.hashDigestBindingsConstrainedAtAIRLevel
-    ∧ arith.piCCSVerifierConstrainedAtAIRLevel
-    ∧ arith.piRLCVerifierConstrainedAtAIRLevel
-    ∧ arith.piDECVerifierConstrainedAtAIRLevel
-    ∧ arith.terminalCEVerifierConstrainedAtAIRLevel
-    ∧ arith.friPCSVerifierConstrainedAtAIRLevel
-    ∧ arith.jointTraceResidualQueryScheduleBound
-    ∧ arith.traceResidualOpeningsPairedByQueryPoint
-    ∧ arith.residualEqualsAIRConstraintEvaluation
-    ∧ arith.acceptBitDerivedFromAIRConstraints
-    ∧ arith.terminalVerifierTypedAIRSubrelationsDeclared
-    ∧ arith.canonicalSourceRepresentationSubrelationConstrained
-    ∧ arith.publicBindingSubrelationConstrained
-    ∧ arith.piCCSVerifierSubrelationConstrained
-    ∧ arith.piRLCVerifierSubrelationConstrained
-    ∧ arith.piDECVerifierSubrelationConstrained
-    ∧ arith.terminalCEOpeningSubrelationConstrained
-    ∧ arith.innerCompressedProofVerifierSubrelationGatedBySourceKind
-    ∧ arith.outerFRIVerifierSeparatedFromTerminalAIR
-    ∧ arith.residualAggregationUsesTypedSubrelations
-    ∧ arith.residualPolynomialEncodesAggregateVerifierConstraints
-    ∧ arith.sharedSpecEmitsExecutableConstraintRows
-    ∧ arith.airResidualZeroIffSharedSpecAccepts
-    ∧ arith.normalTerminalVerifierAcceptanceEquivalentToZeroResidual
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.verifierRelationRerunsFoldReduction
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.verifierRelationRerunsTerminalCEOpening
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.verifierRelationRerunsPiCCS
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.verifierRelationRerunsPiRLC
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.verifierRelationRerunsPiDEC
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.verifierRelationRerunsAjtaiOpening
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.verifierRelationChecksModuleSISNorms
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.fakeSourceDigestRejected
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.sourceFreeSNARKStyleAcceptance
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.sourceFreeSpartanFRIAcceptance
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.spartanFRITraceBindsTerminalVerifierRelation
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.malformedFRITraceRejected
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.sourceFreeAcceptanceRequiresVerifierKey
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.concreteVerifierConsumesCompressedProofBytes
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.concreteVerifierRejectsExpandedVerifierWitness
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.sourceProofBytesAbsentFromConcreteVerifier
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.expandedVerifierTraceAbsentFromConcreteVerifier
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.terminalVerifierTraceColumnsCommitted
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.terminalVerifierBoundaryConstraintsCommitted
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.terminalVerifierTransitionConstraintsCommitted
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.terminalVerifierResidualPolynomialCommitted
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.traceResidualPCSFRIQueriesVerified
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.terminalVerifierExecutionIsProvedRelation
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.terminalAcceptBitOneConstrained
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.canonicalDecodingConstrainedAtAIRLevel
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.hashDigestBindingsConstrainedAtAIRLevel
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.piCCSVerifierConstrainedAtAIRLevel
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.piRLCVerifierConstrainedAtAIRLevel
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.piDECVerifierConstrainedAtAIRLevel
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.terminalCEVerifierConstrainedAtAIRLevel
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.friPCSVerifierConstrainedAtAIRLevel
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.jointTraceResidualQueryScheduleBound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.traceResidualOpeningsPairedByQueryPoint
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      arith.residualEqualsAIRConstraintEvaluation
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.acceptBitDerivedFromAIRConstraints
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.terminalVerifierTypedAIRSubrelationsDeclared
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.canonicalSourceRepresentationSubrelationConstrained
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.publicBindingSubrelationConstrained
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.piCCSVerifierSubrelationConstrained
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.piRLCVerifierSubrelationConstrained
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.piDECVerifierSubrelationConstrained
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.terminalCEOpeningSubrelationConstrained
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.innerCompressedProofVerifierSubrelationGatedBySourceKind
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.outerFRIVerifierSeparatedFromTerminalAIR
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.residualAggregationUsesTypedSubrelations
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.residualPolynomialEncodesAggregateVerifierConstraints
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      arith.sharedSpecEmitsExecutableConstraintRows
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      arith.airResidualZeroIffSharedSpecAccepts
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      arith.normalTerminalVerifierAcceptanceEquivalentToZeroResidual
 
 theorem productCompressionSourceFree_from_terminalVerifierArithmetization
     {arith : ProductTerminalVerifierArithmetization}
     (hArith : ProductTerminalVerifierArithmetizationAccepted arith) :
-    arith.sourceFreeSNARKStyleAcceptance
-      ∧ arith.sourceFreeSpartanFRIAcceptance
-      ∧ arith.concreteVerifierConsumesCompressedProofBytes
-      ∧ arith.sourceProofBytesAbsentFromConcreteVerifier
-      ∧ arith.concreteVerifierRejectsExpandedVerifierWitness
-      ∧ arith.expandedVerifierTraceAbsentFromConcreteVerifier
+    ProductVerifierAIRPredicateImplicationAccepted
+        arith.sourceFreeSNARKStyleAcceptance
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.sourceFreeSpartanFRIAcceptance
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.concreteVerifierConsumesCompressedProofBytes
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.sourceProofBytesAbsentFromConcreteVerifier
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.concreteVerifierRejectsExpandedVerifierWitness
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.expandedVerifierTraceAbsentFromConcreteVerifier
       ∧ arith.canonicalSourceEnvelopeDigestBound
-      ∧ arith.verifierRelationRerunsFoldReduction
-      ∧ arith.verifierRelationRerunsPiCCS
-      ∧ arith.verifierRelationRerunsPiRLC
-      ∧ arith.verifierRelationRerunsPiDEC
-      ∧ arith.verifierRelationRerunsAjtaiOpening
-      ∧ arith.verifierRelationChecksModuleSISNorms
-      ∧ arith.verifierRelationRerunsTerminalCEOpening
-      ∧ arith.spartanFRITraceBindsTerminalVerifierRelation
-      ∧ arith.terminalVerifierTraceColumnsCommitted
-      ∧ arith.terminalVerifierBoundaryConstraintsCommitted
-      ∧ arith.terminalVerifierTransitionConstraintsCommitted
-      ∧ arith.terminalVerifierResidualPolynomialCommitted
-      ∧ arith.traceResidualPCSFRIQueriesVerified
-      ∧ arith.terminalVerifierExecutionIsProvedRelation
-      ∧ arith.terminalAcceptBitOneConstrained := by
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.verifierRelationRerunsFoldReduction
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.verifierRelationRerunsPiCCS
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.verifierRelationRerunsPiRLC
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.verifierRelationRerunsPiDEC
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.verifierRelationRerunsAjtaiOpening
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.verifierRelationChecksModuleSISNorms
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.verifierRelationRerunsTerminalCEOpening
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.spartanFRITraceBindsTerminalVerifierRelation
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.terminalVerifierTraceColumnsCommitted
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.terminalVerifierBoundaryConstraintsCommitted
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.terminalVerifierTransitionConstraintsCommitted
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.terminalVerifierResidualPolynomialCommitted
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.traceResidualPCSFRIQueriesVerified
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.terminalVerifierExecutionIsProvedRelation
+      ∧ ProductVerifierAIRPredicateImplicationAccepted
+        arith.terminalAcceptBitOneConstrained := by
   rcases hArith with
     ⟨_,
       hSourceDigest,
@@ -830,145 +1215,185 @@ theorem productCompressionSourceFree_from_terminalVerifierArithmetization
     hAccept⟩
 
 structure ProductTerminalVerifierAIRSpec where
-  sharedByNormalTerminalVerifierAndAIR : Prop
-  canonicalSourceDecodingSpecified : Prop
-  sourceDigestComputedFromCanonicalPrivateEncoding : Prop
-  sourceByteCountBoundToCanonicalEncoding : Prop
-  verifierKeyBindingSpecified : Prop
-  publicStatementBindingSpecified : Prop
-  recursiveRelationDigestPublicInput : Prop
-  compressionPolicyBindingSpecified : Prop
-  publicCoinDerivationVerifierBound : Prop
-  piCCSVerifierEquationSpecified : Prop
-  piRLCVerifierEquationSpecified : Prop
-  piDECVerifierEquationSpecified : Prop
-  terminalCEOpeningArithmeticSpecified : Prop
-  ceAjtaiArithmeticConstrained : Prop
-  moduleSISNormAndShapeChecksSpecified : Prop
-  optionalInnerCompressedVerifierDomainSeparated : Prop
-  concreteVerifierDoesNotAcceptExpandedWitness : Prop
-  acceptBitDerivedFromSpecPredicates : Prop
-  emitsNormalResultAndAIRConstraintRowsFromSameSteps : Prop
-  noAssertedStageAcceptanceFlags : Prop
-  digestAndCoinComputationsConstraintEmitted : Prop
-  ceAjtaiArithmeticConstraintEmitted : Prop
-  primitiveRowsHaveInspectableProvenance : Prop
-  ceAjtaiLoweredToPrimitiveRows : Prop
-  foldBoundariesLoweredToPrimitiveRows : Prop
-  noVerifierBooleanWrappingRows : Prop
-  noBoundaryReportAcceptanceRows : Prop
-  digestRowsHashOrPublicBound : Prop
-  compactBatchingCommitsFullPrimitiveRowSet : Prop
-  compactBatchingChallengesAfterRowTranscriptCommitment : Prop
-  compactBatchResidualAggregatesAllPrimitiveRows : Prop
-  compactBatchSamplesAreAuditOnly : Prop
-  compactBatchTranscriptBindsPublicContext : Prop
-  zeroResidualIffSpecAccepts : Prop
+  sharedByNormalTerminalVerifierAndAIR :
+    ProductVerifierAIRPredicateEquivalence
+  canonicalSourceDecodingSpecified :
+    ProductVerifierAIRPredicateImplication
+  sourceDigestComputedFromCanonicalPrivateEncoding :
+    ProductVerifierAIRPredicateImplication
+  sourceByteCountBoundToCanonicalEncoding :
+    ProductVerifierAIRPredicateImplication
+  verifierKeyBindingSpecified : ProductVerifierAIRPredicateImplication
+  publicStatementBindingSpecified :
+    ProductVerifierAIRPredicateImplication
+  recursiveRelationDigestPublicInput :
+    ProductVerifierAIRPredicateImplication
+  compressionPolicyBindingSpecified :
+    ProductVerifierAIRPredicateImplication
+  publicCoinDerivationVerifierBound :
+    ProductVerifierAIRPredicateImplication
+  piCCSVerifierEquationSpecified :
+    ProductVerifierAIRPredicateImplication
+  piRLCVerifierEquationSpecified :
+    ProductVerifierAIRPredicateImplication
+  piDECVerifierEquationSpecified :
+    ProductVerifierAIRPredicateImplication
+  terminalCEOpeningArithmeticSpecified :
+    ProductVerifierAIRPredicateImplication
+  ceAjtaiArithmeticConstrained :
+    ProductVerifierAIRPredicateImplication
+  moduleSISNormAndShapeChecksSpecified :
+    ProductVerifierAIRPredicateImplication
+  optionalInnerCompressedVerifierDomainSeparated :
+    ProductVerifierAIRPredicateImplication
+  concreteVerifierDoesNotAcceptExpandedWitness :
+    ProductVerifierAIRPredicateImplication
+  acceptBitDerivedFromSpecPredicates :
+    ProductVerifierAIRPredicateImplication
+  emitsNormalResultAndAIRConstraintRowsFromSameSteps :
+    ProductVerifierAIRPredicateImplication
+  noAssertedStageAcceptanceFlags :
+    ProductVerifierAIRPredicateImplication
+  digestAndCoinComputationsConstraintEmitted :
+    ProductVerifierAIRPredicateImplication
+  ceAjtaiArithmeticConstraintEmitted :
+    ProductVerifierAIRPredicateImplication
+  primitiveRowsHaveInspectableProvenance :
+    ProductVerifierAIRPredicateImplication
+  ceAjtaiLoweredToPrimitiveRows :
+    ProductVerifierAIRPredicateImplication
+  foldBoundariesLoweredToPrimitiveRows :
+    ProductVerifierAIRPredicateImplication
+  noVerifierBooleanWrappingRows :
+    ProductVerifierAIRPredicateImplication
+  noBoundaryReportAcceptanceRows :
+    ProductVerifierAIRPredicateImplication
+  digestRowsHashOrPublicBound :
+    ProductVerifierAIRPredicateImplication
+  compactBatchingCommitsFullPrimitiveRowSet :
+    ProductVerifierAIRPredicateImplication
+  compactBatchingChallengesAfterRowTranscriptCommitment :
+    ProductVerifierAIRPredicateImplication
+  compactBatchResidualAggregatesAllPrimitiveRows :
+    ProductVerifierAIRPredicateImplication
+  compactBatchSamplesAreAuditOnly :
+    ProductVerifierAIRPredicateImplication
+  compactBatchTranscriptBindsPublicContext :
+    ProductVerifierAIRPredicateImplication
+  zeroResidualIffSpecAccepts : ProductVerifierAIRPredicateEquivalence
 
 def ProductTerminalVerifierAIRSpecAccepted
     (spec : ProductTerminalVerifierAIRSpec) : Prop :=
-  spec.sharedByNormalTerminalVerifierAndAIR
-    ∧ spec.canonicalSourceDecodingSpecified
-    ∧ spec.sourceDigestComputedFromCanonicalPrivateEncoding
-    ∧ spec.sourceByteCountBoundToCanonicalEncoding
-    ∧ spec.verifierKeyBindingSpecified
-    ∧ spec.publicStatementBindingSpecified
-    ∧ spec.recursiveRelationDigestPublicInput
-    ∧ spec.compressionPolicyBindingSpecified
-    ∧ spec.publicCoinDerivationVerifierBound
-    ∧ spec.piCCSVerifierEquationSpecified
-    ∧ spec.piRLCVerifierEquationSpecified
-    ∧ spec.piDECVerifierEquationSpecified
-    ∧ spec.terminalCEOpeningArithmeticSpecified
-    ∧ spec.ceAjtaiArithmeticConstrained
-    ∧ spec.moduleSISNormAndShapeChecksSpecified
-    ∧ spec.optionalInnerCompressedVerifierDomainSeparated
-    ∧ spec.concreteVerifierDoesNotAcceptExpandedWitness
-    ∧ spec.acceptBitDerivedFromSpecPredicates
-    ∧ spec.emitsNormalResultAndAIRConstraintRowsFromSameSteps
-    ∧ spec.noAssertedStageAcceptanceFlags
-    ∧ spec.digestAndCoinComputationsConstraintEmitted
-    ∧ spec.ceAjtaiArithmeticConstraintEmitted
-    ∧ spec.primitiveRowsHaveInspectableProvenance
-    ∧ spec.ceAjtaiLoweredToPrimitiveRows
-    ∧ spec.foldBoundariesLoweredToPrimitiveRows
-    ∧ spec.noVerifierBooleanWrappingRows
-    ∧ spec.noBoundaryReportAcceptanceRows
-    ∧ spec.digestRowsHashOrPublicBound
-    ∧ spec.compactBatchingCommitsFullPrimitiveRowSet
-    ∧ spec.compactBatchingChallengesAfterRowTranscriptCommitment
-    ∧ spec.compactBatchResidualAggregatesAllPrimitiveRows
-    ∧ spec.compactBatchSamplesAreAuditOnly
-    ∧ spec.compactBatchTranscriptBindsPublicContext
-    ∧ spec.zeroResidualIffSpecAccepts
-
-structure ProductTerminalVerifierAIRSoundness where
-  spec : ProductTerminalVerifierAIRSpec
-  arithmetization : ProductTerminalVerifierArithmetization
-  specAccepted : Prop
-  arithmetizationAccepted : Prop
-  zeroResidualImpliesSpecAcceptBit : Prop
-  airAcceptBitImpliesNormalTerminalAccept : Prop
-  sourceDigestComputationProvenInAIR : Prop
-  publicCoinDerivationConstrainedInAIR : Prop
-  ceAjtaiArithmeticNotDigestOnly : Prop
-  recursiveRelationDigestPublicBoundInAIR : Prop
-  witnessHeavySourceFreeVerifierPathAbsent : Prop
-  constraintExactness : Prop
-  compactPrimitiveBatchingSound : Prop
-  residualCompleteness : Prop
-  residualSoundness : Prop
-
-def ProductTerminalVerifierAIRSoundnessAccepted
-    (soundness : ProductTerminalVerifierAIRSoundness) : Prop :=
-  soundness.specAccepted
-    ∧ soundness.arithmetizationAccepted
-    ∧ soundness.zeroResidualImpliesSpecAcceptBit
-    ∧ soundness.airAcceptBitImpliesNormalTerminalAccept
-    ∧ soundness.sourceDigestComputationProvenInAIR
-    ∧ soundness.publicCoinDerivationConstrainedInAIR
-    ∧ soundness.ceAjtaiArithmeticNotDigestOnly
-    ∧ soundness.recursiveRelationDigestPublicBoundInAIR
-    ∧ soundness.witnessHeavySourceFreeVerifierPathAbsent
-    ∧ soundness.constraintExactness
-    ∧ soundness.compactPrimitiveBatchingSound
-    ∧ soundness.residualCompleteness
-    ∧ soundness.residualSoundness
+  ProductVerifierAIRPredicateEquivalenceAccepted
+      spec.sharedByNormalTerminalVerifierAndAIR
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.canonicalSourceDecodingSpecified
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.sourceDigestComputedFromCanonicalPrivateEncoding
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.sourceByteCountBoundToCanonicalEncoding
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.verifierKeyBindingSpecified
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.publicStatementBindingSpecified
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.recursiveRelationDigestPublicInput
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.compressionPolicyBindingSpecified
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.publicCoinDerivationVerifierBound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.piCCSVerifierEquationSpecified
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.piRLCVerifierEquationSpecified
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.piDECVerifierEquationSpecified
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.terminalCEOpeningArithmeticSpecified
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.ceAjtaiArithmeticConstrained
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.moduleSISNormAndShapeChecksSpecified
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.optionalInnerCompressedVerifierDomainSeparated
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.concreteVerifierDoesNotAcceptExpandedWitness
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.acceptBitDerivedFromSpecPredicates
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.emitsNormalResultAndAIRConstraintRowsFromSameSteps
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.noAssertedStageAcceptanceFlags
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.digestAndCoinComputationsConstraintEmitted
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.ceAjtaiArithmeticConstraintEmitted
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.primitiveRowsHaveInspectableProvenance
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.ceAjtaiLoweredToPrimitiveRows
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.foldBoundariesLoweredToPrimitiveRows
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.noVerifierBooleanWrappingRows
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.noBoundaryReportAcceptanceRows
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.digestRowsHashOrPublicBound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.compactBatchingCommitsFullPrimitiveRowSet
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.compactBatchingChallengesAfterRowTranscriptCommitment
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.compactBatchResidualAggregatesAllPrimitiveRows
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.compactBatchSamplesAreAuditOnly
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      spec.compactBatchTranscriptBindsPublicContext
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      spec.zeroResidualIffSpecAccepts
 
 structure ProductTerminalVerifierAIRConstraintExactness where
   spec : ProductTerminalVerifierAIRSpec
   arithmetization : ProductTerminalVerifierArithmetization
-  specAccepted : Prop
-  arithmetizationAccepted : Prop
-  sharedVerifierStepsEmitNormalResultAndAIRRows : Prop
-  noAssertedStageShortcuts : Prop
-  digestAndPublicCoinExactness : Prop
-  ceAjtaiArithmeticExactness : Prop
-  primitiveConstraintLoweringExactness : Prop
-  noVerifierBooleanWrappingRows : Prop
-  rowProvenanceTypedAndInspectable : Prop
-  acceptBitDerivedFromResidualAggregate : Prop
-  concreteVerifierNoWitnessEscapeHatch : Prop
-  compactBatchingEquivalentToFullPrimitiveRows : Prop
-  airResidualZeroIffSharedSpecAccepts : Prop
+  sharedVerifierStepsEmitNormalResultAndAIRRows :
+    ProductVerifierAIRPredicateEquivalence
+  noAssertedStageShortcuts : ProductVerifierAIRPredicateImplication
+  digestAndPublicCoinExactness : ProductVerifierAIRPredicateEquivalence
+  ceAjtaiArithmeticExactness : ProductVerifierAIRPredicateEquivalence
+  primitiveConstraintLoweringExactness :
+    ProductVerifierAIRPredicateEquivalence
+  rowProvenanceTypedAndInspectable :
+    ProductVerifierAIRPredicateImplication
+  acceptBitDerivedFromResidualAggregate :
+    ProductVerifierAIRPredicateImplication
+  compactBatchingEquivalentToFullPrimitiveRows :
+    ProductVerifierAIRPredicateEquivalence
+  airResidualZeroIffSharedSpecAccepts :
+    ProductVerifierAIRPredicateEquivalence
 
 def ProductTerminalVerifierAIRConstraintExactnessAccepted
     (exactness : ProductTerminalVerifierAIRConstraintExactness) : Prop :=
-  exactness.specAccepted
-    ∧ exactness.arithmetizationAccepted
-    ∧ ProductTerminalVerifierAIRSpecAccepted exactness.spec
+  ProductTerminalVerifierAIRSpecAccepted exactness.spec
     ∧ ProductTerminalVerifierArithmetizationAccepted exactness.arithmetization
-    ∧ exactness.sharedVerifierStepsEmitNormalResultAndAIRRows
-    ∧ exactness.noAssertedStageShortcuts
-    ∧ exactness.digestAndPublicCoinExactness
-    ∧ exactness.ceAjtaiArithmeticExactness
-    ∧ exactness.primitiveConstraintLoweringExactness
-    ∧ exactness.noVerifierBooleanWrappingRows
-    ∧ exactness.rowProvenanceTypedAndInspectable
-    ∧ exactness.acceptBitDerivedFromResidualAggregate
-    ∧ exactness.concreteVerifierNoWitnessEscapeHatch
-    ∧ exactness.compactBatchingEquivalentToFullPrimitiveRows
-    ∧ exactness.airResidualZeroIffSharedSpecAccepts
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      exactness.sharedVerifierStepsEmitNormalResultAndAIRRows
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      exactness.noAssertedStageShortcuts
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      exactness.digestAndPublicCoinExactness
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      exactness.ceAjtaiArithmeticExactness
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      exactness.primitiveConstraintLoweringExactness
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      exactness.rowProvenanceTypedAndInspectable
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      exactness.acceptBitDerivedFromResidualAggregate
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      exactness.compactBatchingEquivalentToFullPrimitiveRows
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      exactness.airResidualZeroIffSharedSpecAccepts
 
 structure ProductTerminalVerifierAIRResidualCompleteness where
   exactness : ProductTerminalVerifierAIRConstraintExactness
@@ -999,38 +1424,71 @@ def ProductTerminalVerifierAIRResidualSoundnessAccepted
 
 structure ProductTerminalVerifierAIRPrimitiveLowering where
   exactness : ProductTerminalVerifierAIRConstraintExactness
-  ceAjtaiRowsEmitCanonicalCoefficientDecoding : Prop
-  ceAjtaiRowsEmitDimensionChecks : Prop
-  ceAjtaiRowsEmitMatrixVectorMultiplication : Prop
-  ceAjtaiRowsEmitCommitmentEquality : Prop
-  ceAjtaiRowsEmitNormAndShapeChecks : Prop
-  piCCSRowsEmitProjectionSumcheckAndFinalClaimConstraints : Prop
-  piRLCRowsEmitCoinLinearCombinationAndParentPointConstraints : Prop
-  piDECRowsEmitDigitBoundsRecompositionAndLowNormConstraints : Prop
-  digestRowsAreHashSubrelationsOrPublicBindings : Prop
-  noRowsSourcedFromVerifierBooleansOrBoundaryReportAcceptance : Prop
-  compactRowsEncodePrimitiveRowIndexResidualAndContext : Prop
-  fullRowTranscriptCommittedBeforeBatchChallenges : Prop
-  aggregateResidualCoversEveryCommittedPrimitiveRow : Prop
-  sampledPrimitiveRowsNotUsedAsSoundnessSubstitute : Prop
+  primitiveConstraintsIffVerifierSteps :
+    ProductPiCCSPiRLCPiDECPrimitiveLoweringTheorem
+  scheduledRowsZeroIffVerifierSteps :
+    ProductTerminalAIRPrimitiveFamilyScheduleTheorem
+  ceAjtaiRowsEmitCanonicalCoefficientDecoding :
+    ProductVerifierAIRPredicateImplication
+  ceAjtaiRowsEmitDimensionChecks : ProductVerifierAIRPredicateImplication
+  ceAjtaiRowsEmitMatrixVectorMultiplication :
+    ProductVerifierAIRPredicateImplication
+  ceAjtaiRowsEmitCommitmentEquality :
+    ProductVerifierAIRPredicateImplication
+  ceAjtaiRowsEmitNormAndShapeChecks :
+    ProductVerifierAIRPredicateImplication
+  piCCSRowsEmitProjectionSumcheckAndFinalClaimConstraints :
+    ProductVerifierAIRPredicateImplication
+  piRLCRowsEmitCoinLinearCombinationAndParentPointConstraints :
+    ProductVerifierAIRPredicateImplication
+  piDECRowsEmitDigitBoundsRecompositionAndLowNormConstraints :
+    ProductVerifierAIRPredicateImplication
+  digestRowsAreHashSubrelationsOrPublicBindings :
+    ProductVerifierAIRPredicateImplication
+  noRowsSourcedFromVerifierBooleansOrBoundaryReportAcceptance :
+    ProductVerifierAIRPredicateImplication
+  compactRowsEncodePrimitiveRowIndexResidualAndContext :
+    ProductVerifierAIRPredicateImplication
+  fullRowTranscriptCommittedBeforeBatchChallenges :
+    ProductVerifierAIRPredicateImplication
+  aggregateResidualCoversEveryCommittedPrimitiveRow :
+    ProductVerifierAIRPredicateImplication
+  sampledPrimitiveRowsNotUsedAsSoundnessSubstitute :
+    ProductVerifierAIRPredicateImplication
 
 def ProductTerminalVerifierAIRPrimitiveLoweringAccepted
     (lowering : ProductTerminalVerifierAIRPrimitiveLowering) : Prop :=
   ProductTerminalVerifierAIRConstraintExactnessAccepted lowering.exactness
-    ∧ lowering.ceAjtaiRowsEmitCanonicalCoefficientDecoding
-    ∧ lowering.ceAjtaiRowsEmitDimensionChecks
-    ∧ lowering.ceAjtaiRowsEmitMatrixVectorMultiplication
-    ∧ lowering.ceAjtaiRowsEmitCommitmentEquality
-    ∧ lowering.ceAjtaiRowsEmitNormAndShapeChecks
-    ∧ lowering.piCCSRowsEmitProjectionSumcheckAndFinalClaimConstraints
-    ∧ lowering.piRLCRowsEmitCoinLinearCombinationAndParentPointConstraints
-    ∧ lowering.piDECRowsEmitDigitBoundsRecompositionAndLowNormConstraints
-    ∧ lowering.digestRowsAreHashSubrelationsOrPublicBindings
-    ∧ lowering.noRowsSourcedFromVerifierBooleansOrBoundaryReportAcceptance
-    ∧ lowering.compactRowsEncodePrimitiveRowIndexResidualAndContext
-    ∧ lowering.fullRowTranscriptCommittedBeforeBatchChallenges
-    ∧ lowering.aggregateResidualCoversEveryCommittedPrimitiveRow
-    ∧ lowering.sampledPrimitiveRowsNotUsedAsSoundnessSubstitute
+    ∧ ProductPiCCSPiRLCPiDECPrimitiveLoweringTheorem
+    ∧ ProductTerminalAIRPrimitiveFamilyScheduleTheorem
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.ceAjtaiRowsEmitCanonicalCoefficientDecoding
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.ceAjtaiRowsEmitDimensionChecks
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.ceAjtaiRowsEmitMatrixVectorMultiplication
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.ceAjtaiRowsEmitCommitmentEquality
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.ceAjtaiRowsEmitNormAndShapeChecks
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.piCCSRowsEmitProjectionSumcheckAndFinalClaimConstraints
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.piRLCRowsEmitCoinLinearCombinationAndParentPointConstraints
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.piDECRowsEmitDigitBoundsRecompositionAndLowNormConstraints
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.digestRowsAreHashSubrelationsOrPublicBindings
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.noRowsSourcedFromVerifierBooleansOrBoundaryReportAcceptance
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.compactRowsEncodePrimitiveRowIndexResidualAndContext
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.fullRowTranscriptCommittedBeforeBatchChallenges
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.aggregateResidualCoversEveryCommittedPrimitiveRow
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      lowering.sampledPrimitiveRowsNotUsedAsSoundnessSubstitute
 
 def ProductPrimitiveBatchLaneCountSelected (laneCount : Nat) : Prop :=
   laneCount = 4
@@ -1040,25 +1498,34 @@ structure ProductTerminalAIRPrimitiveBatchMultiLane where
   batchResidualLaneCount : Nat
   selectedLaneCountPinned :
     ProductPrimitiveBatchLaneCountSelected selectedPrimitiveBatchLaneCount
-  proofCarriesEveryLaneResidual : Prop
-  verifierRequiresEveryLaneResidualZero : Prop
-  noLaneIsAuditOnly : Prop
-  rowTranscriptBindsBatchLaneCount : Prop
-  challengeTranscriptBindsBatchLaneCount : Prop
-  airTraceBindsAllLaneResiduals : Prop
-  pcsFriBindsAllLaneResiduals : Prop
+  proofCarriesEveryLaneResidual : ProductVerifierAIRPredicateImplication
+  verifierRequiresEveryLaneResidualZero :
+    ProductVerifierAIRPredicateImplication
+  noLaneIsAuditOnly : ProductVerifierAIRPredicateImplication
+  rowTranscriptBindsBatchLaneCount :
+    ProductVerifierAIRPredicateImplication
+  challengeTranscriptBindsBatchLaneCount :
+    ProductVerifierAIRPredicateImplication
+  airTraceBindsAllLaneResiduals : ProductVerifierAIRPredicateImplication
+  pcsFriBindsAllLaneResiduals : ProductVerifierAIRPredicateImplication
 
 def ProductTerminalAIRPrimitiveBatchMultiLaneAccepted
     (multiLane : ProductTerminalAIRPrimitiveBatchMultiLane) : Prop :=
   ProductPrimitiveBatchLaneCountSelected multiLane.selectedPrimitiveBatchLaneCount
     ∧ multiLane.batchResidualLaneCount = multiLane.selectedPrimitiveBatchLaneCount
-    ∧ multiLane.proofCarriesEveryLaneResidual
-    ∧ multiLane.verifierRequiresEveryLaneResidualZero
-    ∧ multiLane.noLaneIsAuditOnly
-    ∧ multiLane.rowTranscriptBindsBatchLaneCount
-    ∧ multiLane.challengeTranscriptBindsBatchLaneCount
-    ∧ multiLane.airTraceBindsAllLaneResiduals
-    ∧ multiLane.pcsFriBindsAllLaneResiduals
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      multiLane.proofCarriesEveryLaneResidual
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      multiLane.verifierRequiresEveryLaneResidualZero
+    ∧ ProductVerifierAIRPredicateImplicationAccepted multiLane.noLaneIsAuditOnly
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      multiLane.rowTranscriptBindsBatchLaneCount
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      multiLane.challengeTranscriptBindsBatchLaneCount
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      multiLane.airTraceBindsAllLaneResiduals
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      multiLane.pcsFriBindsAllLaneResiduals
 
 structure ProductPrimitiveBatchCancellationBound where
   goldilocksModulus : Nat
@@ -1071,7 +1538,8 @@ structure ProductPrimitiveBatchCancellationBound where
   numeratorIsBatchContextCount : numerator = batchContextCount
   denominatorIsGoldilocksQPowSelectedLaneCount :
     denominator = goldilocksModulus ^ selectedPrimitiveBatchLaneCount
-  cancellationEventBoundedByBatchContextCountOverQPowFour : Prop
+  cancellationEventBoundedByBatchContextCountOverQPowFour :
+    ProductVerifierAIRPredicateImplication
 
 def ProductPrimitiveBatchCancellationBoundAccepted
     (bound : ProductPrimitiveBatchCancellationBound) : Prop :=
@@ -1081,124 +1549,309 @@ def ProductPrimitiveBatchCancellationBoundAccepted
     ∧ bound.numerator = bound.batchContextCount
     ∧ bound.denominator = bound.goldilocksModulus ^ bound.selectedPrimitiveBatchLaneCount
     ∧ bound.denominator = bound.goldilocksModulus ^ 4
-    ∧ bound.cancellationEventBoundedByBatchContextCountOverQPowFour
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      bound.cancellationEventBoundedByBatchContextCountOverQPowFour
 
 structure ProductTerminalVerifierAIRPrimitiveBatching where
   lowering : ProductTerminalVerifierAIRPrimitiveLowering
   multiLane : ProductTerminalAIRPrimitiveBatchMultiLane
   cancellationBound : ProductPrimitiveBatchCancellationBound
-  everyPrimitiveRowCanonicallyEncoded : Prop
-  fullPrimitiveRowTranscriptCommitted : Prop
-  noOmittedRowsOrDuplicateRowIndices : Prop
-  batchingChallengesDerivedAfterTranscriptCommitment : Prop
-  batchingCoefficientsRejectionSampledGoldilocksFieldElements : Prop
-  batchingBadEventBoundChargedOverGoldilocksFieldSize : Prop
-  batchingBadEventBoundChargedOverQFourthPower : Prop
-  aggregateResidualCoversAllPrimitiveRows : Prop
-  aggregateResidualCoversAllPrimitiveRowsAndAllBatchLanes : Prop
-  sampledRowsAreAuditOnly : Prop
-  aggregateResidualBoundIntoPCSFRI : Prop
-  allLaneResidualsBoundIntoPCSFRI : Prop
-  rowTranscriptBindsTerminalVerifierRelationDigest : Prop
-  rowTranscriptBindsRecursiveRelationDigest : Prop
-  rowTranscriptBindsSourceDigestAndByteCount : Prop
-  rowTranscriptBindsPrimitiveBatchLaneCount : Prop
-  proofBytesBindPrimitiveBatchLaneCount : Prop
+  everyPrimitiveRowCanonicallyEncoded :
+    ProductVerifierAIRPredicateImplication
+  fullPrimitiveRowTranscriptCommitted :
+    ProductVerifierAIRPredicateImplication
+  noOmittedRowsOrDuplicateRowIndices :
+    ProductVerifierAIRPredicateImplication
+  batchingChallengesDerivedAfterTranscriptCommitment :
+    ProductVerifierAIRPredicateImplication
+  batchingCoefficientsRejectionSampledGoldilocksFieldElements :
+    ProductVerifierAIRPredicateImplication
+  batchingBadEventBoundChargedOverGoldilocksFieldSize :
+    ProductVerifierAIRPredicateImplication
+  batchingBadEventBoundChargedOverQFourthPower :
+    ProductVerifierAIRPredicateImplication
+  aggregateResidualCoversAllPrimitiveRows :
+    ProductVerifierAIRPredicateImplication
+  aggregateResidualCoversAllPrimitiveRowsAndAllBatchLanes :
+    ProductVerifierAIRPredicateImplication
+  sampledRowsAreAuditOnly : ProductVerifierAIRPredicateImplication
+  aggregateResidualBoundIntoPCSFRI :
+    ProductVerifierAIRPredicateImplication
+  allLaneResidualsBoundIntoPCSFRI :
+    ProductVerifierAIRPredicateImplication
+  rowTranscriptBindsTerminalVerifierRelationDigest :
+    ProductVerifierAIRPredicateImplication
+  rowTranscriptBindsRecursiveRelationDigest :
+    ProductVerifierAIRPredicateImplication
+  rowTranscriptBindsSourceDigestAndByteCount :
+    ProductVerifierAIRPredicateImplication
+  rowTranscriptBindsPrimitiveBatchLaneCount :
+    ProductVerifierAIRPredicateImplication
+  proofBytesBindPrimitiveBatchLaneCount :
+    ProductVerifierAIRPredicateImplication
 
 def ProductTerminalVerifierAIRPrimitiveBatchingAccepted
     (batching : ProductTerminalVerifierAIRPrimitiveBatching) : Prop :=
   ProductTerminalVerifierAIRPrimitiveLoweringAccepted batching.lowering
     ∧ ProductTerminalAIRPrimitiveBatchMultiLaneAccepted batching.multiLane
     ∧ ProductPrimitiveBatchCancellationBoundAccepted batching.cancellationBound
-    ∧ batching.everyPrimitiveRowCanonicallyEncoded
-    ∧ batching.fullPrimitiveRowTranscriptCommitted
-    ∧ batching.noOmittedRowsOrDuplicateRowIndices
-    ∧ batching.batchingChallengesDerivedAfterTranscriptCommitment
-    ∧ batching.batchingCoefficientsRejectionSampledGoldilocksFieldElements
-    ∧ batching.batchingBadEventBoundChargedOverGoldilocksFieldSize
-    ∧ batching.batchingBadEventBoundChargedOverQFourthPower
-    ∧ batching.aggregateResidualCoversAllPrimitiveRows
-    ∧ batching.aggregateResidualCoversAllPrimitiveRowsAndAllBatchLanes
-    ∧ batching.sampledRowsAreAuditOnly
-    ∧ batching.aggregateResidualBoundIntoPCSFRI
-    ∧ batching.allLaneResidualsBoundIntoPCSFRI
-    ∧ batching.rowTranscriptBindsTerminalVerifierRelationDigest
-    ∧ batching.rowTranscriptBindsRecursiveRelationDigest
-    ∧ batching.rowTranscriptBindsSourceDigestAndByteCount
-    ∧ batching.rowTranscriptBindsPrimitiveBatchLaneCount
-    ∧ batching.proofBytesBindPrimitiveBatchLaneCount
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.everyPrimitiveRowCanonicallyEncoded
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.fullPrimitiveRowTranscriptCommitted
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.noOmittedRowsOrDuplicateRowIndices
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.batchingChallengesDerivedAfterTranscriptCommitment
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.batchingCoefficientsRejectionSampledGoldilocksFieldElements
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.batchingBadEventBoundChargedOverGoldilocksFieldSize
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.batchingBadEventBoundChargedOverQFourthPower
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.aggregateResidualCoversAllPrimitiveRows
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.aggregateResidualCoversAllPrimitiveRowsAndAllBatchLanes
+    ∧ ProductVerifierAIRPredicateImplicationAccepted batching.sampledRowsAreAuditOnly
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.aggregateResidualBoundIntoPCSFRI
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.allLaneResidualsBoundIntoPCSFRI
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.rowTranscriptBindsTerminalVerifierRelationDigest
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.rowTranscriptBindsRecursiveRelationDigest
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.rowTranscriptBindsSourceDigestAndByteCount
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.rowTranscriptBindsPrimitiveBatchLaneCount
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      batching.proofBytesBindPrimitiveBatchLaneCount
 
 structure ProductAIRRowsNoVerifierBooleanWrapping where
   lowering : ProductTerminalVerifierAIRPrimitiveLowering
-  verifierBooleanRowsRejectedByValidator : Prop
-  boundaryReportAcceptanceRowsRejectedByValidator : Prop
-  stageAcceptedFlagsRejectedByValidator : Prop
-  digestMatchBooleansRejectedWithoutHashOrPublicBinding : Prop
+  verifierBooleanRowsRejectedByValidator :
+    ProductVerifierAIRPredicateImplication
+  boundaryReportAcceptanceRowsRejectedByValidator :
+    ProductVerifierAIRPredicateImplication
+  stageAcceptedFlagsRejectedByValidator :
+    ProductVerifierAIRPredicateImplication
+  digestMatchBooleansRejectedWithoutHashOrPublicBinding :
+    ProductVerifierAIRPredicateImplication
 
 def ProductAIRRowsNoVerifierBooleanWrappingAccepted
     (rows : ProductAIRRowsNoVerifierBooleanWrapping) : Prop :=
   ProductTerminalVerifierAIRPrimitiveLoweringAccepted rows.lowering
-    ∧ rows.verifierBooleanRowsRejectedByValidator
-    ∧ rows.boundaryReportAcceptanceRowsRejectedByValidator
-    ∧ rows.stageAcceptedFlagsRejectedByValidator
-    ∧ rows.digestMatchBooleansRejectedWithoutHashOrPublicBinding
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      rows.verifierBooleanRowsRejectedByValidator
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      rows.boundaryReportAcceptanceRowsRejectedByValidator
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      rows.stageAcceptedFlagsRejectedByValidator
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      rows.digestMatchBooleansRejectedWithoutHashOrPublicBinding
 
 structure ProductCEAjtaiPrimitiveConstraintSoundness where
   lowering : ProductTerminalVerifierAIRPrimitiveLowering
-  canonicalCoefficientDecodingSound : Prop
-  moduleRingDimensionChecksSound : Prop
-  ajtaiMatrixVectorMultiplicationSound : Prop
-  commitmentEqualitySound : Prop
-  normAndShapeChecksSound : Prop
-  malformedAlternativeOpeningsRejected : Prop
+  canonicalCoefficientDecodingSound :
+    ProductVerifierAIRPredicateImplication
+  moduleRingDimensionChecksSound : ProductVerifierAIRPredicateImplication
+  ajtaiMatrixVectorMultiplicationSound :
+    ProductVerifierAIRPredicateImplication
+  commitmentEqualitySound : ProductVerifierAIRPredicateImplication
+  normAndShapeChecksSound : ProductVerifierAIRPredicateImplication
+  malformedAlternativeOpeningsRejected :
+    ProductVerifierAIRPredicateImplication
 
 def ProductCEAjtaiPrimitiveConstraintSoundnessAccepted
     (soundness : ProductCEAjtaiPrimitiveConstraintSoundness) : Prop :=
   ProductTerminalVerifierAIRPrimitiveLoweringAccepted soundness.lowering
-    ∧ soundness.canonicalCoefficientDecodingSound
-    ∧ soundness.moduleRingDimensionChecksSound
-    ∧ soundness.ajtaiMatrixVectorMultiplicationSound
-    ∧ soundness.commitmentEqualitySound
-    ∧ soundness.normAndShapeChecksSound
-    ∧ soundness.malformedAlternativeOpeningsRejected
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.canonicalCoefficientDecodingSound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.moduleRingDimensionChecksSound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.ajtaiMatrixVectorMultiplicationSound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.commitmentEqualitySound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.normAndShapeChecksSound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.malformedAlternativeOpeningsRejected
 
 structure ProductPiCCSPiRLCPiDECPrimitiveConstraintSoundness where
   lowering : ProductTerminalVerifierAIRPrimitiveLowering
-  piCCSProjectionAndSumcheckSound : Prop
-  piRLCPublicCoinAndLinearCombinationSound : Prop
-  piRLCPerParentEvaluationPointSound : Prop
-  piDECDecompositionAndRecompositionSound : Prop
-  piDECLowNormAndPublicInputSplitSound : Prop
+  piCCSProjectionAndSumcheckSound :
+    ProductVerifierAIRPredicateImplication
+  piRLCPublicCoinAndLinearCombinationSound :
+    ProductVerifierAIRPredicateImplication
+  piRLCPerParentEvaluationPointSound :
+    ProductVerifierAIRPredicateImplication
+  piDECDecompositionAndRecompositionSound :
+    ProductVerifierAIRPredicateImplication
+  piDECLowNormAndPublicInputSplitSound :
+    ProductVerifierAIRPredicateImplication
 
 def ProductPiCCSPiRLCPiDECPrimitiveConstraintSoundnessAccepted
     (soundness : ProductPiCCSPiRLCPiDECPrimitiveConstraintSoundness) : Prop :=
   ProductTerminalVerifierAIRPrimitiveLoweringAccepted soundness.lowering
-    ∧ soundness.piCCSProjectionAndSumcheckSound
-    ∧ soundness.piRLCPublicCoinAndLinearCombinationSound
-    ∧ soundness.piRLCPerParentEvaluationPointSound
-    ∧ soundness.piDECDecompositionAndRecompositionSound
-    ∧ soundness.piDECLowNormAndPublicInputSplitSound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.piCCSProjectionAndSumcheckSound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.piRLCPublicCoinAndLinearCombinationSound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.piRLCPerParentEvaluationPointSound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.piDECDecompositionAndRecompositionSound
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.piDECLowNormAndPublicInputSplitSound
+
+structure ProductTerminalVerifierAIRNoWitnessEscape where
+  spec : ProductTerminalVerifierAIRSpec
+  arithmetization : ProductTerminalVerifierArithmetization
+  specRejectsExpandedWitness :
+    ProductVerifierAIRPredicateImplication
+  arithRejectsExpandedWitness :
+    ProductVerifierAIRPredicateImplication
+  sourceProofBytesAbsent : ProductVerifierAIRPredicateImplication
+  expandedTraceAbsent : ProductVerifierAIRPredicateImplication
+  sourceFreeAcceptImpliesCompressedProofPath :
+    ProductVerifierAIRPredicateImplication
+  specRejectsExpandedWitnessMatches :
+    specRejectsExpandedWitness =
+      spec.concreteVerifierDoesNotAcceptExpandedWitness
+  arithRejectsExpandedWitnessMatches :
+    arithRejectsExpandedWitness =
+      arithmetization.concreteVerifierRejectsExpandedVerifierWitness
+  sourceProofBytesAbsentMatches :
+    sourceProofBytesAbsent =
+      arithmetization.sourceProofBytesAbsentFromConcreteVerifier
+  expandedTraceAbsentMatches :
+    expandedTraceAbsent =
+      arithmetization.expandedVerifierTraceAbsentFromConcreteVerifier
+  compressedProofPathMatches :
+    sourceFreeAcceptImpliesCompressedProofPath =
+      arithmetization.concreteVerifierConsumesCompressedProofBytes
+
+def ProductTerminalVerifierAIRNoWitnessEscapeAccepted
+    (escape : ProductTerminalVerifierAIRNoWitnessEscape) : Prop :=
+  ProductTerminalVerifierAIRSpecAccepted escape.spec
+    ∧ ProductTerminalVerifierArithmetizationAccepted escape.arithmetization
+    ∧ escape.specRejectsExpandedWitness =
+      escape.spec.concreteVerifierDoesNotAcceptExpandedWitness
+    ∧ escape.arithRejectsExpandedWitness =
+      escape.arithmetization.concreteVerifierRejectsExpandedVerifierWitness
+    ∧ escape.sourceProofBytesAbsent =
+      escape.arithmetization.sourceProofBytesAbsentFromConcreteVerifier
+    ∧ escape.expandedTraceAbsent =
+      escape.arithmetization.expandedVerifierTraceAbsentFromConcreteVerifier
+    ∧ escape.sourceFreeAcceptImpliesCompressedProofPath =
+      escape.arithmetization.concreteVerifierConsumesCompressedProofBytes
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      escape.specRejectsExpandedWitness
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      escape.arithRejectsExpandedWitness
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      escape.sourceProofBytesAbsent
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      escape.expandedTraceAbsent
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      escape.sourceFreeAcceptImpliesCompressedProofPath
+
+structure ProductTerminalVerifierAIRSoundness where
+  spec : ProductTerminalVerifierAIRSpec
+  arithmetization : ProductTerminalVerifierArithmetization
+  exactness : ProductTerminalVerifierAIRConstraintExactness
+  residualCompleteness : ProductTerminalVerifierAIRResidualCompleteness
+  residualSoundness : ProductTerminalVerifierAIRResidualSoundness
+  primitiveLowering : ProductTerminalVerifierAIRPrimitiveLowering
+  primitiveBatching : ProductTerminalVerifierAIRPrimitiveBatching
+  noWitnessEscape : ProductTerminalVerifierAIRNoWitnessEscape
+  zeroResidualImpliesSpecAcceptBit :
+    ProductVerifierAIRPredicateImplication
+  airAcceptBitImpliesNormalTerminalAccept :
+    ProductVerifierAIRPredicateImplication
+  sourceDigestComputationProvenInAIR :
+    ProductVerifierAIRPredicateImplication
+  publicCoinDerivationConstrainedInAIR :
+    ProductVerifierAIRPredicateImplication
+  ceAjtaiArithmeticNotDigestOnly :
+    ProductVerifierAIRPredicateImplication
+  recursiveRelationDigestPublicBoundInAIR :
+    ProductVerifierAIRPredicateImplication
+  exactnessSpecMatches : exactness.spec = spec
+  exactnessArithmetizationMatches :
+    exactness.arithmetization = arithmetization
+  residualCompletenessExactnessMatches :
+    residualCompleteness.exactness = exactness
+  residualSoundnessExactnessMatches :
+    residualSoundness.exactness = exactness
+  primitiveLoweringExactnessMatches :
+    primitiveLowering.exactness = exactness
+  primitiveBatchingLoweringMatches :
+    primitiveBatching.lowering = primitiveLowering
+  noWitnessEscapeSpecMatches : noWitnessEscape.spec = spec
+  noWitnessEscapeArithmetizationMatches :
+    noWitnessEscape.arithmetization = arithmetization
+
+def ProductTerminalVerifierAIRSoundnessAccepted
+    (soundness : ProductTerminalVerifierAIRSoundness) : Prop :=
+  ProductTerminalVerifierAIRSpecAccepted soundness.spec
+    ∧ ProductTerminalVerifierArithmetizationAccepted soundness.arithmetization
+    ∧ ProductTerminalVerifierAIRConstraintExactnessAccepted soundness.exactness
+    ∧ ProductTerminalVerifierAIRResidualCompletenessAccepted
+      soundness.residualCompleteness
+    ∧ ProductTerminalVerifierAIRResidualSoundnessAccepted
+      soundness.residualSoundness
+    ∧ ProductTerminalVerifierAIRPrimitiveLoweringAccepted
+      soundness.primitiveLowering
+    ∧ ProductTerminalVerifierAIRPrimitiveBatchingAccepted
+      soundness.primitiveBatching
+    ∧ ProductTerminalVerifierAIRNoWitnessEscapeAccepted
+      soundness.noWitnessEscape
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.zeroResidualImpliesSpecAcceptBit
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.airAcceptBitImpliesNormalTerminalAccept
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.sourceDigestComputationProvenInAIR
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.publicCoinDerivationConstrainedInAIR
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.ceAjtaiArithmeticNotDigestOnly
+    ∧ ProductVerifierAIRPredicateImplicationAccepted
+      soundness.recursiveRelationDigestPublicBoundInAIR
+    ∧ soundness.exactness.spec = soundness.spec
+    ∧ soundness.exactness.arithmetization = soundness.arithmetization
+    ∧ soundness.residualCompleteness.exactness = soundness.exactness
+    ∧ soundness.residualSoundness.exactness = soundness.exactness
+    ∧ soundness.primitiveLowering.exactness = soundness.exactness
+    ∧ soundness.primitiveBatching.lowering = soundness.primitiveLowering
+    ∧ soundness.noWitnessEscape.spec = soundness.spec
+    ∧ soundness.noWitnessEscape.arithmetization = soundness.arithmetization
 
 structure ProductSourceFreeCompressionImpliesTerminalAcceptance where
   soundness : ProductTerminalVerifierAIRSoundness
   sourceFreeCompressedVerifyAccepts : Prop
   normalTerminalVerifierAcceptsBoundSource : Prop
-  sameVerifierKey : Prop
-  samePublicStatement : Prop
-  sameRecursiveRelationDigest : Prop
-  samePolicy : Prop
-  sameSourceDigest : Prop
-  sameSourceByteCount : Prop
+  sameVerifierKey : ProductVerifierAIRPredicateEquivalence
+  samePublicStatement : ProductVerifierAIRPredicateEquivalence
+  sameRecursiveRelationDigest : ProductVerifierAIRPredicateEquivalence
+  samePolicy : ProductVerifierAIRPredicateEquivalence
+  sameSourceDigest : ProductVerifierAIRPredicateEquivalence
+  sameSourceByteCount : ProductVerifierAIRPredicateEquivalence
 
 def ProductSourceFreeCompressionImpliesTerminalAcceptanceAccepted
     (impl : ProductSourceFreeCompressionImpliesTerminalAcceptance) : Prop :=
   ProductTerminalVerifierAIRSoundnessAccepted impl.soundness
-    ∧ impl.sameVerifierKey
-    ∧ impl.samePublicStatement
-    ∧ impl.sameRecursiveRelationDigest
-    ∧ impl.samePolicy
-    ∧ impl.sameSourceDigest
-    ∧ impl.sameSourceByteCount
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted impl.sameVerifierKey
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted impl.samePublicStatement
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted
+      impl.sameRecursiveRelationDigest
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted impl.samePolicy
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted impl.sameSourceDigest
+    ∧ ProductVerifierAIRPredicateEquivalenceAccepted impl.sameSourceByteCount
     ∧ (impl.sourceFreeCompressedVerifyAccepts →
         impl.normalTerminalVerifierAcceptsBoundSource)
 
@@ -1427,45 +2080,45 @@ structure ProductExtractorLossAccounting where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
   acceptedLayerBounded : Prop
-  sourceFoldExtractorSpecified : Prop
-  terminalSealExtractorSpecified : Prop
-  productEnvelopeExtractorSpecified : Prop
-  recursiveCarryExtractorSpecified : Prop
+  sourceFoldExtractorAccepted : Prop
+  terminalSealExtractorAccepted : Prop
+  productEnvelopeExtractorClosed : Prop
+  recursiveCarryExtractorAccepted : Prop
   perKindExtractorTheorems : ProductPerKindExtractorTheorems
   recursiveCarryChainRootRecurrence :
     ProductRecursiveCarryChainRootRecurrence
   rewindScheduleBoundToTranscript : Prop
   extractorFailureLossAccounted : Prop
-  extractorLossWithinBudget : Prop
+  extractorLossBound : ProductNumericLossTerm
 
 def ProductExtractorLossAccountingAccepted
     (accounting : ProductExtractorLossAccounting) : Prop :=
   accounting.selectedDepth = 3
     ∧ (0 < accounting.selectedDepth)
     ∧ accounting.acceptedLayerBounded
-    ∧ accounting.sourceFoldExtractorSpecified
-    ∧ accounting.terminalSealExtractorSpecified
-    ∧ accounting.productEnvelopeExtractorSpecified
-    ∧ accounting.recursiveCarryExtractorSpecified
+    ∧ accounting.sourceFoldExtractorAccepted
+    ∧ accounting.terminalSealExtractorAccepted
+    ∧ accounting.productEnvelopeExtractorClosed
+    ∧ accounting.recursiveCarryExtractorAccepted
     ∧ ProductPerKindExtractorTheoremsAccepted accounting.perKindExtractorTheorems
     ∧ ProductRecursiveCarryChainRootRecurrenceAccepted
       accounting.recursiveCarryChainRootRecurrence
     ∧ accounting.rewindScheduleBoundToTranscript
     ∧ accounting.extractorFailureLossAccounted
-    ∧ accounting.extractorLossWithinBudget
+    ∧ ProductNumericLossTermAccepted accounting.extractorLossBound
 
 structure ProductExtractorLossClosure where
   acceptedLayerBounded : Prop
   rewindScheduleBoundToTranscript : Prop
   extractorFailureLossAccounted : Prop
-  extractorLossWithinBudget : Prop
+  extractorLossBound : ProductNumericLossTerm
 
 def ProductExtractorLossClosureAccepted
     (closure : ProductExtractorLossClosure) : Prop :=
   closure.acceptedLayerBounded
     ∧ closure.rewindScheduleBoundToTranscript
     ∧ closure.extractorFailureLossAccounted
-    ∧ closure.extractorLossWithinBudget
+    ∧ ProductNumericLossTermAccepted closure.extractorLossBound
 
 def ProductExtractorLossAccounting.ofAcceptedComponents
     (perKindExtractorTheorems : ProductPerKindExtractorTheorems)
@@ -1476,15 +2129,15 @@ def ProductExtractorLossAccounting.ofAcceptedComponents
   selectedDepth := 3
   selectedDepthPositive := show 0 < 3 by decide
   acceptedLayerBounded := closure.acceptedLayerBounded
-  sourceFoldExtractorSpecified :=
+  sourceFoldExtractorAccepted :=
     ProductAcceptedProofKindExtractorAccepted
       perKindExtractorTheorems.fold
-  terminalSealExtractorSpecified :=
+  terminalSealExtractorAccepted :=
     ProductAcceptedProofKindExtractorAccepted
       perKindExtractorTheorems.terminal
-  productEnvelopeExtractorSpecified :=
+  productEnvelopeExtractorClosed :=
     ProductPerKindExtractorTheoremsAccepted perKindExtractorTheorems
-  recursiveCarryExtractorSpecified :=
+  recursiveCarryExtractorAccepted :=
     ProductAcceptedProofKindExtractorAccepted
       perKindExtractorTheorems.recursiveCarryDepthLeThree
   perKindExtractorTheorems := perKindExtractorTheorems
@@ -1492,7 +2145,7 @@ def ProductExtractorLossAccounting.ofAcceptedComponents
   rewindScheduleBoundToTranscript :=
     closure.rewindScheduleBoundToTranscript
   extractorFailureLossAccounted := closure.extractorFailureLossAccounted
-  extractorLossWithinBudget := closure.extractorLossWithinBudget
+  extractorLossBound := closure.extractorLossBound
 
 theorem productExtractorLossAccountingAccepted_of_components
     {perKindExtractorTheorems : ProductPerKindExtractorTheorems}
@@ -1543,6 +2196,23 @@ theorem productExtractorLossAccountingAccepted_of_components
       hExtractorLoss,
       hBudget⟩
 
+structure ProductQROMOracleModelAssumptions where
+  splitOracleModelPinned : Prop
+  hashQROInstantiationAssumptionPinned : Prop
+  idealSplitQROModelPinned : Prop
+  onlineExtractabilityAssumptionPinned : Prop
+  hashModelGapSeparated : Prop
+  hashModelGapZeroInIdealSplitQRO : Prop
+
+def ProductQROMOracleModelAssumptionsAccepted
+    (assumptions : ProductQROMOracleModelAssumptions) : Prop :=
+  assumptions.splitOracleModelPinned
+    ∧ assumptions.hashQROInstantiationAssumptionPinned
+    ∧ assumptions.idealSplitQROModelPinned
+    ∧ assumptions.onlineExtractabilityAssumptionPinned
+    ∧ assumptions.hashModelGapSeparated
+    ∧ assumptions.hashModelGapZeroInIdealSplitQRO
+
 structure ProductHashOracleInstantiation where
   challengeOracleBits : Nat
   bindingOracleBits : Nat
@@ -1554,8 +2224,7 @@ structure ProductHashOracleInstantiation where
   challengeDomainsSeparated : Prop
   bindingDomainsSeparated : Prop
   concreteHashRecommendationPinned : Prop
-  hashQROInstantiationAssumptionPinned : Prop
-  hashQROInstantiationProofProvided : Prop
+  oracleModelAssumptions : ProductQROMOracleModelAssumptions
 
 def ProductHashOracleInstantiationAccepted
     (hashes : ProductHashOracleInstantiation) : Prop :=
@@ -1569,8 +2238,8 @@ def ProductHashOracleInstantiationAccepted
     ∧ hashes.challengeDomainsSeparated
     ∧ hashes.bindingDomainsSeparated
     ∧ hashes.concreteHashRecommendationPinned
-    ∧ hashes.hashQROInstantiationAssumptionPinned
-    ∧ hashes.hashQROInstantiationProofProvided
+    ∧ ProductQROMOracleModelAssumptionsAccepted
+      hashes.oracleModelAssumptions
 
 def ProductFramedEncodingInjective : Prop :=
   Function.Injective proofEnvelopeTranscriptBinding384Encode
@@ -1620,8 +2289,7 @@ def ProductHashOracleInstantiation.ofSerializationFacts
     (splitOraclesPinned : Prop)
     (theoremCriticalBindingsUseHBind : Prop)
     (concreteHashRecommendationPinned : Prop)
-    (hashQROInstantiationAssumptionPinned : Prop)
-    (hashQROInstantiationProofProvided : Prop) :
+    (oracleModelAssumptions : ProductQROMOracleModelAssumptions) :
     ProductHashOracleInstantiation where
   challengeOracleBits := 256
   bindingOracleBits := 384
@@ -1633,27 +2301,24 @@ def ProductHashOracleInstantiation.ofSerializationFacts
   challengeDomainsSeparated := ProductChallengeDomainSeparation
   bindingDomainsSeparated := ProductBindingDomainSeparation
   concreteHashRecommendationPinned := concreteHashRecommendationPinned
-  hashQROInstantiationAssumptionPinned := hashQROInstantiationAssumptionPinned
-  hashQROInstantiationProofProvided := hashQROInstantiationProofProvided
+  oracleModelAssumptions := oracleModelAssumptions
 
 theorem productHashOracleInstantiationAccepted_of_serializationFacts
     {splitOraclesPinned : Prop}
     {theoremCriticalBindingsUseHBind : Prop}
     {concreteHashRecommendationPinned : Prop}
-    {hashQROInstantiationAssumptionPinned : Prop}
-    {hashQROInstantiationProofProvided : Prop}
+    {oracleModelAssumptions : ProductQROMOracleModelAssumptions}
     (hSplitOracles : splitOraclesPinned)
     (hHBind : theoremCriticalBindingsUseHBind)
     (hHashRecommendation : concreteHashRecommendationPinned)
-    (hQROAssumption : hashQROInstantiationAssumptionPinned)
-    (hQROProof : hashQROInstantiationProofProvided) :
+    (hOracleModel :
+      ProductQROMOracleModelAssumptionsAccepted oracleModelAssumptions) :
     ProductHashOracleInstantiationAccepted
       (ProductHashOracleInstantiation.ofSerializationFacts
         splitOraclesPinned
         theoremCriticalBindingsUseHBind
         concreteHashRecommendationPinned
-        hashQROInstantiationAssumptionPinned
-        hashQROInstantiationProofProvided) :=
+        oracleModelAssumptions) :=
   ⟨rfl,
     rfl,
     rfl,
@@ -1664,8 +2329,7 @@ theorem productHashOracleInstantiationAccepted_of_serializationFacts
     productChallengeDomainSeparation,
     productBindingDomainSeparation,
     hHashRecommendation,
-    hQROAssumption,
-    hQROProof⟩
+    hOracleModel⟩
 
 structure ProductInteractiveProtocolDefinitions where
   selectedDepth : Nat
@@ -2024,6 +2688,7 @@ theorem productInteractiveSecurityBounds_from_perKindEvidence
   exact hEvidence
 
 structure ProductQROMTotalLossInstantiated where
+  qromLossBound : ProductNumericLossTerm
   hashModelGapZeroInIdealSplitQRO : Prop
   compilerOverheadWithinBudget : Prop
   qromExtraLossOnly : Prop
@@ -2033,7 +2698,8 @@ structure ProductQROMTotalLossInstantiated where
 
 def ProductQROMTotalLossInstantiatedAccepted
     (loss : ProductQROMTotalLossInstantiated) : Prop :=
-  loss.hashModelGapZeroInIdealSplitQRO
+  ProductNumericLossTermAccepted loss.qromLossBound
+    ∧ loss.hashModelGapZeroInIdealSplitQRO
     ∧ loss.compilerOverheadWithinBudget
     ∧ loss.qromExtraLossOnly
     ∧ loss.collisionLedgerIntegrated
@@ -2218,8 +2884,7 @@ def ProductInstantiatedQROMEvidence.ofSerializationBackedHashAndCollision
     (splitOraclesPinned : Prop)
     (theoremCriticalBindingsUseHBind : Prop)
     (concreteHashRecommendationPinned : Prop)
-    (hashQROInstantiationAssumptionPinned : Prop)
-    (hashQROInstantiationProofProvided : Prop)
+    (oracleModelAssumptions : ProductQROMOracleModelAssumptions)
     (protocolDefinitions : ProductInteractiveProtocolDefinitions)
     (specialSoundnessData : ProductInteractiveSpecialSoundnessData)
     (delayedMessageData : ProductInteractiveDelayedMessageData)
@@ -2240,8 +2905,7 @@ def ProductInstantiatedQROMEvidence.ofSerializationBackedHashAndCollision
       splitOraclesPinned
       theoremCriticalBindingsUseHBind
       concreteHashRecommendationPinned
-      hashQROInstantiationAssumptionPinned
-      hashQROInstantiationProofProvided
+      oracleModelAssumptions
   protocolDefinitions := protocolDefinitions
   specialSoundnessData := specialSoundnessData
   delayedMessageData := delayedMessageData
@@ -2253,8 +2917,7 @@ def ProductInstantiatedQROMEvidence.ofSerializationBackedHashAndCollision
         splitOraclesPinned
         theoremCriticalBindingsUseHBind
         concreteHashRecommendationPinned
-        hashQROInstantiationAssumptionPinned
-        hashQROInstantiationProofProvided)
+        oracleModelAssumptions)
       targetEnumerationPinned
       collisionFormulaPinned
       collisionBoundInstantiated
@@ -2269,8 +2932,7 @@ theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCol
     {splitOraclesPinned : Prop}
     {theoremCriticalBindingsUseHBind : Prop}
     {concreteHashRecommendationPinned : Prop}
-    {hashQROInstantiationAssumptionPinned : Prop}
-    {hashQROInstantiationProofProvided : Prop}
+    {oracleModelAssumptions : ProductQROMOracleModelAssumptions}
     {protocolDefinitions : ProductInteractiveProtocolDefinitions}
     {specialSoundnessData : ProductInteractiveSpecialSoundnessData}
     {delayedMessageData : ProductInteractiveDelayedMessageData}
@@ -2288,8 +2950,8 @@ theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCol
     (hSplitOracles : splitOraclesPinned)
     (hHBind : theoremCriticalBindingsUseHBind)
     (hHashRecommendation : concreteHashRecommendationPinned)
-    (hQROAssumption : hashQROInstantiationAssumptionPinned)
-    (hQROProof : hashQROInstantiationProofProvided)
+    (hOracleModel :
+      ProductQROMOracleModelAssumptionsAccepted oracleModelAssumptions)
     (hProtocols :
       ProductInteractiveProtocolDefinitionsAccepted protocolDefinitions)
     (hSpecialSoundness :
@@ -2316,8 +2978,7 @@ theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCol
         splitOraclesPinned
         theoremCriticalBindingsUseHBind
         concreteHashRecommendationPinned
-        hashQROInstantiationAssumptionPinned
-        hashQROInstantiationProofProvided
+        oracleModelAssumptions
         protocolDefinitions
         specialSoundnessData
         delayedMessageData
@@ -2338,14 +2999,12 @@ theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCol
           splitOraclesPinned
           theoremCriticalBindingsUseHBind
           concreteHashRecommendationPinned
-          hashQROInstantiationAssumptionPinned
-          hashQROInstantiationProofProvided) :=
+          oracleModelAssumptions) :=
     productHashOracleInstantiationAccepted_of_serializationFacts
       hSplitOracles
       hHBind
       hHashRecommendation
-      hQROAssumption
-      hQROProof
+      hOracleModel
   have hCollision :
       ProductQROMCollisionBoundAccepted
         (ProductQROMCollisionBound.ofHashOracleInstantiation
@@ -2353,8 +3012,7 @@ theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCol
             splitOraclesPinned
             theoremCriticalBindingsUseHBind
             concreteHashRecommendationPinned
-            hashQROInstantiationAssumptionPinned
-            hashQROInstantiationProofProvided)
+            oracleModelAssumptions)
           targetEnumerationPinned
           collisionFormulaPinned
           collisionBoundInstantiated
@@ -2411,7 +3069,7 @@ def ProductSelectedDepthLossLedger.ofAcceptedComponents
       recursiveCarryChainRootRecurrence
   constantTimeSideChannelEvidenceClosed :=
     closure.constantTimeSideChannelEvidenceClosed
-  totalLossWithinBudget := closure.totalLossWithinBudget
+  selectedDepthTotalLoss := closure.selectedDepthTotalLoss
 
 theorem productSelectedDepthLossLedgerAccepted_of_components
     {perKindExtractorTheorems : ProductPerKindExtractorTheorems}
@@ -2639,7 +3297,6 @@ structure ProductPublicCoinTransformPreconditions where
   underlyingInteractiveSecurityBoundInstantiated : Prop
   quantumOracleQueryBoundInstantiated : Prop
   qromReductionLossInstantiated : Prop
-  transformSoundnessTheoremApplies : Prop
 
 def ProductPublicCoinTransformPreconditionsAccepted
     (preconditions : ProductPublicCoinTransformPreconditions) : Prop :=
@@ -2655,15 +3312,13 @@ def ProductPublicCoinTransformPreconditionsAccepted
     ∧ preconditions.underlyingInteractiveSecurityBoundInstantiated
     ∧ preconditions.quantumOracleQueryBoundInstantiated
     ∧ preconditions.qromReductionLossInstantiated
-    ∧ preconditions.transformSoundnessTheoremApplies
 
 def ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
     (evidence : ProductInstantiatedQROMEvidence)
     (schedule : ProductPublicCoinTranscriptSchedule)
     (theoremFamilyPinned : Prop)
     (challengeSpaceAndUniformityPinned : Prop)
-    (qromReductionLossInstantiated : Prop)
-    (transformSoundnessTheoremApplies : Prop) :
+    (qromReductionLossInstantiated : Prop) :
     ProductPublicCoinTransformPreconditions where
   selectedDepth := 3
   selectedDepthPositive := show 0 < 3 by decide
@@ -2684,7 +3339,6 @@ def ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
   quantumOracleQueryBoundInstantiated :=
     ProductQROMCollisionBoundAccepted evidence.collisionBound
   qromReductionLossInstantiated := qromReductionLossInstantiated
-  transformSoundnessTheoremApplies := transformSoundnessTheoremApplies
 
 theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
     {evidence : ProductInstantiatedQROMEvidence}
@@ -2694,19 +3348,16 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
     {theoremFamilyPinned : Prop}
     {challengeSpaceAndUniformityPinned : Prop}
     {qromReductionLossInstantiated : Prop}
-    {transformSoundnessTheoremApplies : Prop}
     (hFamily : theoremFamilyPinned)
     (hUniformity : challengeSpaceAndUniformityPinned)
-    (hReductionLoss : qromReductionLossInstantiated)
-    (hTransformTheorem : transformSoundnessTheoremApplies) :
+    (hReductionLoss : qromReductionLossInstantiated) :
     ProductPublicCoinTransformPreconditionsAccepted
       (ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
         evidence
         schedule
         theoremFamilyPinned
         challengeSpaceAndUniformityPinned
-        qromReductionLossInstantiated
-        transformSoundnessTheoremApplies) := by
+        qromReductionLossInstantiated) := by
   rcases hEvidence with
     ⟨hHash,
       hProtocols,
@@ -2777,8 +3428,7 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
       hScheduleAccepted,
       hInteractive,
       hCollision,
-      hReductionLoss,
-      hTransformTheorem⟩
+      hReductionLoss⟩
 
 structure ProductQROMInteractiveReduction where
   selectedDepth : Nat
@@ -2794,7 +3444,6 @@ structure ProductQROMInteractiveReduction where
   numericSelectedLossInstantiated : Prop
   underlyingInteractiveSecurityInstantiated : Prop
   totalLossBudgetInterfacePinned : Prop
-  qromReductionTheoremApplies : Prop
 
 def ProductQROMInteractiveReductionAccepted
     (reduction : ProductQROMInteractiveReduction) : Prop :=
@@ -2811,15 +3460,13 @@ def ProductQROMInteractiveReductionAccepted
     ∧ reduction.numericSelectedLossInstantiated
     ∧ reduction.underlyingInteractiveSecurityInstantiated
     ∧ reduction.totalLossBudgetInterfacePinned
-    ∧ reduction.qromReductionTheoremApplies
 
 def ProductQROMInteractiveReduction.ofTransformPreconditions
     (preconditions : ProductPublicCoinTransformPreconditions)
     (challengeCountFormulasPinned : Prop)
     (dfm20LossFormulaPinned : Prop)
     (numericSelectedLossInstantiated : Prop)
-    (totalLossBudgetInterfacePinned : Prop)
-    (qromReductionTheoremApplies : Prop) :
+    (totalLossBudgetInterfacePinned : Prop) :
     ProductQROMInteractiveReduction where
   selectedDepth := 3
   selectedDepthPositive := show 0 < 3 by decide
@@ -2841,7 +3488,6 @@ def ProductQROMInteractiveReduction.ofTransformPreconditions
   underlyingInteractiveSecurityInstantiated :=
     preconditions.underlyingInteractiveSecurityBoundInstantiated
   totalLossBudgetInterfacePinned := totalLossBudgetInterfacePinned
-  qromReductionTheoremApplies := qromReductionTheoremApplies
 
 theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
     {preconditions : ProductPublicCoinTransformPreconditions}
@@ -2851,20 +3497,17 @@ theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
     {dfm20LossFormulaPinned : Prop}
     {numericSelectedLossInstantiated : Prop}
     {totalLossBudgetInterfacePinned : Prop}
-    {qromReductionTheoremApplies : Prop}
     (hChallengeCounts : challengeCountFormulasPinned)
     (hDFM20Formula : dfm20LossFormulaPinned)
     (hNumericLoss : numericSelectedLossInstantiated)
-    (hBudgetInterface : totalLossBudgetInterfacePinned)
-    (hQROMTheorem : qromReductionTheoremApplies) :
+    (hBudgetInterface : totalLossBudgetInterfacePinned) :
     ProductQROMInteractiveReductionAccepted
       (ProductQROMInteractiveReduction.ofTransformPreconditions
         preconditions
         challengeCountFormulasPinned
         dfm20LossFormulaPinned
         numericSelectedLossInstantiated
-        totalLossBudgetInterfacePinned
-        qromReductionTheoremApplies) := by
+        totalLossBudgetInterfacePinned) := by
   rcases hPreconditions with
     ⟨_,
       _,
@@ -2877,7 +3520,6 @@ theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
       _,
       hInteractive,
       hQueries,
-      _,
       _⟩
   exact
     ⟨rfl,
@@ -2892,8 +3534,56 @@ theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
       hDFM20Formula,
       hNumericLoss,
       hInteractive,
-      hBudgetInterface,
-      hQROMTheorem⟩
+      hBudgetInterface⟩
+
+structure ProductQROMReductionTheorem where
+  transcriptSchedule : ProductPublicCoinTranscriptSchedule
+  transformPreconditions : ProductPublicCoinTransformPreconditions
+  interactiveBounds : ProductInteractiveSecurityBounds
+  exactFiniteProbabilityWiring : ProductExactFiniteProbabilityWiring
+  oracleModelAssumptions : ProductQROMOracleModelAssumptions
+  interactiveReduction : ProductQROMInteractiveReduction
+  reductionLossBound : ProductNumericLossTerm
+  transcriptScheduleAccepted :
+    ProductPublicCoinTranscriptScheduleAccepted transcriptSchedule
+  transformPreconditionsAccepted :
+    ProductPublicCoinTransformPreconditionsAccepted transformPreconditions
+  interactiveBoundsAccepted :
+    ProductInteractiveSecurityBoundsAccepted interactiveBounds
+  exactFiniteProbabilityWiringAccepted :
+    ProductExactFiniteProbabilityWiringAccepted exactFiniteProbabilityWiring
+  oracleModelAssumptionsAccepted :
+    ProductQROMOracleModelAssumptionsAccepted oracleModelAssumptions
+  interactiveReductionAccepted :
+    ProductQROMInteractiveReductionAccepted interactiveReduction
+  reductionLossBoundAccepted :
+    ProductNumericLossTermAccepted reductionLossBound
+
+def ProductQROMReductionTheoremAccepted
+    (theoremRecord : ProductQROMReductionTheorem) : Prop :=
+  ProductPublicCoinTranscriptScheduleAccepted
+      theoremRecord.transcriptSchedule
+    ∧ ProductPublicCoinTransformPreconditionsAccepted
+      theoremRecord.transformPreconditions
+    ∧ ProductInteractiveSecurityBoundsAccepted theoremRecord.interactiveBounds
+    ∧ ProductExactFiniteProbabilityWiringAccepted
+      theoremRecord.exactFiniteProbabilityWiring
+    ∧ ProductQROMOracleModelAssumptionsAccepted
+      theoremRecord.oracleModelAssumptions
+    ∧ ProductQROMInteractiveReductionAccepted
+      theoremRecord.interactiveReduction
+    ∧ ProductNumericLossTermAccepted theoremRecord.reductionLossBound
+
+theorem ProductQROMReductionTheorem.accepted
+    (theoremRecord : ProductQROMReductionTheorem) :
+    ProductQROMReductionTheoremAccepted theoremRecord :=
+  ⟨theoremRecord.transcriptScheduleAccepted,
+    theoremRecord.transformPreconditionsAccepted,
+    theoremRecord.interactiveBoundsAccepted,
+    theoremRecord.exactFiniteProbabilityWiringAccepted,
+    theoremRecord.oracleModelAssumptionsAccepted,
+    theoremRecord.interactiveReductionAccepted,
+    theoremRecord.reductionLossBoundAccepted⟩
 
 structure ProductPublicCoinLossAccounting where
   selectedDepth : Nat
@@ -2905,7 +3595,7 @@ structure ProductPublicCoinLossAccounting where
   transcriptDomainSeparatorsBound : Prop
   proofKindSeparationBound : Prop
   transcriptCollisionMalleabilityExcluded : Prop
-  qromLossWithinBudget : Prop
+  qromLossBound : ProductNumericLossTerm
 
 def ProductPublicCoinLossAccountingAccepted
     (accounting : ProductPublicCoinLossAccounting) : Prop :=
@@ -2918,7 +3608,7 @@ def ProductPublicCoinLossAccountingAccepted
     ∧ accounting.transcriptDomainSeparatorsBound
     ∧ accounting.proofKindSeparationBound
     ∧ accounting.transcriptCollisionMalleabilityExcluded
-    ∧ accounting.qromLossWithinBudget
+    ∧ ProductNumericLossTermAccepted accounting.qromLossBound
 
 def ProductPublicCoinLossAccounting.ofInstantiatedQROM
     (evidence : ProductInstantiatedQROMEvidence) :
@@ -2940,8 +3630,7 @@ def ProductPublicCoinLossAccounting.ofInstantiatedQROM
     evidence.hashInstantiation.proofKindBytesInjective
   transcriptCollisionMalleabilityExcluded :=
     ProductQROMMalleabilityBoundAccepted evidence.malleabilityBound
-  qromLossWithinBudget :=
-    ProductQROMTotalLossInstantiatedAccepted evidence.totalLoss
+  qromLossBound := evidence.totalLoss.qromLossBound
 
 theorem productPublicCoinLossAccountingAccepted_of_instantiatedQROM
     {evidence : ProductInstantiatedQROMEvidence}
@@ -2984,7 +3673,318 @@ theorem productPublicCoinLossAccountingAccepted_of_instantiatedQROM
       ⟨hChallengeDomains, hBindingDomains⟩,
       hProofKindBytes,
       hMalleability,
-      hLoss⟩
+      hLoss.1⟩
+
+inductive ProductTotalLossTermKind where
+  | selectedDepth
+  | publicCoinQROM
+  | extractor
+  | recursiveCarry
+  | zkSimulator
+  | productOperationsReplay
+  | primitiveBatchCancellation
+  | qromCompilerOverhead
+  | hashCollision
+  | auxiliary
+  deriving DecidableEq, Fintype, Repr
+
+def ProductTotalLossRequiredTerms : Finset ProductTotalLossTermKind :=
+  Finset.univ
+
+structure ProductTotalLossTermLedger where
+  selectedDepth : ProductNumericLossTerm
+  publicCoinQROM : ProductNumericLossTerm
+  extractor : ProductNumericLossTerm
+  recursiveCarry : ProductNumericLossTerm
+  zkSimulator : ProductNumericLossTerm
+  productOperationsReplay : ProductNumericLossTerm
+  primitiveBatchCancellation : ProductNumericLossTerm
+  qromCompilerOverhead : ProductNumericLossTerm
+  hashCollision : ProductNumericLossTerm
+  auxiliary : ProductNumericLossTerm
+
+def ProductTotalLossTermLedger.valueTotal
+    (terms : ProductTotalLossTermLedger) : ℚ :=
+  terms.selectedDepth.value
+    + terms.publicCoinQROM.value
+    + terms.extractor.value
+    + terms.recursiveCarry.value
+    + terms.zkSimulator.value
+    + terms.productOperationsReplay.value
+    + terms.primitiveBatchCancellation.value
+    + terms.qromCompilerOverhead.value
+    + terms.hashCollision.value
+    + terms.auxiliary.value
+
+def ProductTotalLossTermLedger.budgetTotal
+    (terms : ProductTotalLossTermLedger) : ℚ :=
+  terms.selectedDepth.budget
+    + terms.publicCoinQROM.budget
+    + terms.extractor.budget
+    + terms.recursiveCarry.budget
+    + terms.zkSimulator.budget
+    + terms.productOperationsReplay.budget
+    + terms.primitiveBatchCancellation.budget
+    + terms.qromCompilerOverhead.budget
+    + terms.hashCollision.budget
+    + terms.auxiliary.budget
+
+def ProductTotalLossTermLedger.errorBudgetSliceTotal
+    (terms : ProductTotalLossTermLedger) : ℚ :=
+  terms.selectedDepth.budget
+    + terms.publicCoinQROM.budget
+    + terms.extractor.budget
+    + terms.hashCollision.budget
+
+def ProductTotalLossTermLedgerAccepted
+    (terms : ProductTotalLossTermLedger) : Prop :=
+  ProductNumericLossTermAccepted terms.selectedDepth
+    ∧ ProductNumericLossTermAccepted terms.publicCoinQROM
+    ∧ ProductNumericLossTermAccepted terms.extractor
+    ∧ ProductNumericLossTermAccepted terms.recursiveCarry
+    ∧ ProductNumericLossTermAccepted terms.zkSimulator
+    ∧ ProductNumericLossTermAccepted terms.productOperationsReplay
+    ∧ ProductNumericLossTermAccepted terms.primitiveBatchCancellation
+    ∧ ProductNumericLossTermAccepted terms.qromCompilerOverhead
+    ∧ ProductNumericLossTermAccepted terms.hashCollision
+    ∧ ProductNumericLossTermAccepted terms.auxiliary
+
+theorem ProductTotalLossTermLedger.accepted
+    (terms : ProductTotalLossTermLedger) :
+    ProductTotalLossTermLedgerAccepted terms := by
+  exact
+    ⟨terms.selectedDepth.accepted,
+      terms.publicCoinQROM.accepted,
+      terms.extractor.accepted,
+      terms.recursiveCarry.accepted,
+      terms.zkSimulator.accepted,
+      terms.productOperationsReplay.accepted,
+      terms.primitiveBatchCancellation.accepted,
+      terms.qromCompilerOverhead.accepted,
+      terms.hashCollision.accepted,
+      terms.auxiliary.accepted⟩
+
+theorem ProductTotalLossTermLedger.valueTotal_le_budgetTotal
+    (terms : ProductTotalLossTermLedger) :
+    terms.valueTotal ≤ terms.budgetTotal := by
+  unfold ProductTotalLossTermLedger.valueTotal
+  unfold ProductTotalLossTermLedger.budgetTotal
+  linarith
+    [terms.selectedDepth.withinBudget,
+      terms.publicCoinQROM.withinBudget,
+      terms.extractor.withinBudget,
+      terms.recursiveCarry.withinBudget,
+      terms.zkSimulator.withinBudget,
+      terms.productOperationsReplay.withinBudget,
+      terms.primitiveBatchCancellation.withinBudget,
+      terms.qromCompilerOverhead.withinBudget,
+      terms.hashCollision.withinBudget,
+      terms.auxiliary.withinBudget]
+
+structure ProductTotalLossCertificate where
+  selectedDepth : Nat
+  selectedDepthPinned : selectedDepth = 3
+  selectedDepthPerLayerNumerator : Nat
+  selectedDepthFixedNumerator : Nat
+  selectedDepthNumerator : Nat
+  selectedDepthDenominator : Nat
+  selectedDepthDenominatorPositive : 0 < selectedDepthDenominator
+  terms : ProductTotalLossTermLedger
+  selectedDepthNumerator_eq :
+    selectedDepthNumerator =
+      selectedDepthLossNumerator
+        selectedDepth
+        selectedDepthPerLayerNumerator
+        selectedDepthFixedNumerator
+  selectedDepthTerm_eq :
+    terms.selectedDepth.value =
+      (selectedDepthNumerator : ℚ) / (selectedDepthDenominator : ℚ)
+  errorBudget : SuperNeoErrorBudget
+  errorBudgetTotal_eq :
+    errorBudget.total = terms.errorBudgetSliceTotal
+  totalValue : ℚ
+  totalBudget : ℚ
+  totalValue_eq : totalValue = terms.valueTotal
+  totalBudget_eq : totalBudget = terms.budgetTotal
+  coveredTerms : Finset ProductTotalLossTermKind
+  requiredTermsCovered : ProductTotalLossRequiredTerms ⊆ coveredTerms
+  missingRequiredTerms : Finset ProductTotalLossTermKind
+  missingRequiredTerms_eq :
+    missingRequiredTerms = ProductTotalLossRequiredTerms \ coveredTerms
+  missingRequiredTerms_empty : missingRequiredTerms = ∅
+  claimedBudget : ℚ
+  totalBudgetWithinClaimedBudget : totalBudget ≤ claimedBudget
+
+def ProductTotalLossCertificateAccepted
+    (certificate : ProductTotalLossCertificate) : Prop :=
+  certificate.selectedDepth = 3
+    ∧ 0 < certificate.selectedDepth
+    ∧ 0 < certificate.selectedDepthDenominator
+    ∧ ProductTotalLossTermLedgerAccepted certificate.terms
+    ∧ certificate.selectedDepthNumerator =
+      selectedDepthLossNumerator
+        certificate.selectedDepth
+        certificate.selectedDepthPerLayerNumerator
+        certificate.selectedDepthFixedNumerator
+    ∧ certificate.terms.selectedDepth.value =
+      (certificate.selectedDepthNumerator : ℚ) /
+        (certificate.selectedDepthDenominator : ℚ)
+    ∧ certificate.errorBudget.total =
+      certificate.terms.errorBudgetSliceTotal
+    ∧ certificate.totalValue = certificate.terms.valueTotal
+    ∧ certificate.totalBudget = certificate.terms.budgetTotal
+    ∧ ProductTotalLossRequiredTerms ⊆ certificate.coveredTerms
+    ∧ certificate.missingRequiredTerms =
+      ProductTotalLossRequiredTerms \ certificate.coveredTerms
+    ∧ certificate.missingRequiredTerms = ∅
+    ∧ certificate.totalBudget ≤ certificate.claimedBudget
+    ∧ certificate.totalValue ≤ certificate.claimedBudget
+
+theorem ProductTotalLossCertificate.accepted
+    (certificate : ProductTotalLossCertificate) :
+    ProductTotalLossCertificateAccepted certificate := by
+  have hDepthPositive : 0 < certificate.selectedDepth := by
+    rw [certificate.selectedDepthPinned]
+    decide
+  have hValueWithinBudget :
+      certificate.totalValue ≤ certificate.totalBudget := by
+    rw [certificate.totalValue_eq, certificate.totalBudget_eq]
+    exact ProductTotalLossTermLedger.valueTotal_le_budgetTotal
+      certificate.terms
+  exact
+    ⟨certificate.selectedDepthPinned,
+      hDepthPositive,
+      certificate.selectedDepthDenominatorPositive,
+      ProductTotalLossTermLedger.accepted certificate.terms,
+      certificate.selectedDepthNumerator_eq,
+      certificate.selectedDepthTerm_eq,
+      certificate.errorBudgetTotal_eq,
+      certificate.totalValue_eq,
+      certificate.totalBudget_eq,
+      certificate.requiredTermsCovered,
+      certificate.missingRequiredTerms_eq,
+      certificate.missingRequiredTerms_empty,
+      certificate.totalBudgetWithinClaimedBudget,
+      le_trans hValueWithinBudget
+        certificate.totalBudgetWithinClaimedBudget⟩
+
+theorem ProductTotalLossCertificate.fiatShamirProbability_le_selectedDepthTerm
+    {pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength : Nat}
+    (certificate : ProductTotalLossCertificate)
+    (pirlcBadSeeds : Finset (PiRLCChallengeSeed pirlcCount))
+    (piccsBadSeeds : Finset (Fin piccsRoundCount → GoldilocksExt2))
+    (terminalCEBadSeeds :
+      Finset (Fin terminalCERoundCount → CEOpeningChallengeSymbol))
+    (transcriptBadSeeds : Finset (TranscriptSeedDomain transcriptByteLength))
+    (budget : SuperNeoFiatShamirFiberBudget)
+    (hPiRLC :
+      ∀ target, target ∈ pirlcBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirPirlcSeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.pirlc)
+    (hPiCCS :
+      ∀ target, target ∈ piccsBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirPiccsSeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.piccs)
+    (hTerminalCE :
+      ∀ target, target ∈ terminalCEBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirTerminalCESeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.terminalCE)
+    (hTranscript :
+      ∀ target, target ∈ transcriptBadSeeds →
+        (fiatShamirProjectionFiber
+          (superNeoFiatShamirTranscriptSeed
+            pirlcCount piccsRoundCount terminalCERoundCount transcriptByteLength)
+          target).card ≤
+          budget.transcript)
+    (hNumerator :
+      superNeoFiatShamirProbabilityBudgetNumerator
+        budget
+        pirlcBadSeeds
+        piccsBadSeeds
+        terminalCEBadSeeds
+        transcriptBadSeeds ≤ certificate.selectedDepthNumerator)
+    (hDenominator :
+      certificate.selectedDepthDenominator =
+        superNeoFiatShamirProbabilityDenominator
+          pirlcCount
+          piccsRoundCount
+          terminalCERoundCount
+          transcriptByteLength) :
+    superNeoFiatShamirProbability
+      (superNeoFiatShamirBadTranscriptSeeds
+        pirlcBadSeeds
+        piccsBadSeeds
+        terminalCEBadSeeds
+        transcriptBadSeeds) ≤
+      certificate.terms.selectedDepth.value := by
+  have hSelectedNumerator :
+      superNeoFiatShamirProbabilityBudgetNumerator
+        budget
+        pirlcBadSeeds
+        piccsBadSeeds
+        terminalCEBadSeeds
+        transcriptBadSeeds ≤
+        selectedDepthLossNumerator
+          certificate.selectedDepth
+          certificate.selectedDepthPerLayerNumerator
+          certificate.selectedDepthFixedNumerator := by
+    simpa [certificate.selectedDepthNumerator_eq] using hNumerator
+  have hProbability :=
+    superneo_fiatShamirProbability_le_selectedDepthLoss
+      pirlcBadSeeds
+      piccsBadSeeds
+      terminalCEBadSeeds
+      transcriptBadSeeds
+      budget
+      hPiRLC
+      hPiCCS
+      hTerminalCE
+      hTranscript
+      hSelectedNumerator
+  calc
+    superNeoFiatShamirProbability
+        (superNeoFiatShamirBadTranscriptSeeds
+          pirlcBadSeeds
+          piccsBadSeeds
+          terminalCEBadSeeds
+          transcriptBadSeeds)
+        ≤
+        (selectedDepthLossNumerator
+          certificate.selectedDepth
+          certificate.selectedDepthPerLayerNumerator
+          certificate.selectedDepthFixedNumerator : ℚ) /
+          (superNeoFiatShamirProbabilityDenominator
+            pirlcCount
+            piccsRoundCount
+            terminalCERoundCount
+            transcriptByteLength : ℚ) := hProbability
+    _ =
+        (certificate.selectedDepthNumerator : ℚ) /
+          (certificate.selectedDepthDenominator : ℚ) := by
+          rw [← certificate.selectedDepthNumerator_eq, hDenominator]
+    _ = certificate.terms.selectedDepth.value :=
+      certificate.selectedDepthTerm_eq.symm
+
+structure ProductTotalLossClosure where
+  certificate : ProductTotalLossCertificate
+
+def ProductTotalLossClosureAccepted
+    (closure : ProductTotalLossClosure) : Prop :=
+  ProductTotalLossCertificateAccepted closure.certificate
+
+theorem ProductTotalLossClosure.accepted
+    (closure : ProductTotalLossClosure) :
+    ProductTotalLossClosureAccepted closure :=
+  ProductTotalLossCertificate.accepted closure.certificate
 
 structure ProductTotalLossBudget where
   selectedDepth : Nat
@@ -2994,13 +3994,7 @@ structure ProductTotalLossBudget where
   extractorLedgerTermMappingPinned : Prop
   primitiveBatchCancellationTermIncluded : Prop
   allRequiredTermsInstantiated : Prop
-  missingRequiredTermSetEmpty : Prop
-  selectedDepthLossWithinBudget : Prop
-  totalLossBoundInstantiated : Prop
-
-structure ProductTotalLossClosure where
-  missingRequiredTermSetEmpty : Prop
-  totalLossBoundInstantiated : Prop
+  totalLossCertificate : ProductTotalLossCertificate
 
 def ProductTotalLossBudgetAccepted
     (budget : ProductTotalLossBudget) : Prop :=
@@ -3011,9 +4005,7 @@ def ProductTotalLossBudgetAccepted
     ∧ budget.extractorLedgerTermMappingPinned
     ∧ budget.primitiveBatchCancellationTermIncluded
     ∧ budget.allRequiredTermsInstantiated
-    ∧ budget.missingRequiredTermSetEmpty
-    ∧ budget.selectedDepthLossWithinBudget
-    ∧ budget.totalLossBoundInstantiated
+    ∧ ProductTotalLossCertificateAccepted budget.totalLossCertificate
 
 def ProductTotalLossBudget.ofAcceptedComponents
     (ledger : ProductSelectedDepthLossLedger)
@@ -3036,9 +4028,7 @@ def ProductTotalLossBudget.ofAcceptedComponents
     ProductSelectedDepthLossLedgerAccepted ledger
       ∧ ProductExtractorLossAccountingAccepted extractorAccounting
       ∧ ProductInstantiatedQROMEvidenceAccepted qrom
-  missingRequiredTermSetEmpty := closure.missingRequiredTermSetEmpty
-  selectedDepthLossWithinBudget := ledger.totalLossWithinBudget
-  totalLossBoundInstantiated := closure.totalLossBoundInstantiated
+  totalLossCertificate := closure.certificate
 
 theorem productTotalLossBudgetAccepted_of_components
     {ledger : ProductSelectedDepthLossLedger}
@@ -3050,8 +4040,7 @@ theorem productTotalLossBudgetAccepted_of_components
       ProductExtractorLossAccountingAccepted extractorAccounting)
     (hQROM : ProductInstantiatedQROMEvidenceAccepted qrom)
     (hClosure :
-      closure.missingRequiredTermSetEmpty
-        ∧ closure.totalLossBoundInstantiated) :
+      ProductTotalLossClosureAccepted closure) :
     ProductTotalLossBudgetAccepted
       (ProductTotalLossBudget.ofAcceptedComponents
         ledger
@@ -3067,21 +4056,6 @@ theorem productTotalLossBudgetAccepted_of_components
         ∧ ProductExtractorLossAccountingAccepted extractorAccounting
         ∧ ProductInstantiatedQROMEvidenceAccepted qrom :=
     ⟨hLedger, hExtractorAccounting, hQROM⟩
-  rcases hLedger with
-    ⟨_,
-      _,
-      _,
-      _,
-      _,
-      _,
-      _,
-      _,
-      _,
-      _,
-      _,
-      _,
-      _,
-      hSelectedDepthWithinBudget⟩
   rcases hQROM with
     ⟨_,
       _,
@@ -3121,81 +4095,80 @@ theorem productTotalLossBudgetAccepted_of_components
       hExtractorAccounting,
       hPrimitiveBatch,
       hAllRequired,
-      hClosure.1,
-      hSelectedDepthWithinBudget,
-      hClosure.2⟩
+      hClosure⟩
+
+structure ProductLatticeParameterBounds where
+  qRingDimensionAndNormBound : Prop
+  decompositionAndChallengeParameterBounds : Prop
+  normGrowthAcrossFoldAndNumiSealBound : Prop
+
+def ProductLatticeParameterBoundsAccepted
+    (bounds : ProductLatticeParameterBounds) : Prop :=
+  bounds.qRingDimensionAndNormBound
+    ∧ bounds.decompositionAndChallengeParameterBounds
+    ∧ bounds.normGrowthAcrossFoldAndNumiSealBound
+
+structure ProductLatticeReductionLossBounds where
+  reductionLossBoundInstantiated : Prop
+  reductionLossBoundIncludedInProductLedger : Prop
+
+def ProductLatticeReductionLossBoundsAccepted
+    (bounds : ProductLatticeReductionLossBounds) : Prop :=
+  bounds.reductionLossBoundInstantiated
+    ∧ bounds.reductionLossBoundIncludedInProductLedger
+
+structure ProductLatticeConcreteCostBounds where
+  classicalAttackCostBound : Prop
+  quantumAttackCostBound : Prop
+  parameterSensitivityBound : Prop
+  failureProbabilityBudgetBound : Prop
+
+def ProductLatticeConcreteCostBoundsAccepted
+    (bounds : ProductLatticeConcreteCostBounds) : Prop :=
+  bounds.classicalAttackCostBound
+    ∧ bounds.quantumAttackCostBound
+    ∧ bounds.parameterSensitivityBound
+    ∧ bounds.failureProbabilityBudgetBound
 
 structure ProductLatticeAssumptionDossier where
   moduleSISStatementPinned : Prop
-  qRingDimensionAndNormPinned : Prop
-  decompositionAndChallengeParametersPinned : Prop
-  normGrowthAcrossFoldAndNumiSealPinned : Prop
-  reductionLossAccounted : Prop
-  classicalCostEstimatePinned : Prop
-  quantumCostEstimatePinned : Prop
-  parameterSensitivityRecorded : Prop
-  failureProbabilityBudgetRecorded : Prop
+  parameterBounds : ProductLatticeParameterBounds
+  reductionLossBounds : ProductLatticeReductionLossBounds
+  concreteCostBounds : ProductLatticeConcreteCostBounds
 
 def ProductLatticeAssumptionDossierAccepted
     (dossier : ProductLatticeAssumptionDossier) : Prop :=
   dossier.moduleSISStatementPinned
-    ∧ dossier.qRingDimensionAndNormPinned
-    ∧ dossier.decompositionAndChallengeParametersPinned
-    ∧ dossier.normGrowthAcrossFoldAndNumiSealPinned
-    ∧ dossier.reductionLossAccounted
-    ∧ dossier.classicalCostEstimatePinned
-    ∧ dossier.quantumCostEstimatePinned
-    ∧ dossier.parameterSensitivityRecorded
-    ∧ dossier.failureProbabilityBudgetRecorded
+    ∧ ProductLatticeParameterBoundsAccepted dossier.parameterBounds
+    ∧ ProductLatticeReductionLossBoundsAccepted dossier.reductionLossBounds
+    ∧ ProductLatticeConcreteCostBoundsAccepted dossier.concreteCostBounds
 
 structure ProductLatticeParameterClosure where
-  qRingDimensionAndNormPinned : Prop
-  decompositionAndChallengeParametersPinned : Prop
-  normGrowthAcrossFoldAndNumiSealPinned : Prop
-  reductionLossAccounted : Prop
-  classicalCostEstimatePinned : Prop
-  quantumCostEstimatePinned : Prop
-  parameterSensitivityRecorded : Prop
-  failureProbabilityBudgetRecorded : Prop
+  parameterBounds : ProductLatticeParameterBounds
+  reductionLossBounds : ProductLatticeReductionLossBounds
+  concreteCostBounds : ProductLatticeConcreteCostBounds
 
 def ProductLatticeParameterClosureAccepted
     (closure : ProductLatticeParameterClosure) : Prop :=
-  closure.qRingDimensionAndNormPinned
-    ∧ closure.decompositionAndChallengeParametersPinned
-    ∧ closure.normGrowthAcrossFoldAndNumiSealPinned
-    ∧ closure.reductionLossAccounted
-    ∧ closure.classicalCostEstimatePinned
-    ∧ closure.quantumCostEstimatePinned
-    ∧ closure.parameterSensitivityRecorded
-    ∧ closure.failureProbabilityBudgetRecorded
+  ProductLatticeParameterBoundsAccepted closure.parameterBounds
+    ∧ ProductLatticeReductionLossBoundsAccepted closure.reductionLossBounds
+    ∧ ProductLatticeConcreteCostBoundsAccepted closure.concreteCostBounds
 
 def ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificate
     {columns : Nat}
     {key : CertifiedAjtaiKey columns}
     {bounded : ConcreteAjtaiMessage columns → Prop}
     (certificate : VerifiedAjtaiKernelCertificate key bounded)
-    (qRingDimensionAndNormPinned : Prop)
-    (decompositionAndChallengeParametersPinned : Prop)
-    (normGrowthAcrossFoldAndNumiSealPinned : Prop)
-    (reductionLossAccounted : Prop)
-    (classicalCostEstimatePinned : Prop)
-    (quantumCostEstimatePinned : Prop)
-    (parameterSensitivityRecorded : Prop)
-    (failureProbabilityBudgetRecorded : Prop) :
+    (parameterBounds : ProductLatticeParameterBounds)
+    (reductionLossBounds : ProductLatticeReductionLossBounds)
+    (concreteCostBounds : ProductLatticeConcreteCostBounds) :
     ProductLatticeAssumptionDossier where
   moduleSISStatementPinned :=
     ModuleSISNoShortKernel key.matrix bounded
       ∧ checkAjtaiKernelCertificate key certificate.1
-  qRingDimensionAndNormPinned := qRingDimensionAndNormPinned
-  decompositionAndChallengeParametersPinned :=
-    decompositionAndChallengeParametersPinned
-  normGrowthAcrossFoldAndNumiSealPinned :=
-    normGrowthAcrossFoldAndNumiSealPinned
-  reductionLossAccounted := reductionLossAccounted
-  classicalCostEstimatePinned := classicalCostEstimatePinned
-  quantumCostEstimatePinned := quantumCostEstimatePinned
-  parameterSensitivityRecorded := parameterSensitivityRecorded
-  failureProbabilityBudgetRecorded := failureProbabilityBudgetRecorded
+  parameterBounds := parameterBounds
+  reductionLossBounds := reductionLossBounds
+  concreteCostBounds := concreteCostBounds
 
 def ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificateAndClosure
     {columns : Nat}
@@ -3206,57 +4179,35 @@ def ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificateAndClosure
     ProductLatticeAssumptionDossier :=
   ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificate
     certificate
-    closure.qRingDimensionAndNormPinned
-    closure.decompositionAndChallengeParametersPinned
-    closure.normGrowthAcrossFoldAndNumiSealPinned
-    closure.reductionLossAccounted
-    closure.classicalCostEstimatePinned
-    closure.quantumCostEstimatePinned
-    closure.parameterSensitivityRecorded
-    closure.failureProbabilityBudgetRecorded
+    closure.parameterBounds
+    closure.reductionLossBounds
+    closure.concreteCostBounds
 
 theorem productLatticeAssumptionDossierAccepted_of_verifiedAjtaiKernelCertificate
     {columns : Nat}
     {key : CertifiedAjtaiKey columns}
     {bounded : ConcreteAjtaiMessage columns → Prop}
     (certificate : VerifiedAjtaiKernelCertificate key bounded)
-    {qRingDimensionAndNormPinned : Prop}
-    {decompositionAndChallengeParametersPinned : Prop}
-    {normGrowthAcrossFoldAndNumiSealPinned : Prop}
-    {reductionLossAccounted : Prop}
-    {classicalCostEstimatePinned : Prop}
-    {quantumCostEstimatePinned : Prop}
-    {parameterSensitivityRecorded : Prop}
-    {failureProbabilityBudgetRecorded : Prop}
-    (hQRing : qRingDimensionAndNormPinned)
-    (hDecomposition : decompositionAndChallengeParametersPinned)
-    (hNormGrowth : normGrowthAcrossFoldAndNumiSealPinned)
-    (hReductionLoss : reductionLossAccounted)
-    (hClassicalCost : classicalCostEstimatePinned)
-    (hQuantumCost : quantumCostEstimatePinned)
-    (hSensitivity : parameterSensitivityRecorded)
-    (hFailureBudget : failureProbabilityBudgetRecorded) :
+    {parameterBounds : ProductLatticeParameterBounds}
+    {reductionLossBounds : ProductLatticeReductionLossBounds}
+    {concreteCostBounds : ProductLatticeConcreteCostBounds}
+    (hParameterBounds :
+      ProductLatticeParameterBoundsAccepted parameterBounds)
+    (hReductionLossBounds :
+      ProductLatticeReductionLossBoundsAccepted reductionLossBounds)
+    (hConcreteCostBounds :
+      ProductLatticeConcreteCostBoundsAccepted concreteCostBounds) :
     ProductLatticeAssumptionDossierAccepted
       (ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificate
         certificate
-        qRingDimensionAndNormPinned
-        decompositionAndChallengeParametersPinned
-        normGrowthAcrossFoldAndNumiSealPinned
-        reductionLossAccounted
-        classicalCostEstimatePinned
-        quantumCostEstimatePinned
-        parameterSensitivityRecorded
-        failureProbabilityBudgetRecorded) := by
+        parameterBounds
+        reductionLossBounds
+        concreteCostBounds) := by
   exact
     ⟨⟨verifiedCertificate_noShortKernel certificate, certificate.property⟩,
-      hQRing,
-      hDecomposition,
-      hNormGrowth,
-      hReductionLoss,
-      hClassicalCost,
-      hQuantumCost,
-      hSensitivity,
-      hFailureBudget⟩
+      hParameterBounds,
+      hReductionLossBounds,
+      hConcreteCostBounds⟩
 
 theorem productLatticeAssumptionDossierAccepted_of_verifiedAjtaiKernelCertificateAndClosure
     {columns : Nat}
@@ -3270,25 +4221,13 @@ theorem productLatticeAssumptionDossierAccepted_of_verifiedAjtaiKernelCertificat
         certificate
         closure) := by
   rcases hClosure with
-    ⟨hQRing,
-      hDecomposition,
-      hNormGrowth,
-      hReductionLoss,
-      hClassicalCost,
-      hQuantumCost,
-      hSensitivity,
-      hFailureBudget⟩
+    ⟨hParameterBounds, hReductionLossBounds, hConcreteCostBounds⟩
   exact
     productLatticeAssumptionDossierAccepted_of_verifiedAjtaiKernelCertificate
       certificate
-      hQRing
-      hDecomposition
-      hNormGrowth
-      hReductionLoss
-      hClassicalCost
-      hQuantumCost
-      hSensitivity
-      hFailureBudget
+      hParameterBounds
+      hReductionLossBounds
+      hConcreteCostBounds
 
 structure ProductPublicCoinQROMEvidence where
   interactivePublicCoinProtocolSpecified : Prop
@@ -3297,6 +4236,7 @@ structure ProductPublicCoinQROMEvidence where
   transcriptDomainSeparatorsBound : Prop
   proofKindSeparationBound : Prop
   transcriptCollisionMalleabilityExcluded : Prop
+  qromReductionTheorem : ProductQROMReductionTheorem
 
 def ProductPublicCoinQROMAccepted
     (evidence : ProductPublicCoinQROMEvidence) : Prop :=
@@ -3306,9 +4246,11 @@ def ProductPublicCoinQROMAccepted
     ∧ evidence.transcriptDomainSeparatorsBound
     ∧ evidence.proofKindSeparationBound
     ∧ evidence.transcriptCollisionMalleabilityExcluded
+    ∧ ProductQROMReductionTheoremAccepted evidence.qromReductionTheorem
 
 def ProductPublicCoinQROMEvidence.ofInstantiatedQROM
-    (evidence : ProductInstantiatedQROMEvidence) :
+    (evidence : ProductInstantiatedQROMEvidence)
+    (qromReductionTheorem : ProductQROMReductionTheorem) :
     ProductPublicCoinQROMEvidence where
   interactivePublicCoinProtocolSpecified :=
     ProductInteractiveProtocolDefinitionsAccepted evidence.protocolDefinitions
@@ -3323,12 +4265,18 @@ def ProductPublicCoinQROMEvidence.ofInstantiatedQROM
     evidence.hashInstantiation.proofKindBytesInjective
   transcriptCollisionMalleabilityExcluded :=
     ProductQROMMalleabilityBoundAccepted evidence.malleabilityBound
+  qromReductionTheorem := qromReductionTheorem
 
 theorem productPublicCoinQROMAccepted_of_instantiatedQROM
     {evidence : ProductInstantiatedQROMEvidence}
-    (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence) :
+    (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence)
+    {qromReductionTheorem : ProductQROMReductionTheorem}
+    (hQROMReductionTheorem :
+      ProductQROMReductionTheoremAccepted qromReductionTheorem) :
     ProductPublicCoinQROMAccepted
-      (ProductPublicCoinQROMEvidence.ofInstantiatedQROM evidence) := by
+      (ProductPublicCoinQROMEvidence.ofInstantiatedQROM
+        evidence
+        qromReductionTheorem) := by
   rcases hEvidence with
     ⟨hHash,
       hProtocols,
@@ -3361,7 +4309,8 @@ theorem productPublicCoinQROMAccepted_of_instantiatedQROM
       hCollision,
       ⟨hChallengeDomains, hBindingDomains⟩,
       hProofKindBytes,
-      hMalleability⟩
+      hMalleability,
+      hQROMReductionTheorem⟩
 
 structure ProductSecurityTheoremObligationStatus where
   numiSealProduct : NumiSealProductTheoremObligationStatus
@@ -3406,6 +4355,7 @@ structure ProductSecurityReductionConclusion
     (latticeCertificate : VerifiedAjtaiKernelCertificate key bounded)
     (latticeParameterClosure : ProductLatticeParameterClosure)
     (instantiatedQROM : ProductInstantiatedQROMEvidence)
+    (qromReductionTheorem : ProductQROMReductionTheorem)
     (totalLossClosure : ProductTotalLossClosure) where
   productRelationsHold :
     NumiSealProductKnowledgeCarryPrivacyHolds relations
@@ -3458,7 +4408,9 @@ structure ProductSecurityReductionConclusion
     ProductInstantiatedQROMEvidenceAccepted instantiatedQROM
   publicCoinQROM :
     ProductPublicCoinQROMAccepted
-      (ProductPublicCoinQROMEvidence.ofInstantiatedQROM instantiatedQROM)
+      (ProductPublicCoinQROMEvidence.ofInstantiatedQROM
+        instantiatedQROM
+        qromReductionTheorem)
   publicCoinLossAccounting :
     ProductPublicCoinLossAccountingAccepted
       (ProductPublicCoinLossAccounting.ofInstantiatedQROM instantiatedQROM)
@@ -3497,6 +4449,7 @@ theorem productSecurityTheorem_from_components
     {latticeCertificate : VerifiedAjtaiKernelCertificate key bounded}
     {latticeParameterClosure : ProductLatticeParameterClosure}
     {instantiatedQROM : ProductInstantiatedQROMEvidence}
+    {qromReductionTheorem : ProductQROMReductionTheorem}
     {totalLossClosure : ProductTotalLossClosure}
     (hSystemBindingClosure :
       ProductSystemBindingClosureAccepted systemBindingClosure)
@@ -3513,9 +4466,10 @@ theorem productSecurityTheorem_from_components
       ProductLatticeParameterClosureAccepted latticeParameterClosure)
     (hInstantiatedQROM :
       ProductInstantiatedQROMEvidenceAccepted instantiatedQROM)
+    (hQROMReductionTheorem :
+      ProductQROMReductionTheoremAccepted qromReductionTheorem)
     (hTotalLossClosure :
-      totalLossClosure.missingRequiredTermSetEmpty
-        ∧ totalLossClosure.totalLossBoundInstantiated)
+      ProductTotalLossClosureAccepted totalLossClosure)
     (hProductRelations :
       NumiSealProductKnowledgeCarryPrivacyHolds relations) :
     ProductSecurityReductionConclusion
@@ -3530,6 +4484,7 @@ theorem productSecurityTheorem_from_components
       latticeCertificate
       latticeParameterClosure
       instantiatedQROM
+      qromReductionTheorem
       totalLossClosure :=
   let selectedDepthLedger :=
     ProductSelectedDepthLossLedger.ofAcceptedComponents
@@ -3588,9 +4543,12 @@ theorem productSecurityTheorem_from_components
       hInstantiatedQROM
   have hDerivedPublicCoinQROM :
       ProductPublicCoinQROMAccepted
-        (ProductPublicCoinQROMEvidence.ofInstantiatedQROM instantiatedQROM) :=
+        (ProductPublicCoinQROMEvidence.ofInstantiatedQROM
+          instantiatedQROM
+          qromReductionTheorem) :=
     productPublicCoinQROMAccepted_of_instantiatedQROM
       hInstantiatedQROM
+      hQROMReductionTheorem
   have hDerivedTotalLossBudget :
       ProductTotalLossBudgetAccepted
         (ProductTotalLossBudget.ofAcceptedComponents
@@ -3619,10 +4577,11 @@ theorem productSecurityTheorem_from_components
         perKindExtractorTheorems
         recursiveCarryChainRootRecurrence
         extractorLossClosure
-        latticeCertificate
-        latticeParameterClosure
-        instantiatedQROM
-        totalLossClosure
+          latticeCertificate
+          latticeParameterClosure
+          instantiatedQROM
+          qromReductionTheorem
+          totalLossClosure
     from
       let hEndToEnd := hProductRelations.1
       let hRecursiveKnowledge := hProductRelations.2.1
@@ -3672,7 +4631,7 @@ theorem productSecurityTheorem_requires_selected_depth_loss_accounting
       ∧ ledger.extractorLossInstantiated
       ∧ ledger.publicCoinQROMLossInstantiated
       ∧ ledger.zkSimulatorLossInstantiated
-      ∧ ledger.totalLossWithinBudget := by
+      ∧ ProductNumericLossTermAccepted ledger.selectedDepthTotalLoss := by
   rcases hLedger with
     ⟨hDepth,
       hHops,
@@ -3687,7 +4646,7 @@ theorem productSecurityTheorem_requires_selected_depth_loss_accounting
       hLoadedParent,
       hRecurrence,
       _,
-      hTotal⟩
+      hSelectedDepthTotalLoss⟩
   exact
     ⟨hDepth,
       hHops,
@@ -3696,7 +4655,7 @@ theorem productSecurityTheorem_requires_selected_depth_loss_accounting
       hExtractor,
       hQROM,
       hZKSimulator,
-      hTotal⟩
+      hSelectedDepthTotalLoss⟩
 
 theorem productSecurityTheorem_requires_finite_protocol_numeric_loss_instantiation
     {obstruction : ProductFiniteProtocolNumericLossObstruction}
@@ -3764,16 +4723,16 @@ theorem productSecurityTheorem_dispatcher_reduces_to_fixed_kind
 theorem productSecurityTheorem_requires_extractor_loss_accounting
     {accounting : ProductExtractorLossAccounting}
     (hAccounting : ProductExtractorLossAccountingAccepted accounting) :
-    accounting.sourceFoldExtractorSpecified
-      ∧ accounting.terminalSealExtractorSpecified
-      ∧ accounting.productEnvelopeExtractorSpecified
-      ∧ accounting.recursiveCarryExtractorSpecified
+    accounting.sourceFoldExtractorAccepted
+      ∧ accounting.terminalSealExtractorAccepted
+      ∧ accounting.productEnvelopeExtractorClosed
+      ∧ accounting.recursiveCarryExtractorAccepted
       ∧ ProductPerKindExtractorTheoremsAccepted
         accounting.perKindExtractorTheorems
       ∧ ProductRecursiveCarryChainRootRecurrenceAccepted
         accounting.recursiveCarryChainRootRecurrence
       ∧ accounting.extractorFailureLossAccounted
-      ∧ accounting.extractorLossWithinBudget := by
+      ∧ ProductNumericLossTermAccepted accounting.extractorLossBound := by
   rcases hAccounting with
     ⟨_,
       _,
@@ -3953,6 +4912,7 @@ theorem productSecurityTheorem_from_instantiated_qrom
     ⟨_,
       _,
       _,
+      _,
       hCollisionIntegrated,
       hCryptographicBudget,
       _⟩
@@ -3971,7 +4931,7 @@ theorem productSecurityTheorem_requires_qrom_loss_accounting
       ∧ accounting.qromTransformPreconditionsSatisfied
       ∧ accounting.quantumOracleQueryBoundAccounted
       ∧ accounting.transcriptCollisionMalleabilityExcluded
-      ∧ accounting.qromLossWithinBudget := by
+      ∧ ProductNumericLossTermAccepted accounting.qromLossBound := by
   rcases hAccounting with
     ⟨_,
       _,
@@ -4017,8 +4977,8 @@ theorem productSecurityTheorem_requires_theorem_critical_hbind
       ∧ hashes.bindingTargetEventCount = 11
       ∧ hashes.theoremCriticalBindingsUseHBind
       ∧ hashes.bindingDomainsSeparated
-      ∧ hashes.hashQROInstantiationAssumptionPinned
-      ∧ hashes.hashQROInstantiationProofProvided := by
+      ∧ ProductQROMOracleModelAssumptionsAccepted
+        hashes.oracleModelAssumptions := by
   rcases hHashes with
     ⟨_,
       hBindingBits,
@@ -4030,15 +4990,13 @@ theorem productSecurityTheorem_requires_theorem_critical_hbind
       _,
       hBindingDomains,
       _,
-      hQROAssumption,
-      hQROProof⟩
+      hOracleModel⟩
   exact
     ⟨hBindingBits,
       hTargetCount,
       hHBind,
       hBindingDomains,
-      hQROAssumption,
-      hQROProof⟩
+      hOracleModel⟩
 
 theorem productSecurityTheorem_requires_challenge_tape_expansion
     {expansion : ProductChallengeTapeExpansion}
@@ -4097,8 +5055,7 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
       ∧ preconditions.transcriptScheduleAccepted
       ∧ preconditions.underlyingInteractiveSecurityBoundInstantiated
       ∧ preconditions.quantumOracleQueryBoundInstantiated
-      ∧ preconditions.qromReductionLossInstantiated
-      ∧ preconditions.transformSoundnessTheoremApplies := by
+      ∧ preconditions.qromReductionLossInstantiated := by
   rcases hPreconditions with
     ⟨_,
       _,
@@ -4111,8 +5068,7 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
       hSchedule,
       hInteractiveSecurity,
       hQuantumQueries,
-      hReductionLoss,
-      hTheoremApplies⟩
+      hReductionLoss⟩
   exact
     ⟨hFamily,
       hAcceptedProofKinds,
@@ -4123,8 +5079,7 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
       hSchedule,
       hInteractiveSecurity,
       hQuantumQueries,
-      hReductionLoss,
-      hTheoremApplies⟩
+      hReductionLoss⟩
 
 theorem productSecurityTheorem_requires_qrom_interactive_reduction
     {reduction : ProductQROMInteractiveReduction}
@@ -4139,8 +5094,7 @@ theorem productSecurityTheorem_requires_qrom_interactive_reduction
       ∧ reduction.dfm20LossFormulaPinned
       ∧ reduction.numericSelectedLossInstantiated
       ∧ reduction.underlyingInteractiveSecurityInstantiated
-      ∧ reduction.totalLossBudgetInterfacePinned
-      ∧ reduction.qromReductionTheoremApplies := by
+      ∧ reduction.totalLossBudgetInterfacePinned := by
   rcases hReduction with
     ⟨_,
       _,
@@ -4154,8 +5108,7 @@ theorem productSecurityTheorem_requires_qrom_interactive_reduction
       hFormula,
       hNumericLoss,
       hInteractiveSecurity,
-      hBudget,
-      hTheoremApplies⟩
+      hBudget⟩
   exact
     ⟨hOrder,
       hProtocols,
@@ -4167,8 +5120,7 @@ theorem productSecurityTheorem_requires_qrom_interactive_reduction
       hFormula,
       hNumericLoss,
       hInteractiveSecurity,
-      hBudget,
-      hTheoremApplies⟩
+      hBudget⟩
 
 theorem productSecurityTheorem_requires_qrom_compiler_overhead_bound
     {bound : ProductQROMCompilerOverheadBound}
@@ -4217,9 +5169,8 @@ theorem productSecurityTheorem_requires_total_loss_budget
       ∧ budget.extractorLedgerTermMappingPinned
       ∧ budget.primitiveBatchCancellationTermIncluded
       ∧ budget.allRequiredTermsInstantiated
-      ∧ budget.missingRequiredTermSetEmpty
-      ∧ budget.selectedDepthLossWithinBudget
-      ∧ budget.totalLossBoundInstantiated := by
+      ∧ ProductTotalLossCertificateAccepted
+        budget.totalLossCertificate := by
   exact hBudget
 
 theorem productSecurityTheorem_requires_exact_finite_probability_wiring
