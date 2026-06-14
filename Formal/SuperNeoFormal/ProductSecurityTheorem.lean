@@ -5,6 +5,7 @@ import SuperNeoFormal.ErrorLedger
 import SuperNeoFormal.PiCCSFiniteSoundness
 import SuperNeoFormal.CertifiedAjtai
 import SuperNeoFormal.PrimitiveVerifierConstraints
+import SuperNeoFormal.QuantumRandomOracle
 import SuperNeoFormal.WellFormedTranscript
 
 /-!
@@ -2196,28 +2197,85 @@ theorem productExtractorLossAccountingAccepted_of_components
       hExtractorLoss,
       hBudget⟩
 
+structure ProductIdealSplitQROModel where
+  challengeOracle : ProductQROSemanticBundle
+  bindingOracle : ProductQROSemanticBundle
+
+def ProductIdealSplitQROModelAccepted
+    (model : ProductIdealSplitQROModel) : Prop :=
+  ProductQROSemanticBundleAccepted model.challengeOracle
+    ∧ ProductQROSemanticBundleAccepted model.bindingOracle
+
+theorem ProductIdealSplitQROModel.accepted
+    (model : ProductIdealSplitQROModel) :
+    ProductIdealSplitQROModelAccepted model :=
+  ⟨model.challengeOracle.accepted, model.bindingOracle.accepted⟩
+
+structure ProductOnlineExtractabilityAssumption where
+  queryBoundQHLog2 : Nat
+  queryBoundMatchesProduct : queryBoundQHLog2 = 64
+  extractorProgrammingLoss : ProductNumericLossTerm
+
+def ProductOnlineExtractabilityAssumptionAccepted
+    (assumption : ProductOnlineExtractabilityAssumption) : Prop :=
+  assumption.queryBoundQHLog2 = 64
+    ∧ ProductNumericLossTermAccepted assumption.extractorProgrammingLoss
+
+theorem ProductOnlineExtractabilityAssumption.accepted
+    (assumption : ProductOnlineExtractabilityAssumption) :
+    ProductOnlineExtractabilityAssumptionAccepted assumption :=
+  ⟨assumption.queryBoundMatchesProduct,
+    assumption.extractorProgrammingLoss.accepted⟩
+
+structure ProductHashModelGapCertificate where
+  idealSplitGap : ProductNumericLossTerm
+  idealSplitGapValueZero : idealSplitGap.value = 0
+  idealSplitGapBudgetZero : idealSplitGap.budget = 0
+  concreteModelGap : ProductNumericLossTerm
+
+def ProductHashModelGapCertificateAccepted
+    (certificate : ProductHashModelGapCertificate) : Prop :=
+  ProductNumericLossTermAccepted certificate.idealSplitGap
+    ∧ certificate.idealSplitGap.value = 0
+    ∧ certificate.idealSplitGap.budget = 0
+    ∧ ProductNumericLossTermAccepted certificate.concreteModelGap
+
+theorem ProductHashModelGapCertificate.accepted
+    (certificate : ProductHashModelGapCertificate) :
+    ProductHashModelGapCertificateAccepted certificate :=
+  ⟨certificate.idealSplitGap.accepted,
+    certificate.idealSplitGapValueZero,
+    certificate.idealSplitGapBudgetZero,
+    certificate.concreteModelGap.accepted⟩
+
 structure ProductQROMOracleModelAssumptions where
-  splitOracleModelPinned : Prop
-  hashQROInstantiationAssumptionPinned : Prop
-  idealSplitQROModelPinned : Prop
-  onlineExtractabilityAssumptionPinned : Prop
-  hashModelGapSeparated : Prop
-  hashModelGapZeroInIdealSplitQRO : Prop
+  splitOracleModel : ProductIdealSplitQROModel
+  hashQROInstantiationModel : ProductIdealSplitQROModel
+  onlineExtractability : ProductOnlineExtractabilityAssumption
+  hashModelGap : ProductHashModelGapCertificate
 
 def ProductQROMOracleModelAssumptionsAccepted
     (assumptions : ProductQROMOracleModelAssumptions) : Prop :=
-  assumptions.splitOracleModelPinned
-    ∧ assumptions.hashQROInstantiationAssumptionPinned
-    ∧ assumptions.idealSplitQROModelPinned
-    ∧ assumptions.onlineExtractabilityAssumptionPinned
-    ∧ assumptions.hashModelGapSeparated
-    ∧ assumptions.hashModelGapZeroInIdealSplitQRO
+  ProductIdealSplitQROModelAccepted assumptions.splitOracleModel
+    ∧ ProductIdealSplitQROModelAccepted
+      assumptions.hashQROInstantiationModel
+    ∧ ProductOnlineExtractabilityAssumptionAccepted
+      assumptions.onlineExtractability
+    ∧ ProductHashModelGapCertificateAccepted assumptions.hashModelGap
+
+theorem ProductQROMOracleModelAssumptions.accepted
+    (assumptions : ProductQROMOracleModelAssumptions) :
+    ProductQROMOracleModelAssumptionsAccepted assumptions :=
+  ⟨assumptions.splitOracleModel.accepted,
+    assumptions.hashQROInstantiationModel.accepted,
+    assumptions.onlineExtractability.accepted,
+    assumptions.hashModelGap.accepted⟩
 
 structure ProductHashOracleInstantiation where
   challengeOracleBits : Nat
   bindingOracleBits : Nat
   bindingTargetEventCount : Nat
-  splitOraclesPinned : Prop
+  splitOracleModel : ProductIdealSplitQROModel
   theoremCriticalBindingsUseHBind : Prop
   framedEncodingInjective : Prop
   proofKindBytesInjective : Prop
@@ -2231,7 +2289,7 @@ def ProductHashOracleInstantiationAccepted
   hashes.challengeOracleBits = 256
     ∧ hashes.bindingOracleBits = 384
     ∧ hashes.bindingTargetEventCount = 11
-    ∧ hashes.splitOraclesPinned
+    ∧ ProductIdealSplitQROModelAccepted hashes.splitOracleModel
     ∧ hashes.theoremCriticalBindingsUseHBind
     ∧ hashes.framedEncodingInjective
     ∧ hashes.proofKindBytesInjective
@@ -2286,7 +2344,6 @@ theorem productBindingDomainSeparation :
     domainSeparatorTag_ne_proofEnvelopeHeaderTag
 
 def ProductHashOracleInstantiation.ofSerializationFacts
-    (splitOraclesPinned : Prop)
     (theoremCriticalBindingsUseHBind : Prop)
     (concreteHashRecommendationPinned : Prop)
     (oracleModelAssumptions : ProductQROMOracleModelAssumptions) :
@@ -2294,7 +2351,7 @@ def ProductHashOracleInstantiation.ofSerializationFacts
   challengeOracleBits := 256
   bindingOracleBits := 384
   bindingTargetEventCount := 11
-  splitOraclesPinned := splitOraclesPinned
+  splitOracleModel := oracleModelAssumptions.hashQROInstantiationModel
   theoremCriticalBindingsUseHBind := theoremCriticalBindingsUseHBind
   framedEncodingInjective := ProductFramedEncodingInjective
   proofKindBytesInjective := ProductProofKindBytesInjective
@@ -2304,25 +2361,23 @@ def ProductHashOracleInstantiation.ofSerializationFacts
   oracleModelAssumptions := oracleModelAssumptions
 
 theorem productHashOracleInstantiationAccepted_of_serializationFacts
-    {splitOraclesPinned : Prop}
     {theoremCriticalBindingsUseHBind : Prop}
     {concreteHashRecommendationPinned : Prop}
     {oracleModelAssumptions : ProductQROMOracleModelAssumptions}
-    (hSplitOracles : splitOraclesPinned)
     (hHBind : theoremCriticalBindingsUseHBind)
     (hHashRecommendation : concreteHashRecommendationPinned)
     (hOracleModel :
       ProductQROMOracleModelAssumptionsAccepted oracleModelAssumptions) :
     ProductHashOracleInstantiationAccepted
       (ProductHashOracleInstantiation.ofSerializationFacts
-        splitOraclesPinned
         theoremCriticalBindingsUseHBind
         concreteHashRecommendationPinned
         oracleModelAssumptions) :=
+  let hHashQRO := hOracleModel.2.1
   ⟨rfl,
     rfl,
     rfl,
-    hSplitOracles,
+    hHashQRO,
     hHBind,
     productFramedEncodingInjective,
     productProofKindBytesInjective,
@@ -2689,7 +2744,7 @@ theorem productInteractiveSecurityBounds_from_perKindEvidence
 
 structure ProductQROMTotalLossInstantiated where
   qromLossBound : ProductNumericLossTerm
-  hashModelGapZeroInIdealSplitQRO : Prop
+  hashModelGap : ProductHashModelGapCertificate
   compilerOverheadWithinBudget : Prop
   qromExtraLossOnly : Prop
   collisionLedgerIntegrated : Prop
@@ -2699,7 +2754,7 @@ structure ProductQROMTotalLossInstantiated where
 def ProductQROMTotalLossInstantiatedAccepted
     (loss : ProductQROMTotalLossInstantiated) : Prop :=
   ProductNumericLossTermAccepted loss.qromLossBound
-    ∧ loss.hashModelGapZeroInIdealSplitQRO
+    ∧ ProductHashModelGapCertificateAccepted loss.hashModelGap
     ∧ loss.compilerOverheadWithinBudget
     ∧ loss.qromExtraLossOnly
     ∧ loss.collisionLedgerIntegrated
@@ -2709,11 +2764,9 @@ def ProductQROMTotalLossInstantiatedAccepted
 structure ProductQROMCompilerOverheadBound where
   selectedFamily : ProductCompilerFamily
   selectedDepth : Nat
-  idealSplitQROModelPinned : Prop
-  onlineExtractabilityAssumptionPinned : Prop
+  oracleModelAssumptions : ProductQROMOracleModelAssumptions
   compilerAddsNoLegacyRoundFactor : Prop
   compilerOverheadExactZeroInIdealModel : Prop
-  hashModelGapSeparated : Prop
   totalLossLedgerReceivesQROMTerm : Prop
 
 def ProductQROMCompilerOverheadBoundAccepted
@@ -2722,53 +2775,42 @@ def ProductQROMCompilerOverheadBoundAccepted
       ∨ bound.selectedFamily = ProductQROMTransformFamily.merkleStraightline)
     ∧ bound.selectedDepth = 3
     ∧ 0 < bound.selectedDepth
-    ∧ bound.idealSplitQROModelPinned
-    ∧ bound.onlineExtractabilityAssumptionPinned
+    ∧ ProductQROMOracleModelAssumptionsAccepted
+      bound.oracleModelAssumptions
     ∧ bound.compilerAddsNoLegacyRoundFactor
     ∧ bound.compilerOverheadExactZeroInIdealModel
-    ∧ bound.hashModelGapSeparated
     ∧ bound.totalLossLedgerReceivesQROMTerm
 
 def ProductQROMCompilerOverheadBound.ofCompiler
     (compiler : ProductChallengeTapeCommitOpenCompiler)
-    (idealSplitQROModelPinned : Prop)
-    (onlineExtractabilityAssumptionPinned : Prop)
+    (oracleModelAssumptions : ProductQROMOracleModelAssumptions)
     (compilerOverheadExactZeroInIdealModel : Prop)
-    (hashModelGapSeparated : Prop)
     (totalLossLedgerReceivesQROMTerm : Prop) :
     ProductQROMCompilerOverheadBound where
   selectedFamily := compiler.compilerFamily
   selectedDepth := 3
-  idealSplitQROModelPinned := idealSplitQROModelPinned
-  onlineExtractabilityAssumptionPinned :=
-    onlineExtractabilityAssumptionPinned
+  oracleModelAssumptions := oracleModelAssumptions
   compilerAddsNoLegacyRoundFactor :=
     compiler.legacyDFM20InterfaceDeprecated
   compilerOverheadExactZeroInIdealModel :=
     compilerOverheadExactZeroInIdealModel
-  hashModelGapSeparated := hashModelGapSeparated
   totalLossLedgerReceivesQROMTerm := totalLossLedgerReceivesQROMTerm
 
 theorem productQROMCompilerOverheadBoundAccepted_of_compiler
     {compiler : ProductChallengeTapeCommitOpenCompiler}
     (hCompiler : ProductChallengeTapeCommitOpenCompilerAccepted compiler)
-    {idealSplitQROModelPinned : Prop}
-    {onlineExtractabilityAssumptionPinned : Prop}
+    {oracleModelAssumptions : ProductQROMOracleModelAssumptions}
     {compilerOverheadExactZeroInIdealModel : Prop}
-    {hashModelGapSeparated : Prop}
     {totalLossLedgerReceivesQROMTerm : Prop}
-    (hIdealSplitQRO : idealSplitQROModelPinned)
-    (hOnlineExtractability : onlineExtractabilityAssumptionPinned)
+    (hOracleModel :
+      ProductQROMOracleModelAssumptionsAccepted oracleModelAssumptions)
     (hOverheadZero : compilerOverheadExactZeroInIdealModel)
-    (hHashGap : hashModelGapSeparated)
     (hLedgerReceivesQROM : totalLossLedgerReceivesQROMTerm) :
     ProductQROMCompilerOverheadBoundAccepted
       (ProductQROMCompilerOverheadBound.ofCompiler
         compiler
-        idealSplitQROModelPinned
-        onlineExtractabilityAssumptionPinned
+        oracleModelAssumptions
         compilerOverheadExactZeroInIdealModel
-        hashModelGapSeparated
         totalLossLedgerReceivesQROMTerm) := by
   rcases hCompiler with
     ⟨hFamily,
@@ -2784,11 +2826,9 @@ theorem productQROMCompilerOverheadBoundAccepted_of_compiler
     ⟨hFamily,
       rfl,
       show 0 < 3 by decide,
-      hIdealSplitQRO,
-      hOnlineExtractability,
+      hOracleModel,
       hNoLegacyFactor,
       hOverheadZero,
-      hHashGap,
       hLedgerReceivesQROM⟩
 
 structure ProductSharedBadEventDeduplication where
@@ -2864,6 +2904,12 @@ structure ProductInstantiatedQROMEvidence where
   compilerOverheadBound : ProductQROMCompilerOverheadBound
   exactFiniteProbabilityWiring : ProductExactFiniteProbabilityWiring
   totalLoss : ProductQROMTotalLossInstantiated
+  compilerOverheadOracleModel_eq :
+    compilerOverheadBound.oracleModelAssumptions =
+      hashInstantiation.oracleModelAssumptions
+  totalLossHashModelGap_eq :
+    totalLoss.hashModelGap =
+      hashInstantiation.oracleModelAssumptions.hashModelGap
 
 def ProductInstantiatedQROMEvidenceAccepted
     (evidence : ProductInstantiatedQROMEvidence) : Prop :=
@@ -2881,7 +2927,6 @@ def ProductInstantiatedQROMEvidenceAccepted
     ∧ ProductQROMTotalLossInstantiatedAccepted evidence.totalLoss
 
 def ProductInstantiatedQROMEvidence.ofSerializationBackedHashAndCollision
-    (splitOraclesPinned : Prop)
     (theoremCriticalBindingsUseHBind : Prop)
     (concreteHashRecommendationPinned : Prop)
     (oracleModelAssumptions : ProductQROMOracleModelAssumptions)
@@ -2898,11 +2943,15 @@ def ProductInstantiatedQROMEvidence.ofSerializationBackedHashAndCollision
     (interactiveBounds : ProductInteractiveSecurityBounds)
     (compilerOverheadBound : ProductQROMCompilerOverheadBound)
     (exactFiniteProbabilityWiring : ProductExactFiniteProbabilityWiring)
-    (totalLoss : ProductQROMTotalLossInstantiated) :
+    (totalLoss : ProductQROMTotalLossInstantiated)
+    (compilerOverheadOracleModel_eq :
+      compilerOverheadBound.oracleModelAssumptions =
+        oracleModelAssumptions)
+    (totalLossHashModelGap_eq :
+      totalLoss.hashModelGap = oracleModelAssumptions.hashModelGap) :
     ProductInstantiatedQROMEvidence where
   hashInstantiation :=
     ProductHashOracleInstantiation.ofSerializationFacts
-      splitOraclesPinned
       theoremCriticalBindingsUseHBind
       concreteHashRecommendationPinned
       oracleModelAssumptions
@@ -2914,7 +2963,6 @@ def ProductInstantiatedQROMEvidence.ofSerializationBackedHashAndCollision
   collisionBound :=
     ProductQROMCollisionBound.ofHashOracleInstantiation
       (ProductHashOracleInstantiation.ofSerializationFacts
-        splitOraclesPinned
         theoremCriticalBindingsUseHBind
         concreteHashRecommendationPinned
         oracleModelAssumptions)
@@ -2927,9 +2975,10 @@ def ProductInstantiatedQROMEvidence.ofSerializationBackedHashAndCollision
   compilerOverheadBound := compilerOverheadBound
   exactFiniteProbabilityWiring := exactFiniteProbabilityWiring
   totalLoss := totalLoss
+  compilerOverheadOracleModel_eq := compilerOverheadOracleModel_eq
+  totalLossHashModelGap_eq := totalLossHashModelGap_eq
 
 theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCollision
-    {splitOraclesPinned : Prop}
     {theoremCriticalBindingsUseHBind : Prop}
     {concreteHashRecommendationPinned : Prop}
     {oracleModelAssumptions : ProductQROMOracleModelAssumptions}
@@ -2947,7 +2996,11 @@ theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCol
     {compilerOverheadBound : ProductQROMCompilerOverheadBound}
     {exactFiniteProbabilityWiring : ProductExactFiniteProbabilityWiring}
     {totalLoss : ProductQROMTotalLossInstantiated}
-    (hSplitOracles : splitOraclesPinned)
+    {compilerOverheadOracleModel_eq :
+      compilerOverheadBound.oracleModelAssumptions =
+        oracleModelAssumptions}
+    {totalLossHashModelGap_eq :
+      totalLoss.hashModelGap = oracleModelAssumptions.hashModelGap}
     (hHBind : theoremCriticalBindingsUseHBind)
     (hHashRecommendation : concreteHashRecommendationPinned)
     (hOracleModel :
@@ -2975,7 +3028,6 @@ theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCol
     (hTotalLoss : ProductQROMTotalLossInstantiatedAccepted totalLoss) :
     ProductInstantiatedQROMEvidenceAccepted
       (ProductInstantiatedQROMEvidence.ofSerializationBackedHashAndCollision
-        splitOraclesPinned
         theoremCriticalBindingsUseHBind
         concreteHashRecommendationPinned
         oracleModelAssumptions
@@ -2992,16 +3044,16 @@ theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCol
         interactiveBounds
         compilerOverheadBound
         exactFiniteProbabilityWiring
-        totalLoss) := by
+        totalLoss
+        compilerOverheadOracleModel_eq
+        totalLossHashModelGap_eq) := by
   have hHash :
       ProductHashOracleInstantiationAccepted
         (ProductHashOracleInstantiation.ofSerializationFacts
-          splitOraclesPinned
           theoremCriticalBindingsUseHBind
           concreteHashRecommendationPinned
           oracleModelAssumptions) :=
     productHashOracleInstantiationAccepted_of_serializationFacts
-      hSplitOracles
       hHBind
       hHashRecommendation
       hOracleModel
@@ -3009,7 +3061,6 @@ theorem productInstantiatedQROMEvidenceAccepted_of_serializationBackedHashAndCol
       ProductQROMCollisionBoundAccepted
         (ProductQROMCollisionBound.ofHashOracleInstantiation
           (ProductHashOracleInstantiation.ofSerializationFacts
-            splitOraclesPinned
             theoremCriticalBindingsUseHBind
             concreteHashRecommendationPinned
             oracleModelAssumptions)
@@ -4875,7 +4926,8 @@ theorem ProductQROMTightTransform
     {evidence : ProductInstantiatedQROMEvidence}
     (hEvidence : ProductInstantiatedQROMEvidenceAccepted evidence) :
     evidence.compiler.tightQROMTransformBounded
-      ∧ evidence.hashInstantiation.splitOraclesPinned
+      ∧ ProductIdealSplitQROModelAccepted
+        evidence.hashInstantiation.splitOracleModel
       ∧ evidence.hashInstantiation.theoremCriticalBindingsUseHBind
       ∧ evidence.interactiveBounds.interactiveLossChargedOutsideQROM
       ∧ evidence.malleabilityBound.proofKindMalleabilityChargedToCollisionLedger
@@ -4961,7 +5013,7 @@ theorem productSecurityTheorem_from_instantiated_qrom
   rcases hInteractive with
     ⟨_, hSharedTags, _, _, _, _, _, _⟩
   rcases hCompilerOverhead with
-    ⟨_, _, _, _, _, _, hCompilerOverheadZero, _, _⟩
+    ⟨_, _, _, _, _, hCompilerOverheadZero, _⟩
   rcases hWiring with
     ⟨_, _, _, _, _, hPartialSum, _, _, _, _, _, _⟩
   rcases hLoss with
@@ -5187,11 +5239,10 @@ theorem productSecurityTheorem_requires_qrom_compiler_overhead_bound
         ∨ bound.selectedFamily = ProductQROMTransformFamily.merkleStraightline)
       ∧ bound.selectedDepth = 3
       ∧ 0 < bound.selectedDepth
-      ∧ bound.idealSplitQROModelPinned
-      ∧ bound.onlineExtractabilityAssumptionPinned
+      ∧ ProductQROMOracleModelAssumptionsAccepted
+        bound.oracleModelAssumptions
       ∧ bound.compilerAddsNoLegacyRoundFactor
       ∧ bound.compilerOverheadExactZeroInIdealModel
-      ∧ bound.hashModelGapSeparated
       ∧ bound.totalLossLedgerReceivesQROMTerm := by
   exact hBound
 
