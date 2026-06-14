@@ -74,6 +74,47 @@ structure FiniteSubnormalizedDensityMatrix (A : Type) [Fintype A] where
   traceNonnegative : complexNonnegative (finiteTrace matrix)
   traceAtMostOne : (finiteTrace matrix).re ≤ 1
 
+abbrev FiniteSuperOperator (A B : Type) :=
+  FiniteMatrixOperator A A → FiniteMatrixOperator B B
+
+def FinitePositiveMap {A B : Type} [Fintype A] [Fintype B]
+    (channel : FiniteSuperOperator A B) : Prop :=
+  ∀ matrix,
+    FinitePositiveSemidefinite matrix →
+      FinitePositiveSemidefinite (channel matrix)
+
+def FiniteTracePreserving {A B : Type} [Fintype A] [Fintype B]
+    (channel : FiniteSuperOperator A B) : Prop :=
+  ∀ matrix, finiteTrace (channel matrix) = finiteTrace matrix
+
+structure FiniteCPTPMap (A B : Type) [Fintype A] [Fintype B] where
+  channel : FiniteSuperOperator A B
+  positive : FinitePositiveMap channel
+  completelyPositive : Prop
+  tracePreserving : FiniteTracePreserving channel
+
+def FiniteChannelEqual {A B : Type}
+    (left right : FiniteSuperOperator A B) : Prop :=
+  ∀ matrix, left matrix = right matrix
+
+structure FiniteExactChannelEquivalence
+    (A B : Type) [Fintype A] [Fintype B] where
+  left : FiniteCPTPMap A B
+  right : FiniteCPTPMap A B
+  channelEqual : FiniteChannelEqual left.channel right.channel
+
+def FiniteDiamondDistanceZero {A B : Type}
+    (left right : FiniteSuperOperator A B) : Prop :=
+  FiniteChannelEqual left right
+
+theorem FiniteExactChannelEquivalence.diamondDistanceZero
+    {A B : Type} [Fintype A] [Fintype B]
+    (equivalence : FiniteExactChannelEquivalence A B) :
+    FiniteDiamondDistanceZero
+      equivalence.left.channel
+      equivalence.right.channel :=
+  equivalence.channelEqual
+
 def finiteIdentityOperator (A : Type) : FiniteLinearOperator A A :=
   fun psi => psi
 
@@ -307,6 +348,121 @@ theorem quantumRandomOracleHiddenQuery_bijective
       ⟨quantumRandomOracleHiddenQueryInverse state,
         quantumRandomOracleHiddenQuery_rightInverse state⟩
 
+abbrev CompressedOracleDatabase (X Y : Type) :=
+  X → Option Y
+
+def compressedCellValue {Y : Type} [Zero Y] : Option Y → Y
+  | none => 0
+  | some value => value
+
+def fullCompressedOracleDatabase
+    {X Y : Type} (h : X → Y) : CompressedOracleDatabase X Y :=
+  fun x => some (h x)
+
+def compressedOracleEvaluationQuery
+    {X Y : Type} [AddGroup Y] :
+    (X × Y) × CompressedOracleDatabase X Y →
+      (X × Y) × CompressedOracleDatabase X Y
+  | ((x, y), database) =>
+      ((x, y + compressedCellValue (database x)), database)
+
+def compressedOracleEvaluationQueryInverse
+    {X Y : Type} [AddGroup Y] :
+    (X × Y) × CompressedOracleDatabase X Y →
+      (X × Y) × CompressedOracleDatabase X Y
+  | ((x, y), database) =>
+      ((x, y - compressedCellValue (database x)), database)
+
+def compressedOracleEvaluationQueryEquiv
+    {X Y : Type} [AddGroup Y] :
+    (X × Y) × CompressedOracleDatabase X Y ≃
+      (X × Y) × CompressedOracleDatabase X Y where
+  toFun := compressedOracleEvaluationQuery
+  invFun := compressedOracleEvaluationQueryInverse
+  left_inv := by
+    intro state
+    rcases state with ⟨query, database⟩
+    rcases query with ⟨x, y⟩
+    simp [compressedOracleEvaluationQuery,
+      compressedOracleEvaluationQueryInverse]
+  right_inv := by
+    intro state
+    rcases state with ⟨query, database⟩
+    rcases query with ⟨x, y⟩
+    simp [compressedOracleEvaluationQuery,
+      compressedOracleEvaluationQueryInverse]
+
+theorem compressedOracleEvaluationQuery_bijective
+    {X Y : Type} [AddGroup Y] :
+    Function.Bijective
+      (compressedOracleEvaluationQuery :
+        (X × Y) × CompressedOracleDatabase X Y →
+          (X × Y) × CompressedOracleDatabase X Y) :=
+  (compressedOracleEvaluationQueryEquiv : _).bijective
+
+def compressedOracleEvaluationOperator
+    {X Y : Type} [AddGroup Y] :
+    FiniteLinearOperator
+      ((X × Y) × CompressedOracleDatabase X Y)
+      ((X × Y) × CompressedOracleDatabase X Y) :=
+  finiteBasisPermutationOperator compressedOracleEvaluationQueryEquiv
+
+def compressedOracleEvaluationOperatorAdjoint
+    {X Y : Type} [AddGroup Y] :
+    FiniteLinearOperator
+      ((X × Y) × CompressedOracleDatabase X Y)
+      ((X × Y) × CompressedOracleDatabase X Y) :=
+  finiteBasisPermutationAdjoint compressedOracleEvaluationQueryEquiv
+
+theorem compressedOracleEvaluationOperator_unitary
+    {X Y : Type} [AddGroup Y] :
+    FiniteUnitary
+      (compressedOracleEvaluationOperator :
+        FiniteLinearOperator
+          ((X × Y) × CompressedOracleDatabase X Y)
+          ((X × Y) × CompressedOracleDatabase X Y))
+      compressedOracleEvaluationOperatorAdjoint :=
+  finiteBasisPermutationOperator_unitary compressedOracleEvaluationQueryEquiv
+
+theorem compressedOracleEvaluation_fullDatabase_eq_qro
+    {X Y : Type} [AddGroup Y]
+    (h : X → Y) (query : X × Y) :
+    compressedOracleEvaluationQuery
+        (query, fullCompressedOracleDatabase h) =
+      (quantumRandomOracleQuery h query,
+        fullCompressedOracleDatabase h) := by
+  rcases query with ⟨x, y⟩
+  simp [compressedOracleEvaluationQuery, fullCompressedOracleDatabase,
+    quantumRandomOracleQuery, compressedCellValue]
+
+theorem compressedOracleEvaluation_fullDatabase_visible_eq_qro
+    {X Y : Type} [AddGroup Y]
+    (h : X → Y) (query : X × Y) :
+    (compressedOracleEvaluationQuery
+        (query, fullCompressedOracleDatabase h)).1 =
+      quantumRandomOracleQuery h query := by
+  rw [compressedOracleEvaluation_fullDatabase_eq_qro]
+
+def compressedOracleSupportOfQueries
+    {X : Type} [DecidableEq X] : List X → Finset X
+  | [] => ∅
+  | x :: xs => insert x (compressedOracleSupportOfQueries xs)
+
+theorem compressedOracleSupportOfQueries_card_le_length
+    {X : Type} [DecidableEq X] (queries : List X) :
+    (compressedOracleSupportOfQueries queries).card ≤ queries.length := by
+  induction queries with
+  | nil =>
+      simp [compressedOracleSupportOfQueries]
+  | cons x xs ih =>
+      by_cases hMem : x ∈ compressedOracleSupportOfQueries xs
+      · rw [compressedOracleSupportOfQueries,
+          Finset.insert_eq_of_mem hMem]
+        exact Nat.le_trans ih (Nat.le_succ xs.length)
+      · rw [compressedOracleSupportOfQueries,
+          Finset.card_insert_of_notMem hMem]
+        exact Nat.succ_le_succ ih
+
 structure SplitQROSignature where
   L : Type
   X : L → Type
@@ -442,6 +598,133 @@ theorem splitQROHiddenQuery_bijective
           SplitQROQuery signature × SplitQROHiddenState signature) :=
   (splitQROHiddenQueryEquiv : _).bijective
 
+abbrev SplitQROAddress (signature : SplitQROSignature) :=
+  Sigma fun label : signature.L => signature.X label
+
+abbrev SplitCompressedOracleDatabase
+    (signature : SplitQROSignature) :=
+  ∀ label : signature.L,
+    signature.X label → Option (signature.Y label)
+
+def fullSplitCompressedOracleDatabase
+    {signature : SplitQROSignature}
+    (H : SplitQROFunction signature) :
+    SplitCompressedOracleDatabase signature :=
+  fun label x => some (H label x)
+
+def splitCompressedOracleEvaluationQuery
+    {signature : SplitQROSignature} :
+    SplitQROQuery signature × SplitCompressedOracleDatabase signature →
+      SplitQROQuery signature × SplitCompressedOracleDatabase signature
+  | (⟨label, x, y⟩, database) =>
+      (⟨label, x, y + compressedCellValue (database label x)⟩,
+        database)
+
+def splitCompressedOracleEvaluationQueryInverse
+    {signature : SplitQROSignature} :
+    SplitQROQuery signature × SplitCompressedOracleDatabase signature →
+      SplitQROQuery signature × SplitCompressedOracleDatabase signature
+  | (⟨label, x, y⟩, database) =>
+      (⟨label, x, y - compressedCellValue (database label x)⟩,
+        database)
+
+def splitCompressedOracleEvaluationQueryEquiv
+    {signature : SplitQROSignature} :
+    SplitQROQuery signature × SplitCompressedOracleDatabase signature ≃
+      SplitQROQuery signature ×
+        SplitCompressedOracleDatabase signature where
+  toFun := splitCompressedOracleEvaluationQuery
+  invFun := splitCompressedOracleEvaluationQueryInverse
+  left_inv := by
+    intro state
+    rcases state with ⟨query, database⟩
+    rcases query with ⟨label, x, y⟩
+    simp [splitCompressedOracleEvaluationQuery,
+      splitCompressedOracleEvaluationQueryInverse]
+  right_inv := by
+    intro state
+    rcases state with ⟨query, database⟩
+    rcases query with ⟨label, x, y⟩
+    simp [splitCompressedOracleEvaluationQuery,
+      splitCompressedOracleEvaluationQueryInverse]
+
+theorem splitCompressedOracleEvaluationQuery_bijective
+    {signature : SplitQROSignature} :
+    Function.Bijective
+      (splitCompressedOracleEvaluationQuery :
+        SplitQROQuery signature ×
+          SplitCompressedOracleDatabase signature →
+        SplitQROQuery signature ×
+          SplitCompressedOracleDatabase signature) :=
+  (splitCompressedOracleEvaluationQueryEquiv : _).bijective
+
+def splitCompressedOracleEvaluationOperator
+    {signature : SplitQROSignature} :
+    FiniteLinearOperator
+      (SplitQROQuery signature ×
+        SplitCompressedOracleDatabase signature)
+      (SplitQROQuery signature ×
+        SplitCompressedOracleDatabase signature) :=
+  finiteBasisPermutationOperator
+    splitCompressedOracleEvaluationQueryEquiv
+
+def splitCompressedOracleEvaluationOperatorAdjoint
+    {signature : SplitQROSignature} :
+    FiniteLinearOperator
+      (SplitQROQuery signature ×
+        SplitCompressedOracleDatabase signature)
+      (SplitQROQuery signature ×
+        SplitCompressedOracleDatabase signature) :=
+  finiteBasisPermutationAdjoint
+    splitCompressedOracleEvaluationQueryEquiv
+
+theorem splitCompressedOracleEvaluationOperator_unitary
+    {signature : SplitQROSignature} :
+    FiniteUnitary
+      (splitCompressedOracleEvaluationOperator :
+        FiniteLinearOperator
+          (SplitQROQuery signature ×
+            SplitCompressedOracleDatabase signature)
+          (SplitQROQuery signature ×
+            SplitCompressedOracleDatabase signature))
+      splitCompressedOracleEvaluationOperatorAdjoint :=
+  finiteBasisPermutationOperator_unitary
+    splitCompressedOracleEvaluationQueryEquiv
+
+theorem splitCompressedOracleEvaluation_fullDatabase_eq_qro
+    {signature : SplitQROSignature}
+    (H : SplitQROFunction signature)
+    (query : SplitQROQuery signature) :
+    splitCompressedOracleEvaluationQuery
+        (query, fullSplitCompressedOracleDatabase H) =
+      (splitQROQuery H query,
+        fullSplitCompressedOracleDatabase H) := by
+  rcases query with ⟨label, x, y⟩
+  simp [splitCompressedOracleEvaluationQuery,
+    fullSplitCompressedOracleDatabase, splitQROQuery,
+    compressedCellValue]
+
+theorem splitCompressedOracleEvaluation_fullDatabase_visible_eq_qro
+    {signature : SplitQROSignature}
+    (H : SplitQROFunction signature)
+    (query : SplitQROQuery signature) :
+    (splitCompressedOracleEvaluationQuery
+        (query, fullSplitCompressedOracleDatabase H)).1 =
+      splitQROQuery H query := by
+  rw [splitCompressedOracleEvaluation_fullDatabase_eq_qro]
+
+def splitCompressedOracleSupportOfQueries
+    {signature : SplitQROSignature} :
+    List (SplitQROAddress signature) → Finset (SplitQROAddress signature) :=
+  compressedOracleSupportOfQueries
+
+theorem splitCompressedOracleSupportOfQueries_card_le_length
+    {signature : SplitQROSignature}
+    (queries : List (SplitQROAddress signature)) :
+    (splitCompressedOracleSupportOfQueries queries).card ≤
+      queries.length :=
+  compressedOracleSupportOfQueries_card_le_length queries
+
 structure SplitQRODomainSeparation
     (signature : SplitQROSignature) where
   encodedAddress :
@@ -509,16 +792,35 @@ def SplitQROSemanticBundleAccepted
   SplitQROFunctionDistributionAccepted bundle.distribution
     ∧ (∀ H : SplitQROFunction bundle.signature,
       Function.Bijective (splitQROQuery H))
+    ∧ (∀ H : SplitQROFunction bundle.signature,
+      FiniteUnitary (splitQROOperator H)
+        (splitQROOperatorAdjoint H))
     ∧ Function.Bijective
       (splitQROHiddenQuery :
         SplitQROQuery bundle.signature ×
           SplitQROHiddenState bundle.signature →
         SplitQROQuery bundle.signature ×
           SplitQROHiddenState bundle.signature)
+    ∧ FiniteUnitary
+      (splitCompressedOracleEvaluationOperator :
+        FiniteLinearOperator
+          (SplitQROQuery bundle.signature ×
+            SplitCompressedOracleDatabase bundle.signature)
+          (SplitQROQuery bundle.signature ×
+            SplitCompressedOracleDatabase bundle.signature))
+      splitCompressedOracleEvaluationOperatorAdjoint
     ∧ (∀ state :
       SplitQROQuery bundle.signature ×
         SplitQROHiddenState bundle.signature,
       (splitQROHiddenQuery state).2 = state.2)
+    ∧ (∀ (H : SplitQROFunction bundle.signature)
+      (query : SplitQROQuery bundle.signature),
+      (splitCompressedOracleEvaluationQuery
+          (query, fullSplitCompressedOracleDatabase H)).1 =
+        splitQROQuery H query)
+    ∧ (∀ queries : List (SplitQROAddress bundle.signature),
+      (splitCompressedOracleSupportOfQueries queries).card ≤
+        queries.length)
     ∧ SplitQRODomainSeparationAccepted bundle.domainSeparation
 
 theorem SplitQROSemanticBundle.accepted
@@ -526,8 +828,16 @@ theorem SplitQROSemanticBundle.accepted
     SplitQROSemanticBundleAccepted bundle :=
   ⟨bundle.distribution.accepted,
     fun H => splitQROQuery_bijective H,
+    fun H => splitQROOperator_unitary H,
     splitQROHiddenQuery_bijective,
+    splitCompressedOracleEvaluationOperator_unitary,
     fun state => splitQROHiddenQuery_preservesFunction state,
+    fun H query =>
+      splitCompressedOracleEvaluation_fullDatabase_visible_eq_qro
+        H
+        query,
+    fun queries =>
+      splitCompressedOracleSupportOfQueries_card_le_length queries,
     bundle.domainSeparation.accepted⟩
 
 structure ProductQROSemanticBundle where

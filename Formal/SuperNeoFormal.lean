@@ -46,6 +46,7 @@ import SuperNeoFormal.NumiSealTypedCarryTheorem
 import SuperNeoFormal.NumiSealZKPrivacy
 import SuperNeoFormal.NumiSealProductTheorem
 import SuperNeoFormal.ProductSecurityTheorem
+import SuperNeoFormal.ProductSystemRisk
 import SuperNeoFormal.TranscriptChallenge
 import SuperNeoFormal.Composition
 import SuperNeoFormal.ProbabilityComposition
