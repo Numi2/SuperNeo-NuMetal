@@ -477,6 +477,319 @@ theorem DFMSTh31LocalEvaluationOperator_norm_le_one
   rw [Matrix.l2_opNorm_toEuclideanCLM]
   exact Matrix.permMatrix_l2_opNorm_le _
 
+lemma dfmsTh31_hashCardinalityReal_pos
+    (n : Nat) :
+    0 < DFMSTh31HashCardinalityReal n := by
+  unfold DFMSTh31HashCardinalityReal
+  positivity
+
+lemma dfmsTh31_invSqrtHashCardinality_mul_self
+    (n : Nat) :
+    DFMSTh31InvSqrtHashCardinality n *
+        DFMSTh31InvSqrtHashCardinality n =
+      DFMSTh31InvHashCardinality n := by
+  have hpos : 0 < DFMSTh31HashCardinalityReal n :=
+    dfmsTh31_hashCardinalityReal_pos n
+  rw [DFMSTh31InvSqrtHashCardinality,
+    DFMSTh31InvHashCardinality]
+  rw [← mul_inv_rev]
+  congr 1
+  rw [← Complex.ofReal_mul]
+  congr 1
+  simpa [pow_two] using Real.sq_sqrt (le_of_lt hpos)
+
+lemma dfmsTh31_card_mul_invHashCardinality
+    (n : Nat) :
+    (Fintype.card (DFMSBitVector n) : ℂ) *
+        DFMSTh31InvHashCardinality n = 1 := by
+  rw [dfmsBitVector_card, DFMSTh31InvHashCardinality,
+    DFMSTh31HashCardinalityReal]
+  norm_num
+
+lemma dfmsTh31_pow_card_mul_invHashCardinality
+    (n : Nat) :
+    ((2 : Nat) ^ n : ℂ) * DFMSTh31InvHashCardinality n = 1 := by
+  simpa [dfmsBitVector_card] using
+    dfmsTh31_card_mul_invHashCardinality n
+
+lemma dfmsTh31_card_mul_invHashCardinality_mul_self
+    (n : Nat) :
+    (Fintype.card (DFMSBitVector n) : ℂ) *
+        (DFMSTh31InvHashCardinality n *
+          DFMSTh31InvHashCardinality n) =
+      DFMSTh31InvHashCardinality n := by
+  have hcard := dfmsTh31_card_mul_invHashCardinality n
+  calc
+    (Fintype.card (DFMSBitVector n) : ℂ) *
+        (DFMSTh31InvHashCardinality n *
+          DFMSTh31InvHashCardinality n) =
+      ((Fintype.card (DFMSBitVector n) : ℂ) *
+          DFMSTh31InvHashCardinality n) *
+        DFMSTh31InvHashCardinality n := by
+      ring
+    _ = DFMSTh31InvHashCardinality n := by
+      rw [hcard]
+      ring
+
+lemma dfmsTh31_sum_ite_eq_card_mul_add_sub_left
+    {α : Type} [Fintype α] [DecidableEq α]
+    (a : α) (special default : ℂ) :
+    (∑ x : α, if a = x then special else default) =
+      (Fintype.card α : ℂ) * default + (special - default) := by
+  calc
+    (∑ x : α, if a = x then special else default) =
+        ∑ x : α, (default + if a = x then special - default else 0) := by
+      apply Finset.sum_congr rfl
+      intro x _hx
+      by_cases h : a = x <;> simp [h]
+    _ = (∑ _x : α, default) +
+        (∑ x : α, if a = x then special - default else 0) := by
+      rw [← Finset.sum_add_distrib]
+    _ = (Fintype.card α : ℂ) * default + (special - default) := by
+      rw [Finset.sum_const, nsmul_eq_mul]
+      rw [Finset.sum_ite_eq]
+      simp [Finset.card_univ]
+
+lemma dfmsTh31_sum_ite_eq_card_mul_add_sub_right
+    {α : Type} [Fintype α] [DecidableEq α]
+    (a : α) (special default : ℂ) :
+    (∑ x : α, if x = a then special else default) =
+      (Fintype.card α : ℂ) * default + (special - default) := by
+  simpa [eq_comm] using
+    dfmsTh31_sum_ite_eq_card_mul_add_sub_left a special default
+
+lemma dfmsTh31_sum_two_ite_eq_card_mul_add_sub_left
+    {α : Type} [Fintype α] [DecidableEq α]
+    (a b : α) (h : a ≠ b)
+    (specialA specialB default : ℂ) :
+    (∑ x : α,
+        if a = x then specialA else if b = x then specialB else default) =
+      (Fintype.card α : ℂ) * default +
+        (specialA - default) + (specialB - default) := by
+  calc
+    (∑ x : α,
+        if a = x then specialA else if b = x then specialB else default) =
+        ∑ x : α,
+          (default + (if a = x then specialA - default else 0) +
+            (if b = x then specialB - default else 0)) := by
+      apply Finset.sum_congr rfl
+      intro x _hx
+      by_cases ha : a = x
+      · have hb : b ≠ x := by
+          intro hb
+          exact h (ha.trans hb.symm)
+        simp [ha, hb]
+      · by_cases hb : b = x <;> simp [ha, hb]
+    _ = (∑ _x : α, default) +
+          (∑ x : α, if a = x then specialA - default else 0) +
+          (∑ x : α, if b = x then specialB - default else 0) := by
+      rw [Finset.sum_add_distrib, Finset.sum_add_distrib]
+    _ = (Fintype.card α : ℂ) * default +
+        (specialA - default) + (specialB - default) := by
+      rw [Finset.sum_const, nsmul_eq_mul]
+      rw [Finset.sum_ite_eq, Finset.sum_ite_eq]
+      simp [Finset.card_univ]
+
+lemma DFMSTh31CellFourierMatrix_mul_self_none_some
+    (n : Nat)
+    (inputY : DFMSBitVector n) :
+    (∑ x : DFMSBitVector n,
+      if x = inputY then
+        DFMSTh31InvSqrtHashCardinality n *
+          (1 - DFMSTh31InvHashCardinality n)
+      else
+        -(DFMSTh31InvSqrtHashCardinality n *
+          DFMSTh31InvHashCardinality n)) = 0 := by
+  rw [dfmsTh31_sum_ite_eq_card_mul_add_sub_right inputY]
+  have hcard := dfmsTh31_card_mul_invHashCardinality n
+  calc
+    (Fintype.card (DFMSBitVector n) : ℂ) *
+          -(DFMSTh31InvSqrtHashCardinality n *
+            DFMSTh31InvHashCardinality n) +
+        (DFMSTh31InvSqrtHashCardinality n *
+            (1 - DFMSTh31InvHashCardinality n) -
+          -(DFMSTh31InvSqrtHashCardinality n *
+            DFMSTh31InvHashCardinality n)) =
+      DFMSTh31InvSqrtHashCardinality n *
+        (1 - (Fintype.card (DFMSBitVector n) : ℂ) *
+          DFMSTh31InvHashCardinality n) := by
+      ring
+    _ = 0 := by
+      rw [hcard]
+      ring
+
+lemma DFMSTh31CellFourierMatrix_mul_self_some_none
+    (n : Nat)
+    (outY : DFMSBitVector n) :
+    (∑ x : DFMSBitVector n,
+      if outY = x then
+        (1 - DFMSTh31InvHashCardinality n) *
+          DFMSTh31InvSqrtHashCardinality n
+      else
+        -(DFMSTh31InvHashCardinality n *
+          DFMSTh31InvSqrtHashCardinality n)) = 0 := by
+  rw [dfmsTh31_sum_ite_eq_card_mul_add_sub_left outY]
+  have hcard := dfmsTh31_card_mul_invHashCardinality n
+  calc
+    (Fintype.card (DFMSBitVector n) : ℂ) *
+          -(DFMSTh31InvHashCardinality n *
+            DFMSTh31InvSqrtHashCardinality n) +
+        ((1 - DFMSTh31InvHashCardinality n) *
+            DFMSTh31InvSqrtHashCardinality n -
+          -(DFMSTh31InvHashCardinality n *
+            DFMSTh31InvSqrtHashCardinality n)) =
+      DFMSTh31InvSqrtHashCardinality n *
+        (1 - (Fintype.card (DFMSBitVector n) : ℂ) *
+          DFMSTh31InvHashCardinality n) := by
+      ring
+    _ = 0 := by
+      rw [hcard]
+      ring
+
+lemma DFMSTh31CellFourierMatrix_mul_self_some_some_diag
+    (n : Nat)
+    (inputY : DFMSBitVector n) :
+    (∑ x : Option (DFMSBitVector n),
+      DFMSTh31CellFourierMatrix n (some inputY) x *
+        DFMSTh31CellFourierMatrix n x (some inputY)) = 1 := by
+  simp +contextual [DFMSTh31CellFourierMatrix,
+    dfmsTh31_invSqrtHashCardinality_mul_self, eq_comm]
+  symm
+  rw [dfmsTh31_sum_ite_eq_card_mul_add_sub_left inputY]
+  rw [dfmsTh31_card_mul_invHashCardinality_mul_self n]
+  ring
+
+lemma DFMSTh31CellFourierMatrix_mul_self_some_some_off_diag
+    (n : Nat)
+    (outY inputY : DFMSBitVector n)
+    (h : outY ≠ inputY) :
+    (∑ x : Option (DFMSBitVector n),
+      DFMSTh31CellFourierMatrix n (some outY) x *
+        DFMSTh31CellFourierMatrix n x (some inputY)) = 0 := by
+  simp +contextual [DFMSTh31CellFourierMatrix,
+    dfmsTh31_invSqrtHashCardinality_mul_self, eq_comm]
+  rw [show
+      (∑ x : DFMSBitVector n,
+        if inputY = x then
+          if outY = x then
+            (1 - DFMSTh31InvHashCardinality n) *
+              (1 - DFMSTh31InvHashCardinality n)
+          else
+            -(DFMSTh31InvHashCardinality n *
+              (1 - DFMSTh31InvHashCardinality n))
+        else
+          -if outY = x then
+            (1 - DFMSTh31InvHashCardinality n) *
+              DFMSTh31InvHashCardinality n
+          else
+            -(DFMSTh31InvHashCardinality n *
+              DFMSTh31InvHashCardinality n)) =
+      (∑ x : DFMSBitVector n,
+        if inputY = x then
+          -(DFMSTh31InvHashCardinality n *
+            (1 - DFMSTh31InvHashCardinality n))
+        else if outY = x then
+          -((1 - DFMSTh31InvHashCardinality n) *
+            DFMSTh31InvHashCardinality n)
+        else
+          DFMSTh31InvHashCardinality n *
+            DFMSTh31InvHashCardinality n) by
+      apply Finset.sum_congr rfl
+      intro x _hx
+      by_cases hi : inputY = x
+      · have ho : outY ≠ x := by
+          intro ho
+          exact h (ho.trans hi.symm)
+        simp [hi, ho]
+      · by_cases ho : outY = x <;> simp [hi, ho]]
+  symm
+  rw [dfmsTh31_sum_two_ite_eq_card_mul_add_sub_left
+    inputY outY h.symm]
+  rw [dfmsTh31_card_mul_invHashCardinality_mul_self n]
+  ring
+
+theorem DFMSTh31CellFourierMatrix_mul_self
+    (n : Nat) :
+    DFMSTh31CellFourierMatrix n * DFMSTh31CellFourierMatrix n = 1 := by
+  classical
+  ext out input
+  cases out with
+  | none =>
+      cases input with
+      | none =>
+          simp [Matrix.mul_apply, DFMSTh31CellFourierMatrix,
+            dfmsTh31_invSqrtHashCardinality_mul_self]
+          exact dfmsTh31_pow_card_mul_invHashCardinality n
+      | some inputY =>
+          simp [Matrix.mul_apply, DFMSTh31CellFourierMatrix,
+            DFMSTh31CellFourierMatrix_mul_self_none_some]
+  | some outY =>
+      cases input with
+      | none =>
+          simp [Matrix.mul_apply, DFMSTh31CellFourierMatrix,
+            DFMSTh31CellFourierMatrix_mul_self_some_none]
+      | some inputY =>
+          by_cases h : outY = inputY
+          · subst outY
+            simpa [Matrix.mul_apply] using
+              DFMSTh31CellFourierMatrix_mul_self_some_some_diag n inputY
+          · have hOne :
+                (1 : DFMSMatrixOperator (DFMSTh31CellBasis n))
+                    (some outY) (some inputY) = 0 := by
+              simp [h]
+            rw [hOne]
+            simpa [Matrix.mul_apply] using
+              DFMSTh31CellFourierMatrix_mul_self_some_some_off_diag
+                n outY inputY h
+
+lemma DFMSTh31CellFourierMatrix_conjTranspose
+    (n : Nat) :
+    Matrix.conjTranspose (DFMSTh31CellFourierMatrix n) =
+      DFMSTh31CellFourierMatrix n := by
+  ext out input
+  cases out <;> cases input <;>
+    simp [DFMSTh31CellFourierMatrix,
+      DFMSTh31InvSqrtHashCardinality,
+      DFMSTh31InvHashCardinality, Complex.conj_ofReal]
+  all_goals split_ifs <;> simp_all [eq_comm]
+
+lemma DFMSMatrixOperator_one_norm_le
+    (A : Type) [Fintype A] [DecidableEq A] :
+    ‖(1 : Matrix A A ℂ)‖ ≤ 1 := by
+  rw [← Matrix.l2_opNorm_toEuclideanCLM (1 : Matrix A A ℂ)]
+  have hone :
+      Matrix.toEuclideanCLM (n := A) (𝕜 := ℂ)
+          (1 : Matrix A A ℂ) =
+        ContinuousLinearMap.id ℂ (EuclideanSpace ℂ A) := by
+    ext vector basis
+    simp
+  rw [hone]
+  exact ContinuousLinearMap.norm_id_le
+
+theorem DFMSTh31CellFourierMatrix_norm_le_one
+    (n : Nat) :
+    ‖DFMSTh31CellFourierMatrix n‖ ≤ 1 := by
+  let F : DFMSMatrixOperator (DFMSTh31CellBasis n) :=
+    DFMSTh31CellFourierMatrix n
+  have hstar : Matrix.conjTranspose F = F := by
+    simpa [F] using DFMSTh31CellFourierMatrix_conjTranspose n
+  have hsquare : F * F = 1 := by
+    simpa [F] using DFMSTh31CellFourierMatrix_mul_self n
+  have hnormMul : ‖F‖ * ‖F‖ ≤ 1 := by
+    have h := Matrix.l2_opNorm_conjTranspose_mul_self F
+    rw [hstar, hsquare] at h
+    rw [← h]
+    exact DFMSMatrixOperator_one_norm_le (DFMSTh31CellBasis n)
+  have hnonneg : 0 ≤ ‖F‖ := norm_nonneg _
+  nlinarith [sq_nonneg (‖F‖ - 1)]
+
+theorem DFMSTh31CellFourierOperator_norm_le_one
+    (n : Nat) :
+    ‖DFMSTh31CellFourierOperator n‖ ≤ 1 := by
+  rw [DFMSTh31CellFourierOperator, DFMSMatrixOperator.toContinuous]
+  rw [Matrix.l2_opNorm_toEuclideanCLM]
+  exact DFMSTh31CellFourierMatrix_norm_le_one n
+
 theorem DFMSTh31LocalOracleMatrix_eq_FEF
     (n : Nat) :
     DFMSTh31LocalOracleMatrix n =
@@ -1871,13 +2184,13 @@ theorem DFMSTh31LocalOracleProjectorFactorTwo.concrete_of_fourierContractive
     hFourierContractive
     (DFMSTh31LocalEvaluationOperator_norm_le_one n)
 
-theorem DFMSTh31LocalOracleProjectorFactorTwo.concrete_of_cellFourierContractive
+theorem DFMSTh31LocalOracleProjectorFactorTwo.concrete_of_cellFourierNormBound
     {n : Nat}
     {X : Type}
     (R : X → DFMSBitVector n → Prop)
     [DecidableRel R]
     (x : X)
-    (hCellFourierContractive :
+    (hCellFourierNorm :
       ‖DFMSTh31CellFourierOperator n‖ ≤ 1) :
     DFMSTh31LocalOracleProjectorFactorTwo
       n
@@ -1889,7 +2202,21 @@ theorem DFMSTh31LocalOracleProjectorFactorTwo.concrete_of_cellFourierContractive
     x
     (by
       rw [DFMSTh31LocalFourierOperator_norm_eq_cell n]
-      exact hCellFourierContractive)
+      exact hCellFourierNorm)
+
+theorem DFMSTh31LocalOracleProjectorFactorTwo.concrete
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31LocalOracleProjectorFactorTwo
+      n
+      (DFMSTh31LocalFourierOperator n)
+      (DFMSTh31LocalOracleOperator n)
+      (DFMSTh31LocalMatchProjectorOperator R x) :=
+  DFMSTh31LocalOracleProjectorFactorTwo.concrete_of_cellFourierNormBound
+    R x (DFMSTh31CellFourierOperator_norm_le_one n)
 
 def DFMSTh31LocalOracleProjectorBound
     (n gammaX : Nat)
@@ -2304,8 +2631,6 @@ structure DFMSTh31AnalyticProof
     (X : Type) [Fintype X] [DecidableEq X]
     (R : X → DFMSBitVector n → Prop) [DecidableRel R]
     (operatorModel : DFMSTh31OperatorModel n X) where
-  cellFourierContractive :
-    ‖DFMSTh31CellFourierOperator n‖ ≤ 1
   localPurifiedMeasurement : X →
     DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
   purifiedFirstMatchReductionComponents :
@@ -2428,8 +2753,7 @@ theorem DFMSTh31AnalyticProof.localOracleProjectorFactorTwo
         (analytic.localMatchProjector x) := by
   intro x
   exact
-    DFMSTh31LocalOracleProjectorFactorTwo.concrete_of_cellFourierContractive
-      R x analytic.cellFourierContractive
+    DFMSTh31LocalOracleProjectorFactorTwo.concrete R x
 
 theorem DFMSTh31AnalyticProof.localNoMatchProjectorComplement
     {n : Nat}
