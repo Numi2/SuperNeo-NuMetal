@@ -2198,34 +2198,57 @@ theorem productExtractorLossAccountingAccepted_of_components
       hBudget⟩
 
 structure ProductIdealSplitQROModel where
+  splitOracle : SplitQROSemanticBundle
   challengeOracle : ProductQROSemanticBundle
   bindingOracle : ProductQROSemanticBundle
 
 def ProductIdealSplitQROModelAccepted
     (model : ProductIdealSplitQROModel) : Prop :=
-  ProductQROSemanticBundleAccepted model.challengeOracle
+  SplitQROSemanticBundleAccepted model.splitOracle
+    ∧ ProductQROSemanticBundleAccepted model.challengeOracle
     ∧ ProductQROSemanticBundleAccepted model.bindingOracle
 
 theorem ProductIdealSplitQROModel.accepted
     (model : ProductIdealSplitQROModel) :
     ProductIdealSplitQROModelAccepted model :=
-  ⟨model.challengeOracle.accepted, model.bindingOracle.accepted⟩
+  ⟨model.splitOracle.accepted,
+    model.challengeOracle.accepted,
+    model.bindingOracle.accepted⟩
 
 structure ProductOnlineExtractabilityAssumption where
   queryBoundQHLog2 : Nat
   queryBoundMatchesProduct : queryBoundQHLog2 = 64
+  simulationError : ProductNumericLossTerm
+  extractionFailure : ProductNumericLossTerm
   extractorProgrammingLoss : ProductNumericLossTerm
+  extractorProgrammingLossValue_eq :
+    extractorProgrammingLoss.value =
+      simulationError.value + extractionFailure.value
+  extractorProgrammingLossBudgetCoversComponents :
+    simulationError.budget + extractionFailure.budget ≤
+      extractorProgrammingLoss.budget
 
 def ProductOnlineExtractabilityAssumptionAccepted
     (assumption : ProductOnlineExtractabilityAssumption) : Prop :=
   assumption.queryBoundQHLog2 = 64
+    ∧ ProductNumericLossTermAccepted assumption.simulationError
+    ∧ ProductNumericLossTermAccepted assumption.extractionFailure
     ∧ ProductNumericLossTermAccepted assumption.extractorProgrammingLoss
+    ∧ assumption.extractorProgrammingLoss.value =
+      assumption.simulationError.value + assumption.extractionFailure.value
+    ∧ assumption.simulationError.budget +
+        assumption.extractionFailure.budget ≤
+      assumption.extractorProgrammingLoss.budget
 
 theorem ProductOnlineExtractabilityAssumption.accepted
     (assumption : ProductOnlineExtractabilityAssumption) :
     ProductOnlineExtractabilityAssumptionAccepted assumption :=
   ⟨assumption.queryBoundMatchesProduct,
-    assumption.extractorProgrammingLoss.accepted⟩
+    assumption.simulationError.accepted,
+    assumption.extractionFailure.accepted,
+    assumption.extractorProgrammingLoss.accepted,
+    assumption.extractorProgrammingLossValue_eq,
+    assumption.extractorProgrammingLossBudgetCoversComponents⟩
 
 structure ProductHashModelGapCertificate where
   idealSplitGap : ProductNumericLossTerm
