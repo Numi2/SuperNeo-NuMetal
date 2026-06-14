@@ -58,6 +58,214 @@ noncomputable def DFMSMatrixOperator.toContinuous
     DFMSContinuousOperator A :=
   (Matrix.toEuclideanCLM (n := A) (𝕜 := ℂ)) operator
 
+noncomputable def DFMSBlockDiagonalMatrix
+    {I B : Type}
+    [DecidableEq I]
+    (blocks : I → DFMSMatrixOperator B) :
+    DFMSMatrixOperator (I × B) :=
+  fun output input =>
+    if output.1 = input.1 then blocks input.1 output.2 input.2 else 0
+
+noncomputable def DFMSBlockSlice
+    {I B : Type}
+    [Fintype I] [Fintype B]
+    (vector : EuclideanSpace ℂ (I × B))
+    (index : I) :
+    EuclideanSpace ℂ B :=
+  WithLp.toLp 2 (fun basis => vector.ofLp (index, basis))
+
+noncomputable def DFMSBlockEmbed
+    {I B : Type}
+    [Fintype I] [Fintype B] [DecidableEq I]
+    (index : I)
+    (vector : EuclideanSpace ℂ B) :
+    EuclideanSpace ℂ (I × B) :=
+  WithLp.toLp 2
+    (fun basis => if basis.1 = index then vector.ofLp basis.2 else 0)
+
+lemma DFMSBlockDiagonalOperator_apply_slice
+    {I B : Type}
+    [Fintype I] [Fintype B] [DecidableEq I] [DecidableEq B]
+    (blocks : I → DFMSMatrixOperator B)
+    (vector : EuclideanSpace ℂ (I × B))
+    (index : I)
+    (basis : B) :
+    (((DFMSBlockDiagonalMatrix blocks).toContinuous vector).ofLp
+        (index, basis)) =
+      (((blocks index).toContinuous (DFMSBlockSlice vector index)).ofLp
+        basis) := by
+  simp [DFMSMatrixOperator.toContinuous, DFMSBlockDiagonalMatrix,
+    DFMSBlockSlice, Matrix.ofLp_toEuclideanCLM, Matrix.mulVec,
+    dotProduct]
+  rw [Fintype.sum_prod_type]
+  simp
+
+lemma DFMSBlockEmbed_norm
+    {I B : Type}
+    [Fintype I] [Fintype B] [DecidableEq I]
+    (index : I)
+    (vector : EuclideanSpace ℂ B) :
+    ‖DFMSBlockEmbed index vector‖ = ‖vector‖ := by
+  apply (sq_eq_sq₀ (norm_nonneg _) (norm_nonneg _)).mp
+  rw [EuclideanSpace.norm_sq_eq, EuclideanSpace.norm_sq_eq]
+  rw [Fintype.sum_prod_type]
+  simp only [DFMSBlockEmbed]
+  change
+    (∑ i : I,
+      ∑ basis : B,
+        ‖if i = index then vector.ofLp basis else 0‖ ^ 2) =
+      ∑ basis : B, ‖vector.ofLp basis‖ ^ 2
+  simpa using
+    (Finset.sum_eq_single
+      (s := (Finset.univ : Finset I))
+      (a := index)
+      (f := fun i : I =>
+        ∑ basis : B,
+          ‖if i = index then vector.ofLp basis else 0‖ ^ 2)
+      (by
+        intro i _hi hine
+        simp [hine])
+      (by
+        intro hnot
+        exact False.elim (hnot (Finset.mem_univ index))))
+
+lemma DFMSBlockDiagonalOperator_apply_embed
+    {I B : Type}
+    [Fintype I] [Fintype B] [DecidableEq I] [DecidableEq B]
+    (blocks : I → DFMSMatrixOperator B)
+    (index : I)
+    (vector : EuclideanSpace ℂ B) :
+    (DFMSBlockDiagonalMatrix blocks).toContinuous
+        (DFMSBlockEmbed index vector) =
+      DFMSBlockEmbed index ((blocks index).toContinuous vector) := by
+  ext basis
+  simp [DFMSMatrixOperator.toContinuous, DFMSBlockDiagonalMatrix,
+    DFMSBlockEmbed, Matrix.ofLp_toEuclideanCLM, Matrix.mulVec,
+    dotProduct]
+  rw [Fintype.sum_prod_type]
+  by_cases h : basis.1 = index
+  · subst h
+    simp
+  · simp [h]
+
+lemma DFMSBlockDiagonalOperator_apply_norm_sq
+    {I B : Type}
+    [Fintype I] [Fintype B] [DecidableEq I] [DecidableEq B]
+    (blocks : I → DFMSMatrixOperator B)
+    (vector : EuclideanSpace ℂ (I × B)) :
+    ‖(DFMSBlockDiagonalMatrix blocks).toContinuous vector‖ ^ 2 =
+      ∑ index : I,
+        ‖(blocks index).toContinuous (DFMSBlockSlice vector index)‖ ^ 2 := by
+  rw [EuclideanSpace.norm_sq_eq]
+  rw [Fintype.sum_prod_type]
+  apply Finset.sum_congr rfl
+  intro index _hindex
+  rw [EuclideanSpace.norm_sq_eq]
+  apply Finset.sum_congr rfl
+  intro basis _hbasis
+  rw [DFMSBlockDiagonalOperator_apply_slice blocks vector index basis]
+
+lemma DFMSBlockSlice_norm_sq
+    {I B : Type}
+    [Fintype I] [Fintype B]
+    (vector : EuclideanSpace ℂ (I × B)) :
+    ‖vector‖ ^ 2 =
+      ∑ index : I, ‖DFMSBlockSlice vector index‖ ^ 2 := by
+  rw [EuclideanSpace.norm_sq_eq]
+  simp [DFMSBlockSlice]
+  rw [Fintype.sum_prod_type]
+  simp [EuclideanSpace.norm_sq_eq]
+
+theorem DFMSBlockDiagonalOperator_norm_le
+    {I B : Type}
+    [Fintype I] [Fintype B] [DecidableEq I] [DecidableEq B]
+    (blocks : I → DFMSMatrixOperator B)
+    (bound : ℝ)
+    (hBoundNonneg : 0 ≤ bound)
+    (hBlocks :
+      ∀ index : I, DFMSOperatorNorm ((blocks index).toContinuous) ≤ bound) :
+    DFMSOperatorNorm ((DFMSBlockDiagonalMatrix blocks).toContinuous) ≤
+      bound := by
+  unfold DFMSOperatorNorm
+  refine ContinuousLinearMap.opNorm_le_bound _
+    hBoundNonneg fun vector => ?_
+  apply (sq_le_sq₀ (norm_nonneg _)
+    (mul_nonneg hBoundNonneg (norm_nonneg _))).mp
+  rw [DFMSBlockDiagonalOperator_apply_norm_sq blocks vector]
+  calc
+    (∑ index : I,
+        ‖(blocks index).toContinuous
+          (DFMSBlockSlice vector index)‖ ^ 2) ≤
+      ∑ index : I,
+        (bound * ‖DFMSBlockSlice vector index‖) ^ 2 := by
+        apply Finset.sum_le_sum
+        intro index _hindex
+        have hApply :
+            ‖(blocks index).toContinuous
+                (DFMSBlockSlice vector index)‖ ≤
+              bound * ‖DFMSBlockSlice vector index‖ := by
+          calc
+            ‖(blocks index).toContinuous
+                (DFMSBlockSlice vector index)‖ ≤
+                ‖(blocks index).toContinuous‖ *
+                  ‖DFMSBlockSlice vector index‖ :=
+              ContinuousLinearMap.le_opNorm _ _
+            _ ≤ bound * ‖DFMSBlockSlice vector index‖ := by
+              exact mul_le_mul_of_nonneg_right
+                (hBlocks index)
+                (norm_nonneg _)
+        exact
+          (sq_le_sq₀ (norm_nonneg _)
+            (mul_nonneg hBoundNonneg (norm_nonneg _))).mpr hApply
+    _ =
+      bound ^ 2 *
+        ∑ index : I, ‖DFMSBlockSlice vector index‖ ^ 2 := by
+        rw [Finset.mul_sum]
+        apply Finset.sum_congr rfl
+        intro index _hindex
+        ring
+    _ = (bound * ‖vector‖) ^ 2 := by
+        rw [← DFMSBlockSlice_norm_sq vector]
+        ring
+
+theorem DFMSBlockDiagonalOperator_norm_ge_block
+    {I B : Type}
+    [Fintype I] [Fintype B] [DecidableEq I] [DecidableEq B]
+    (blocks : I → DFMSMatrixOperator B)
+    (index : I) :
+    DFMSOperatorNorm ((blocks index).toContinuous) ≤
+      DFMSOperatorNorm ((DFMSBlockDiagonalMatrix blocks).toContinuous) := by
+  unfold DFMSOperatorNorm
+  refine ContinuousLinearMap.opNorm_le_bound _
+    (ContinuousLinearMap.opNorm_nonneg _) fun vector => ?_
+  have h := ContinuousLinearMap.le_opNorm
+    ((DFMSBlockDiagonalMatrix blocks).toContinuous)
+    (DFMSBlockEmbed index vector)
+  rw [DFMSBlockDiagonalOperator_apply_embed blocks index vector,
+    DFMSBlockEmbed_norm index ((blocks index).toContinuous vector),
+    DFMSBlockEmbed_norm index vector] at h
+  exact h
+
+theorem DFMSBlockDiagonalOperator_norm_eq_of_attained_bound
+    {I B : Type}
+    [Fintype I] [Fintype B] [DecidableEq I] [DecidableEq B]
+    (blocks : I → DFMSMatrixOperator B)
+    (bound : ℝ)
+    (hBoundNonneg : 0 ≤ bound)
+    (hUpper :
+      ∀ index : I, DFMSOperatorNorm ((blocks index).toContinuous) ≤ bound)
+    (hAttained :
+      ∃ index : I, bound ≤
+        DFMSOperatorNorm ((blocks index).toContinuous)) :
+    DFMSOperatorNorm ((DFMSBlockDiagonalMatrix blocks).toContinuous) =
+      bound := by
+  apply le_antisymm
+  · exact DFMSBlockDiagonalOperator_norm_le
+      blocks bound hBoundNonneg hUpper
+  · rcases hAttained with ⟨index, hIndex⟩
+    exact le_trans hIndex
+      (DFMSBlockDiagonalOperator_norm_ge_block blocks index)
+
 abbrev DFMSTh31Database (n : Nat) (X : Type) :=
   X → Option (DFMSBitVector n)
 
@@ -2001,64 +2209,237 @@ def DFMSTh31GlobalBlockDiagonalReduction
       operatorModel.oracleQuery
       operatorModel.purifiedMeasurement
 
+structure DFMSTh31GlobalBlockDiagonalReductionComponents
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop) [DecidableRel R]
+    (operatorModel : DFMSTh31OperatorModel n X)
+    (localOracle localPurifiedMeasurement :
+      X → DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)) where
+  blockCommutator :
+    X → DFMSMatrixOperator (DFMSTh31LocalQueryBasis n)
+  globalCommutator_norm_eq_blockDiagonal :
+    DFMSOperatorNorm
+        (DFMSOperatorCommutator
+          operatorModel.oracleQuery
+          operatorModel.purifiedMeasurement)
+      =
+    DFMSOperatorNorm
+      ((DFMSBlockDiagonalMatrix blockCommutator).toContinuous)
+  blockCommutator_norm_le_local :
+    ∀ x,
+      DFMSOperatorNorm ((blockCommutator x).toContinuous) ≤
+        DFMSOperatorNorm
+          (DFMSOperatorCommutator
+            (localOracle x)
+            (localPurifiedMeasurement x))
+
+theorem dfmsTh31_localSqrtTerm_mono
+    (n : Nat)
+    {left right : Nat}
+    (hLe : left ≤ right) :
+    DFMSTh31LocalSqrtTerm n left ≤
+      DFMSTh31LocalSqrtTerm n right := by
+  unfold DFMSTh31LocalSqrtTerm
+  apply Real.sqrt_le_sqrt
+  apply div_le_div_of_nonneg_right
+  · have hCast : (left : ℝ) ≤ (right : ℝ) := Nat.cast_le.mpr hLe
+    nlinarith
+  · exact pow_nonneg (by norm_num) n
+
+theorem DFMSTh31GlobalBlockDiagonalReduction.of_components
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    {localOracle localPurifiedMeasurement :
+      X → DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)}
+    (components :
+      DFMSTh31GlobalBlockDiagonalReductionComponents
+        R operatorModel localOracle localPurifiedMeasurement) :
+    DFMSTh31GlobalBlockDiagonalReduction
+      R operatorModel localOracle localPurifiedMeasurement := by
+  intro hLocal
+  unfold DFMSTh31CommutatorBound
+  rw [components.globalCommutator_norm_eq_blockDiagonal]
+  let globalBound : ℝ :=
+    8 * DFMSTh31LocalSqrtTerm n (DFMSTh31GammaR R)
+  have hGlobalBoundNonneg : 0 ≤ globalBound := by
+    exact mul_nonneg (by norm_num) (Real.sqrt_nonneg _)
+  have hBlocks :
+      ∀ x : X,
+        DFMSOperatorNorm ((components.blockCommutator x).toContinuous) ≤
+          globalBound := by
+    intro x
+    have hLocalX := hLocal x
+    unfold DFMSTh31LocalPurifiedMeasurementBound at hLocalX
+    have hSqrt :
+        DFMSTh31LocalSqrtTerm n (DFMSTh31GammaX R x) ≤
+          DFMSTh31LocalSqrtTerm n (DFMSTh31GammaR R) :=
+      dfmsTh31_localSqrtTerm_mono n
+        (dfmsTh31_gammaX_le_gammaR R x)
+    calc
+      DFMSOperatorNorm ((components.blockCommutator x).toContinuous) ≤
+          DFMSOperatorNorm
+            (DFMSOperatorCommutator
+              (localOracle x)
+              (localPurifiedMeasurement x)) :=
+        components.blockCommutator_norm_le_local x
+      _ ≤ 8 * DFMSTh31LocalSqrtTerm n (DFMSTh31GammaX R x) :=
+        hLocalX
+      _ ≤ globalBound := by
+        exact mul_le_mul_of_nonneg_left hSqrt (by norm_num)
+  change
+    DFMSOperatorNorm
+        ((DFMSBlockDiagonalMatrix components.blockCommutator).toContinuous) ≤
+      globalBound
+  exact DFMSBlockDiagonalOperator_norm_le
+    components.blockCommutator
+    globalBound
+    hGlobalBoundNonneg
+    hBlocks
+
 structure DFMSTh31AnalyticProof
     (n : Nat)
     (X : Type) [Fintype X] [DecidableEq X]
     (R : X → DFMSBitVector n → Prop) [DecidableRel R]
     (operatorModel : DFMSTh31OperatorModel n X) where
-  localFourier : X →
-    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
-  localEvaluation : X →
-    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
-  localOracle : X →
-    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
-  localMatchProjector : X →
-    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
-  localNoMatchProjector : X →
-    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
+  cellFourierContractive :
+    ‖DFMSTh31CellFourierOperator n‖ ≤ 1
   localPurifiedMeasurement : X →
     DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
-  localOracleFactorization :
-    ∀ x,
-      localOracle x =
-        (localFourier x).comp
-          ((localEvaluation x).comp (localFourier x))
-  evaluationCommutesWithMatchProjector :
-    ∀ x,
-      DFMSOperatorCommutator
-          (localEvaluation x)
-          (localMatchProjector x) = 0
-  fourierProjectorExactNorm :
-    ∀ x,
-      DFMSTh31FourierProjectorExactNorm
-        n
-        (DFMSTh31GammaX R x)
-        (localFourier x)
-        (localMatchProjector x)
-  localOracleProjectorFactorTwo :
-    ∀ x,
-      DFMSTh31LocalOracleProjectorFactorTwo
-        n
-        (localFourier x)
-        (localOracle x)
-        (localMatchProjector x)
-  localNoMatchProjectorComplement :
-    ∀ x,
-      localNoMatchProjector x = 1 - localMatchProjector x
   purifiedFirstMatchReductionComponents :
     ∀ x,
       DFMSTh31PurifiedFirstMatchReductionComponents
         n
-        (localOracle x)
+        (DFMSTh31LocalOracleOperator n)
         (localPurifiedMeasurement x)
-        (localMatchProjector x)
-        (localNoMatchProjector x)
-  globalBlockDiagonalReduction :
-    DFMSTh31GlobalBlockDiagonalReduction
+        (DFMSTh31LocalMatchProjectorOperator R x)
+        (DFMSTh31LocalNoMatchProjectorOperator R x)
+  globalBlockDiagonalReductionComponents :
+    DFMSTh31GlobalBlockDiagonalReductionComponents
       R
       operatorModel
-      localOracle
+      (fun _ : X => DFMSTh31LocalOracleOperator n)
       localPurifiedMeasurement
+
+noncomputable def DFMSTh31AnalyticProof.localFourier
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (_analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (_x : X) :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
+  DFMSTh31LocalFourierOperator n
+
+noncomputable def DFMSTh31AnalyticProof.localEvaluation
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (_analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (_x : X) :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
+  DFMSTh31LocalEvaluationOperator n
+
+noncomputable def DFMSTh31AnalyticProof.localOracle
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (_analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (_x : X) :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
+  DFMSTh31LocalOracleOperator n
+
+noncomputable def DFMSTh31AnalyticProof.localMatchProjector
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (_analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (x : X) :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
+  DFMSTh31LocalMatchProjectorOperator R x
+
+noncomputable def DFMSTh31AnalyticProof.localNoMatchProjector
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (_analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (x : X) :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
+  DFMSTh31LocalNoMatchProjectorOperator R x
+
+theorem DFMSTh31AnalyticProof.localOracleFactorization
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel) :
+    ∀ x,
+      analytic.localOracle x =
+        (analytic.localFourier x).comp
+          ((analytic.localEvaluation x).comp (analytic.localFourier x)) := by
+  intro x
+  exact DFMSTh31LocalOracleOperator_eq_FEF n
+
+theorem DFMSTh31AnalyticProof.evaluationCommutesWithMatchProjector
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel) :
+    ∀ x,
+      DFMSOperatorCommutator
+          (analytic.localEvaluation x)
+          (analytic.localMatchProjector x) = 0 := by
+  intro x
+  exact DFMSTh31LocalEvaluationOperator_commutes_matchProjector R x
+
+theorem DFMSTh31AnalyticProof.fourierProjectorExactNorm
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel) :
+    ∀ x,
+      DFMSTh31FourierProjectorExactNorm
+        n
+        (DFMSTh31GammaX R x)
+        (analytic.localFourier x)
+        (analytic.localMatchProjector x) := by
+  intro x
+  exact DFMSTh31LocalFourierMatchCommutator_exactNorm R x
+
+theorem DFMSTh31AnalyticProof.localOracleProjectorFactorTwo
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel) :
+    ∀ x,
+      DFMSTh31LocalOracleProjectorFactorTwo
+        n
+        (analytic.localFourier x)
+        (analytic.localOracle x)
+        (analytic.localMatchProjector x) := by
+  intro x
+  exact
+    DFMSTh31LocalOracleProjectorFactorTwo.concrete_of_cellFourierContractive
+      R x analytic.cellFourierContractive
+
+theorem DFMSTh31AnalyticProof.localNoMatchProjectorComplement
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel) :
+    ∀ x, analytic.localNoMatchProjector x = 1 - analytic.localMatchProjector x := by
+  intro x
+  exact DFMSTh31LocalNoMatchProjectorOperator_eq_one_sub_match R x
 
 def DFMSTh31OperatorModelAccepted
     {n : Nat}
@@ -2272,6 +2653,21 @@ theorem DFMSTh31AnalyticProof.localPurifiedMeasurementBound
     (analytic.purifiedMeasurementReduction x)
     (analytic.localOracleProjectorBound x)
     (analytic.noMatchProjectorBound x)
+
+theorem DFMSTh31AnalyticProof.globalBlockDiagonalReduction
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel) :
+    DFMSTh31GlobalBlockDiagonalReduction
+      R
+      operatorModel
+      analytic.localOracle
+      analytic.localPurifiedMeasurement := by
+  simpa [DFMSTh31AnalyticProof.localOracle] using
+    DFMSTh31GlobalBlockDiagonalReduction.of_components
+      analytic.globalBlockDiagonalReductionComponents
 
 theorem DFMSTh31AnalyticProof.globalCommutatorBound
     {n : Nat}
