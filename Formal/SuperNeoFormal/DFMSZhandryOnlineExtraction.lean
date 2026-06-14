@@ -779,6 +779,84 @@ theorem DFMSTh31LocalFourierOperator_norm_eq_cell
     DFMSTh31CellFourierOperator, DFMSTh31LocalFourierMatrix] using
     DFMSTh31LiftCellOperator_norm_eq (DFMSTh31CellFourierMatrix n)
 
+theorem DFMSTh31CellNoMatchProjectorMatrix_eq_one_sub_match
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31CellNoMatchProjectorMatrix R x =
+      1 - DFMSTh31CellMatchProjectorMatrix R x := by
+  ext output input
+  cases output with
+  | none =>
+      cases input <;>
+        simp [DFMSTh31CellNoMatchProjectorMatrix,
+          DFMSTh31CellMatchProjectorMatrix]
+  | some outputY =>
+      cases input with
+      | none =>
+          simp [DFMSTh31CellNoMatchProjectorMatrix,
+            DFMSTh31CellMatchProjectorMatrix]
+      | some inputY =>
+          by_cases hEq : outputY = inputY
+          · by_cases hMatch : R x inputY
+            · simp [DFMSTh31CellNoMatchProjectorMatrix,
+                DFMSTh31CellMatchProjectorMatrix, hEq, hMatch]
+            · simp [DFMSTh31CellNoMatchProjectorMatrix,
+                DFMSTh31CellMatchProjectorMatrix, hEq, hMatch]
+          · simp [DFMSTh31CellNoMatchProjectorMatrix,
+              DFMSTh31CellMatchProjectorMatrix, hEq]
+
+theorem DFMSTh31LocalNoMatchProjectorMatrix_eq_one_sub_match
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31LocalNoMatchProjectorMatrix R x =
+      1 - DFMSTh31LocalMatchProjectorMatrix R x := by
+  ext output input
+  have hCell :=
+    congrFun
+      (congrFun
+        (DFMSTh31CellNoMatchProjectorMatrix_eq_one_sub_match R x)
+        output.2)
+      input.2
+  by_cases hQuery : output.1 = input.1
+  · by_cases hCellEq : output.2 = input.2
+    · have hInput : output = input := Prod.ext hQuery hCellEq
+      simpa [DFMSTh31LocalNoMatchProjectorMatrix,
+        DFMSTh31LocalMatchProjectorMatrix, DFMSTh31LiftCellMatrix,
+        Matrix.one_apply, hQuery, hCellEq, hInput] using hCell
+    · have hInput : output ≠ input := by
+        intro hEq
+        exact hCellEq (congrArg Prod.snd hEq)
+      simpa [DFMSTh31LocalNoMatchProjectorMatrix,
+        DFMSTh31LocalMatchProjectorMatrix, DFMSTh31LiftCellMatrix,
+        Matrix.one_apply, hQuery, hCellEq, hInput] using hCell
+  · have hInput : output ≠ input := by
+      intro hEq
+      exact hQuery (congrArg Prod.fst hEq)
+    simp [DFMSTh31LocalNoMatchProjectorMatrix,
+      DFMSTh31LocalMatchProjectorMatrix, DFMSTh31LiftCellMatrix,
+      hQuery, hInput]
+
+theorem DFMSTh31LocalNoMatchProjectorOperator_eq_one_sub_match
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31LocalNoMatchProjectorOperator R x =
+      1 - DFMSTh31LocalMatchProjectorOperator R x := by
+  ext vector basis
+  rw [DFMSTh31LocalNoMatchProjectorOperator,
+    DFMSTh31LocalMatchProjectorOperator]
+  simp [DFMSMatrixOperator.toContinuous,
+    DFMSTh31LocalNoMatchProjectorMatrix_eq_one_sub_match R x,
+    Matrix.ofLp_toEuclideanCLM, Matrix.mulVec]
+
 noncomputable def DFMSTh31CellMatchIndicator
     {n : Nat}
     {X : Type}
@@ -1693,6 +1771,61 @@ def DFMSTh31NoMatchProjectorReduction
     ≤ DFMSOperatorNorm
         (DFMSOperatorCommutator localOracle matchProjector)
 
+theorem DFMSOperatorCommutator.eq_neg_of_right_complement
+    {A : Type} [Fintype A]
+    (operator projector complement : DFMSContinuousOperator A)
+    (hComplement : complement = 1 - projector) :
+    DFMSOperatorCommutator operator complement =
+      -DFMSOperatorCommutator operator projector := by
+  subst hComplement
+  ext vector
+  simp [DFMSOperatorCommutator, sub_eq_add_neg, add_comm, add_left_comm,
+    add_assoc]
+
+theorem DFMSOperatorCommutator.norm_eq_of_right_complement
+    {A : Type} [Fintype A]
+    (operator projector complement : DFMSContinuousOperator A)
+    (hComplement : complement = 1 - projector) :
+    DFMSOperatorNorm
+        (DFMSOperatorCommutator operator complement) =
+      DFMSOperatorNorm
+        (DFMSOperatorCommutator operator projector) := by
+  rw [DFMSOperatorCommutator.eq_neg_of_right_complement
+    operator projector complement hComplement]
+  change ‖(-DFMSOperatorCommutator operator projector)‖ =
+    ‖DFMSOperatorCommutator operator projector‖
+  exact norm_neg _
+
+theorem DFMSTh31NoMatchProjectorReduction.of_complement
+    (n : Nat)
+    (localOracle matchProjector noMatchProjector :
+      DFMSContinuousOperator (DFMSTh31LocalQueryBasis n))
+    (hComplement : noMatchProjector = 1 - matchProjector) :
+    DFMSTh31NoMatchProjectorReduction
+      n localOracle matchProjector noMatchProjector := by
+  unfold DFMSTh31NoMatchProjectorReduction
+  exact le_of_eq
+    (DFMSOperatorCommutator.norm_eq_of_right_complement
+      localOracle matchProjector noMatchProjector hComplement)
+
+theorem DFMSTh31NoMatchProjectorReduction.concrete
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31NoMatchProjectorReduction
+      n
+      (DFMSTh31LocalOracleOperator n)
+      (DFMSTh31LocalMatchProjectorOperator R x)
+      (DFMSTh31LocalNoMatchProjectorOperator R x) :=
+  DFMSTh31NoMatchProjectorReduction.of_complement
+    n
+    (DFMSTh31LocalOracleOperator n)
+    (DFMSTh31LocalMatchProjectorOperator R x)
+    (DFMSTh31LocalNoMatchProjectorOperator R x)
+    (DFMSTh31LocalNoMatchProjectorOperator_eq_one_sub_match R x)
+
 theorem DFMSTh31NoMatchProjectorBound.of_reduction
     (n gammaX : Nat)
     (localOracle matchProjector noMatchProjector :
@@ -1802,13 +1935,9 @@ structure DFMSTh31AnalyticProof
         (localFourier x)
         (localOracle x)
         (localMatchProjector x)
-  noMatchProjectorReduction :
+  localNoMatchProjectorComplement :
     ∀ x,
-      DFMSTh31NoMatchProjectorReduction
-        n
-        (localOracle x)
-        (localMatchProjector x)
-        (localNoMatchProjector x)
+      localNoMatchProjector x = 1 - localMatchProjector x
   purifiedMeasurementReduction :
     ∀ x,
       DFMSTh31PurifiedMeasurementReduction
@@ -1952,6 +2081,25 @@ theorem DFMSTh31AnalyticProof.localOracleProjectorBound
     (analytic.localMatchProjector x)
     (analytic.localOracleProjectorFactorTwo x)
     (analytic.fourierProjectorBound x)
+
+theorem DFMSTh31AnalyticProof.noMatchProjectorReduction
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (x : X) :
+    DFMSTh31NoMatchProjectorReduction
+      n
+      (analytic.localOracle x)
+      (analytic.localMatchProjector x)
+      (analytic.localNoMatchProjector x) :=
+  DFMSTh31NoMatchProjectorReduction.of_complement
+    n
+    (analytic.localOracle x)
+    (analytic.localMatchProjector x)
+    (analytic.localNoMatchProjector x)
+    (analytic.localNoMatchProjectorComplement x)
 
 theorem DFMSTh31AnalyticProof.noMatchProjectorBound
     {n : Nat}
