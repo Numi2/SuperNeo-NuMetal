@@ -2630,6 +2630,7 @@ structure ProductPublicCoinTransformPreconditions where
   selectedDepth : Nat
   selectedDepthPositive : 0 < selectedDepth
   theoremFamilyPinned : Prop
+  acceptedProofKindOrderPinned : Prop
   publicCoinInteractiveProtocolSpecified : Prop
   constantRoundOddMessageScheduleSpecified : Prop
   challengeSpaceAndUniformityPinned : Prop
@@ -2645,6 +2646,7 @@ def ProductPublicCoinTransformPreconditionsAccepted
   preconditions.selectedDepth = 3
     ∧ (0 < preconditions.selectedDepth)
     ∧ preconditions.theoremFamilyPinned
+    ∧ preconditions.acceptedProofKindOrderPinned
     ∧ preconditions.publicCoinInteractiveProtocolSpecified
     ∧ preconditions.constantRoundOddMessageScheduleSpecified
     ∧ preconditions.challengeSpaceAndUniformityPinned
@@ -2666,6 +2668,7 @@ def ProductPublicCoinTransformPreconditions.ofInstantiatedQROM
   selectedDepth := 3
   selectedDepthPositive := show 0 < 3 by decide
   theoremFamilyPinned := theoremFamilyPinned
+  acceptedProofKindOrderPinned := schedule.acceptedProofKindsPinned
   publicCoinInteractiveProtocolSpecified :=
     ProductInteractiveProtocolDefinitionsAccepted evidence.protocolDefinitions
   constantRoundOddMessageScheduleSpecified :=
@@ -2717,6 +2720,22 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
       _,
       _,
       _⟩
+  have hScheduleAccepted :
+      ProductPublicCoinTranscriptScheduleAccepted schedule :=
+    hSchedule
+  rcases hSchedule with
+    ⟨_,
+      _,
+      hAcceptedProofKinds,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      _⟩
   have hProtocolsAccepted :
       ProductInteractiveProtocolDefinitionsAccepted
         evidence.protocolDefinitions :=
@@ -2750,11 +2769,12 @@ theorem productPublicCoinTransformPreconditionsAccepted_of_instantiatedQROM
     ⟨rfl,
       show 0 < 3 by decide,
       hFamily,
+      hAcceptedProofKinds,
       hProtocolsAccepted,
       hThreeMove,
       hUniformity,
       ⟨hFramed, hProofKind⟩,
-      hSchedule,
+      hScheduleAccepted,
       hInteractive,
       hCollision,
       hReductionLoss,
@@ -2795,7 +2815,6 @@ def ProductQROMInteractiveReductionAccepted
 
 def ProductQROMInteractiveReduction.ofTransformPreconditions
     (preconditions : ProductPublicCoinTransformPreconditions)
-    (acceptedProofKindOrderPinned : Prop)
     (challengeCountFormulasPinned : Prop)
     (dfm20LossFormulaPinned : Prop)
     (numericSelectedLossInstantiated : Prop)
@@ -2804,7 +2823,8 @@ def ProductQROMInteractiveReduction.ofTransformPreconditions
     ProductQROMInteractiveReduction where
   selectedDepth := 3
   selectedDepthPositive := show 0 < 3 by decide
-  acceptedProofKindOrderPinned := acceptedProofKindOrderPinned
+  acceptedProofKindOrderPinned :=
+    preconditions.acceptedProofKindOrderPinned
   protocolMessageAlgorithmsPinned :=
     preconditions.publicCoinInteractiveProtocolSpecified
   exactMoveCountsPinned :=
@@ -2827,13 +2847,11 @@ theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
     {preconditions : ProductPublicCoinTransformPreconditions}
     (hPreconditions :
       ProductPublicCoinTransformPreconditionsAccepted preconditions)
-    {acceptedProofKindOrderPinned : Prop}
     {challengeCountFormulasPinned : Prop}
     {dfm20LossFormulaPinned : Prop}
     {numericSelectedLossInstantiated : Prop}
     {totalLossBudgetInterfacePinned : Prop}
     {qromReductionTheoremApplies : Prop}
-    (hAcceptedOrder : acceptedProofKindOrderPinned)
     (hChallengeCounts : challengeCountFormulasPinned)
     (hDFM20Formula : dfm20LossFormulaPinned)
     (hNumericLoss : numericSelectedLossInstantiated)
@@ -2842,7 +2860,6 @@ theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
     ProductQROMInteractiveReductionAccepted
       (ProductQROMInteractiveReduction.ofTransformPreconditions
         preconditions
-        acceptedProofKindOrderPinned
         challengeCountFormulasPinned
         dfm20LossFormulaPinned
         numericSelectedLossInstantiated
@@ -2852,6 +2869,7 @@ theorem productQROMInteractiveReductionAccepted_of_transformPreconditions
     ⟨_,
       _,
       _,
+      hAcceptedOrder,
       hProtocol,
       hMoveCounts,
       hUniformity,
@@ -4123,6 +4141,7 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
     (hPreconditions :
       ProductPublicCoinTransformPreconditionsAccepted preconditions) :
     preconditions.theoremFamilyPinned
+      ∧ preconditions.acceptedProofKindOrderPinned
       ∧ preconditions.publicCoinInteractiveProtocolSpecified
       ∧ preconditions.constantRoundOddMessageScheduleSpecified
       ∧ preconditions.challengeSpaceAndUniformityPinned
@@ -4136,6 +4155,7 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
     ⟨_,
       _,
       hFamily,
+      hAcceptedProofKinds,
       hInteractive,
       hRounds,
       hChallenge,
@@ -4147,6 +4167,7 @@ theorem productSecurityTheorem_requires_qrom_transform_preconditions
       hTheoremApplies⟩
   exact
     ⟨hFamily,
+      hAcceptedProofKinds,
       hInteractive,
       hRounds,
       hChallenge,
