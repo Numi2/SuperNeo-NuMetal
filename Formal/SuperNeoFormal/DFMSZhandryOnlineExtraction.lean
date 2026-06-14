@@ -220,6 +220,55 @@ noncomputable def DFMSTh31LocalNoMatchProjectorOperator
     DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
   (DFMSTh31LocalNoMatchProjectorMatrix R x).toContinuous
 
+def DFMSTh31LocalEvaluationEquiv
+    (n : Nat) :
+    DFMSTh31LocalQueryBasis n ≃ DFMSTh31LocalQueryBasis n where
+  toFun input := (input.1 + DFMSTh31CellValue input.2, input.2)
+  invFun output := (output.1 - DFMSTh31CellValue output.2, output.2)
+  left_inv := by
+    intro input
+    ext <;> simp
+  right_inv := by
+    intro output
+    ext <;> simp
+
+lemma DFMSTh31LocalEvaluationMatrix_eq_permMatrix
+    (n : Nat) :
+    DFMSTh31LocalEvaluationMatrix n =
+      Equiv.Perm.permMatrix ℂ
+        (DFMSTh31LocalEvaluationEquiv n).symm := by
+  ext output input
+  simp [DFMSTh31LocalEvaluationMatrix, Equiv.Perm.permMatrix,
+    PEquiv.toMatrix, DFMSTh31LocalEvaluationEquiv]
+  have hiff :
+      (output.1 - DFMSTh31CellValue output.2, output.2) = input ↔
+        output =
+          (input.1 + DFMSTh31CellValue input.2, input.2) := by
+    constructor
+    · intro h
+      rw [← h]
+      ext <;> simp
+    · intro h
+      rw [h]
+      ext <;> simp
+  by_cases h :
+      output =
+        (input.1 + DFMSTh31CellValue input.2, input.2)
+  · simp [h]
+  · have hinv :
+        (output.1 - DFMSTh31CellValue output.2, output.2) ≠
+          input :=
+      mt hiff.mp h
+    simp [h, hinv]
+
+theorem DFMSTh31LocalEvaluationOperator_norm_le_one
+    (n : Nat) :
+    ‖DFMSTh31LocalEvaluationOperator n‖ ≤ 1 := by
+  unfold DFMSTh31LocalEvaluationOperator DFMSMatrixOperator.toContinuous
+  rw [DFMSTh31LocalEvaluationMatrix_eq_permMatrix n]
+  rw [Matrix.l2_opNorm_toEuclideanCLM]
+  exact Matrix.permMatrix_l2_opNorm_le _
+
 theorem DFMSTh31LocalOracleMatrix_eq_FEF
     (n : Nat) :
     DFMSTh31LocalOracleMatrix n =
@@ -499,6 +548,236 @@ theorem DFMSTh31LocalEvaluationOperator_commutes_matchProjector
           DFMSMatrixOperator (DFMSTh31LocalQueryBasis n) =>
         operator.mulVec vector.ofLp basis)
       (DFMSTh31LocalEvaluationMatrix_commutes_matchProjector R x))
+
+noncomputable def DFMSTh31LocalSlice
+    {n : Nat}
+    (vector : EuclideanSpace ℂ (DFMSTh31LocalQueryBasis n))
+    (query : DFMSBitVector n) :
+    EuclideanSpace ℂ (DFMSTh31CellBasis n) :=
+  WithLp.toLp 2 (fun cell => vector.ofLp (query, cell))
+
+noncomputable def DFMSTh31LocalCellEmbed
+    {n : Nat}
+    (query : DFMSBitVector n)
+    (vector : EuclideanSpace ℂ (DFMSTh31CellBasis n)) :
+    EuclideanSpace ℂ (DFMSTh31LocalQueryBasis n) :=
+  WithLp.toLp 2
+    (fun basis => if basis.1 = query then vector.ofLp basis.2 else 0)
+
+lemma DFMSTh31LiftCellOperator_apply_slice
+    {n : Nat}
+    (M : DFMSMatrixOperator (DFMSTh31CellBasis n))
+    (vector : EuclideanSpace ℂ (DFMSTh31LocalQueryBasis n))
+    (query : DFMSBitVector n)
+    (cell : DFMSTh31CellBasis n) :
+    (((DFMSTh31LiftCellMatrix M).toContinuous vector).ofLp
+        (query, cell)) =
+      (((M.toContinuous) (DFMSTh31LocalSlice vector query)).ofLp
+        cell) := by
+  simp [DFMSMatrixOperator.toContinuous, DFMSTh31LiftCellMatrix,
+    DFMSTh31LocalSlice, Matrix.ofLp_toEuclideanCLM, Matrix.mulVec,
+    dotProduct]
+  rw [Fintype.sum_prod_type]
+  simp
+
+lemma DFMSTh31LiftCellOperator_apply_norm_sq
+    {n : Nat}
+    (M : DFMSMatrixOperator (DFMSTh31CellBasis n))
+    (vector : EuclideanSpace ℂ (DFMSTh31LocalQueryBasis n)) :
+    ‖(DFMSTh31LiftCellMatrix M).toContinuous vector‖ ^ 2 =
+      ∑ query : DFMSBitVector n,
+        ‖M.toContinuous (DFMSTh31LocalSlice vector query)‖ ^ 2 := by
+  rw [EuclideanSpace.norm_sq_eq]
+  rw [Fintype.sum_prod_type]
+  apply Finset.sum_congr rfl
+  intro query _hquery
+  rw [EuclideanSpace.norm_sq_eq]
+  apply Finset.sum_congr rfl
+  intro cell _hcell
+  rw [DFMSTh31LiftCellOperator_apply_slice M vector query cell]
+
+lemma DFMSTh31LocalSlice_norm_sq
+    {n : Nat}
+    (vector : EuclideanSpace ℂ (DFMSTh31LocalQueryBasis n)) :
+    ‖vector‖ ^ 2 =
+      ∑ query : DFMSBitVector n,
+        ‖DFMSTh31LocalSlice vector query‖ ^ 2 := by
+  rw [EuclideanSpace.norm_sq_eq]
+  simp [DFMSTh31LocalSlice]
+  rw [Fintype.sum_prod_type]
+  simp [EuclideanSpace.norm_sq_eq]
+
+lemma DFMSTh31LocalCellEmbed_norm
+    {n : Nat}
+    (query : DFMSBitVector n)
+    (vector : EuclideanSpace ℂ (DFMSTh31CellBasis n)) :
+    ‖DFMSTh31LocalCellEmbed query vector‖ = ‖vector‖ := by
+  apply (sq_eq_sq₀ (norm_nonneg _) (norm_nonneg _)).mp
+  rw [EuclideanSpace.norm_sq_eq, EuclideanSpace.norm_sq_eq]
+  rw [Fintype.sum_prod_type]
+  simp only [DFMSTh31LocalCellEmbed]
+  change
+    (∑ q : DFMSBitVector n,
+      ∑ cell : DFMSTh31CellBasis n,
+        ‖if q = query then vector.ofLp cell else 0‖ ^ 2) =
+      ∑ cell : DFMSTh31CellBasis n, ‖vector.ofLp cell‖ ^ 2
+  simpa using
+    (Finset.sum_eq_single
+      (s := (Finset.univ : Finset (DFMSBitVector n)))
+      (a := query)
+      (f := fun q : DFMSBitVector n =>
+        ∑ cell : DFMSTh31CellBasis n,
+          ‖if q = query then vector.ofLp cell else 0‖ ^ 2)
+      (by
+        intro q _hq hqne
+        simp [hqne])
+      (by
+        intro hnot
+        exact False.elim (hnot (Finset.mem_univ query))))
+
+lemma DFMSTh31LiftCellOperator_apply_embed
+    {n : Nat}
+    (M : DFMSMatrixOperator (DFMSTh31CellBasis n))
+    (query : DFMSBitVector n)
+    (vector : EuclideanSpace ℂ (DFMSTh31CellBasis n)) :
+    (DFMSTh31LiftCellMatrix M).toContinuous
+        (DFMSTh31LocalCellEmbed query vector) =
+      DFMSTh31LocalCellEmbed query (M.toContinuous vector) := by
+  ext basis
+  simp [DFMSMatrixOperator.toContinuous, DFMSTh31LiftCellMatrix,
+    DFMSTh31LocalCellEmbed, Matrix.ofLp_toEuclideanCLM, Matrix.mulVec,
+    dotProduct]
+  rw [Fintype.sum_prod_type]
+  by_cases h : basis.1 = query
+  · subst h
+    simp
+  · simp [h]
+
+lemma DFMSTh31LiftCellOperator_norm_le
+    {n : Nat}
+    (M : DFMSMatrixOperator (DFMSTh31CellBasis n)) :
+    ‖(DFMSTh31LiftCellMatrix M).toContinuous‖ ≤ ‖M.toContinuous‖ := by
+  refine ContinuousLinearMap.opNorm_le_bound _
+    (ContinuousLinearMap.opNorm_nonneg _) fun vector => ?_
+  apply (sq_le_sq₀ (norm_nonneg _)
+    (mul_nonneg (ContinuousLinearMap.opNorm_nonneg _) (norm_nonneg _))).mp
+  rw [DFMSTh31LiftCellOperator_apply_norm_sq M vector]
+  calc
+    (∑ query : DFMSBitVector n,
+        ‖M.toContinuous (DFMSTh31LocalSlice vector query)‖ ^ 2) ≤
+      ∑ query : DFMSBitVector n,
+        (‖M.toContinuous‖ *
+          ‖DFMSTh31LocalSlice vector query‖) ^ 2 := by
+        apply Finset.sum_le_sum
+        intro query _hquery
+        exact
+          (sq_le_sq₀ (norm_nonneg _)
+            (mul_nonneg
+              (ContinuousLinearMap.opNorm_nonneg _)
+              (norm_nonneg _))).mpr
+            (ContinuousLinearMap.le_opNorm _ _)
+    _ =
+      ‖M.toContinuous‖ ^ 2 *
+        ∑ query : DFMSBitVector n,
+          ‖DFMSTh31LocalSlice vector query‖ ^ 2 := by
+        rw [Finset.mul_sum]
+        apply Finset.sum_congr rfl
+        intro query _hquery
+        ring
+    _ = (‖M.toContinuous‖ * ‖vector‖) ^ 2 := by
+        rw [← DFMSTh31LocalSlice_norm_sq vector]
+        ring
+
+lemma DFMSTh31LiftCellOperator_norm_ge
+    {n : Nat}
+    (M : DFMSMatrixOperator (DFMSTh31CellBasis n)) :
+    ‖M.toContinuous‖ ≤ ‖(DFMSTh31LiftCellMatrix M).toContinuous‖ := by
+  refine ContinuousLinearMap.opNorm_le_bound _
+    (ContinuousLinearMap.opNorm_nonneg _) fun vector => ?_
+  let query : DFMSBitVector n := DFMSBitVector.zero n
+  have h := ContinuousLinearMap.le_opNorm
+    ((DFMSTh31LiftCellMatrix M).toContinuous)
+    (DFMSTh31LocalCellEmbed query vector)
+  rw [DFMSTh31LiftCellOperator_apply_embed M query vector,
+    DFMSTh31LocalCellEmbed_norm query (M.toContinuous vector),
+    DFMSTh31LocalCellEmbed_norm query vector] at h
+  exact h
+
+theorem DFMSTh31LiftCellOperator_norm_eq
+    {n : Nat}
+    (M : DFMSMatrixOperator (DFMSTh31CellBasis n)) :
+    DFMSOperatorNorm ((DFMSTh31LiftCellMatrix M).toContinuous) =
+      DFMSOperatorNorm M.toContinuous := by
+  unfold DFMSOperatorNorm
+  exact le_antisymm
+    (DFMSTh31LiftCellOperator_norm_le M)
+    (DFMSTh31LiftCellOperator_norm_ge M)
+
+lemma DFMSTh31LiftCellMatrix_mul
+    {n : Nat}
+    (A B : DFMSMatrixOperator (DFMSTh31CellBasis n)) :
+    DFMSTh31LiftCellMatrix (A * B) =
+      DFMSTh31LiftCellMatrix A * DFMSTh31LiftCellMatrix B := by
+  ext output input
+  simp [DFMSTh31LiftCellMatrix, Matrix.mul_apply]
+  rw [Fintype.sum_prod_type]
+  by_cases h : output.1 = input.1 <;> simp [h]
+
+lemma DFMSTh31LiftCellMatrix_sub
+    {n : Nat}
+    (A B : DFMSMatrixOperator (DFMSTh31CellBasis n)) :
+    DFMSTh31LiftCellMatrix (A - B) =
+      DFMSTh31LiftCellMatrix A - DFMSTh31LiftCellMatrix B := by
+  ext output input
+  by_cases h : output.1 = input.1 <;>
+    simp [DFMSTh31LiftCellMatrix, h]
+
+lemma DFMSTh31LiftCellMatrix_commutator
+    {n : Nat}
+    (A B : DFMSMatrixOperator (DFMSTh31CellBasis n)) :
+    DFMSTh31LiftCellMatrix (A * B - B * A) =
+      DFMSTh31LiftCellMatrix A * DFMSTh31LiftCellMatrix B -
+        DFMSTh31LiftCellMatrix B * DFMSTh31LiftCellMatrix A := by
+  rw [DFMSTh31LiftCellMatrix_sub,
+    DFMSTh31LiftCellMatrix_mul,
+    DFMSTh31LiftCellMatrix_mul]
+
+theorem DFMSMatrixOperator.toContinuous_commutator
+    {A : Type} [Fintype A] [DecidableEq A]
+    (M N : DFMSMatrixOperator A) :
+    DFMSOperatorCommutator M.toContinuous N.toContinuous =
+      DFMSMatrixOperator.toContinuous (A := A) (M * N - N * M) := by
+  ext vector basis
+  simp [DFMSOperatorCommutator, DFMSMatrixOperator.toContinuous,
+    Matrix.ofLp_toEuclideanCLM, Matrix.mulVec_mulVec]
+
+theorem DFMSTh31LocalFourierMatchCommutator_lift
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSOperatorCommutator
+        (DFMSTh31LocalFourierOperator n)
+        (DFMSTh31LocalMatchProjectorOperator R x) =
+      (DFMSTh31LiftCellMatrix
+        (DFMSTh31CellFourierMatrix n *
+            DFMSTh31CellMatchProjectorMatrix R x -
+          DFMSTh31CellMatchProjectorMatrix R x *
+            DFMSTh31CellFourierMatrix n)).toContinuous := by
+  simp only [DFMSTh31LocalFourierOperator,
+    DFMSTh31LocalMatchProjectorOperator, DFMSTh31LocalFourierMatrix,
+    DFMSTh31LocalMatchProjectorMatrix]
+  rw [DFMSMatrixOperator.toContinuous_commutator]
+  rw [← DFMSTh31LiftCellMatrix_commutator]
+
+theorem DFMSTh31LocalFourierOperator_norm_eq_cell
+    (n : Nat) :
+    ‖DFMSTh31LocalFourierOperator n‖ =
+      ‖DFMSTh31CellFourierOperator n‖ := by
+  simpa [DFMSOperatorNorm, DFMSTh31LocalFourierOperator,
+    DFMSTh31CellFourierOperator, DFMSTh31LocalFourierMatrix] using
+    DFMSTh31LiftCellOperator_norm_eq (DFMSTh31CellFourierMatrix n)
 
 noncomputable def DFMSTh31CellMatchIndicator
     {n : Nat}
@@ -1124,6 +1403,23 @@ def DFMSTh31FourierProjectorExactNorm
       (DFMSOperatorCommutator fourier matchProjector)
     = DFMSTh31ExactFourierProjectorTerm n gammaX
 
+theorem DFMSTh31LocalFourierMatchCommutator_exactNorm
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31FourierProjectorExactNorm
+      n
+      (DFMSTh31GammaX R x)
+      (DFMSTh31LocalFourierOperator n)
+      (DFMSTh31LocalMatchProjectorOperator R x) := by
+  unfold DFMSTh31FourierProjectorExactNorm
+  rw [DFMSTh31LocalFourierMatchCommutator_lift R x]
+  rw [DFMSTh31LiftCellOperator_norm_eq]
+  rw [← DFMSMatrixOperator.toContinuous_commutator]
+  exact DFMSTh31CellFourierMatchCommutator_exactNorm R x
+
 def DFMSTh31FourierProjectorBound
     (n gammaX : Nat)
     (fourier matchProjector :
@@ -1141,6 +1437,173 @@ def DFMSTh31LocalOracleProjectorFactorTwo
     ≤ 2 *
       DFMSOperatorNorm
         (DFMSOperatorCommutator fourier matchProjector)
+
+theorem DFMSOperatorCommutator.factorTwo_of_FEF
+    {A : Type} [Fintype A]
+    (fourier evaluation projector :
+      DFMSContinuousOperator A)
+    (hEvaluationCommutes :
+      DFMSOperatorCommutator evaluation projector = 0)
+    (hFourierContractive : ‖fourier‖ ≤ 1)
+    (hEvaluationContractive : ‖evaluation‖ ≤ 1) :
+    DFMSOperatorNorm
+        (DFMSOperatorCommutator
+          (fourier.comp (evaluation.comp fourier))
+          projector) ≤
+      2 *
+        DFMSOperatorNorm
+          (DFMSOperatorCommutator fourier projector) := by
+  let commutator : DFMSContinuousOperator A :=
+    DFMSOperatorCommutator fourier projector
+  have hIdentity :
+      DFMSOperatorCommutator
+          (fourier.comp (evaluation.comp fourier))
+          projector =
+        fourier.comp (evaluation.comp commutator) +
+          commutator.comp (evaluation.comp fourier) := by
+    have hEvaluationProjector :
+        evaluation.comp projector = projector.comp evaluation :=
+      sub_eq_zero.mp hEvaluationCommutes
+    ext vector basis
+    have hEvaluationProjector_apply :
+        evaluation (projector (fourier vector)) =
+          projector (evaluation (fourier vector)) := by
+      simpa [ContinuousLinearMap.comp_apply] using
+        congrFun
+          (congrArg DFunLike.coe hEvaluationProjector)
+          (fourier vector)
+    simp only [DFMSOperatorCommutator, commutator,
+      ContinuousLinearMap.sub_apply, ContinuousLinearMap.comp_apply,
+      ContinuousLinearMap.add_apply]
+    simp [map_sub]
+    rw [hEvaluationProjector_apply]
+    abel
+  unfold DFMSOperatorNorm
+  rw [hIdentity]
+  have hCommutatorNonneg : 0 ≤ ‖commutator‖ := norm_nonneg _
+  have hFourierNonneg : 0 ≤ ‖fourier‖ := norm_nonneg _
+  have hEvaluationNonneg : 0 ≤ ‖evaluation‖ := norm_nonneg _
+  have hEvaluationCommutator :
+      ‖evaluation.comp commutator‖ ≤
+        ‖evaluation‖ * ‖commutator‖ :=
+    ContinuousLinearMap.opNorm_comp_le evaluation commutator
+  have hEvaluationFourier :
+      ‖evaluation.comp fourier‖ ≤
+        ‖evaluation‖ * ‖fourier‖ :=
+    ContinuousLinearMap.opNorm_comp_le evaluation fourier
+  have hLeft :
+      ‖fourier.comp (evaluation.comp commutator)‖ ≤
+        ‖fourier‖ * (‖evaluation‖ * ‖commutator‖) := by
+    exact
+      (ContinuousLinearMap.opNorm_comp_le
+          fourier
+          (evaluation.comp commutator)).trans
+        (mul_le_mul_of_nonneg_left
+          hEvaluationCommutator
+          hFourierNonneg)
+  have hRight :
+      ‖commutator.comp (evaluation.comp fourier)‖ ≤
+        ‖commutator‖ * (‖evaluation‖ * ‖fourier‖) := by
+    exact
+      (ContinuousLinearMap.opNorm_comp_le
+          commutator
+          (evaluation.comp fourier)).trans
+        (mul_le_mul_of_nonneg_left
+          hEvaluationFourier
+          hCommutatorNonneg)
+  calc
+    ‖fourier.comp (evaluation.comp commutator) +
+        commutator.comp (evaluation.comp fourier)‖ ≤
+        ‖fourier.comp (evaluation.comp commutator)‖ +
+          ‖commutator.comp (evaluation.comp fourier)‖ :=
+      norm_add_le _ _
+    _ ≤
+        ‖fourier‖ * (‖evaluation‖ * ‖commutator‖) +
+          ‖commutator‖ * (‖evaluation‖ * ‖fourier‖) := by
+      exact add_le_add hLeft hRight
+    _ ≤ 2 * ‖commutator‖ := by
+      have hFourierEvaluation :
+          ‖fourier‖ * ‖evaluation‖ ≤ 1 := by
+        simpa using
+          mul_le_mul
+            hFourierContractive
+            hEvaluationContractive
+            hEvaluationNonneg
+            zero_le_one
+      have hScaled :
+          ‖fourier‖ * ‖evaluation‖ * ‖commutator‖ ≤
+            1 * ‖commutator‖ :=
+        mul_le_mul_of_nonneg_right
+          hFourierEvaluation
+          hCommutatorNonneg
+      nlinarith
+
+theorem DFMSTh31LocalOracleProjectorFactorTwo.of_FEF
+    (n : Nat)
+    (fourier evaluation localOracle matchProjector :
+      DFMSContinuousOperator (DFMSTh31LocalQueryBasis n))
+    (hOracle :
+      localOracle = fourier.comp (evaluation.comp fourier))
+    (hEvaluationCommutes :
+      DFMSOperatorCommutator evaluation matchProjector = 0)
+    (hFourierContractive : ‖fourier‖ ≤ 1)
+    (hEvaluationContractive : ‖evaluation‖ ≤ 1) :
+    DFMSTh31LocalOracleProjectorFactorTwo
+      n fourier localOracle matchProjector := by
+  unfold DFMSTh31LocalOracleProjectorFactorTwo
+  rw [hOracle]
+  exact
+    DFMSOperatorCommutator.factorTwo_of_FEF
+      fourier
+      evaluation
+      matchProjector
+      hEvaluationCommutes
+      hFourierContractive
+      hEvaluationContractive
+
+theorem DFMSTh31LocalOracleProjectorFactorTwo.concrete_of_fourierContractive
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X)
+    (hFourierContractive :
+      ‖DFMSTh31LocalFourierOperator n‖ ≤ 1) :
+    DFMSTh31LocalOracleProjectorFactorTwo
+      n
+      (DFMSTh31LocalFourierOperator n)
+      (DFMSTh31LocalOracleOperator n)
+      (DFMSTh31LocalMatchProjectorOperator R x) :=
+  DFMSTh31LocalOracleProjectorFactorTwo.of_FEF
+    n
+    (DFMSTh31LocalFourierOperator n)
+    (DFMSTh31LocalEvaluationOperator n)
+    (DFMSTh31LocalOracleOperator n)
+    (DFMSTh31LocalMatchProjectorOperator R x)
+    (DFMSTh31LocalOracleOperator_eq_FEF n)
+    (DFMSTh31LocalEvaluationOperator_commutes_matchProjector R x)
+    hFourierContractive
+    (DFMSTh31LocalEvaluationOperator_norm_le_one n)
+
+theorem DFMSTh31LocalOracleProjectorFactorTwo.concrete_of_cellFourierContractive
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X)
+    (hCellFourierContractive :
+      ‖DFMSTh31CellFourierOperator n‖ ≤ 1) :
+    DFMSTh31LocalOracleProjectorFactorTwo
+      n
+      (DFMSTh31LocalFourierOperator n)
+      (DFMSTh31LocalOracleOperator n)
+      (DFMSTh31LocalMatchProjectorOperator R x) :=
+  DFMSTh31LocalOracleProjectorFactorTwo.concrete_of_fourierContractive
+    R
+    x
+    (by
+      rw [DFMSTh31LocalFourierOperator_norm_eq_cell n]
+      exact hCellFourierContractive)
 
 def DFMSTh31LocalOracleProjectorBound
     (n gammaX : Nat)
