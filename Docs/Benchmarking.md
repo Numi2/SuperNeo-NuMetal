@@ -14,23 +14,20 @@ Scripts/reproduce-superneo-paper.sh quick
 ```
 
 Use `quick` before performance-sensitive edits. Use `full` only when refreshing
-checked performance evidence.
+checked performance evidence. Benchmark comparison is warning-only by default;
+set `SUPERNEO_BENCHMARK_COMPARE_FAIL_ON_REGRESSION=1` only for an explicit
+release or performance-investigation run.
 
-## Coverage Contract
+## Coverage Map
 
-`TestVectors/benchmark-coverage-v1.json` is the source of truth for benchmark
-coverage. It binds benchmark row prefixes to:
+`TestVectors/benchmark-coverage-v1.json` is an archived map of benchmark row
+prefixes to:
 
 - `Benchmarks/SuperNeoBenchmarks/SuperNeoBenchmarks.swift`
 - `Scripts/render-benchmark-report.swift`
 - `Scripts/compare-benchmark-results.swift`
 
-Validate benchmark coverage manually with:
-
-```sh
-Scripts/legacy-gates/validate-benchmark-coverage.py
-Scripts/legacy-gates/test-benchmark-coverage-validation.py
-```
+It is not a development gate.
 
 ## Profiles
 

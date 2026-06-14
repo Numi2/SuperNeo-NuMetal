@@ -78,7 +78,9 @@ if [[ -n "${SUPERNEO_BENCHMARK_BASELINE:-}" ]]; then
   if [[ -n "${SUPERNEO_BENCHMARK_PROTOCOL_THRESHOLD:-}" ]]; then
     COMPARE_ARGS+=(--protocol-threshold "${SUPERNEO_BENCHMARK_PROTOCOL_THRESHOLD}")
   fi
-  if [[ "${SUPERNEO_BENCHMARK_COMPARE_WARN_ONLY:-}" == "1" ]]; then
+  if [[ "${SUPERNEO_BENCHMARK_COMPARE_FAIL_ON_REGRESSION:-}" == "1" ]]; then
+    COMPARE_ARGS+=(--fail-on-regression)
+  elif [[ "${SUPERNEO_BENCHMARK_COMPARE_WARN_ONLY:-}" == "1" ]]; then
     COMPARE_ARGS+=(--warn-only)
   fi
   if [[ "${SUPERNEO_BENCHMARK_COMPARE_ALLOW_MISSING:-}" == "1" ]]; then

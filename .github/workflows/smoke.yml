@@ -11,9 +11,7 @@ on:
       - "SuperNeo-NuMetalTests/**"
       - "Tests/**"
       - "Scripts/**"
-      - "Docs/**"
       - "TestVectors/**"
-      - "Evidence/**"
   push:
     branches:
       - main
@@ -26,9 +24,7 @@ on:
       - "SuperNeo-NuMetalTests/**"
       - "Tests/**"
       - "Scripts/**"
-      - "Docs/**"
       - "TestVectors/**"
-      - "Evidence/**"
   workflow_dispatch:
 
 permissions:

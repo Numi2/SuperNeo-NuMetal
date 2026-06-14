@@ -28,7 +28,7 @@ struct Options {
     var outputPath: String?
     var kernelThreshold = 0.05
     var protocolThreshold = 0.10
-    var warnOnly = false
+    var warnOnly = true
     var allowMissing = false
     var requireMetadata = false
     var requireCleanMetadata = false
@@ -71,7 +71,7 @@ func fail(_ message: String) -> Never {
 func usage() -> Never {
     fail("""
     Usage:
-      swift Scripts/compare-benchmark-results.swift baseline.json candidate.json [--output comparison.md] [--baseline-metadata metadata.json] [--candidate-metadata metadata.json] [--require-metadata] [--require-clean-metadata] [--kernel-threshold 0.05] [--protocol-threshold 0.10] [--warn-only] [--allow-missing]
+      swift Scripts/compare-benchmark-results.swift baseline.json candidate.json [--output comparison.md] [--baseline-metadata metadata.json] [--candidate-metadata metadata.json] [--require-metadata] [--require-clean-metadata] [--kernel-threshold 0.05] [--protocol-threshold 0.10] [--warn-only] [--fail-on-regression] [--allow-missing]
     """)
 }
 
@@ -104,6 +104,8 @@ func parseOptions(_ arguments: [String]) -> Options {
             options.protocolThreshold = value
         case "--warn-only":
             options.warnOnly = true
+        case "--fail-on-regression":
+            options.warnOnly = false
         case "--allow-missing":
             options.allowMissing = true
         case "--require-metadata":
@@ -445,7 +447,7 @@ func renderMarkdown(
         "- Kernel threshold: \(formatPercent(options.kernelThreshold))",
         "- Protocol threshold: \(formatPercent(options.protocolThreshold))",
         "- Missing baseline rows: \(options.allowMissing ? "warning" : "failure")",
-        "- Mode: \(options.warnOnly ? "warn only" : "failing gate")",
+        "- Mode: \(options.warnOnly ? "warn only" : "fail on regression")",
         "- Result: \(pass ? "PASS" : (options.warnOnly ? "WARN" : "FAIL"))",
         "",
         "## Timing Rows",

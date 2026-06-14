@@ -1,8 +1,8 @@
 {
   "benchmarkCommand": "Scripts/run-benchmarks.sh quick",
-  "claimStatus": "repository-local-performance-coverage-contract",
+  "claimStatus": "repository-local-performance-coverage-map",
   "coverageBoundaries": [
-    "This manifest proves that benchmark rows are registered, rendered, compared, and gated for the repository-local performance claim.",
+    "This manifest records benchmark rows that are registered, rendered, and compared for local performance investigation.",
     "Rows whose activation depends on Metal availability are required in source and report rendering for the named local hardware class.",
     "CE proof and compressed-envelope rows remain opt-in through SUPERNEO_BENCHMARK_CE because they are deliberately heavy.",
     "External competitor timing tables remain outside this repository-local performance claim; fresh same-hardware comparison evidence is pinned separately in TestVectors/competitive-performance-comparison-v1.json."

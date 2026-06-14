@@ -320,9 +320,10 @@ Scripts/run-benchmarks.sh full
 Scripts/reproduce-superneo-paper.sh quick
 ```
 
-Use `quick` before performance-sensitive edits. Use `full` only when refreshing
-checked benchmark evidence. Heavy CE proof and compressed-envelope rows are
-opt-in:
+Use `quick` before performance-sensitive edits. Benchmark comparisons warn by
+default; use `SUPERNEO_BENCHMARK_COMPARE_FAIL_ON_REGRESSION=1` only for an
+explicit release or performance-investigation run. Heavy CE proof and
+compressed-envelope rows are opt-in:
 
 ```sh
 SUPERNEO_BENCHMARK_CE=1 Scripts/run-benchmarks.sh quick
