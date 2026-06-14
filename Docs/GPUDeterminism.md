@@ -20,8 +20,8 @@ and the Metal backend under [MetalBackend](../SuperNeo-NuMetal/MetalBackend).
 Relevant code-shape and determinism notes:
 
 - [CryptographicSideChannelAudit-2026-04-25.md](CryptographicSideChannelAudit-2026-04-25.md)
-- [constant-time-scope-v1.json](../TestVectors/constant-time-scope-v1.json)
-- [constant-time-lowering-evidence-v1.json](../TestVectors/constant-time-lowering-evidence-v1.json)
+- [constant-time-scope-v1.json](../TestVectors/Archive/compliance/constant-time-scope-v1.json)
+- [constant-time-lowering-evidence-v1.json](../TestVectors/Archive/compliance/constant-time-lowering-evidence-v1.json)
 - [Archive/compliance/ConstantTimeEvidence-2026-04-16.md](Archive/compliance/ConstantTimeEvidence-2026-04-16.md)
 
 ## Claim Boundary

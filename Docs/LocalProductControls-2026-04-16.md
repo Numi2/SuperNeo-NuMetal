@@ -1,22 +1,23 @@
-# Local Product Controls - 2026-04-16
+# Local Product Context Binding - 2026-04-16
 
-This note pins the local controls used by product-mode verification and
-`product-status --format json`.
+This note records the local context, replay, and audit bindings used by
+product-mode verification and `product-status --format json`.
 
-## Operations Readiness
+## Local Context State
 
-The product-status command reports operations readiness from the signed context
+The product-status command reports local context state from the signed context
 pack, signed revocation feed, replay ledger, and audit log. The JSON payload
-contains `operationsStatus`, `auditRetentionPolicy`, and `retryPolicy` so a
-runbook can decide whether local state is ready or attention is required.
+contains `operationsStatus`, `auditRetentionPolicy`, and `retryPolicy`; treat it
+as local verifier state, not a release-readiness signal.
 CLI product-control commands discover the operator profile from
 `SUPERNEO_OPERATOR_PROFILE` or `.superneo/operator-profile.json` when
 `--operator-profile` is omitted.
 
-If the signed context accepts `numiseal-zk`, Certificates remain optional release metadata for default `correctness-only` contexts.
+If the signed context accepts `numiseal-zk`, certificates remain optional local
+context metadata for default `correctness-only` contexts.
 Stricter trusted contexts can require a certificate; when supplied, product
-verification checks certificate context, release, leakage, proof policy, Metal
-workspace, and evidence bindings before acceptance.
+verification checks certificate context, leakage, proof policy, Metal workspace,
+and binding digests before acceptance.
 
 ## Signed Revocation Feed
 

@@ -82,8 +82,10 @@ Run:
 
 ```sh
 Scripts/check-smoke.sh
+Scripts/check-crypto-dev.sh
 Scripts/fuzz-malformed-artifacts.sh
 Scripts/test-slice.sh protocol
+Scripts/test-slice.sh attack
 ```
 
 These checks are useful because they exercise proof construction, verifier

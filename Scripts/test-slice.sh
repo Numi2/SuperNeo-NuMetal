@@ -19,7 +19,7 @@ Slices:
   ce-opening  heavyweight CE opening relation/proof checks
   metal       Metal-vs-CPU differential kernel checks
   fast        algebra + shape; default inner-loop suite
-  all         supported completion suite; excludes long proof/product gates
+  all         supported completion suite; excludes long proof/product research suites
   list        list available XCTest cases
 USAGE
 }

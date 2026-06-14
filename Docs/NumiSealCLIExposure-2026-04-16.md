@@ -11,8 +11,8 @@ Current defaults:
 - `sourceDecompositionProfile = "pay-per-bit-v1"`
 
 `--numiseal-zk-mode none` is reserved for local/dev non-product diagnostics and
-is not accepted by product-control verification.
+is not accepted by product-context verification.
 
-Product-control verification uses `--product`, signed context/provenance,
+Product-context verification uses `--product`, signed context/provenance,
 signed issued-QRO, replay/audit state, and optional side-channel certificate
 validation. Raw QRO flags are local/dev only.

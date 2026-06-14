@@ -1,13 +1,13 @@
-# Product Integration Layer, 2026-04-16
+# Product Context Integration, 2026-04-16
 
 Formal status: completed formal protocol theorem.
 
-This is the concise product-control integration note. The selected architecture
-is the QRO path in `Docs/QROProductArchitecture-2026-04-25.md`.
+This is the concise product-context binding note. The selected architecture is
+the QRO path in `Docs/QROProductArchitecture-2026-04-25.md`.
 
-## Product-Control Inputs
+## Product Context Inputs
 
-Product-control verification uses:
+Product-context verification uses:
 
 - signed trusted context pack,
 - signed provenance manifest,
@@ -21,9 +21,9 @@ Raw QRO flags are accepted only by local/dev non-product verification.
 
 ## Accepted Product Proof
 
-Product-control NumiSeal acceptance is `proofKind = "numiseal-zk"` with
+Product-context NumiSeal acceptance is `proofKind = "numiseal-zk"` with
 `artifactVersion = 2`. Non-ZK terminal artifacts are local/dev diagnostics and
-are rejected by product-control verification.
+are rejected by product-context verification.
 
 The verifier checks:
 
@@ -38,7 +38,7 @@ The verifier checks:
 - optional side-channel certificate binding when supplied or required by policy,
 - recursive carry parent/provenance when `carryMode = "typed-required"`.
 
-## Operations Surface
+## Replay And Audit Surface
 
 `product-status --format json` emits `operationsStatus`. `product-export-audit`
 embeds that status and validates the local hash-chained audit log. The replay

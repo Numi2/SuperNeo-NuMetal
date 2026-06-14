@@ -455,7 +455,7 @@ def build_report(scope: dict[str, Any]) -> dict[str, Any]:
         "reportID": "superneo-compiler-lowering-audit-v1",
         "claimStatus": "scoped-compiler-lowering-review-complete",
         "generatedAtUTC": utc_now(),
-        "scopeManifest": "TestVectors/constant-time-scope-v1.json",
+        "scopeManifest": "TestVectors/Archive/compliance/constant-time-scope-v1.json",
         "reviewedArtifacts": reviewed_artifacts,
         "reviewedRegions": source_region_reviews(scope),
         "swiftLoweringReviews": lowering_reviews(),

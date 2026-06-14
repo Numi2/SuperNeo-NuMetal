@@ -19,7 +19,7 @@ observation coverage before it can be claimed.
   `SuperNeo-NuMetal/ProductIntegration/LocalProductControls.swift`
 - Metal kernels and constant-time evidence manifests:
   `SuperNeo-NuMetal/MetalBackend/SuperNeoKernels.metal`,
-  `TestVectors/constant-time-lowering-evidence-v1.json`,
+  `TestVectors/Archive/compliance/constant-time-lowering-evidence-v1.json`,
   `Evidence/ConstantTime/swift-llvm-metal-v1/`
 
 ## Findings

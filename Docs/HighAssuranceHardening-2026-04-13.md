@@ -2,7 +2,7 @@
 
 High-assurance mode is the conservative repository path for product-oriented
 proof handling. It favors stable control flow, explicit context binding, and
-signed product-control inputs over raw performance.
+signed product-context inputs over raw performance.
 
 ## Current Boundary
 

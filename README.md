@@ -37,9 +37,9 @@ packet, or a production post-quantum security claim.
   are not product acceptance paths.
 - Signed issued-QRO packs bind trusted context, provenance inputs, verifier key,
   public inputs, transcript domain, issue window, and single-use replay policy.
-- Product-control verification binds replay/audit state, CTCO roots, QROM
-  evidence metadata, trace evidence, carry context, aggregate digests, and proof
-  transcript digests.
+- Product-context verification binds replay/audit state, CTCO roots, QRO/QROM
+  transcript metadata, carry context, aggregate digests, and proof transcript
+  digests.
 
 ### Proof Compression And Performance Work
 
@@ -106,6 +106,12 @@ Run the default smoke check:
 
 ```sh
 Scripts/check-smoke.sh
+```
+
+Run the active crypto-development attack bundle:
+
+```sh
+Scripts/check-crypto-dev.sh
 ```
 
 Create and verify a fold artifact:
@@ -266,6 +272,7 @@ reference, but they do not block development.
 Run malformed-artifact fuzzing when touching serialization or verifier code:
 
 ```sh
+Scripts/check-crypto-dev.sh
 Scripts/fuzz-malformed-artifacts.sh
 Scripts/test-slice.sh attack
 ```
@@ -357,8 +364,9 @@ SUPERNEO_BENCHMARK_CE=1 Scripts/run-benchmarks.sh quick
 
 ## Claim Boundary
 
-Repository-local claim: the checked bounded-depth evidence surface is internally
-consistent for development and release-candidate use.
+Repository-local claim: the implementation has a defined primitive surface,
+explicit statement/transcript binding, focused verifier-negative tests, stable
+proof vectors, and malformed-artifact fuzzing for the active verifier path.
 
 Not claimed: production post-quantum security, production QROM security,
 whole-stack constant-time certification, hosted operations security, public

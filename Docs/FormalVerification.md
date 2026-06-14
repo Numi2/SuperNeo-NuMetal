@@ -66,8 +66,9 @@ Recent formal pass:
   `Formal/SuperNeoFormal/TerminalCEConstructiveFiniteSoundness.lean` are the
   constructive finite bad-set theorem surfaces for PiCCS and terminal CE.
 - `Formal/SuperNeoFormal/ConstantTime.lean` now defines the conditional
-  constant-trace model used by `TestVectors/constant-time-scope-v1.json` and
-  proves trace independence for the checked fixed schedules.
+  constant-trace model used by
+  `TestVectors/Archive/compliance/constant-time-scope-v1.json` and proves trace
+  independence for the checked fixed schedules.
 
 ## Build
 

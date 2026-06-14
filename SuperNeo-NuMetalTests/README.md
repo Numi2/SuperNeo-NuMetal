@@ -11,6 +11,8 @@ its own slice.
 Run `Scripts/fuzz-malformed-artifacts.sh` when changing artifact parsing,
 canonical serialization, transcript binding, or verifier acceptance. It attacks
 the CLI verifier with mutated proof artifacts and fails if a mutant verifies.
+Run `Scripts/check-crypto-dev.sh` to combine smoke, malformed-artifact fuzzing,
+and the verifier-negative attack slice.
 
 Run `Scripts/regenerate-test-vectors.sh` when changing proof artifact format or
 generation. Its default mode writes temporary regenerated vectors and verifies

@@ -1,9 +1,10 @@
 # SuperNeo Test Vectors
 
-`TestVectors/` contains checked public fixtures for cross-version and
+`TestVectors/` contains checked public proof fixtures for cross-version and
 cross-implementation verification. Treat the proof artifacts and JSON schemas as
-machine contracts; archived product evidence manifests are retained for
-reference, not as development blockers.
+machine contracts. Archived product, conformance, benchmark, and release
+evidence manifests live under `TestVectors/Archive/compliance/` for reference
+only.
 
 ## Core Files
 
@@ -12,35 +13,12 @@ reference, not as development blockers.
 - `artifact.schema.json`: version-1 R1CS workload artifact schema.
 - `numiseal-product-artifact-v2.schema.json`: QRO-bound NumiSeal product
   artifact schema.
-- `numiseal-conformance-scope-v1.json`: product/carry/ZK conformance scope.
-- `numiseal-end-to-end-theorem-scope-v1.json`: NumiSeal end-to-end theorem
-  scope, including recursive folding knowledge soundness, typed carry
-  producer/consumer composition, and NumiSealZK simulation/privacy.
-- `numiseal-zk-mask-distribution-evidence-v1.json`: exact rejection-sampled
-  field mask distribution evidence.
-- `product-crypto-security-dossier-v1.json`: bounded-depth product security
-  dossier.
-- `product-selected-depth-loss-accounting-v1.json`: selected-depth product
-  loss ledger.
-- `product-extractor-loss-accounting-v1.json`: extractor loss accounting.
-- `product-total-loss-budget-v1.json`: exact total-loss budget contract.
-- `product-release-distribution-evidence-v1.json`: release distribution
-  evidence.
-- `product-qrom-public-coin-accounting-v1.json`: QROM public-coin accounting.
-- `product-qrom-transcript-schedule-v1.json`: QROM transcript schedule.
-- `product-qrom-sampler-encoding-evidence-v1.json`: QROM sampler/encoding
-  evidence.
-- `product-qrom-collision-malleability-evidence-v1.json`: QROM
-  collision/malleability evidence.
-- `product-qrom-transform-preconditions-v1.json`: QROM transform
-  preconditions.
-- `product-qrom-interactive-reduction-v1.json`: QROM interactive-reduction
-  ledger.
-- `constant-time-scope-v1.json`: Swift/formal constant-time source scope.
-- `constant-time-lowering-evidence-v1.json`: Swift/LLVM/Metal lowering
-  evidence pointer.
-- `e2e-proof-metrics-v1.json`: proof-envelope and product artifact byte counts.
-- `benchmark-coverage-v1.json`: archived benchmark coverage map.
+- `one-hot-vector-*.json`: fold, terminal, and compressed-terminal one-hot
+  proof artifacts.
+- `binary-addition-u8-*.json`: fold and terminal binary-addition proof
+  artifacts.
+- `Archive/compliance/`: old evidence manifests retained outside the active
+  proof-vector set.
 
 ## Active Verification Rules
 

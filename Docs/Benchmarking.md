@@ -20,8 +20,8 @@ release or performance-investigation run.
 
 ## Coverage Map
 
-`TestVectors/benchmark-coverage-v1.json` is an archived map of benchmark row
-prefixes to:
+`TestVectors/Archive/compliance/benchmark-coverage-v1.json` is an archived map
+of benchmark row prefixes to:
 
 - `Benchmarks/SuperNeoBenchmarks/SuperNeoBenchmarks.swift`
 - `Scripts/render-benchmark-report.swift`

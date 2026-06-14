@@ -121,6 +121,6 @@ swift run superneo product-export-audit \
 NumiSeal product artifacts carry `artifactVersion = 2`, `proofKind =
 "numiseal-zk"`, `sourceDecompositionProfile = "pay-per-bit-v1"`, source fold
 envelope bytes, source fold output-claim digests, NumiSeal proof envelope bytes,
-QRO metadata, CTCO/QROM evidence metadata, public statement roots, aggregate
+QRO metadata, CTCO/QROM transcript metadata, public statement roots, aggregate
 digests, and execution-policy metadata. Verification rejects malformed or
 mismatched profile, QRO, CTCO, envelope, and statement fields.
