@@ -1,0 +1,23 @@
+name: Crypto Dev Manual
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Manual cheap prove/verify smoke
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build CLI and prove/verify tiny artifact
+        run: Scripts/check-smoke.sh --skip-tests
+

@@ -226,24 +226,32 @@ public struct SuperNeoRecursiveVerifierState: Equatable, Sendable, SuperNeoByteE
         recursiveRelationDigest: Digest256?,
         accumulator: SuperNeoAccumulator
     ) -> [UInt8] {
-        [compilerKind.rawValue]
-            + superNeoCompilerEncodeSignedInt(nodeIndex)
-            + superNeoCompilerEncodeCount(depth)
-            + superNeoCompilerEncodeUInt16(profileID)
-            + shapeDigest.superNeoBytes
-            + verifierKeyDigest.superNeoBytes
-            + superNeoCompilerEncodeCount(parentNodeIndices.count)
-            + parentNodeIndices.flatMap(superNeoCompilerEncodeSignedInt)
-            + superNeoCompilerEncodeCount(parentStateDigests.count)
-            + parentStateDigests.flatMap(\.superNeoBytes)
-            + [parentSetRoot == nil ? 0 : 1]
-            + (parentSetRoot ?? noParentDigest).superNeoBytes
-            + statementDigest.superNeoBytes
-            + transcriptSeedDigest.superNeoBytes
-            + foldProofDigest.superNeoBytes
-            + reductionBoundaryDigest.superNeoBytes
-            + (recursiveRelationDigest.map { [UInt8(1)] + $0.superNeoBytes } ?? [])
-            + accumulator.accumulatorDigest.superNeoBytes
+        var bytes: [UInt8] = [compilerKind.rawValue]
+        bytes.append(contentsOf: superNeoCompilerEncodeSignedInt(nodeIndex))
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(depth))
+        bytes.append(contentsOf: superNeoCompilerEncodeUInt16(profileID))
+        bytes.append(contentsOf: shapeDigest.superNeoBytes)
+        bytes.append(contentsOf: verifierKeyDigest.superNeoBytes)
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(parentNodeIndices.count))
+        for parentNodeIndex in parentNodeIndices {
+            bytes.append(contentsOf: superNeoCompilerEncodeSignedInt(parentNodeIndex))
+        }
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(parentStateDigests.count))
+        for parentStateDigest in parentStateDigests {
+            bytes.append(contentsOf: parentStateDigest.superNeoBytes)
+        }
+        bytes.append(parentSetRoot == nil ? 0 : 1)
+        bytes.append(contentsOf: (parentSetRoot ?? noParentDigest).superNeoBytes)
+        bytes.append(contentsOf: statementDigest.superNeoBytes)
+        bytes.append(contentsOf: transcriptSeedDigest.superNeoBytes)
+        bytes.append(contentsOf: foldProofDigest.superNeoBytes)
+        bytes.append(contentsOf: reductionBoundaryDigest.superNeoBytes)
+        if let recursiveRelationDigest {
+            bytes.append(1)
+            bytes.append(contentsOf: recursiveRelationDigest.superNeoBytes)
+        }
+        bytes.append(contentsOf: accumulator.accumulatorDigest.superNeoBytes)
+        return bytes
     }
 }
 
@@ -463,19 +471,20 @@ public struct SuperNeoPCDParentTupleBinding: Equatable, Sendable, SuperNeoByteEn
         parentRecursiveRelationDigest: Digest256?,
         parentCarryChainRoot: Digest256?
     ) -> [UInt8] {
-        superNeoCompilerEncodeCount(parentPosition)
-            + superNeoCompilerEncodeCount(parentNodeIndex)
-            + superNeoCompilerEncodeCount(parentDepth)
-            + parentStateDigest.superNeoBytes
-            + parentAccumulatorDigest.superNeoBytes
-            + parentPublicStatementDigest.superNeoBytes
-            + parentOutputAccumulatorClaimRoot.superNeoBytes
-            + parentEvaluationPointRoot.superNeoBytes
-            + parentClaimValueRoot.superNeoBytes
-            + [parentRecursiveRelationDigest == nil ? 0 : 1]
-            + (parentRecursiveRelationDigest ?? noRecursiveRelationDigest).superNeoBytes
-            + [parentCarryChainRoot == nil ? 0 : 1]
-            + (parentCarryChainRoot ?? noCarryChainRoot).superNeoBytes
+        var bytes = superNeoCompilerEncodeCount(parentPosition)
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(parentNodeIndex))
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(parentDepth))
+        bytes.append(contentsOf: parentStateDigest.superNeoBytes)
+        bytes.append(contentsOf: parentAccumulatorDigest.superNeoBytes)
+        bytes.append(contentsOf: parentPublicStatementDigest.superNeoBytes)
+        bytes.append(contentsOf: parentOutputAccumulatorClaimRoot.superNeoBytes)
+        bytes.append(contentsOf: parentEvaluationPointRoot.superNeoBytes)
+        bytes.append(contentsOf: parentClaimValueRoot.superNeoBytes)
+        bytes.append(parentRecursiveRelationDigest == nil ? 0 : 1)
+        bytes.append(contentsOf: (parentRecursiveRelationDigest ?? noRecursiveRelationDigest).superNeoBytes)
+        bytes.append(parentCarryChainRoot == nil ? 0 : 1)
+        bytes.append(contentsOf: (parentCarryChainRoot ?? noCarryChainRoot).superNeoBytes)
+        return bytes
     }
 }
 
@@ -726,27 +735,40 @@ public struct SuperNeoRecursiveFoldRelationInput: Equatable, Sendable, SuperNeoB
         childTransitionStatement: CCSStatement,
         parentSetRoot: Digest256?
     ) -> [UInt8] {
-        [compilerKind.rawValue]
-            + superNeoCompilerEncodeSignedInt(nodeIndex)
-            + superNeoCompilerEncodeCount(depth)
-            + superNeoCompilerEncodeCount(fanInArity)
-            + superNeoCompilerEncodeCount(parentNodeIndices.count)
-            + parentNodeIndices.flatMap(superNeoCompilerEncodeSignedInt)
-            + superNeoCompilerEncodeCount(parentStateDigests.count)
-            + parentStateDigests.flatMap(\.superNeoBytes)
-            + superNeoCompilerEncodeCount(parentAccumulatorDigests.count)
-            + parentAccumulatorDigests.flatMap(\.superNeoBytes)
-            + superNeoCompilerEncodeCount(parentStatementDigests.count)
-            + parentStatementDigests.flatMap(\.superNeoBytes)
-            + superNeoCompilerEncodeCount(parentOutputAccumulators.count)
-            + parentOutputAccumulators.flatMap(\.superNeoBytes)
-            + superNeoCompilerEncodeCount(parentTupleBindings.count)
-            + parentTupleBindings.flatMap(\.superNeoBytes)
-            + [orderedParentTupleRoot == nil ? 0 : 1]
-            + (orderedParentTupleRoot ?? noOrderedParentTupleRoot).superNeoBytes
-            + childTransitionStatement.superNeoBytes
-            + [parentSetRoot == nil ? 0 : 1]
-            + (parentSetRoot ?? SuperNeoRecursiveVerifierState.noParentDigest).superNeoBytes
+        var bytes: [UInt8] = [compilerKind.rawValue]
+        bytes.append(contentsOf: superNeoCompilerEncodeSignedInt(nodeIndex))
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(depth))
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(fanInArity))
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(parentNodeIndices.count))
+        for parentNodeIndex in parentNodeIndices {
+            bytes.append(contentsOf: superNeoCompilerEncodeSignedInt(parentNodeIndex))
+        }
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(parentStateDigests.count))
+        for parentStateDigest in parentStateDigests {
+            bytes.append(contentsOf: parentStateDigest.superNeoBytes)
+        }
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(parentAccumulatorDigests.count))
+        for parentAccumulatorDigest in parentAccumulatorDigests {
+            bytes.append(contentsOf: parentAccumulatorDigest.superNeoBytes)
+        }
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(parentStatementDigests.count))
+        for parentStatementDigest in parentStatementDigests {
+            bytes.append(contentsOf: parentStatementDigest.superNeoBytes)
+        }
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(parentOutputAccumulators.count))
+        for parentOutputAccumulator in parentOutputAccumulators {
+            bytes.append(contentsOf: parentOutputAccumulator.superNeoBytes)
+        }
+        bytes.append(contentsOf: superNeoCompilerEncodeCount(parentTupleBindings.count))
+        for parentTupleBinding in parentTupleBindings {
+            bytes.append(contentsOf: parentTupleBinding.superNeoBytes)
+        }
+        bytes.append(orderedParentTupleRoot == nil ? 0 : 1)
+        bytes.append(contentsOf: (orderedParentTupleRoot ?? noOrderedParentTupleRoot).superNeoBytes)
+        bytes.append(contentsOf: childTransitionStatement.superNeoBytes)
+        bytes.append(parentSetRoot == nil ? 0 : 1)
+        bytes.append(contentsOf: (parentSetRoot ?? SuperNeoRecursiveVerifierState.noParentDigest).superNeoBytes)
+        return bytes
     }
 
     private static func makeParentTupleBindings(
@@ -1470,13 +1492,17 @@ private func superNeoSamePublicClaims(_ lhs: [CCSEvaluationClaim], _ rhs: [CCSEv
 }
 
 private func reductionBoundaryDigest(_ report: SuperNeoFoldReductionBoundaryReport) -> Digest256 {
-    Digest256.hash(
-        Array("SuperNeo-NuMetal.superneo-recursive-boundary-report.v1".utf8)
-            + (report.preconditionFailureReason.map { [UInt8(1)] + superNeoCompilerEncodeString($0) } ?? [UInt8(0)])
-            + superNeoCompilerChecksBytes(report.piCCSChecks)
-            + superNeoCompilerChecksBytes(report.piRLCChecks)
-            + superNeoCompilerChecksBytes(report.piDECChecks)
-    )
+    var bytes = Array("SuperNeo-NuMetal.superneo-recursive-boundary-report.v1".utf8)
+    if let preconditionFailureReason = report.preconditionFailureReason {
+        bytes.append(1)
+        bytes.append(contentsOf: superNeoCompilerEncodeString(preconditionFailureReason))
+    } else {
+        bytes.append(0)
+    }
+    bytes.append(contentsOf: superNeoCompilerChecksBytes(report.piCCSChecks))
+    bytes.append(contentsOf: superNeoCompilerChecksBytes(report.piRLCChecks))
+    bytes.append(contentsOf: superNeoCompilerChecksBytes(report.piDECChecks))
+    return Digest256.hash(bytes)
 }
 
 private func superNeoCompilerChecksBytes(_ checks: [SuperNeoReductionBoundaryCheck]) -> [UInt8] {
