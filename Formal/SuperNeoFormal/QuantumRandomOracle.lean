@@ -97,15 +97,58 @@ def FiniteChannelEqual {A B : Type}
     (left right : FiniteSuperOperator A B) : Prop :=
   ∀ matrix, left matrix = right matrix
 
+def finiteMatrixSub {A : Type}
+    (left right : FiniteMatrixOperator A A) :
+    FiniteMatrixOperator A A :=
+  fun row column => left row column - right row column
+
+def finiteTraceNormSquared {A : Type} [Fintype A]
+    (matrix : FiniteMatrixOperator A A) : ℝ :=
+  (Finset.univ : Finset A).sum fun row =>
+    (Finset.univ : Finset A).sum fun column =>
+      Complex.normSq (matrix row column)
+
+def finiteTraceDistanceSquared {A : Type} [Fintype A]
+    (left right : FiniteMatrixOperator A A) : ℝ :=
+  finiteTraceNormSquared (finiteMatrixSub left right)
+
+theorem finiteTraceDistanceSquared_eq_zero_of_eq
+    {A : Type} [Fintype A]
+    {left right : FiniteMatrixOperator A A}
+    (hEqual : left = right) :
+    finiteTraceDistanceSquared left right = 0 := by
+  subst right
+  simp [finiteTraceDistanceSquared, finiteTraceNormSquared, finiteMatrixSub]
+
+def FiniteChannelTraceDistanceZero
+    {A B : Type} [Fintype B]
+    (left right : FiniteSuperOperator A B) : Prop :=
+  ∀ matrix,
+    finiteTraceDistanceSquared (left matrix) (right matrix) = 0
+
+theorem finiteChannelTraceDistanceZero_of_equal
+    {A B : Type} [Fintype B]
+    {left right : FiniteSuperOperator A B}
+    (hEqual : FiniteChannelEqual left right) :
+    FiniteChannelTraceDistanceZero left right := by
+  intro matrix
+  exact finiteTraceDistanceSquared_eq_zero_of_eq (hEqual matrix)
+
 structure FiniteExactChannelEquivalence
     (A B : Type) [Fintype A] [Fintype B] where
   left : FiniteCPTPMap A B
   right : FiniteCPTPMap A B
   channelEqual : FiniteChannelEqual left.channel right.channel
 
-def FiniteDiamondDistanceZero {A B : Type}
-    (left right : FiniteSuperOperator A B) : Prop :=
-  FiniteChannelEqual left right
+structure FiniteDiamondDistanceZero {A B : Type} [Fintype B]
+    (left right : FiniteSuperOperator A B) : Prop where
+  baseTraceDistanceZero : FiniteChannelTraceDistanceZero left right
+  stabilizedTraceDistanceZero :
+    ∀ (R : Type) [Fintype R]
+      (leftWithAncilla rightWithAncilla :
+        FiniteSuperOperator (R × A) (R × B)),
+      FiniteChannelEqual leftWithAncilla rightWithAncilla →
+        FiniteChannelTraceDistanceZero leftWithAncilla rightWithAncilla
 
 theorem FiniteExactChannelEquivalence.diamondDistanceZero
     {A B : Type} [Fintype A] [Fintype B]
@@ -113,7 +156,10 @@ theorem FiniteExactChannelEquivalence.diamondDistanceZero
     FiniteDiamondDistanceZero
       equivalence.left.channel
       equivalence.right.channel :=
-  equivalence.channelEqual
+  ⟨finiteChannelTraceDistanceZero_of_equal equivalence.channelEqual,
+    by
+      intro R _hFintype leftWithAncilla rightWithAncilla hEqual
+      exact finiteChannelTraceDistanceZero_of_equal hEqual⟩
 
 def finiteIdentityOperator (A : Type) : FiniteLinearOperator A A :=
   fun psi => psi
