@@ -230,6 +230,90 @@ theorem DFMSTh31LocalOracleOperator_eq_FEF
     DFMSTh31LocalEvaluationOperator, DFMSMatrixOperator.toContinuous,
     DFMSTh31LocalOracleMatrix, mul_assoc]
 
+theorem DFMSTh31LocalEvaluationMatrix_commutes_matchProjector
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31LocalEvaluationMatrix n *
+        DFMSTh31LocalMatchProjectorMatrix R x =
+      DFMSTh31LocalMatchProjectorMatrix R x *
+        DFMSTh31LocalEvaluationMatrix n := by
+  classical
+  ext output input
+  rw [Matrix.mul_apply, Matrix.mul_apply]
+  let target : DFMSTh31LocalQueryBasis n :=
+    (input.1 + DFMSTh31CellValue input.2, input.2)
+  have hLeft :
+      (∑ mid,
+          DFMSTh31LocalEvaluationMatrix n output mid *
+            DFMSTh31LocalMatchProjectorMatrix R x mid input) =
+        DFMSTh31LocalEvaluationMatrix n output input *
+          DFMSTh31LocalMatchProjectorMatrix R x input input := by
+    refine Finset.sum_eq_single input ?_ ?_
+    · intro mid _hmem hne
+      by_cases hQuery : mid.1 = input.1
+      · have hCell : mid.2 ≠ input.2 := by
+          intro hEq
+          apply hne
+          exact Prod.ext hQuery hEq
+        have hPzero :
+            DFMSTh31CellMatchProjectorMatrix R x mid.2 input.2 = 0 := by
+          simp [DFMSTh31CellMatchProjectorMatrix, hCell]
+        simp [DFMSTh31LocalMatchProjectorMatrix,
+          DFMSTh31LiftCellMatrix, hQuery, hPzero]
+      · simp [DFMSTh31LocalMatchProjectorMatrix,
+          DFMSTh31LiftCellMatrix, hQuery]
+    · intro hnot
+      exact False.elim (hnot (Finset.mem_univ input))
+  have hRight :
+      (∑ mid,
+          DFMSTh31LocalMatchProjectorMatrix R x output mid *
+            DFMSTh31LocalEvaluationMatrix n mid input) =
+        DFMSTh31LocalMatchProjectorMatrix R x output target *
+          DFMSTh31LocalEvaluationMatrix n target input := by
+    refine Finset.sum_eq_single target ?_ ?_
+    · intro mid _hmem hne
+      simp [DFMSTh31LocalEvaluationMatrix, target, hne]
+    · intro hnot
+      exact False.elim (hnot (Finset.mem_univ target))
+  rw [hLeft, hRight]
+  by_cases hTarget : output = target
+  · simp [DFMSTh31LocalEvaluationMatrix, DFMSTh31LocalMatchProjectorMatrix,
+      DFMSTh31LiftCellMatrix, target, hTarget]
+  · by_cases hQuery : output.1 = target.1
+    · have hCell : output.2 ≠ input.2 := by
+        intro hEq
+        apply hTarget
+        exact Prod.ext hQuery (by simpa [target] using hEq)
+      have hPzero :
+          DFMSTh31CellMatchProjectorMatrix R x output.2 input.2 = 0 := by
+        simp [DFMSTh31CellMatchProjectorMatrix, hCell]
+      simp [DFMSTh31LocalEvaluationMatrix, DFMSTh31LocalMatchProjectorMatrix,
+        DFMSTh31LiftCellMatrix, target, hTarget, hQuery, hPzero]
+    · simp [DFMSTh31LocalEvaluationMatrix, DFMSTh31LocalMatchProjectorMatrix,
+        DFMSTh31LiftCellMatrix, target, hTarget, hQuery]
+
+theorem DFMSTh31LocalEvaluationOperator_commutes_matchProjector
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSOperatorCommutator
+        (DFMSTh31LocalEvaluationOperator n)
+        (DFMSTh31LocalMatchProjectorOperator R x) = 0 := by
+  ext vector basis
+  simp [DFMSOperatorCommutator, DFMSTh31LocalEvaluationOperator,
+    DFMSTh31LocalMatchProjectorOperator, DFMSMatrixOperator.toContinuous]
+  exact sub_eq_zero.mpr
+    (congrArg
+      (fun operator :
+          DFMSMatrixOperator (DFMSTh31LocalQueryBasis n) =>
+        operator.mulVec vector.ofLp basis)
+      (DFMSTh31LocalEvaluationMatrix_commutes_matchProjector R x))
+
 def DFMSTh31DatabaseAgreesExcept
     {n : Nat}
     {X : Type}
