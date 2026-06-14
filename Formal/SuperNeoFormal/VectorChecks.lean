@@ -5,7 +5,7 @@ Executable vector checks for the formal wire surfaces.
 
 These checks are not theorem assumptions.  They are concrete predicates over the
 same representative serialization fixtures used by the Swift/Lean vector bridge,
-kept outside the theorem barrel and guarded by `proof_import_wall`.
+kept outside the theorem barrel.
 -/
 
 namespace SuperNeoFormal

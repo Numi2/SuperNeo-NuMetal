@@ -11,7 +11,7 @@ evidence.  Instead it states the actual product theorem shape: accepted product
 relations plus pinned transcript/artifact bindings, a bounded-depth loss
 accounting record, a lattice-assumption dossier, public-coin QRO/QROM evidence, and
 explicit completeness/soundness/ZK obligations imply the product security
-guarantee used by release policy.
+guarantee.
 -/
 
 namespace SuperNeoFormal
@@ -103,7 +103,6 @@ structure ProductSelectedDepthLossLedger where
   loadedParentChainRequired : Prop
   recursiveCarryChainRootRecurrenceBound : Prop
   constantTimeSideChannelEvidenceClosed : Prop
-  releaseSigningEvidenceClosed : Prop
   totalLossWithinBudget : Prop
 
 def ProductSelectedDepthLossLedgerAccepted
@@ -121,7 +120,6 @@ def ProductSelectedDepthLossLedgerAccepted
     ∧ ledger.loadedParentChainRequired
     ∧ ledger.recursiveCarryChainRootRecurrenceBound
     ∧ ledger.constantTimeSideChannelEvidenceClosed
-    ∧ ledger.releaseSigningEvidenceClosed
     ∧ ledger.totalLossWithinBudget
 
 structure ProductFiniteProtocolNumericLossObstruction where
@@ -1589,25 +1587,6 @@ def ProductTotalLossBudgetAccepted
     ∧ budget.selectedDepthLossWithinBudget
     ∧ budget.productionTotalLossClaimAllowed
 
-structure ProductReleaseDistributionEvidence where
-  releaseSigningKeyPinned : Prop
-  signedArtifactsProduced : Prop
-  signedProvenanceFormatPinned : Prop
-  notarizationOrPublicationProofPinned : Prop
-  hostedBranchProtectionEvidencePinned : Prop
-  archivedReleaseEvidencePinned : Prop
-  releaseDistributionLossWithinBudget : Prop
-
-def ProductReleaseDistributionEvidenceAccepted
-    (evidence : ProductReleaseDistributionEvidence) : Prop :=
-  evidence.releaseSigningKeyPinned
-    ∧ evidence.signedArtifactsProduced
-    ∧ evidence.signedProvenanceFormatPinned
-    ∧ evidence.notarizationOrPublicationProofPinned
-    ∧ evidence.hostedBranchProtectionEvidencePinned
-    ∧ evidence.archivedReleaseEvidencePinned
-    ∧ evidence.releaseDistributionLossWithinBudget
-
 structure ProductLatticeAssumptionDossier where
   moduleSISStatementPinned : Prop
   qRingDimensionAndNormPinned : Prop
@@ -1670,7 +1649,6 @@ structure ProductSecurityTheoremObligationStatus where
   latticeAssumptionDossier : TheoremObligationStatus
   publicCoinQROM : TheoremObligationStatus
   totalLossBudget : TheoremObligationStatus
-  releaseDistribution : TheoremObligationStatus
   completeness : TheoremObligationStatus
   knowledgeSoundness : TheoremObligationStatus
   zeroKnowledge : TheoremObligationStatus
@@ -1687,7 +1665,6 @@ def ProductSecurityTheoremObligationStatus.FullyInstantiated
     ∧ status.latticeAssumptionDossier.Accepted
     ∧ status.publicCoinQROM.Accepted
     ∧ status.totalLossBudget.Accepted
-    ∧ status.releaseDistribution.Accepted
     ∧ status.completeness.Accepted
     ∧ status.knowledgeSoundness.Accepted
     ∧ status.zeroKnowledge.Accepted
@@ -1798,7 +1775,6 @@ theorem productSecurityTheorem_requires_selected_depth_loss_accounting
       _,
       hLoadedParent,
       hRecurrence,
-      _,
       _,
       hTotal⟩
   exact
@@ -2351,18 +2327,6 @@ theorem productSecurityTheorem_requires_exact_finite_probability_wiring
       ∧ wiring.hbindCollisionExpressionExact
       ∧ wiring.selectedDepthBudgetComparisonUsesExactRationals := by
   exact hWiring
-
-theorem productSecurityTheorem_requires_release_distribution_evidence
-    {evidence : ProductReleaseDistributionEvidence}
-    (hEvidence : ProductReleaseDistributionEvidenceAccepted evidence) :
-    evidence.releaseSigningKeyPinned
-      ∧ evidence.signedArtifactsProduced
-      ∧ evidence.signedProvenanceFormatPinned
-      ∧ evidence.notarizationOrPublicationProofPinned
-      ∧ evidence.hostedBranchProtectionEvidencePinned
-      ∧ evidence.archivedReleaseEvidencePinned
-      ∧ evidence.releaseDistributionLossWithinBudget := by
-  exact hEvidence
 
 theorem productSecurityTheorem_requires_qrom_accounting
     {publicCoin : ProductPublicCoinQROMEvidence}

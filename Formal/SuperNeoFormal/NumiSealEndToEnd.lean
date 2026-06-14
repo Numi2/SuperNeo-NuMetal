@@ -9,8 +9,8 @@ This module is the checked composition boundary for the current NumiSeal
 product surface.  It does not assert a standalone extractor, simulator, or
 hardware side-channel theorem.  Instead it states the exact product theorem that
 the implementation can safely use today: if the product verifier gates accept
-and the release supplies the named cryptographic evidence obligations, then the
-accepted artifact satisfies the end-to-end NumiSeal relation composed from
+and the caller supplies the named cryptographic evidence obligations, then the
+accepted proof object satisfies the end-to-end NumiSeal relation composed from
 source fold, reconstructed obligations, terminal seal, typed carry, ZK masking,
 and product policy.
 -/
