@@ -1,3 +1,4 @@
+import Mathlib.Analysis.CStarAlgebra.Matrix
 import Mathlib.Analysis.Normed.Operator.Basic
 import Mathlib.Data.ZMod.Basic
 import Mathlib.Tactic
@@ -18,6 +19,7 @@ noncomputable section
 namespace SuperNeoFormal
 
 open Finset
+open scoped Matrix.Norms.L2Operator
 
 abbrev DFMSBitVector (n : Nat) :=
   Fin n → ZMod 2
@@ -30,10 +32,10 @@ theorem dfmsBitVector_card (n : Nat) :
 def DFMSBitVector.zero (n : Nat) : DFMSBitVector n :=
   fun _ => 0
 
-abbrev DFMSRegisterHilbertSpace (A : Type) :=
-  A → ℂ
+abbrev DFMSRegisterHilbertSpace (A : Type) [Fintype A] :=
+  EuclideanSpace ℂ A
 
-abbrev DFMSContinuousOperator (A : Type) :=
+abbrev DFMSContinuousOperator (A : Type) [Fintype A] :=
   DFMSRegisterHilbertSpace A →L[ℂ] DFMSRegisterHilbertSpace A
 
 noncomputable def DFMSOperatorNorm
@@ -47,6 +49,15 @@ noncomputable def DFMSOperatorCommutator
     DFMSContinuousOperator A :=
   left.comp right - right.comp left
 
+abbrev DFMSMatrixOperator (A : Type) :=
+  Matrix A A ℂ
+
+noncomputable def DFMSMatrixOperator.toContinuous
+    {A : Type} [Fintype A] [DecidableEq A]
+    (operator : DFMSMatrixOperator A) :
+    DFMSContinuousOperator A :=
+  (Matrix.toEuclideanCLM (n := A) (𝕜 := ℂ)) operator
+
 abbrev DFMSTh31Database (n : Nat) (X : Type) :=
   X → Option (DFMSBitVector n)
 
@@ -58,6 +69,337 @@ abbrev DFMSTh31CellBasis (n : Nat) :=
 
 abbrev DFMSTh31LocalQueryBasis (n : Nat) :=
   DFMSBitVector n × DFMSTh31CellBasis n
+
+noncomputable def DFMSTh31HashCardinalityReal (n : Nat) : ℝ :=
+  (2 : ℝ) ^ n
+
+noncomputable def DFMSTh31InvSqrtHashCardinality (n : Nat) : ℂ :=
+  ((Real.sqrt (DFMSTh31HashCardinalityReal n)) : ℂ)⁻¹
+
+noncomputable def DFMSTh31InvHashCardinality (n : Nat) : ℂ :=
+  ((DFMSTh31HashCardinalityReal n : ℝ) : ℂ)⁻¹
+
+noncomputable def DFMSTh31CellFourierMatrix
+    (n : Nat) :
+    DFMSMatrixOperator (DFMSTh31CellBasis n) :=
+  fun output input =>
+    match output, input with
+    | none, none => 0
+    | some _, none => DFMSTh31InvSqrtHashCardinality n
+    | none, some _ => DFMSTh31InvSqrtHashCardinality n
+    | some outputY, some inputY =>
+        if outputY = inputY then
+          1 - DFMSTh31InvHashCardinality n
+        else
+          -DFMSTh31InvHashCardinality n
+
+def DFMSTh31CellValue
+    {n : Nat}
+    (cell : DFMSTh31CellBasis n) : DFMSBitVector n :=
+  match cell with
+  | none => DFMSBitVector.zero n
+  | some y => y
+
+noncomputable def DFMSTh31CellMatchProjectorMatrix
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSMatrixOperator (DFMSTh31CellBasis n) :=
+  fun output input =>
+    if output = input then
+      match input with
+      | none => 0
+      | some y => if R x y then 1 else 0
+    else
+      0
+
+noncomputable def DFMSTh31CellNoMatchProjectorMatrix
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSMatrixOperator (DFMSTh31CellBasis n) :=
+  fun output input =>
+    if output = input then
+      match input with
+      | none => 1
+      | some y => if R x y then 0 else 1
+    else
+      0
+
+noncomputable def DFMSTh31LiftCellMatrix
+    {n : Nat}
+    (cellOperator : DFMSMatrixOperator (DFMSTh31CellBasis n)) :
+    DFMSMatrixOperator (DFMSTh31LocalQueryBasis n) :=
+  fun output input =>
+    if output.1 = input.1 then cellOperator output.2 input.2 else 0
+
+noncomputable def DFMSTh31LocalFourierMatrix
+    (n : Nat) :
+    DFMSMatrixOperator (DFMSTh31LocalQueryBasis n) :=
+  DFMSTh31LiftCellMatrix (DFMSTh31CellFourierMatrix n)
+
+noncomputable def DFMSTh31LocalMatchProjectorMatrix
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSMatrixOperator (DFMSTh31LocalQueryBasis n) :=
+  DFMSTh31LiftCellMatrix (DFMSTh31CellMatchProjectorMatrix R x)
+
+noncomputable def DFMSTh31LocalNoMatchProjectorMatrix
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSMatrixOperator (DFMSTh31LocalQueryBasis n) :=
+  DFMSTh31LiftCellMatrix (DFMSTh31CellNoMatchProjectorMatrix R x)
+
+noncomputable def DFMSTh31LocalEvaluationMatrix
+    (n : Nat) :
+    DFMSMatrixOperator (DFMSTh31LocalQueryBasis n) :=
+  fun output input =>
+    if output = (input.1 + DFMSTh31CellValue input.2, input.2) then 1 else 0
+
+noncomputable def DFMSTh31LocalOracleMatrix
+    (n : Nat) :
+    DFMSMatrixOperator (DFMSTh31LocalQueryBasis n) :=
+  DFMSTh31LocalFourierMatrix n *
+    DFMSTh31LocalEvaluationMatrix n *
+    DFMSTh31LocalFourierMatrix n
+
+noncomputable def DFMSTh31CellFourierOperator
+    (n : Nat) :
+    DFMSContinuousOperator (DFMSTh31CellBasis n) :=
+  (DFMSTh31CellFourierMatrix n).toContinuous
+
+noncomputable def DFMSTh31LocalFourierOperator
+    (n : Nat) :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
+  (DFMSTh31LocalFourierMatrix n).toContinuous
+
+noncomputable def DFMSTh31LocalEvaluationOperator
+    (n : Nat) :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
+  (DFMSTh31LocalEvaluationMatrix n).toContinuous
+
+noncomputable def DFMSTh31LocalOracleOperator
+    (n : Nat) :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
+  (DFMSTh31LocalOracleMatrix n).toContinuous
+
+noncomputable def DFMSTh31LocalMatchProjectorOperator
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
+  (DFMSTh31LocalMatchProjectorMatrix R x).toContinuous
+
+noncomputable def DFMSTh31LocalNoMatchProjectorOperator
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n) :=
+  (DFMSTh31LocalNoMatchProjectorMatrix R x).toContinuous
+
+theorem DFMSTh31LocalOracleMatrix_eq_FEF
+    (n : Nat) :
+    DFMSTh31LocalOracleMatrix n =
+      DFMSTh31LocalFourierMatrix n *
+        DFMSTh31LocalEvaluationMatrix n *
+        DFMSTh31LocalFourierMatrix n :=
+  rfl
+
+theorem DFMSTh31LocalOracleOperator_eq_FEF
+    (n : Nat) :
+    DFMSTh31LocalOracleOperator n =
+      (DFMSTh31LocalFourierOperator n).comp
+        ((DFMSTh31LocalEvaluationOperator n).comp
+          (DFMSTh31LocalFourierOperator n)) := by
+  ext vector
+  simp [DFMSTh31LocalOracleOperator, DFMSTh31LocalFourierOperator,
+    DFMSTh31LocalEvaluationOperator, DFMSMatrixOperator.toContinuous,
+    DFMSTh31LocalOracleMatrix, mul_assoc]
+
+def DFMSTh31DatabaseAgreesExcept
+    {n : Nat}
+    {X : Type}
+    (x : X)
+    (left right : DFMSTh31Database n X) : Prop :=
+  ∀ z : X, z ≠ x → left z = right z
+
+noncomputable def DFMSTh31GlobalOracleMatrix
+    (n : Nat)
+    (X : Type) [Fintype X] [DecidableEq X] :
+    DFMSMatrixOperator (DFMSTh31Basis n X) :=
+  by
+    classical
+    exact
+      fun output input =>
+        let queriedAddress := input.1.1.1
+        if output.1.1.1 = queriedAddress
+            ∧ output.2 = input.2
+            ∧ DFMSTh31DatabaseAgreesExcept
+              queriedAddress output.1.2 input.1.2 then
+          DFMSTh31LocalOracleMatrix n
+            (output.1.1.2, output.1.2 queriedAddress)
+            (input.1.1.2, input.1.2 queriedAddress)
+        else
+          0
+
+theorem DFMSTh31GlobalOracleMatrix_eq_zero_of_query_address_ne
+    (n : Nat)
+    {X : Type} [Fintype X] [DecidableEq X]
+    {output input : DFMSTh31Basis n X}
+    (hAddress : output.1.1.1 ≠ input.1.1.1) :
+    DFMSTh31GlobalOracleMatrix n X output input = 0 := by
+  classical
+  simp [DFMSTh31GlobalOracleMatrix, hAddress]
+
+theorem DFMSTh31GlobalOracleMatrix_eq_zero_of_purifier_ne
+    (n : Nat)
+    {X : Type} [Fintype X] [DecidableEq X]
+    {output input : DFMSTh31Basis n X}
+    (hPurifier : output.2 ≠ input.2) :
+    DFMSTh31GlobalOracleMatrix n X output input = 0 := by
+  classical
+  simp [DFMSTh31GlobalOracleMatrix, hPurifier]
+
+noncomputable def DFMSTh31GlobalOracleOperator
+    (n : Nat)
+    (X : Type) [Fintype X] [DecidableEq X] :
+    DFMSContinuousOperator (DFMSTh31Basis n X) :=
+  (DFMSTh31GlobalOracleMatrix n X).toContinuous
+
+def DFMSTh31DatabaseCellMatches
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    (database : DFMSTh31Database n X)
+    (x : X) : Prop :=
+  ∃ y : DFMSBitVector n, database x = some y ∧ R x y
+
+def DFMSTh31FirstMatchingAddress
+    {n : Nat}
+    {X : Type} [LT X]
+    (R : X → DFMSBitVector n → Prop)
+    (database : DFMSTh31Database n X)
+    (x : X) : Prop :=
+  DFMSTh31DatabaseCellMatches R database x
+    ∧ ∀ x' : X,
+      x' < x → ¬ DFMSTh31DatabaseCellMatches R database x'
+
+def DFMSTh31NoMatchingAddress
+    {n : Nat}
+    {X : Type}
+    (R : X → DFMSBitVector n → Prop)
+    (database : DFMSTh31Database n X) : Prop :=
+  ∀ x : X, ¬ DFMSTh31DatabaseCellMatches R database x
+
+theorem DFMSTh31FirstMatchingAddress.matches
+    {n : Nat}
+    {X : Type} [LT X]
+    {R : X → DFMSBitVector n → Prop}
+    {database : DFMSTh31Database n X}
+    {x : X}
+    (hFirst : DFMSTh31FirstMatchingAddress R database x) :
+    DFMSTh31DatabaseCellMatches R database x :=
+  hFirst.1
+
+theorem DFMSTh31FirstMatchingAddress.unique
+    {n : Nat}
+    {X : Type} [LinearOrder X]
+    {R : X → DFMSBitVector n → Prop}
+    {database : DFMSTh31Database n X}
+    {x x' : X}
+    (hFirst : DFMSTh31FirstMatchingAddress R database x)
+    (hFirst' : DFMSTh31FirstMatchingAddress R database x') :
+    x = x' := by
+  by_contra hDistinct
+  rcases lt_or_gt_of_ne hDistinct with hlt | hgt
+  · exact (hFirst'.2 x hlt) hFirst.1
+  · exact (hFirst.2 x' hgt) hFirst'.1
+
+noncomputable def DFMSTh31FirstMatchOutcome
+    {n : Nat}
+    {X : Type} [LinearOrder X]
+    (R : X → DFMSBitVector n → Prop)
+    (database : DFMSTh31Database n X) : Option X :=
+  by
+    classical
+    exact
+      if h : ∃ x : X, DFMSTh31FirstMatchingAddress R database x then
+        some (Classical.choose h)
+      else
+        none
+
+noncomputable def DFMSTh31FirstMatchProjectorMatrix
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X] [LinearOrder X]
+    (R : X → DFMSBitVector n → Prop)
+    (outcome : Option X) :
+    DFMSMatrixOperator (DFMSTh31Basis n X) :=
+  fun output input =>
+    if output = input ∧
+        DFMSTh31FirstMatchOutcome R input.1.2 = outcome then
+      1
+    else
+      0
+
+noncomputable def DFMSTh31NoMatchProjectorMatrix
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X] [LinearOrder X]
+    (R : X → DFMSBitVector n → Prop) :
+    DFMSMatrixOperator (DFMSTh31Basis n X) :=
+  DFMSTh31FirstMatchProjectorMatrix R none
+
+abbrev DFMSTh31PurifierShift (X : Type) :=
+  Option X → Option X ≃ Option X
+
+noncomputable def DFMSTh31PurifiedMeasurementMatrix
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X] [LinearOrder X]
+    (R : X → DFMSBitVector n → Prop)
+    (shift : DFMSTh31PurifierShift X) :
+    DFMSMatrixOperator (DFMSTh31Basis n X) :=
+  fun output input =>
+    let outcome := DFMSTh31FirstMatchOutcome R input.1.2
+    if output.1 = input.1 ∧ output.2 = shift outcome input.2 then
+      1
+    else
+      0
+
+noncomputable def DFMSTh31FirstMatchProjectorOperator
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X] [LinearOrder X]
+    (R : X → DFMSBitVector n → Prop)
+    (outcome : Option X) :
+    DFMSContinuousOperator (DFMSTh31Basis n X) :=
+  (DFMSTh31FirstMatchProjectorMatrix R outcome).toContinuous
+
+noncomputable def DFMSTh31NoMatchProjectorOperator
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X] [LinearOrder X]
+    (R : X → DFMSBitVector n → Prop) :
+    DFMSContinuousOperator (DFMSTh31Basis n X) :=
+  (DFMSTh31NoMatchProjectorMatrix R).toContinuous
+
+noncomputable def DFMSTh31PurifiedMeasurementOperator
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X] [LinearOrder X]
+    (R : X → DFMSBitVector n → Prop)
+    (shift : DFMSTh31PurifierShift X) :
+    DFMSContinuousOperator (DFMSTh31Basis n X) :=
+  (DFMSTh31PurifiedMeasurementMatrix R shift).toContinuous
 
 def DFMSTh31GammaX
     {n : Nat}
