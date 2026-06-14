@@ -12,9 +12,9 @@ This module is the checked boundary for the paper-grade theorem program.  It
 does not manufacture missing extractor, QROM, lattice-loss, or side-channel
 evidence.  Instead it states the actual product theorem shape: accepted product
 relations plus pinned transcript/artifact bindings, a bounded-depth loss
-accounting record, a lattice-assumption dossier, public-coin QRO/QROM evidence, and
-explicit completeness/soundness/ZK obligations imply the product security
-guarantee.
+accounting record, a lattice-assumption dossier, and public-coin QRO/QROM
+evidence.  The top theorem returns the deterministic reduction conclusion
+derived from those components; it does not prove caller-chosen security claims.
 -/
 
 namespace SuperNeoFormal
@@ -3363,19 +3363,6 @@ theorem productPublicCoinQROMAccepted_of_instantiatedQROM
       hProofKindBytes,
       hMalleability⟩
 
-structure ProductCompletenessSoundnessZKClaim where
-  completeness : Prop
-  knowledgeSoundness : Prop
-  zeroKnowledge : Prop
-  composition : Prop
-
-def ProductCompletenessSoundnessZKHolds
-    (claim : ProductCompletenessSoundnessZKClaim) : Prop :=
-  claim.completeness
-    ∧ claim.knowledgeSoundness
-    ∧ claim.zeroKnowledge
-    ∧ claim.composition
-
 structure ProductSecurityTheoremObligationStatus where
   numiSealProduct : NumiSealProductTheoremObligationStatus
   systemBindingClosure : TheoremObligationStatus
@@ -3386,10 +3373,6 @@ structure ProductSecurityTheoremObligationStatus where
   latticeParameterClosure : TheoremObligationStatus
   instantiatedQROM : TheoremObligationStatus
   totalLossBudget : TheoremObligationStatus
-  completeness : TheoremObligationStatus
-  knowledgeSoundness : TheoremObligationStatus
-  zeroKnowledge : TheoremObligationStatus
-  composition : TheoremObligationStatus
 
 def ProductSecurityTheoremObligationStatus.FullyInstantiated
     (status : ProductSecurityTheoremObligationStatus) :
@@ -3403,12 +3386,8 @@ def ProductSecurityTheoremObligationStatus.FullyInstantiated
     ∧ status.latticeParameterClosure.Accepted
     ∧ status.instantiatedQROM.Accepted
     ∧ status.totalLossBudget.Accepted
-    ∧ status.completeness.Accepted
-    ∧ status.knowledgeSoundness.Accepted
-    ∧ status.zeroKnowledge.Accepted
-    ∧ status.composition.Accepted
 
-structure ProductSecurityTheoremEvidence
+structure ProductSecurityReductionConclusion
     {depth : Nat}
     {View Leakage : Type}
     {columns : Nat}
@@ -3427,18 +3406,33 @@ structure ProductSecurityTheoremEvidence
     (latticeCertificate : VerifiedAjtaiKernelCertificate key bounded)
     (latticeParameterClosure : ProductLatticeParameterClosure)
     (instantiatedQROM : ProductInstantiatedQROMEvidence)
-    (totalLossClosure : ProductTotalLossClosure)
-    (claim : ProductCompletenessSoundnessZKClaim) where
+    (totalLossClosure : ProductTotalLossClosure) where
   productRelationsHold :
     NumiSealProductKnowledgeCarryPrivacyHolds relations
-  completenessSound :
+  endToEnd :
+    NumiSealEndToEndRelationHolds relations.endToEndRelation
+  recursiveKnowledge :
+    RecursiveFoldingKnowledgeChainHolds
+      relations.recursiveKnowledgeRelation
+  typedCarry :
+    NumiSealTypedCarryProducerConsumerRelationHolds
+      relations.typedCarryRelation
+  zkPrivacy :
+    NumiSealZKSimulationPrivacyHolds relations.zkPrivacyClaim
+  systemBindings :
     ProductSystemBindingsAccepted
       (ProductSystemBindings.ofProductRelations
         relations
-        systemBindingClosure) →
-      NumiSealProductKnowledgeCarryPrivacyHolds relations →
-        claim.completeness
-  knowledgeSoundnessSound :
+        systemBindingClosure)
+  selectedDepthLedger :
+    ProductSelectedDepthLossLedgerAccepted
+      (ProductSelectedDepthLossLedger.ofAcceptedComponents
+        perKindExtractorTheorems
+        recursiveCarryChainRootRecurrence
+        extractorLossClosure
+        instantiatedQROM
+        selectedDepthLossClosure)
+  boundedDepthLoss :
     ProductBoundedDepthLossAccepted
       (ProductBoundedDepthLossEvidence.ofSelectedDepthLedger
         parameters
@@ -3448,101 +3442,43 @@ structure ProductSecurityTheoremEvidence
           extractorLossClosure
           instantiatedQROM
           selectedDepthLossClosure)
-        maximumProductDepthPinned) →
-      ProductSelectedDepthLossLedgerAccepted
+        maximumProductDepthPinned)
+  extractorAccounting :
+    ProductExtractorLossAccountingAccepted
+      (ProductExtractorLossAccounting.ofAcceptedComponents
+        perKindExtractorTheorems
+        recursiveCarryChainRootRecurrence
+        extractorLossClosure)
+  latticeDossier :
+    ProductLatticeAssumptionDossierAccepted
+      (ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificateAndClosure
+        latticeCertificate
+        latticeParameterClosure)
+  instantiatedQROMAccepted :
+    ProductInstantiatedQROMEvidenceAccepted instantiatedQROM
+  publicCoinQROM :
+    ProductPublicCoinQROMAccepted
+      (ProductPublicCoinQROMEvidence.ofInstantiatedQROM instantiatedQROM)
+  publicCoinLossAccounting :
+    ProductPublicCoinLossAccountingAccepted
+      (ProductPublicCoinLossAccounting.ofInstantiatedQROM instantiatedQROM)
+  totalLossBudget :
+    ProductTotalLossBudgetAccepted
+      (ProductTotalLossBudget.ofAcceptedComponents
         (ProductSelectedDepthLossLedger.ofAcceptedComponents
           perKindExtractorTheorems
           recursiveCarryChainRootRecurrence
           extractorLossClosure
           instantiatedQROM
-          selectedDepthLossClosure) →
-      ProductExtractorLossAccountingAccepted
+          selectedDepthLossClosure)
         (ProductExtractorLossAccounting.ofAcceptedComponents
           perKindExtractorTheorems
           recursiveCarryChainRootRecurrence
-          extractorLossClosure) →
-      ProductLatticeAssumptionDossierAccepted
-        (ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificateAndClosure
-          latticeCertificate
-          latticeParameterClosure) →
-      ProductInstantiatedQROMEvidenceAccepted instantiatedQROM →
-      ProductPublicCoinLossAccountingAccepted
-        (ProductPublicCoinLossAccounting.ofInstantiatedQROM instantiatedQROM) →
-      ProductTotalLossBudgetAccepted
-        (ProductTotalLossBudget.ofAcceptedComponents
-          (ProductSelectedDepthLossLedger.ofAcceptedComponents
-            perKindExtractorTheorems
-            recursiveCarryChainRootRecurrence
-            extractorLossClosure
-            instantiatedQROM
-            selectedDepthLossClosure)
-          (ProductExtractorLossAccounting.ofAcceptedComponents
-            perKindExtractorTheorems
-            recursiveCarryChainRootRecurrence
-            extractorLossClosure)
-          instantiatedQROM
-          totalLossClosure) →
-      NumiSealProductKnowledgeCarryPrivacyHolds relations →
-        claim.knowledgeSoundness
-  zeroKnowledgeSound :
-    ProductSystemBindingsAccepted
-      (ProductSystemBindings.ofProductRelations
-        relations
-        systemBindingClosure) →
-      ProductInstantiatedQROMEvidenceAccepted instantiatedQROM →
-      NumiSealProductKnowledgeCarryPrivacyHolds relations →
-        claim.zeroKnowledge
-  compositionSound :
-    ProductSystemBindingsAccepted
-      (ProductSystemBindings.ofProductRelations
-        relations
-        systemBindingClosure) →
-      ProductBoundedDepthLossAccepted
-        (ProductBoundedDepthLossEvidence.ofSelectedDepthLedger
-          parameters
-          (ProductSelectedDepthLossLedger.ofAcceptedComponents
-            perKindExtractorTheorems
-            recursiveCarryChainRootRecurrence
-            extractorLossClosure
-            instantiatedQROM
-            selectedDepthLossClosure)
-          maximumProductDepthPinned) →
-      ProductSelectedDepthLossLedgerAccepted
-        (ProductSelectedDepthLossLedger.ofAcceptedComponents
-          perKindExtractorTheorems
-          recursiveCarryChainRootRecurrence
-          extractorLossClosure
-          instantiatedQROM
-          selectedDepthLossClosure) →
-      ProductExtractorLossAccountingAccepted
-        (ProductExtractorLossAccounting.ofAcceptedComponents
-          perKindExtractorTheorems
-          recursiveCarryChainRootRecurrence
-          extractorLossClosure) →
-      ProductLatticeAssumptionDossierAccepted
-        (ProductLatticeAssumptionDossier.ofVerifiedAjtaiKernelCertificateAndClosure
-          latticeCertificate
-          latticeParameterClosure) →
-      ProductInstantiatedQROMEvidenceAccepted instantiatedQROM →
-      ProductPublicCoinLossAccountingAccepted
-        (ProductPublicCoinLossAccounting.ofInstantiatedQROM instantiatedQROM) →
-      ProductTotalLossBudgetAccepted
-        (ProductTotalLossBudget.ofAcceptedComponents
-          (ProductSelectedDepthLossLedger.ofAcceptedComponents
-            perKindExtractorTheorems
-            recursiveCarryChainRootRecurrence
-            extractorLossClosure
-            instantiatedQROM
-            selectedDepthLossClosure)
-          (ProductExtractorLossAccounting.ofAcceptedComponents
-            perKindExtractorTheorems
-            recursiveCarryChainRootRecurrence
-            extractorLossClosure)
-          instantiatedQROM
-          totalLossClosure) →
-        claim.composition
+          extractorLossClosure)
+        instantiatedQROM
+        totalLossClosure)
 
-theorem productSecurityTheorem_from_evidence
+theorem productSecurityTheorem_from_components
     {depth : Nat}
     {View Leakage : Type}
     {columns : Nat}
@@ -3562,7 +3498,6 @@ theorem productSecurityTheorem_from_evidence
     {latticeParameterClosure : ProductLatticeParameterClosure}
     {instantiatedQROM : ProductInstantiatedQROMEvidence}
     {totalLossClosure : ProductTotalLossClosure}
-    {claim : ProductCompletenessSoundnessZKClaim}
     (hSystemBindingClosure :
       ProductSystemBindingClosureAccepted systemBindingClosure)
     (hSelectedDepthLossClosure :
@@ -3581,22 +3516,21 @@ theorem productSecurityTheorem_from_evidence
     (hTotalLossClosure :
       totalLossClosure.missingRequiredTermSetEmpty
         ∧ totalLossClosure.totalLossBoundInstantiated)
-    (evidence :
-      ProductSecurityTheoremEvidence
-        parameters
-        relations
-        systemBindingClosure
-        maximumProductDepthPinned
-        selectedDepthLossClosure
-        perKindExtractorTheorems
-        recursiveCarryChainRootRecurrence
-        extractorLossClosure
-        latticeCertificate
-        latticeParameterClosure
-        instantiatedQROM
-        totalLossClosure
-        claim) :
-    ProductCompletenessSoundnessZKHolds claim :=
+    (hProductRelations :
+      NumiSealProductKnowledgeCarryPrivacyHolds relations) :
+    ProductSecurityReductionConclusion
+      parameters
+      relations
+      systemBindingClosure
+      maximumProductDepthPinned
+      selectedDepthLossClosure
+      perKindExtractorTheorems
+      recursiveCarryChainRootRecurrence
+      extractorLossClosure
+      latticeCertificate
+      latticeParameterClosure
+      instantiatedQROM
+      totalLossClosure :=
   let selectedDepthLedger :=
     ProductSelectedDepthLossLedger.ofAcceptedComponents
       perKindExtractorTheorems
@@ -3610,7 +3544,7 @@ theorem productSecurityTheorem_from_evidence
           relations
           systemBindingClosure) :=
     productSystemBindingsAccepted_of_productRelations
-      evidence.productRelationsHold
+      hProductRelations
       hSystemBindingClosure
   have hDerivedSelectedDepthLedger :
       ProductSelectedDepthLossLedgerAccepted selectedDepthLedger := by
@@ -3652,6 +3586,11 @@ theorem productSecurityTheorem_from_evidence
         (ProductPublicCoinLossAccounting.ofInstantiatedQROM instantiatedQROM) :=
     productPublicCoinLossAccountingAccepted_of_instantiatedQROM
       hInstantiatedQROM
+  have hDerivedPublicCoinQROM :
+      ProductPublicCoinQROMAccepted
+        (ProductPublicCoinQROMEvidence.ofInstantiatedQROM instantiatedQROM) :=
+    productPublicCoinQROMAccepted_of_instantiatedQROM
+      hInstantiatedQROM
   have hDerivedTotalLossBudget :
       ProductTotalLossBudgetAccepted
         (ProductTotalLossBudget.ofAcceptedComponents
@@ -3667,33 +3606,42 @@ theorem productSecurityTheorem_from_evidence
       hDerivedExtractorAccounting
       hInstantiatedQROM
       hTotalLossClosure
-  ⟨
-    evidence.completenessSound
-      hDerivedBindings
-      evidence.productRelationsHold,
-    evidence.knowledgeSoundnessSound
-      hDerivedBoundedDepthLosses
-      hDerivedSelectedDepthLedger
-      hDerivedExtractorAccounting
-      hDerivedLatticeAssumptions
-      hInstantiatedQROM
-      hDerivedPublicCoinAccounting
-      hDerivedTotalLossBudget
-      evidence.productRelationsHold,
-    evidence.zeroKnowledgeSound
-      hDerivedBindings
-      hInstantiatedQROM
-      evidence.productRelationsHold,
-    evidence.compositionSound
-      hDerivedBindings
-      hDerivedBoundedDepthLosses
-      hDerivedSelectedDepthLedger
-      hDerivedExtractorAccounting
-      hDerivedLatticeAssumptions
-      hInstantiatedQROM
-      hDerivedPublicCoinAccounting
-      hDerivedTotalLossBudget
-  ⟩
+  have hProductRelationsHold :
+      NumiSealProductKnowledgeCarryPrivacyHolds relations :=
+    hProductRelations
+  show
+      ProductSecurityReductionConclusion
+        parameters
+        relations
+        systemBindingClosure
+        maximumProductDepthPinned
+        selectedDepthLossClosure
+        perKindExtractorTheorems
+        recursiveCarryChainRootRecurrence
+        extractorLossClosure
+        latticeCertificate
+        latticeParameterClosure
+        instantiatedQROM
+        totalLossClosure
+    from
+      let hEndToEnd := hProductRelations.1
+      let hRecursiveKnowledge := hProductRelations.2.1
+      let hTypedCarry := hProductRelations.2.2.1
+      let hZKPrivacy := hProductRelations.2.2.2
+      { productRelationsHold := hProductRelationsHold
+        endToEnd := hEndToEnd
+        recursiveKnowledge := hRecursiveKnowledge
+        typedCarry := hTypedCarry
+        zkPrivacy := hZKPrivacy
+        systemBindings := hDerivedBindings
+        selectedDepthLedger := hDerivedSelectedDepthLedger
+        boundedDepthLoss := hDerivedBoundedDepthLosses
+        extractorAccounting := hDerivedExtractorAccounting
+        latticeDossier := hDerivedLatticeAssumptions
+        instantiatedQROMAccepted := hInstantiatedQROM
+        publicCoinQROM := hDerivedPublicCoinQROM
+        publicCoinLossAccounting := hDerivedPublicCoinAccounting
+        totalLossBudget := hDerivedTotalLossBudget }
 
 theorem productSecurityTheorem_requires_bounded_depth
     {parameters : ProductSecurityParameters}
