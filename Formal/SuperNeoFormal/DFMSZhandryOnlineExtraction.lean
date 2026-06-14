@@ -1711,6 +1711,113 @@ def DFMSTh31PurifiedMeasurementReduction
       + DFMSOperatorNorm
           (DFMSOperatorCommutator localOracle noMatchProjector)
 
+structure DFMSTh31PurifiedFirstMatchReductionComponents
+    (n : Nat)
+    (localOracle localMeasurement matchProjector noMatchProjector :
+      DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)) where
+  firstMatchInteriorContribution :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
+  firstMatchForwardContribution :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
+  firstMatchBackwardContribution :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
+  noMatchContribution :
+    DFMSContinuousOperator (DFMSTh31LocalQueryBasis n)
+  commutator_decomposition :
+    DFMSOperatorCommutator localOracle localMeasurement =
+      firstMatchInteriorContribution +
+        firstMatchForwardContribution +
+        firstMatchBackwardContribution +
+        noMatchContribution
+  firstMatchInterior_norm_le :
+    DFMSOperatorNorm firstMatchInteriorContribution ≤
+      DFMSOperatorNorm
+        (DFMSOperatorCommutator localOracle matchProjector)
+  firstMatchForward_norm_le :
+    DFMSOperatorNorm firstMatchForwardContribution ≤
+      DFMSOperatorNorm
+        (DFMSOperatorCommutator localOracle matchProjector)
+  firstMatchBackward_norm_le :
+    DFMSOperatorNorm firstMatchBackwardContribution ≤
+      DFMSOperatorNorm
+        (DFMSOperatorCommutator localOracle matchProjector)
+  noMatch_norm_le :
+    DFMSOperatorNorm noMatchContribution ≤
+      DFMSOperatorNorm
+        (DFMSOperatorCommutator localOracle noMatchProjector)
+
+theorem DFMSOperatorNorm_add_four_le
+    {A : Type} [Fintype A]
+    (first second third fourth : DFMSContinuousOperator A) :
+    DFMSOperatorNorm (first + second + third + fourth) ≤
+      DFMSOperatorNorm first + DFMSOperatorNorm second +
+        DFMSOperatorNorm third + DFMSOperatorNorm fourth := by
+  unfold DFMSOperatorNorm
+  have hFirstSecond :
+      ‖first + second‖ ≤ ‖first‖ + ‖second‖ :=
+    norm_add_le first second
+  have hFirstSecondThird :
+      ‖first + second + third‖ ≤
+        ‖first‖ + ‖second‖ + ‖third‖ := by
+    calc
+      ‖first + second + third‖ ≤
+          ‖first + second‖ + ‖third‖ :=
+        norm_add_le (first + second) third
+      _ ≤ (‖first‖ + ‖second‖) + ‖third‖ := by
+        exact add_le_add hFirstSecond (le_refl _)
+      _ = ‖first‖ + ‖second‖ + ‖third‖ := by
+        ring
+  calc
+    ‖first + second + third + fourth‖ ≤
+        ‖first + second + third‖ + ‖fourth‖ :=
+      norm_add_le (first + second + third) fourth
+    _ ≤ (‖first‖ + ‖second‖ + ‖third‖) + ‖fourth‖ := by
+      exact add_le_add hFirstSecondThird (le_refl _)
+    _ = ‖first‖ + ‖second‖ + ‖third‖ + ‖fourth‖ := by
+      ring
+
+theorem DFMSTh31PurifiedMeasurementReduction.of_firstMatchComponents
+    (n : Nat)
+    (localOracle localMeasurement matchProjector noMatchProjector :
+      DFMSContinuousOperator (DFMSTh31LocalQueryBasis n))
+    (components :
+      DFMSTh31PurifiedFirstMatchReductionComponents
+        n localOracle localMeasurement matchProjector noMatchProjector) :
+    DFMSTh31PurifiedMeasurementReduction
+      n localOracle localMeasurement matchProjector noMatchProjector := by
+  unfold DFMSTh31PurifiedMeasurementReduction
+  calc
+    DFMSOperatorNorm
+        (DFMSOperatorCommutator localOracle localMeasurement)
+        =
+      DFMSOperatorNorm
+        (components.firstMatchInteriorContribution +
+          components.firstMatchForwardContribution +
+          components.firstMatchBackwardContribution +
+          components.noMatchContribution) := by
+      rw [components.commutator_decomposition]
+    _ ≤
+      DFMSOperatorNorm components.firstMatchInteriorContribution +
+        DFMSOperatorNorm components.firstMatchForwardContribution +
+        DFMSOperatorNorm components.firstMatchBackwardContribution +
+        DFMSOperatorNorm components.noMatchContribution :=
+      DFMSOperatorNorm_add_four_le
+        components.firstMatchInteriorContribution
+        components.firstMatchForwardContribution
+        components.firstMatchBackwardContribution
+        components.noMatchContribution
+    _ ≤
+      3 *
+          DFMSOperatorNorm
+            (DFMSOperatorCommutator localOracle matchProjector)
+        +
+        DFMSOperatorNorm
+          (DFMSOperatorCommutator localOracle noMatchProjector) := by
+      linarith [components.firstMatchInterior_norm_le,
+        components.firstMatchForward_norm_le,
+        components.firstMatchBackward_norm_le,
+        components.noMatch_norm_le]
+
 def DFMSTh31LocalPurifiedMeasurementBound
     (n gammaX : Nat)
     (localOracle localMeasurement :
@@ -1938,9 +2045,9 @@ structure DFMSTh31AnalyticProof
   localNoMatchProjectorComplement :
     ∀ x,
       localNoMatchProjector x = 1 - localMatchProjector x
-  purifiedMeasurementReduction :
+  purifiedFirstMatchReductionComponents :
     ∀ x,
-      DFMSTh31PurifiedMeasurementReduction
+      DFMSTh31PurifiedFirstMatchReductionComponents
         n
         (localOracle x)
         (localPurifiedMeasurement x)
@@ -2121,6 +2228,27 @@ theorem DFMSTh31AnalyticProof.noMatchProjectorBound
     (analytic.localNoMatchProjector x)
     (analytic.noMatchProjectorReduction x)
     (analytic.localOracleProjectorBound x)
+
+theorem DFMSTh31AnalyticProof.purifiedMeasurementReduction
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    {R : X → DFMSBitVector n → Prop} [DecidableRel R]
+    {operatorModel : DFMSTh31OperatorModel n X}
+    (analytic : DFMSTh31AnalyticProof n X R operatorModel)
+    (x : X) :
+    DFMSTh31PurifiedMeasurementReduction
+      n
+      (analytic.localOracle x)
+      (analytic.localPurifiedMeasurement x)
+      (analytic.localMatchProjector x)
+      (analytic.localNoMatchProjector x) :=
+  DFMSTh31PurifiedMeasurementReduction.of_firstMatchComponents
+    n
+    (analytic.localOracle x)
+    (analytic.localPurifiedMeasurement x)
+    (analytic.localMatchProjector x)
+    (analytic.localNoMatchProjector x)
+    (analytic.purifiedFirstMatchReductionComponents x)
 
 theorem DFMSTh31AnalyticProof.localPurifiedMeasurementBound
     {n : Nat}
