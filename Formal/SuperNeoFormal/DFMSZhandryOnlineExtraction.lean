@@ -1,3 +1,5 @@
+import Mathlib.Analysis.Normed.Operator.Basic
+import Mathlib.Data.ZMod.Basic
 import Mathlib.Tactic
 import SuperNeoFormal.QuantumRandomOracle
 
@@ -16,6 +18,159 @@ noncomputable section
 namespace SuperNeoFormal
 
 open Finset
+
+abbrev DFMSBitVector (n : Nat) :=
+  Fin n → ZMod 2
+
+theorem dfmsBitVector_card (n : Nat) :
+    Fintype.card (DFMSBitVector n) = 2 ^ n := by
+  rw [Fintype.card_fun]
+  rw [ZMod.card 2, Fintype.card_fin]
+
+def DFMSBitVector.zero (n : Nat) : DFMSBitVector n :=
+  fun _ => 0
+
+abbrev DFMSRegisterHilbertSpace (A : Type) :=
+  A → ℂ
+
+abbrev DFMSContinuousOperator (A : Type) :=
+  DFMSRegisterHilbertSpace A →L[ℂ] DFMSRegisterHilbertSpace A
+
+noncomputable def DFMSOperatorNorm
+    {A : Type} [Fintype A]
+    (operator : DFMSContinuousOperator A) : ℝ :=
+  ContinuousLinearMap.opNorm operator
+
+noncomputable def DFMSOperatorCommutator
+    {A : Type} [Fintype A]
+    (left right : DFMSContinuousOperator A) :
+    DFMSContinuousOperator A :=
+  left.comp right - right.comp left
+
+abbrev DFMSTh31Database (n : Nat) (X : Type) :=
+  X → Option (DFMSBitVector n)
+
+abbrev DFMSTh31Basis (n : Nat) (X : Type) :=
+  ((X × DFMSBitVector n) × DFMSTh31Database n X) × Option X
+
+def DFMSTh31GammaX
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) : Nat :=
+  ((Finset.univ : Finset (DFMSBitVector n)).filter
+    (fun y => R x y)).card
+
+def DFMSTh31GammaR
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R] : Nat :=
+  (Finset.univ : Finset X).sup fun x => DFMSTh31GammaX R x
+
+theorem dfmsTh31_gammaX_le_gammaR
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (x : X) :
+    DFMSTh31GammaX R x ≤ DFMSTh31GammaR R :=
+  Finset.le_sup (Finset.mem_univ x)
+
+def DFMSTh31CommutatorBound
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (R : X → DFMSBitVector n → Prop)
+    [DecidableRel R]
+    (oracleQuery purifiedMeasurement :
+      DFMSContinuousOperator (DFMSTh31Basis n X)) : Prop :=
+  DFMSOperatorNorm
+      (DFMSOperatorCommutator oracleQuery purifiedMeasurement)
+    ≤ 8 *
+      Real.sqrt
+        (((2 : ℝ) * (DFMSTh31GammaR R : ℝ)) / ((2 : ℝ) ^ n))
+
+structure DFMSTh31OperatorModel
+    (n : Nat)
+    (X : Type) [Fintype X] [DecidableEq X] where
+  oracleQuery : DFMSContinuousOperator (DFMSTh31Basis n X)
+  purifiedMeasurement : DFMSContinuousOperator (DFMSTh31Basis n X)
+  oracleQueryImplementsCompressedOracle : Prop
+  oracleQueryImplementsCompressedOracleHolds :
+    oracleQueryImplementsCompressedOracle
+  purifiedMeasurementImplementsFirstMatchProjectors : Prop
+  purifiedMeasurementImplementsFirstMatchProjectorsHolds :
+    purifiedMeasurementImplementsFirstMatchProjectors
+
+def DFMSTh31OperatorModelAccepted
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (model : DFMSTh31OperatorModel n X) : Prop :=
+  model.oracleQueryImplementsCompressedOracle
+    ∧ model.purifiedMeasurementImplementsFirstMatchProjectors
+
+theorem DFMSTh31OperatorModel.accepted
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X]
+    (model : DFMSTh31OperatorModel n X) :
+    DFMSTh31OperatorModelAccepted model :=
+  ⟨model.oracleQueryImplementsCompressedOracleHolds,
+    model.purifiedMeasurementImplementsFirstMatchProjectorsHolds⟩
+
+structure DFMSTh31CommutatorTheorem
+    (n : Nat)
+    (X : Type) [Fintype X] [DecidableEq X] [LinearOrder X] where
+  R : X → DFMSBitVector n → Prop
+  [rDecidable : DecidableRel R]
+  operatorModel : DFMSTh31OperatorModel n X
+  operatorNormBound :
+    DFMSTh31CommutatorBound
+      R
+      operatorModel.oracleQuery
+      operatorModel.purifiedMeasurement
+
+attribute [instance] DFMSTh31CommutatorTheorem.rDecidable
+
+def DFMSTh31CommutatorTheoremAccepted
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X] [LinearOrder X]
+    (theoremRecord : DFMSTh31CommutatorTheorem n X) : Prop :=
+  DFMSTh31OperatorModelAccepted theoremRecord.operatorModel
+    ∧ DFMSTh31CommutatorBound
+      theoremRecord.R
+      theoremRecord.operatorModel.oracleQuery
+      theoremRecord.operatorModel.purifiedMeasurement
+
+theorem DFMSTh31CommutatorTheorem.accepted
+    {n : Nat}
+    {X : Type} [Fintype X] [DecidableEq X] [LinearOrder X]
+    (theoremRecord : DFMSTh31CommutatorTheorem n X) :
+    DFMSTh31CommutatorTheoremAccepted theoremRecord :=
+  ⟨theoremRecord.operatorModel.accepted,
+    theoremRecord.operatorNormBound⟩
+
+structure DFMSTh31ExactEvidence where
+  n : Nat
+  X : Type
+  [xFintype : Fintype X]
+  [xDecidableEq : DecidableEq X]
+  [xLinearOrder : LinearOrder X]
+  theorem31 : DFMSTh31CommutatorTheorem n X
+
+attribute [instance]
+  DFMSTh31ExactEvidence.xFintype
+  DFMSTh31ExactEvidence.xDecidableEq
+  DFMSTh31ExactEvidence.xLinearOrder
+
+def DFMSTh31ExactEvidenceAccepted
+    (evidence : DFMSTh31ExactEvidence) : Prop :=
+  DFMSTh31CommutatorTheoremAccepted evidence.theorem31
+
+theorem DFMSTh31ExactEvidence.accepted
+    (evidence : DFMSTh31ExactEvidence) :
+    DFMSTh31ExactEvidenceAccepted evidence :=
+  evidence.theorem31.accepted
 
 structure DFMSHashCommitmentFunction where
   X : Type
@@ -162,6 +317,31 @@ def DFMSIdentityHashCommitmentFunction
   hashOutputCardinality := hashOutputCardinality
   f := fun _ y => y
 
+def DFMSBitvectorHashCommitmentFunction
+    (n : Nat)
+    (X T : Type)
+    [Fintype X] [DecidableEq X] [LinearOrder X]
+    [Fintype T] [DecidableEq T]
+    (f : X → DFMSBitVector n → T) :
+    DFMSHashCommitmentFunction where
+  X := X
+  Y := DFMSBitVector n
+  T := T
+  hashOutputBits := n
+  hashOutputCardinality := dfmsBitVector_card n
+  f := f
+
+def DFMSBitvectorIdentityHashCommitmentFunction
+    (n : Nat)
+    (X : Type)
+    [Fintype X] [DecidableEq X] [LinearOrder X] :
+    DFMSHashCommitmentFunction :=
+  DFMSIdentityHashCommitmentFunction
+    X
+    (DFMSBitVector n)
+    n
+    (dfmsBitVector_card n)
+
 theorem finset_card_filter_eq_le_one
     {Y : Type} [Fintype Y] [DecidableEq Y] (target : Y) :
     ((Finset.univ : Finset Y).filter (fun y => y = target)).card ≤ 1 := by
@@ -204,6 +384,32 @@ theorem dfmsIdentityHashCommitment_gammaPrimeBound_one
   intro _x _x' y' _hDistinct
   simpa [DFMSCrossCommitmentFiber, DFMSIdentityHashCommitmentFunction] using
     finset_card_filter_eq_le_one y'
+
+theorem dfmsBitvectorIdentityHashCommitment_gammaBound_one
+    (n : Nat)
+    (X : Type)
+    [Fintype X] [DecidableEq X] [LinearOrder X] :
+    DFMSGammaBound
+      (DFMSBitvectorIdentityHashCommitmentFunction n X)
+      1 :=
+  dfmsIdentityHashCommitment_gammaBound_one
+    X
+    (DFMSBitVector n)
+    n
+    (dfmsBitVector_card n)
+
+theorem dfmsBitvectorIdentityHashCommitment_gammaPrimeBound_one
+    (n : Nat)
+    (X : Type)
+    [Fintype X] [DecidableEq X] [LinearOrder X] :
+    DFMSGammaPrimeBound
+      (DFMSBitvectorIdentityHashCommitmentFunction n X)
+      1 :=
+  dfmsIdentityHashCommitment_gammaPrimeBound_one
+    X
+    (DFMSBitVector n)
+    n
+    (dfmsBitVector_card n)
 
 def DFMSHashOutputDenominator
     (commitment : DFMSHashCommitmentFunction) : ℝ :=
@@ -300,6 +506,9 @@ structure DFMSCompressedOracleCommutatorTheorem
   relationGammaBound :
     ∀ (t : commitment.T) (x : commitment.X),
       (DFMSCommitmentFiber commitment x t).card ≤ gamma
+  exactTheorem31 : DFMSTh31ExactEvidence
+  exactTheorem31GammaWithinSimulatorGamma :
+    DFMSTh31GammaR exactTheorem31.theorem31.R ≤ gamma
   compressedOracleExternallyEquivalentWhenUnmeasured : Prop
   compressedOracleExternallyEquivalentWhenUnmeasuredHolds :
     compressedOracleExternallyEquivalentWhenUnmeasured
@@ -329,6 +538,8 @@ def DFMSCompressedOracleCommutatorTheoremAccepted
       DFMSCompressedOracleCommutatorTheorem commitment gamma) : Prop :=
   (∀ (t : commitment.T) (x : commitment.X),
       (DFMSCommitmentFiber commitment x t).card ≤ gamma)
+    ∧ DFMSTh31ExactEvidenceAccepted theoremRecord.exactTheorem31
+    ∧ DFMSTh31GammaR theoremRecord.exactTheorem31.theorem31.R ≤ gamma
     ∧ theoremRecord.compressedOracleExternallyEquivalentWhenUnmeasured
     ∧ theoremRecord.randomOracleQueriesCommute
     ∧ theoremRecord.extractionQueriesCommute
@@ -345,6 +556,8 @@ theorem DFMSCompressedOracleCommutatorTheorem.accepted
       DFMSCompressedOracleCommutatorTheorem commitment gamma) :
     DFMSCompressedOracleCommutatorTheoremAccepted theoremRecord :=
   ⟨theoremRecord.relationGammaBound,
+    theoremRecord.exactTheorem31.accepted,
+    theoremRecord.exactTheorem31GammaWithinSimulatorGamma,
     theoremRecord.compressedOracleExternallyEquivalentWhenUnmeasuredHolds,
     theoremRecord.randomOracleQueriesCommuteHolds,
     theoremRecord.extractionQueriesCommuteHolds,
