@@ -66,8 +66,9 @@ swift run superneo verify \
 Product-control verification is stricter than local verification. It accepts
 NumiSealZK product artifacts, requires signed context/provenance material,
 requires a signed issued-QRO pack, and records replay/audit state. Side-channel
-certificates are optional for default `correctness-only` contexts and validated
-when supplied; stricter trusted contexts may require them.
+certificates are required by the default production NumiSealZK context. Local
+development contexts can explicitly opt down to `correctness-only`; such
+contexts are not production side-channel clearance.
 
 For typed-required recursive carry, add:
 
@@ -124,3 +125,6 @@ envelope bytes, source fold output-claim digests, NumiSeal proof envelope bytes,
 QRO metadata, CTCO/QROM transcript metadata, public statement roots, aggregate
 digests, and execution-policy metadata. Verification rejects malformed or
 mismatched profile, QRO, CTCO, envelope, and statement fields.
+Product-control verification also requires the signed trusted context to supply
+the verifier key seed and requires the artifact frontend context to bind a
+non-`unbound` source application path.

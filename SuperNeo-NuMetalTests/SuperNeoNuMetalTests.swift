@@ -6567,7 +6567,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertFalse(NumiSealZKMaskSampler.accepts(candidate: UInt64.max))
     }
 
-    func testLocalProductControlsVerifySignedContextProvenanceReplayAndAudit() throws {
+    func testLocalProductControlsVerifySignedNumiSealZKContextProvenanceReplayAndAudit() throws {
         let directory = try temporaryDirectory()
         let signingKey = Curve25519.Signing.PrivateKey()
         let publicKeyDigest = Digest256.hash([UInt8](signingKey.publicKey.rawRepresentation)).hexString
@@ -6579,20 +6579,26 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         let verifierKeyDigest = Digest256.hash("verifier-key").hexString
         let transcriptDomainDigest = Digest256.hash("transcript-domain").hexString
         let contextPayload = SuperNeoTrustedContextPayload(
-            contextID: "ctx-terminal",
+            contextID: "ctx-numiseal-zk-local",
             issuer: "SuperNeo Release",
             validFromUTC: "2026-01-01T00:00:00Z",
             validUntilUTC: "2027-01-01T00:00:00Z",
+            expectedKeySeedUTF8: "local-numiseal-zk-key",
             expectedVerifierKeyDigestHex: verifierKeyDigest,
             expectedShapeDigestHex: shapeDigest,
             expectedStatementDigestHex: statementDigest,
             expectedTranscriptDomainDigestHex: transcriptDomainDigest,
-            acceptedProofKinds: [.terminal, .compressedTerminal],
+            acceptedProofKinds: [.numiSealZK],
             maximumArtifactByteCount: 1_000_000,
             maximumProofEnvelopeByteCount: 100_000,
             allowedWorkloads: ["one-hot-vector-v1"],
             publicInputs: [1],
             releaseBuildDigestHex: releaseBuildDigest,
+            numiSeal: numiSealTestPolicy(prefix: "local-product-controls"),
+            numiSealZK: numiSealZKTestPolicy(
+                prefix: "local-product-controls",
+                minimum: .correctnessOnly
+            ),
             keyRotation: SuperNeoTrustedContextKeyRotation(
                 currentIssuerKeyDigestHex: publicKeyDigest,
                 nextIssuerKeyDigestHex: Digest256.hash("next-issuer-key").hexString
@@ -6608,7 +6614,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
 
         let provenancePayload = SuperNeoArtifactProvenancePayload(
             issuer: "SuperNeo Release",
-            contextID: "ctx-terminal",
+            contextID: contextPayload.contextID,
             artifactDigestHex: artifactDigest,
             proofEnvelopeDigestHex: proofEnvelopeDigest,
             statementDigestHex: statementDigest,
@@ -6623,9 +6629,9 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         try writeSecureJSON(provenanceManifest, to: provenanceURL)
 
         let revocationFeedPayload = SuperNeoRevocationFeedPayload(
-            feedID: "ctx-terminal-revocations",
+            feedID: "ctx-numiseal-zk-local-revocations",
             issuer: "SuperNeo Release",
-            contextID: "ctx-terminal",
+            contextID: contextPayload.contextID,
             releaseBuildDigestHex: releaseBuildDigest,
             sequence: 1,
             issuedAtUTC: "2026-04-16T00:00:00Z",
@@ -6664,7 +6670,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             trustedIssuerKeyDigestsHex: try loadedProfile.trustedContextIssuerKeyDigestSet(),
             now: try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
         )
-        XCTAssertEqual(verifiedContext.payload.contextID, "ctx-terminal")
+        XCTAssertEqual(verifiedContext.payload.contextID, contextPayload.contextID)
 
         let verifiedProvenance = try SuperNeoSignedArtifactProvenanceManifest.loadVerified(
             from: provenanceURL,
@@ -6683,7 +6689,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             context: verifiedContext.payload,
             now: try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
         )
-        XCTAssertEqual(verifiedRevocationFeed.payload.feedID, "ctx-terminal-revocations")
+        XCTAssertEqual(verifiedRevocationFeed.payload.feedID, "ctx-numiseal-zk-local-revocations")
         XCTAssertEqual(verifiedRevocationFeed.payload.sequence, 1)
         let effectiveRevocation = verifiedContext.payload.revocation.merged(with: verifiedRevocationFeed.payload.revocation)
         try effectiveRevocation.requireNotRevoked(
@@ -6717,7 +6723,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 proofEnvelopeDigestHex: proofEnvelopeDigest,
                 provenanceDigestHex: verifiedProvenance.provenanceDigest.hexString,
                 revocationFeedDigestHex: verifiedRevocationFeed.feedDigest.hexString,
-                proofKind: SuperNeoProductProofKind.terminal.rawValue,
+                proofKind: SuperNeoProductProofKind.numiSealZK.rawValue,
                 contextID: contextPayload.contextID,
                 statementDigestHex: statementDigest,
                 toolVersion: "test-tool",
@@ -6755,21 +6761,21 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertEqual(operationsStatus.readiness, .ready)
         XCTAssertEqual(operationsStatus.contextID, contextPayload.contextID)
         XCTAssertEqual(operationsStatus.contextPayloadDigestHex, verifiedContext.payloadDigest.hexString)
-        XCTAssertEqual(operationsStatus.revocationFeedID, "ctx-terminal-revocations")
+        XCTAssertEqual(operationsStatus.revocationFeedID, "ctx-numiseal-zk-local-revocations")
         XCTAssertEqual(operationsStatus.revocationFeedSequence, 1)
         XCTAssertEqual(operationsStatus.revocationFeedDigestHex, verifiedRevocationFeed.feedDigest.hexString)
         XCTAssertEqual(operationsStatus.acceptedReplayCount, 1)
         XCTAssertEqual(operationsStatus.auditLogRecordCount, 1)
         XCTAssertEqual(operationsStatus.keyRotationStatus, "next-key-staged")
         XCTAssertEqual(operationsStatus.revocationStatus, "signed-feed-current-empty")
-        XCTAssertEqual(operationsStatus.sideChannelCertificateStatus, "not-required")
+        XCTAssertEqual(operationsStatus.sideChannelCertificateStatus, "not-attached-optional")
         XCTAssertTrue(operationsStatus.checks.allSatisfy { $0.status == .ok })
         XCTAssertTrue(operationsStatus.retryPolicy.contains("signed context"))
 
         let revokedFeedPayload = SuperNeoRevocationFeedPayload(
-            feedID: "ctx-terminal-revocations",
+            feedID: "ctx-numiseal-zk-local-revocations",
             issuer: "SuperNeo Release",
-            contextID: "ctx-terminal",
+            contextID: contextPayload.contextID,
             releaseBuildDigestHex: releaseBuildDigest,
             sequence: 2,
             issuedAtUTC: "2026-04-17T00:00:00Z",
@@ -6788,7 +6794,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         )
     }
 
-    func testProductOperationsStatusAllowsNumiSealZKWithoutCertificateByDefault() throws {
+    func testProductOperationsStatusBlocksNumiSealZKWithoutDefaultProductionCertificate() throws {
         let issuerDigest = Digest256.hash("numiseal-zk-ops-issuer")
         let releaseBuildDigest = Digest256.hash("numiseal-zk-ops-release")
         let now = try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
@@ -6875,10 +6881,10 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             now: now
         )
 
-        XCTAssertEqual(status.readiness, SuperNeoProductOperationsReadiness.ready)
-        XCTAssertEqual(status.sideChannelCertificateStatus, "not-attached-optional")
+        XCTAssertEqual(status.readiness, SuperNeoProductOperationsReadiness.blocked)
+        XCTAssertEqual(status.sideChannelCertificateStatus, "missing-required")
         XCTAssertTrue(status.checks.contains { check in
-            check.id == "side-channel-certificate" && check.status == SuperNeoProductOperationsCheckStatus.ok
+            check.id == "side-channel-certificate" && check.status == SuperNeoProductOperationsCheckStatus.blocked
         })
 
         let requiredZKPolicy = SuperNeoTrustedNumiSealZKContext(
@@ -6957,6 +6963,159 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         XCTAssertTrue(requiredStatus.checks.contains { check in
             check.id == "side-channel-certificate" && check.status == SuperNeoProductOperationsCheckStatus.blocked
         })
+    }
+
+    func testTrustedProductContextRejectsNonNumiSealZKProofKinds() throws {
+        let issuerDigest = Digest256.hash("non-zk-context-issuer")
+        let payload = SuperNeoTrustedContextPayload(
+            contextID: "ctx-terminal-product-rejected",
+            issuer: "SuperNeo Release",
+            validFromUTC: "2026-01-01T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z",
+            expectedVerifierKeyDigestHex: Digest256.hash("verifier").hexString,
+            expectedShapeDigestHex: Digest256.hash("shape").hexString,
+            expectedStatementDigestHex: Digest256.hash("statement").hexString,
+            expectedTranscriptDomainDigestHex: Digest256.hash("domain").hexString,
+            acceptedProofKinds: [.terminal],
+            maximumArtifactByteCount: 1_000_000,
+            allowedWorkloads: ["one-hot-vector-v1"],
+            releaseBuildDigestHex: Digest256.hash("release").hexString,
+            keyRotation: SuperNeoTrustedContextKeyRotation(currentIssuerKeyDigestHex: issuerDigest.hexString)
+        )
+
+        XCTAssertThrowsProductIntegrationError(
+            try payload.validate(
+                now: try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now"),
+                issuerKeyDigestHex: issuerDigest.hexString
+            ),
+            containing: "trusted product context must accept only numiseal-zk"
+        )
+    }
+
+    func testRevocationFeedRejectsZeroLengthValidityWindow() throws {
+        let issuerDigest = Digest256.hash("revocation-window-issuer")
+        let releaseDigest = Digest256.hash("revocation-window-release")
+        let context = SuperNeoTrustedContextPayload(
+            contextID: "ctx-revocation-window",
+            issuer: "SuperNeo Release",
+            validFromUTC: "2026-01-01T00:00:00Z",
+            validUntilUTC: "2027-01-01T00:00:00Z",
+            expectedVerifierKeyDigestHex: Digest256.hash("verifier").hexString,
+            expectedShapeDigestHex: Digest256.hash("shape").hexString,
+            expectedStatementDigestHex: Digest256.hash("statement").hexString,
+            expectedTranscriptDomainDigestHex: Digest256.hash("domain").hexString,
+            acceptedProofKinds: [.numiSealZK],
+            maximumArtifactByteCount: 1_000_000,
+            allowedWorkloads: ["one-hot-vector-v1"],
+            releaseBuildDigestHex: releaseDigest.hexString,
+            numiSeal: numiSealTestPolicy(prefix: "revocation-window"),
+            numiSealZK: numiSealZKTestPolicy(prefix: "revocation-window", minimum: .correctnessOnly),
+            keyRotation: SuperNeoTrustedContextKeyRotation(currentIssuerKeyDigestHex: issuerDigest.hexString),
+            revocation: SuperNeoTrustedContextRevocation(issuedAtUTC: "2026-04-16T00:00:00Z")
+        )
+        let feed = SuperNeoRevocationFeedPayload(
+            feedID: "ctx-revocation-window-feed",
+            issuer: "SuperNeo Release",
+            contextID: context.contextID,
+            releaseBuildDigestHex: releaseDigest.hexString,
+            sequence: 1,
+            issuedAtUTC: "2026-04-16T00:00:00Z",
+            validUntilUTC: "2026-04-16T00:00:00Z"
+        )
+
+        XCTAssertThrowsProductIntegrationError(
+            try feed.validate(
+                context: context,
+                now: try SuperNeoProductTime.parseUTC("2026-04-16T00:00:00Z", name: "test now")
+            ),
+            containing: "revocation feed validity window is invalid"
+        )
+    }
+
+    func testRevenueLogicEmitsBillableEventOnlyForAcceptedNumiSealZKProductAudit() throws {
+        let auditEvent = SuperNeoAuditLogEvent(
+            decision: "accepted",
+            artifactDigestHex: Digest256.hash("billable-artifact").hexString,
+            proofEnvelopeDigestHex: Digest256.hash("billable-proof").hexString,
+            provenanceDigestHex: Digest256.hash("billable-provenance").hexString,
+            issuedQROChallengeDigestHex: Digest256.hash("billable-issued-qro").hexString,
+            proofKind: SuperNeoProductProofKind.numiSealZK.rawValue,
+            contextID: "ctx-billable",
+            statementDigestHex: Digest256.hash("billable-statement").hexString,
+            toolVersion: "test-tool",
+            releaseBuildDigestHex: Digest256.hash("billable-release").hexString
+        )
+        let rateCard = try SuperNeoRevenueRateCard(
+            acceptedNumiSealZKVerificationMicrosUSD: 2_000_000,
+            issuedQROChallengeMicrosUSD: 250_000,
+            verifierSeatMonthlyMicrosUSD: 50_000_000,
+            supportContractMonthlyMicrosUSD: 500_000_000,
+            targetGrossMarginBasisPoints: 7_000
+        )
+        let costBasis = try SuperNeoRevenueCostBasis(
+            verificationComputeMicrosUSD: 250_000,
+            artifactStorageMicrosUSD: 50_000,
+            artifactEgressMicrosUSD: 25_000,
+            qroServiceMicrosUSD: 75_000
+        )
+
+        let billable = try SuperNeoRevenueLogic.billableAcceptedVerificationEvent(
+            customerID: "customer-a",
+            auditEvent: auditEvent,
+            rateCard: rateCard,
+            costBasis: costBasis
+        )
+        XCTAssertEqual(billable.sku, .acceptedNumiSealZKVerification)
+        XCTAssertEqual(billable.totalRevenueMicrosUSD, 2_000_000)
+        XCTAssertEqual(billable.estimatedTotalCostMicrosUSD, 400_000)
+        XCTAssertEqual(billable.grossMarginBasisPoints, 8_000)
+        XCTAssertTrue(billable.clearsTargetGrossMargin)
+
+        let rejectedEvent = SuperNeoAuditLogEvent(
+            decision: "rejected",
+            errorClass: "verification_failed",
+            errorMessage: "redacted:verification_failed",
+            artifactDigestHex: auditEvent.artifactDigestHex,
+            proofEnvelopeDigestHex: auditEvent.proofEnvelopeDigestHex,
+            provenanceDigestHex: auditEvent.provenanceDigestHex,
+            issuedQROChallengeDigestHex: auditEvent.issuedQROChallengeDigestHex,
+            proofKind: auditEvent.proofKind,
+            contextID: auditEvent.contextID,
+            statementDigestHex: auditEvent.statementDigestHex,
+            toolVersion: auditEvent.toolVersion,
+            releaseBuildDigestHex: auditEvent.releaseBuildDigestHex
+        )
+        XCTAssertThrowsProductIntegrationError(
+            try SuperNeoRevenueLogic.billableAcceptedVerificationEvent(
+                customerID: "customer-a",
+                auditEvent: rejectedEvent,
+                rateCard: rateCard,
+                costBasis: costBasis
+            ),
+            containing: "only accepted product verifications are billable"
+        )
+
+        let terminalEvent = SuperNeoAuditLogEvent(
+            decision: "accepted",
+            artifactDigestHex: auditEvent.artifactDigestHex,
+            proofEnvelopeDigestHex: auditEvent.proofEnvelopeDigestHex,
+            provenanceDigestHex: auditEvent.provenanceDigestHex,
+            issuedQROChallengeDigestHex: auditEvent.issuedQROChallengeDigestHex,
+            proofKind: SuperNeoProductProofKind.terminal.rawValue,
+            contextID: auditEvent.contextID,
+            statementDigestHex: auditEvent.statementDigestHex,
+            toolVersion: auditEvent.toolVersion,
+            releaseBuildDigestHex: auditEvent.releaseBuildDigestHex
+        )
+        XCTAssertThrowsProductIntegrationError(
+            try SuperNeoRevenueLogic.billableAcceptedVerificationEvent(
+                customerID: "customer-a",
+                auditEvent: terminalEvent,
+                rateCard: rateCard,
+                costBasis: costBasis
+            ),
+            containing: "only accepted numiseal-zk product verifications are billable"
+        )
     }
 
     func testLocalProductReplayIdentityBindsRecursiveCarryReplayMetadata() throws {
@@ -7152,10 +7311,28 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             trustedIssuerKeyDigestsHex: [publicKeyDigest],
             now: now
         )
-        let zkPolicy = SuperNeoTrustedNumiSealZKContext(
+        let defaultProductionPolicy = SuperNeoTrustedNumiSealZKContext(
             acceptedMetalModes: [artifact.metalMode],
             acceptedExecutionPolicies: [artifact.executionPolicy],
             allowedLeakageDigestsHex: [try artifact.requiredExecutionMetadata("zkLeakageDigest")]
+        )
+        XCTAssertEqual(defaultProductionPolicy.acceptedMetalModes, ["cpu-reference"])
+        XCTAssertEqual(defaultProductionPolicy.minimumSideChannelCertificationLevel, .productionSideChannelCleared)
+        XCTAssertThrowsProductIntegrationError(
+            try defaultProductionPolicy.validate(
+                artifact: artifact,
+                contextID: contextWithoutZKPolicy.contextID,
+                releaseBuildDigest: try contextWithoutZKPolicy.releaseBuildDigest,
+                certificate: nil
+            ),
+            containing: "certificate is required"
+        )
+
+        let zkPolicy = SuperNeoTrustedNumiSealZKContext(
+            acceptedMetalModes: [artifact.metalMode],
+            acceptedExecutionPolicies: [artifact.executionPolicy],
+            allowedLeakageDigestsHex: [try artifact.requiredExecutionMetadata("zkLeakageDigest")],
+            minimumSideChannelCertificationLevel: .correctnessOnly
         )
         let context = SuperNeoTrustedContextPayload(
             contextID: "ctx-numiseal-zk",
@@ -7262,8 +7439,7 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
         let productionRequiredPolicy = SuperNeoTrustedNumiSealZKContext(
             acceptedMetalModes: [artifact.metalMode],
             acceptedExecutionPolicies: [artifact.executionPolicy],
-            allowedLeakageDigestsHex: [try artifact.requiredExecutionMetadata("zkLeakageDigest")],
-            minimumSideChannelCertificationLevel: .productionSideChannelCleared
+            allowedLeakageDigestsHex: [try artifact.requiredExecutionMetadata("zkLeakageDigest")]
         )
         XCTAssertThrowsProductIntegrationError(
             try productionRequiredPolicy.validate(
@@ -7304,10 +7480,12 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             expectedShapeDigestHex: Digest256.hash("shape").hexString,
             expectedStatementDigestHex: Digest256.hash("statement").hexString,
             expectedTranscriptDomainDigestHex: Digest256.hash("domain").hexString,
-            acceptedProofKinds: [.terminal],
+            acceptedProofKinds: [.numiSealZK],
             maximumArtifactByteCount: 1024,
             allowedWorkloads: ["one-hot-vector-v1"],
             releaseBuildDigestHex: Digest256.hash("release").hexString,
+            numiSeal: numiSealTestPolicy(prefix: "group-writable"),
+            numiSealZK: numiSealZKTestPolicy(prefix: "group-writable", minimum: .correctnessOnly),
             keyRotation: SuperNeoTrustedContextKeyRotation(currentIssuerKeyDigestHex: publicKeyDigest)
         )
         let pack = SuperNeoSignedTrustedContextPack(
@@ -7341,10 +7519,12 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
             expectedShapeDigestHex: Digest256.hash("shape").hexString,
             expectedStatementDigestHex: Digest256.hash("statement").hexString,
             expectedTranscriptDomainDigestHex: Digest256.hash("domain").hexString,
-            acceptedProofKinds: [.terminal],
+            acceptedProofKinds: [.numiSealZK],
             maximumArtifactByteCount: 1024,
             allowedWorkloads: ["one-hot-vector-v1"],
             releaseBuildDigestHex: Digest256.hash("release").hexString,
+            numiSeal: numiSealTestPolicy(prefix: "symlink"),
+            numiSealZK: numiSealZKTestPolicy(prefix: "symlink", minimum: .correctnessOnly),
             keyRotation: SuperNeoTrustedContextKeyRotation(currentIssuerKeyDigestHex: publicKeyDigest)
         )
         let pack = SuperNeoSignedTrustedContextPack(
@@ -7409,6 +7589,29 @@ final class NumiSealCanonicalizationTests: SuperNeoTestCase {
                 line: line
             )
         }
+    }
+
+    private func numiSealTestPolicy(prefix: String) -> SuperNeoTrustedNumiSealContext {
+        SuperNeoTrustedNumiSealContext(
+            publicStatementDigestHex: Digest256.hash("\(prefix)-public-statement").hexString,
+            obligationRootHex: Digest256.hash("\(prefix)-obligation-root").hexString,
+            laneSummaryRootHex: Digest256.hash("\(prefix)-lane-summary-root").hexString,
+            aggregateDigestsHex: [Digest256.hash("\(prefix)-aggregate").hexString],
+            componentDigestRootHex: Digest256.hash("\(prefix)-component-root").hexString,
+            proofTranscriptDigestHex: Digest256.hash("\(prefix)-proof-transcript").hexString
+        )
+    }
+
+    private func numiSealZKTestPolicy(
+        prefix: String,
+        minimum: NumiSealZKSideChannelCertificationLevel = .productionSideChannelCleared
+    ) -> SuperNeoTrustedNumiSealZKContext {
+        SuperNeoTrustedNumiSealZKContext(
+            acceptedMetalModes: ["cpu-reference"],
+            acceptedExecutionPolicies: [NumiSealProvingExecutionPolicy.zkHighAssuranceCPU.rawValue],
+            allowedLeakageDigestsHex: [Digest256.hash("\(prefix)-leakage").hexString],
+            minimumSideChannelCertificationLevel: minimum
+        )
     }
 
     private func temporaryDirectory() throws -> URL {

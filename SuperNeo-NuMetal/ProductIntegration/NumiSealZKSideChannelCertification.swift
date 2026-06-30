@@ -37,20 +37,15 @@ public struct SuperNeoTrustedNumiSealZKContext: Codable, Equatable, Sendable {
     public init(
         acceptedZKModes: [String] = [NumiSealZK.maskedDigitTensorMode],
         acceptedSealModes: [String] = [NumiSealZK.sealMode],
-        acceptedMetalModes: [String] = [
-            "cpu-reference",
-            "secret-bearing-metal-cpu-redundant",
-            "secret-bearing-metal-accelerated"
-        ],
+        acceptedMetalModes: [String] = ["cpu-reference"],
         acceptedExecutionPolicies: [String] = [
             NumiSealProvingExecutionPolicy.zkHighAssuranceCPU.rawValue,
-            NumiSealProvingExecutionPolicy.zkRedundantMetal.rawValue,
             NumiSealProvingExecutionPolicy.defaultProduct.rawValue
         ],
         allowedLeakageDigestsHex: [String],
         allowedProofBodyVersions: [UInt16] = [NumiSealZKProof.bodyVersion],
         allowedMaskedResidualStatementVersions: [UInt16] = [NumiSealZKMaskedResidualStatement.version],
-        minimumSideChannelCertificationLevel: NumiSealZKSideChannelCertificationLevel = .correctnessOnly
+        minimumSideChannelCertificationLevel: NumiSealZKSideChannelCertificationLevel = .productionSideChannelCleared
     ) {
         self.acceptedZKModes = acceptedZKModes
         self.acceptedSealModes = acceptedSealModes

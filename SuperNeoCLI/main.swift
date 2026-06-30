@@ -1974,13 +1974,15 @@ private func makeProductArtifactMaterial(
     recursiveCarryParent: NumiSealProductRecursiveCarryParent?
 ) throws -> ProductArtifactMaterial {
     switch artifact {
-    case .demo(let artifact):
+    case .demo:
         guard recursiveCarryParent == nil else {
             throw SuperNeoProductIntegrationError.invalidRequest(
                 "recursive carry parent is only valid for typed-required NumiSeal product artifacts"
             )
         }
-        return try makeProductDemoArtifactMaterial(artifact, context: context)
+        throw SuperNeoProductIntegrationError.invalidRequest(
+            "product verification accepts only NumiSealZK product artifacts"
+        )
     case .numiSealProduct(let artifact):
         return try makeProductNumiSealProductArtifactMaterial(
             artifact,
@@ -1991,123 +1993,6 @@ private func makeProductArtifactMaterial(
             recursiveCarryParent: recursiveCarryParent
         )
     }
-}
-
-private func makeProductDemoArtifactMaterial(
-    _ artifact: DemoProofArtifact,
-    context: SuperNeoTrustedContextPayload
-) throws -> ProductArtifactMaterial {
-    let demoKind = try artifact.demoProofKind()
-    let productKind = try SuperNeoProductProofKind(envelopeKind: demoKind.envelopeKind)
-    guard context.accepts(productKind) else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("trusted context does not accept \(productKind.rawValue)")
-    }
-    guard context.allowedWorkloads.contains(artifact.workload) else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("artifact workload is not allowed by trusted context")
-    }
-    if let expectedPublicInputs = context.publicInputs {
-        guard artifact.publicInputs == expectedPublicInputs else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext("artifact public inputs do not match trusted context")
-        }
-    }
-    let proofBytes = try artifact.proofEnvelopeBytes()
-    _ = try ProofEnvelopeCTCOVerifier.verify(envelopeBytes: proofBytes)
-    let header = try ProofEnvelopeHeader.parsePrefix(from: proofBytes)
-    let envelopeContext: ProofEnvelopeContext
-    if demoKind == .fold {
-        try header.validateEnvelopeLength(totalByteCount: proofBytes.count)
-        envelopeContext = ProofEnvelopeContext(
-            profileID: SuperNeoParameterProfile.goldilocksPhi81.profileID,
-            kind: .foldReduction,
-            shapeDigest: try context.expectedShapeDigest,
-            statementDigest: try context.expectedStatementDigest,
-            verifierKeyDigest: try context.expectedVerifierKeyDigest,
-            transcriptDomain: try context.expectedTranscriptDomainDigest
-        )
-        guard header.ctcoContextBinder == envelopeContext.ctcoContextBinder else {
-            throw SuperNeoProductIntegrationError.missingExpectedContext(
-                "fold proof envelope CTCO context binder does not match trusted context"
-            )
-        }
-    } else {
-        let policy = try context.terminalPolicy()
-        envelopeContext = try policy.context(for: header, totalByteCount: proofBytes.count)
-    }
-    try validateArtifactEnvelopeHeader(try parseEnvelopeHeader(proofBytes), artifact: artifact, kind: demoKind)
-
-    let publicInput = try makePublicInput(from: artifact)
-    let expectedShapeDigest = try context.expectedShapeDigest
-    let expectedVerifierKeyDigest = try context.expectedVerifierKeyDigest
-    let expectedStatementDigest = try context.expectedStatementDigest
-    guard publicInput.shape.shapeDigest == expectedShapeDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("artifact shape digest does not match trusted context")
-    }
-    let keySeed = context.expectedKeySeedUTF8 ?? artifact.keySeedUTF8
-    let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(keySeed.utf8))
-    guard key.verifierKeyDigest == expectedVerifierKeyDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("regenerated verifier key digest does not match trusted context")
-    }
-    guard key.verifierKeyDigest.hexString == artifact.verifierKeyDigestHex else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("artifact verifier key digest does not match regenerated key")
-    }
-    let statement = CCSStatement(
-        shapeDigest: publicInput.shape.shapeDigest,
-        ccsInstances: publicInput.instances,
-        priorCEInstances: publicInput.priorClaims.map { CEInstance($0) }
-    )
-    guard statement.statementDigest == expectedStatementDigest else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("artifact statement digest does not match trusted context")
-    }
-    let verifier = SuperNeoCPUBackend().makeVerifier(key: key)
-    return ProductArtifactMaterial(
-        proofKind: productKind,
-        workload: artifact.workload,
-        carryMode: nil,
-        recursiveCarryReplayBinding: nil,
-        issuedQROChallengeDigest: nil,
-        qroChallengeDigest: nil,
-        proofEnvelopeBytes: proofBytes,
-        proofEnvelopeDigest: Digest256.hash(proofBytes),
-        statementDigest: statement.statementDigest,
-        verify: {
-            switch demoKind {
-            case .fold:
-                let result = verifier.reduceFoldEnvelope(
-                    publicInput: publicInput,
-                    proofBytes: proofBytes,
-                    context: envelopeContext
-                )
-                guard result.isReductionAccepted else {
-                    throw SuperNeoProductIntegrationError.verificationFailed(
-                        "fold reduction rejected: \(result.reason ?? "unknown reason")"
-                    )
-                }
-            case .terminal:
-                let result = verifier.verifyTerminalFoldEnvelope(
-                    publicInput: publicInput,
-                    proofBytes: proofBytes,
-                    context: envelopeContext
-                )
-                guard result.isValid else {
-                    throw SuperNeoProductIntegrationError.verificationFailed(
-                        "terminal proof rejected: \(result.reason ?? "unknown reason")"
-                    )
-                }
-            case .compressedTerminal:
-                let result = verifier.verifyCompressedTerminalFoldEnvelope(
-                    publicInput: publicInput,
-                    proofBytes: proofBytes,
-                    context: envelopeContext
-                )
-                guard result.isValid else {
-                    throw SuperNeoProductIntegrationError.verificationFailed(
-                        "compressed terminal proof rejected: \(result.reason ?? "unknown reason")"
-                    )
-                }
-            }
-            return .accepted
-        }
-    )
 }
 
 private func makeProductNumiSealProductArtifactMaterial(
@@ -2209,9 +2094,10 @@ private func makeProductNumiSealProductArtifactMaterial(
         expectedPolicy: try context.requiredNumiSealPolicy()
     )
     let publicInput = try makePublicInput(from: artifact)
-    let keySeed = context.expectedKeySeedUTF8 ?? artifact.keySeedUTF8
-    guard let keySeed else {
-        throw SuperNeoProductIntegrationError.missingExpectedContext("NumiSeal product verification requires key seed from context or artifact")
+    guard let keySeed = context.expectedKeySeedUTF8, !keySeed.isEmpty else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "NumiSeal product verification requires key seed from signed trusted context"
+        )
     }
     let key = try AjtaiCommitmentKey(columns: publicInput.shape.nRing, seed: Array(keySeed.utf8))
     guard key.verifierKeyDigest == expectedVerifierKeyDigest else {
@@ -2319,7 +2205,7 @@ private func appendProductAudit(
         SuperNeoAuditLogEvent(
             decision: decision,
             errorClass: error.map(productErrorClass),
-            errorMessage: error.map { String(describing: $0) },
+            errorMessage: error.map(productAuditErrorMessage),
             artifactDigestHex: artifactDigest?.hexString,
             proofEnvelopeDigestHex: proofEnvelopeDigest?.hexString,
             provenanceDigestHex: provenanceDigest?.hexString,
@@ -2366,6 +2252,10 @@ private func productErrorClass(_ error: Error) -> String {
     default:
         return "unexpected_error"
     }
+}
+
+private func productAuditErrorMessage(_ error: Error) -> String {
+    "redacted:\(productErrorClass(error))"
 }
 
 private func makePublicInput(from artifact: DemoProofArtifact) throws -> SuperNeoPublicFoldInput {
@@ -3038,12 +2928,19 @@ private func makeNumiSealProductTrustedContext(from artifact: NumiSealProductArt
     guard let laneIDValue = artifact.laneIDsUTF8.first, artifact.laneIDsUTF8.count == 1 else {
         throw CLIError.invalidArgument("NumiSeal product artifact must carry exactly one lane id")
     }
+    guard let sourceApplicationPath = artifact.sourceApplicationPathUTF8,
+          !sourceApplicationPath.isEmpty,
+          sourceApplicationPath != "unbound" else {
+        throw SuperNeoProductIntegrationError.missingExpectedContext(
+            "NumiSeal product verification requires bound source application provenance"
+        )
+    }
     return try NumiSealProductTrustedContext(
         workload: artifact.workload,
         bitCount: artifact.bitCount,
         publicInputs: artifact.publicInputs,
         workloadParameters: artifact.workloadParameters,
-        sourceApplicationPathUTF8: artifact.sourceApplicationPathUTF8 ?? "unbound",
+        sourceApplicationPathUTF8: sourceApplicationPath,
         laneID: NumiSealLaneID(laneIDValue)
     )
 }

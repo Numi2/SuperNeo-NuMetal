@@ -830,7 +830,7 @@ public struct SuperNeoRevocationFeedPayload: Codable, Equatable, Sendable {
         guard now <= validUntil else {
             throw SuperNeoProductIntegrationError.unauthorized("revocation feed has expired")
         }
-        guard issuedAt <= validUntil else {
+        guard issuedAt < validUntil else {
             throw SuperNeoProductIntegrationError.invalidRequest("revocation feed validity window is invalid")
         }
         if let contextRevocationIssuedAt = context.revocation.issuedAtUTC {
@@ -2230,6 +2230,11 @@ public extension SuperNeoTrustedContextPayload {
         }
         guard !acceptedProofKinds.isEmpty else {
             throw SuperNeoProductIntegrationError.invalidRequest("trusted context must accept at least one proof kind")
+        }
+        guard acceptedProofKinds == [.numiSealZK] else {
+            throw SuperNeoProductIntegrationError.invalidRequest(
+                "trusted product context must accept only numiseal-zk proof artifacts"
+            )
         }
         guard maximumArtifactByteCount > 0 else {
             throw SuperNeoProductIntegrationError.invalidRequest("trusted context artifact byte limit must be positive")

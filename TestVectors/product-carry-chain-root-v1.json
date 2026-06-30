@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "vectorID": "superneo-product-carry-chain-root-v1",
+  "layout": {
+    "baseDomainTag": "SUPERNEO/PRODUCT/CARRY_CHAIN/BASE/v1",
+    "stepDomainTag": "SUPERNEO/PRODUCT/CARRY_CHAIN/STEP/v1",
+    "version": 1,
+    "profileID": 1,
+    "selectedDepthPolicyDigest": "2fa137d677aa2ebac51cbb61d62ba4ad7498a53e492608bd7c7d0bf84bfa5f6b",
+    "fieldOrder": [
+      "domainTag",
+      "version",
+      "profileID",
+      "selectedDepthPolicyDigest",
+      "depthIndex",
+      "parentChainRoot",
+      "artifactDigest",
+      "sourceFoldEnvelopeDigest",
+      "productProofEnvelopeDigest",
+      "producerEnvelopeDigest",
+      "publicStatementDigest",
+      "consumerSessionDigest",
+      "contextRoot",
+      "replayRoot",
+      "typedCarryStatementDigest",
+      "recursiveRelationDigest",
+      "orderedPCDParentTupleRoot"
+    ]
+  },
+  "base": {
+    "depthIndex": 1,
+    "artifactDigest": "93fd8af0af0e7033a74a9ba9221055c396a2e83e0a7c524f47bfb31b8802c951",
+    "sourceFoldEnvelopeDigest": "bf05621d480d82a83b143c351543afcb9838599face2a77d3db8cc5eeda1fc3f",
+    "productProofEnvelopeDigest": "c861046d13adf9dc67b01e78ec59db3c4669583da328c10a2eb148b42c1f9949",
+    "producerEnvelopeDigest": "4fb8abb1663613fea7b64f78ec4d74289742a0373c8dfb1ec6ed14e4e2b0ebdc",
+    "publicStatementDigest": "1844891be436994711d5f3d372d45e500221f0a07095a7bd37eb1f52e0066541",
+    "rootDigest": "69c63b4548c17d72163967d619dabbfebc375d990322bb736d6153933d4d50d4"
+  },
+  "steps": [
+    {
+      "depthIndex": 1,
+      "parentChainRoot": "69c63b4548c17d72163967d619dabbfebc375d990322bb736d6153933d4d50d4",
+      "artifactDigest": "128e2b673236a3a297481e7bbca4fa2254c06e9839cd7260d72e3773c2ba9a1f",
+      "sourceFoldEnvelopeDigest": "645b0395d1c6d677e263a82f3709dcc8ec842514334de9fdf8a00e6e94a2caa8",
+      "productProofEnvelopeDigest": "dd49a357faa753f5a57b7adbd5427ef7f903d3c0d7879683d2ff80f9cd4bf04e",
+      "producerEnvelopeDigest": "05b114e9ef034862dffaa26559351703eecb7b14ef7731a36e998e1b8a708f9c",
+      "publicStatementDigest": "c778e14f7705846e09868e75c8e8d4062b1a156d5db2ceb3983b9241b0a7927d",
+      "consumerSessionDigest": "3bdad01c69d5119892492c2f15fab37a3d3a8623f3c7ea7b266905b9fd0f5678",
+      "contextRoot": "e5e01e9f83f41bbd85df3bd11c8a2c8f35164dc718c57cc2a982d2c87e796a4b",
+      "replayRoot": "80b1f677e70917e89066c860e4874a1561d39f8c2d526fde52feb685ef1cf11d",
+      "typedCarryStatementDigest": "2cb9d11bedd19468e2f6e9d8e90ed4b01ca8ddca88b0a55c7c01dec84b6847fe",
+      "recursiveRelationDigest": "38bba5d2ddb8b678031905152174a372a9225ad19c585d69919c0a3f5515dd99",
+      "orderedPCDParentTupleRoot": "f36d99babba7223ed258065fffbd9966889e1f26daf906381db45ba7cc88d22e",
+      "rootDigest": "afb88bd756caa27e31ddb673b7ff2332c2df0ff439494f2ac9c3123289ac1c79"
+    },
+    {
+      "depthIndex": 2,
+      "parentChainRoot": "afb88bd756caa27e31ddb673b7ff2332c2df0ff439494f2ac9c3123289ac1c79",
+      "artifactDigest": "6a6a0c6d7e5d0fd000e5ba1f6a427c47210bd2ae9aa16a2ddcd798e8f3babdbc",
+      "sourceFoldEnvelopeDigest": "cd437376aaab6c0b659afbed00564cce9a2f8f4d504a44f89996724a14afd8d3",
+      "productProofEnvelopeDigest": "15ae015ae35c14851a0d6160ac28b1c036ec9ea3c8c8fd0a3990b0b161527fd1",
+      "producerEnvelopeDigest": "babbb2c04323b54a7828e8edbbb1970ee0a9866afa9a03a4c948ecb696f941ee",
+      "publicStatementDigest": "2e9d36f8c3f37ca4674266996f88c8a8fa3c48952d3dff5dd89fda2ccf1b6607",
+      "consumerSessionDigest": "e4897d30c7f6d4a210e8629ea4ba72a6e9dfc6c3f3cba356468e92ac01dfdccd",
+      "contextRoot": "0d8525edbc862794a44b704fe2acf873df752323c4010d1faf543d36c7a134b1",
+      "replayRoot": "c6a28e323710216b04f1b37ce6a0de2bbd71c464ca6010c98d3667e506403e5a",
+      "typedCarryStatementDigest": "502f46d47e886a183506e888e904b3d20c64a6958f2e4e0436579e857fa4d399",
+      "recursiveRelationDigest": "77fda62193f7e04115e14b38a8d5335d9f32233afc87784d85d60b80cb543a79",
+      "orderedPCDParentTupleRoot": "ef1f44bcc838cad57c84c47c1bed022007cb43a5ddb28c0f68037609867cc764",
+      "rootDigest": "13f718153f4a9a35a7121593bb971e2d6f418678c9c20f92102eb7642252b732"
+    },
+    {
+      "depthIndex": 3,
+      "parentChainRoot": "13f718153f4a9a35a7121593bb971e2d6f418678c9c20f92102eb7642252b732",
+      "artifactDigest": "9d7bb2461be403eb74b07a5bc928bd193ab15e4bc49de72a3bae32cf61a64e3f",
+      "sourceFoldEnvelopeDigest": "cc2d628217a364ecdc4a540ee5162d9be683423a94a6b9b883c200555cd00e08",
+      "productProofEnvelopeDigest": "f0f6ead61eac3c0a348a35409e518fa7f48236e1e7fd6cf27a36f7bd6e3351e3",
+      "producerEnvelopeDigest": "f128bef00d696b4ea5cfc081c731c6dae6945920cad79ae3d93f76f0c24b62b2",
+      "publicStatementDigest": "6d85ef6bf58264daa06a0b956244c78bb3101dcce7a50b4a0af35f6a9e3730bd",
+      "consumerSessionDigest": "ef152a13643c67e259fcdc330e504734f5cca8a3c9ce0d1640323e5ea1434aa3",
+      "contextRoot": "7ea0bd3e354711cfb7c26b795d490b3604101123f5eed1796c1f91daedc23c41",
+      "replayRoot": "0d4a3b5b975459602033dd815214902720ccf986bdd9cd6f1b76b33657b3f113",
+      "typedCarryStatementDigest": "73f7511b385ff9427a4367df4610639f9ac879fd4a5a72b4a5ac7013fbb86531",
+      "recursiveRelationDigest": "e85ef04affed9426e35fb4a062089c449bda0e7da279341c9d82f743e109719d",
+      "orderedPCDParentTupleRoot": "7763bc6934e15d49bc99123f68b2295e95a848f0330f04c95c6195824b9b1e9f",
+      "rootDigest": "ba2b9e7921e3bdb03afe759547572ab833ad6fb1f6fb1190036b76983db60ed2"
+    }
+  ]
+}

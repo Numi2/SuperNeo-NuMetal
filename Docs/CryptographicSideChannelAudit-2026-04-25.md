@@ -37,7 +37,9 @@ without any side-channel certificate.
 Fix: `NumiSealZKSideChannelCertification.swift:419` now requires a certificate whenever
 the minimum is stricter than `correctness-only`, and `NumiSealZKSideChannelCertification.swift:484`
 rejects certificates below the configured minimum. Certificate validity windows now also
-require `issuedAt < validUntil`.
+require `issuedAt < validUntil`. The default trusted NumiSealZK context now accepts only
+`cpu-reference` Metal mode and requires `production-side-channel-cleared`; local
+development must opt down explicitly to `correctness-only`.
 
 ### F-02: Machine-readable evidence claimed production constant-time too early
 

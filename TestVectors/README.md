@@ -13,6 +13,8 @@ only.
 - `artifact.schema.json`: version-1 R1CS workload artifact schema.
 - `numiseal-product-artifact-v2.schema.json`: QRO-bound NumiSeal product
   artifact schema.
+- `product-carry-chain-root-v1.json`: canonical byte-layout vector for product
+  recursive carry-chain roots.
 - `one-hot-vector-*.json`: fold, terminal, and compressed-terminal one-hot
   proof artifacts.
 - `binary-addition-u8-*.json`: fold and terminal binary-addition proof

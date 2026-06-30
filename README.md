@@ -31,6 +31,9 @@ packet, or a production post-quantum security claim.
 - Product proving defaults to NumiSealZK with `zkMode =
   "masked-digit-tensor-v1"`.
 - Product artifacts must be `NumiSealProductArtifact.artifactVersion == 2`.
+- Product-control verification accepts only `proofKind = "numiseal-zk"`, requires
+  signed trusted context/provenance/QRO material, requires the trusted context
+  key seed, and rejects unbound source application context.
 - Product verification uses the explicit QRO public-coin architecture described
   in `Docs/QROProductArchitecture-2026-04-25.md`.
 - Artifact-selected transcript seeds and legacy self-described NumiSeal JSON
@@ -40,6 +43,9 @@ packet, or a production post-quantum security claim.
 - Product-context verification binds replay/audit state, CTCO roots, QRO/QROM
   transcript metadata, carry context, aggregate digests, and proof transcript
   digests.
+- Billable usage is intentionally separate from local proof acceptance. See
+  `Docs/BusinessRevenueModel.md` and
+  `SuperNeo-NuMetal/ProductIntegration/ProductRevenueLogic.swift`.
 
 ### Proof Compression And Performance Work
 
@@ -265,6 +271,11 @@ The smoke check is intentionally small. It verifies that the package builds,
 the fast unit slice passes, a tiny proof verifies, and checked JSON vectors
 still parse. It is not a release gate.
 
+For release-candidate checks, use `Scripts/check-release-candidate.sh`. It runs
+the smoke path, malformed-artifact fuzzing, attack tests, supported completion
+slice, and product/revenue regression tests. It is still not a substitute for
+external cryptographic review or hosted-operations validation.
+
 Historical policy, wording, release-readiness, QROM, conformance, benchmark,
 and evidence scripts live in `Scripts/legacy-gates/`. They are retained for
 reference, but they do not block development.
@@ -378,6 +389,8 @@ cryptographic and implementation review.
 - Fixed-14 source-fold decomposition as the default product path.
 - Product acceptance through artifact-selected Fiat-Shamir transcript seeds.
 - Self-described legacy NumiSeal JSON verification.
+- Product-control acceptance of fold, terminal, compressed-terminal, or
+  NumiSeal-terminal artifacts.
 - Silent promotion of optimized pay-per-bit, Metal, proof-compression, or
   concrete-hash lanes into high-assurance product defaults.
 - Production-security wording that is not backed by the checked evidence set.

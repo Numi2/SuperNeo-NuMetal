@@ -13,9 +13,11 @@ CLI product-control commands discover the operator profile from
 `SUPERNEO_OPERATOR_PROFILE` or `.superneo/operator-profile.json` when
 `--operator-profile` is omitted.
 
-If the signed context accepts `numiseal-zk`, certificates remain optional local
-context metadata for default `correctness-only` contexts.
-Stricter trusted contexts can require a certificate; when supplied, product
+Signed product contexts now accept only `numiseal-zk` proof artifacts. The
+default NumiSealZK policy is CPU-reference only and requires a
+`production-side-channel-cleared` certificate. Local development contexts can
+explicitly set `minimumSideChannelCertificationLevel = correctness-only`; those
+contexts are not production side-channel clearance. When supplied, product
 verification checks certificate context, leakage, proof policy, Metal workspace,
 and binding digests before acceptance.
 
@@ -39,6 +41,12 @@ SQLite ledger enforces `accepted_issued_qro_challenges` single-use acceptance
 even if a different artifact/provenance pair attempts to replay the same issued
 public coin.
 
+The SQLite ledger is a single-node local replay control. SaaS/API deployments
+must back `SuperNeoReplayLedger` with a strongly consistent hosted ledger or QRO
+consumption service so the same issued QRO cannot be accepted by two verifier
+nodes.
+
 The audit log records accepted and rejected decisions, including issued-QRO and
-QRO challenge digests when present, and exports chain status through
+QRO challenge digests when present. Rejection messages are redacted to stable
+error classes before they are written, and chain status is exported through
 `operationsStatus`.
